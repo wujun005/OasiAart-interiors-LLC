@@ -1,7 +1,12 @@
 {
   "files": [],
-  "references": [
-    { "path": "./tsconfig.app.json" },
-    { "path": "./tsconfig.node.json" }
-  ]
+  "compilerOptions": {
+    "baseUrl": ".", // 必须有
+    "paths": { "@/*": ["src/*"] }, // 必须有
+    "types": ["vite/client"],
+    "moduleResolution": "bundler", // TS5+Vite 推荐；老项目可用 "node"
+    "strict": true,
+    "skipLibCheck": true
+  },
+  "include": ["src/**/*.ts", "src/**/*.vue"] // 确保把 .tsx 包进去
 }
