@@ -1,5 +1,5 @@
 <template>
-  <footer class="home-footer">
+  <footer class="app-footer">
     <div class="footer-container">
       <!-- Column 1: Logo, Tagline, Social Icons -->
       <div class="footer-column footer-column-1">
@@ -59,7 +59,7 @@ import LogoIcon from '@/assets/images/homepage/logo.svg?component';
 </script>
 
 <style scoped lang="scss">
-.home-footer {
+.app-footer {
   background-color: #000000;
   color: #ffffff;
   height: 342px;

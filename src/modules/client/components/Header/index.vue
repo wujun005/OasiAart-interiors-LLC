@@ -1,5 +1,5 @@
 <template>
-  <header :class="['home-header', { scrolled: isScrolled }]">
+  <header :class="['app-header', { scrolled: isScrolled }]">
     <div class="header-container">
       <!-- Left section: Logo and Navigation -->
       <div class="header-left">
@@ -136,7 +136,7 @@ onUnmounted(() => {
 </script>
 
 <style scoped lang="scss">
-.home-header {
+.app-header {
   position: fixed;
   top: 0;
   left: 0;
@@ -303,7 +303,7 @@ onUnmounted(() => {
 }
 
 // 当 Header 滚动后背景变为白色时，调整文字和链接颜色
-.home-header.scrolled {
+.app-header.scrolled {
   border-top: none;
 
   .header-logo {
