@@ -1,0 +1,12 @@
+{
+  "message": {
+    "shouye_c": "shouye",
+    "account_login_c": "account login"
+  },
+  "el": {
+    "message": {
+      "hello": "Hello",
+      "welcome": "Welcome"
+    }
+  }
+}

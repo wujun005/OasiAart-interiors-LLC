@@ -1,418 +1,475 @@
 <template>
   <div class="auth-page">
-    <div class="auth-card">
-      <h2 class="auth-title">
-        {{ mode === 'login' ? '手机号登录' : '手机号注册' }}
-      </h2>
+    <div class="auth-page-left">
+      <img
+        src="https://img0.baidu.com/it/u=36026366,1309004716&fm=253&app=138&f=JPEG?w=800&h=1421"
+        alt=""
+      />
+    </div>
 
-      <div class="auth-tabs">
-        <button
-          type="button"
-          :class="['auth-tab', { active: mode === 'login' }]"
-          @click="mode = 'login'"
-        >
-          登录
-        </button>
-        <button
-          type="button"
-          :class="['auth-tab', { active: mode === 'register' }]"
-          @click="mode = 'register'"
-        >
-          注册
-        </button>
+    <div class="auth-page-right">
+      <div class="language" @click="switchLanguage">
+        <img src="../../../assets/images/language.png" alt="" />
       </div>
 
-      <form class="auth-form" @submit.prevent="handleSubmit">
-        <!-- 手机号 -->
-        <div class="field">
-          <label class="field-label">手机号码</label>
-          <div class="phone-row">
-            <select v-model="form.countryCode" class="country-select">
-              <option
-                v-for="item in countryList"
-                :key="item.code"
-                :value="item.dialCode"
-              >
-                {{ item.flag }} {{ item.name }} ({{ item.dialCode }})
-              </option>
-            </select>
-            <input
-              v-model="form.phone"
-              class="phone-input"
-              type="tel"
-              placeholder="请输入手机号，不含区号"
-            />
-          </div>
-        </div>
-
-        <!-- 验证码 -->
-        <div class="field">
-          <label class="field-label">短信验证码</label>
-          <div class="code-row">
-            <input
-              v-model="form.code"
-              class="code-input"
-              type="text"
-              maxlength="6"
-              placeholder="请输入验证码"
-            />
-            <button
-              type="button"
-              class="code-btn"
-              :disabled="countdown > 0 || sendingCode"
-              @click="handleSendCode"
-            >
-              <span v-if="countdown > 0">{{ countdown }}s 后重发</span>
-              <span v-else>获取验证码</span>
-            </button>
-          </div>
-        </div>
-
-        <button
-          class="submit-btn"
-          type="submit"
-          :disabled="submitting"
+      <div class="languages" v-if="isShowLanguage">
+        <div
+          @click="changeLanguage('en')"
+          class="language-item"
+          style="border-bottom: 1px solid #0000000f"
         >
-          {{ mode === 'login' ? '登录' : '注册并登录' }}
-        </button>
-      </form>
+          English
+        </div>
+        <div @click="changeLanguage('zh')" class="language-item">中文</div>
+      </div>
 
-      <p class="tips">
-        登录即表示你已阅读并同意
-        <a href="#" target="_blank">《用户协议》</a>
-        和
-        <a href="#" target="_blank">《隐私政策》</a>
-      </p>
+      <div class="auth-page-right-title" v-if="status === 'login'">
+        {{ $t('message.account_login_c') }}
+      </div>
+
+      <div v-if="status === 'login'" class="auth-page-right-tab">
+        <div
+          class="auth-page-right-tab-item"
+          :class="{ active: active === '0' }"
+          @click="active = '0'"
+        >
+          账号密码登录
+        </div>
+        <div
+          class="auth-page-right-tab-item"
+          :class="{ active: active === '1' }"
+          @click="active = '1'"
+        >
+          手机快速登录
+        </div>
+      </div>
+
+      <div class="auth-page-right-form" v-if="status === 'login'">
+        <!-- 账号密码登录 -->
+        <el-form
+          v-if="active === '0'"
+          :model="pwdForm"
+          label-width="auto"
+          style="max-width: 600px"
+        >
+          <el-form-item
+            label="账号"
+            label-position="top"
+            style="margin-bottom: 30px"
+          >
+            <el-input v-model="pwdForm.account" />
+          </el-form-item>
+
+          <div class="forgot-password" @click="goResetPassword">忘记密码?</div>
+
+          <el-form-item label="密码" label-position="top">
+            <el-input
+              v-model="pwdForm.password"
+              type="password"
+              show-password
+            />
+          </el-form-item>
+
+          <el-form-item>
+            <div class="btn" @click="loginByPassword">登录</div>
+          </el-form-item>
+
+          <el-form-item>
+            <div class="register" @click="status = 'register'">
+              没有账号，<span class="register-text">立即注册</span>
+            </div>
+          </el-form-item>
+        </el-form>
+
+        <!-- 手机号 + 验证码登录 -->
+        <el-form
+          v-else
+          :model="smsForm"
+          label-width="auto"
+          style="max-width: 600px"
+        >
+          <el-form-item
+            label="手机号"
+            label-position="top"
+            style="margin-bottom: 30px"
+          >
+            <el-input
+              v-model="smsForm.phone"
+              maxlength="11"
+              placeholder="请输入手机号"
+            />
+          </el-form-item>
+
+          <el-form-item label="验证码" label-position="top">
+            <div class="code-row">
+              <el-input
+                v-model="smsForm.code"
+                maxlength="6"
+                placeholder="请输入验证码"
+              />
+              <div
+                class="code-btn"
+                :class="{ disabled: codeCountdown > 0 || isSendingCode }"
+                @click="sendCode"
+              >
+                {{ codeBtnText }}
+              </div>
+            </div>
+          </el-form-item>
+
+          <el-form-item>
+            <div class="btn" @click="loginBySms">登录</div>
+          </el-form-item>
+
+          <el-form-item>
+            <div class="register" @click="status = 'register'">
+              没有账号，<span class="register-text">立即注册</span>
+            </div>
+          </el-form-item>
+        </el-form>
+      </div>
+      <div v-else :mode="status" class="auth-page-right-form">
+        <ResetPasswordForm
+          @back="status = 'login'"
+          @success="status = 'login'"
+        />
+      </div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onBeforeUnmount } from 'vue'
+import { ref, computed, onBeforeUnmount } from 'vue';
+import { ElMessage } from 'element-plus';
+import { login } from '@/modules/client/api';
+import ResetPasswordForm from '@/modules/client/components/ResetPasswordForm/index.vue';
+import router from '../router';
+import { useI18n } from 'vue-i18n';
 
-type Mode = 'login' | 'register'
-
-interface FormState {
-  countryCode: string
-  phone: string
-  code: string
+const { locale } = useI18n();
+/**
+ * TODO: 把下面两个函数替换成你真实的接口调用
+ * 例如：
+ *   import { sendLoginSmsCode, smsLogin, pwdLogin } from '@/modules/client/api'
+ */
+async function sendLoginSmsCodeApi(phone: string) {
+  // return sendLoginSmsCode({ phone })
+  console.log('send sms code =>', phone);
+  return true;
+}
+async function smsLoginApi(payload: { phone: string; code: string }) {
+  // return smsLogin(payload)
+  console.log('sms login =>', payload);
+  return true;
+}
+async function pwdLoginApi(payload: { name: string; password: string }) {
+  // return pwdLogin(payload)
+  console.log('pwd login =>', payload);
+  return true;
 }
 
-interface CountryOption {
-  code: string
-  name: string
-  dialCode: string
-  flag: string
-}
+const active = ref<'0' | '1'>('0');
+const isShowLanguage = ref(false);
 
-// 登录模式：登录 / 注册
-const mode = ref<Mode>('login')
+const pwdForm = ref({
+  account: '',
+  password: '',
+});
 
-const form = ref<FormState>({
-  countryCode: '+86',
+const smsForm = ref({
   phone: '',
   code: '',
-})
+});
 
-// 简单列几个国家
-const countryList: CountryOption[] = [
-  { code: 'CN', name: '中国大陆', dialCode: '+86', flag: '🇨🇳' },
-  { code: 'HK', name: '中国香港', dialCode: '+852', flag: '🇭🇰' },
-  { code: 'MO', name: '中国澳门', dialCode: '+853', flag: '🇲🇴' },
-  { code: 'TW', name: '中国台湾', dialCode: '+886', flag: '🇹🇼' },
-  { code: 'US', name: '美国', dialCode: '+1', flag: '🇺🇸' },
-  { code: 'GB', name: '英国', dialCode: '+44', flag: '🇬🇧' },
-  { code: 'JP', name: '日本', dialCode: '+81', flag: '🇯🇵' },
-]
+const status = ref('login');
 
-const countdown = ref(0)
-const timerId = ref<number | null>(null)
-const sendingCode = ref(false)
-const submitting = ref(false)
+// 验证码倒计时
+const isSendingCode = ref(false);
+const codeCountdown = ref(0);
+let countdownTimer: number | null = null;
 
-function normalizePhone(): string {
-  // 只保留数字，后端再做更严格校验
-  return form.value.phone.replace(/\D/g, '')
-}
+const codeBtnText = computed(() => {
+  if (isSendingCode.value) return '发送中...';
+  if (codeCountdown.value > 0) return `${codeCountdown.value}s后重试`;
+  return '获取验证码';
+});
 
-function validatePhone(): boolean {
-  const phone = normalizePhone()
-  if (!phone) {
-    window.alert('请输入手机号')
-    return false
+const switchLanguage = () => {
+  isShowLanguage.value = !isShowLanguage.value;
+};
+
+const changeLanguage = (lang: string) => {
+  switchLanguage();
+  locale.value = lang;
+};
+
+// 简单手机号校验（中国大陆 11 位）
+const isValidCNPhone = (phone: string) => /^1[3-9]\d{9}$/.test(phone);
+
+const startCountdown = (sec = 60) => {
+  // 清理旧定时器
+  if (countdownTimer) {
+    window.clearInterval(countdownTimer);
+    countdownTimer = null;
   }
-  if (!form.value.countryCode) {
-    window.alert('请选择区号')
-    return false
-  }
-  // 简单长度校验（6-15 位），真正规则建议后端再校验一次
-  if (phone.length < 6 || phone.length > 15) {
-    window.alert('手机号格式不太正确')
-    return false
-  }
-  return true
-}
 
-function startCountdown(seconds: number) {
-  countdown.value = seconds
-  if (timerId.value) {
-    window.clearInterval(timerId.value)
-  }
-  timerId.value = window.setInterval(() => {
-    countdown.value -= 1
-    if (countdown.value <= 0 && timerId.value) {
-      window.clearInterval(timerId.value)
-      timerId.value = null
+  codeCountdown.value = sec;
+  countdownTimer = window.setInterval(() => {
+    codeCountdown.value -= 1;
+    if (codeCountdown.value <= 0) {
+      codeCountdown.value = 0;
+      if (countdownTimer) {
+        window.clearInterval(countdownTimer);
+        countdownTimer = null;
+      }
     }
-  }, 1000)
-}
+  }, 1000);
+};
 
-async function handleSendCode() {
-  if (!validatePhone()) return
-  if (countdown.value > 0 || sendingCode.value) return
+const sendCode = async () => {
+  if (isSendingCode.value || codeCountdown.value > 0) return;
 
-  sendingCode.value = true
-  try {
-    const payload = {
-      countryCode: form.value.countryCode,
-      phone: normalizePhone(),
-      scene: mode.value, // login / register，看后端要不要区分
-    }
-    // TODO: 换成你自己的 axios / fetch 请求
-    await fakeSendCodeApi(payload)
-
-    startCountdown(60)
-    window.alert('验证码已发送，请注意查收')
-  } catch (error) {
-    console.error(error)
-    window.alert('发送验证码失败，请稍后重试')
-  } finally {
-    sendingCode.value = false
-  }
-}
-
-async function handleSubmit() {
-  if (!validatePhone()) return
-  if (!form.value.code.trim()) {
-    window.alert('请输入验证码')
-    return
-  }
-
-  submitting.value = true
-  const payload = {
-    countryCode: form.value.countryCode,
-    phone: normalizePhone(),
-    code: form.value.code.trim(),
+  const phone = smsForm.value.phone.trim();
+  if (!isValidCNPhone(phone)) {
+    ElMessage.warning('请输入正确的手机号');
+    return;
   }
 
   try {
-    if (mode.value === 'login') {
-      await fakeLoginApi(payload)
-    } else {
-      await fakeRegisterApi(payload)
-    }
-    window.alert('登录成功')
-    // TODO: 在这里保存 token / 用户信息，跳转到首页等
-  } catch (error) {
-    console.error(error)
-    window.alert('操作失败，请稍后重试')
+    isSendingCode.value = true;
+    await sendLoginSmsCodeApi(phone);
+    ElMessage.success('验证码已发送');
+    startCountdown(60);
+  } catch (e) {
+    console.error(e);
+    ElMessage.error('验证码发送失败，请稍后重试');
   } finally {
-    submitting.value = false
+    isSendingCode.value = false;
   }
-}
+};
 
-// ------- 下面是占位的假接口，你用的时候换成真实接口即可 -------
+const loginByPassword = async () => {
+  const account = pwdForm.value.account.trim();
+  const password = pwdForm.value.password.trim();
 
-async function fakeSendCodeApi(data: {
-  countryCode: string
-  phone: string
-  scene: Mode
-}) {
-  console.log('send sms code', data)
-  return new Promise<void>((resolve) => {
-    setTimeout(() => resolve(), 500)
-  })
-}
+  if (!account) return ElMessage.warning('请输入账号');
+  if (!password) return ElMessage.warning('请输入密码');
 
-async function fakeLoginApi(data: {
-  countryCode: string
-  phone: string
-  code: string
-}) {
-  console.log('login with phone', data)
-  return new Promise<void>((resolve) => {
-    setTimeout(() => resolve(), 500)
-  })
-}
+  try {
+    await login({ account, password, rememberMe: true });
+    ElMessage.success('登录成功');
+    router.push('/');
+    // TODO: 登录成功后的跳转/存 token
+  } catch (e) {
+    console.error(e);
+    ElMessage.error('登录失败，请检查账号或密码');
+  }
+};
 
-async function fakeRegisterApi(data: {
-  countryCode: string
-  phone: string
-  code: string
-}) {
-  console.log('register with phone', data)
-  return new Promise<void>((resolve) => {
-    setTimeout(() => resolve(), 500)
-  })
-}
+const loginBySms = async () => {
+  console.log('loginBySms', status);
+  const phone = smsForm.value.phone.trim();
+  const code = smsForm.value.code.trim();
+
+  if (!isValidCNPhone(phone)) return ElMessage.warning('请输入正确的手机号');
+  if (!code || code.length < 4) return ElMessage.warning('请输入正确的验证码');
+
+  try {
+    await smsLoginApi({ phone, code });
+    ElMessage.success('登录成功');
+    // TODO: 登录成功后的跳转/存 token
+  } catch (e) {
+    console.error(e);
+    ElMessage.error('登录失败，请检查验证码');
+  }
+};
+
+// 重置密码
+const goResetPassword = () => {
+  status.value = 'reset';
+};
 
 onBeforeUnmount(() => {
-  if (timerId.value) {
-    window.clearInterval(timerId.value)
+  if (countdownTimer) {
+    window.clearInterval(countdownTimer);
+    countdownTimer = null;
   }
-})
+});
 </script>
 
 <style scoped>
 .auth-page {
-  min-height: 100vh;
   display: flex;
+  padding: 30px;
+  box-sizing: border-box;
   align-items: center;
-  justify-content: center;
-  background: #f5f5f5;
-  padding: 24px;
-  box-sizing: border-box;
+  background: #fff;
+  overflow: hidden;
+  .auth-page-left {
+    width: calc(50% - 30px);
+    height: calc(100vh - 60px);
+    img {
+      width: 100%;
+      height: 100%;
+    }
+  }
+  .auth-page-right {
+    width: 50%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    .language {
+      width: 24px;
+      height: 24px;
+      background: #d8d8d800;
+      position: absolute;
+      right: 30px;
+      top: 30px;
+      cursor: pointer;
+      img {
+        width: 19px;
+        height: 19px;
+      }
+    }
+    .languages {
+      background: #0000000a;
+      border: 1px solid #00000026;
+      width: 207px;
+      padding: 0px 20px;
+      box-sizing: border-box;
+      position: absolute;
+      top: 52px;
+      right: 35px;
+      border-radius: 6px;
+      .language-item {
+        font-weight: 500;
+        font-size: 16px;
+        color: #000000;
+        line-height: 40px;
+        cursor: pointer;
+        &:hover {
+          /* background: #0000000a; */
+          color: #999;
+        }
+      }
+    }
+    .auth-page-right-title {
+      width: 120px;
+      height: 42px;
+      font-family: PingFangSC-Medium;
+      font-weight: 500;
+      font-size: 30px;
+      color: #000000;
+      letter-spacing: 0;
+      text-align: center;
+      margin-bottom: 60px;
+    }
+    .auth-page-right-tab {
+      display: flex;
+      width: 552px;
+      .auth-page-right-tab-item {
+        width: 109px;
+        text-align: left;
+        font-family: AlibabaPuHuiTi_3_75_SemiBold;
+        font-weight: 600;
+        font-size: 18px;
+        color: #796f51;
+        line-height: 46px;
+        position: relative;
+        margin-right: 40px;
+        &.active {
+          border-bottom: 2px solid #796f51;
+        }
+      }
+    }
+    .auth-page-right-form {
+      width: 552px;
+      margin-top: 40px;
+      position: relative;
+
+      .btn {
+        width: 552px;
+        height: 56px;
+        background: #796f51;
+        border-radius: 6px;
+        font-weight: 400;
+        font-size: 18px;
+        color: #ffffff;
+        letter-spacing: 0;
+        text-align: center;
+        line-height: 56px;
+        cursor: pointer;
+      }
+
+      .register {
+        color: #00000080;
+        font-size: 18px;
+        font-face: PingFangSC;
+        font-weight: 400;
+        line-height: 0;
+        letter-spacing: 0;
+        text-align: right;
+        width: 100%;
+        cursor: pointer;
+        margin-top: 15px;
+        .register-text {
+          color: #000000;
+        }
+      }
+
+      .forgot-password {
+        min-width: 90px;
+        height: 25px;
+        font-family: PingFangSC-Regular;
+        font-weight: 400;
+        font-size: 18px;
+        color: #796f51;
+        letter-spacing: 0;
+        text-align: right;
+        position: absolute;
+        top: 110px;
+        right: 5px;
+        cursor: pointer;
+      }
+
+      /* 新增：验证码输入行 */
+      .code-row {
+        width: 552px;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+      }
+      .code-btn {
+        min-width: 140px;
+        height: 56px;
+        border-radius: 6px;
+        border: 1px solid #796f51;
+        color: #796f51;
+        font-size: 16px;
+        line-height: 56px;
+        text-align: center;
+        cursor: pointer;
+        user-select: none;
+        &.disabled {
+          opacity: 0.6;
+          cursor: not-allowed;
+        }
+      }
+    }
+  }
 }
 
-.auth-card {
-  width: 100%;
-  max-width: 420px;
-  border-radius: 16px;
-  padding: 32px 28px 24px;
-  box-sizing: border-box;
-  background: #ffffff;
-  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.06);
-}
-
-.auth-title {
-  margin: 0 0 16px;
-  font-size: 22px;
-  font-weight: 600;
-  text-align: center;
-}
-
-.auth-tabs {
-  display: inline-flex;
-  border-radius: 999px;
-  padding: 4px;
-  background: #f5f5f5;
-  margin: 0 auto 24px;
-}
-
-.auth-tab {
-  border: none;
-  outline: none;
-  padding: 6px 20px;
-  border-radius: 999px;
-  font-size: 14px;
-  cursor: pointer;
-  background: transparent;
-}
-
-.auth-tab.active {
-  background: #165dff;
-  color: #ffffff;
-}
-
-.auth-form {
-  display: flex;
-  flex-direction: column;
-  gap: 18px;
-}
-
-.field {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.field-label {
-  font-size: 14px;
-  color: #555555;
-}
-
-.phone-row {
-  display: flex;
-  gap: 8px;
-}
-
-.country-select {
-  width: 140px;
-  padding: 8px 10px;
-  border-radius: 8px;
-  border: 1px solid #d9d9d9;
-  font-size: 14px;
-  background: #ffffff;
-  box-sizing: border-box;
-}
-
-.phone-input {
-  flex: 1;
-  padding: 8px 10px;
-  border-radius: 8px;
-  border: 1px solid #d9d9d9;
-  font-size: 14px;
-  box-sizing: border-box;
-}
-
-.code-row {
-  display: flex;
-  gap: 8px;
-}
-
-.code-input {
-  flex: 1;
-  padding: 8px 10px;
-  border-radius: 8px;
-  border: 1px solid #d9d9d9;
-  font-size: 14px;
-  box-sizing: border-box;
-}
-
-.code-btn {
-  white-space: nowrap;
-  padding: 8px 12px;
-  border-radius: 8px;
-  border: none;
-  cursor: pointer;
-  font-size: 13px;
-  box-sizing: border-box;
-  background: #165dff;
-  color: #ffffff;
-}
-
-.code-btn:disabled {
-  cursor: not-allowed;
-  opacity: 0.6;
-}
-
-.submit-btn {
-  margin-top: 6px;
-  width: 100%;
-  padding: 10px 12px;
-  border-radius: 999px;
-  border: none;
-  cursor: pointer;
-  font-size: 15px;
+/deep/ .el-form-item__label {
+  font-size: 18px;
+  color: #000000;
   font-weight: 500;
-  background: #165dff;
-  color: #ffffff;
 }
-
-.submit-btn:disabled {
-  opacity: 0.7;
-  cursor: not-allowed;
+/deep/ .el-input {
+  height: 56px;
 }
-
-.tips {
-  margin-top: 16px;
-  font-size: 12px;
-  color: #888888;
-  text-align: center;
-}
-
-.tips a {
-  color: #165dff;
-  text-decoration: none;
+/deep/ .el-input__inner {
+  height: 50px;
+  line-height: 50px;
+  font-size: 20px;
 }
 </style>

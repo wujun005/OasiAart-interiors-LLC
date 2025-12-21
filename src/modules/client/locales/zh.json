@@ -1,0 +1,12 @@
+{
+  "message": {
+    "shouye_c": "首页",
+    "account_login_c": "账户登录"
+  },
+  "el": {
+    "message": {
+      "hello": "你好",
+      "welcome": "欢迎"
+    }
+  }
+}
