@@ -17,7 +17,16 @@
         "about": "关于我们",
         "orderHistory": "历史订单"
       },
-      "phone": "050-1234567"
+      "language": "中文",
+      "phone": "050-1234567",
+      "search": {
+        "placeholder": "搜索...",
+        "button": "搜索"
+      },
+      "languages": {
+        "zh": "中文",
+        "en": "English"
+      }
     },
     "hero": {
       "mainTitle": "一站式服务的",

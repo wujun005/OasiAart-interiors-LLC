@@ -17,7 +17,16 @@
         "about": "About Us",
         "orderHistory": "Order History"
       },
-      "phone": "050-1234567"
+      "language": "中文",
+      "phone": "050-1234567",
+      "search": {
+        "placeholder": "Search...",
+        "button": "Search"
+      },
+      "languages": {
+        "zh": "中文",
+        "en": "English"
+      }
     },
     "hero": {
       "mainTitle": "One-stop Service for",

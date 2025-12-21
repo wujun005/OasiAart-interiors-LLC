@@ -65,14 +65,24 @@
     width: 100%;
     max-width: 1920px;
     margin: 0 auto;
-    padding: 0 2rem;
-    // padding-top 已由 homepage-content 统一处理
+    padding: 0;
+    height: 100%;
+    display: flex;
+    align-items: flex-start;
+    justify-content: flex-start;
+    padding-left: 200px; // 左边缘距离内容区域左边缘 200px
+    padding-top: 274px; // 顶部距离 Hero 区域顶部 274px
+    padding-bottom: 366px; // 内容区域底部距离 Hero 区域底部 366px
+    box-sizing: border-box;
   }
 
   .hero-text {
-    max-width: 600px;
+    max-width: 704px; // 904px - 200px = 704px（文字块宽度）
     color: #ffffff;
-    padding-left: 2rem;
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    justify-content: space-between;
   }
 
   .hero-main-title {
@@ -104,6 +114,8 @@
     background-color: transparent;
     color: #ffffff;
     transition: all 0.3s ease;
+    align-self: flex-start;
+    margin-top: auto; // 使用 flex 布局将按钮推到底部
 
     &:hover {
       background-color: #ffffff;
