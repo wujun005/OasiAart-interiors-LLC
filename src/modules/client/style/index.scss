@@ -2,6 +2,11 @@ html,
 body {
   margin: 0;
   padding: 0;
-  height: 100%; /* 让页面的高度为 100% */
-  overflow: hidden; /* 防止滚动条 */
+  height: 100%;
+  // overflow: hidden; /* 注释掉，允许页面滚动 */
+}
+
+#app {
+  width: 100%;
+  min-height: 100vh;
 }
