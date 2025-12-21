@@ -93,6 +93,7 @@
     "footer": {
       "tagline": "A professional company dedicated to providing comprehensive cleaning and maintenance services for families and businesses.",
       "workingHours": {
+        "title": "Working Hours",
         "weekday": "Monday - Friday 9:00AM - 5:00PM",
         "saturday": "Saturday 10:00AM - 6:00PM",
         "sunday": "Sunday Closed"
