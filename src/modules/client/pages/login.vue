@@ -45,8 +45,13 @@
       </div>
 
       <div class="auth-page-right-form" v-if="status === 'login'">
+        <LoginByPassword
+          v-if="active === '0'"
+          @login="debouncedLoginByPassword"
+        />
+        <LoginBySms v-else @login="debouncedLoginBySms" />
         <!-- 账号密码登录 -->
-        <el-form
+        <!-- <el-form
           v-if="active === '0'"
           :model="pwdForm"
           label-width="auto"
@@ -71,7 +76,7 @@
           </el-form-item>
 
           <el-form-item>
-            <div class="btn" @click="loginByPassword">登录</div>
+            <div class="btn" @click="debouncedLoginByPassword">登录</div>
           </el-form-item>
 
           <el-form-item>
@@ -79,10 +84,10 @@
               没有账号，<span class="register-text">立即注册</span>
             </div>
           </el-form-item>
-        </el-form>
+        </el-form> -->
 
         <!-- 手机号 + 验证码登录 -->
-        <el-form
+        <!-- <el-form
           v-else
           :model="smsForm"
           label-width="auto"
@@ -94,7 +99,7 @@
             style="margin-bottom: 30px"
           >
             <el-input
-              v-model="smsForm.phone"
+              v-model="smsForm.account"
               maxlength="11"
               placeholder="请输入手机号"
             />
@@ -103,7 +108,7 @@
           <el-form-item label="验证码" label-position="top">
             <div class="code-row">
               <el-input
-                v-model="smsForm.code"
+                v-model="smsForm.password"
                 maxlength="6"
                 placeholder="请输入验证码"
               />
@@ -118,7 +123,7 @@
           </el-form-item>
 
           <el-form-item>
-            <div class="btn" @click="loginBySms">登录</div>
+            <div class="btn" @click="debouncedLoginBySms">登录</div>
           </el-form-item>
 
           <el-form-item>
@@ -126,7 +131,7 @@
               没有账号，<span class="register-text">立即注册</span>
             </div>
           </el-form-item>
-        </el-form>
+        </el-form> -->
       </div>
       <div v-else :mode="status" class="auth-page-right-form">
         <ResetPasswordForm
@@ -141,31 +146,17 @@
 <script setup lang="ts">
 import { ref, computed, onBeforeUnmount } from 'vue';
 import { ElMessage } from 'element-plus';
-import { login } from '@/modules/client/api';
+import { login, sendSmsCode } from '@/modules/client/api';
 import ResetPasswordForm from '@/modules/client/components/ResetPasswordForm/index.vue';
-import router from '../router';
 import { useI18n } from 'vue-i18n';
+import { loginSuccess } from '@/modules/client/utils';
+import LoginByPassword from '@/modules/client/components/LoginByPassword/index.vue';
+import LoginBySms from '@/modules/client/components/LoginBySms/index.vue';
 
 const { locale } = useI18n();
-/**
- * TODO: 把下面两个函数替换成你真实的接口调用
- * 例如：
- *   import { sendLoginSmsCode, smsLogin, pwdLogin } from '@/modules/client/api'
- */
-async function sendLoginSmsCodeApi(phone: string) {
-  // return sendLoginSmsCode({ phone })
-  console.log('send sms code =>', phone);
-  return true;
-}
-async function smsLoginApi(payload: { phone: string; code: string }) {
+async function smsLoginApi(payload: { account: string; password: string }) {
   // return smsLogin(payload)
-  console.log('sms login =>', payload);
-  return true;
-}
-async function pwdLoginApi(payload: { name: string; password: string }) {
-  // return pwdLogin(payload)
-  console.log('pwd login =>', payload);
-  return true;
+  return login(payload);
 }
 
 const active = ref<'0' | '1'>('0');
@@ -177,8 +168,8 @@ const pwdForm = ref({
 });
 
 const smsForm = ref({
-  phone: '',
-  code: '',
+  account: '',
+  password: '',
 });
 
 const status = ref('login');
@@ -201,6 +192,20 @@ const switchLanguage = () => {
 const changeLanguage = (lang: string) => {
   switchLanguage();
   locale.value = lang;
+};
+
+const debounceLeading = <T extends (...args: any[]) => unknown>(
+  fn: T,
+  delay = 500
+) => {
+  let timer: number | null = null;
+  return (...args: Parameters<T>) => {
+    if (timer) return;
+    fn(...args);
+    timer = window.setTimeout(() => {
+      timer = null;
+    }, delay);
+  };
 };
 
 // 简单手机号校验（中国大陆 11 位）
@@ -229,7 +234,7 @@ const startCountdown = (sec = 60) => {
 const sendCode = async () => {
   if (isSendingCode.value || codeCountdown.value > 0) return;
 
-  const phone = smsForm.value.phone.trim();
+  const phone = smsForm.value.account.trim();
   if (!isValidCNPhone(phone)) {
     ElMessage.warning('请输入正确的手机号');
     return;
@@ -237,7 +242,7 @@ const sendCode = async () => {
 
   try {
     isSendingCode.value = true;
-    await sendLoginSmsCodeApi(phone);
+    await sendSmsCode({ phone });
     ElMessage.success('验证码已发送');
     startCountdown(60);
   } catch (e) {
@@ -248,17 +253,14 @@ const sendCode = async () => {
   }
 };
 
-const loginByPassword = async () => {
-  const account = pwdForm.value.account.trim();
-  const password = pwdForm.value.password.trim();
+const loginByPassword = async ({ account, password }: { account: string; password: string }) => {
 
   if (!account) return ElMessage.warning('请输入账号');
   if (!password) return ElMessage.warning('请输入密码');
 
   try {
-    await login({ account, password, rememberMe: true });
-    ElMessage.success('登录成功');
-    router.push('/');
+    const result = await login({ account, password, rememberMe: true });
+    loginSuccess(result);
     // TODO: 登录成功后的跳转/存 token
   } catch (e) {
     console.error(e);
@@ -266,16 +268,14 @@ const loginByPassword = async () => {
   }
 };
 
-const loginBySms = async () => {
+const loginBySms = async ({ account, password }: { account: string; password: string }) => {
   console.log('loginBySms', status);
-  const phone = smsForm.value.phone.trim();
-  const code = smsForm.value.code.trim();
 
-  if (!isValidCNPhone(phone)) return ElMessage.warning('请输入正确的手机号');
-  if (!code || code.length < 4) return ElMessage.warning('请输入正确的验证码');
+  if (!isValidCNPhone(account)) return ElMessage.warning('请输入正确的手机号');
+  if (!password || password.length < 6) return ElMessage.warning('请输入正确的验证码');
 
   try {
-    await smsLoginApi({ phone, code });
+    await smsLoginApi({ account, password: password });
     ElMessage.success('登录成功');
     // TODO: 登录成功后的跳转/存 token
   } catch (e) {
@@ -284,6 +284,13 @@ const loginBySms = async () => {
   }
 };
 
+const debouncedLoginByPassword = debounceLeading((...args) => {
+  console.log('debouncedLoginByPassword', args);
+  loginByPassword(...args);
+}, 800);
+const debouncedLoginBySms = debounceLeading((...args) => {
+  loginBySms(...args);
+}, 800);
 // 重置密码
 const goResetPassword = () => {
   status.value = 'reset';

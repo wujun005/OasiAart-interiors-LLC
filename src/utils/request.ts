@@ -26,6 +26,7 @@ function isApiEnvelope(value: unknown): value is ApiEnvelope {
   return typeof maybe.code === 'number';
 }
 
+// 处理错误，主要是用来处理axios请求错误
 function normalizeAxiosError(error: unknown): Error {
   if (axios.isAxiosError(error)) {
     const axiosError = error as AxiosError<any>;
@@ -43,6 +44,17 @@ function normalizeAxiosError(error: unknown): Error {
   return error instanceof Error ? error : new Error('Unknown request error');
 }
 
+// 检查 token 是否过期
+function isTokenExpired(): boolean {
+  const expiresAt = localStorage.getItem('expiresAt');
+  if (expiresAt && Date.now() > parseInt(expiresAt)) {
+    // 如果 token 过期
+    return true;
+  }
+  return false;
+}
+
+// 处理 axios 请求
 export function createHttpClient(overrides?: {
   baseURL?: string;
   timeout?: number;
@@ -52,7 +64,16 @@ export function createHttpClient(overrides?: {
     timeout: overrides?.timeout ?? 20_000,
   });
 
+  // 请求拦截器：每次请求前检查 token 是否过期，若过期则清理并跳转到登录
   instance.interceptors.request.use((config) => {
+    if (isTokenExpired()) {
+      // 清理 localStorage 中的 token 等信息
+      localStorage.clear();
+      // 跳转到登录页
+      window.location.href = '/login'; // 假设你的登录页面路径是 `/login`
+      return Promise.reject('Token expired');
+    }
+
     const token = getToken?.();
     if (token) {
       config.headers = config.headers ?? {};
@@ -63,6 +84,7 @@ export function createHttpClient(overrides?: {
     return config;
   });
 
+  // 响应拦截器：统一处理 API 返回的结果
   instance.interceptors.response.use(
     (response) => {
       const payload = response.data;
@@ -78,12 +100,19 @@ export function createHttpClient(overrides?: {
       }
       return payload;
     },
-    (error) => Promise.reject(normalizeAxiosError(error)),
+    (error) => {
+      // 如果是 token 过期错误，直接清除 token 并跳转
+      if (error.message === 'Token expired') {
+        localStorage.clear();
+        window.location.href = '/login'; // 跳转到登录页
+      }
+      return Promise.reject(normalizeAxiosError(error));
+    }
   );
 
   return instance;
 }
 
+// 创建 http 客户端实例
 export const http = createHttpClient();
 export default http;
-
