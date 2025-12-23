@@ -8,5 +8,97 @@
       "hello": "你好",
       "welcome": "欢迎"
     }
+  },
+  "homepage": {
+    "header": {
+      "nav": {
+        "home": "首页",
+        "services": "服务",
+        "about": "关于我们",
+        "orderHistory": "历史订单"
+      },
+      "language": "中文",
+      "phone": "050-1234567",
+      "search": {
+        "placeholder": "搜索...",
+        "button": "搜索"
+      },
+      "languages": {
+        "zh": "中文",
+        "en": "English"
+      }
+    },
+    "hero": {
+      "mainTitle": "一站式服务的",
+      "subTitle": "房屋维修",
+      "description": "服务包括保洁、装修、粉刷",
+      "learnMore": "了解更多"
+    },
+    "services": {
+      "title": "我们的服务",
+      "category": {
+        "cleaning": "保洁",
+        "maintenance": "维修"
+      },
+      "dailyCleaning": "日常清洁",
+      "dailyCleaningDesc": "专业的日常清洁服务，让您的家始终保持整洁",
+      "deepCleaning": "深度清洁",
+      "deepCleaningDesc": "彻底的深度清洁，彻底清除顽固污渍",
+      "commercialCleaning": "商业清洁",
+      "commercialCleaningDesc": "为商业场所提供专业的清洁服务",
+      "applianceCleaning": "家电清洁",
+      "applianceCleaningDesc": "专业清洁各类家电，延长使用寿命",
+      "homeRepair": "房屋维修",
+      "homeRepairDesc": "全方位的房屋维修服务",
+      "learnMore": "了解更多"
+    },
+    "about": {
+      "title": "关于我们",
+        "description": "我们是一家致力于为家庭与企业提供全方位保洁与维修服务的专业公司。秉承\"专业、高效、贴心\"的服务理念。",
+      "advantage": {
+        "professionalTeam": {
+          "title": "专业团队",
+          "description": "我们的服务人员均经过严格培训,技术娴熟,持证上岗。"
+        },
+        "qualityAssurance": {
+          "title": "品质保障",
+          "description": "使用优质环保材料与工具,严格把控服务质量,并提供服务售后保障。"
+        },
+        "efficientResponse": {
+          "title": "高效响应",
+          "description": "快速响应您的需求,灵活安排服务时间,及时解决您的问题。"
+        }
+      },
+      "learnMore": "了解更多"
+    },
+    "process": {
+      "title": "服务流程",
+      "step1": {
+        "title": "线上下单",
+        "description": "无需反复沟通,轻松在线搞定。线上 下单,系统将智能分配订单,您会立 即收到确认通知,一切尽在掌握。"
+      },
+      "step2": {
+        "title": "专业执行",
+        "description": "专业团队将准时上门,严格遵循标准 化服务流程。我们使用高效的设备与 环保的材料。"
+      },
+      "step3": {
+        "title": "售后保障",
+        "description": "期间内如您对服务有任何疑问或不满 意,我们将第一时间响应并快速解 决,确保您百分百安心无忧。"
+      }
+    },
+    "contact": {
+      "title": "客服24小时 为您安排",
+      "contactUs": "联系我们"
+    },
+    "footer": {
+      "tagline": "致力于为家庭与企业提供全方位保洁与维修服务的专业公司。",
+      "workingHours": {
+        "title": "工作时间",
+        "weekday": "周一至周五 9:00AM - 5:00PM",
+        "saturday": "周六 10:00AM - 6:00PM",
+        "sunday": "周日 休息"
+      },
+      "contactUs": "联系我们"
+    }
   }
 }

@@ -1,12 +1,104 @@
 {
   "message": {
-    "shouye_c": "shouye",
-    "account_login_c": "account login"
+    "shouye_c": "Home",
+    "account_login_c": "Account Login"
   },
   "el": {
     "message": {
       "hello": "Hello",
       "welcome": "Welcome"
+    }
+  },
+  "homepage": {
+    "header": {
+      "nav": {
+        "home": "Home",
+        "services": "Services",
+        "about": "About Us",
+        "orderHistory": "Order History"
+      },
+      "language": "中文",
+      "phone": "050-1234567",
+      "search": {
+        "placeholder": "Search...",
+        "button": "Search"
+      },
+      "languages": {
+        "zh": "中文",
+        "en": "English"
+      }
+    },
+    "hero": {
+      "mainTitle": "One-stop Service for",
+      "subTitle": "Home Maintenance",
+      "description": "Services include cleaning, renovation, painting",
+      "learnMore": "Learn More"
+    },
+    "services": {
+      "title": "Our Services",
+      "category": {
+        "cleaning": "Cleaning",
+        "maintenance": "Maintenance"
+      },
+      "dailyCleaning": "Daily Cleaning",
+      "dailyCleaningDesc": "Professional daily cleaning service to keep your home always tidy",
+      "deepCleaning": "Deep Cleaning",
+      "deepCleaningDesc": "Thorough deep cleaning to completely remove stubborn stains",
+      "commercialCleaning": "Commercial Cleaning",
+      "commercialCleaningDesc": "Professional cleaning services for commercial premises",
+      "applianceCleaning": "Appliance Cleaning",
+      "applianceCleaningDesc": "Professional cleaning of various appliances to extend their lifespan",
+      "homeRepair": "Home Repair",
+      "homeRepairDesc": "Comprehensive home repair services",
+      "learnMore": "Learn More"
+    },
+    "about": {
+      "title": "About Us",
+      "description": "We are a professional company dedicated to providing comprehensive cleaning and maintenance services for families and businesses. We adhere to the service philosophy of \"professional, efficient, and thoughtful\".",
+      "advantage": {
+        "professionalTeam": {
+          "title": "Professional Team",
+          "description": "Our service personnel are rigorously trained, technically proficient, and certified."
+        },
+        "qualityAssurance": {
+          "title": "Quality Assurance",
+          "description": "We use high-quality environmentally friendly materials and tools, strictly control service quality, and provide after-sales service guarantees."
+        },
+        "efficientResponse": {
+          "title": "Efficient Response",
+          "description": "Quickly respond to your needs, flexibly arrange service times, and promptly solve your problems."
+        }
+      },
+      "learnMore": "Learn More"
+    },
+    "process": {
+      "title": "Service Process",
+      "step1": {
+        "title": "Online Ordering",
+        "description": "No need for repeated communication, easily done online. Place an order online, the system will intelligently assign the order, and you will immediately receive a confirmation notification, with everything under control."
+      },
+      "step2": {
+        "title": "Professional Execution",
+        "description": "A professional team will arrive on time, strictly adhering to standardized service procedures. We use efficient equipment and environmentally friendly materials."
+      },
+      "step3": {
+        "title": "After-sales Guarantee",
+        "description": "During the period, if you have any questions or dissatisfaction with the service, we will respond immediately and resolve them quickly, ensuring your complete peace of mind."
+      }
+    },
+    "contact": {
+      "title": "24/7 Customer Service for You",
+      "contactUs": "Contact Us"
+    },
+    "footer": {
+      "tagline": "A professional company dedicated to providing comprehensive cleaning and maintenance services for families and businesses.",
+      "workingHours": {
+        "title": "Working Hours",
+        "weekday": "Monday - Friday 9:00AM - 5:00PM",
+        "saturday": "Saturday 10:00AM - 6:00PM",
+        "sunday": "Sunday Closed"
+      },
+      "contactUs": "Contact Us"
     }
   }
 }
