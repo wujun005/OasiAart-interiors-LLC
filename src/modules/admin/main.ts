@@ -1,4 +1,11 @@
-import { createApp } from 'vue'
-import App from './App.vue'
-console.log('admin')
-createApp(App).mount('#app')
+import { createApp } from 'vue';
+import App from './App.vue';
+import router from './router';
+import '@/modules/client/style/index.scss';
+import ElementPlus from 'element-plus';
+import 'element-plus/dist/index.css';
+console.log('admin');
+const app = createApp(App);
+app.use(router);
+app.use(ElementPlus);
+app.mount('#app');

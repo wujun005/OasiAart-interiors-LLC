@@ -48,90 +48,10 @@
         <LoginByPassword
           v-if="active === '0'"
           @login="debouncedLoginByPassword"
+          @go-register="status = 'register'"
+          @go-reset-password="status = 'reset'"
         />
         <LoginBySms v-else @login="debouncedLoginBySms" />
-        <!-- 账号密码登录 -->
-        <!-- <el-form
-          v-if="active === '0'"
-          :model="pwdForm"
-          label-width="auto"
-          style="max-width: 600px"
-        >
-          <el-form-item
-            label="账号"
-            label-position="top"
-            style="margin-bottom: 30px"
-          >
-            <el-input v-model="pwdForm.account" />
-          </el-form-item>
-
-          <div class="forgot-password" @click="goResetPassword">忘记密码?</div>
-
-          <el-form-item label="密码" label-position="top">
-            <el-input
-              v-model="pwdForm.password"
-              type="password"
-              show-password
-            />
-          </el-form-item>
-
-          <el-form-item>
-            <div class="btn" @click="debouncedLoginByPassword">登录</div>
-          </el-form-item>
-
-          <el-form-item>
-            <div class="register" @click="status = 'register'">
-              没有账号，<span class="register-text">立即注册</span>
-            </div>
-          </el-form-item>
-        </el-form> -->
-
-        <!-- 手机号 + 验证码登录 -->
-        <!-- <el-form
-          v-else
-          :model="smsForm"
-          label-width="auto"
-          style="max-width: 600px"
-        >
-          <el-form-item
-            label="手机号"
-            label-position="top"
-            style="margin-bottom: 30px"
-          >
-            <el-input
-              v-model="smsForm.account"
-              maxlength="11"
-              placeholder="请输入手机号"
-            />
-          </el-form-item>
-
-          <el-form-item label="验证码" label-position="top">
-            <div class="code-row">
-              <el-input
-                v-model="smsForm.password"
-                maxlength="6"
-                placeholder="请输入验证码"
-              />
-              <div
-                class="code-btn"
-                :class="{ disabled: codeCountdown > 0 || isSendingCode }"
-                @click="sendCode"
-              >
-                {{ codeBtnText }}
-              </div>
-            </div>
-          </el-form-item>
-
-          <el-form-item>
-            <div class="btn" @click="debouncedLoginBySms">登录</div>
-          </el-form-item>
-
-          <el-form-item>
-            <div class="register" @click="status = 'register'">
-              没有账号，<span class="register-text">立即注册</span>
-            </div>
-          </el-form-item>
-        </el-form> -->
       </div>
       <div v-else :mode="status" class="auth-page-right-form">
         <ResetPasswordForm
@@ -179,12 +99,6 @@ const isSendingCode = ref(false);
 const codeCountdown = ref(0);
 let countdownTimer: number | null = null;
 
-const codeBtnText = computed(() => {
-  if (isSendingCode.value) return '发送中...';
-  if (codeCountdown.value > 0) return `${codeCountdown.value}s后重试`;
-  return '获取验证码';
-});
-
 const switchLanguage = () => {
   isShowLanguage.value = !isShowLanguage.value;
 };
@@ -229,28 +143,6 @@ const startCountdown = (sec = 60) => {
       }
     }
   }, 1000);
-};
-
-const sendCode = async () => {
-  if (isSendingCode.value || codeCountdown.value > 0) return;
-
-  const phone = smsForm.value.account.trim();
-  if (!isValidCNPhone(phone)) {
-    ElMessage.warning('请输入正确的手机号');
-    return;
-  }
-
-  try {
-    isSendingCode.value = true;
-    await sendSmsCode({ phone });
-    ElMessage.success('验证码已发送');
-    startCountdown(60);
-  } catch (e) {
-    console.error(e);
-    ElMessage.error('验证码发送失败，请稍后重试');
-  } finally {
-    isSendingCode.value = false;
-  }
 };
 
 const loginByPassword = async ({ account, password }: { account: string; password: string }) => {

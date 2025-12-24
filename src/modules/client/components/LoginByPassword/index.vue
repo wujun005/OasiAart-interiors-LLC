@@ -1,13 +1,13 @@
 <template>
   <el-form :model="form" label-width="auto" style="max-width: 600px">
     <el-form-item label="账号" label-position="top" style="margin-bottom: 30px">
-      <el-input v-model="form.account" />
+      <el-input v-model="form.account"  placeholder="请输入账号"/>
     </el-form-item>
 
     <div class="forgot-password" @click="goResetPassword">忘记密码?</div>
 
     <el-form-item label="密码" label-position="top">
-      <el-input v-model="form.password" type="password" show-password />
+      <el-input v-model="form.password" placeholder="请输入密码" type="password" show-password />
     </el-form-item>
 
     <el-form-item>

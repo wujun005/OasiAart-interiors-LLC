@@ -35,7 +35,7 @@
 
     <el-form-item>
       <div class="register" @click="goRegister">
-        没有账号，<span class="register-text">立即注册</span>
+        <!-- 没有账号，<span class="register-text">立即注册</span> -->
       </div>
     </el-form-item>
   </el-form>
