@@ -8,12 +8,32 @@ const routes: RouteRecordRaw[] = [
     component: () => import('@/modules/admin/index.vue'),
     children: [
       {
-        path: 'login',
-        name: 'login',
-        component: () => import('@/modules/admin/pages/login.vue'),
+        path: '',
+        name: 'admin-home',
+        component: () => import('@/modules/admin/pages/home/index.vue'),
+      },
+      {
+        path: 'orders',
+        name: 'admin-orders',
+        component: () => import('@/modules/admin/pages/orders/index.vue'),
+      },
+      {
+        path: 'products',
+        name: 'admin-products',
+        component: () => import('@/modules/admin/pages/product/index.vue'),
+      },
+      {
+        path: 'users',
+        name: 'admin-users',
+        component: () => import('@/modules/admin/pages/user/index.vue'),
       },
     ],
     meta: { scope: 'admin', requiresAuth: true, requiresRole: 'admin' },
+  },
+  {
+    path: '/admin/login',
+    name: 'login',
+    component: () => import('@/modules/admin/pages/login.vue'),
   },
 
   // 默认跳转到 C端首页

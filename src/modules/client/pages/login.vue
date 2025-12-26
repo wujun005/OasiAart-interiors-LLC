@@ -70,7 +70,7 @@ import { login, sendSmsCode } from '@/modules/client/api';
 import ResetPasswordForm from '@/modules/client/components/ResetPasswordForm/index.vue';
 import { useI18n } from 'vue-i18n';
 import { loginSuccess } from '@/modules/client/utils';
-import LoginByPassword from '@/modules/client/components/LoginByPassword/index.vue';
+import LoginByPassword from '@/components/LoginByPassword/index.vue';
 import LoginBySms from '@/modules/client/components/LoginBySms/index.vue';
 
 const { locale } = useI18n();
