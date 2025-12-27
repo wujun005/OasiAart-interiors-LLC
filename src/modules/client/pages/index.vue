@@ -14,11 +14,11 @@
       <!-- About Section -->
       <HomeAbout />
 
-      <!-- Process Section (待实现) -->
-      <!-- <HomeProcess /> -->
+      <!-- Process Section -->
+      <HomeProcess />
 
-      <!-- Contact Section (待实现) -->
-      <!-- <HomeContact /> -->
+      <!-- Contact Section -->
+      <HomeContact />
 
       <!-- Footer -->
       <AppFooter />
@@ -31,6 +31,8 @@ import AppHeader from '../components/Header/index.vue';
 import HomeHero from '../components/HomeHero/index.vue';
 import HomeServices from '../components/HomeServices/index.vue';
 import HomeAbout from '../components/HomeAbout/index.vue';
+import HomeProcess from '../components/HomeProcess/index.vue';
+import HomeContact from '../components/HomeContact/index.vue';
 import AppFooter from '../components/Footer/index.vue';
 </script>
 
