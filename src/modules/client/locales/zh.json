@@ -36,6 +36,10 @@
     },
     "services": {
       "title": "我们的服务",
+      "breadcrumb": {
+        "home": "首页",
+        "allServices": "所有服务"
+      },
       "category": {
         "cleaning": "保洁",
         "maintenance": "维修"
