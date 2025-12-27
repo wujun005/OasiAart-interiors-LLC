@@ -5,6 +5,8 @@
     </div>
     <div class="contact-overlay"></div>
     <div class="contact-bottom-bar"></div>
+    <div class="contact-right-space"></div>
+    <div class="contact-right-black"></div>
     <div class="contact-container">
       <div class="contact-content">
         <!-- 左侧文字 -->
@@ -43,18 +45,19 @@ const handleContact = () => {
   display: flex;
   align-items: center;
   overflow: hidden;
+  background-color: #ffffff; // 右侧空白区域背景色为白色
 }
 
 .contact-background {
   position: absolute;
   top: 0;
   left: 0;
-  width: 100%;
+  width: calc(100% - 200px); // 减去右边距200px
   height: calc(100% - 60px); // 减去底部黑色条带的高度
   background-color: #808080; // 占位背景色（灰色）
   background-image: url('@/assets/images/homepage/contact-service.png');
-  background-size: contain; // 改为 contain，不铺满
-  background-position: right center; // 图片靠右居中显示
+  background-size: cover; // 铺满整个区域
+  background-position: center; // 居中显示
   background-repeat: no-repeat;
   z-index: 1;
 
@@ -67,8 +70,8 @@ const handleContact = () => {
   position: absolute;
   top: 0;
   left: 0;
-  width: 100%;
-  height: calc(100% - 60px); // 减去底部黑色条带的高度
+  width: calc(100% - 200px); // 减去右边距200px
+  height: calc(100% - 60px);
   background: rgba(0, 0, 0, 0.65); // #000000 65% 透明度
   z-index: 2;
 }
@@ -81,19 +84,39 @@ const handleContact = () => {
   width: 100%;
   height: 60px;
   background-color: #000000;
-  z-index: 2;
+  z-index: 3;
+}
+
+// 右侧区域：上半部分（透明，沿用页面背景色），下半部分黑色
+.contact-right-space {
+  position: absolute;
+  top: 0;
+  right: 0; // 右侧区域从最右边开始
+  width: 200px;
+  height: 50%; // 上半部分
+  background-color: #f5f5f5;
+  z-index: 1;
+}
+
+.contact-right-black {
+  position: absolute;
+  bottom: 60px; // 在底部黑色条带上方
+  right: 0; // 右侧区域从最右边开始
+  width: 200px;
+  height: calc(50% - 30px); // 下半部分，减去底部黑色条带的一半高度
+  background-color: #000000;
+  z-index: 1;
 }
 
 .contact-container {
   position: relative;
-  z-index: 3;
-  width: 100%;
-  max-width: 1920px;
-  margin: 0 auto;
-  padding: 0 200px 0 200px; // 整个卡片的右边距 200px
-  height: 100%;
+  z-index: 4;
+  width: calc(100% - 200px); // 只覆盖左侧内容区域
+  height: calc(100% - 60px);
   display: flex;
   align-items: center;
+  padding: 0 200px;
+  box-sizing: border-box;
 }
 
 .contact-content {
@@ -123,22 +146,19 @@ const handleContact = () => {
 .contact-right {
   display: flex;
   align-items: center;
-  justify-content: flex-end;
-  flex: 1;
 }
 
 .contact-button {
-  padding: 1rem 2.5rem;
+  padding: 1rem 3rem;
   font-size: 1.125rem;
   border-radius: 4px;
-  background-color: #d4a574; // 棕色/金色
+  background-color: #8b7355; // 棕色/橄榄色，与加入我们保持一致
   border: none;
   color: #ffffff;
   transition: background-color 0.3s ease;
-  margin-right: 40px; // 按钮在卡片内的右边距
 
   &:hover {
-    background-color: #c89664;
+    background-color: #756147;
   }
 }
 
@@ -167,6 +187,21 @@ const handleContact = () => {
 
   .contact-right {
     justify-content: center;
+  }
+  
+  // 在小屏幕上隐藏右侧区域
+  .contact-right-space,
+  .contact-right-black {
+    display: none;
+  }
+  
+  .contact-background,
+  .contact-overlay {
+    width: 100%;
+  }
+  
+  .contact-container {
+    width: 100%;
   }
 }
 

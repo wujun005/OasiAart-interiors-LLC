@@ -49,12 +49,14 @@
 </template>
 
 <script setup lang="ts">
+import { useRouter } from 'vue-router';
 import { serviceAdvantages } from '../../data/homepage';
 import teamImage from '@/assets/images/homepage/about-team.png';
 
+const router = useRouter();
+
 const handleLearnMore = () => {
-  // TODO: 导航到关于我们页面或展开更多内容
-  console.log('了解更多');
+  router.push('/about');
 };
 </script>
 

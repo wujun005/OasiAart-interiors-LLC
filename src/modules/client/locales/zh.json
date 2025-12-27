@@ -125,5 +125,60 @@
       "returnDetails": "退货详情",
       "moreServices": "更多服务"
     }
+  },
+  "aboutPage": {
+    "banner": {
+      "title": "关于我们"
+    },
+    "intro": {
+      "title": "公司介绍",
+      "description": "我们是一家致力于为家庭与企业提供全方位保洁与维修服务的专业公司。秉承\"专业、高效、贴心\"的服务理念,我们是一家致力于为家庭与企业提供全方位保洁与维修服务的专业公司。秉承\"专业、高效、贴心\"的服务理念。"
+    },
+    "welcome": {
+      "title": "欢迎莅临我们的公司",
+      "location": "迪拜谢赫·穆罕默德本拉希德大道",
+      "description": "我们是一家致力于为家庭与企业提供全方位保洁与维修服务的专业公司。秉承\"专业、高效、贴心\"的服务理念,我们是一家致力于为家庭与企业提供全方位保洁与维修服务的专业公司。秉承\"专业、高效、贴心\"的服务理念。",
+      "emailLabel": "电子邮件",
+      "email": "Contact@gmail.com",
+      "phoneLabel": "联系方式",
+      "phone": "050-1234567"
+    },
+    "values": {
+      "title": "我们的价值观",
+      "quality": {
+        "title": "质量",
+        "description": "我们是一家致力于为家庭与企业提供全方位保洁与维修服务的专业公司。"
+      },
+      "commitment": {
+        "title": "承诺",
+        "description": "我们是一家致力于为家庭与企业提供全方位保洁与维修服务的专业公司。"
+      },
+      "innovation": {
+        "title": "创新",
+        "description": "我们是一家致力于为家庭与企业提供全方位保洁与维修服务的专业公司。"
+      },
+      "openness": {
+        "title": "开放性",
+        "description": "我们是一家致力于为家庭与企业提供全方位保洁与维修服务的专业公司。"
+      },
+      "teamwork": {
+        "title": "团队合作",
+        "description": "我们是一家致力于为家庭与企业提供全方位保洁与维修服务的专业公司。"
+      },
+      "leadership": {
+        "title": "领导",
+        "description": "我们是一家致力于为家庭与企业提供全方位保洁与维修服务的专业公司。"
+      }
+    },
+    "join": {
+      "titleLine1": "想要成为",
+      "titleLine2": "我们团队中的成员",
+      "button": "加入我们",
+      "dialog": {
+        "title": "加入我们",
+        "emailLabel": "邮箱",
+        "phoneLabel": "电话"
+      }
+    }
   }
 }

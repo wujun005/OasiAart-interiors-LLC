@@ -125,5 +125,60 @@
       "returnDetails": "Return Details",
       "moreServices": "More Services"
     }
+  },
+  "aboutPage": {
+    "banner": {
+      "title": "About Us"
+    },
+    "intro": {
+      "title": "Company Introduction",
+      "description": "We are a professional company dedicated to providing comprehensive cleaning and maintenance services for families and businesses. We adhere to the service philosophy of \"professional, efficient, and considerate\". We are a professional company dedicated to providing comprehensive cleaning and maintenance services for families and businesses. We adhere to the service philosophy of \"professional, efficient, and considerate\"."
+    },
+    "welcome": {
+      "title": "Welcome to Our Company",
+      "location": "Dubai Sheikh Mohammed Bin Rashid Boulevard",
+      "description": "We are a professional company dedicated to providing comprehensive cleaning and maintenance services for families and businesses. We adhere to the service philosophy of \"professional, efficient, and considerate\". We are a professional company dedicated to providing comprehensive cleaning and maintenance services for families and businesses. We adhere to the service philosophy of \"professional, efficient, and considerate\".",
+      "emailLabel": "Email",
+      "email": "Contact@gmail.com",
+      "phoneLabel": "Contact",
+      "phone": "050-1234567"
+    },
+    "values": {
+      "title": "Our Values",
+      "quality": {
+        "title": "Quality",
+        "description": "We are a professional company dedicated to providing comprehensive cleaning and maintenance services for families and businesses."
+      },
+      "commitment": {
+        "title": "Commitment",
+        "description": "We are a professional company dedicated to providing comprehensive cleaning and maintenance services for families and businesses."
+      },
+      "innovation": {
+        "title": "Innovation",
+        "description": "We are a professional company dedicated to providing comprehensive cleaning and maintenance services for families and businesses."
+      },
+      "openness": {
+        "title": "Openness",
+        "description": "We are a professional company dedicated to providing comprehensive cleaning and maintenance services for families and businesses."
+      },
+      "teamwork": {
+        "title": "Teamwork",
+        "description": "We are a professional company dedicated to providing comprehensive cleaning and maintenance services for families and businesses."
+      },
+      "leadership": {
+        "title": "Leadership",
+        "description": "We are a professional company dedicated to providing comprehensive cleaning and maintenance services for families and businesses."
+      }
+    },
+    "join": {
+      "titleLine1": "Want to become",
+      "titleLine2": "a member of our team",
+      "button": "Join Us",
+      "dialog": {
+        "title": "Join Us",
+        "emailLabel": "Email",
+        "phoneLabel": "Phone"
+      }
+    }
   }
 }
