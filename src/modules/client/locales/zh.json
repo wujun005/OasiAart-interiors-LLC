@@ -26,6 +26,11 @@
       "languages": {
         "zh": "中文",
         "en": "English"
+      },
+      "user": {
+        "notLoggedIn": "未登录",
+        "logout": "退出登录",
+        "logoutSuccess": "退出登录成功"
       }
     },
     "hero": {

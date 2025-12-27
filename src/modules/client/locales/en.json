@@ -26,6 +26,11 @@
       "languages": {
         "zh": "中文",
         "en": "English"
+      },
+      "user": {
+        "notLoggedIn": "Not Logged In",
+        "logout": "Logout",
+        "logoutSuccess": "Logout successful"
       }
     },
     "hero": {

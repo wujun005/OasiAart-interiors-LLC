@@ -61,29 +61,54 @@
           </template>
         </el-dropdown>
 
-        <!-- User icon with hover tooltip -->
-        <el-tooltip
-          :content="$t('homepage.header.phone')"
-          placement="right-end"
-          popper-class="user-phone-tooltip"
-          :show-after="0"
+        <!-- User icon with dropdown menu -->
+        <el-dropdown
+          trigger="click"
+          @command="handleUserCommand"
+          class="user-dropdown"
         >
           <el-icon class="util-icon" :size="20">
             <User />
           </el-icon>
-        </el-tooltip>
+          <template #dropdown>
+            <el-dropdown-menu>
+              <!-- 未登录状态 -->
+              <template v-if="!isLoggedIn">
+                <el-dropdown-item command="login">
+                  {{ $t('homepage.header.user.notLoggedIn') }}
+                </el-dropdown-item>
+              </template>
+              <!-- 已登录状态 -->
+              <template v-else>
+                <el-dropdown-item disabled class="user-info-item">
+                  <div class="user-info">
+                    <p v-if="userInfo.username" class="user-info-text">{{ userInfo.username }}</p>
+                  </div>
+                </el-dropdown-item>
+                <el-dropdown-item divided command="logout">
+                  {{ $t('homepage.header.user.logout') }}
+                </el-dropdown-item>
+              </template>
+            </el-dropdown-menu>
+          </template>
+        </el-dropdown>
       </div>
     </div>
   </header>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted } from 'vue';
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
+import { useRouter } from 'vue-router';
+import { ElMessage } from 'element-plus';
 import { Search, User, ArrowDown } from '@element-plus/icons-vue';
 import LogoIcon from '@/assets/images/homepage/logo.svg?component';
+import { useAuth } from '../../composables/useAuth';
 
 const { locale, t } = useI18n();
+const router = useRouter();
+const { isLoggedIn, userInfo, checkLoginStatus, clearAuth } = useAuth();
 const isScrolled = ref(false);
 const SCROLL_THRESHOLD = 50; // 滚动阈值，超过50px时改变背景色（较小的阈值，让 Header 更快变化）
 
@@ -118,6 +143,20 @@ const handleSearch = () => {
   }
 };
 
+// 用户菜单命令处理
+const handleUserCommand = (command: string) => {
+  if (command === 'login') {
+    // 跳转到登录页
+    router.push('/login');
+  } else if (command === 'logout') {
+    // 退出登录
+    clearAuth();
+    ElMessage.success(t('homepage.header.user.logoutSuccess'));
+    // 刷新页面或跳转到首页
+    router.push('/');
+  }
+};
+
 // 初始化时从 localStorage 读取语言设置
 onMounted(() => {
   const savedLocale = localStorage.getItem('locale');
@@ -128,11 +167,23 @@ onMounted(() => {
   window.addEventListener('scroll', handleScroll);
   // 初始化时也检查一次滚动位置
   handleScroll();
+  
+  // 检查登录状态
+  checkLoginStatus();
+  
+  // 监听 localStorage 变化，实时更新登录状态
+  window.addEventListener('storage', checkLoginStatus);
 });
 
 onUnmounted(() => {
   window.removeEventListener('scroll', handleScroll);
+  window.removeEventListener('storage', checkLoginStatus);
 });
+
+// 监听路由变化，检查登录状态
+watch(() => window.location.pathname, () => {
+  checkLoginStatus();
+}, { immediate: true });
 </script>
 
 <style scoped lang="scss">
@@ -226,6 +277,10 @@ onUnmounted(() => {
       &:hover {
         opacity: 0.8;
       }
+    }
+
+    .user-dropdown {
+      cursor: pointer;
     }
 
     .search-input {
@@ -332,6 +387,10 @@ onUnmounted(() => {
       color: #000000;
     }
 
+    .user-dropdown {
+      cursor: pointer;
+    }
+
     .search-input {
       :deep(.el-input__wrapper) {
         background-color: transparent;
@@ -411,6 +470,36 @@ onUnmounted(() => {
     }
 
     &:hover {
+      background-color: rgba(45, 143, 127, 0.1);
+    }
+  }
+}
+
+// 用户下拉菜单样式
+.user-dropdown {
+  .el-dropdown-menu__item {
+    font-size: 16px;
+    padding: 0.75rem 1.5rem;
+
+    &.user-info-item {
+      cursor: default;
+      opacity: 1;
+      
+      .user-info {
+        display: flex;
+        flex-direction: column;
+        gap: 0.25rem;
+        
+        .user-info-text {
+          margin: 0;
+          font-size: 14px;
+          color: #333;
+          line-height: 1.5;
+        }
+      }
+    }
+
+    &:hover:not(.user-info-item) {
       background-color: rgba(45, 143, 127, 0.1);
     }
   }
