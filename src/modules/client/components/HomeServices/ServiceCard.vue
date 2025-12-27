@@ -7,9 +7,10 @@
         class="service-image"
         loading="lazy"
       />
-    </div>
-    <div class="service-overlay">
-      <h3 class="service-name">{{ $t(service.name) }}</h3>
+      <!-- 文字叠加在图片上 -->
+      <div class="service-overlay">
+        <h3 class="service-name">{{ $t(service.name) }}</h3>
+      </div>
     </div>
   </div>
 </template>
@@ -26,7 +27,7 @@ defineProps<{
 .service-card {
   position: relative;
   width: 100%;
-  aspect-ratio: 4 / 3;
+  height: 100%;
   overflow: hidden;
   border-radius: 8px;
   cursor: pointer;
@@ -40,13 +41,16 @@ defineProps<{
   .service-image-wrapper {
     width: 100%;
     height: 100%;
+    position: relative;
     overflow: hidden;
   }
 
   .service-image {
     width: 100%;
     height: 100%;
+    display: block;
     object-fit: cover;
+    object-position: center;
     transition: transform 0.3s ease;
   }
 

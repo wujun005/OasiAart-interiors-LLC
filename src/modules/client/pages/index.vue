@@ -11,8 +11,8 @@
       <!-- Services Section -->
       <HomeServices />
 
-      <!-- About Section (待实现) -->
-      <!-- <HomeAbout /> -->
+      <!-- About Section -->
+      <HomeAbout />
 
       <!-- Process Section (待实现) -->
       <!-- <HomeProcess /> -->
@@ -30,6 +30,7 @@
 import AppHeader from '../components/Header/index.vue';
 import HomeHero from '../components/HomeHero/index.vue';
 import HomeServices from '../components/HomeServices/index.vue';
+import HomeAbout from '../components/HomeAbout/index.vue';
 import AppFooter from '../components/Footer/index.vue';
 </script>
 

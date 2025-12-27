@@ -50,7 +50,7 @@ const filteredServices = computed(() => {
 
 <style scoped lang="scss">
 .home-services {
-  padding: 4rem 2rem;
+  padding: 4rem 0;
   background-color: #f5f5f5;
   min-height: 600px;
 }
@@ -58,6 +58,7 @@ const filteredServices = computed(() => {
 .services-container {
   max-width: 1920px;
   margin: 0 auto;
+  padding: 0 200px;
 }
 
 .services-title {
@@ -107,9 +108,38 @@ const filteredServices = computed(() => {
 
 .services-grid {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 2rem;
+  grid-template-columns: repeat(3, 1fr);
+  grid-template-rows: 2fr 3fr; // 第一行是第二行的三分之二
+  gap: 20px;
   margin-bottom: 3rem;
+
+  // 第一个卡片（日常清洁）：第一列，占据两行
+  .service-card:nth-child(1) {
+    grid-column: 1;
+    grid-row: 1 / 3; // 跨越两行
+    height: 100%;
+  }
+
+  // 第二个卡片（深度清洁）：第一行，第二列
+  .service-card:nth-child(2) {
+    grid-column: 2;
+    grid-row: 1;
+    height: 100%;
+  }
+
+  // 第三个卡片（商业清洁）：第一行，第三列
+  .service-card:nth-child(3) {
+    grid-column: 3;
+    grid-row: 1;
+    height: 100%;
+  }
+
+  // 第四个卡片（家电清洁）：第二行，横跨 2、3 列
+  .service-card:nth-child(4) {
+    grid-column: 2 / 4; // 横跨第2、3列
+    grid-row: 2;
+    height: 100%;
+  }
 }
 
 .services-actions {

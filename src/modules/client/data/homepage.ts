@@ -31,13 +31,18 @@ export const serviceCategories: ServiceCategory[] = [
 /**
  * 服务项数据
  */
+import dailyCleaningImg from '@/assets/images/homepage/daily-cleaning.png';
+import deepCleaningImg from '@/assets/images/homepage/deep-cleaning.png';
+import commercialCleaningImg from '@/assets/images/homepage/commercial-cleaning.png';
+import applianceCleaningImg from '@/assets/images/homepage/appliance-cleaning.png';
+
 export const services: Service[] = [
   // 保洁服务
   {
     id: 'daily-cleaning',
     name: 'homepage.services.dailyCleaning',
     categoryId: 'cleaning',
-    imageUrl: '/src/assets/images/homepage/services/daily-cleaning.jpg',
+    imageUrl: dailyCleaningImg,
     description: 'homepage.services.dailyCleaningDesc',
     displayOrder: 1,
   },
@@ -45,7 +50,7 @@ export const services: Service[] = [
     id: 'deep-cleaning',
     name: 'homepage.services.deepCleaning',
     categoryId: 'cleaning',
-    imageUrl: '/src/assets/images/homepage/services/deep-cleaning.jpg',
+    imageUrl: deepCleaningImg,
     description: 'homepage.services.deepCleaningDesc',
     displayOrder: 2,
   },
@@ -53,7 +58,7 @@ export const services: Service[] = [
     id: 'commercial-cleaning',
     name: 'homepage.services.commercialCleaning',
     categoryId: 'cleaning',
-    imageUrl: '/src/assets/images/homepage/services/commercial-cleaning.jpg',
+    imageUrl: commercialCleaningImg,
     description: 'homepage.services.commercialCleaningDesc',
     displayOrder: 3,
   },
@@ -61,7 +66,7 @@ export const services: Service[] = [
     id: 'appliance-cleaning',
     name: 'homepage.services.applianceCleaning',
     categoryId: 'cleaning',
-    imageUrl: '/src/assets/images/homepage/services/appliance-cleaning.jpg',
+    imageUrl: applianceCleaningImg,
     description: 'homepage.services.applianceCleaningDesc',
     displayOrder: 4,
   },
