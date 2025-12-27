@@ -39,7 +39,13 @@
           </div>
 
           <!-- Service Cards Grid -->
-          <div class="services-grid">
+          <div v-if="loading" class="loading-container">
+            <p>加载中...</p>
+          </div>
+          <div v-else-if="filteredServices.length === 0" class="empty-container">
+            <p>暂无服务</p>
+          </div>
+          <div v-else class="services-grid">
             <ServiceCardPage
               v-for="service in filteredServices"
               :key="service.id"
@@ -56,18 +62,77 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue';
+import { ref, computed, onMounted } from 'vue';
+import { useI18n } from 'vue-i18n';
+import { ElMessage } from 'element-plus';
 import AppHeader from '../components/Header/index.vue';
 import AppFooter from '../components/Footer/index.vue';
 import ServiceCardPage from '../components/HomeServices/ServiceCardPage.vue';
-import { serviceCategories, services } from '../data/homepage';
+import { serviceCategories } from '../data/homepage';
+import { getServicesList } from '../api';
+import type { Service } from '../types/homepage';
 
+const { locale } = useI18n();
 const activeCategoryId = ref('cleaning'); // 默认显示保洁
+const services = ref<Service[]>([]);
+const loading = ref(false);
+
+// 从 API 获取所有服务
+const fetchServices = async () => {
+  loading.value = true;
+  try {
+    const response: any = await getServicesList();
+    console.log('获取服务列表响应:', response);
+    
+    // 根据实际 API 返回的数据结构处理
+    // 如果返回的是数组，直接使用
+    // 如果返回的是 { data: [...] }，使用 response.data
+    const servicesData = Array.isArray(response) 
+      ? response 
+      : (response?.data || (response as any)?.list || []);
+    
+    // 获取当前语言代码 (zh 或 en)
+    const currentLang = locale.value === 'zh' ? 'zh' : 'en';
+    
+    // 将 API 返回的数据转换为 Service 类型
+    services.value = servicesData.map((item: any) => {
+      // 处理商品数据结构：可能是 { product, productI18nList, productImages } 或直接是商品对象
+      const product = item.product || item;
+      const i18nList = item.productI18nList || item.i18nList || [];
+      const images = item.productImages || item.images || [];
+      
+      // 根据当前语言从 productI18nList 中获取名称和描述
+      const currentI18n = i18nList.find((i: any) => i.langCode === currentLang) || i18nList[0] || {};
+      
+      return {
+        id: product.id?.toString() || item.id?.toString() || '',
+        name: currentI18n.name || product.name || item.name || '',
+        categoryId: product.categoryId || item.categoryId || item.category?.id || 'cleaning',
+        imageUrl: images[0]?.imageUrl || product.imageUrl || item.imageUrl || item.mainImage || '',
+        description: currentI18n.details || currentI18n.description || product.description || item.description || '',
+        displayOrder: product.sort || product.displayOrder || item.sortOrder || item.sort || item.order || 0,
+      };
+    });
+    
+    console.log('处理后的服务列表:', services.value);
+  } catch (error: any) {
+    console.error('获取服务列表失败:', error);
+    ElMessage.error(error?.message || '获取服务列表失败');
+    services.value = [];
+  } finally {
+    loading.value = false;
+  }
+};
 
 const filteredServices = computed(() => {
-  return services
-    .filter((service) => service.categoryId === activeCategoryId.value)
-    .sort((a, b) => a.displayOrder - b.displayOrder);
+  return services.value
+    .filter((service: Service) => service.categoryId === activeCategoryId.value)
+    .sort((a: Service, b: Service) => a.displayOrder - b.displayOrder);
+});
+
+// 组件挂载时获取服务列表
+onMounted(() => {
+  fetchServices();
 });
 </script>
 
@@ -217,6 +282,17 @@ const filteredServices = computed(() => {
       background-color: #333;
     }
   }
+}
+
+// Loading and Empty States
+.loading-container,
+.empty-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 400px;
+  font-size: 1.125rem;
+  color: #666;
 }
 
 // Services Grid - 3列网格布局，支持多行（3x3）

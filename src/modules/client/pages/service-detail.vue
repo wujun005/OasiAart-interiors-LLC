@@ -25,28 +25,33 @@
             <span class="breadcrumb-separator">></span>
             <router-link to="/services" class="breadcrumb-link">{{ $t('homepage.serviceDetail.breadcrumb.allServices') }}</router-link>
             <span class="breadcrumb-separator">></span>
-            <span class="breadcrumb-current">{{ $t(serviceData.name) }}</span>
+            <span class="breadcrumb-current">{{ serviceData.name }}</span>
+          </div>
+
+          <!-- Loading State -->
+          <div v-if="loading" class="loading-container">
+            <p>加载中...</p>
           </div>
 
           <!-- Main Content: Image and Info -->
-          <div class="detail-main">
+          <div v-else class="detail-main">
             <!-- Left: Service Image -->
             <div class="service-image-section">
               <img
                 :src="serviceData.imageUrl"
-                :alt="$t(serviceData.name)"
+                :alt="serviceData.name"
                 class="service-detail-image"
               />
             </div>
 
             <!-- Right: Service Information -->
             <div class="service-info-section">
-              <h2 class="service-title">{{ $t(serviceData.name) }}</h2>
+              <h2 class="service-title">{{ serviceData.name }}</h2>
               
               <!-- Price -->
               <div class="service-price">
-                <span class="price-value">42</span>
-                <span class="price-unit">美元/{{ $t('homepage.services.hour') }}</span>
+                <span class="price-value">{{ serviceData.price || 0 }}</span>
+                <span class="price-unit">{{ serviceData.currency || '美元' }}/{{ $t('homepage.services.hour') }}</span>
               </div>
 
               <!-- Quantity Selector -->
@@ -76,7 +81,8 @@
                     </el-icon>
                   </div>
                   <div v-show="isServiceDetailsOpen" class="expandable-content">
-                    <p>{{ $t('homepage.about.description') }}</p>
+                    <p v-if="serviceData.description">{{ serviceData.description }}</p>
+                    <p v-else>{{ $t('homepage.about.description') }}</p>
                   </div>
                 </div>
 
@@ -98,19 +104,19 @@
         </div>
       </section>
 
-      <!-- More Services Section -->
-      <section class="more-services-section">
-        <div class="more-services-container">
-          <h2 class="more-services-title">{{ $t('homepage.serviceDetail.moreServices') }}</h2>
-          <div class="more-services-grid">
-            <ServiceCardPage
-              v-for="service in relatedServices"
-              :key="service.id"
-              :service="service"
-            />
-          </div>
-        </div>
-      </section>
+          <!-- More Services Section -->
+          <section v-if="!loading && relatedServices.length > 0" class="more-services-section">
+            <div class="more-services-container">
+              <h2 class="more-services-title">{{ $t('homepage.serviceDetail.moreServices') }}</h2>
+              <div class="more-services-grid">
+                <ServiceCardPage
+                  v-for="service in relatedServices"
+                  :key="service.id"
+                  :service="service"
+                />
+              </div>
+            </div>
+          </section>
 
       <!-- Footer -->
       <AppFooter />
@@ -120,32 +126,120 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue';
-import { useRoute } from 'vue-router';
+import { useRoute, useRouter } from 'vue-router';
+import { useI18n } from 'vue-i18n';
+import { ElMessage } from 'element-plus';
 import { ArrowUp } from '@element-plus/icons-vue';
 import AppHeader from '../components/Header/index.vue';
 import AppFooter from '../components/Footer/index.vue';
 import ServiceCardPage from '../components/HomeServices/ServiceCardPage.vue';
-import { services } from '../data/homepage';
+import { getServiceDetail, getServicesList } from '../api';
+import type { Service } from '../types/homepage';
 
 const route = useRoute();
+const router = useRouter();
+const { locale } = useI18n();
 const quantity = ref(1);
 const isServiceDetailsOpen = ref(true); // 默认展开
 const isReturnDetailsOpen = ref(false); // 默认折叠
-
-// 从路由参数获取服务ID，如果没有则使用默认值
-const serviceId = computed(() => (route.params.id as string) || 'daily-cleaning');
-
-// 获取当前服务数据
-const serviceData = computed(() => {
-  return services.find(s => s.id === serviceId.value) || services[0];
+const loading = ref(false);
+const serviceData = ref<Service & { price?: number; currency?: string }>({
+  id: '',
+  name: '',
+  categoryId: 'cleaning',
+  imageUrl: '',
+  description: '',
+  displayOrder: 0,
 });
+const relatedServices = ref<Service[]>([]);
 
-// 获取相关服务（排除当前服务）
-const relatedServices = computed(() => {
-  return services
-    .filter(s => s.id !== serviceId.value && s.categoryId === serviceData.value.categoryId)
-    .slice(0, 3);
-});
+// 从路由参数获取服务ID
+const serviceId = computed(() => route.params.id as string);
+
+// 获取服务详情
+const fetchServiceDetail = async () => {
+  if (!serviceId.value) {
+    ElMessage.error('服务ID不存在');
+    router.push('/services');
+    return;
+  }
+
+  loading.value = true;
+  try {
+    const response: any = await getServiceDetail(serviceId.value);
+    console.log('获取服务详情响应:', response);
+    
+    // 处理 API 返回的数据结构
+    const detail = response?.data || response || {};
+    const product = detail.product || detail;
+    const i18nList = detail.productI18nList || detail.i18nList || [];
+    const images = detail.productImages || detail.images || [];
+    
+    // 获取当前语言代码
+    const currentLang = locale.value === 'zh' ? 'zh' : 'en';
+    const currentI18n = i18nList.find((i: any) => i.langCode === currentLang) || i18nList[0] || {};
+    
+    // 转换为 Service 格式
+    serviceData.value = {
+      id: product.id?.toString() || '',
+      name: currentI18n.name || product.name || '',
+      categoryId: product.categoryId || detail.categoryId || 'cleaning',
+      imageUrl: images[0]?.imageUrl || product.imageUrl || '',
+      description: currentI18n.details || currentI18n.description || product.description || '',
+      displayOrder: product.sort || product.displayOrder || 0,
+      price: product.price || 0,
+      currency: product.currency || '美元',
+    };
+    
+    console.log('处理后的服务详情:', serviceData.value);
+    
+    // 获取相关服务
+    await fetchRelatedServices();
+  } catch (error: any) {
+    console.error('获取服务详情失败:', error);
+    ElMessage.error(error?.message || '获取服务详情失败');
+    router.push('/services');
+  } finally {
+    loading.value = false;
+  }
+};
+
+// 获取相关服务
+const fetchRelatedServices = async () => {
+  try {
+    const response: any = await getServicesList();
+    const servicesData = Array.isArray(response) 
+      ? response 
+      : (response?.data || (response as any)?.list || []);
+    
+    const currentLang = locale.value === 'zh' ? 'zh' : 'en';
+    
+    // 转换为 Service 格式
+    const allServices = servicesData.map((item: any) => {
+      const product = item.product || item;
+      const i18nList = item.productI18nList || item.i18nList || [];
+      const images = item.productImages || item.images || [];
+      const currentI18n = i18nList.find((i: any) => i.langCode === currentLang) || i18nList[0] || {};
+      
+      return {
+        id: product.id?.toString() || '',
+        name: currentI18n.name || product.name || '',
+        categoryId: product.categoryId || item.categoryId || 'cleaning',
+        imageUrl: images[0]?.imageUrl || product.imageUrl || '',
+        description: currentI18n.details || currentI18n.description || '',
+        displayOrder: product.sort || product.displayOrder || 0,
+      };
+    });
+    
+    // 过滤相关服务（同分类，排除当前服务）
+    relatedServices.value = allServices
+      .filter((s: Service) => s.id !== serviceId.value && s.categoryId === serviceData.value.categoryId)
+      .slice(0, 3);
+  } catch (error: any) {
+    console.error('获取相关服务失败:', error);
+    relatedServices.value = [];
+  }
+};
 
 const toggleServiceDetails = () => {
   isServiceDetailsOpen.value = !isServiceDetailsOpen.value;
@@ -159,6 +253,11 @@ const handleBuyNow = () => {
   // TODO: 实现购买逻辑
   console.log('购买服务:', serviceData.value.id, '数量:', quantity.value);
 };
+
+// 组件挂载时获取服务详情
+onMounted(() => {
+  fetchServiceDetail();
+});
 </script>
 
 <style scoped lang="scss">
@@ -238,6 +337,16 @@ const handleBuyNow = () => {
   max-width: 1920px;
   margin: 0 auto;
   padding: 0 200px;
+}
+
+// Loading State
+.loading-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 400px;
+  font-size: 1.125rem;
+  color: #666;
 }
 
 // Breadcrumb
