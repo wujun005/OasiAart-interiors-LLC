@@ -54,7 +54,8 @@
       "applianceCleaningDesc": "专业清洁各类家电，延长使用寿命",
       "homeRepair": "房屋维修",
       "homeRepairDesc": "全方位的房屋维修服务",
-      "learnMore": "了解更多"
+      "learnMore": "了解更多",
+      "hour": "小时"
     },
     "about": {
       "title": "关于我们",
@@ -103,6 +104,19 @@
         "sunday": "周日 休息"
       },
       "contactUs": "联系我们"
+    },
+    "serviceDetail": {
+      "title": "服务详情",
+      "breadcrumb": {
+        "home": "首页",
+        "allServices": "所有服务"
+      },
+      "price": "价格",
+      "quantity": "数量",
+      "buyNow": "立即购买",
+      "serviceDetails": "服务详情",
+      "returnDetails": "退货详情",
+      "moreServices": "更多服务"
     }
   }
 }

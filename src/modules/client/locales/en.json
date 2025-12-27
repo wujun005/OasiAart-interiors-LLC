@@ -54,7 +54,8 @@
       "applianceCleaningDesc": "Professional cleaning of various appliances to extend their lifespan",
       "homeRepair": "Home Repair",
       "homeRepairDesc": "Comprehensive home repair services",
-      "learnMore": "Learn More"
+      "learnMore": "Learn More",
+      "hour": "hour"
     },
     "about": {
       "title": "About Us",
@@ -103,6 +104,19 @@
         "sunday": "Sunday Closed"
       },
       "contactUs": "Contact Us"
+    },
+    "serviceDetail": {
+      "title": "Service Details",
+      "breadcrumb": {
+        "home": "Home",
+        "allServices": "All Services"
+      },
+      "price": "Price",
+      "quantity": "Quantity",
+      "buyNow": "Buy Now",
+      "serviceDetails": "Service Details",
+      "returnDetails": "Return Details",
+      "moreServices": "More Services"
     }
   }
 }

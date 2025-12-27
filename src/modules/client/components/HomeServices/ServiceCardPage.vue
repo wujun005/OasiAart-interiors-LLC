@@ -1,5 +1,5 @@
 <template>
-  <div class="service-card-page">
+  <div class="service-card-page" @click="handleClick">
     <div class="service-image-wrapper">
       <img
         :src="service.imageUrl"
@@ -20,15 +20,21 @@
 </template>
 
 <script setup lang="ts">
+import { useRouter } from 'vue-router';
 import { useI18n } from 'vue-i18n';
 import type { Service } from '../../types/homepage';
 import arrowIcon from '@/assets/images/homepage/arrow.png';
 
-defineProps<{
+const props = defineProps<{
   service: Service;
 }>();
 
 const { t } = useI18n();
+const router = useRouter();
+
+const handleClick = () => {
+  router.push(`/services/${props.service.id}`);
+};
 </script>
 
 <style scoped lang="scss">

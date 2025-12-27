@@ -13,6 +13,11 @@ const routes: RouteRecordRaw[] = [
     component: () => import('@/modules/client/pages/services.vue'),
   },
   {
+    path: '/services/:id',
+    name: 'ServiceDetail',
+    component: () => import('@/modules/client/pages/service-detail.vue'),
+  },
+  {
     path: '/about',
     name: 'About',
     component: () => import('@/modules/client/pages/about.vue'),
