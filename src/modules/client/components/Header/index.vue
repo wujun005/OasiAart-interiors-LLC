@@ -254,7 +254,18 @@ watch(() => window.location.pathname, () => {
 
       &.router-link-active {
         color: #ffffff;
-        font-weight: 500;
+        font-weight: bold;
+        position: relative;
+        
+        &::after {
+          content: '';
+          position: absolute;
+          bottom: 0;
+          left: 0.5rem;
+          right: 0.5rem;
+          height: 2px;
+          background-color: #ffffff;
+        }
       }
     }
   }
@@ -379,6 +390,18 @@ watch(() => window.location.pathname, () => {
 
     &.router-link-active {
       background-color: transparent;
+      font-weight: bold;
+      position: relative;
+      
+      &::after {
+        content: '';
+        position: absolute;
+        bottom: 0;
+        left: 0.5rem;
+        right: 0.5rem;
+        height: 2px;
+        background-color: #000000;
+      }
     }
   }
 
