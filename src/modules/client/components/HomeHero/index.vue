@@ -11,7 +11,7 @@
           <span class="hero-sub-title">{{ $t('homepage.hero.subTitle') }}</span>
         </h1>
         <p class="hero-description">{{ $t('homepage.hero.description') }}</p>
-        <el-button type="primary" size="large" class="hero-button">
+        <el-button type="primary" size="large" class="hero-button" @click="handleLearnMore">
           {{ $t('homepage.hero.learnMore') }}
         </el-button>
       </div>
@@ -20,7 +20,13 @@
 </template>
 
 <script setup lang="ts">
-// Hero 组件，显示主横幅区域
+import { useRouter } from 'vue-router';
+
+const router = useRouter();
+
+const handleLearnMore = () => {
+  router.push('/services');
+};
 </script>
 
 <style scoped lang="scss">

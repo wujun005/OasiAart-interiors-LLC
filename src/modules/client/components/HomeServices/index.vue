@@ -26,7 +26,7 @@
 
       <!-- Learn More Button -->
       <div class="services-actions">
-        <el-button type="default" size="large" class="learn-more-button">
+        <el-button type="default" size="large" class="learn-more-button" @click="handleLearnMore">
           {{ $t('homepage.services.learnMore') }}
         </el-button>
       </div>
@@ -36,9 +36,11 @@
 
 <script setup lang="ts">
 import { ref, computed } from 'vue';
+import { useRouter } from 'vue-router';
 import { serviceCategories, services } from '../../data/homepage';
 import ServiceCard from './ServiceCard.vue';
 
+const router = useRouter();
 const activeCategoryId = ref('cleaning'); // 默认显示保洁
 
 const filteredServices = computed(() => {
@@ -46,6 +48,10 @@ const filteredServices = computed(() => {
     .filter((service) => service.categoryId === activeCategoryId.value)
     .sort((a, b) => a.displayOrder - b.displayOrder);
 });
+
+const handleLearnMore = () => {
+  router.push('/services');
+};
 </script>
 
 <style scoped lang="scss">
