@@ -9,8 +9,8 @@
       <div class="contact-content">
         <!-- 左侧文字 -->
         <div class="contact-text">
-          <h2 class="contact-title-line1">客服24小时</h2>
-          <h2 class="contact-title-line2">为您安排</h2>
+          <h2 class="contact-title-line1">{{ $t('homepage.contact.titleLine1') }}</h2>
+          <h2 class="contact-title-line2">{{ $t('homepage.contact.titleLine2') }}</h2>
         </div>
         
         <!-- 右侧按钮 -->
