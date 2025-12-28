@@ -125,7 +125,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useI18n } from 'vue-i18n';
 import { ElMessage } from 'element-plus';
@@ -256,6 +256,11 @@ const handleBuyNow = () => {
 
 // 组件挂载时获取服务详情
 onMounted(() => {
+  fetchServiceDetail();
+});
+
+// 监听路由参数变化，当服务ID改变时重新获取详情
+watch(serviceId, () => {
   fetchServiceDetail();
 });
 </script>
