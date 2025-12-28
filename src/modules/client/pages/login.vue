@@ -2,7 +2,7 @@
   <div class="auth-page">
     <div class="auth-page-left">
       <img
-        src="https://img0.baidu.com/it/u=36026366,1309004716&fm=253&app=138&f=JPEG?w=800&h=1421"
+        src="../../../assets/images/login-img.png"
         alt=""
       />
     </div>

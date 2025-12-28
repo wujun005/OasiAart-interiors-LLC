@@ -250,8 +250,16 @@ const toggleReturnDetails = () => {
 };
 
 const handleBuyNow = () => {
-  // TODO: 实现购买逻辑
-  console.log('购买服务:', serviceData.value.id, '数量:', quantity.value);
+  router.push({
+    name: 'Payment',
+    query: {
+      id: serviceData.value.id,
+      name: serviceData.value.name,
+      qty: quantity.value,
+      price: serviceData.value.price || 0,
+      currency: serviceData.value.currency || 'USD',
+    },
+  });
 };
 
 // 组件挂载时获取服务详情
@@ -579,4 +587,3 @@ onMounted(() => {
   }
 }
 </style>
-

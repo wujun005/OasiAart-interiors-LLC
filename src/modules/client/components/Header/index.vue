@@ -211,6 +211,7 @@ watch(() => window.location.pathname, () => {
     justify-content: space-between;
     padding: 0.75rem 200px;
     height: 68px;
+    white-space: nowrap; // 避免文字换行，整行展示
   }
 
   .header-left {
@@ -528,5 +529,4 @@ watch(() => window.location.pathname, () => {
   }
 }
 </style>
-
 
