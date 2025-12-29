@@ -30,6 +30,9 @@ export function upload(payload: any) {
   return http.post('/api/file/upload', payload);
 }
 
+export function currencies() {
+  return http.get('/api/open/currencies');
+}
 export default {
   getPage,
   getInfo,
@@ -37,4 +40,5 @@ export default {
   add,
   update,
   upload,
+  currencies,
 };

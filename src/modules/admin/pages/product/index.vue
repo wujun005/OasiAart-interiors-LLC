@@ -94,7 +94,19 @@
           <el-switch v-model="form.product.isOnSale" />
         </el-form-item>
         <el-form-item label="币种" prop="product.currency">
-          <el-input v-model="form.product.currency" />
+          <el-select
+            v-model="form.product.currency"
+            filterable
+            placeholder="选择币种"
+            :loading="currencyLoading"
+          >
+            <el-option
+              v-for="item in currencyOptions"
+              :key="item.value"
+              :label="item.label"
+              :value="item.value"
+            />
+          </el-select>
         </el-form-item>
 
         <el-form-item label="多语言" prop="productI18nList">
@@ -211,6 +223,36 @@ const formRef = ref<FormInstance>();
 const detailLoading = ref(false);
 const submitLoading = ref(false);
 const uploadList = ref<UploadUserFile[]>([]);
+const currencyOptions = ref<{ label: string; value: string }[]>([]);
+const currencyLoading = ref(false);
+
+const normalizeCurrencyOptions = (list: any): { label: string; value: string }[] => {
+  if (!Array.isArray(list)) return [];
+  return list
+    .map((item) => {
+      if (typeof item === 'string') {
+        return { label: item, value: item };
+      }
+      if (item && typeof item === 'object') {
+        const value = item.value ?? item.code ?? item.currency ?? item.key;
+        const label = item.label ?? item.name ?? item.title ?? value;
+        if (value) {
+          const valueStr = String(value);
+          return { label: label ? String(label) : valueStr, value: valueStr };
+        }
+      }
+      return null;
+    })
+    .filter((item): item is { label: string; value: string } => !!item);
+};
+
+const ensureCurrencyOption = (value?: string) => {
+  if (!value) return;
+  const exists = currencyOptions.value.some((item) => item.value === value);
+  if (!exists) {
+    currencyOptions.value = [...currencyOptions.value, { label: value, value }];
+  }
+};
 
 const defaultProduct = (): ProductEntity => ({
   id: undefined,
@@ -272,7 +314,7 @@ const rules: FormRules = {
       trigger: 'change',
     },
   ],
-  'product.currency': [{ required: true, message: '请输入币种', trigger: 'blur' }],
+  'product.currency': [{ required: true, message: '请选择币种', trigger: 'change' }],
   productI18nList: [
     {
       validator: (_rule, value, callback) => {
@@ -308,6 +350,7 @@ const resetForm = () => {
   form.productI18nList = defaultI18nList();
   form.productImages = [];
   uploadList.value = [];
+  ensureCurrencyOption(form.product.currency);
   nextTick(() => formRef.value?.clearValidate());
 };
 
@@ -341,6 +384,21 @@ const extractPage = (payload: any) => {
     pageNum: page.pageNum ?? query.pageNum,
     pageSize: page.pageSize ?? query.pageSize,
   };
+};
+
+const fetchCurrencies = async () => {
+  currencyLoading.value = true;
+  try {
+    const res = await api.currencies({});
+    const options = normalizeCurrencyOptions(res?.data ?? res);
+    currencyOptions.value = options;
+    ensureCurrencyOption(form.product.currency);
+  } catch (error: any) {
+    ensureCurrencyOption(form.product.currency);
+    ElMessage.error(error?.message || '获取币种失败');
+  } finally {
+    currencyLoading.value = false;
+  }
 };
 
 const fetchProducts = async () => {
@@ -450,6 +508,7 @@ const openEdit = async (row: ProductRow) => {
       createdAt: img.createdAt,
     }));
     setUploadList(form.productImages);
+    ensureCurrencyOption(form.product.currency);
     nextTick(() => formRef.value?.clearValidate());
   } catch (error: any) {
     ElMessage.error(error?.message || '获取商品详情失败');
@@ -523,7 +582,10 @@ const remove = async (row: ProductRow) => {
   }
 };
 
-onMounted(fetchProducts);
+onMounted(() => {
+  fetchCurrencies();
+  fetchProducts();
+});
 </script>
 
 <style scoped>
