@@ -152,9 +152,68 @@ const serviceData = ref<Service & { price?: number; currency?: string }>({
   displayOrder: 0,
 });
 const relatedServices = ref<Service[]>([]);
+const rawServiceDetail = ref<any>(null); // 保存原始服务详情数据
+const rawRelatedServicesData = ref<any[]>([]); // 保存原始相关服务数据
 
 // 从路由参数获取服务ID
 const serviceId = computed(() => route.params.id as string);
+
+// 根据当前语言处理服务详情数据
+const processServiceDetail = (detail: any, currentLang: string) => {
+  const product = detail.product || detail;
+  const i18nList = detail.productI18nList || detail.i18nList || [];
+  const images = detail.productImages || detail.images || [];
+  
+  // 尝试匹配语言代码（支持 'zh', 'zh-CN', 'en', 'en-US' 等格式）
+  const langCodes = [currentLang, currentLang === 'zh' ? 'zh-CN' : 'en-US', currentLang === 'zh' ? 'zh' : 'en'];
+  let currentI18n = i18nList.find((i: any) => langCodes.indexOf(i.langCode) !== -1);
+  
+  if (!currentI18n && i18nList.length > 0) {
+    // 如果找不到匹配的，尝试模糊匹配
+    currentI18n = i18nList.find((i: any) => i.langCode?.startsWith(currentLang)) || i18nList[0];
+  }
+  
+  return {
+    id: product.id?.toString() || '',
+    name: currentI18n?.name || product.name || '',
+    categoryId: product.categoryId || detail.categoryId || 'cleaning',
+    imageUrl: images[0]?.imageUrl || product.imageUrl || '',
+    description: currentI18n?.details || currentI18n?.description || product.description || '',
+    displayOrder: product.sort || product.displayOrder || 0,
+    price: product.price || 0,
+    currency: product.currency || '美元',
+  };
+};
+
+// 根据当前语言处理相关服务数据
+const processRelatedServices = (servicesData: any[], currentLang: string, currentServiceId: string, currentCategoryId: string) => {
+  const langCodes = [currentLang, currentLang === 'zh' ? 'zh-CN' : 'en-US', currentLang === 'zh' ? 'zh' : 'en'];
+  
+  const allServices = servicesData.map((item: any) => {
+    const product = item.product || item;
+    const i18nList = item.productI18nList || item.i18nList || [];
+    const images = item.productImages || item.images || [];
+    
+    let currentI18n = i18nList.find((i: any) => langCodes.indexOf(i.langCode) !== -1);
+    if (!currentI18n && i18nList.length > 0) {
+      currentI18n = i18nList.find((i: any) => i.langCode?.startsWith(currentLang)) || i18nList[0];
+    }
+    
+    return {
+      id: product.id?.toString() || '',
+      name: currentI18n?.name || product.name || '',
+      categoryId: product.categoryId || item.categoryId || 'cleaning',
+      imageUrl: images[0]?.imageUrl || product.imageUrl || '',
+      description: currentI18n?.details || currentI18n?.description || '',
+      displayOrder: product.sort || product.displayOrder || 0,
+    };
+  });
+  
+  // 过滤相关服务（同分类，排除当前服务）
+  return allServices
+    .filter((s: Service) => s.id !== currentServiceId && s.categoryId === currentCategoryId)
+    .slice(0, 3);
+};
 
 // 获取服务详情
 const fetchServiceDetail = async () => {
@@ -171,25 +230,15 @@ const fetchServiceDetail = async () => {
     
     // 处理 API 返回的数据结构
     const detail = response?.data || response || {};
-    const product = detail.product || detail;
-    const i18nList = detail.productI18nList || detail.i18nList || [];
-    const images = detail.productImages || detail.images || [];
+    
+    // 保存原始数据
+    rawServiceDetail.value = detail;
     
     // 获取当前语言代码
     const currentLang = locale.value === 'zh' ? 'zh' : 'en';
-    const currentI18n = i18nList.find((i: any) => i.langCode === currentLang) || i18nList[0] || {};
     
-    // 转换为 Service 格式
-    serviceData.value = {
-      id: product.id?.toString() || '',
-      name: currentI18n.name || product.name || '',
-      categoryId: product.categoryId || detail.categoryId || 'cleaning',
-      imageUrl: images[0]?.imageUrl || product.imageUrl || '',
-      description: currentI18n.details || currentI18n.description || product.description || '',
-      displayOrder: product.sort || product.displayOrder || 0,
-      price: product.price || 0,
-      currency: product.currency || '美元',
-    };
+    // 处理服务详情数据
+    serviceData.value = processServiceDetail(detail, currentLang);
     
     console.log('处理后的服务详情:', serviceData.value);
     
@@ -212,32 +261,22 @@ const fetchRelatedServices = async () => {
       ? response 
       : (response?.data || (response as any)?.list || []);
     
+    // 保存原始数据
+    rawRelatedServicesData.value = servicesData;
+    
     const currentLang = locale.value === 'zh' ? 'zh' : 'en';
     
-    // 转换为 Service 格式
-    const allServices = servicesData.map((item: any) => {
-      const product = item.product || item;
-      const i18nList = item.productI18nList || item.i18nList || [];
-      const images = item.productImages || item.images || [];
-      const currentI18n = i18nList.find((i: any) => i.langCode === currentLang) || i18nList[0] || {};
-      
-      return {
-        id: product.id?.toString() || '',
-        name: currentI18n.name || product.name || '',
-        categoryId: product.categoryId || item.categoryId || 'cleaning',
-        imageUrl: images[0]?.imageUrl || product.imageUrl || '',
-        description: currentI18n.details || currentI18n.description || '',
-        displayOrder: product.sort || product.displayOrder || 0,
-      };
-    });
-    
-    // 过滤相关服务（同分类，排除当前服务）
-    relatedServices.value = allServices
-      .filter((s: Service) => s.id !== serviceId.value && s.categoryId === serviceData.value.categoryId)
-      .slice(0, 3);
+    // 处理相关服务数据
+    relatedServices.value = processRelatedServices(
+      servicesData,
+      currentLang,
+      serviceId.value,
+      serviceData.value.categoryId
+    );
   } catch (error: any) {
     console.error('获取相关服务失败:', error);
     relatedServices.value = [];
+    rawRelatedServicesData.value = [];
   }
 };
 
@@ -261,6 +300,26 @@ const handleBuyNow = () => {
     },
   });
 };
+
+// 监听语言变化，重新处理服务详情和相关服务数据
+watch(locale, (newLocale) => {
+  if (rawServiceDetail.value) {
+    const currentLang = newLocale === 'zh' ? 'zh' : 'en';
+    serviceData.value = processServiceDetail(rawServiceDetail.value, currentLang);
+    console.log('语言切换，重新处理服务详情:', serviceData.value);
+  }
+  
+  if (rawRelatedServicesData.value.length > 0 && serviceData.value.categoryId) {
+    const currentLang = newLocale === 'zh' ? 'zh' : 'en';
+    relatedServices.value = processRelatedServices(
+      rawRelatedServicesData.value,
+      currentLang,
+      serviceId.value,
+      serviceData.value.categoryId
+    );
+    console.log('语言切换，重新处理相关服务:', relatedServices.value);
+  }
+});
 
 // 组件挂载时获取服务详情
 onMounted(() => {

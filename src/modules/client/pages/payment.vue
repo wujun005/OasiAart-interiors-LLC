@@ -5,58 +5,101 @@
     <main class="payment-main">
       <section class="payment-card">
         <div class="card-header">
-          <h1>PayPal Checkout</h1>
-          <p class="subtitle">确认订单并完成支付</p>
+          <h1>{{ $t('payment.page.title') }}</h1>
+          <p class="subtitle">{{ $t('payment.page.subtitle') }}</p>
         </div>
 
         <div class="card-body">
           <div class="order-summary">
-            <h2>订单信息</h2>
+            <h2>{{ $t('payment.page.orderInfo.title') }}</h2>
             <div class="summary-row">
-              <span class="label">服务名称</span>
+              <span class="label">{{ $t('payment.page.orderInfo.serviceName') }}</span>
               <span class="value">{{ itemName }}</span>
             </div>
             <div class="summary-row">
-              <span class="label">数量</span>
+              <span class="label">{{ $t('payment.page.orderInfo.quantity') }}</span>
               <span class="value">{{ quantity }}</span>
             </div>
             <div class="summary-row">
-              <span class="label">单价</span>
+              <span class="label">{{ $t('payment.page.orderInfo.unitPrice') }}</span>
               <span class="value">{{ currency }} {{ unitPrice.toFixed(2) }}</span>
             </div>
             <div class="summary-row total">
-              <span class="label">应付总额</span>
+              <span class="label">{{ $t('payment.page.orderInfo.totalAmount') }}</span>
               <span class="value">{{ currency }} {{ totalAmount }}</span>
             </div>
           </div>
 
+          <!-- 收货信息 -->
+          <div class="shipping-info">
+            <h2>{{ $t('payment.page.shippingInfo.title') }}</h2>
+            <el-form :model="shippingForm" :rules="shippingRules" ref="shippingFormRef" label-position="top">
+              <el-form-item :label="$t('payment.page.shippingInfo.address')" prop="address">
+                <el-input
+                  v-model="shippingForm.address"
+                  type="textarea"
+                  :rows="4"
+                  :placeholder="$t('payment.page.shippingInfo.addressPlaceholder')"
+                  :maxlength="200"
+                  show-word-limit
+                />
+              </el-form-item>
+              <el-form-item :label="$t('payment.page.shippingInfo.phone')" prop="phone">
+                <el-input
+                  v-model="shippingForm.phone"
+                  :placeholder="$t('payment.page.shippingInfo.phonePlaceholder')"
+                  :maxlength="20"
+                />
+              </el-form-item>
+            </el-form>
+          </div>
+
           <div class="payment-action">
             <div class="action-header">
-              <h2>支付方式</h2>
-              <p class="tips">使用 PayPal 支付，更安全快捷</p>
+              <h2>{{ $t('payment.page.paymentMethod.title') }}</h2>
+              <p class="tips">{{ $t('payment.page.paymentMethod.tips') }}</p>
+            </div>
+
+            <!-- 测试账号提示（仅开发环境显示） -->
+            <div v-if="isDevelopment" class="test-account-info">
+              <h3>{{ $t('payment.page.paymentMethod.testAccount.title') }}</h3>
+              <div class="test-account-details">
+                <p><strong>{{ $t('payment.page.paymentMethod.testAccount.email') }}:</strong> sb-tx447x47381784@personal.example.com</p>
+                <p><strong>{{ $t('payment.page.paymentMethod.testAccount.password') }}:</strong> "_o>G4Nq</p>
+                <p class="test-note">{{ $t('payment.page.paymentMethod.testAccount.note') }}</p>
+              </div>
             </div>
 
             <div class="paypal-box">
               <div v-if="paypalError" class="paypal-error">
-                <p>无法加载 PayPal：{{ paypalError }}</p>
-                <el-button type="primary" plain @click="reload">重新加载</el-button>
+                <p>{{ paypalError }}</p>
+                <el-button type="primary" plain @click="handlePay">{{ $t('payment.page.paymentMethod.retry') }}</el-button>
               </div>
 
               <div v-else>
                 <div v-if="loadingPaypal" class="paypal-loading">
                   <el-icon class="spin"><Loading /></el-icon>
-                  <span>正在加载 PayPal...</span>
+                  <span>{{ $t('payment.page.paymentMethod.loading') }}</span>
                 </div>
-                <div v-show="!loadingPaypal" id="paypal-buttons-container"></div>
-                <p class="helper">若无法显示按钮，请检查网络或稍后重试。</p>
+                <el-button
+                  v-show="!loadingPaypal"
+                  type="primary"
+                  size="large"
+                  class="paypal-button"
+                  @click="handlePay"
+                  :loading="loadingPaypal"
+                >
+                  {{ $t('payment.page.paymentMethod.button') }}
+                </el-button>
+                <p class="helper">{{ $t('payment.page.paymentMethod.helper') }}</p>
               </div>
             </div>
 
             <div v-if="paymentStatus === 'success'" class="result success">
-              支付成功，感谢您的购买！
+              {{ $t('payment.page.messages.paymentSuccess') }}
             </div>
             <div v-else-if="paymentStatus === 'error'" class="result error">
-              支付未完成，请稍后重试。
+              {{ $t('payment.page.messages.paymentFailed') }}
             </div>
           </div>
         </div>
@@ -69,14 +112,23 @@
 
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue';
-import { useRoute } from 'vue-router';
+import { useRoute, useRouter } from 'vue-router';
+import { useI18n } from 'vue-i18n';
+import { ElMessage } from 'element-plus';
+import type { FormInstance, FormRules } from 'element-plus';
 import AppHeader from '../components/Header/index.vue';
 import AppFooter from '../components/Footer/index.vue';
 import { Loading } from '@element-plus/icons-vue';
+import { createPaypalOrder } from '../api';
+import { useAuth } from '../composables/useAuth';
 
 type PaymentStatus = 'idle' | 'success' | 'error';
 
 const route = useRoute();
+const router = useRouter();
+const { t } = useI18n();
+const { isLoggedIn, userInfo } = useAuth();
+const shippingFormRef = ref<FormInstance>();
 
 const normalizeCurrency = (value: string) => {
   if (!value) return 'USD';
@@ -85,80 +137,153 @@ const normalizeCurrency = (value: string) => {
   return upper;
 };
 
-const itemName = computed(() => (route.query.name as string) || '服务名称');
+const itemName = computed(() => (route.query.name as string) || t('payment.page.defaultServiceName'));
+const productId = computed(() => (route.query.id as string) || '');
 const quantity = computed(() => Number(route.query.qty) || 1);
 const unitPrice = computed(() => Number(route.query.price) || 0);
 const currency = computed(() => normalizeCurrency(route.query.currency as string));
 const totalAmount = computed(() => (unitPrice.value * quantity.value).toFixed(2));
 
-const clientId = import.meta.env.VITE_PAYPAL_CLIENT_ID;
 const loadingPaypal = ref(false);
 const paypalError = ref('');
 const paymentStatus = ref<PaymentStatus>('idle');
+const isDevelopment = import.meta.env.DEV;
 
-const loadPaypalSdk = async () => {
-  if (!clientId) {
-    paypalError.value = '缺少 PayPal client id 配置';
+// 收货信息表单
+const shippingForm = ref({
+  address: '',
+  phone: userInfo.value.phone || '',
+});
+
+// 表单验证规则
+const shippingRules: FormRules = {
+  address: [
+    { required: true, message: t('payment.page.shippingInfo.addressRequired'), trigger: 'blur' },
+    { min: 5, message: t('payment.page.shippingInfo.addressMinLength'), trigger: 'blur' },
+  ],
+  phone: [
+    { required: true, message: t('payment.page.shippingInfo.phoneRequired'), trigger: 'blur' },
+    { pattern: /^[\d\s\-\+\(\)]+$/, message: t('payment.page.shippingInfo.phoneInvalid'), trigger: 'blur' },
+  ],
+};
+
+// 处理支付
+const handlePay = async () => {
+  // 检查登录状态
+  if (!isLoggedIn.value) {
+    ElMessage.warning(t('payment.page.messages.loginRequired'));
+    router.push({
+      path: '/login',
+      query: {
+        redirect: route.fullPath, // 支付完成后返回支付页面
+      },
+    });
     return;
   }
-  // 已加载则直接返回
-  if ((window as any).paypal) return;
+
+  // 验证表单
+  if (!shippingFormRef.value) return;
+  
+  const valid = await shippingFormRef.value.validate().catch(() => false);
+  if (!valid) {
+    ElMessage.error(t('payment.page.messages.fillShippingInfo'));
+    return;
+  }
+
+  if (!productId.value) {
+    ElMessage.error(t('payment.page.messages.missingServiceId'));
+    return;
+  }
 
   loadingPaypal.value = true;
-  await new Promise<void>((resolve, reject) => {
-    const script = document.createElement('script');
-    script.src = `https://www.paypal.com/sdk/js?client-id=${clientId}&currency=${currency.value}`;
-    script.async = true;
-    script.onload = () => resolve();
-    script.onerror = () => reject(new Error('PayPal SDK 加载失败'));
-    document.body.appendChild(script);
-  })
-    .catch((err) => {
-      paypalError.value = err?.message || 'PayPal SDK 加载失败';
-    })
-    .finally(() => {
-      loadingPaypal.value = false;
-    });
-};
-
-const renderPaypalButtons = () => {
-  const paypal = (window as any).paypal;
-  if (!paypal || paypalError.value) return;
-
-  paypal.Buttons({
-    style: { layout: 'vertical', color: 'gold', shape: 'rect', label: 'paypal' },
-    createOrder: (_data: any, actions: any) => {
-      return actions.order.create({
-        purchase_units: [
-          {
-            description: itemName.value,
-            amount: {
-              currency_code: currency.value,
-              value: totalAmount.value,
-            },
-          },
-        ],
-      });
-    },
-    onApprove: (_data: any, actions: any) =>
-      actions.order.capture().then(() => {
-        paymentStatus.value = 'success';
-      }),
-    onError: () => {
-      paymentStatus.value = 'error';
-    },
-  }).render('#paypal-buttons-container');
-};
-
-const reload = async () => {
   paypalError.value = '';
-  await loadPaypalSdk();
-  renderPaypalButtons();
+
+  try {
+    // 构建订单项列表
+    const orderItems = [
+      {
+        productId: productId.value,
+        quantity: quantity.value,
+        price: unitPrice.value,
+        amount: totalAmount.value,
+      },
+    ];
+
+    const payload = {
+      productId: productId.value,
+      quantity: quantity.value,
+      totalAmount: parseFloat(totalAmount.value), // 确保是数字类型
+      currency: currency.value,
+      description: itemName.value,
+      address: shippingForm.value.address,
+      phone: shippingForm.value.phone,
+      orderItems: orderItems, // 订单项列表
+    };
+
+    const response: any = await createPaypalOrder(payload);
+    
+    // 后端返回支付 URL，跳转到 PayPal 支付页面
+    const paymentUrl = response?.data?.paymentUrl || response?.paymentUrl || response?.data || response;
+    
+    if (typeof paymentUrl === 'string' && paymentUrl.startsWith('http')) {
+      // 跳转到 PayPal 支付页面
+      window.location.href = paymentUrl;
+    } else {
+      throw new Error(t('payment.page.messages.invalidPaymentLink'));
+    }
+  } catch (error: any) {
+    console.error('创建支付订单失败:', error);
+    const errorMessage = error?.response?.data?.message || error?.message || t('payment.page.messages.createOrderFailed');
+    paypalError.value = errorMessage;
+    ElMessage.error(errorMessage);
+  } finally {
+    loadingPaypal.value = false;
+  }
 };
 
-onMounted(async () => {
-  await loadPaypalSdk();
-  renderPaypalButtons();
+// 检查是否是支付回调
+onMounted(() => {
+  // 检查登录状态
+  if (!isLoggedIn.value) {
+    ElMessage.warning(t('payment.page.messages.loginRequired'));
+    router.push({
+      path: '/login',
+      query: {
+        redirect: route.fullPath,
+      },
+    });
+    return;
+  }
+
+  // 检查 URL 参数，判断是否是支付成功或取消的回调
+  const token = route.query.token;
+  const payerId = route.query.PayerID;
+  
+  if (token && payerId) {
+    // 支付成功回调，后端应该已经处理，直接跳转到成功页面
+    router.replace({
+      name: 'PaymentSuccess',
+      query: {
+        name: itemName.value,
+        qty: quantity.value.toString(),
+        price: unitPrice.value.toString(),
+        currency: currency.value,
+        total: totalAmount.value,
+      },
+    });
+  } else if (route.query.cancel === 'true' || route.path.includes('/cancel')) {
+    // 支付取消回调，跳转到失败页面
+    router.replace({
+      name: 'PaymentFailure',
+      query: {
+        name: itemName.value,
+        qty: quantity.value.toString(),
+        price: unitPrice.value.toString(),
+        currency: currency.value,
+        total: totalAmount.value,
+      },
+    });
+  }
 });
 </script>
 
@@ -169,6 +294,118 @@ onMounted(async () => {
   background: #f5f7fa;
   display: flex;
   flex-direction: column;
+
+  // 页眉在支付页面显示为白色背景，黑色文字
+  :deep(.app-header) {
+    background-color: #ffffff !important;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1) !important;
+    border-top: none !important;
+    
+    .header-logo {
+      color: #000000 !important;
+    }
+
+    .header-nav .nav-link {
+      color: #000000 !important;
+
+      &:hover {
+        color: #333333 !important;
+      }
+
+      &.router-link-active {
+        color: #000000 !important;
+        font-weight: bold !important;
+
+        &::after {
+          background-color: #000000 !important;
+        }
+      }
+    }
+
+    .header-utils {
+      .util-icon {
+        color: #000000 !important;
+      }
+
+      .search-input {
+        :deep(.el-input__inner) {
+          color: #000000 !important;
+
+          &::placeholder {
+            color: rgba(0, 0, 0, 0.5) !important;
+          }
+        }
+
+        .search-input-icon {
+          color: rgba(0, 0, 0, 0.6) !important;
+
+          &:hover {
+            color: #000000 !important;
+          }
+        }
+      }
+
+      .language-link {
+        color: #000000 !important;
+
+        &:hover {
+          color: #333333 !important;
+        }
+      }
+    }
+
+    // 滚动后也保持白色背景和黑色文字
+    &.scrolled {
+      background-color: #ffffff !important;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1) !important;
+
+      .header-logo {
+        color: #000000 !important;
+      }
+
+      .header-nav .nav-link {
+        color: #000000 !important;
+
+        &.router-link-active {
+          &::after {
+            background-color: #000000 !important;
+          }
+        }
+      }
+
+      .header-utils {
+        .util-icon {
+          color: #000000 !important;
+        }
+
+        .search-input {
+          :deep(.el-input__inner) {
+            color: #000000 !important;
+
+            &::placeholder {
+              color: rgba(0, 0, 0, 0.5) !important;
+            }
+          }
+
+          .search-input-icon {
+            color: rgba(0, 0, 0, 0.6) !important;
+
+            &:hover {
+              color: #000000 !important;
+            }
+          }
+        }
+
+        .language-link {
+          color: #000000 !important;
+
+          &:hover {
+            color: #333333 !important;
+          }
+        }
+      }
+    }
+  }
 }
 
 .payment-main {
@@ -226,6 +463,107 @@ onMounted(async () => {
   }
 }
 
+.shipping-info {
+  padding: 28px;
+  border: 1px solid #e0e0e0;
+  border-radius: 12px;
+  background: #ffffff;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+
+  h2 {
+    margin: 0 0 24px;
+    font-size: 20px;
+    font-weight: 600;
+    color: #000000;
+    padding-bottom: 16px;
+    border-bottom: 2px solid #000000;
+  }
+
+  :deep(.el-form-item) {
+    margin-bottom: 24px;
+
+    &:last-child {
+      margin-bottom: 0;
+    }
+  }
+
+  :deep(.el-form-item__label) {
+    color: #000000;
+    font-weight: 600;
+    font-size: 15px;
+    padding-bottom: 12px;
+    line-height: 1.5;
+  }
+
+  :deep(.el-input__wrapper) {
+    background-color: #ffffff;
+    border: 1px solid #d0d0d0;
+    border-radius: 6px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+    transition: all 0.3s ease;
+
+    &:hover {
+      border-color: #999999;
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+    }
+
+    &.is-focus {
+      border-color: #000000;
+      box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.1);
+    }
+  }
+
+  :deep(.el-textarea__inner) {
+    background-color: #ffffff;
+    border: 1px solid #d0d0d0;
+    border-radius: 6px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+    color: #000000;
+    font-size: 14px;
+    line-height: 1.6;
+    padding: 12px 14px;
+    transition: all 0.3s ease;
+
+    &:hover {
+      border-color: #999999;
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+    }
+
+    &:focus {
+      border-color: #000000;
+      box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.1);
+    }
+
+    &::placeholder {
+      color: #999999;
+    }
+  }
+
+  :deep(.el-input__inner) {
+    color: #000000;
+    font-size: 14px;
+
+    &::placeholder {
+      color: #999999;
+    }
+  }
+
+  :deep(.el-input__count) {
+    color: #666666;
+    font-size: 12px;
+    background-color: transparent;
+  }
+
+  @media (max-width: 768px) {
+    padding: 20px;
+
+    h2 {
+      font-size: 18px;
+      margin-bottom: 20px;
+    }
+  }
+}
+
 .summary-row {
   display: flex;
   justify-content: space-between;
@@ -272,6 +610,44 @@ onMounted(async () => {
   }
 }
 
+.test-account-info {
+  margin-top: 16px;
+  padding: 16px;
+  border: 1px solid #fbbf24;
+  border-radius: 8px;
+  background: #fffbeb;
+
+  h3 {
+    margin: 0 0 12px;
+    font-size: 16px;
+    color: #92400e;
+    font-weight: 600;
+  }
+
+  .test-account-details {
+    p {
+      margin: 8px 0;
+      font-size: 13px;
+      color: #78350f;
+      line-height: 1.6;
+
+      strong {
+        color: #92400e;
+        font-weight: 600;
+      }
+    }
+
+    .test-note {
+      margin-top: 12px;
+      padding-top: 12px;
+      border-top: 1px dashed #fbbf24;
+      font-size: 12px;
+      color: #a16207;
+      font-style: italic;
+    }
+  }
+}
+
 .paypal-box {
   margin-top: 16px;
   padding: 16px;
@@ -303,8 +679,18 @@ onMounted(async () => {
   }
 }
 
-#paypal-buttons-container {
-  min-height: 48px;
+.paypal-button {
+  width: 100%;
+  padding: 14px 24px;
+  font-size: 16px;
+  font-weight: 600;
+  background-color: #0070ba;
+  border-color: #0070ba;
+  
+  &:hover {
+    background-color: #005ea6;
+    border-color: #005ea6;
+  }
 }
 
 .helper {

@@ -62,7 +62,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { ElMessage } from 'element-plus';
 import AppHeader from '../components/Header/index.vue';
@@ -75,7 +75,35 @@ import type { Service } from '../types/homepage';
 const { locale } = useI18n();
 const activeCategoryId = ref('cleaning'); // 默认显示保洁
 const services = ref<Service[]>([]);
+const rawServicesData = ref<any[]>([]); // 保存原始 API 数据
 const loading = ref(false);
+
+// 根据当前语言处理服务数据
+const processServicesData = (servicesData: any[], currentLang: string) => {
+  return servicesData.map((item: any) => {
+    // 处理商品数据结构：可能是 { product, productI18nList, productImages } 或直接是商品对象
+    const product = item.product || item;
+    const i18nList = item.productI18nList || item.i18nList || [];
+    const images = item.productImages || item.images || [];
+    
+    // 尝试匹配语言代码（支持 'zh', 'zh-CN', 'en', 'en-US' 等格式）
+    const langCodes = [currentLang, currentLang === 'zh' ? 'zh-CN' : 'en-US', currentLang === 'zh' ? 'zh' : 'en'];
+    let currentI18n = i18nList.find((i: any) => langCodes.indexOf(i.langCode) !== -1);
+    
+    if (!currentI18n && i18nList.length > 0) {
+      // 如果找不到匹配的，尝试模糊匹配
+      currentI18n = i18nList.find((i: any) => i.langCode && i.langCode.indexOf(currentLang) === 0) || i18nList[0];
+    }
+    return {
+      id: product.id?.toString() || item.id?.toString() || '',
+      name: currentI18n?.name || product.name || item.name || '',
+      categoryId: product.categoryId || item.categoryId || item.category?.id || 'cleaning',
+      imageUrl: images[0]?.imageUrl || product.imageUrl || item.imageUrl || item.mainImage || '',
+      description: currentI18n?.details || currentI18n?.description || product.description || item.description || '',
+      displayOrder: product.sort || product.displayOrder || item.sortOrder || item.sort || item.order || 0,
+    };
+  });
+};
 
 // 从 API 获取所有服务
 const fetchServices = async () => {
@@ -91,38 +119,34 @@ const fetchServices = async () => {
       ? response 
       : (response?.data || (response as any)?.list || []);
     
-    // 获取当前语言代码 (zh 或 en)
-    const currentLang = locale.value === 'zh' ? 'zh' : 'en';
+    // 保存原始数据
+    rawServicesData.value = servicesData;
     
-    // 将 API 返回的数据转换为 Service 类型
-    services.value = servicesData.map((item: any) => {
-      // 处理商品数据结构：可能是 { product, productI18nList, productImages } 或直接是商品对象
-      const product = item.product || item;
-      const i18nList = item.productI18nList || item.i18nList || [];
-      const images = item.productImages || item.images || [];
-      
-      // 根据当前语言从 productI18nList 中获取名称和描述
-      const currentI18n = i18nList.find((i: any) => i.langCode === currentLang) || i18nList[0] || {};
-      
-      return {
-        id: product.id?.toString() || item.id?.toString() || '',
-        name: currentI18n.name || product.name || item.name || '',
-        categoryId: product.categoryId || item.categoryId || item.category?.id || 'cleaning',
-        imageUrl: images[0]?.imageUrl || product.imageUrl || item.imageUrl || item.mainImage || '',
-        description: currentI18n.details || currentI18n.description || product.description || item.description || '',
-        displayOrder: product.sort || product.displayOrder || item.sortOrder || item.sort || item.order || 0,
-      };
-    });
+    // 获取当前语言代码 (zh 或 en)
+    const currentLang = locale.value === 'zh' ? 'zh-CN' : 'en-US';
+    
+    // 处理服务数据
+    services.value = processServicesData(servicesData, currentLang);
     
     console.log('处理后的服务列表:', services.value);
   } catch (error: any) {
     console.error('获取服务列表失败:', error);
     ElMessage.error(error?.message || '获取服务列表失败');
     services.value = [];
+    rawServicesData.value = [];
   } finally {
     loading.value = false;
   }
 };
+
+// 监听语言变化，重新处理服务数据
+watch(locale, (newLocale) => {
+  if (rawServicesData.value.length > 0) {
+    const currentLang = newLocale === 'zh' ? 'zh-CN' : 'en-US';
+    services.value = processServicesData(rawServicesData.value, currentLang);
+    console.log('语言切换，重新处理服务列表:', services.value);
+  }
+});
 
 const filteredServices = computed(() => {
   return services.value
@@ -140,6 +164,71 @@ onMounted(() => {
 .services-page {
   width: 100%;
   min-height: 100vh;
+
+  // 页眉在服务页面显示为白色背景，黑色文字
+  :deep(.app-header) {
+    background-color: #ffffff !important;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1) !important;
+    border-top: none !important;
+    
+    .header-logo {
+      color: #000000 !important;
+    }
+
+    .header-nav .nav-link {
+      color: #000000 !important;
+
+      &:hover {
+        color: #333333 !important;
+      }
+
+      &.router-link-active {
+        color: #000000 !important;
+        font-weight: bold !important;
+
+        &::after {
+          background-color: #000000 !important;
+        }
+      }
+    }
+
+    .header-utils {
+      .util-icon {
+        color: #000000 !important;
+      }
+
+      .search-input {
+        :deep(.el-input__inner) {
+          color: #000000 !important;
+
+          &::placeholder {
+            color: rgba(0, 0, 0, 0.5) !important;
+          }
+        }
+
+        .search-input-icon {
+          color: rgba(0, 0, 0, 0.6) !important;
+
+          &:hover {
+            color: #000000 !important;
+          }
+        }
+      }
+
+      .language-link {
+        color: #000000 !important;
+
+        &:hover {
+          color: #333333 !important;
+        }
+      }
+    }
+
+    // 滚动后也保持白色背景和黑色文字
+    &.scrolled {
+      background-color: #ffffff !important;
+    }
+  }
 }
 
 
@@ -147,13 +236,13 @@ onMounted(() => {
 .services-banner {
   position: relative;
   width: 100%;
-  height: 400px;
-  min-height: 400px;
+  height: 300px;
+  min-height: 300px;
   display: flex;
   align-items: center;
   justify-content: center;
   overflow: hidden;
-  margin-top: -72px; // 负边距，让 Banner 覆盖到顶部，抵消 Header 的高度
+  margin-top: 72px;
 
   .banner-background {
     position: absolute;
