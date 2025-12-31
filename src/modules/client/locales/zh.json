@@ -60,7 +60,11 @@
       "homeRepair": "房屋维修",
       "homeRepairDesc": "全方位的房屋维修服务",
       "learnMore": "了解更多",
-      "hour": "小时"
+      "hour": "小时",
+      "errors": {
+        "connectionFailed": "无法连接到服务器，请检查后端服务是否运行",
+        "fetchFailed": "获取服务列表失败"
+      }
     },
     "about": {
       "title": "关于我们",

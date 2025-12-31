@@ -60,7 +60,11 @@
       "homeRepair": "Home Repair",
       "homeRepairDesc": "Comprehensive home repair services",
       "learnMore": "Learn More",
-      "hour": "hour"
+      "hour": "hour",
+      "errors": {
+        "connectionFailed": "Unable to connect to server, please check if the backend service is running",
+        "fetchFailed": "Failed to fetch service list"
+      }
     },
     "about": {
       "title": "About Us",

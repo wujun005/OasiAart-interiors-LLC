@@ -120,19 +120,24 @@ const formatOrder = (orderData: any): Order => {
   
   // 获取第一个订单项作为主要显示项
   const firstItem = orderItems[0] || {};
-  const product = firstItem?.product || firstItem || {};
+  
+  // 根据实际 API 结构，订单项可能直接包含 productName, unitPrice
+  // 也可能嵌套在 product 对象中
+  const product = firstItem?.product || {};
   const productI18n = firstItem?.productI18nList?.[0] || product?.productI18nList?.[0] || {};
   const productImage = firstItem?.productImages?.[0]?.imageUrl || product?.productImages?.[0]?.imageUrl || '';
 
   // 根据当前语言选择服务名称
+  // 优先使用订单项中的 productName（API 直接返回）
   const currentLang = localStorage.getItem('locale') || 'zh';
-  const serviceName = currentLang === 'zh' 
-    ? (productI18n.nameZh || product.nameZh || product.name || '服务')
-    : (productI18n.nameEn || product.nameEn || product.name || 'Service');
+  const serviceName = firstItem.productName 
+    || (currentLang === 'zh' 
+      ? (productI18n.nameZh || product.nameZh || product.name || '服务')
+      : (productI18n.nameEn || product.nameEn || product.name || 'Service'));
 
-  // 格式化价格
-  const price = firstItem.price || product.price || 0;
-  const currency = order.currency || 'USD';
+  // 格式化价格 - 使用订单项中的 unitPrice
+  const price = firstItem.unitPrice || firstItem.price || product.price || 0;
+  const currency = firstItem.currency || order.currency || 'USD';
   const quantity = firstItem.quantity || 1;
   const serviceRate = `${currency}${price}/小时`;
 
@@ -159,7 +164,7 @@ const formatOrder = (orderData: any): Order => {
     orderNo: order.orderNo,
     userId: order.userId,
     totalAmount: order.totalAmount,
-    currency: order.currency,
+    currency: order.currency || 'USD', // 处理 currency 为 null 的情况
     orderStatus: order.orderStatus,
     payStatus: order.payStatus,
     createdAt: order.createdAt,
@@ -204,26 +209,72 @@ const fetchOrders = async () => {
 
 // 获取状态文本
 const getStatusText = (status?: string) => {
-  const statusMap: Record<string, string> = {
+  if (!status) return '未知';
+  
+  // 处理中文状态（API 可能返回中文）
+  const chineseStatusMap: Record<string, string> = {
+    '已支付': '已完成',
+    '已确认': '已完成',
+    '处理中': '处理中',
+    '清洁中': '清洁中',
+    '已完成': '已完成',
+    '已取消': '已取消',
+  };
+  
+  // 处理英文状态
+  const englishStatusMap: Record<string, string> = {
     PENDING: '处理中',
     PROCESSING: '处理中',
     CLEANING: '清洁中',
     COMPLETED: '已完成',
     CANCELLED: '已取消',
+    UNPAID: '未支付',
+    PAID: '已支付',
   };
-  return statusMap[status || ''] || status || '未知';
+  
+  // 先检查中文状态
+  if (chineseStatusMap[status]) {
+    return chineseStatusMap[status];
+  }
+  
+  // 再检查英文状态
+  if (englishStatusMap[status]) {
+    return englishStatusMap[status];
+  }
+  
+  // 如果都不匹配，直接返回原状态
+  return status;
 };
 
 // 获取状态样式类
 const getStatusClass = (status?: string) => {
-  const classMap: Record<string, string> = {
-    PENDING: 'status-pending',
-    PROCESSING: 'status-processing',
-    CLEANING: 'status-cleaning',
-    COMPLETED: 'status-completed',
-    CANCELLED: 'status-cancelled',
-  };
-  return classMap[status || ''] || 'status-unknown';
+  if (!status) return 'status-unknown';
+  
+  // 统一状态映射（将不同格式的状态映射到标准状态）
+  const statusLower = status.toUpperCase();
+  
+  // 处理中/处理中
+  if (statusLower.includes('PENDING') || statusLower.includes('PROCESSING') || status === '处理中') {
+    return 'status-processing';
+  }
+  
+  // 清洁中
+  if (statusLower.includes('CLEANING') || status === '清洁中') {
+    return 'status-cleaning';
+  }
+  
+  // 已完成/已支付/已确认
+  if (statusLower.includes('COMPLETED') || statusLower.includes('PAID') || 
+      status === '已完成' || status === '已支付' || status === '已确认') {
+    return 'status-completed';
+  }
+  
+  // 已取消
+  if (statusLower.includes('CANCELLED') || status === '已取消') {
+    return 'status-cancelled';
+  }
+  
+  return 'status-unknown';
 };
 
 // 查看订单详情

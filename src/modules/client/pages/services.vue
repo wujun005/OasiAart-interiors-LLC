@@ -72,7 +72,7 @@ import { serviceCategories } from '../data/homepage';
 import { getServicesList } from '../api';
 import type { Service } from '../types/homepage';
 
-const { locale } = useI18n();
+const { locale, t } = useI18n();
 const activeCategoryId = ref('cleaning'); // 默认显示保洁
 const services = ref<Service[]>([]);
 const rawServicesData = ref<any[]>([]); // 保存原始 API 数据
@@ -131,7 +131,13 @@ const fetchServices = async () => {
     console.log('处理后的服务列表:', services.value);
   } catch (error: any) {
     console.error('获取服务列表失败:', error);
-    ElMessage.error(error?.message || '获取服务列表失败');
+    // 检查是否是网络连接错误
+    const errorMessage = error?.message || '';
+    if (errorMessage.includes('ECONNREFUSED') || errorMessage.includes('network') || errorMessage.includes('timeout')) {
+      ElMessage.warning(t('homepage.services.errors.connectionFailed'));
+    } else {
+      ElMessage.error(errorMessage || t('homepage.services.errors.fetchFailed'));
+    }
     services.value = [];
     rawServicesData.value = [];
   } finally {

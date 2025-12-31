@@ -113,24 +113,30 @@ const loading = ref(false);
 
 // 格式化订单详情数据
 const formatOrderDetail = (orderData: any): OrderInfo => {
-  const order = orderData?.order || orderData || {};
-  const orderItems = orderData?.orderItems || order.orderItems || [];
+  // 处理 API 返回的数据结构：{ data: { order, orderItems } } 或直接 { order, orderItems }
+  const data = orderData?.data || orderData || {};
+  const order = data?.order || orderData?.order || orderData || {};
+  const orderItems = data?.orderItems || orderData?.orderItems || order.orderItems || [];
   
   // 获取第一个订单项作为主要显示项
   const firstItem = orderItems[0] || {};
-  const product = firstItem?.product || firstItem || {};
+  
+  // 根据实际 API 结构，订单项直接包含 productName, unitPrice, quantity
+  // 如果没有嵌套 product 对象，直接使用订单项的数据
+  const product = firstItem?.product || {};
   const productI18n = firstItem?.productI18nList?.[0] || product?.productI18nList?.[0] || {};
   const productImage = firstItem?.productImages?.[0]?.imageUrl || product?.productImages?.[0]?.imageUrl || '';
 
   // 根据当前语言选择服务名称
   const currentLang = localStorage.getItem('locale') || 'zh';
-  const serviceName = currentLang === 'zh' 
-    ? (productI18n.nameZh || product.nameZh || product.name || '服务')
-    : (productI18n.nameEn || product.nameEn || product.name || 'Service');
+  const serviceName = firstItem.productName 
+    || (currentLang === 'zh' 
+      ? (productI18n.nameZh || product.nameZh || product.name || '服务')
+      : (productI18n.nameEn || product.nameEn || product.name || 'Service'));
 
-  // 格式化价格
-  const price = firstItem.price || product.price || 0;
-  const currency = order.currency || 'USD';
+  // 格式化价格 - 使用订单项中的 unitPrice
+  const price = firstItem.unitPrice || firstItem.price || product.price || 0;
+  const currency = firstItem.currency || order.currency || 'USD';
   const quantity = firstItem.quantity || 1;
   const serviceRate = `${currency}${price}/小时`;
   const itemTotal = price * quantity;
@@ -164,8 +170,8 @@ const formatOrderDetail = (orderData: any): OrderInfo => {
     paymentInfo = order.paymentInfo;
   } else if (order.paymentMethod) {
     paymentInfo = order.paymentMethod;
-  } else if (order.payStatus === 'PAID') {
-    // 如果已支付但没有具体付款信息，使用默认格式
+  } else if (order.payStatus === 'PAID' || order.payStatus === 'UNPAID') {
+    // 根据支付状态显示付款信息
     const userEmail = localStorage.getItem('email') || '';
     const username = localStorage.getItem('username') || '';
     if (userEmail) {
