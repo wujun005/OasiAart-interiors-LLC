@@ -60,7 +60,11 @@
       "homeRepair": "Home Repair",
       "homeRepairDesc": "Comprehensive home repair services",
       "learnMore": "Learn More",
-      "hour": "hour"
+      "hour": "hour",
+      "errors": {
+        "connectionFailed": "Unable to connect to server, please check if the backend service is running",
+        "fetchFailed": "Failed to fetch service list"
+      }
     },
     "about": {
       "title": "About Us",
@@ -186,5 +190,86 @@
     "description": "Sorry, the page you are looking for does not exist or has been removed. Please check the URL or return to the homepage to continue browsing.",
     "goHome": "Go to Homepage",
     "goBack": "Go Back"
+  },
+  "payment": {
+    "page": {
+      "title": "PayPal Checkout",
+      "subtitle": "Confirm order and complete payment",
+      "orderInfo": {
+        "title": "Order Information",
+        "serviceName": "Service Name",
+        "quantity": "Quantity",
+        "unitPrice": "Unit Price",
+        "totalAmount": "Total Amount"
+      },
+      "shippingInfo": {
+        "title": "Shipping Information",
+        "address": "Shipping Address",
+        "addressPlaceholder": "Please enter detailed shipping address",
+        "phone": "Contact Phone",
+        "phonePlaceholder": "Please enter contact phone",
+        "addressRequired": "Please enter shipping address",
+        "addressMinLength": "Address must be at least 5 characters",
+        "phoneRequired": "Please enter contact phone",
+        "phoneInvalid": "Please enter a valid phone number"
+      },
+      "paymentMethod": {
+        "title": "Payment Method",
+        "tips": "Use PayPal for secure and fast payment",
+        "testAccount": {
+          "title": "🧪 Test Account Information",
+          "email": "Email",
+          "password": "Password",
+          "note": "This is a PayPal sandbox test account, for testing only, no real transactions will be made."
+        },
+        "loading": "Creating order...",
+        "button": "Pay with PayPal",
+        "helper": "Click the button to redirect to PayPal to complete payment",
+        "retry": "Retry"
+      },
+      "messages": {
+        "loginRequired": "Please login before making payment",
+        "fillShippingInfo": "Please fill in complete shipping information",
+        "missingServiceId": "Missing service ID",
+        "invalidPaymentLink": "Invalid payment link",
+        "createOrderFailed": "Failed to create payment order, please try again later",
+        "paymentSuccess": "Payment successful, thank you for your purchase!",
+        "paymentFailed": "Payment incomplete, please try again later"
+      },
+      "defaultServiceName": "Service Name"
+    },
+    "success": {
+      "title": "Payment completed, our team will contact you within 30 minutes.",
+      "description": "Please keep your phone accessible. You can click the \"Order Details\" button below to view the order content.",
+      "orderDetails": "Order Details"
+    },
+    "failure": {
+      "title": "Payment failed, please try again.",
+      "description": "Click the \"Back\" button below to return to the previous page and try again.",
+      "back": "Back"
+    }
+  },
+  "orderHistory": {
+    "title": "Order History",
+    "loading": "Loading...",
+    "empty": "No orders",
+    "noImage": "No image",
+    "quantity": "Quantity",
+    "viewDetails": "View Details"
+  },
+  "orderDetail": {
+    "breadcrumb": {
+      "orderHistory": "Order History",
+      "orderDetail": "Order Details"
+    },
+    "summary": {
+      "account": "Account",
+      "date": "Date",
+      "paymentInfo": "Payment Information",
+      "orderNumber": "Order Number"
+    },
+    "total": "Total",
+    "thankYou": "Thank you for your patronage",
+    "noImage": "No image"
   }
 }

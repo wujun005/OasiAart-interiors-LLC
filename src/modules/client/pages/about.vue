@@ -215,6 +215,71 @@ const handleJoinUs = () => {
   width: 100%;
   min-height: 100vh;
   background-color: #ffffff;
+
+  // 页眉在关于我们页面显示为白色背景，黑色文字
+  :deep(.app-header) {
+    background-color: #ffffff !important;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1) !important;
+    border-top: none !important;
+    
+    .header-logo {
+      color: #000000 !important;
+    }
+
+    .header-nav .nav-link {
+      color: #000000 !important;
+
+      &:hover {
+        color: #333333 !important;
+      }
+
+      &.router-link-active {
+        color: #000000 !important;
+        font-weight: bold !important;
+
+        &::after {
+          background-color: #000000 !important;
+        }
+      }
+    }
+
+    .header-utils {
+      .util-icon {
+        color: #000000 !important;
+      }
+
+      .search-input {
+        :deep(.el-input__inner) {
+          color: #000000 !important;
+
+          &::placeholder {
+            color: rgba(0, 0, 0, 0.5) !important;
+          }
+        }
+
+        .search-input-icon {
+          color: rgba(0, 0, 0, 0.6) !important;
+
+          &:hover {
+            color: #000000 !important;
+          }
+        }
+      }
+
+      .language-link {
+        color: #000000 !important;
+
+        &:hover {
+          color: #333333 !important;
+        }
+      }
+    }
+
+    // 滚动后也保持白色背景和黑色文字
+    &.scrolled {
+      background-color: #ffffff !important;
+    }
+  }
 }
 
 .about-content {
@@ -231,7 +296,7 @@ const handleJoinUs = () => {
   align-items: center;
   justify-content: center;
   overflow: hidden;
-  margin-top: -72px;
+  margin-top: 72px;
 
   .banner-background {
     position: absolute;
