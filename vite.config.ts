@@ -4,15 +4,19 @@ import vue from '@vitejs/plugin-vue'
 import svgLoader from 'vite-svg-loader'
 import { resolve } from 'path'
 
-// 将 /admin 开头的路径在 dev/preview 环境下重写到 admin.html，确保加载后台入口
-const adminRewritePlugin = () => {
+// 将 /admin、/h5 等多入口路径在 dev/preview 环境下重写到对应 html，确保加载对应入口
+type HtmlEntry = { prefix: string; html: string }
+const htmlEntryRewritePlugin = (entries: HtmlEntry[]) => {
   const rewrite = (req: any) => {
-    if (req.url?.startsWith('/admin') && !req.url.includes('.')) {
-      req.url = '/admin.html'
+    const match = entries.find(
+      (entry) => req.url?.startsWith(entry.prefix) && !req.url.includes('.')
+    )
+    if (match) {
+      req.url = match.html
     }
   }
   return {
-    name: 'admin-rewrite',
+    name: 'html-entry-rewrite',
     configureServer(server: any) {
       server.middlewares.use((req: any, _res: any, next: any) => {
         rewrite(req)
@@ -33,7 +37,14 @@ export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '')
 
   return {
-    plugins: [adminRewritePlugin(), vue(), svgLoader()],
+    plugins: [
+      htmlEntryRewritePlugin([
+        { prefix: '/admin', html: '/admin.html' },
+        { prefix: '/h5', html: '/h5.html' },
+      ]),
+      vue(),
+      svgLoader(),
+    ],
     resolve: {
       alias: { '@': resolve(__dirname, 'src') },
     },
@@ -51,6 +62,7 @@ export default defineConfig(({ mode }) => {
         input: {
           index: resolve(__dirname, 'index.html'),
           admin: resolve(__dirname, 'admin.html'),
+          h5: resolve(__dirname, 'h5.html'),
         },
       },
     },

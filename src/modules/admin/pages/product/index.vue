@@ -109,15 +109,21 @@
           </el-select>
         </el-form-item>
 
-        <el-form-item label="多语言" prop="productI18nList">
-          <div class="i18n-list">
-            <div v-for="(item, idx) in form.productI18nList" :key="idx" class="i18n-row">
-              <el-select v-model="item.langCode" placeholder="语言">
-                <el-option
-                  v-for="lang in langOptions"
-                  :key="lang.value"
-                  :label="lang.label"
-                  :value="lang.value"
+<el-form-item label="多语言" prop="productI18nList">
+  <div class="i18n-list">
+    <div v-for="(item, idx) in form.productI18nList" :key="idx" class="i18n-row">
+      <el-select
+        v-model="item.langCode"
+        placeholder="语言"
+        filterable
+        allow-create
+        default-first-option
+      >
+        <el-option
+          v-for="lang in langOptions"
+          :key="lang.value"
+          :label="lang.label"
+          :value="lang.value"
                 />
               </el-select>
               <el-input v-model="item.name" placeholder="名称" />
@@ -140,28 +146,31 @@
           </div>
         </el-form-item>
 
-        <el-form-item label="图片" prop="productImages">
-          <el-upload
-            :http-request="handleUpload"
-            list-type="picture-card"
-            :file-list="uploadList"
-            multiple
-            :on-remove="onRemove"
-          >
-            <el-icon><Plus /></el-icon>
-          </el-upload>
-        </el-form-item>
-      </el-form>
-      <template #footer>
-        <el-button @click="dialogVisible = false">取消</el-button>
-        <el-button type="primary" :loading="submitLoading" @click="save">保存</el-button>
-      </template>
-    </el-dialog>
+    <el-form-item label="图片" prop="productImages">
+      <el-upload
+        :http-request="handleUpload"
+        list-type="picture-card"
+        :file-list="uploadList"
+        multiple
+        :on-remove="onRemove"
+      >
+        <el-icon><Plus /></el-icon>
+      </el-upload>
+      <div v-if="uploading" class="uploading-tip">图片上传中，请稍候...</div>
+    </el-form-item>
+  </el-form>
+  <template #footer>
+    <el-button @click="dialogVisible = false">取消</el-button>
+    <el-button type="primary" :disabled="uploading" :loading="submitLoading" @click="save">
+      保存
+    </el-button>
+  </template>
+</el-dialog>
   </div>
 </template>
 
 <script setup lang="ts">
-import { nextTick, onMounted, reactive, ref } from 'vue';
+import { computed, nextTick, onMounted, reactive, ref } from 'vue';
 import type { FormInstance, FormRules, UploadRequestOptions, UploadUserFile } from 'element-plus';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { Plus } from '@element-plus/icons-vue';
@@ -223,8 +232,10 @@ const formRef = ref<FormInstance>();
 const detailLoading = ref(false);
 const submitLoading = ref(false);
 const uploadList = ref<UploadUserFile[]>([]);
+const uploadCount = ref(0);
 const currencyOptions = ref<{ label: string; value: string }[]>([]);
 const currencyLoading = ref(false);
+const uploading = computed(() => uploadCount.value > 0);
 
 const normalizeCurrencyOptions = (list: any): { label: string; value: string }[] => {
   if (!Array.isArray(list)) return [];
@@ -350,6 +361,7 @@ const resetForm = () => {
   form.productI18nList = defaultI18nList();
   form.productImages = [];
   uploadList.value = [];
+  uploadCount.value = 0;
   ensureCurrencyOption(form.product.currency);
   nextTick(() => formRef.value?.clearValidate());
 };
@@ -444,14 +456,7 @@ const reset = () => {
 };
 
 const addLang = () => {
-  const next = langOptions.find(
-    (lang) => !form.productI18nList.some((item) => item.langCode === lang.value)
-  );
-  if (!next) {
-    ElMessage.info('已包含所有语言');
-    return;
-  }
-  form.productI18nList.push({ langCode: next.value, name: '', details: '' });
+  form.productI18nList.push({ langCode: '', name: '', details: '' });
 };
 
 const removeLang = (idx: number) => {
@@ -518,6 +523,7 @@ const openEdit = async (row: ProductRow) => {
 };
 
 const handleUpload = async (options: UploadRequestOptions) => {
+  uploadCount.value += 1;
   try {
     const formData = new FormData();
     formData.append('file', options.file as File);
@@ -530,6 +536,8 @@ const handleUpload = async (options: UploadRequestOptions) => {
   } catch (error: any) {
     ElMessage.error(error?.message || '上传失败');
     options.onError?.(error);
+  } finally {
+    uploadCount.value = Math.max(0, uploadCount.value - 1);
   }
 };
 
@@ -543,6 +551,10 @@ const onRemove = (file: UploadUserFile) => {
 const save = () => {
   formRef.value?.validate(async (valid) => {
     if (!valid) return;
+    if (uploading.value) {
+      ElMessage.warning('图片上传中，请稍候');
+      return;
+    }
     submitLoading.value = true;
     try {
       const payload = {
@@ -632,6 +644,11 @@ onMounted(() => {
   grid-template-columns: 140px 1fr 1fr auto;
   gap: 8px;
   align-items: center;
+}
+.uploading-tip {
+  margin-top: 8px;
+  color: #f59b00;
+  font-size: 12px;
 }
 @media (max-width: 640px) {
   .i18n-row {
