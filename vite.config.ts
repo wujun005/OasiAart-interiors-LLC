@@ -49,6 +49,7 @@ export default defineConfig(({ mode }) => {
       alias: { '@': resolve(__dirname, 'src') },
     },
     server: {
+      host: '0.0.0.0',
       proxy: {
         '/api': {
           target: env.VITE_API_PROXY_TARGET,

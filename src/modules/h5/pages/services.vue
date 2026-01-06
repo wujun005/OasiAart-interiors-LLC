@@ -1,8 +1,8 @@
 <template>
   <div class="services-page">
     <van-nav-bar
-      title="服务项目"
-      left-text="返回"
+      :title="text.navTitle"
+      :left-text="text.back"
       left-arrow
       fixed
       placeholder
@@ -11,7 +11,7 @@
     />
 
     <div class="page-section">
-      <div class="section-title">精选方案</div>
+      <div class="section-title">{{ text.schemes }}</div>
       <van-tabs v-model:active="activeTab" shrink>
         <van-tab v-for="tab in tabs" :key="tab.name" :title="tab.title" :name="tab.name">
           <van-cell-group inset>
@@ -37,37 +37,37 @@
     </div>
 
     <div class="page-section contact">
-      <div class="section-title">预约与咨询</div>
+      <div class="section-title">{{ text.contact.title }}</div>
       <van-field
         v-model="contact.name"
-        label="称呼"
-        placeholder="请输入称呼"
+        :label="text.contact.name"
+        :placeholder="text.contact.namePlaceholder"
         clearable
         border
       />
       <van-field
         v-model="contact.phone"
         type="tel"
-        label="手机"
-        placeholder="便于联系确认时间"
+        :label="text.contact.phone"
+        :placeholder="text.contact.phonePlaceholder"
         clearable
         border
       />
       <van-field
         v-model="contact.note"
         type="textarea"
-        label="需求"
+        :label="text.contact.note"
         rows="2"
         maxlength="120"
         show-word-limit
-        placeholder="如：深度保洁+冰箱清洗，周末上门"
+        :placeholder="text.contact.notePlaceholder"
       />
       <van-button block type="primary" round class="submit-btn" @click="submit">
-        提交预约
+        {{ text.contact.submit }}
       </van-button>
-      <van-divider dashed>或</van-divider>
+      <van-divider dashed>{{ text.contact.or }}</van-divider>
       <van-button block plain type="primary" round @click="toLogin">
-        登录查看我的订单
+        {{ text.contact.login }}
       </van-button>
     </div>
   </div>
@@ -77,36 +77,16 @@
 import { reactive, ref } from 'vue'
 import { showToast } from 'vant'
 import { useRouter } from 'vue-router'
+import { computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 
 const router = useRouter()
 const activeTab = ref('cleaning')
 
-const tabs = [
-  {
-    name: 'cleaning',
-    title: '家庭保洁',
-    plans: [
-      { title: '日常保洁 · 标准', desc: '客厅/卧室基础清洁 + 桌面收纳', price: '￥129 起', duration: '1.5 小时', icon: 'brush-o' },
-      { title: '深度保洁 · 厨卫', desc: '重油区深度去渍 + 杀菌除螨', price: '￥199 起', duration: '3 小时', icon: 'fire' },
-    ],
-  },
-  {
-    name: 'appliance',
-    title: '家电清洗',
-    plans: [
-      { title: '空调蒸汽洗', desc: '外机+内机杀菌清洗，保持风量', price: '￥159 起', duration: '90 分钟', icon: 'underway-o' },
-      { title: '冰箱除味洗', desc: '拆洗密封胶圈，深层除菌除味', price: '￥129 起', duration: '60 分钟', icon: 'smile' },
-    ],
-  },
-  {
-    name: 'commercial',
-    title: '商户保洁',
-    plans: [
-      { title: '店面开荒', desc: '硬化地面/橱窗清洁，开业前一次性焕新', price: '￥699 起', duration: '半天', icon: 'shop-o' },
-      { title: '月度保洁', desc: '固定频次上门，保持环境稳定整洁', price: '￥1299 起', duration: '包月', icon: 'balance-list-o' },
-    ],
-  },
-] as const
+const { locale, messages } = useI18n()
+const pack = computed(() => (messages.value as any)[locale.value].services)
+const text = computed(() => pack.value)
+const tabs = computed(() => pack.value.tabs)
 
 const contact = reactive({
   name: '',
@@ -118,10 +98,10 @@ const goBack = () => router.back()
 const toLogin = () => router.push('/login')
 const submit = () => {
   if (!contact.phone) {
-    showToast('请先填写联系方式')
+    showToast(text.value.toast.needPhone)
     return
   }
-  showToast('已提交，顾问会尽快联系您')
+  showToast(text.value.toast.submitted)
   contact.note = ''
 }
 </script>
