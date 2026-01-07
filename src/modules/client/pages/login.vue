@@ -64,7 +64,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onBeforeUnmount } from 'vue';
+import { ref, computed, onBeforeUnmount, onMounted } from 'vue';
 import { ElMessage } from 'element-plus';
 import { login, sendSmsCode } from '@/modules/client/api';
 import ResetPasswordForm from '@/modules/client/components/ResetPasswordForm/index.vue';
@@ -72,8 +72,12 @@ import { useI18n } from 'vue-i18n';
 import { loginSuccess } from '@/modules/client/utils';
 import LoginByPassword from '@/components/LoginByPassword/index.vue';
 import LoginBySms from '@/modules/client/components/LoginBySms/index.vue';
+import { useLocaleStore } from '@/modules/client/store/locale';
+import { storeToRefs } from 'pinia';
 
 const { locale } = useI18n();
+const localeStore = useLocaleStore();
+const { locale: storedLocale } = storeToRefs(localeStore);
 async function smsLoginApi(payload: { account: string; password: string }) {
   // return smsLogin(payload)
   return login(payload);
@@ -106,6 +110,7 @@ const switchLanguage = () => {
 const changeLanguage = (lang: string) => {
   switchLanguage();
   locale.value = lang;
+  localeStore.setLocale(lang);
 };
 
 const debounceLeading = <T extends (...args: any[]) => unknown>(
@@ -192,6 +197,12 @@ onBeforeUnmount(() => {
   if (countdownTimer) {
     window.clearInterval(countdownTimer);
     countdownTimer = null;
+  }
+});
+
+onMounted(() => {
+  if (storedLocale.value) {
+    locale.value = storedLocale.value;
   }
 });
 </script>

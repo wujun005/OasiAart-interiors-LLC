@@ -15,7 +15,7 @@
         <div v-if="item.action === 'logout'" class="line"></div>
         <div class="item-content">
           <span class="item-text">{{ item.name }}</span>
-          <span class="item-arrow">></span>
+          <img src="@/assets/images/h5/arrow2.png" alt="">
         </div>
       </div>
     </div>

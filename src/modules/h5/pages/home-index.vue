@@ -9,7 +9,8 @@
     </div>
     <div class="my-service">
       <div class="service-title">我的服务</div>
-      <div class="service-list">
+      <ServiceList @switch="(e: any) => serviceType = e"/>
+      <!-- <div class="service-list">
         <div
           class="service-item"
           :class="{ active: serviceType === 1 }"
@@ -24,7 +25,7 @@
         >
           维修
         </div>
-      </div>
+      </div> -->
       <div class="service-content">
         <template v-if="serviceType === 1">
           <div
@@ -97,31 +98,19 @@
 import { ref, onMounted, computed } from 'vue';
 import { useRouter } from 'vue-router';
 import { useI18n } from 'vue-i18n';
-import { getServicesList } from '@/modules/client/api';
+import { storeToRefs } from 'pinia';
+import { useServiceStore } from '@/modules/h5/store/services';
+import ServiceList from '@/modules/h5/components/service-list/index.vue';
 
 const router = useRouter();
+const serviceStore = useServiceStore();
+const { services } = storeToRefs(serviceStore);
 const { locale } = useI18n();
 const serviceType = ref(1);
-const rawRelatedServicesData = ref([]);
 const defaultImg = new URL(
   '../../../assets/images/h5/image_3@2x.png',
   import.meta.url
 ).href;
-
-const fetchRelatedServices = async () => {
-  try {
-    const response: any = await getServicesList();
-    console.log(JSON.stringify(response));
-    const servicesData = Array.isArray(response)
-      ? response
-      : response?.data || (response as any)?.list || [];
-
-    // 保存原始数据
-    rawRelatedServicesData.value = servicesData;
-  } catch (error: any) {
-    console.log('Error fetching related services:', error);
-  }
-};
 
 const goToServiceList = () => {
   router.push('/products');
@@ -134,7 +123,7 @@ const goToAbout = () => {
 // 取前四个服务，并按当前语言选择名称
 const displayedServices = computed(() => {
   const langCode = locale.value === 'en' ? 'en-US' : 'zh-CN';
-  return (rawRelatedServicesData.value || [])
+  return (services.value || [])
     .slice(0, 4)
     .map((item: any, idx: number) => {
       const {
@@ -156,7 +145,7 @@ const displayedServices = computed(() => {
 
 // 组件挂载时获取服务列表
 onMounted(() => {
-  fetchRelatedServices();
+  serviceStore.fetchServices();
 });
 </script>
 
@@ -225,24 +214,6 @@ onMounted(() => {
     letter-spacing: 0;
     text-align: center;
     margin-top: 30px;
-  }
-  .service-list {
-    width: 120px;
-    display: flex;
-    margin: 40px auto;
-    justify-content: space-between;
-    .service-item {
-      // width: 50%;
-      font-weight: 400;
-      font-size: 14px;
-      color: #000000e6;
-      letter-spacing: 0;
-      text-align: center;
-      line-height: 30px;
-      &.active {
-        border-bottom: 2px solid #000000;
-      }
-    }
   }
   .service-content {
     display: flex;

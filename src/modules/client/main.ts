@@ -5,6 +5,7 @@ import '@/modules/client/style/index.scss';
 import ElementPlus from 'element-plus'
 import 'element-plus/dist/index.css'
 import { createI18n } from 'vue-i18n'
+import { createPinia } from 'pinia'
 import messages from './locales'
 
 const i18n = createI18n({
@@ -14,6 +15,8 @@ const i18n = createI18n({
 })
 console.log('client');
 const app = createApp(App);
+const pinia = createPinia()
+app.use(pinia);
 app.use(router);
 app.use(ElementPlus)
 app.use(i18n)
