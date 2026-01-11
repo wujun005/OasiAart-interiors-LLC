@@ -133,10 +133,11 @@ const brandList = computed(() => [
 
 // 格式化订单详情数据
 const formatOrderDetail = (orderData: any): OrderInfo => {
-  // 处理 API 返回的数据结构：{ data: { order, orderItems } } 或直接 { order, orderItems }
+  // 处理 API 返回的数据结构：{ data: { order, orderItems, productImages } } 或直接 { order, orderItems, productImages }
   const data = orderData?.data || orderData || {};
   const order = data?.order || orderData?.order || orderData || {};
   const orderItems = data?.orderItems || orderData?.orderItems || order.orderItems || [];
+  const productImages = data?.productImages || {}; // productImages 在 data 顶层
   
   // 获取第一个订单项作为主要显示项
   const firstItem = orderItems[0] || {};
@@ -145,7 +146,33 @@ const formatOrderDetail = (orderData: any): OrderInfo => {
   // 如果没有嵌套 product 对象，直接使用订单项的数据
   const product = firstItem?.product || {};
   const productI18n = firstItem?.productI18nList?.[0] || product?.productI18nList?.[0] || {};
-  const productImage = firstItem?.productImages?.[0]?.imageUrl || product?.productImages?.[0]?.imageUrl || '';
+  
+  // 根据实际 API 结构，productImages 在 data 顶层，与 order 和 orderItems 平级
+  // productImages: { 7: ["https://..."] }，键是 productId，值是图片 URL 数组
+  const productId = firstItem?.productId || product?.id;
+  let productImage = '';
+  
+  if (productImages && productId) {
+    // productImages 是对象，键是 productId
+    const imageArray = productImages[productId];
+    if (Array.isArray(imageArray) && imageArray.length > 0) {
+      productImage = imageArray[0]; // 第一个图片 URL
+    }
+  }
+  
+  // 如果上面没找到，尝试其他可能的路径
+  if (!productImage) {
+    productImage = 
+      firstItem?.productImages?.[0]?.imageUrl || 
+      product?.productImages?.[0]?.imageUrl ||
+      firstItem?.images?.[0]?.imageUrl ||
+      product?.images?.[0]?.imageUrl ||
+      firstItem?.imageUrl ||
+      product?.imageUrl ||
+      firstItem?.productImage ||
+      product?.productImage ||
+      '';
+  }
 
   // 根据当前语言选择服务名称
   const currentLang = localStorage.getItem('locale') || 'zh';
@@ -246,6 +273,18 @@ const fetchOrderDetail = async () => {
   loading.value = true;
   try {
     const response: any = await getOrderDetail(orderId);
+    
+    // 调试：打印 API 响应结构
+    console.log('订单详情 API 响应:', response);
+    const data = response?.data || response || {};
+    const orderItems = data?.orderItems || data?.order?.orderItems || [];
+    const productImages = data?.productImages || {};
+    console.log('productImages:', productImages);
+    if (orderItems.length > 0) {
+      console.log('订单项数据结构:', orderItems[0]);
+      console.log('productId:', orderItems[0]?.productId);
+    }
+    
     orderInfo.value = formatOrderDetail(response);
   } catch (error: any) {
     console.error('获取订单详情失败:', error);
