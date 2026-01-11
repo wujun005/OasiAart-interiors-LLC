@@ -208,6 +208,8 @@
         "addressPlaceholder": "请输入详细收货地址",
         "phone": "联系电话",
         "phonePlaceholder": "请输入联系电话",
+        "remark": "备注",
+        "remarkPlaceholder": "请输入备注信息（可选）",
         "addressRequired": "请输入收货地址",
         "addressMinLength": "地址长度不能少于5个字符",
         "phoneRequired": "请输入联系电话",

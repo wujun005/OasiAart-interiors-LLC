@@ -51,6 +51,16 @@
                   :maxlength="20"
                 />
               </el-form-item>
+              <el-form-item :label="$t('payment.page.shippingInfo.remark')" prop="remark">
+                <el-input
+                  v-model="shippingForm.remark"
+                  type="textarea"
+                  :rows="3"
+                  :placeholder="$t('payment.page.shippingInfo.remarkPlaceholder')"
+                  :maxlength="500"
+                  show-word-limit
+                />
+              </el-form-item>
             </el-form>
           </div>
 
@@ -153,6 +163,7 @@ const isDevelopment = import.meta.env.DEV;
 const shippingForm = ref({
   address: '',
   phone: userInfo.value.phone || '',
+  remark: '', // 备注
 });
 
 // 表单验证规则
@@ -199,35 +210,37 @@ const handlePay = async () => {
   paypalError.value = '';
 
   try {
-    // 构建订单项列表
+    // 构建订单项列表（根据 Swagger UI 实际规范）
     const orderItems = [
       {
-        productId: productId.value,
-        quantity: quantity.value,
-        price: unitPrice.value,
-        amount: totalAmount.value,
+        productId: Number(productId.value), // 商品/服务ID
+        productName: itemName.value, // 商品/服务名称
+        quantity: quantity.value, // 数量
+        unitPrice: unitPrice.value, // 单价
+        currency: currency.value, // 货币类型
+        // 注意：id, orderId, createdAt 由后端生成，前端不需要发送
       },
     ];
 
+    // 根据 Swagger UI 实际规范构建请求体
     const payload = {
-      productId: productId.value,
-      quantity: quantity.value,
-      totalAmount: parseFloat(totalAmount.value), // 确保是数字类型
-      currency: currency.value,
-      description: itemName.value,
-      address: shippingForm.value.address,
-      phone: shippingForm.value.phone,
-      orderItems: orderItems, // 订单项列表
+      totalAmount: parseFloat(totalAmount.value), // 订单总金额
+      currency: currency.value, // 货币类型
+      phone: shippingForm.value.phone, // 联系电话
+      address: shippingForm.value.address, // 收货地址
+      remark: shippingForm.value.remark || '', // 备注（可选）
+      orderItems: orderItems, // 订单项列表（必填）
     };
 
     const response: any = await createPaypalOrder(payload);
     
     // 后端返回支付 URL，跳转到 PayPal 支付页面
-    const paymentUrl = response?.data?.paymentUrl || response?.paymentUrl || response?.data || response;
+    // 根据 Swagger UI，响应结构为: { success: true, message: "string", data: { approvalUrl: "string", paymentId: "string", orderId: number, orderNo: "string" } }
+    const approvalUrl = response?.data?.approvalUrl || response?.data?.paymentUrl || response?.approvalUrl || response?.paymentUrl || response?.data || response;
     
-    if (typeof paymentUrl === 'string' && paymentUrl.startsWith('http')) {
+    if (typeof approvalUrl === 'string' && approvalUrl.startsWith('http')) {
       // 跳转到 PayPal 支付页面
-      window.location.href = paymentUrl;
+      window.location.href = approvalUrl;
     } else {
       throw new Error(t('payment.page.messages.invalidPaymentLink'));
     }

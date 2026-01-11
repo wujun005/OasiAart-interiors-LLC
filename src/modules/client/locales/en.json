@@ -208,6 +208,8 @@
         "addressPlaceholder": "Please enter detailed shipping address",
         "phone": "Contact Phone",
         "phonePlaceholder": "Please enter contact phone",
+        "remark": "Remark",
+        "remarkPlaceholder": "Please enter remarks (optional)",
         "addressRequired": "Please enter shipping address",
         "addressMinLength": "Address must be at least 5 characters",
         "phoneRequired": "Please enter contact phone",
