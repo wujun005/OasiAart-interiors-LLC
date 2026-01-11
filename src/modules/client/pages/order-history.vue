@@ -125,7 +125,34 @@ const formatOrder = (orderData: any): Order => {
   // 也可能嵌套在 product 对象中
   const product = firstItem?.product || {};
   const productI18n = firstItem?.productI18nList?.[0] || product?.productI18nList?.[0] || {};
-  const productImage = firstItem?.productImages?.[0]?.imageUrl || product?.productImages?.[0]?.imageUrl || '';
+  
+  // 根据实际 API 结构，productImages 在每个订单项数据的顶层，与 order 和 orderItems 平级
+  // productImages: { 7: ["https://..."] }，键是 productId，值是图片 URL 数组
+  const productImages = orderData?.productImages || {};
+  const productId = firstItem?.productId || product?.id;
+  let productImage = '';
+  
+  if (productImages && productId) {
+    // productImages 是对象，键是 productId
+    const imageArray = productImages[productId];
+    if (Array.isArray(imageArray) && imageArray.length > 0) {
+      productImage = imageArray[0]; // 第一个图片 URL
+    }
+  }
+  
+  // 如果上面没找到，尝试其他可能的路径
+  if (!productImage) {
+    productImage = 
+      firstItem?.productImages?.[0]?.imageUrl || 
+      product?.productImages?.[0]?.imageUrl ||
+      firstItem?.images?.[0]?.imageUrl ||
+      product?.images?.[0]?.imageUrl ||
+      firstItem?.imageUrl ||
+      product?.imageUrl ||
+      firstItem?.productImage ||
+      product?.productImage ||
+      '';
+  }
 
   // 根据当前语言选择服务名称
   // 优先使用订单项中的 productName（API 直接返回）
