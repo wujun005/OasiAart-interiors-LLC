@@ -16,6 +16,7 @@
           class="product-item"
           v-for="item in displayedServices"
           :key="item.id"
+          @click="goToDetail(item.id)"
         >
           <img class="thumb" :src="item.image" alt="" />
           <div class="info">
@@ -37,9 +38,12 @@ import Breadcrumb from '@/modules/h5/components/bread-crumb/index.vue';
 import ServiceList from '@/modules/h5/components/service-list/index.vue';
 import { computed, onMounted } from 'vue';
 import { useI18n } from 'vue-i18n';
+import { useRouter } from 'vue-router';
 import { storeToRefs } from 'pinia';
 import { useServiceStore } from '@/modules/h5/store/services';
 import { ref } from 'vue';
+
+const router = useRouter();
 const brandList = [
   {
     name: '首页',
@@ -76,6 +80,11 @@ const displayedServices = computed(() => {
     };
   });
 });
+
+// 跳转到服务详情页
+const goToDetail = (id: string | number) => {
+  router.push(`/products/${id}`);
+};
 
 onMounted(() => {
   serviceStore.fetchServices();
@@ -139,6 +148,13 @@ onMounted(() => {
     border-radius: 8px;
     overflow: hidden;
     box-shadow: 0 4px 10px rgba(0, 0, 0, 0.04);
+    cursor: pointer;
+    transition: all 0.3s ease;
+    
+    &:active {
+      transform: scale(0.98);
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+    }
     .thumb {
       width: 100%;
       height: 120px;
