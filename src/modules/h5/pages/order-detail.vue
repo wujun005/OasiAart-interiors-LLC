@@ -3,6 +3,16 @@
     <!-- 页眉 -->
     <TabNav />
 
+    <!-- Banner 区域 -->
+    <img
+      class="order-banner"
+      src="@/assets/images/h5/product-banner.png"
+      alt=""
+    />
+    <div class="order-bg">
+      <div class="banner-text">订单详情</div>
+    </div>
+
     <!-- 面包屑导航 -->
     <Breadcrumb :brand-list="brandList" />
 
@@ -376,6 +386,36 @@ onMounted(() => {
   background: #f5f5f5;
   padding-bottom: 0;
   padding-top: 0;
+  position: relative;
+}
+
+// Banner 区域
+.order-banner {
+  width: 100%;
+  height: 200px;
+  object-fit: cover;
+  display: block;
+}
+
+.order-bg {
+  width: 100%;
+  height: 200px;
+  background: rgba(0, 0, 0, 0.5);
+  position: absolute;
+  top: 0;
+  left: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 20px;
+
+  .banner-text {
+    font-family: PingFangSC-Semibold;
+    font-weight: 600;
+    font-size: 24px;
+    color: #ffffff;
+    text-align: center;
+  }
 }
 
 .loading-container {
