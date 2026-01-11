@@ -71,9 +71,6 @@
         </div>
       </div>
     </div>
-
-    <!-- Footer -->
-    <Footer />
   </div>
 </template>
 
@@ -83,7 +80,6 @@ import { useRouter } from 'vue-router';
 import { showToast, showFailToast } from 'vant';
 import { getOrderPage } from '../api';
 import { useAuth } from '../composables/useAuth';
-import Footer from '../components/footer/index.vue';
 
 const router = useRouter();
 const { isLoggedIn } = useAuth();
