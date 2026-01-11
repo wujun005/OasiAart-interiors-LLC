@@ -57,6 +57,24 @@ const routes: RouteRecordRaw[] = [
     meta: { title: '登录' },
   },
   {
+    path: '/payment',
+    name: 'h5-payment',
+    component: () => import('../pages/payment.vue'),
+    meta: { title: '支付' },
+  },
+  {
+    path: '/payment/success',
+    name: 'h5-payment-success',
+    component: () => import('../pages/payment-success.vue'),
+    meta: { title: '支付成功' },
+  },
+  {
+    path: '/payment/failure',
+    name: 'h5-payment-failure',
+    component: () => import('../pages/payment-failure.vue'),
+    meta: { title: '支付失败' },
+  },
+  {
     path: '/:pathMatch(.*)*',
     name: 'h5-not-found',
     component: () => import('../pages/not-found.vue'),
