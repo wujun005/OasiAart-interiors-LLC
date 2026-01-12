@@ -31,11 +31,39 @@ const routes: RouteRecordRaw[] = [
     path: '/payment/success',
     name: 'PaymentSuccess',
     component: () => import('@/modules/client/pages/payment-success.vue'),
+    beforeEnter: (to, from, next) => {
+      // 检测设备类型，如果是移动设备则重定向到 H5 页面
+      const isMobile = /Android|webOS|iPhone|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || window.innerWidth <= 820;
+      if (isMobile) {
+        // 保留查询参数
+        next({
+          path: '/h5/payment/success',
+          query: to.query,
+          replace: true,
+        });
+      } else {
+        next();
+      }
+    },
   },
   {
     path: '/payment/failure',
     name: 'PaymentFailure',
     component: () => import('@/modules/client/pages/payment-failure.vue'),
+    beforeEnter: (to, from, next) => {
+      // 检测设备类型，如果是移动设备则重定向到 H5 页面
+      const isMobile = /Android|webOS|iPhone|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || window.innerWidth <= 820;
+      if (isMobile) {
+        // 保留查询参数
+        next({
+          path: '/h5/payment/failure',
+          query: to.query,
+          replace: true,
+        });
+      } else {
+        next();
+      }
+    },
   },
   {
     path: '/login',

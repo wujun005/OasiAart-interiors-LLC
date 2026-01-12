@@ -67,12 +67,38 @@ const routes: RouteRecordRaw[] = [
     name: 'h5-payment-success',
     component: () => import('../pages/payment-success.vue'),
     meta: { title: '支付成功' },
+    beforeEnter: (to, from, next) => {
+      // 如果不是移动设备，重定向到 PC 端
+      const isMobile = /Android|webOS|iPhone|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || window.innerWidth <= 820;
+      if (!isMobile) {
+        next({
+          path: '/payment/success',
+          query: to.query,
+          replace: true,
+        });
+      } else {
+        next();
+      }
+    },
   },
   {
     path: '/payment/failure',
     name: 'h5-payment-failure',
     component: () => import('../pages/payment-failure.vue'),
     meta: { title: '支付失败' },
+    beforeEnter: (to, from, next) => {
+      // 如果不是移动设备，重定向到 PC 端
+      const isMobile = /Android|webOS|iPhone|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || window.innerWidth <= 820;
+      if (!isMobile) {
+        next({
+          path: '/payment/failure',
+          query: to.query,
+          replace: true,
+        });
+      } else {
+        next();
+      }
+    },
   },
   {
     path: '/order-detail/:id',
