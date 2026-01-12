@@ -20,7 +20,7 @@
 
     <template v-else>
       <!-- 面包屑导航 -->
-      <Breadcrumb :brand-list="brandList" />
+    <Breadcrumb :brand-list="brandList" />
 
       <div class="detail-content">
         <!-- 服务图片 -->
@@ -142,7 +142,7 @@ const processServiceDetail = (detail: any, currentLang: string) => {
   const product = detail.product || detail;
   const i18nList = detail.productI18nList || detail.i18nList || [];
   const images = detail.productImages || detail.images || [];
-  
+
   const langCodes = [currentLang, currentLang === 'zh' ? 'zh-CN' : 'en-US', currentLang === 'zh' ? 'zh' : 'en'];
   let currentI18n = i18nList.find((i: any) => langCodes.indexOf(i.langCode) !== -1);
   
@@ -203,22 +203,22 @@ const fetchServiceDetail = async () => {
     loading.value = true;
     
     // 先从 store 中查找
-    const langCode = locale.value === 'en' ? 'en-US' : 'zh-CN';
+  const langCode = locale.value === 'en' ? 'en-US' : 'zh-CN';
     const serviceInStore = (services.value || []).find((item: any) => {
       return item?.product?.id?.toString() === serviceIdValue.toString();
     });
 
     if (serviceInStore) {
       const { product = {}, productI18nList = [], productImages = [] } = serviceInStore;
-      const i18n =
-        productI18nList.find((i: any) => i?.langCode === langCode) ||
-        productI18nList[0] ||
-        {};
+    const i18n =
+      productI18nList.find((i: any) => i?.langCode === langCode) ||
+      productI18nList[0] ||
+      {};
       
       const currentLang = locale.value === 'zh' ? 'zh' : 'en';
       serviceData.value = {
         id: product.id,
-        name: i18n.name || '服务',
+      name: i18n.name || '服务',
         description: i18n.details || i18n.description || '',
         price: product.price || 0,
         currency: product.currency || 'USD',
@@ -382,7 +382,7 @@ watch(serviceId, () => {
   justify-content: center;
   min-height: 50vh;
   padding: 40px 20px;
-}
+  }
 
 .detail-content {
   padding: 16px 20px 40px;
@@ -431,7 +431,7 @@ watch(serviceId, () => {
     }
 
     .price-unit {
-      font-size: 14px;
+    font-size: 14px;
       color: #666;
     }
   }
@@ -506,7 +506,7 @@ watch(serviceId, () => {
   .more-services-list {
     display: flex;
     flex-direction: column;
-    gap: 12px;
+  gap: 12px;
   }
 
   .service-card {

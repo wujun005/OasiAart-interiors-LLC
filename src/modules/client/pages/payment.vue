@@ -250,7 +250,7 @@ const handlePay = async () => {
     paypalError.value = errorMessage;
     ElMessage.error(errorMessage);
   } finally {
-    loadingPaypal.value = false;
+      loadingPaypal.value = false;
   }
 };
 
@@ -282,8 +282,8 @@ onMounted(() => {
         price: unitPrice.value.toString(),
         currency: currency.value,
         total: totalAmount.value,
-      },
-    });
+            },
+      });
   } else if (route.query.cancel === 'true' || route.path.includes('/cancel')) {
     // 支付取消回调，跳转到失败页面
     router.replace({

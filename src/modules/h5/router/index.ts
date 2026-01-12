@@ -75,6 +75,12 @@ const routes: RouteRecordRaw[] = [
     meta: { title: '支付失败' },
   },
   {
+    path: '/order-detail/:id',
+    name: 'h5-order-detail',
+    component: () => import('../pages/order-detail.vue'),
+    meta: { title: '订单详情' },
+  },
+  {
     path: '/:pathMatch(.*)*',
     name: 'h5-not-found',
     component: () => import('../pages/not-found.vue'),
