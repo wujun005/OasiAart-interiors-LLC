@@ -9,10 +9,12 @@
     <div style="font-weight: 600; font-size: 16px; color: #ffffffe6">
       OASIS ART
     </div>
-    <div>首页</div>
-    <div>服务</div>
-    <div>关于我们</div>
-    <div>历史订单</div>
+    <div class="nav-links">
+      <RouterLink class="link" to="/">首页</RouterLink>
+      <RouterLink class="link" to="/services">服务</RouterLink>
+      <RouterLink class="link" to="/about">关于我们</RouterLink>
+      <RouterLink class="link" to="/history">历史订单</RouterLink>
+    </div>
 
     <div style="margin-top: 30px">工作时间</div>
     <div>周一至周五 9:00AM - 5:00PM</div>
@@ -51,6 +53,17 @@
   }
   .line {
     width: 100%;
+  }
+  .nav-links {
+    display: flex;
+    gap: 16px;
+    flex-direction: column;
+    .link {
+      color: #ffffffe6;
+      text-decoration: none;
+      font-weight: 500;
+      font-size: 14px;
+    }
   }
 }
 </style>
