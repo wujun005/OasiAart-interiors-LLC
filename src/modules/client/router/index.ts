@@ -35,15 +35,13 @@ const routes: RouteRecordRaw[] = [
       // 检测设备类型，如果是移动设备则重定向到 H5 页面
       const isMobile = /Android|webOS|iPhone|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || window.innerWidth <= 820;
       if (isMobile) {
-        // 保留查询参数
-        next({
-          path: '/h5/payment/success',
-          query: to.query,
-          replace: true,
-        });
-      } else {
-        next();
+        // 使用 window.location 直接跳转，保留查询参数
+        const queryString = new URLSearchParams(to.query as Record<string, string>).toString();
+        const url = `/h5/payment/success${queryString ? '?' + queryString : ''}`;
+        window.location.href = url;
+        return; // 不调用 next()
       }
+      next();
     },
   },
   {
@@ -54,15 +52,13 @@ const routes: RouteRecordRaw[] = [
       // 检测设备类型，如果是移动设备则重定向到 H5 页面
       const isMobile = /Android|webOS|iPhone|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || window.innerWidth <= 820;
       if (isMobile) {
-        // 保留查询参数
-        next({
-          path: '/h5/payment/failure',
-          query: to.query,
-          replace: true,
-        });
-      } else {
-        next();
+        // 使用 window.location 直接跳转，保留查询参数
+        const queryString = new URLSearchParams(to.query as Record<string, string>).toString();
+        const url = `/h5/payment/failure${queryString ? '?' + queryString : ''}`;
+        window.location.href = url;
+        return; // 不调用 next()
       }
+      next();
     },
   },
   {
