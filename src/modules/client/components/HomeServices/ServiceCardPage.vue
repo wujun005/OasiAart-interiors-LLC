@@ -76,7 +76,6 @@ const handleClick = () => {
     justify-content: space-between;
     gap: 0.5rem;
     padding-bottom: 0.75rem;
-    border-bottom: 1px solid #d0d0d0;
     margin-top: 0.5rem;
   }
 
