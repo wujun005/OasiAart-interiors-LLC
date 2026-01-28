@@ -11,6 +11,14 @@
         <div class="banner-overlay"></div>
         <div class="banner-content">
           <h1 class="banner-title">{{ $t('aboutPage.banner.title') }}</h1>
+          <el-button 
+            type="primary" 
+            size="large" 
+            class="join-button-banner" 
+            @click="handleJoinUs"
+          >
+            {{ $t('aboutPage.join.button') }}
+          </el-button>
         </div>
       </section>
 
@@ -91,35 +99,7 @@
         </div>
       </section>
 
-      <!-- Section 4: Join Us -->
-      <section class="about-section section-join">
-        <div class="join-background">
-          <img
-            :src="joinImage"
-            alt="Join Us"
-            class="join-image"
-          />
-        </div>
-        <div class="join-overlay"></div>
-        <div class="join-bottom-bar"></div>
-        <div class="join-right-space"></div>
-        <div class="join-right-black"></div>
-        <div class="join-content-wrapper">
-          <div class="join-content">
-            <div class="join-left">
-              <h2 class="join-title">
-                <span class="join-title-line1">{{ $t('aboutPage.join.titleLine1') }}</span>
-                <span class="join-title-line2">{{ $t('aboutPage.join.titleLine2') }}</span>
-              </h2>
-            </div>
-            <div class="join-right">
-              <el-button type="primary" size="large" class="join-button" @click="handleJoinUs">
-                {{ $t('aboutPage.join.button') }}
-              </el-button>
-            </div>
-          </div>
-        </div>
-      </section>
+      <!-- Section 4 removed -->
     </main>
 
     <AppFooter />
@@ -155,7 +135,6 @@ import { contactInfo } from '../data/homepage';
 import bannerImage from '@/assets/images/about/image_1.png';
 import introImage from '@/assets/images/about/image_2.png';
 import welcomeImage from '@/assets/images/about/image_3.png';
-import joinImage from '@/assets/images/about/image_4.png';
 import icon1 from '@/assets/images/about/icon_1.png';
 import icon2 from '@/assets/images/about/icon_2.png';
 import icon3 from '@/assets/images/about/icon_3.png';
@@ -328,6 +307,7 @@ const handleJoinUs = () => {
   .banner-content {
     position: relative;
     z-index: 3;
+    height: 100%;
     width: 100%;
     max-width: 1920px;
     margin: 0 auto;
@@ -535,131 +515,18 @@ const handleJoinUs = () => {
   }
 }
 
-// Section 4: Join Us
-.section-join {
-  position: relative;
-  width: 100%;
-  height: 600px;
-  min-height: 600px;
-  display: flex;
-  align-items: center;
-  overflow: hidden;
-  margin-bottom: 0;
-  background-color: #ffffff; // 右侧空白区域背景色为白色
-}
-
-.join-background {
+// Join Button in Banner
+.join-button-banner {
   position: absolute;
-  top: 0;
-  left: 0;
-  width: calc(100% - 200px); // 减去右边距200px
-  height: calc(100% - 60px); // 减去底部黑色条带的高度
-  z-index: 1;
-
-  .join-image {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-  }
-}
-
-.join-overlay {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: calc(100% - 200px); // 减去右边距200px
-  height: calc(100% - 60px);
-  background: rgba(0, 0, 0, 0.65); // #000000 65% 透明度，与首页联系我们保持一致
-  z-index: 2;
-}
-
-
-.join-bottom-bar {
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  width: 100%;
-  height: 60px;
-  background-color: #000000;
-  z-index: 3;
-}
-
-// 右侧区域：上半部分（透明，沿用页面背景色），下半部分黑色
-.join-right-space {
-  position: absolute;
-  top: 0;
-  right: 0; // 右侧区域从最右边开始
-  width: 200px;
-  height: 50%; // 上半部分
-  // 不设置背景色，沿用页面背景色
-  z-index: 1;
-}
-
-.join-right-black {
-  position: absolute;
-  bottom: 60px; // 在底部黑色条带上方
-  right: 0; // 右侧区域从最右边开始
-  width: 200px;
-  height: calc(50% - 30px); // 下半部分，减去底部黑色条带的一半高度
-  background-color: #000000;
-  z-index: 1;
-}
-
-.join-content-wrapper {
-  position: relative;
+  bottom: 40px;
+  right: 200px;
   z-index: 4;
-  width: 100%; // 覆盖整个宽度
-  height: calc(100% - 60px); // 减去底部黑色条带
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0 200px; // 左右内边距200px
-  box-sizing: border-box;
-}
-
-.join-content {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  width: 100%;
-  max-width: calc(100% - 200px); // 减去右侧200px空间
-}
-
-.join-left {
-  flex: 1;
-  display: flex;
-  align-items: center; // 确保文本垂直居中
-  
-  .join-title {
-    font-size: 3rem;
-    font-weight: bold;
-    color: #ffffff;
-    margin: 0;
-    line-height: 1.2;
-    display: flex;
-    flex-direction: column;
-    gap: 0;
-  }
-
-  .join-title-line1,
-  .join-title-line2 {
-    display: block;
-  }
-}
-
-.join-right {
-  display: flex;
-  align-items: center;
-}
-
-.join-button {
-  padding: 1rem 3rem;
-  font-size: 1.125rem;
-  border-radius: 4px;
-  background-color: #8b7355; // 棕色/橄榄色
+  background-color: #8b7355;
   border: none;
   color: #ffffff;
-  transition: background-color 0.3s ease;
+  padding: 12px 24px;
+  font-size: 1.125rem;
+  border-radius: 4px;
 
   &:hover {
     background-color: #756147;
@@ -672,9 +539,12 @@ const handleJoinUs = () => {
     padding: 4rem 100px;
   }
 
-  .banner-content,
-  .join-content-wrapper {
+  .banner-content {
     padding: 0 100px;
+  }
+  
+  .join-button-banner {
+    right: 100px;
   }
 }
 
@@ -694,9 +564,12 @@ const handleJoinUs = () => {
     padding: 3rem 50px;
   }
 
-  .banner-content,
-  .join-content-wrapper {
+  .banner-content {
     padding: 0 50px;
+  }
+  
+  .join-button-banner {
+    right: 50px;
   }
 }
 
@@ -733,23 +606,15 @@ const handleJoinUs = () => {
     }
   }
 
-  .section-join {
-    height: 500px;
-    min-height: 500px;
-  }
-
-  .join-title {
-    font-size: 2rem !important;
-  }
-
-  .join-button {
-    padding: 0.875rem 2rem;
-    font-size: 1rem;
-  }
-
-  .banner-content,
-  .join-content-wrapper {
+  .banner-content {
     padding: 0 30px;
+  }
+  
+  .join-button-banner {
+    right: 30px;
+    bottom: 20px;
+    padding: 10px 20px;
+    font-size: 1rem;
   }
 }
 
