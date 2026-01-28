@@ -1,225 +1,169 @@
 <template>
-  <section class="home-contact">
-    <div class="contact-background">
-      <!-- 背景图片将通过 CSS 设置 -->
-    </div>
-    <div class="contact-overlay"></div>
-    <div class="contact-bottom-bar"></div>
-    <div class="contact-right-space"></div>
-    <div class="contact-right-black"></div>
-    <div class="contact-container">
-      <div class="contact-content">
-        <!-- 左侧文字 -->
-        <div class="contact-text">
-          <h2 class="contact-title-line1">{{ $t('homepage.contact.titleLine1') }}</h2>
-          <h2 class="contact-title-line2">{{ $t('homepage.contact.titleLine2') }}</h2>
+  <div class="floating-contact">
+    <el-button
+      class="contact-btn"
+      @click="handleContact"
+    >
+      <el-icon :size="24"><ChatDotSquare /></el-icon>
+    </el-button>
+
+    <el-dialog
+      v-model="contactDialogVisible"
+      :title="$t('homepage.contact.contactUs')"
+      width="480px"
+      :close-on-click-modal="false"
+      class="contact-dialog"
+    >
+      <div class="contact-dialog-content">
+        <div class="contact-item">
+          <span class="contact-label">{{ $t('aboutPage.join.dialog.emailLabel') }}</span>
+          <span class="contact-value">{{ contactInfo.email }}</span>
         </div>
-        
-        <!-- 右侧按钮 -->
-        <div class="contact-right">
-          <!-- 联系我们按钮 -->
-          <el-button type="primary" size="large" class="contact-button" @click="handleContact">
-            {{ $t('homepage.contact.contactUs') }}
-          </el-button>
+        <div class="contact-item">
+          <span class="contact-label">{{ $t('aboutPage.join.dialog.phoneLabel') }}</span>
+          <span class="contact-value">{{ contactInfo.phone }}</span>
         </div>
       </div>
-    </div>
-  </section>
+    </el-dialog>
+  </div>
 </template>
 
 <script setup lang="ts">
+import { ref } from 'vue';
+import { ChatDotSquare } from '@element-plus/icons-vue';
 import { contactInfo } from '../../data/homepage';
 
+const contactDialogVisible = ref(false);
+
 const handleContact = () => {
-  // 打开邮件客户端
-  window.location.href = `mailto:${contactInfo.email}`;
+  contactDialogVisible.value = true;
 };
 </script>
 
 <style scoped lang="scss">
-.home-contact {
-  position: relative;
-  width: 100%;
-  height: 500px;
-  min-height: 500px;
-  display: flex;
-  align-items: center;
-  overflow: hidden;
-  background-color: #ffffff; // 右侧空白区域背景色为白色
-}
+.floating-contact {
+  position: fixed;
+  right: 30px;
+  bottom: 150px;
+  z-index: 999;
 
-.contact-background {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: calc(100% - 200px); // 减去右边距200px
-  height: calc(100% - 60px); // 减去底部黑色条带的高度
-  background-color: #808080; // 占位背景色（灰色）
-  background-image: url('@/assets/images/homepage/contact-service.png');
-  background-size: cover; // 铺满整个区域
-  background-position: center; // 居中显示
-  background-repeat: no-repeat;
-  z-index: 1;
-
-  @media (-webkit-min-device-pixel-ratio: 2), (min-resolution: 192dpi) {
-    background-image: url('@/assets/images/homepage/contact-service@2x.png');
+  .contact-btn {
+    width: 50px;
+    height: 50px;
+    padding: 0;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background-color: #000;
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    transition: all 0.3s ease;
+    
+    &:hover {
+      background-color: #333;
+      transform: translateY(-2px);
+      box-shadow: 0 6px 16px rgba(0,0,0,0.2);
+    }
+    
+    .el-icon {
+      color: #fff;
+    }
   }
 }
 
-.contact-overlay {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: calc(100% - 200px); // 减去右边距200px
-  height: calc(100% - 60px);
-  background: rgba(0, 0, 0, 0.65); // #000000 65% 透明度
-  z-index: 2;
+.contact-dialog {
+  :deep(.el-dialog) {
+    border-radius: 8px;
+  }
+  
+  :deep(.el-dialog__header) {
+    padding: 4rem 4rem 2rem 4rem;
+    border-bottom: 1px solid #e0e0e0;
+    margin: 0;
+    position: relative;
+    display: block !important;
+    text-align: center;
+    min-height: 120px;
+    
+    .el-dialog__title {
+      font-size: 1.75rem;
+      font-weight: bold !important;
+      color: #333;
+      line-height: 1.5;
+      text-align: center !important;
+      position: absolute;
+      left: 50%;
+      top: 4rem;
+      transform: translateX(-50%);
+      width: auto;
+      margin: 0;
+      padding: 0;
+    }
+    
+    .el-dialog__headerbtn {
+      position: absolute;
+      top: 3rem;
+      right: 4rem;
+      width: 32px;
+      height: 32px;
+      z-index: 1;
+      
+      .el-dialog__close {
+        font-size: 1.5rem;
+        color: #333;
+        font-weight: 500;
+      }
+    }
+  }
+  
+  :deep(.el-dialog__body) {
+    padding: 4rem;
+  }
 }
 
-// 底部黑色条带
-.contact-bottom-bar {
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  width: 100%;
-  height: 60px;
-  background-color: #000000;
-  z-index: 3;
-}
-
-// 右侧区域：上半部分（透明，沿用页面背景色），下半部分黑色
-.contact-right-space {
-  position: absolute;
-  top: 0;
-  right: 0; // 右侧区域从最右边开始
-  width: 200px;
-  height: 50%; // 上半部分
-  background-color: #f5f5f5;
-  z-index: 1;
-}
-
-.contact-right-black {
-  position: absolute;
-  bottom: 60px; // 在底部黑色条带上方
-  right: 0; // 右侧区域从最右边开始
-  width: 200px;
-  height: calc(50% - 30px); // 下半部分，减去底部黑色条带的一半高度
-  background-color: #000000;
-  z-index: 1;
-}
-
-.contact-container {
-  position: relative;
-  z-index: 4;
-  width: calc(100% - 200px); // 只覆盖左侧内容区域
-  height: calc(100% - 60px);
-  display: flex;
-  align-items: center;
-  padding: 0 200px;
-  box-sizing: border-box;
-}
-
-.contact-content {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  width: 100%;
-  gap: 4rem;
-}
-
-.contact-text {
+.contact-dialog-content {
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
-  flex: 1;
-}
-
-.contact-title-line1,
-.contact-title-line2 {
-  font-size: 3rem;
-  font-weight: bold;
-  color: #ffffff;
-  margin: 0;
-  line-height: 1.2;
-}
-
-.contact-right {
-  display: flex;
   align-items: center;
-}
-
-.contact-button {
-  padding: 1rem 3rem;
-  font-size: 1.125rem;
-  border-radius: 4px;
-  background-color: #8b7355; // 棕色/橄榄色，与加入我们保持一致
-  border: none;
-  color: #ffffff;
-  transition: background-color 0.3s ease;
-
-  &:hover {
-    background-color: #756147;
-  }
-}
-
-// 响应式设计
-@media (max-width: 1400px) {
-  .contact-container {
-    padding: 0 100px;
-  }
-}
-
-@media (max-width: 1024px) {
-  .contact-container {
-    padding: 0 50px;
-  }
-
-  .contact-content {
-    flex-direction: column;
-    align-items: center;
-    text-align: center;
-    gap: 2rem;
-  }
-
-  .contact-text {
-    align-items: center;
-  }
-
-  .contact-right {
+  gap: 1.5rem;
+  
+  .contact-item {
+    display: flex;
+    flex-direction: row;
+    align-items: baseline;
     justify-content: center;
-  }
-  
-  // 在小屏幕上隐藏右侧区域
-  .contact-right-space,
-  .contact-right-black {
-    display: none;
-  }
-  
-  .contact-background,
-  .contact-overlay {
-    width: 100%;
-  }
-  
-  .contact-container {
-    width: 100%;
+    gap: 0.5rem;
+    font-size: 1rem;
+    line-height: 1.5;
+    
+    .contact-label {
+      color: #333;
+      font-weight: 400;
+    }
+    
+    .contact-value {
+      color: #333;
+      font-weight: 400;
+    }
   }
 }
 
+// 移动端适配
 @media (max-width: 768px) {
-  .home-contact {
-    height: 400px;
-    min-height: 400px;
-  }
-
-  .contact-title-line1,
-  .contact-title-line2 {
-    font-size: 2rem;
-  }
-
-  .contact-button {
-    padding: 0.875rem 2rem;
-    font-size: 1rem;
+  .floating-contact {
+    right: 20px;
+    bottom: 120px;
+    
+    .contact-btn {
+      width: 44px;
+      height: 44px;
+      
+      .el-icon {
+        font-size: 20px;
+      }
+    }
   }
 }
 </style>
-
