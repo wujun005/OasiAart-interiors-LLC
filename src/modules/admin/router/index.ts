@@ -27,6 +27,46 @@ const routes: RouteRecordRaw[] = [
         name: 'admin-users',
         component: () => import('@/modules/admin/pages/user/index.vue'),
       },
+      {
+        path: 'basic',
+        component: () => import('@/modules/admin/pages/basic/Layout.vue'),
+        children: [
+          {
+            path: '',
+            redirect: 'categories',
+          },
+          {
+            path: 'categories',
+            name: 'admin-basic-categories',
+            component: () => import('@/modules/admin/pages/category/index.vue'),
+          },
+          {
+            path: 'subcategories',
+            name: 'admin-basic-subcategories',
+            component: () => import('@/modules/admin/pages/subcategory/index.vue'),
+          },
+          {
+            path: 'specs',
+            name: 'admin-basic-specs',
+            component: () => import('@/modules/admin/pages/spec/index.vue'),
+          },
+          {
+            path: 'spec-types',
+            name: 'admin-basic-spec-types',
+            component: () => import('@/modules/admin/pages/spectype/index.vue'),
+          },
+          {
+            path: 'addon-categories',
+            name: 'admin-basic-addon-categories',
+            component: () => import('@/modules/admin/pages/addonCategory/index.vue'),
+          },
+          {
+            path: 'addons',
+            name: 'admin-basic-addons',
+            component: () => import('@/modules/admin/pages/addon/index.vue'),
+          },
+        ],
+      },
     ],
     meta: { scope: 'admin', requiresAuth: true, requiresRole: 'admin' },
   },

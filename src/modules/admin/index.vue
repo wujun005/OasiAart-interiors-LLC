@@ -25,6 +25,36 @@
             <el-icon><User /></el-icon>
             <span>用户管理</span>
           </el-menu-item>
+          <el-sub-menu index="/admin/basic">
+            <template #title>
+              <el-icon><FolderOpened /></el-icon>
+              <span>基础数据</span>
+            </template>
+            <el-menu-item index="/admin/basic/categories">
+              <el-icon><CollectionTag /></el-icon>
+              <span>一级分类</span>
+            </el-menu-item>
+            <el-menu-item index="/admin/basic/subcategories">
+              <el-icon><Collection /></el-icon>
+              <span>二级分类</span>
+            </el-menu-item>
+            <el-menu-item index="/admin/basic/specs">
+              <el-icon><Tickets /></el-icon>
+              <span>规格</span>
+            </el-menu-item>
+            <el-menu-item index="/admin/basic/spec-types">
+              <el-icon><Ticket /></el-icon>
+              <span>规格类型</span>
+            </el-menu-item>
+            <el-menu-item index="/admin/basic/addon-categories">
+              <el-icon><CollectionTag /></el-icon>
+              <span>附加项分类</span>
+            </el-menu-item>
+            <el-menu-item index="/admin/basic/addons">
+              <el-icon><Collection /></el-icon>
+              <span>附加项</span>
+            </el-menu-item>
+          </el-sub-menu>
         </el-menu>
       </el-aside>
       <el-container>
@@ -45,7 +75,7 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { House, Document, User, Goods } from '@element-plus/icons-vue';
+import { House, Document, User, Goods, FolderOpened, CollectionTag, Collection, Tickets, Ticket } from '@element-plus/icons-vue';
 
 const route = useRoute();
 const router = useRouter();
@@ -55,6 +85,13 @@ const activeMenu = computed(() => {
   if (path.startsWith('/admin/orders')) return '/admin/orders';
   if (path.startsWith('/admin/products')) return '/admin/products';
   if (path.startsWith('/admin/users')) return '/admin/users';
+  if (path.startsWith('/admin/basic/categories')) return '/admin/basic/categories';
+  if (path.startsWith('/admin/basic/subcategories')) return '/admin/basic/subcategories';
+  if (path.startsWith('/admin/basic/specs')) return '/admin/basic/specs';
+  if (path.startsWith('/admin/basic/spec-types')) return '/admin/basic/spec-types';
+  if (path.startsWith('/admin/basic/addon-categories')) return '/admin/basic/addon-categories';
+  if (path.startsWith('/admin/basic/addons')) return '/admin/basic/addons';
+  if (path.startsWith('/admin/basic')) return '/admin/basic';
   return '/admin';
 });
 
@@ -66,6 +103,18 @@ const pageTitle = computed(() => {
       return '订单管理';
     case '/admin/users':
       return '用户管理';
+    case '/admin/basic/categories':
+      return '一级分类';
+    case '/admin/basic/subcategories':
+      return '二级分类';
+    case '/admin/basic/specs':
+      return '规格';
+    case '/admin/basic/spec-types':
+      return '规格类型';
+    case '/admin/basic/addon-categories':
+      return '附加项分类';
+    case '/admin/basic/addons':
+      return '附加项';
     default:
       return '概览';
   }
