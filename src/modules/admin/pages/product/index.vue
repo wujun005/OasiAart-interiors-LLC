@@ -3,7 +3,7 @@
     <el-card>
       <div class="toolbar">
         <el-input
-          v-model="query.keyword"
+          v-model="query.nameKeyword"
           placeholder="搜索商品名称"
           clearable
           @keyup.enter="handleSearch"
@@ -13,7 +13,13 @@
         <el-button type="primary" @click="openCreate">新增商品</el-button>
       </div>
 
-      <el-table :data="products" border stripe v-loading="tableLoading" row-key="id">
+      <el-table
+        :data="products"
+        border
+        stripe
+        v-loading="tableLoading"
+        row-key="id"
+      >
         <el-table-column label="图片" width="120">
           <template #default="{ row }">
             <div class="thumbs">
@@ -23,18 +29,27 @@
                 :src="img"
                 alt=""
               />
-              <span v-if="row.images.length > 2" class="more">+{{ row.images.length - 2 }}</span>
+              <span v-if="row.images.length > 2" class="more"
+                >+{{ row.images.length - 2 }}</span
+              >
             </div>
           </template>
         </el-table-column>
         <el-table-column prop="name" label="名称" min-width="160" />
         <el-table-column prop="categoryName" label="一级分类" min-width="140" />
-        <el-table-column prop="subCategoryName" label="二级分类" min-width="140" />
-        <el-table-column prop="price" label="价格" width="100" />
-        <el-table-column prop="stock" label="库存" width="100" />
-        <el-table-column prop="specNames" label="规格" min-width="160">
+        <el-table-column
+          prop="subCategoryName"
+          label="二级分类"
+          min-width="140"
+        />
+        <el-table-column prop="specNames" label="规格" min-width="300">
           <template #default="{ row }">
-            <el-tag v-for="name in row.specNames" :key="name" size="small" class="lang">
+            <el-tag
+              v-for="name in row.specNames"
+              :key="name"
+              size="small"
+              class="lang"
+            >
               {{ name }}
             </el-tag>
           </template>
@@ -46,26 +61,40 @@
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="currency" label="币种" width="100" />
+        <!-- <el-table-column prop="currency" label="币种" width="100" /> -->
         <el-table-column label="语言" min-width="120">
           <template #default="{ row }">
-            <el-tag v-for="lang in row.langs" :key="lang" size="small" class="lang">
+            <el-tag
+              v-for="lang in row.langs"
+              :key="lang"
+              size="small"
+              class="lang"
+            >
               {{ lang }}
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column label="创建时间">
-          <template #default="{ row }">{{ formatDate(row.createdAt) }}</template>
+        <el-table-column label="创建时间" min-width="200">
+          <template #default="{ row }">{{
+            formatDate(row.createdAt)
+          }}</template>
         </el-table-column>
-        <el-table-column label="更新时间">
-          <template #default="{ row }">{{ formatDate(row.updatedAt) }}</template>
+        <el-table-column label="更新时间" min-width="200">
+          <template #default="{ row }">{{
+            formatDate(row.updatedAt)
+          }}</template>
         </el-table-column>
         <el-table-column label="操作" width="260" fixed="right">
           <template #default="{ row }">
             <el-button link type="primary" size="small" @click="openEdit(row)">
               编辑
             </el-button>
-            <el-button link type="primary" size="small" @click="openPriceDialog(row)">
+            <el-button
+              link
+              type="primary"
+              size="small"
+              @click="openPriceDialog(row)"
+            >
               价格维护
             </el-button>
             <el-button
@@ -75,6 +104,14 @@
               @click="toggleSale(row)"
             >
               {{ row.isOnSale ? '下架' : '上架' }}
+            </el-button>
+            <el-button
+              link
+              type="primary"
+              size="small"
+              @click="toggleRecommend(row)"
+            >
+              {{ row?.exclusive ? '取消推荐' : '推荐首页' }}
             </el-button>
             <el-button link type="danger" size="small" @click="remove(row)">
               删除
@@ -96,10 +133,10 @@
       </div>
     </el-card>
 
-      <el-dialog
+    <el-dialog
       v-model="dialogVisible"
       :title="isEdit ? '编辑商品' : '新增商品'"
-      width="680px"
+      width="880px"
     >
       <el-form
         ref="formRef"
@@ -108,16 +145,6 @@
         label-width="110px"
         v-loading="detailLoading"
       >
-        <el-form-item label="价格" prop="product.price">
-          <el-input-number v-model="form.product.price" :min="0" :step="1" />
-        </el-form-item>
-        <el-form-item label="库存" prop="product.stock">
-          <el-input-number v-model="form.product.stock" :min="0" :step="1" />
-        </el-form-item>
-        <el-form-item label="排序" prop="product.sort">
-          <el-input-number v-model="form.product.sort" :min="0" :step="1" />
-        </el-form-item>
-
         <el-form-item label="一级分类" prop="product.categoryId">
           <el-select
             v-model="form.product.categoryId"
@@ -150,7 +177,8 @@
           </el-select>
         </el-form-item>
 
-        <div class="spec-groups">
+        <div class="group-box spec-groups">
+          <div class="group-title">规格</div>
           <div
             v-for="(group, idx) in form.specGroups"
             :key="idx"
@@ -167,13 +195,25 @@
                 删除
               </el-button>
             </div>
-            <el-form-item :prop="`specGroups.${idx}.specTypeId`" label="规格类型" label-width="90px">
+            <el-form-item
+              :prop="`specGroups.${idx}.specTypeId`"
+              label="规格类型"
+              label-width="90px"
+            >
               <el-select
                 v-model="group.specTypeId"
                 placeholder="请选择规格类型"
                 filterable
                 style="width: 100%"
-                @change="() => { group.specIds = group.specIds.filter((id) => filteredSpecOptions(group.specTypeId).some((o) => o.value === id)); }"
+                @change="
+                  () => {
+                    group.specIds = group.specIds.filter((id) =>
+                      filteredSpecOptions(group.specTypeId).some(
+                        (o) => o.value === id,
+                      ),
+                    );
+                  }
+                "
               >
                 <el-option
                   v-for="item in specTypeOptions"
@@ -183,13 +223,16 @@
                 />
               </el-select>
             </el-form-item>
-            <el-form-item :prop="`specGroups.${idx}.specIds`" label="规格" label-width="90px">
+            <el-form-item
+              :prop="`specGroups.${idx}.specIds`"
+              label="规格"
+              label-width="90px"
+            >
               <el-select
                 v-model="group.specIds"
                 placeholder="请选择规格"
                 multiple
                 filterable
-                collapse-tags
                 style="width: 100%"
               >
                 <el-option
@@ -202,11 +245,14 @@
             </el-form-item>
           </div>
           <el-form-item label="" prop="specGroups">
-            <el-button type="primary" link @click="addSpecGroup">+ 添加规格</el-button>
+            <el-button type="primary" link @click="addSpecGroup"
+              >+ 添加规格</el-button
+            >
           </el-form-item>
         </div>
 
-        <div class="spec-groups">
+        <div class="group-box spec-groups">
+          <div class="group-title">附加项</div>
           <div
             v-for="(group, idx) in form.addonGroups"
             :key="idx"
@@ -223,13 +269,25 @@
                 删除
               </el-button>
             </div>
-            <el-form-item :prop="`addonGroups.${idx}.categoryId`" label="附加项分类" label-width="90px">
+            <el-form-item
+              :prop="`addonGroups.${idx}.categoryId`"
+              label="附加项分类"
+              label-width="90px"
+            >
               <el-select
                 v-model="group.categoryId"
                 placeholder="请选择附加项分类"
                 filterable
                 style="width: 100%"
-                @change="() => { group.addonIds = (group.addonIds || []).filter((id) => filteredAddonOptions(group.categoryId).some((o) => o.value === id)); }"
+                @change="
+                  () => {
+                    group.addonIds = (group.addonIds || []).filter((id) =>
+                      filteredAddonOptions(group.categoryId).some(
+                        (o) => o.value === id,
+                      ),
+                    );
+                  }
+                "
               >
                 <el-option
                   v-for="item in addonCategoryOptions"
@@ -239,13 +297,16 @@
                 />
               </el-select>
             </el-form-item>
-            <el-form-item :prop="`addonGroups.${idx}.addonIds`" label="附加项" label-width="90px">
+            <el-form-item
+              :prop="`addonGroups.${idx}.addonIds`"
+              label="附加项"
+              label-width="90px"
+            >
               <el-select
                 v-model="group.addonIds"
                 placeholder="请选择附加项"
                 multiple
                 filterable
-                collapse-tags
                 style="width: 100%"
               >
                 <el-option
@@ -258,28 +319,15 @@
             </el-form-item>
           </div>
           <el-form-item label="" prop="addonGroups">
-            <el-button type="primary" link @click="addAddonGroup">+ 添加附加项</el-button>
+            <el-button type="primary" link @click="addAddonGroup"
+              >+ 添加附加项</el-button
+            >
           </el-form-item>
         </div>
-        <el-form-item label="二级分类" prop="product.subCategoryId">
-          <el-select
-            v-model="form.product.subCategoryId"
-            placeholder="请选择二级分类"
-            filterable
-            style="width: 100%"
-          >
-            <el-option
-              v-for="item in subCategoryOptions"
-              :key="item.value"
-              :label="item.label"
-              :value="item.value"
-            />
-          </el-select>
-        </el-form-item>
         <el-form-item label="上架" prop="product.isOnSale">
           <el-switch v-model="form.product.isOnSale" />
         </el-form-item>
-        <el-form-item label="币种" prop="product.currency">
+        <!-- <el-form-item label="币种" prop="product.currency">
           <el-select
             v-model="form.product.currency"
             filterable
@@ -293,11 +341,17 @@
               :value="item.value"
             />
           </el-select>
-        </el-form-item>
+        </el-form-item> -->
 
-        <el-form-item label="多语言" prop="productI18nList">
+        <div class="group-box">
+          <div class="group-title">名称与描述</div>
+        <el-form-item label="名称(多语言)" prop="productI18nList">
           <div class="i18n-list">
-            <div v-for="(item, idx) in form.productI18nList" :key="idx" class="i18n-row">
+            <div
+              v-for="(item, idx) in form.productI18nList"
+              :key="idx"
+              class="i18n-row"
+            >
               <el-select
                 v-model="item.langCode"
                 placeholder="语言"
@@ -312,13 +366,7 @@
                   :value="lang.value"
                 />
               </el-select>
-              <el-input v-model="item.name" placeholder="名称" />
-              <el-input
-                v-model="item.details"
-                type="textarea"
-                :rows="2"
-                placeholder="详情描述"
-              />
+              <el-input v-model="item.name" placeholder="名称" class="full-width" />
               <el-button
                 v-if="form.productI18nList.length > 1"
                 type="danger"
@@ -332,6 +380,143 @@
           </div>
         </el-form-item>
 
+        <el-form-item label="描述(多语言)" prop="descI18nList">
+          <div class="i18n-list">
+            <div
+              v-for="(item, idx) in form.descI18nList"
+              :key="idx"
+              class="i18n-row"
+            >
+              <el-select
+                v-model="item.lang"
+                placeholder="语言"
+                filterable
+                allow-create
+                default-first-option
+              >
+                <el-option
+                  v-for="lang in langOptions"
+                  :key="lang.value"
+                  :label="lang.label"
+                  :value="lang.value"
+                />
+              </el-select>
+              <el-input
+                v-model="item.value"
+                type="textarea"
+                :rows="2"
+                placeholder="描述"
+                class="full-width"
+              />
+              <el-button
+                v-if="form.descI18nList.length > 1"
+                type="danger"
+                link
+                @click="removeDescLang(idx)"
+              >
+                删除
+              </el-button>
+            </div>
+            <el-button type="primary" link @click="addDescLang"
+              >新增语言</el-button
+            >
+          </div>
+        </el-form-item>
+        </div>
+
+        <div class="group-box">
+          <div class="group-title">服务内容</div>
+        <el-form-item label="服务内容" prop="serviceContentI18nList">
+          <div class="i18n-list">
+            <div
+              v-for="(item, idx) in form.serviceContentI18nList"
+              :key="idx"
+              class="i18n-row"
+            >
+              <el-select
+                v-model="item.lang"
+                placeholder="语言"
+                filterable
+                allow-create
+                default-first-option
+              >
+                <el-option
+                  v-for="lang in langOptions"
+                  :key="lang.value"
+                  :label="lang.label"
+                  :value="lang.value"
+                />
+              </el-select>
+              <el-input
+                v-model="item.value"
+                type="textarea"
+                :rows="2"
+                placeholder="请输入服务内容"
+                class="full-width"
+              />
+              <el-button
+                v-if="form.serviceContentI18nList.length > 1"
+                type="danger"
+                link
+                @click="removeServiceContentLang(idx)"
+              >
+                删除
+              </el-button>
+            </div>
+            <el-button type="primary" link @click="addServiceContentLang"
+              >新增语言</el-button
+            >
+          </div>
+        </el-form-item>
+        </div>
+
+        <div class="group-box">
+          <div class="group-title">预订须知</div>
+        <el-form-item label="预订须知" prop="bookingNoticeI18nList">
+          <div class="i18n-list">
+            <div
+              v-for="(item, idx) in form.bookingNoticeI18nList"
+              :key="idx"
+              class="i18n-row"
+            >
+              <el-select
+                v-model="item.lang"
+                placeholder="语言"
+                filterable
+                allow-create
+                default-first-option
+              >
+                <el-option
+                  v-for="lang in langOptions"
+                  :key="lang.value"
+                  :label="lang.label"
+                  :value="lang.value"
+                />
+              </el-select>
+              <div class="quill-wrapper">
+                <QuillEditor
+                  v-model:content="item.value"
+                  content-type="html"
+                  theme="snow"
+                  placeholder="请输入预订须知"
+                />
+              </div>
+              <el-button
+                v-if="form.bookingNoticeI18nList.length > 1"
+                type="danger"
+                link
+                @click="removeBookingNoticeLang(idx)"
+              >
+                删除
+              </el-button>
+            </div>
+            <el-button type="primary" link @click="addBookingNoticeLang"
+              >新增语言</el-button
+            >
+          </div>
+        </el-form-item>
+        </div>
+
         <el-form-item label="图片" prop="productImages">
           <el-upload
             :http-request="handleUpload"
@@ -342,18 +527,25 @@
           >
             <el-icon><Plus /></el-icon>
           </el-upload>
-          <div v-if="uploading" class="uploading-tip">图片上传中，请稍候...</div>
+          <div v-if="uploading" class="uploading-tip">
+            图片上传中，请稍候...
+          </div>
         </el-form-item>
       </el-form>
       <template #footer>
         <el-button @click="dialogVisible = false">取消</el-button>
-        <el-button type="primary" :disabled="uploading" :loading="submitLoading" @click="save">
+        <el-button
+          type="primary"
+          :disabled="uploading"
+          :loading="submitLoading"
+          @click="save"
+        >
           保存
         </el-button>
       </template>
     </el-dialog>
 
-    <el-dialog v-model="priceDialogVisible" title="价格维护" width="720px">
+    <el-dialog v-model="priceDialogVisible" title="价格维护" width="1020px">
       <el-table :data="priceRows" border stripe class="price-table">
         <el-table-column
           v-for="col in priceColumns"
@@ -387,15 +579,39 @@
 
 <script setup lang="ts">
 import { computed, nextTick, onMounted, reactive, ref } from 'vue';
-import type { FormInstance, FormRules, UploadRequestOptions, UploadUserFile } from 'element-plus';
+import type {
+  FormInstance,
+  FormRules,
+  UploadRequestOptions,
+  UploadUserFile,
+} from 'element-plus';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { Plus } from '@element-plus/icons-vue';
-import api from '@/modules/admin/api/product';
+import { QuillEditor } from '@vueup/vue-quill';
+import '@vueup/vue-quill/dist/vue-quill.snow.css';
+import { upload, currencies } from '@/modules/admin/api/product';
+import {
+  page,
+  addOrUpdate,
+  deleteProduct,
+  detial,
+  enable,
+  disable,
+  batchUpdatePrices,
+  listBySpu,
+  enableExclusive,
+  disableExclusive,
+} from '@/modules/admin/api/spu';
+import { getPage as getCategoryPage } from '@/modules/admin/api/category';
+import { getSpecTypePage } from '@/modules/admin/api/specType';
+import { getSpecValuePage } from '@/modules/admin/api/spec';
+import { getPage as getAddonTypePage } from '@/modules/admin/api/addonType';
+import { getPage as getAddonPage } from '@/modules/admin/api/addon';
 
 type ProductEntity = {
   id?: number;
-  price: number;
-  stock: number;
+  price?: number;
+  stock?: number;
   isOnSale: boolean;
   currency: string;
   sort?: number;
@@ -442,6 +658,7 @@ type ProductRow = {
   specTypeId?: number;
   specIds?: number[];
   specNames: string[];
+  exclusive?: number;
 };
 
 type SpecGroup = {
@@ -454,61 +671,26 @@ type AddonGroup = {
   addonIds: number[];
 };
 
-const subCategoryOptions = ref([
-  { label: '沙发', value: 101, parentId: 1 },
-  { label: '茶几', value: 102, parentId: 1 },
-  { label: '床', value: 201, parentId: 2 },
-  { label: '衣柜', value: 202, parentId: 2 },
-  { label: '空调清洗', value: 301, parentId: 3 },
-  { label: '空调维修', value: 302, parentId: 3 },
-  { label: '面部护理', value: 401, parentId: 4 },
-  { label: 'SPA 按摩', value: 402, parentId: 4 },
-]);
+const subCategoryOptions = ref<
+  { label: string; value: number; parentId: number }[]
+>([]);
 
-const categoryOptions = ref([
-  { label: '日常保洁', value: 1 },
-  { label: '粉刷', value: 2 },
-  { label: 'AC Service', value: 3 },
-  { label: 'salon & Spa', value: 4 },
-]);
+const categoryOptions = ref<{ label: string; value: number }[]>([]);
 
-const specOptions = ref([
-  { label: '金牌技师', value: 1, typeId: 1 },
-  { label: '肉式技师', value: 2, typeId: 1 },
-  { label: '瑜伽技师', value: 3, typeId: 1 },
-  { label: '泰式按摩', value: 4, typeId: 2 },
-  { label: '柔式按摩', value: 5, typeId: 2 },
-  { label: '瑜伽按摩', value: 6, typeId: 2 },
-  { label: '1小时', value: 7, typeId: 3 },
-  { label: '2小时', value: 8, typeId: 3 },
-  { label: '3小时', value: 9, typeId: 3 },
-]);
+const specOptions = ref<{ label: string; value: number; typeId: number }[]>([]);
 
-const specTypeOptions = ref([
-  { label: '技师类型', value: 1 },
-  { label: '套餐类型', value: 2 },
-  { label: '时长', value: 3 },
-]);
+const specTypeOptions = ref<{ label: string; value: number }[]>([]);
 
-const addonCategoryOptions = [
-  { label: '清洁类', value: 1 },
-  { label: '按摩类', value: 2 },
-  { label: '工具类', value: 3 },
-];
+const addonCategoryOptions = ref<{ label: string; value: number }[]>([]);
 
-const addonOptions = ref([
-  { label: '香薰', value: 17, categoryId: 2 },
-  { label: '一次性耗材包', value: 18, categoryId: 3 },
-  { value: 11, label: '中级清洁剂', categoryId: 1, price: 50 },
-   { value: 12, label: '高级级清洁剂', categoryId: 1, price: 100 },
-   { value: 13, label: '顶级清洁剂', categoryId: 1, price: 150 },
-   { value: 14, label: '超级清洁剂', categoryId: 1, price: 200 },
-  { value: 15, label: '香薰', categoryId: 2, price: 80 },
-  { value: 16, label: '一次性耗材包', categoryId: 3, price: 20 },
-]);
+const addonOptions = ref<
+  { label: string; value: number; categoryId: number; price?: number }[]
+>([]);
 
 const filteredAddonOptions = (categoryId: number | null) =>
-  (addonOptions.value || []).filter((o) => !categoryId || o.categoryId === categoryId);
+  (addonOptions.value || []).filter(
+    (o) => !categoryId || o.categoryId === categoryId,
+  );
 
 const subCategoryMap = computed(() => {
   const map = new Map<number, string>();
@@ -517,7 +699,9 @@ const subCategoryMap = computed(() => {
 });
 const subCategoryParentMap = computed(() => {
   const map = new Map<number, number>();
-  subCategoryOptions.value.forEach((item) => map.set(item.value, item.parentId));
+  subCategoryOptions.value.forEach((item) =>
+    map.set(item.value, item.parentId),
+  );
   return map;
 });
 const categoryMap = computed(() => {
@@ -537,7 +721,7 @@ const filteredSpecOptions = (typeId: number | null) =>
 const query = reactive({
   pageNum: 1,
   pageSize: 10,
-  keyword: '',
+  nameKeyword: '',
 });
 const products = ref<ProductRow[]>([]);
 const total = ref(0);
@@ -556,12 +740,19 @@ const currencyOptions = ref<{ label: string; value: string }[]>([]);
 const currencyLoading = ref(false);
 const uploading = computed(() => uploadCount.value > 0);
 
-type PriceRow = { id: string; specMap: Record<string, string>; originPrice: number; discountPrice?: number };
+type PriceRow = {
+  id: string;
+  specMap: Record<string, string>;
+  originPrice: number;
+  discountPrice?: number;
+};
 type PriceColumn = { key: string; label: string };
 const priceRows = ref<PriceRow[]>([]);
 const priceColumns = ref<PriceColumn[]>([]);
 
-const normalizeCurrencyOptions = (list: any): { label: string; value: string }[] => {
+const normalizeCurrencyOptions = (
+  list: any,
+): { label: string; value: string }[] => {
   if (!Array.isArray(list)) return [];
   return list
     .map((item) => {
@@ -591,81 +782,69 @@ const ensureCurrencyOption = (value?: string) => {
 
 const defaultProduct = (): ProductEntity => ({
   id: undefined,
-  price: 0,
-  stock: 0,
+  price: undefined as any,
+  stock: undefined as any,
   isOnSale: true,
   currency: 'CNY',
-  sort: 0,
+  sort: undefined,
   categoryId: categoryOptions.value[0]?.value,
-  subCategoryId: subCategoryOptions.value.find((s) => s.parentId === categoryOptions.value[0]?.value)?.value,
-  specTypeId: specTypeOptions.value[0]?.value,
+  subCategoryId: subCategoryOptions.value.find(
+    (s) => s.parentId === categoryOptions.value[0]?.value,
+  )?.value,
+  specTypeId: null,
   specIds: [],
 });
 
 const defaultI18nList = (): ProductI18n[] => [
   { langCode: 'zh-CN', name: '', details: '' },
-  { langCode: 'en-US', name: '', details: '' },
+  { langCode: 'en', name: '', details: '' },
 ];
 
 const form = reactive<{
   product: ProductEntity;
   productI18nList: ProductI18n[];
+  // 描述多语言
+  descI18nList: { lang: string; value: string }[];
+  // 服务内容
+  serviceContentI18nList: { lang: string; value: string }[];
+  // 预订须知
+  bookingNoticeI18nList: { lang: string; value: string }[];
   productImages: ProductImage[];
   specGroups: SpecGroup[];
   addonGroups: AddonGroup[];
 }>({
   product: defaultProduct(),
   productI18nList: defaultI18nList(),
+  descI18nList: [{ lang: 'zh-CN', value: '' }],
+  serviceContentI18nList: [{ lang: 'zh-CN', value: '' }],
+  bookingNoticeI18nList: [{ lang: 'zh-CN', value: '' }],
   productImages: [],
-  specGroups: [{ specTypeId: specTypeOptions.value[0]?.value ?? null, specIds: [] }],
-  addonGroups: [{ categoryId: addonCategoryOptions[0].value, addonIds: [] }],
+  specGroups: [{ specTypeId: null, specIds: [] }],
+  addonGroups: [
+    { categoryId: addonCategoryOptions.value[0]?.value ?? null, addonIds: [] },
+  ],
 });
 
 const filteredSubCategoryOptions = computed(() =>
   subCategoryOptions.value.filter(
-    (item) => !form.product.categoryId || item.parentId === form.product.categoryId
-  )
+    (item) =>
+      !form.product.categoryId || item.parentId === form.product.categoryId,
+  ),
 );
 
 const langOptions = [
   { label: '中文(简体)', value: 'zh-CN' },
-  { label: 'English', value: 'en-US' },
+  { label: 'English', value: 'en' },
 ];
 
 const rules: FormRules = {
-  'product.price': [
-    { required: true, message: '请输入价格', trigger: 'blur' },
-    {
-      validator: (_rule, value, callback) => {
-        if (value === null || value === undefined || value === '') {
-          callback(new Error('请输入价格'));
-        } else if (Number(value) < 0) {
-          callback(new Error('价格需大于等于 0'));
-        } else {
-          callback();
-        }
-      },
-      trigger: 'change',
-    },
+  'product.categoryId': [
+    { required: true, message: '请选择一级分类', trigger: 'change' },
   ],
-  'product.stock': [
-    { required: true, message: '请输入库存', trigger: 'blur' },
-    {
-      validator: (_rule, value, callback) => {
-        if (value === null || value === undefined || value === '') {
-          callback(new Error('请输入库存'));
-        } else if (Number(value) < 0) {
-          callback(new Error('库存需大于等于 0'));
-        } else {
-          callback();
-        }
-      },
-      trigger: 'change',
-    },
+  'product.subCategoryId': [
+    { required: true, message: '请选择二级分类', trigger: 'change' },
   ],
-  'product.categoryId': [{ required: true, message: '请选择一级分类', trigger: 'change' }],
-  'product.subCategoryId': [{ required: true, message: '请选择二级分类', trigger: 'change' }],
-  'product.currency': [{ required: true, message: '请选择币种', trigger: 'change' }],
+  // 'product.currency': [{ required: true, message: '请选择币种', trigger: 'change' }],
   productI18nList: [
     {
       validator: (_rule, value, callback) => {
@@ -674,11 +853,24 @@ const rules: FormRules = {
           callback(new Error('请至少添加一条多语言名称'));
           return;
         }
-        const invalid = list.find((item) => !item.langCode || !item.name.trim());
+        const invalid = list.find(
+          (item) => !item.langCode || !item.name.trim(),
+        );
         if (invalid) {
           callback(new Error('请填写语言和名称'));
           return;
         }
+        callback();
+      },
+      trigger: 'blur',
+    },
+  ],
+  descI18nList: [
+    {
+      validator: (_rule, value, callback) => {
+        const list = value as { lang: string; value: string }[];
+        const invalid = list.find((item) => !item.lang || !item.value?.trim());
+        if (invalid) return callback(new Error('请填写描述的语言和内容'));
         callback();
       },
       trigger: 'blur',
@@ -691,7 +883,9 @@ const rules: FormRules = {
           callback(new Error('请至少添加一个规格'));
           return;
         }
-        const invalid = value.find((g) => !g.specTypeId || !g.specIds || g.specIds.length === 0);
+        const invalid = value.find(
+          (g) => !g.specTypeId || !g.specIds || g.specIds.length === 0,
+        );
         if (invalid) {
           callback(new Error('每个规格需要选择规格类型和至少一个规格'));
           return;
@@ -708,7 +902,9 @@ const rules: FormRules = {
           callback(new Error('请至少添加一个附加项'));
           return;
         }
-        const invalid = value.find((g) => !g.categoryId || !g.addonIds || g.addonIds.length === 0);
+        const invalid = value.find(
+          (g) => !g.categoryId || !g.addonIds || g.addonIds.length === 0,
+        );
         if (invalid) {
           callback(new Error('每个附加项需选择分类并至少一个附加项'));
           return;
@@ -716,6 +912,38 @@ const rules: FormRules = {
         callback();
       },
       trigger: 'change',
+    },
+  ],
+  serviceContentI18nList: [
+    {
+      validator: (_rule, value, callback) => {
+        const list = value as { lang: string; value: string }[];
+        const invalid = list.find((item) => !item.lang || !item.value?.trim());
+        if (invalid) return callback(new Error('请填写服务内容的语言和内容'));
+        callback();
+      },
+      trigger: 'blur',
+    },
+  ],
+  bookingNoticeI18nList: [
+    {
+      validator: (_rule, value, callback) => {
+        console.log('valie', value)
+        const list = value as { lang: string; value: string }[];
+        const candidates = list.filter(
+          (item) => item.lang?.trim() || !isRichTextEmpty(item.value),
+        );
+        if (!candidates.length) {
+          return callback(new Error('请至少填写一条预订须知'));
+        }
+        console.log('candidates', candidates);
+        const invalid = candidates.find(
+          (item) => !item.lang?.trim() || isRichTextEmpty(item.value),
+        );
+        if (invalid) return callback(new Error('请填写预订须知的语言和内容'));
+        callback();
+      },
+      trigger: 'blur',
     },
   ],
 };
@@ -730,12 +958,34 @@ const formatDate = (value?: string) => {
   return `${y}-${m}-${day}`;
 };
 
+const isRichTextEmpty = (html?: string) => {
+  if (!html) return true;
+  const text = html
+    .replace(/<[^>]+>/g, '')
+    .replace(/&nbsp;/g, '')
+    .trim();
+  return text.length === 0;
+};
+
 const resetForm = () => {
   form.product = defaultProduct();
   form.productI18nList = defaultI18nList();
+  form.descI18nList = [{ lang: 'zh-CN', value: '' }];
+  form.serviceContentI18nList = [{ lang: 'zh-CN', value: '' }];
+  form.bookingNoticeI18nList = [{ lang: 'zh-CN', value: '' }];
   form.productImages = [];
-  form.specGroups = [{ specTypeId: specTypeOptions.value[0]?.value ?? null, specIds: [] }];
-  form.addonGroups = [{ categoryId: addonCategoryOptions[0].value, addonIds: [] }];
+  form.specGroups = [
+    {
+      specTypeId: specTypeOptions.value[0]?.value ?? null,
+      specIds: [],
+    },
+  ];
+  form.addonGroups = [
+    {
+      categoryId: addonCategoryOptions.value[0]?.value ?? null,
+      addonIds: [],
+    },
+  ];
   uploadList.value = [];
   uploadCount.value = 0;
   ensureCurrencyOption(form.product.currency);
@@ -746,44 +996,96 @@ const resetForm = () => {
 };
 
 const toRow = (item: any): ProductRow => {
-  const product = item?.product ?? item ?? {};
-  const i18nList: ProductI18n[] = item?.productI18nList ?? item?.i18nList ?? [];
-  const imgs: ProductImage[] = item?.productImages ?? item?.images ?? [];
-  const name = i18nList?.[0]?.name ?? product.name ?? '';
-  const subId = product.subCategoryId ?? item.subCategoryId;
-  const categoryId = product.categoryId ?? item.categoryId ?? subCategoryParentMap.value.get(subId ?? -1);
-  const specListRaw = Array.isArray(item?.productSpecList) ? item.productSpecList : [];
-  const specs: number[] = specListRaw.length
-    ? specListRaw.flatMap((g: any) => (Array.isArray(g.specIds) ? g.specIds : []))
-    : Array.isArray(product.specIds)
-      ? product.specIds
-      : Array.isArray(item.specIds)
-        ? item.specIds
-        : [];
-  const specTypeId =
-    specListRaw[0]?.specTypeId ??
-    product.specTypeId ??
-    item.specTypeId ??
-    (specs.length ? specOptions.value.find((o) => o.value === specs[0])?.typeId : undefined);
+  // new page schema uses spu + i18n fields
+  const spu = item?.spu ?? {};
+  const nameI18n = item?.nameI18n ?? {};
+  const descI18n = item?.descI18n ?? {};
+  const i18nList: ProductI18n[] = Object.keys(nameI18n || {}).map((lang) => ({
+    langCode: lang,
+    name: nameI18n[lang],
+    details: descI18n?.[lang] || '',
+  }));
+  const images: string[] = Array.isArray(item?.imageUrls)
+    ? item.imageUrls.filter(Boolean)
+    : [];
+
+  const name =
+    nameI18n['zh-CN'] ||
+    nameI18n['zh'] ||
+    nameI18n['en'] ||
+    nameI18n['en'] ||
+    Object.values(nameI18n)[0] ||
+    spu.spuName ||
+    '';
+
+  const categoryIds: (string | number)[] = Array.isArray(item?.categoryIds)
+    ? item.categoryIds
+    : [];
+  const categoryNameI18n = item?.categoryNameI18n || {};
+  const categoryId = categoryIds[0] ? Number(categoryIds[0]) : undefined;
+  const subCategoryId = categoryIds[1] ? Number(categoryIds[1]) : undefined;
+  const getCatName = (id?: string | number) => {
+    if (id === undefined || id === null) return '';
+    const map = categoryNameI18n?.[String(id)];
+    return map?.['zh-CN'] || map?.['zh'] || map?.['en'] || map?.['en'] || '';
+  };
+
+  const specBindings: { specTypeId: number; specValueIds: number[] }[] =
+    Array.isArray(item?.specBindings) ? item.specBindings : [];
+  const specTypeNameI18n = item?.specTypeNameI18n || {};
+  const specValueNameI18n = item?.specValueNameI18n || {};
+  const specNames: string[] = specBindings.map((bind) => {
+    const typeLabel =
+      specTypeNameI18n?.[String(bind.specTypeId)]?.['zh-CN'] ||
+      specTypeNameI18n?.[String(bind.specTypeId)]?.['zh'] ||
+      specTypeNameI18n?.[String(bind.specTypeId)]?.['en'] ||
+      specTypeNameI18n?.[String(bind.specTypeId)]?.['en'] ||
+      `规格${bind.specTypeId}`;
+    const valueLabels = (bind.specValueIds || []).map((vid) => {
+      const map = specValueNameI18n?.[String(vid)];
+      return (
+        map?.['zh-CN'] ||
+        map?.['zh'] ||
+        map?.['en'] ||
+        map?.['en'] ||
+        `值${vid}`
+      );
+    });
+    return `${typeLabel}: ${valueLabels.join('、')}`;
+  });
+
   return {
-    id: product.id ?? item.id ?? 0,
+    id: spu.id ?? item.id ?? 0,
     name,
-    images: imgs.map((img) => img.imageUrl || '').filter(Boolean),
-    price: product.price ?? 0,
-    stock: product.stock ?? 0,
-    isOnSale: !!product.isOnSale,
-    currency: product.currency ?? 'CNY',
-    sort: product.sort,
-    createdAt: product.createdAt,
-    updatedAt: product.updatedAt,
-    langs: Array.isArray(i18nList) ? i18nList.map((i) => i.langCode).filter(Boolean) : [],
+    images,
+    price: spu.price ?? undefined,
+    stock: spu.stock ?? undefined,
+    isOnSale:
+      spu.status === 1 ||
+      spu.status === '1' ||
+      spu.status === true ||
+      spu.status === 'ON' ||
+      spu.status === 'on',
+    currency: spu.currency ?? 'CNY',
+    sort: undefined,
+    createdAt: spu.createTime ?? spu.createdAt,
+    updatedAt: spu.modifyTime ?? spu.updatedAt,
+    langs: Array.isArray(i18nList)
+      ? i18nList.map((i) => i.langCode).filter(Boolean)
+      : [],
     categoryId,
-    categoryName: categoryMap.value.get(categoryId ?? -1) || '',
-    subCategoryId: subId,
-    subCategoryName: subCategoryMap.value.get(subId) || '',
-    specTypeId,
-    specIds: specs,
-    specNames: specs.map((id) => specMap.value.get(id) || '').filter(Boolean),
+    categoryName:
+      getCatName(categoryId) || categoryMap.value.get(categoryId ?? -1) || '',
+    subCategoryId,
+    subCategoryName:
+      getCatName(subCategoryId) ||
+      subCategoryMap.value.get(subCategoryId ?? -1) ||
+      '',
+    specTypeId: undefined,
+    specIds: [],
+    specNames,
+    exclusive: spu.exclusive ?? undefined,
+
   };
 };
 
@@ -802,7 +1104,7 @@ const extractPage = (payload: any) => {
 const fetchCurrencies = async () => {
   currencyLoading.value = true;
   try {
-    const res = await api.currencies({});
+    const res = await currencies({});
     const options = normalizeCurrencyOptions(res?.data ?? res);
     currencyOptions.value = options;
     ensureCurrencyOption(form.product.currency);
@@ -814,15 +1116,178 @@ const fetchCurrencies = async () => {
   }
 };
 
+const fetchCategories = async () => {
+  try {
+    const [level1Res, level2Res] = await Promise.all([
+      getCategoryPage({ pageNum: 1, pageSize: 200, level: '1' }),
+      getCategoryPage({ pageNum: 1, pageSize: 500, level: '2' }),
+    ]);
+    const normalizeList = (res: any) => {
+      const data = res?.data ?? res ?? {};
+      const records = Array.isArray(data.list) ? data.list : [];
+      return records;
+    };
+    const level1 = normalizeList(level1Res).map((item: any) => {
+      const cat = item.category ?? item;
+      const id = Number(cat.id ?? cat.categoryId);
+      const nameI18n = item.nameI18n || cat.nameI18n || {};
+      const label =
+        nameI18n['zh-CN'] ||
+        nameI18n['zh'] ||
+        cat.categoryName ||
+        item.displayName ||
+        cat.name ||
+        '';
+      return { value: id, label };
+    });
+    const level2 = normalizeList(level2Res).map((item: any) => {
+      const cat = item.category ?? item;
+      const id = Number(cat.id ?? cat.categoryId);
+      const parentId = Number(cat.pcategoryId ?? cat.parentId ?? cat.rootId);
+      const nameI18n = item.nameI18n || cat.nameI18n || {};
+      const label =
+        nameI18n['zh-CN'] ||
+        nameI18n['zh'] ||
+        cat.categoryName ||
+        item.displayName ||
+        cat.name ||
+        '';
+      return { value: id, label, parentId };
+    });
+    categoryOptions.value = level1;
+    subCategoryOptions.value = level2;
+    // adjust defaults if empty
+    if (!form.product.categoryId && level1.length)
+      form.product.categoryId = level1[0].value;
+    if (
+      !form.product.subCategoryId &&
+      filteredSubCategoryOptions.value.length
+    ) {
+      form.product.subCategoryId = filteredSubCategoryOptions.value[0].value;
+    }
+  } catch (error: any) {
+    ElMessage.error(error?.message || '获取分类失败');
+  }
+};
+
+const fetchSpecTypes = async () => {
+  try {
+    const res = await getSpecTypePage({ pageNum: 1, pageSize: 200 });
+    const data = res?.data ?? res ?? {};
+    const records = Array.isArray(data.list) ? data.list : [];
+    specTypeOptions.value = records.map((item: any) => {
+      const specType = item.specType ?? item;
+      const id = Number(specType.id);
+      const nameI18n = item.nameI18n || specType.nameI18n || {};
+      const label =
+        nameI18n['zh-CN'] ||
+        nameI18n['zh'] ||
+        nameI18n['en'] ||
+        nameI18n['en'] ||
+        specType.typeName ||
+        '';
+      return { value: id, label };
+    });
+    if (
+      form.specGroups.length &&
+      !form.specGroups[0].specTypeId &&
+      specTypeOptions.value.length
+    ) {
+      form.specGroups[0].specTypeId = specTypeOptions.value[0].value;
+    }
+  } catch (error: any) {
+    ElMessage.error(error?.message || '获取规格类型失败');
+  }
+};
+
+const fetchSpecs = async () => {
+  try {
+    const res = await getSpecValuePage({ pageNum: 1, pageSize: 500 });
+    const data = res?.data ?? res ?? {};
+    const records = Array.isArray(data.list) ? data.list : [];
+    specOptions.value = records.map((item: any) => {
+      const specValue = item.specValue ?? item;
+      const id = Number(specValue.id);
+      const typeId = Number(specValue.specTypeId ?? specValue.typeId ?? 0);
+      const nameI18n = item.nameI18n || specValue.nameI18n || {};
+      const label =
+        nameI18n['zh-CN'] ||
+        nameI18n['zh'] ||
+        nameI18n['en'] ||
+        nameI18n['en'] ||
+        specValue.specValue ||
+        '';
+      return { value: id, label, typeId };
+    });
+  } catch (error: any) {
+    ElMessage.error(error?.message || '获取规格失败');
+  }
+};
+
+const fetchAddonCategories = async () => {
+  try {
+    const res = await getAddonTypePage({ pageNum: 1, pageSize: 200 });
+    const data = res?.data ?? res ?? {};
+    const records = Array.isArray(data.list) ? data.list : [];
+    addonCategoryOptions.value = records.map((item: any) => {
+      const attach = item.attachType ?? item;
+      const id = Number(attach.id ?? attach.typeId ?? attach.attachTypeId);
+      const nameI18n = item.nameI18n || attach.nameI18n || {};
+      const label =
+        nameI18n['zh-CN'] ||
+        nameI18n['zh'] ||
+        nameI18n['en'] ||
+        nameI18n['en'] ||
+        attach.typeName ||
+        '';
+      return { value: id, label };
+    });
+    if (
+      form.addonGroups.length &&
+      !form.addonGroups[0].categoryId &&
+      addonCategoryOptions.value.length
+    ) {
+      form.addonGroups[0].categoryId = addonCategoryOptions.value[0].value;
+    }
+  } catch (error: any) {
+    ElMessage.error(error?.message || '获取附加项分类失败');
+  }
+};
+
+const fetchAddons = async () => {
+  try {
+    const res = await getAddonPage({ pageNum: 1, pageSize: 500 });
+    const data = res?.data ?? res ?? {};
+    const records = Array.isArray(data.list) ? data.list : [];
+    addonOptions.value = records.map((item: any) => {
+      const attach = item.attachValue ?? item;
+      const id = Number(attach.id ?? attach.attachValueId);
+      const categoryId = Number(attach.attachTypeId ?? attach.categoryId ?? 0);
+      const nameI18n = item.nameI18n || attach.nameI18n || {};
+      const label =
+        nameI18n['zh-CN'] ||
+        nameI18n['zh'] ||
+        nameI18n['en'] ||
+        nameI18n['en'] ||
+        attach.attachValue ||
+        '';
+      return { value: id, label, categoryId, price: attach.price };
+    });
+  } catch (error: any) {
+    ElMessage.error(error?.message || '获取附加项失败');
+  }
+};
+
 const fetchProducts = async () => {
   tableLoading.value = true;
   try {
-    const res = await api.getPage({
+    const res = await page({
       pageNum: query.pageNum,
       pageSize: query.pageSize,
-      keyword: query.keyword?.trim() || undefined,
+      nameKeyword: query.nameKeyword?.trim() || undefined,
     });
     const { list, total: t, pageNum, pageSize } = extractPage(res);
+    console.log('Fetched products:', list);
     products.value = list;
     total.value = t;
     query.pageNum = pageNum;
@@ -851,7 +1316,7 @@ const handleSearch = () => {
 };
 
 const reset = () => {
-  query.keyword = '';
+  query.nameKeyword = '';
   query.pageNum = 1;
   fetchProducts();
 };
@@ -862,6 +1327,42 @@ const addLang = () => {
 
 const removeLang = (idx: number) => {
   form.productI18nList.splice(idx, 1);
+};
+
+const addDescLang = () => {
+  form.descI18nList.push({ lang: '', value: '' });
+};
+
+const removeDescLang = (idx: number) => {
+  if (form.descI18nList.length <= 1) {
+    ElMessage.warning('至少保留一种语言的描述');
+    return;
+  }
+  form.descI18nList.splice(idx, 1);
+};
+
+const addServiceContentLang = () => {
+  form.serviceContentI18nList.push({ lang: '', value: '' });
+};
+
+const removeServiceContentLang = (idx: number) => {
+  if (form.serviceContentI18nList.length <= 1) {
+    ElMessage.warning('至少保留一种语言的服务内容');
+    return;
+  }
+  form.serviceContentI18nList.splice(idx, 1);
+};
+
+const addBookingNoticeLang = () => {
+  form.bookingNoticeI18nList.push({ lang: '', value: '' });
+};
+
+const removeBookingNoticeLang = (idx: number) => {
+  if (form.bookingNoticeI18nList.length <= 1) {
+    ElMessage.warning('至少保留一种语言的预订须知');
+    return;
+  }
+  form.bookingNoticeI18nList.splice(idx, 1);
 };
 
 const setUploadList = (images: ProductImage[]) => {
@@ -888,85 +1389,109 @@ const openEdit = async (row: ProductRow) => {
   dialogVisible.value = true;
   detailLoading.value = true;
   try {
-    const detailRes = await api.getInfo(row.id);
+    const detailRes = await detial(row.id);
     const detail = detailRes?.data ?? detailRes ?? {};
-    const product = detail.product ?? detail ?? {};
-    const i18nList = Array.isArray(detail.productI18nList) ? detail.productI18nList : defaultI18nList();
-    const images = Array.isArray(detail.productImages) ? detail.productImages : [];
+    const spu = detail.spu ?? {};
+    const nameI18n = detail.nameI18n || {};
+    const descI18n = detail.descI18n || {};
+    const serviceContentI18n = detail.serviceContentI18n || {};
+    const bookingNoticeI18n = detail.bookingNoticeI18n || {};
+    const images = Array.isArray(detail.imageUrls) ? detail.imageUrls : [];
+    const categoryIds = Array.isArray(detail.categoryIds)
+      ? detail.categoryIds
+      : [];
+    const specBindings: any[] = Array.isArray(detail.specBindings)
+      ? detail.specBindings
+      : [];
+    const attachBindings: any[] = Array.isArray(detail.attachBindings)
+      ? detail.attachBindings
+      : [];
 
-    const detailSpecGroups: SpecGroup[] = Array.isArray(detail.productSpecList)
-      ? detail.productSpecList.map((g: any) => ({
-          specTypeId: g.specTypeId ?? g.typeId ?? g.specType ?? null,
-          specIds: Array.isArray(g.specIds) ? g.specIds : [],
-        }))
-      : [];
-    const fallbackSpecIds = Array.isArray(product.specIds) ? product.specIds : Array.isArray(row.specIds) ? row.specIds : [];
-    const fallbackSpecType =
-      product.specTypeId ??
-      row.specTypeId ??
-      (fallbackSpecIds.length ? specOptions.value.find((o) => o.value === fallbackSpecIds[0])?.typeId : specTypeOptions.value[0]?.value);
-    const detailAddonGroups: AddonGroup[] = Array.isArray(detail.productAddonList)
-      ? detail.productAddonList.map((g: any) => ({
-          categoryId: g.categoryId ?? null,
-          addonIds: Array.isArray(g.addonIds) ? g.addonIds : [],
-        }))
-      : [];
     const categoryId =
-      product.categoryId ??
+      (categoryIds[0] !== undefined ? Number(categoryIds[0]) : undefined) ??
       row.categoryId ??
-      subCategoryParentMap.value.get(
-        (product.subCategoryId ?? row.subCategoryId) ?? -1
-      ) ??
       categoryOptions.value[0]?.value;
+    const subCategoryId =
+      (categoryIds[1] !== undefined ? Number(categoryIds[1]) : undefined) ??
+      row.subCategoryId ??
+      filteredSubCategoryOptions.value.find((s) => s.parentId === categoryId)
+        ?.value;
     form.product = {
-      id: product.id,
-      price: product.price ?? 0,
-      stock: product.stock ?? 0,
-      isOnSale: !!product.isOnSale,
-      currency: product.currency ?? 'CNY',
-      sort: product.sort ?? 0,
+      id: spu.id,
+      price: spu.price ?? row.price,
+      stock: spu.stock ?? row.stock,
+      isOnSale:
+        spu.status === 1 ||
+        spu.status === '1' ||
+        spu.status === true ||
+        spu.status === 'ON' ||
+        spu.status === 'on',
+      currency: spu.currency ?? row.currency ?? 'CNY',
+      sort: undefined,
       categoryId,
-      subCategoryId:
-        product.subCategoryId ??
-        row.subCategoryId ??
-        filteredSubCategoryOptions.value.find((s) => s.parentId === categoryId)?.value ??
-        subCategoryOptions.value.find((s) => s.parentId === categoryId)?.value,
-      specTypeId: fallbackSpecType,
-      specIds: fallbackSpecIds,
+      subCategoryId,
+      specTypeId: undefined,
+      specIds: [],
     };
-    form.specGroups =
-      detailSpecGroups.length > 0
-        ? detailSpecGroups
-        : [
-            {
-              specTypeId: fallbackSpecType ?? null,
-              specIds: fallbackSpecIds.filter((id) => filteredSpecOptions(fallbackSpecType ?? null).some((o) => o.value === id)),
-            },
-          ];
-    form.product.specIds = form.specGroups[0]?.specIds ?? [];
-    form.product.specTypeId = form.specGroups[0]?.specTypeId ?? form.product.specTypeId;
-    form.addonGroups =
-      detailAddonGroups.length > 0
-        ? detailAddonGroups
-        : [
-            {
-              categoryId: addonCategoryOptions[0].value,
-              addonIds: [],
-            },
-          ];
-    form.productI18nList = i18nList.map((item) => ({
-      id: item.id,
-      productId: item.productId,
-      langCode: item.langCode,
-      name: item.name,
-      details: item.details,
-    }));
-    form.productImages = images.map((img) => ({
-      id: img.id,
-      productId: img.productId,
-      imageUrl: img.imageUrl,
-      sort: img.sort,
-      createdAt: img.createdAt,
+    const mappedSpecGroups: SpecGroup[] = specBindings.length
+      ? specBindings.map((g: any) => ({
+          specTypeId: g.specTypeId ?? null,
+          specIds: Array.isArray(g.specValueIds) ? g.specValueIds : [],
+        }))
+      : [
+          {
+            specTypeId: null,
+            specIds: [],
+          },
+        ];
+    form.specGroups = mappedSpecGroups;
+    form.product.specIds = mappedSpecGroups[0]?.specIds ?? [];
+    form.product.specTypeId = mappedSpecGroups[0]?.specTypeId ?? undefined;
+
+    const mappedAddonGroups: AddonGroup[] = attachBindings.length
+      ? attachBindings.map((g: any) => ({
+          categoryId: g.attachTypeId ?? null,
+          addonIds: Array.isArray(g.attachValueIds) ? g.attachValueIds : [],
+        }))
+      : [
+          {
+            categoryId: addonCategoryOptions.value[0]?.value ?? null,
+            addonIds: [],
+          },
+        ];
+    form.addonGroups = mappedAddonGroups;
+
+    const i18nList =
+      Object.keys(nameI18n).length > 0
+        ? Object.keys(nameI18n).map((lang) => ({
+            langCode: lang,
+            name: nameI18n[lang],
+            details: descI18n?.[lang] || '',
+          }))
+        : defaultI18nList();
+    form.productI18nList = i18nList;
+    form.descI18nList = Object.keys(descI18n || {}).length
+      ? Object.keys(descI18n).map((lang) => ({ lang, value: descI18n[lang] }))
+      : [{ lang: 'zh-CN', value: '' }];
+    form.serviceContentI18nList = Object.keys(serviceContentI18n || {}).length
+      ? Object.keys(serviceContentI18n).map((lang) => ({
+          lang,
+          value: serviceContentI18n[lang],
+        }))
+      : [{ lang: 'zh-CN', value: '' }];
+    form.bookingNoticeI18nList = Object.keys(bookingNoticeI18n || {}).length
+      ? Object.keys(bookingNoticeI18n).map((lang) => ({
+          lang,
+          value: bookingNoticeI18n[lang],
+        }))
+      : [{ lang: 'zh-CN', value: '' }];
+
+    form.productImages = images.map((url: string, idx: number) => ({
+      id: undefined,
+      productId: spu.id,
+      imageUrl: url,
+      sort: undefined,
+      createdAt: '',
     }));
     setUploadList(form.productImages);
     ensureCurrencyOption(form.product.currency);
@@ -983,8 +1508,11 @@ const handleUpload = async (options: UploadRequestOptions) => {
   try {
     const formData = new FormData();
     formData.append('file', options.file as File);
-    const res = await api.upload(formData);
-    const url = typeof res?.data === 'string' ? res.data : res?.data?.url || res?.url || '';
+    const res = await upload(formData);
+    const url =
+      typeof res?.data === 'string'
+        ? res.data
+        : res?.data?.url || res?.url || '';
     if (!url) throw new Error('上传返回地址为空');
     form.productImages.push({ imageUrl: url, sort: form.productImages.length });
     uploadList.value.push({ name: options.file.name, url });
@@ -1000,7 +1528,9 @@ const handleUpload = async (options: UploadRequestOptions) => {
 const onRemove = (file: UploadUserFile) => {
   const url = file.url;
   if (!url) return;
-  form.productImages = form.productImages.filter((item) => item.imageUrl !== url);
+  form.productImages = form.productImages.filter(
+    (item) => item.imageUrl !== url,
+  );
   uploadList.value = uploadList.value.filter((item) => item.url !== url);
 };
 
@@ -1027,7 +1557,7 @@ const onCategoryChange = (val: number | undefined | null) => {
 
 const addAddonGroup = () => {
   form.addonGroups.push({
-    categoryId: addonCategoryOptions[0].value,
+    categoryId: addonCategoryOptions.value[0]?.value ?? null,
     addonIds: [],
   });
 };
@@ -1040,17 +1570,35 @@ const removeAddonGroup = (idx: number) => {
   form.addonGroups.splice(idx, 1);
 };
 
-const toggleSale = (row: ProductRow) => {
-  row.isOnSale = !row.isOnSale;
-  ElMessage.success(`已${row.isOnSale ? '上架' : '下架'}`);
+const toggleSale = async (row: ProductRow) => {
+  const targetStatus = !row.isOnSale;
+  try {
+    if (targetStatus) {
+      await enable(row.id);
+    } else {
+      await disable(row.id);
+    }
+    row.isOnSale = targetStatus;
+    ElMessage.success(`已${targetStatus ? '上架' : '下架'}`);
+    fetchProducts();
+  } catch (error: any) {
+    ElMessage.error(error?.message || '操作失败');
+  }
 };
 
 const buildPriceTable = (
   specList: SpecGroup[],
-  priceList?: { specKey: string; price?: number; originPrice?: number; discountPrice?: number }[]
+  priceList?: {
+    specKey: string;
+    price?: number;
+    originPrice?: number;
+    discountPrice?: number;
+  }[],
 ) => {
   priceColumns.value = specList.map((g, idx) => {
-    const typeLabel = specTypeOptions.value.find((t) => t.value === g.specTypeId)?.label || `规格类型${idx + 1}`;
+    const typeLabel =
+      specTypeOptions.value.find((t) => t.value === g.specTypeId)?.label ||
+      `规格类型${idx + 1}`;
     return { key: `type${idx}`, label: typeLabel };
   });
 
@@ -1062,9 +1610,12 @@ const buildPriceTable = (
   const discountMap = new Map<string, number>();
   (priceList || []).forEach((p) => {
     if (!p?.specKey) return;
-    if (p.originPrice !== undefined) originMap.set(p.specKey, Number(p.originPrice) || 0);
-    if (p.discountPrice !== undefined) discountMap.set(p.specKey, Number(p.discountPrice) || 0);
-    if (p.price !== undefined && !originMap.has(p.specKey)) originMap.set(p.specKey, Number(p.price) || 0);
+    if (p.originPrice !== undefined)
+      originMap.set(p.specKey, Number(p.originPrice) || 0);
+    if (p.discountPrice !== undefined)
+      discountMap.set(p.specKey, Number(p.discountPrice) || 0);
+    if (p.price !== undefined && !originMap.has(p.specKey))
+      originMap.set(p.specKey, Number(p.price) || 0);
   });
   const combos: PriceRow[] = [];
   const dfs = (depth: number, path: number[], pathLabels: string[]) => {
@@ -1074,15 +1625,25 @@ const buildPriceTable = (
         specMap[`type${i}`] = label;
       });
       const key = path.join('-');
-      const mockOrigin = originMap.get(key) ?? (path.reduce((a, b) => a + b, 0) || 1) * 10; // 模拟原价
+      const mockOrigin =
+        originMap.get(key) ?? (path.reduce((a, b) => a + b, 0) || 1) * 10; // 模拟原价
       const mockDiscount = discountMap.get(key);
-      combos.push({ id: key, specMap, originPrice: mockOrigin, discountPrice: mockDiscount });
+      combos.push({
+        id: key,
+        specMap,
+        originPrice: mockOrigin,
+        discountPrice: mockDiscount,
+      });
       return;
     }
     const group = specList[depth];
     const ids = Array.isArray(group.specIds) ? group.specIds : [];
     ids.forEach((id) => {
-      dfs(depth + 1, [...path, id], [...pathLabels, specOptionsMap.get(id) || `${id}`]);
+      dfs(
+        depth + 1,
+        [...path, id],
+        [...pathLabels, specOptionsMap.get(id) || `${id}`],
+      );
     });
   };
   if (specList.length > 0) dfs(0, [], []);
@@ -1093,43 +1654,41 @@ const openPriceDialog = async (row: ProductRow) => {
   priceDialogVisible.value = true;
   priceLoading.value = true;
   try {
-    const detailRes = await api.getInfo(row.id);
-    const detail = detailRes?.data ?? detailRes ?? {};
-    const priceList = Array.isArray(detail.productPriceList)
-      ? detail.productPriceList.map((p: any) => ({
-          specKey: p.specKey ?? p.key ?? p.specIds?.join('-'),
-          price: p.price ?? p.amount,
-          originPrice: p.originPrice ?? p.price ?? p.amount,
-          discountPrice: p.discountPrice ?? p.promoPrice ?? p.salePrice,
-        }))
-      : undefined;
-    let specList: SpecGroup[] = Array.isArray(detail.productSpecList)
-      ? detail.productSpecList.map((g: any) => ({
-          specTypeId: g.specTypeId ?? g.typeId ?? g.specType ?? null,
-          specIds: Array.isArray(g.specIds) ? g.specIds : [],
-        }))
-      : row.specIds && row.specIds.length
-        ? [{ specTypeId: row.specTypeId ?? null, specIds: row.specIds }]
-        : [];
-
-    // 补齐空的规格组：没有规格时用所有规格类型及其可选规格做笛卡尔
-    const ensureSpecIds = (g: SpecGroup) => {
-      if (!g.specIds || g.specIds.length === 0) {
-        g.specIds = specOptions.value.filter((s) => s.typeId === g.specTypeId).map((s) => s.value);
-      }
-      return g;
-    };
-
-    specList = specList.map((g) => ensureSpecIds({ ...g })).filter((g) => g.specIds.length);
-
-    if (!specList.length) {
-      specList = specTypeOptions.value.map((t) => ({
-        specTypeId: t.value,
-        specIds: specOptions.value.filter((s) => s.typeId === t.value).map((s) => s.value),
-      }));
-    }
-
-    buildPriceTable(specList, priceList);
+    const res = await listBySpu(row.id);
+    const data = res?.data ?? res ?? {};
+    const specTypes = Array.isArray(data.specTypes) ? data.specTypes : [];
+    priceColumns.value = specTypes.map((st: any, idx: number) => {
+      const label =
+        st.nameI18n?.['zh-CN'] ||
+        st.nameI18n?.['zh'] ||
+        st.specTypeName ||
+        `规格${idx + 1}`;
+      const key = String(st.specKey ?? st.specTypeId ?? idx);
+      return { key, label };
+    });
+    const skus = Array.isArray(data.skus) ? data.skus : [];
+    priceRows.value = skus.map((sku: any) => {
+      const specMap: Record<string, string> = {};
+      priceColumns.value.forEach((col) => {
+        const cell = sku[col.key];
+        specMap[col.key] =
+          cell?.['zh-CN'] ||
+          cell?.['zh'] ||
+          cell?.['en-US'] ||
+          cell?.['en'] ||
+          '';
+      });
+      return {
+        id:
+          sku.skuId ??
+          sku.id ??
+          sku.skuCode ??
+          Math.random().toString(36).slice(2),
+        specMap,
+        originPrice: Number(sku.originalPrice ?? sku.originPrice ?? 0),
+        discountPrice: Number(sku.price ?? sku.discountPrice ?? 0),
+      };
+    });
   } catch (error: any) {
     ElMessage.error(error?.message || '获取规格失败');
     priceRows.value = [];
@@ -1140,14 +1699,31 @@ const openPriceDialog = async (row: ProductRow) => {
 };
 
 const savePrice = () => {
-  const invalid = priceRows.value.find((r) => r.originPrice === null || r.originPrice === undefined || r.originPrice === '' || Number.isNaN(Number(r.originPrice)));
+  const invalid = priceRows.value.find(
+    (r) =>
+      r.originPrice === null ||
+      r.originPrice === undefined ||
+      r.originPrice === '' ||
+      Number.isNaN(Number(r.originPrice)),
+  );
   if (invalid) {
     ElMessage.error('请填写所有原价');
     return;
   }
-  // mock 保存
-  priceDialogVisible.value = false;
-  ElMessage.success('价格已保存（mock）');
+  const payload = priceRows.value.map((r) => ({
+    skuId: r.id,
+    skuCode: r.id,
+    price: Number(r.discountPrice ?? 0),
+    originalPrice: Number(r.originPrice ?? 0),
+  }));
+  batchUpdatePrices(payload)
+    .then(() => {
+      ElMessage.success('价格已保存');
+      priceDialogVisible.value = false;
+    })
+    .catch((err: any) => {
+      ElMessage.error(err?.message || '保存失败');
+    });
 };
 
 const save = () => {
@@ -1160,31 +1736,81 @@ const save = () => {
     submitLoading.value = true;
     try {
       // 同步兼容字段：取第一个规格组
-      const firstGroup = form.specGroups[0] || { specTypeId: null, specIds: [] };
+      const firstGroup = form.specGroups[0] || {
+        specTypeId: null,
+        specIds: [],
+      };
       form.product.specTypeId = firstGroup.specTypeId ?? undefined;
       form.product.specIds = firstGroup.specIds ?? [];
       // 确保分类与二级分类一致
       if (form.product.subCategoryId) {
-        const parentId = subCategoryParentMap.value.get(form.product.subCategoryId);
+        const parentId = subCategoryParentMap.value.get(
+          form.product.subCategoryId,
+        );
         if (parentId) {
           form.product.categoryId = parentId;
         }
       }
-      if (!form.product.subCategoryId && filteredSubCategoryOptions.value.length) {
+      if (
+        !form.product.subCategoryId &&
+        filteredSubCategoryOptions.value.length
+      ) {
         form.product.subCategoryId = filteredSubCategoryOptions.value[0].value;
       }
+      const nameI18n = form.productI18nList.reduce<Record<string, string>>(
+        (acc, cur) => {
+          if (cur.langCode && cur.name) acc[cur.langCode] = cur.name;
+          return acc;
+        },
+        {},
+      );
+      const descI18n = form.descI18nList.reduce<Record<string, string>>((acc, cur) => {
+        if (cur.lang && cur.value) acc[cur.lang] = cur.value;
+        return acc;
+      }, {});
+      const serviceContentI18n = form.serviceContentI18nList.reduce<Record<string, string>>((acc, cur) => {
+        if (cur.lang && cur.value) acc[cur.lang] = cur.value;
+        return acc;
+      }, {});
+      const bookingNoticeI18n = form.bookingNoticeI18nList.reduce<Record<string, string>>((acc, cur) => {
+        if (cur.lang && cur.value) acc[cur.lang] = cur.value;
+        return acc;
+      }, {});
       const payload = {
-        product: form.product,
-        productI18nList: form.productI18nList,
-        productImages: form.productImages,
-        productSpecList: form.specGroups,
-        productAddonList: form.addonGroups,
+        id: form.product.id,
+        spuCode: '',
+        categoryId: form.product.categoryId
+          ? String(form.product.categoryId)
+          : undefined,
+        spuName: nameI18n['zh-CN'] || Object.values(nameI18n)[0],
+        spuEnglishName: nameI18n['en-US'] || nameI18n['en'],
+        nameI18n,
+        descI18n,
+        serviceContentI18n,
+        bookingNoticeI18n,
+        status: form.product.isOnSale ? 1 : 0,
+        sort: undefined,
+        imageUrl: form.productImages[0]?.imageUrl,
+        imageUrls: form.productImages
+          .map((img) => img.imageUrl)
+          .filter(Boolean),
+        categoryIds: [form.product.categoryId, form.product.subCategoryId]
+          .filter((v) => v !== undefined && v !== null)
+          .map(String),
+        specBindings: form.specGroups.map((g) => ({
+          specTypeId: g.specTypeId,
+          specValueIds: g.specIds,
+        })),
+        attachBindings: form.addonGroups.map((g) => ({
+          attachTypeId: g.categoryId,
+          attachValueIds: g.addonIds,
+        })),
       };
       if (isEdit.value) {
-        await api.update(payload);
+        await addOrUpdate(payload);
         ElMessage.success('更新成功');
       } else {
-        await api.add(payload);
+        await addOrUpdate(payload);
         ElMessage.success('新增成功');
       }
       dialogVisible.value = false;
@@ -1196,13 +1822,21 @@ const save = () => {
     }
   });
 };
-
+const toggleRecommend = async (row) => {
+  if (row.exclusive) {
+    await disableExclusive(row.id);
+  } else {
+    await enableExclusive(row.id);
+  }
+  ElMessage.success('推荐状态已更新');
+  fetchProducts();
+};
 const remove = async (row: ProductRow) => {
   try {
     await ElMessageBox.confirm(`确认删除商品「${row.name}」吗？`, '提示', {
       type: 'warning',
     });
-    await api.del(row.id);
+    await deleteProduct(row.id);
     ElMessage.success('删除成功');
     fetchProducts();
   } catch (error: any) {
@@ -1214,6 +1848,11 @@ const remove = async (row: ProductRow) => {
 
 onMounted(() => {
   fetchCurrencies();
+  fetchCategories();
+  fetchSpecTypes();
+  fetchSpecs();
+  fetchAddonCategories();
+  fetchAddons();
   fetchProducts();
 });
 </script>
@@ -1285,9 +1924,33 @@ onMounted(() => {
 }
 .i18n-row {
   display: grid;
-  grid-template-columns: 140px 1fr 1fr auto;
+  grid-template-columns: 140px 1fr auto;
   gap: 8px;
   align-items: center;
+}
+.full-width {
+  width: 100%;
+}
+.group-box {
+  border: 1px solid #ebeef5;
+  border-radius: 8px;
+  padding: 12px;
+  margin-bottom: 12px;
+}
+.group-title {
+  font-weight: 600;
+  margin-bottom: 8px;
+  color: #303133;
+}
+.quill-wrapper {
+  width: 100%;
+}
+.quill-wrapper :deep(.ql-container) {
+  min-height: 140px;
+  border-radius: 4px;
+}
+.quill-wrapper :deep(.ql-editor) {
+  min-height: 120px;
 }
 .uploading-tip {
   margin-top: 8px;

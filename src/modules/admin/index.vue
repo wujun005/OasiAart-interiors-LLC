@@ -38,13 +38,13 @@
               <el-icon><Collection /></el-icon>
               <span>二级分类</span>
             </el-menu-item>
-            <el-menu-item index="/admin/basic/specs">
-              <el-icon><Tickets /></el-icon>
-              <span>规格</span>
-            </el-menu-item>
             <el-menu-item index="/admin/basic/spec-types">
               <el-icon><Ticket /></el-icon>
               <span>规格类型</span>
+            </el-menu-item>
+            <el-menu-item index="/admin/basic/specs">
+              <el-icon><Tickets /></el-icon>
+              <span>规格值</span>
             </el-menu-item>
             <el-menu-item index="/admin/basic/addon-categories">
               <el-icon><CollectionTag /></el-icon>
@@ -52,7 +52,7 @@
             </el-menu-item>
             <el-menu-item index="/admin/basic/addons">
               <el-icon><Collection /></el-icon>
-              <span>附加项</span>
+              <span>附加项值</span>
             </el-menu-item>
           </el-sub-menu>
         </el-menu>

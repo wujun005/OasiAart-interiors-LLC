@@ -3,7 +3,7 @@
     <el-card>
       <div class="toolbar">
         <el-input
-          v-model="query.keyword"
+          v-model="query.nameKeyword"
           placeholder="搜索用户名"
           clearable
           @keyup.enter="handleSearch"
@@ -124,7 +124,7 @@ type User = {
 const query = reactive({
   pageNum: 1,
   pageSize: 10,
-  keyword: '',
+  nameKeyword: '',
 });
 const users = ref<User[]>([]);
 const total = ref(0);
@@ -210,7 +210,7 @@ const fetchUsers = async () => {
     const params = {
       pageNum: query.pageNum,
       pageSize: query.pageSize,
-      name: query.keyword?.trim() || undefined,
+      name: query.nameKeyword?.trim() || undefined,
     };
     const res = await apis.getPage(params);
     const { list, total: t, pageNum, pageSize } = extractList(res);
@@ -231,7 +231,7 @@ const handleSearch = () => {
 };
 
 const reset = () => {
-  query.keyword = '';
+  query.nameKeyword = '';
   query.pageNum = 1;
   fetchUsers();
 };

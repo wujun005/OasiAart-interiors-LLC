@@ -24,7 +24,6 @@ export function del(id: any) {
 export function getPage(payload: any) {
   return http.get('/api/product/page', { params: payload });
 }
-
 // 上传文件
 export function upload(payload: any) {
   return http.post('/api/file/upload', payload);

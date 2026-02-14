@@ -2,7 +2,7 @@
   <div class="page">
     <el-card>
       <div class="toolbar">
-        <el-input v-model="query.keyword" placeholder="搜索分类名称" clearable @keyup.enter="handleSearch" />
+        <el-input v-model="query.nameKeyword" placeholder="搜索分类名称" clearable @keyup.enter="handleSearch" />
         <el-button type="primary" @click="handleSearch">搜索</el-button>
         <el-button @click="reset">重置</el-button>
         <el-button type="primary" @click="openCreate">新增附加项分类</el-button>
@@ -62,7 +62,7 @@ type AddonCategory = {
 };
 
 const list = ref<AddonCategory[]>([]);
-const query = reactive({ keyword: '', pageNum: 1, pageSize: 10 });
+const query = reactive({ nameKeyword: '', pageNum: 1, pageSize: 10 });
 const total = ref(0);
 const tableLoading = ref(false);
 const dialogVisible = ref(false);
@@ -96,7 +96,7 @@ const handleSearch = () => {
   fetchList();
 };
 const reset = () => {
-  query.keyword = '';
+  query.nameKeyword = '';
   query.pageNum = 1;
   fetchList();
 };
@@ -139,7 +139,7 @@ const save = () => {
 };
 
 const remove = (row: AddonCategory) => {
-  ElMessageBox.confirm(`确定删除「${row.name}」吗？`, '提示', { type: 'warning' })
+  ElMessageBox.confirm(`确定删除「${row.displayName}」吗？`, '提示', { type: 'warning' })
     .then(() => deleteAttachType({ id: row.id }))
     .then(() => {
       ElMessage.success('删除成功');
@@ -157,15 +157,18 @@ const formatDate = (val?: string) => {
 const fetchList = async () => {
   tableLoading.value = true;
   try {
-    const res = await getPage({ pageNum: query.pageNum, pageSize: query.pageSize, keyword: query.keyword?.trim() || undefined });
+    const res = await getPage({ pageNum: query.pageNum, pageSize: query.pageSize, nameKeyword: query.nameKeyword?.trim() || undefined });
     const data = res?.data ?? res ?? {};
     const records = Array.isArray(data.list) ? data.list : [];
-    list.value = records.map((item: any) => ({
-      id: item.id,
-      displayName: item.nameI18n?.['zh-CN'] || item.nameI18n?.['zh'] || item.name || '',
-      nameI18n: item.nameI18n,
-      updatedAt: item.updatedAt || item.modifyTime || '',
-    }));
+    list.value = records.map((item: any) => {
+      const attach = item.attachType || {};
+      return {
+        id: attach.id ?? item.id ?? 0,
+        displayName: item.nameI18n?.['zh-CN'] || item.nameI18n?.['zh'] || attach.typeName || item.name || '',
+        nameI18n: item.nameI18n,
+        updatedAt: attach.modifyTime || item.updatedAt || item.modifyTime || attach.createTime || '',
+      } as AddonCategory;
+    });
     total.value = data.total ?? records.length;
   } catch (error: any) {
     ElMessage.error(error?.message || '获取分类失败');

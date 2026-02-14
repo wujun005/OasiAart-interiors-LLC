@@ -79,7 +79,7 @@
 - **接口**: `GET /api/product/page`
 - **描述**: 分页查询商品/服务
 - **当前实现**: `src/modules/client/api/index.ts` - `getServicesPage()`
-- **参数**: `{ pageNum, pageSize, keyword?, ... }`
+- **参数**: `{ pageNum, pageSize, nameKeyword?, ... }`
 - **状态**: ✅ 已实现
 
 ### 3. 获取服务详情

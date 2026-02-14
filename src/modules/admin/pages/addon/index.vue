@@ -3,7 +3,7 @@
     <el-card>
       <div class="toolbar">
         <el-input
-          v-model="query.keyword"
+          v-model="query.nameKeyword"
           placeholder="搜索附加项名称"
           clearable
           @keyup.enter="handleSearch"
@@ -21,7 +21,7 @@
           <template #default="{ row }">{{ row.displayName }}</template>
         </el-table-column>
         <el-table-column prop="categoryName" label="附加项分类" min-width="160" />
-        <el-table-column prop="price" label="价格" width="120" />
+        <el-table-column prop="amount" label="价格" width="120" />
         <el-table-column label="更新时间" min-width="180">
           <template #default="{ row }">{{ formatDate(row.updatedAt) }}</template>
         </el-table-column>
@@ -66,8 +66,8 @@
             <el-option v-for="c in categoryOptions" :key="c.id" :label="c.displayName" :value="c.id" />
           </el-select>
         </el-form-item>
-        <el-form-item label="价格" prop="price">
-          <el-input-number v-model="form.price" :min="0" :step="1" />
+        <el-form-item label="价格" prop="amount">
+          <el-input-number v-model="form.amount" :min="0" :step="1" />
         </el-form-item>
       </el-form>
       <template #footer>
@@ -88,7 +88,7 @@ import { getPage as getAddonTypePage } from '../../api/addonType';
 type Addon = {
   id: number;
   categoryId: number | null;
-  price: number;
+  amount: number;
   updatedAt: string;
   displayName: string;
   nameI18n?: Record<string, string>;
@@ -98,7 +98,7 @@ const categoryOptions = ref<{ id: number; displayName: string; nameI18n?: Record
 
 const list = ref<Addon[]>([]);
 const query = reactive({
-  keyword: '',
+  nameKeyword: '',
   categoryId: null as number | null,
   pageNum: 1,
   pageSize: 10,
@@ -113,7 +113,7 @@ const formRef = ref<FormInstance>();
 const form = reactive<Addon>({
   id: 0,
   categoryId: null,
-  price: 0,
+  amount: 0,
   updatedAt: '',
   displayName: '',
   nameI18n: {},
@@ -132,7 +132,7 @@ const rules: FormRules = {
     },
   ],
   categoryId: [{ required: true, message: '请选择附加项分类', trigger: 'change' }],
-  price: [{ required: true, message: '请输入价格', trigger: 'blur' }],
+  amount: [{ required: true, message: '请输入价格', trigger: 'blur' }],
 };
 
 const displayList = computed(() =>
@@ -148,7 +148,7 @@ const handleSearch = () => {
 };
 
 const reset = () => {
-  query.keyword = '';
+  query.nameKeyword = '';
   query.categoryId = null;
   query.pageNum = 1;
   query.pageSize = 10;
@@ -171,7 +171,7 @@ const openCreate = () => {
   Object.assign(form, {
     id: 0,
     categoryId: categoryOptions.value[0]?.id ?? null,
-    price: 0,
+    amount: 0,
     updatedAt: '',
     displayName: '',
     nameI18n: {},
@@ -205,7 +205,7 @@ const save = () => {
         if (cur.lang && cur.value) acc[cur.lang] = cur.value;
         return acc;
       }, {}),
-      price: form.price,
+      amount: form.amount,
     };
     addOrUpdate(payload)
       .then(() => {
@@ -266,7 +266,7 @@ const fetchList = async () => {
     const res = await getPage({
       pageNum: query.pageNum,
       pageSize: query.pageSize,
-      keyword: query.keyword?.trim() || undefined,
+      nameKeyword: query.nameKeyword?.trim() || undefined,
       attachTypeId: query.categoryId || undefined,
     });
     const data = res?.data ?? res ?? {};
@@ -283,7 +283,7 @@ const fetchList = async () => {
         '',
       nameI18n: item.nameI18n || item.attachValue?.nameI18n,
       categoryId: item.attachValue?.attachTypeId ?? item.attachTypeId ?? item.categoryId ?? null,
-      price: item.attachValue?.price ?? item.price ?? 0,
+      amount: item.attachValue?.amount ?? item.amount ?? 0,
       updatedAt: item.attachValue?.modifyTime || item.attachValue?.updateTime || item.updatedAt || item.modifyTime || '',
     }));
     total.value = data.total ?? records.length;

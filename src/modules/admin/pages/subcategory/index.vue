@@ -3,7 +3,7 @@
     <el-card>
       <div class="toolbar">
         <el-input
-          v-model="query.keyword"
+          v-model="query.nameKeyword"
           placeholder="搜索二级分类名称"
           clearable
           @keyup.enter="handleSearch"
@@ -132,7 +132,7 @@ type SubCategory = {
 const categories = ref<{ id: number; displayName: string }[]>([]);
 const list = ref<SubCategory[]>([]);
 const query = reactive({
-  keyword: '',
+  nameKeyword: '',
   parentId: null as number | null,
   pageNum: 1,
   pageSize: 10,
@@ -192,7 +192,7 @@ const handleSearch = () => {
 };
 
 const reset = () => {
-  query.keyword = '';
+  query.nameKeyword = '';
   query.parentId = null;
   query.pageNum = 1;
   query.pageSize = 10;
@@ -244,18 +244,18 @@ const save = () => {
     submitLoading.value = true;
     const action = isEdit.value ? update : add;
     const zhName = nameI18nList.value.find((i) => i.lang === 'zh-CN')?.value || nameI18nList.value[0]?.value || '';
-    // 暂时只用中文名称，英文留空，nameI18n 也仅提交 zh
+    const enName = nameI18nList.value.find((i) => i.lang === 'en')?.value || '';
     const payload = {
       id: form.id || undefined,
       categoryName: zhName,
-      categoryEnglishName: '',
+      categoryEnglishName: enName,
       level: '2',
       pcategoryId: form.parentId,
       rootId: form.parentId,
       imageUrl: form.iconUrl,
       imageUrls: form.iconUrl ? [form.iconUrl] : [],
       nameI18n: nameI18nList.value.reduce<Record<string, string>>((acc, cur) => {
-        if (cur.lang === 'zh-CN' && cur.value) acc[cur.lang] = cur.value;
+        if (cur.lang && cur.value) acc[cur.lang] = cur.value;
         return acc;
       }, {}),
       categoryDomain: '1',
@@ -360,7 +360,7 @@ const fetchList = async () => {
     const res = await getPage({
       pageNum: query.pageNum,
       pageSize: query.pageSize,
-      keyword: query.keyword?.trim() || undefined,
+      nameKeyword: query.nameKeyword?.trim() || undefined,
       level: '2',
       pcategoryId: query.parentId || undefined,
     });

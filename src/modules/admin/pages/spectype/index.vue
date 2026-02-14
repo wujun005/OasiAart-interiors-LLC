@@ -3,7 +3,7 @@
     <el-card>
       <div class="toolbar">
         <el-input
-          v-model="query.keyword"
+          v-model="query.nameKeyword"
           placeholder="搜索规格类型名称"
           clearable
           @keyup.enter="handleSearch"
@@ -80,7 +80,7 @@ type SpecType = {
 
 const list = ref<SpecType[]>([]);
 const query = reactive({
-  keyword: '',
+  nameKeyword: '',
   pageNum: 1,
   pageSize: 10,
 });
@@ -120,7 +120,7 @@ const handleSearch = () => {
 };
 
 const reset = () => {
-  query.keyword = '';
+  query.nameKeyword = '';
   query.pageNum = 1;
   query.pageSize = 10;
   fetchList();
@@ -207,7 +207,7 @@ const fetchList = async () => {
     const res = await getSpecTypePage({
       pageNum: query.pageNum,
       pageSize: query.pageSize,
-      keyword: query.keyword?.trim() || undefined,
+      nameKeyword: query.nameKeyword?.trim() || undefined,
     });
     const data = res?.data ?? res ?? {};
     const records = Array.isArray(data.list) ? data.list : [];

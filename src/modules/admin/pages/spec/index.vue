@@ -3,13 +3,13 @@
     <el-card>
       <div class="toolbar">
         <el-input
-          v-model="query.keyword"
+          v-model="query.nameKeyword"
           placeholder="搜索规格名称"
           clearable
           @keyup.enter="handleSearch"
         />
         <el-select
-          v-model="query.typeId"
+          v-model="query.specTypeId"
           placeholder="规格类型"
           clearable
           style="width: 180px"
@@ -69,8 +69,8 @@
             <el-button link type="primary" @click="addI18n">+ 添加语言</el-button>
           </div>
         </el-form-item>
-        <el-form-item label="规格类型" prop="typeId">
-          <el-select v-model="form.typeId" placeholder="请选择规格类型" style="width: 100%">
+        <el-form-item label="规格类型" prop="specTypeId">
+          <el-select v-model="form.specTypeId" placeholder="请选择规格类型" style="width: 100%">
             <el-option v-for="t in specTypeOptions" :key="t.id" :label="t.displayName" :value="t.id" />
           </el-select>
         </el-form-item>
@@ -93,38 +93,28 @@ import { getSpecValuePage, addOrUpdateSpecValue, deleteSpecValue } from '@/modul
 type Spec = {
   id: number;
   sort: number;
-  typeId: number;
+  specTypeId: number;
   typeName?: string;
   createdAt: string;
   displayName: string;
   nameI18n?: Record<string, string>;
 };
 
-const initialMock: Spec[] = [
-  { id: 1, name: '金牌技师', sort: 1, enabled: true, typeId: 1, createdAt: '2024-10-01T10:00:00Z' },
-  { id: 2, name: '肉式技师', sort: 2, enabled: true, typeId: 1, createdAt: '2024-10-05T12:00:00Z' },
-  { id: 3, name: '瑜伽技师', sort: 3, enabled: true, typeId: 1, createdAt: '2024-11-01T09:00:00Z' },
-  { id: 4, name: '泰式按摩', sort: 4, enabled: true, typeId: 2, createdAt: '2024-12-12T15:30:00Z' },
-  { id: 5, name: '柔式按摩', sort: 5, enabled: true, typeId: 2, createdAt: '2024-12-13T10:00:00Z' },
-  { id: 6, name: '瑜伽按摩', sort: 6, enabled: true, typeId: 2, createdAt: '2024-12-14T10:00:00Z' },
-  { id: 7, name: '1小时', sort: 7, enabled: true, typeId: 3, createdAt: '2025-01-01T10:00:00Z' },
-  { id: 8, name: '2小时', sort: 8, enabled: true, typeId: 3, createdAt: '2025-01-01T11:00:00Z' },
-  { id: 9, name: '3小时', sort: 9, enabled: true, typeId: 3, createdAt: '2025-01-01T12:00:00Z' },
-];
+const initialMock: Spec[] = [];
 
 const specTypeOptions = ref<{ id: number; displayName: string; nameI18n?: Record<string, string> }[]>([]);
 
 const list = ref<Spec[]>([]);
 const query = reactive({
-  keyword: '',
-  typeId: null as number | null,
+  nameKeyword: '',
+  specTypeId: null as number | null,
   pageNum: 1,
   pageSize: 10,
 });
 
 const displayList = computed(() => list.value.map((item) => ({
   ...item,
-  typeName: specTypeOptions.value.find((t) => t.id === item.typeId)?.displayName || '-',
+  typeName: specTypeOptions.value.find((t) => t.id === item.specTypeId)?.displayName || '-',
 })));
 const total = ref(0);
 const tableLoading = ref(false);
@@ -136,7 +126,7 @@ const formRef = ref<FormInstance>();
 const form = reactive<Spec>({
   id: 0,
   sort: 0,
-  typeId: 0,
+  specTypeId: 0,
   createdAt: '',
   displayName: '',
   nameI18n: {},
@@ -154,7 +144,7 @@ const rules: FormRules = {
       trigger: 'change',
     },
   ],
-  typeId: [{ required: true, message: '请选择规格类型', trigger: 'change' }],
+  specTypeId: [{ required: true, message: '请选择规格类型', trigger: 'change' }],
 };
 
 const handleSearch = () => {
@@ -163,8 +153,8 @@ const handleSearch = () => {
 };
 
 const reset = () => {
-  query.keyword = '';
-  query.typeId = null;
+  query.nameKeyword = '';
+  query.specTypeId = null;
   query.pageNum = 1;
   query.pageSize = 10;
   fetchList();
@@ -187,7 +177,7 @@ const openCreate = () => {
     id: 0,
     sort: list.value.length + 1,
     enabled: true,
-    typeId: specTypeOptions.value[0]?.id ?? 0,
+    specTypeId: specTypeOptions.value[0]?.id ?? 0,
     createdAt: new Date().toISOString(),
     displayName: '',
     nameI18n: {},
@@ -214,7 +204,7 @@ const save = () => {
     const enName = nameI18nList.value.find((i) => i.lang === 'en')?.value || '';
     const payload = {
       id: form.id || undefined,
-      specTypeId: form.typeId,
+      specTypeId: form.specTypeId,
       specValue: zhName,
       specValueEn: enName,
       nameI18n: nameI18nList.value.reduce<Record<string, string>>((acc, cur) => {
@@ -272,7 +262,7 @@ const fetchSpecTypes = async () => {
       item.name || '',
     nameI18n: item.nameI18n || item.specType?.nameI18n,
   }));
-  if (!form.typeId && specTypeOptions.value.length) form.typeId = specTypeOptions.value[0].id;
+  if (!form.specTypeId && specTypeOptions.value.length) form.specTypeId = specTypeOptions.value[0].id;
 };
 
 const fetchList = async () => {
@@ -281,8 +271,8 @@ const fetchList = async () => {
     const res = await getSpecValuePage({
       pageNum: query.pageNum,
       pageSize: query.pageSize,
-      keyword: query.keyword?.trim() || undefined,
-      typeId: query.typeId || undefined,
+      nameKeyword: query.nameKeyword?.trim() || undefined,
+      specTypeId: query.specTypeId || undefined,
     });
     const data = res?.data ?? res ?? {};
     const records = Array.isArray(data.list) ? data.list : [];
@@ -295,7 +285,7 @@ const fetchList = async () => {
         item.name || '',
       nameI18n: item.nameI18n || item.specValue?.nameI18n,
       sort: item.specValue?.sort ?? item.sort ?? 0,
-      typeId: item.specValue?.specTypeId ?? item.specTypeId ?? item.typeId ?? 0,
+      specTypeId: item.specValue?.specTypeId ?? item.specTypeId ?? item.specTypeId ?? 0,
       createdAt: item.specValue?.createTime || item.createTime || item.createdAt || '',
     }));
     total.value = data.total ?? records.length;
