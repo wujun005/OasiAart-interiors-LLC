@@ -841,9 +841,7 @@ const rules: FormRules = {
   'product.categoryId': [
     { required: true, message: '请选择一级分类', trigger: 'change' },
   ],
-  'product.subCategoryId': [
-    { required: true, message: '请选择二级分类', trigger: 'change' },
-  ],
+  'product.subCategoryId': [{ required: false, trigger: 'change' }],
   // 'product.currency': [{ required: true, message: '请选择币种', trigger: 'change' }],
   productI18nList: [
     {
