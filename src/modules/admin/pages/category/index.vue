@@ -88,6 +88,51 @@
             <el-button link type="primary" @click="addI18n">+ 添加语言</el-button>
           </div>
         </el-form-item>
+        <el-form-item label="Banner标题" prop="bannerTitleI18n">
+          <div class="i18n-list">
+            <div v-for="(item, idx) in bannerTitleList" :key="idx" class="i18n-row">
+              <el-select v-model="item.lang" placeholder="语言" style="width: 140px">
+                <el-option label="中文(zh-CN)" value="zh-CN" />
+                <el-option label="英文(en)" value="en" />
+              </el-select>
+              <el-input v-model="item.value" placeholder="标题（选填）" />
+              <el-button link type="danger" :disabled="bannerTitleList.length===1" @click="removeBannerTitle(idx)">删除</el-button>
+            </div>
+            <el-button link type="primary" @click="addBannerTitle">+ 添加语言</el-button>
+          </div>
+        </el-form-item>
+
+        <el-form-item label="Banner描述" prop="bannerDescI18n">
+          <div class="i18n-list">
+            <div v-for="(item, idx) in bannerDescList" :key="idx" class="i18n-row">
+              <el-select v-model="item.lang" placeholder="语言" style="width: 140px">
+                <el-option label="中文(zh-CN)" value="zh-CN" />
+                <el-option label="英文(en)" value="en" />
+              </el-select>
+              <el-input v-model="item.value" type="textarea" :rows="2" placeholder="描述（选填）" />
+              <el-button link type="danger" :disabled="bannerDescList.length===1" @click="removeBannerDesc(idx)">删除</el-button>
+            </div>
+            <el-button link type="primary" @click="addBannerDesc">+ 添加语言</el-button>
+          </div>
+        </el-form-item>
+
+        <el-form-item label="Banner标签" prop="bannerTagsI18n">
+          <div class="i18n-list">
+            <div v-for="(item, idx) in bannerTagsList" :key="idx" class="i18n-row">
+              <el-select v-model="item.lang" placeholder="语言" style="width: 140px">
+                <el-option label="中文(zh-CN)" value="zh-CN" />
+                <el-option label="英文(en)" value="en" />
+              </el-select>
+              <el-input
+                v-model="item.value"
+                placeholder="标签，多条用逗号分隔"
+              />
+              <el-button link type="danger" :disabled="bannerTagsList.length===1" @click="removeBannerTags(idx)">删除</el-button>
+            </div>
+            <el-button link type="primary" @click="addBannerTags">+ 添加语言</el-button>
+          </div>
+        </el-form-item>
+
         <el-form-item label="状态" prop="enabled">
           <el-switch v-model="form.enabled" active-text="启用" inactive-text="停用" />
         </el-form-item>
@@ -111,6 +156,9 @@ type Category = {
   id: number;
   iconUrl?: string;
   nameI18n?: Record<string, string>;
+  bannerTitleI18n?: Record<string, string>;
+  bannerDescI18n?: Record<string, string>;
+  bannerTagsI18n?: Record<string, string[]>;
   enabled: boolean;
   createdAt: string;
   displayName: string;
@@ -148,6 +196,9 @@ const fetchList = async () => {
         item.name ||
         '',
       nameI18n: item.nameI18n || item.category?.nameI18n,
+      bannerTitleI18n: item.bannerTitleI18n || item.category?.bannerTitleI18n,
+      bannerDescI18n: item.bannerDescI18n || item.category?.bannerDescI18n,
+      bannerTagsI18n: item.bannerTagsI18n || item.category?.bannerTagsI18n,
       iconUrl: item.imageUrls?.[0] || item.iconUrl || item.icon,
       enabled: (item.category?.status ?? item.status) === 1,
       createdAt: item.category?.createTime || item.createdAt || item.createTime || '',
@@ -173,6 +224,9 @@ const form = reactive<Category>({
 });
 const iconFileList = ref<UploadUserFile[]>([]);
 const nameI18nList = ref<{ lang: string; value: string }[]>([{ lang: 'zh-CN', value: '' }]);
+const bannerTitleList = ref<{ lang: string; value: string }[]>([{ lang: 'zh-CN', value: '' }]);
+const bannerDescList = ref<{ lang: string; value: string }[]>([{ lang: 'zh-CN', value: '' }]);
+const bannerTagsList = ref<{ lang: string; value: string }[]>([{ lang: 'zh-CN', value: '' }]);
 
 const rules: FormRules = {
   nameI18n: [
@@ -180,6 +234,36 @@ const rules: FormRules = {
       validator: (_r, _v, cb) => {
         const invalid = nameI18nList.value.find((i) => !i.lang?.trim() || !i.value?.trim());
         if (invalid) return cb(new Error('请完善多语言名称'));
+        cb();
+      },
+      trigger: 'change',
+    },
+  ],
+  bannerTitleI18n: [
+    {
+      validator: (_r, _v, cb) => {
+        const invalid = bannerTitleList.value.find((i) => i.value && !i.lang?.trim());
+        if (invalid) return cb(new Error('请选择 Banner 标题的语言'));
+        cb();
+      },
+      trigger: 'change',
+    },
+  ],
+  bannerDescI18n: [
+    {
+      validator: (_r, _v, cb) => {
+        const invalid = bannerDescList.value.find((i) => i.value && !i.lang?.trim());
+        if (invalid) return cb(new Error('请选择 Banner 描述的语言'));
+        cb();
+      },
+      trigger: 'change',
+    },
+  ],
+  bannerTagsI18n: [
+    {
+      validator: (_r, _v, cb) => {
+        const invalid = bannerTagsList.value.find((i) => i.value && !i.lang?.trim());
+        if (invalid) return cb(new Error('请选择 Banner 标签的语言'));
         cb();
       },
       trigger: 'change',
@@ -216,6 +300,9 @@ const openCreate = () => {
   Object.assign(form, { id: 0, sort: 0, enabled: true, createdAt: '', displayName: '' });
   iconFileList.value = [];
   nameI18nList.value = [{ lang: 'zh-CN', value: '' }];
+  bannerTitleList.value = [{ lang: 'zh-CN', value: '' }];
+  bannerDescList.value = [{ lang: 'zh-CN', value: '' }];
+  bannerTagsList.value = [{ lang: 'zh-CN', value: '' }];
   dialogVisible.value = true;
 };
 
@@ -234,6 +321,21 @@ const openEdit = (row: Category) => {
     row.nameI18n && Object.keys(row.nameI18n).length
       ? Object.entries(row.nameI18n).map(([lang, value]) => ({ lang, value: value as string }))
       : [{ lang: 'zh-CN', value: row.name || row.displayName || '' }];
+  bannerTitleList.value =
+    row.bannerTitleI18n && Object.keys(row.bannerTitleI18n).length
+      ? Object.entries(row.bannerTitleI18n).map(([lang, value]) => ({ lang, value: value as string }))
+      : [{ lang: 'zh-CN', value: '' }];
+  bannerDescList.value =
+    row.bannerDescI18n && Object.keys(row.bannerDescI18n).length
+      ? Object.entries(row.bannerDescI18n).map(([lang, value]) => ({ lang, value: value as string }))
+      : [{ lang: 'zh-CN', value: '' }];
+  bannerTagsList.value =
+    row.bannerTagsI18n && Object.keys(row.bannerTagsI18n).length
+      ? Object.entries(row.bannerTagsI18n).map(([lang, value]) => ({
+          lang,
+          value: Array.isArray(value) ? (value as string[]).join(',') : (value as string),
+        }))
+      : [{ lang: 'zh-CN', value: '' }];
   dialogVisible.value = true;
 };
 
@@ -256,6 +358,18 @@ const save = () => {
       imageUrls: form.iconUrl ? [form.iconUrl] : [],
       nameI18n: nameI18nList.value.reduce<Record<string, string>>((acc, cur) => {
         if (cur.lang && cur.value) acc[cur.lang] = cur.value;
+        return acc;
+      }, {}),
+      bannerTitleI18n: bannerTitleList.value.reduce<Record<string, string>>((acc, cur) => {
+        if (cur.lang && cur.value) acc[cur.lang] = cur.value;
+        return acc;
+      }, {}),
+      bannerDescI18n: bannerDescList.value.reduce<Record<string, string>>((acc, cur) => {
+        if (cur.lang && cur.value) acc[cur.lang] = cur.value;
+        return acc;
+      }, {}),
+      bannerTagsI18n: bannerTagsList.value.reduce<Record<string, string[]>>((acc, cur) => {
+        if (cur.lang && cur.value) acc[cur.lang] = cur.value.split(',').map((s) => s.trim()).filter(Boolean);
         return acc;
       }, {}),
       categoryDomain: '1',
@@ -341,6 +455,28 @@ const addI18n = () => {
 const removeI18n = (idx: number) => {
   if (nameI18nList.value.length === 1) return;
   nameI18nList.value.splice(idx, 1);
+};
+
+const addBannerTitle = () => {
+  bannerTitleList.value.push({ lang: '', value: '' });
+};
+const removeBannerTitle = (idx: number) => {
+  if (bannerTitleList.value.length === 1) return;
+  bannerTitleList.value.splice(idx, 1);
+};
+const addBannerDesc = () => {
+  bannerDescList.value.push({ lang: '', value: '' });
+};
+const removeBannerDesc = (idx: number) => {
+  if (bannerDescList.value.length === 1) return;
+  bannerDescList.value.splice(idx, 1);
+};
+const addBannerTags = () => {
+  bannerTagsList.value.push({ lang: '', value: '' });
+};
+const removeBannerTags = (idx: number) => {
+  if (bannerTagsList.value.length === 1) return;
+  bannerTagsList.value.splice(idx, 1);
 };
 </script>
 
