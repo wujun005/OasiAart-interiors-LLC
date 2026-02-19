@@ -49,10 +49,12 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref } from 'vue';
+import { computed, onMounted, reactive, ref, watch } from 'vue';
 import type { FormInstance, FormRules } from 'element-plus';
 import { ElMessage, ElMessageBox } from 'element-plus';
+import { useI18n } from 'vue-i18n';
 import { getPage, addOrUpdate, deleteAttachType } from '../../api/addonType';
+import { pickI18nText } from '@/modules/admin/utils/i18n';
 
 type AddonCategory = {
   id: number;
@@ -62,6 +64,7 @@ type AddonCategory = {
 };
 
 const list = ref<AddonCategory[]>([]);
+const { locale } = useI18n({ useScope: 'global' });
 const query = reactive({ nameKeyword: '', pageNum: 1, pageSize: 10 });
 const total = ref(0);
 const tableLoading = ref(false);
@@ -139,7 +142,12 @@ const save = () => {
 };
 
 const remove = (row: AddonCategory) => {
-  ElMessageBox.confirm(`确定删除「${row.displayName}」吗？`, '提示', { type: 'warning' })
+  const label = pickI18nText(
+    row.nameI18n,
+    locale.value,
+    row.displayName || '',
+  );
+  ElMessageBox.confirm(`确定删除「${label}」吗？`, '提示', { type: 'warning' })
     .then(() => deleteAttachType({ id: row.id }))
     .then(() => {
       ElMessage.success('删除成功');
@@ -164,8 +172,12 @@ const fetchList = async () => {
       const attach = item.attachType || {};
       return {
         id: attach.id ?? item.id ?? 0,
-        displayName: item.nameI18n?.['zh-CN'] || item.nameI18n?.['zh'] || attach.typeName || item.name || '',
-        nameI18n: item.nameI18n,
+        displayName: pickI18nText(
+          item.nameI18n || attach.nameI18n,
+          locale.value,
+          attach.typeName || item.name || '',
+        ),
+        nameI18n: item.nameI18n || attach.nameI18n,
         updatedAt: attach.modifyTime || item.updatedAt || item.modifyTime || attach.createTime || '',
       } as AddonCategory;
     });
@@ -189,6 +201,13 @@ const removeI18n = (idx: number) => {
 onMounted(() => {
   fetchList();
 });
+
+watch(
+  () => locale.value,
+  () => {
+    fetchList();
+  },
+);
 </script>
 
 <style scoped>

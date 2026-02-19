@@ -8,6 +8,16 @@
     </div>
 
     <div class="auth-page-right">
+      <el-select
+        v-model="currentLocale"
+        size="small"
+        class="locale-switcher"
+        @change="handleLocaleChange"
+      >
+        <el-option value="zh" :label="$t('admin.common.langZh')" />
+        <el-option value="en" :label="$t('admin.common.langEn')" />
+      </el-select>
+
       <div class="auth-page-right-title">
         {{ $t('message.account_login_c') }}
       </div>
@@ -24,6 +34,17 @@ import { login } from '@/modules/admin/api';
 import { ElMessage } from 'element-plus';
 import router from '@/modules/admin/router';
 import axios from 'axios';
+import { ref } from 'vue';
+import { useI18n } from 'vue-i18n';
+import { ADMIN_LOCALE_STORAGE_KEY, type AdminLocale } from '@/modules/admin/locales';
+import {
+  loadAdminMenuPermissions,
+  resetAdminMenuPermissions,
+} from '@/modules/admin/utils/menuPermission';
+
+const { t, locale } = useI18n({ useScope: 'global' });
+const currentLocale = ref<AdminLocale>(locale.value === 'en' ? 'en' : 'zh');
+
 const debounceLeading = <T extends (...args: any[]) => unknown>(
   fn: T,
   delay = 500
@@ -49,8 +70,8 @@ const loginByPassword = async ({
   account: string;
   password: string;
 }) => {
-  if (!account) return ElMessage.warning('请输入账号');
-  if (!password) return ElMessage.warning('请输入密码');
+  if (!account) return ElMessage.warning(t('admin.login.accountRequired'));
+  if (!password) return ElMessage.warning(t('admin.login.passwordRequired'));
 
   try {
     const result = await login({ account, password, rememberMe: true });
@@ -78,12 +99,21 @@ const loginByPassword = async ({
     }
 
     axios.defaults.headers.common.Authorization = `${tokenType} ${token}`;
-    ElMessage.success(result?.message || '登录成功');
+    resetAdminMenuPermissions();
+    await loadAdminMenuPermissions(true);
+    ElMessage.success(result?.message || t('admin.login.loginSuccess'));
     router.push('/admin');
   } catch (e) {
     console.error(e);
-    ElMessage.error('登录失败，请检查账号或密码');
+    ElMessage.error(t('admin.login.loginFailed'));
   }
+};
+
+const handleLocaleChange = (lang: AdminLocale) => {
+  locale.value = lang;
+  currentLocale.value = lang;
+  localStorage.setItem(ADMIN_LOCALE_STORAGE_KEY, lang);
+  document.documentElement.lang = lang;
 };
 </script>
 <style scoped>
@@ -107,6 +137,13 @@ const loginByPassword = async ({
     display: flex;
     flex-direction: column;
     align-items: center;
+    position: relative;
+    .locale-switcher {
+      position: absolute;
+      top: 12px;
+      right: 12px;
+      width: 120px;
+    }
     .language {
       width: 24px;
       height: 24px;

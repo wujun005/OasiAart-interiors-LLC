@@ -1,5 +1,10 @@
 import { createRouter, createWebHistory, RouteRecordRaw } from 'vue-router';
 // import { useAuthStore } from '@/stores/auth';
+import {
+  getFirstAllowedAdminPath,
+  loadAdminMenuPermissions,
+  resolveAllowedAdminPath,
+} from '@/modules/admin/utils/menuPermission';
 
 const routes: RouteRecordRaw[] = [
   // 管理端：/admin 开头
@@ -83,7 +88,7 @@ const routes: RouteRecordRaw[] = [
   {
     path: '/:pathMatch(.*)*',
     name: 'not-found',
-    component: () => import('@/modules/client/pages/NotFound.vue'),
+    redirect: '/admin',
   },
 ];
 
@@ -92,15 +97,36 @@ export const router = createRouter({
   routes,
 });
 
-// 路由守卫：鉴权 + 角色
-// router.beforeEach((to) => {
-//   const auth = useAuthStore();
-//   if (to.meta.requiresAuth && !auth.isLoggedIn) {
-//     return { name: 'client-home' }; // 或跳登录页
-//   }
-//   if (to.meta.requiresRole && !auth.hasRole(to.meta.requiresRole as string)) {
-//     return { name: 'not-found' }; // 或“无权限”页
-//   }
-// });
+router.beforeEach(async (to) => {
+  if (!to.path.startsWith('/admin')) return true;
+  if (to.path === '/admin/login') return true;
+
+  const token = localStorage.getItem('token');
+  if (!token) {
+    return { path: '/admin/login', query: { redirect: to.fullPath } };
+  }
+
+  try {
+    await loadAdminMenuPermissions();
+  } catch (error) {
+    console.error('Failed to load menu permissions:', error);
+    return { path: '/admin/login', query: { redirect: to.fullPath } };
+  }
+
+  const targetPath = resolveAllowedAdminPath(to.path);
+  if (targetPath) {
+    if (targetPath !== to.path) {
+      return { path: targetPath };
+    }
+    return true;
+  }
+
+  const fallbackPath = getFirstAllowedAdminPath();
+  if (fallbackPath && fallbackPath !== to.path) {
+    return { path: fallbackPath };
+  }
+
+  return { path: '/admin/login' };
+});
 
 export default router;

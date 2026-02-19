@@ -125,7 +125,8 @@
               </el-select>
               <el-input
                 v-model="item.value"
-                placeholder="标签，多条用逗号分隔"
+                type="textarea" :rows="2" 
+                placeholder="标签，多条用'|'分隔, 例子： 热门|New|最新"
               />
               <el-button link type="danger" :disabled="bannerTagsList.length===1" @click="removeBannerTags(idx)">删除</el-button>
             </div>
@@ -146,11 +147,13 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref } from 'vue';
+import { computed, onMounted, reactive, ref, watch } from 'vue';
 import type { FormInstance, FormRules, UploadUserFile, UploadRequestOptions } from 'element-plus';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { Plus } from '@element-plus/icons-vue';
+import { useI18n } from 'vue-i18n';
 import { getPage, add, update, del, changeStatus, upload } from '@/modules/admin/api/category';
+import { pickI18nText } from '@/modules/admin/utils/i18n';
 
 type Category = {
   id: number;
@@ -165,6 +168,7 @@ type Category = {
 };
 
 const list = ref<Category[]>([]);
+const { locale } = useI18n({ useScope: 'global' });
 const query = reactive({
   nameKeyword: '',
   pageNum: 1,
@@ -188,13 +192,11 @@ const fetchList = async () => {
     const records = Array.isArray(data.list) ? data.list : [];
     list.value = records.map((item: any) => ({
       id: item.category?.id ?? item.id,
-      displayName:
-        item.nameI18n?.['zh-CN'] ||
-        item.category?.nameI18n?.['zh-CN'] ||
-        item.category?.categoryName ||
-        item.categoryName ||
-        item.name ||
-        '',
+      displayName: pickI18nText(
+        item.nameI18n || item.category?.nameI18n,
+        locale.value,
+        item.category?.categoryName || item.categoryName || item.name || '',
+      ),
       nameI18n: item.nameI18n || item.category?.nameI18n,
       bannerTitleI18n: item.bannerTitleI18n || item.category?.bannerTitleI18n,
       bannerDescI18n: item.bannerDescI18n || item.category?.bannerDescI18n,
@@ -320,7 +322,7 @@ const openEdit = (row: Category) => {
   nameI18nList.value =
     row.nameI18n && Object.keys(row.nameI18n).length
       ? Object.entries(row.nameI18n).map(([lang, value]) => ({ lang, value: value as string }))
-      : [{ lang: 'zh-CN', value: row.name || row.displayName || '' }];
+      : [{ lang: 'zh-CN', value: row.displayName || '' }];
   bannerTitleList.value =
     row.bannerTitleI18n && Object.keys(row.bannerTitleI18n).length
       ? Object.entries(row.bannerTitleI18n).map(([lang, value]) => ({ lang, value: value as string }))
@@ -426,7 +428,11 @@ const toggleStatus = (row: Category) => {
 };
 
 const remove = (row: Category) => {
-  const label = row.displayName || row.nameI18n?.['zh-CN'] || row.nameI18n?.['zh'] || '该分类';
+  const label = pickI18nText(
+    row.nameI18n,
+    locale.value,
+    row.displayName || '该分类',
+  );
   ElMessageBox.confirm(`确定删除分类「${label}」吗？`, '提示', { type: 'warning' })
     .then(() => {
       return del({ id: row.id });
@@ -447,6 +453,13 @@ const formatDate = (val?: string) => {
 onMounted(() => {
   fetchList();
 });
+
+watch(
+  () => locale.value,
+  () => {
+    fetchList();
+  },
+);
 
 const addI18n = () => {
   nameI18nList.value.push({ lang: '', value: '' });

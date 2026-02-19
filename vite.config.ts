@@ -35,6 +35,10 @@ const htmlEntryRewritePlugin = (entries: HtmlEntry[]) => {
 export default defineConfig(({ mode }) => {
   console.log('env', mode)
   const env = loadEnv(mode, process.cwd(), '')
+  const adminProxyTarget =
+    env.VITE_ADMIN_API_PROXY_TARGET || env.VITE_API_PROXY_TARGET
+  const clientProxyTarget =
+    env.VITE_CLIENT_API_PROXY_TARGET || adminProxyTarget
 
   return {
     plugins: [
@@ -51,8 +55,13 @@ export default defineConfig(({ mode }) => {
     server: {
       host: '0.0.0.0',
       proxy: {
+        '/client-api': {
+          target: clientProxyTarget,
+          changeOrigin: true,
+          rewrite: (path) => path.replace(/^\/client-api/, ''),
+        },
         '/api': {
-          target: env.VITE_API_PROXY_TARGET,
+          target: adminProxyTarget,
           changeOrigin: true,
           rewrite: (path) => path.replace(/^\/api/, ''),
         },

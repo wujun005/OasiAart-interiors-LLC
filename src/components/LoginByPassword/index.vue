@@ -1,22 +1,22 @@
 <template>
   <el-form :model="form" label-width="auto" style="max-width: 600px">
-    <el-form-item label="账号" label-position="top" style="margin-bottom: 30px">
-      <el-input v-model="form.account"  placeholder="请输入账号"/>
+    <el-form-item :label="t('admin.login.accountLabel')" label-position="top" style="margin-bottom: 30px">
+      <el-input v-model="form.account" :placeholder="t('admin.login.accountPlaceholder')" />
     </el-form-item>
 
-    <div class="forgot-password" @click="goResetPassword">忘记密码?</div>
+    <div class="forgot-password" @click="goResetPassword">{{ t('admin.login.forgotPassword') }}</div>
 
-    <el-form-item label="密码" label-position="top">
-      <el-input v-model="form.password" placeholder="请输入密码" type="password" show-password />
+    <el-form-item :label="t('admin.login.passwordLabel')" label-position="top">
+      <el-input v-model="form.password" :placeholder="t('admin.login.passwordPlaceholder')" type="password" show-password />
     </el-form-item>
 
     <el-form-item>
-      <div class="btn" @click="loginByPassword">登录</div>
+      <div class="btn" @click="loginByPassword">{{ t('admin.login.submit') }}</div>
     </el-form-item>
 
     <el-form-item>
       <div class="register" @click="goRegister">
-        没有账号，<span class="register-text">立即注册</span>
+        {{ t('admin.login.noAccount') }}<span class="register-text">{{ t('admin.login.registerNow') }}</span>
       </div>
     </el-form-item>
   </el-form>
@@ -25,6 +25,9 @@
 <script setup lang="ts">
 import { ref } from 'vue';
 import { ElMessage } from 'element-plus';
+import { useI18n } from 'vue-i18n';
+
+const { t } = useI18n({ useScope: 'global' });
 
 const form = ref({
   account: '',
@@ -41,8 +44,8 @@ const loginByPassword = () => {
   const account = form.value.account.trim();
   const password = form.value.password.trim();
 
-  if (!account) return ElMessage.warning('请输入账号');
-  if (!password) return ElMessage.warning('请输入密码');
+  if (!account) return ElMessage.warning(t('admin.login.accountRequired'));
+  if (!password) return ElMessage.warning(t('admin.login.passwordRequired'));
 
   emit('login', { account, password });
 };

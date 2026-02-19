@@ -451,7 +451,7 @@
                 v-model="item.value"
                 type="textarea"
                 :rows="2"
-                placeholder="请输入服务内容"
+                placeholder="服务内容，多条用'|'分隔, 例子： 上门|打扫|清洁"
                 class="full-width"
               />
               <el-button
@@ -578,7 +578,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, nextTick, onMounted, reactive, ref } from 'vue';
+import { computed, nextTick, onMounted, reactive, ref, watch } from 'vue';
 import type {
   FormInstance,
   FormRules,
@@ -588,6 +588,7 @@ import type {
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { Plus } from '@element-plus/icons-vue';
 import { QuillEditor } from '@vueup/vue-quill';
+import { useI18n } from 'vue-i18n';
 import '@vueup/vue-quill/dist/vue-quill.snow.css';
 import { upload, currencies } from '@/modules/admin/api/product';
 import {
@@ -607,6 +608,7 @@ import { getSpecTypePage } from '@/modules/admin/api/specType';
 import { getSpecValuePage } from '@/modules/admin/api/spec';
 import { getPage as getAddonTypePage } from '@/modules/admin/api/addonType';
 import { getPage as getAddonPage } from '@/modules/admin/api/addon';
+import { pickI18nText } from '@/modules/admin/utils/i18n';
 
 type ProductEntity = {
   id?: number;
@@ -674,6 +676,7 @@ type AddonGroup = {
 const subCategoryOptions = ref<
   { label: string; value: number; parentId: number }[]
 >([]);
+const { locale } = useI18n({ useScope: 'global' });
 
 const categoryOptions = ref<{ label: string; value: number }[]>([]);
 
@@ -836,6 +839,11 @@ const langOptions = [
   { label: '中文(简体)', value: 'zh-CN' },
   { label: 'English', value: 'en' },
 ];
+
+const pickName = (
+  value: Record<string, unknown> | undefined | null,
+  fallback = '',
+) => pickI18nText(value, locale.value, fallback);
 
 const rules: FormRules = {
   'product.categoryId': [
@@ -1007,14 +1015,7 @@ const toRow = (item: any): ProductRow => {
     ? item.imageUrls.filter(Boolean)
     : [];
 
-  const name =
-    nameI18n['zh-CN'] ||
-    nameI18n['zh'] ||
-    nameI18n['en'] ||
-    nameI18n['en'] ||
-    Object.values(nameI18n)[0] ||
-    spu.spuName ||
-    '';
+  const name = pickName(nameI18n, spu.spuName || '');
 
   const categoryIds: (string | number)[] = Array.isArray(item?.categoryIds)
     ? item.categoryIds
@@ -1025,7 +1026,7 @@ const toRow = (item: any): ProductRow => {
   const getCatName = (id?: string | number) => {
     if (id === undefined || id === null) return '';
     const map = categoryNameI18n?.[String(id)];
-    return map?.['zh-CN'] || map?.['zh'] || map?.['en'] || map?.['en'] || '';
+    return pickName(map, '');
   };
 
   const specBindings: { specTypeId: number; specValueIds: number[] }[] =
@@ -1033,21 +1034,13 @@ const toRow = (item: any): ProductRow => {
   const specTypeNameI18n = item?.specTypeNameI18n || {};
   const specValueNameI18n = item?.specValueNameI18n || {};
   const specNames: string[] = specBindings.map((bind) => {
-    const typeLabel =
-      specTypeNameI18n?.[String(bind.specTypeId)]?.['zh-CN'] ||
-      specTypeNameI18n?.[String(bind.specTypeId)]?.['zh'] ||
-      specTypeNameI18n?.[String(bind.specTypeId)]?.['en'] ||
-      specTypeNameI18n?.[String(bind.specTypeId)]?.['en'] ||
-      `规格${bind.specTypeId}`;
+    const typeLabel = pickName(
+      specTypeNameI18n?.[String(bind.specTypeId)],
+      `规格${bind.specTypeId}`,
+    );
     const valueLabels = (bind.specValueIds || []).map((vid) => {
       const map = specValueNameI18n?.[String(vid)];
-      return (
-        map?.['zh-CN'] ||
-        map?.['zh'] ||
-        map?.['en'] ||
-        map?.['en'] ||
-        `值${vid}`
-      );
+      return pickName(map, `值${vid}`);
     });
     return `${typeLabel}: ${valueLabels.join('、')}`;
   });
@@ -1129,13 +1122,10 @@ const fetchCategories = async () => {
       const cat = item.category ?? item;
       const id = Number(cat.id ?? cat.categoryId);
       const nameI18n = item.nameI18n || cat.nameI18n || {};
-      const label =
-        nameI18n['zh-CN'] ||
-        nameI18n['zh'] ||
-        cat.categoryName ||
-        item.displayName ||
-        cat.name ||
-        '';
+      const label = pickName(
+        nameI18n,
+        cat.categoryName || item.displayName || cat.name || '',
+      );
       return { value: id, label };
     });
     const level2 = normalizeList(level2Res).map((item: any) => {
@@ -1143,13 +1133,10 @@ const fetchCategories = async () => {
       const id = Number(cat.id ?? cat.categoryId);
       const parentId = Number(cat.pcategoryId ?? cat.parentId ?? cat.rootId);
       const nameI18n = item.nameI18n || cat.nameI18n || {};
-      const label =
-        nameI18n['zh-CN'] ||
-        nameI18n['zh'] ||
-        cat.categoryName ||
-        item.displayName ||
-        cat.name ||
-        '';
+      const label = pickName(
+        nameI18n,
+        cat.categoryName || item.displayName || cat.name || '',
+      );
       return { value: id, label, parentId };
     });
     categoryOptions.value = level1;
@@ -1177,13 +1164,7 @@ const fetchSpecTypes = async () => {
       const specType = item.specType ?? item;
       const id = Number(specType.id);
       const nameI18n = item.nameI18n || specType.nameI18n || {};
-      const label =
-        nameI18n['zh-CN'] ||
-        nameI18n['zh'] ||
-        nameI18n['en'] ||
-        nameI18n['en'] ||
-        specType.typeName ||
-        '';
+      const label = pickName(nameI18n, specType.typeName || '');
       return { value: id, label };
     });
     if (
@@ -1208,13 +1189,7 @@ const fetchSpecs = async () => {
       const id = Number(specValue.id);
       const typeId = Number(specValue.specTypeId ?? specValue.typeId ?? 0);
       const nameI18n = item.nameI18n || specValue.nameI18n || {};
-      const label =
-        nameI18n['zh-CN'] ||
-        nameI18n['zh'] ||
-        nameI18n['en'] ||
-        nameI18n['en'] ||
-        specValue.specValue ||
-        '';
+      const label = pickName(nameI18n, specValue.specValue || '');
       return { value: id, label, typeId };
     });
   } catch (error: any) {
@@ -1231,13 +1206,7 @@ const fetchAddonCategories = async () => {
       const attach = item.attachType ?? item;
       const id = Number(attach.id ?? attach.typeId ?? attach.attachTypeId);
       const nameI18n = item.nameI18n || attach.nameI18n || {};
-      const label =
-        nameI18n['zh-CN'] ||
-        nameI18n['zh'] ||
-        nameI18n['en'] ||
-        nameI18n['en'] ||
-        attach.typeName ||
-        '';
+      const label = pickName(nameI18n, attach.typeName || '');
       return { value: id, label };
     });
     if (
@@ -1262,13 +1231,7 @@ const fetchAddons = async () => {
       const id = Number(attach.id ?? attach.attachValueId);
       const categoryId = Number(attach.attachTypeId ?? attach.categoryId ?? 0);
       const nameI18n = item.nameI18n || attach.nameI18n || {};
-      const label =
-        nameI18n['zh-CN'] ||
-        nameI18n['zh'] ||
-        nameI18n['en'] ||
-        nameI18n['en'] ||
-        attach.attachValue ||
-        '';
+      const label = pickName(nameI18n, attach.attachValue || '');
       return { value: id, label, categoryId, price: attach.price };
     });
   } catch (error: any) {
@@ -1656,11 +1619,7 @@ const openPriceDialog = async (row: ProductRow) => {
     const data = res?.data ?? res ?? {};
     const specTypes = Array.isArray(data.specTypes) ? data.specTypes : [];
     priceColumns.value = specTypes.map((st: any, idx: number) => {
-      const label =
-        st.nameI18n?.['zh-CN'] ||
-        st.nameI18n?.['zh'] ||
-        st.specTypeName ||
-        `规格${idx + 1}`;
+      const label = pickName(st.nameI18n, st.specTypeName || `规格${idx + 1}`);
       const key = String(st.specKey ?? st.specTypeId ?? idx);
       return { key, label };
     });
@@ -1669,12 +1628,7 @@ const openPriceDialog = async (row: ProductRow) => {
       const specMap: Record<string, string> = {};
       priceColumns.value.forEach((col) => {
         const cell = sku[col.key];
-        specMap[col.key] =
-          cell?.['zh-CN'] ||
-          cell?.['zh'] ||
-          cell?.['en-US'] ||
-          cell?.['en'] ||
-          '';
+        specMap[col.key] = pickName(cell, '');
       });
       return {
         id:
@@ -1781,7 +1735,7 @@ const save = () => {
           ? String(form.product.categoryId)
           : undefined,
         spuName: nameI18n['zh-CN'] || Object.values(nameI18n)[0],
-        spuEnglishName: nameI18n['en-US'] || nameI18n['en'],
+        spuEnglishName: nameI18n['en'] || nameI18n['en-US'],
         nameI18n,
         descI18n,
         serviceContentI18n,
@@ -1853,6 +1807,18 @@ onMounted(() => {
   fetchAddons();
   fetchProducts();
 });
+
+watch(
+  () => locale.value,
+  () => {
+    fetchCategories();
+    fetchSpecTypes();
+    fetchSpecs();
+    fetchAddonCategories();
+    fetchAddons();
+    fetchProducts();
+  },
+);
 </script>
 
 <style scoped>

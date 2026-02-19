@@ -66,10 +66,12 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref } from 'vue';
+import { computed, onMounted, reactive, ref, watch } from 'vue';
 import type { FormInstance, FormRules } from 'element-plus';
 import { ElMessage, ElMessageBox } from 'element-plus';
+import { useI18n } from 'vue-i18n';
 import { getSpecTypePage, addOrUpdateSpecType, deleteSpecType } from '@/modules/admin/api/specType';
+import { pickI18nText } from '@/modules/admin/utils/i18n';
 
 type SpecType = {
   id: number;
@@ -79,6 +81,7 @@ type SpecType = {
 };
 
 const list = ref<SpecType[]>([]);
+const { locale } = useI18n({ useScope: 'global' });
 const query = reactive({
   nameKeyword: '',
   pageNum: 1,
@@ -186,7 +189,12 @@ const save = () => {
 };
 
 const remove = (row: SpecType) => {
-  ElMessageBox.confirm(`确定删除规格类型「${row.displayName}」吗？`, '提示', { type: 'warning' })
+  const label = pickI18nText(
+    row.nameI18n,
+    locale.value,
+    row.displayName || '',
+  );
+  ElMessageBox.confirm(`确定删除规格类型「${label}」吗？`, '提示', { type: 'warning' })
     .then(() => deleteSpecType({ id: row.id }))
     .then(() => {
       ElMessage.success('删除成功');
@@ -213,12 +221,12 @@ const fetchList = async () => {
     const records = Array.isArray(data.list) ? data.list : [];
     list.value = records.map((item: any) => ({
       id: item.specType?.id ?? item.id,
-      displayName:
-        item.nameI18n?.['zh-CN'] ||
-        item.specType?.nameI18n?.['zh-CN'] ||
-        item.specType?.typeName ||
-        item.name || '',
       nameI18n: item.nameI18n || item.specType?.nameI18n,
+      displayName: pickI18nText(
+        item.nameI18n || item.specType?.nameI18n,
+        locale.value,
+        item.specType?.typeName || item.name || '',
+      ),
       enabled: (item.specType?.status ?? item.status ?? item.enabled) === 1,
       createdAt: item.specType?.createTime || item.createTime || item.createdAt || '',
     }));
@@ -242,6 +250,13 @@ const removeI18n = (idx: number) => {
 onMounted(() => {
   fetchList();
 });
+
+watch(
+  () => locale.value,
+  () => {
+    fetchList();
+  },
+);
 </script>
 
 <style scoped>

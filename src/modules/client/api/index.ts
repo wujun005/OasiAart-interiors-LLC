@@ -1,5 +1,45 @@
 import http from '@/modules/client/utils/request';
 
+export interface Level1CategoryRecord {
+  category?: {
+    id?: number | string;
+    categoryId?: string;
+    categoryName?: string;
+    status?: number | string;
+  };
+  nameI18n?: Record<string, string>;
+  imageUrls?: string[];
+}
+
+export interface ExclusiveSpuRecord {
+  id?: number | string;
+  imageUrls?: string[];
+  nameI18n?: Record<string, string>;
+  descI18n?: Record<string, string>;
+  minPrice?: number | string;
+}
+
+type ApiSuccessEnvelope<T> = {
+  success?: boolean;
+  message?: string;
+  data?: T;
+  errorCode?: string | null;
+  timestamp?: string;
+};
+
+function getDataList<T>(payload: unknown): T[] {
+  if (Array.isArray(payload)) {
+    return payload as T[];
+  }
+  if (payload && typeof payload === 'object') {
+    const envelope = payload as ApiSuccessEnvelope<unknown>;
+    if (Array.isArray(envelope.data)) {
+      return envelope.data as T[];
+    }
+  }
+  return [];
+}
+
 // 客户端用户注册
 export function register(payload: any) {
   return http.post('/api/client/auth/register', payload);
@@ -91,6 +131,30 @@ export function getOrderDetail(id: string | number) {
   return http.get(`/api/order/${id}`);
 }
 
+// 一级类目表 /client/product/level1Categories
+export async function level1Categories() {
+  const payload = await http.get('/client/product/level1Categories');
+  return getDataList<Level1CategoryRecord>(payload);
+}
+
+// /client/product/exclusiveSpus 特卖列表
+export async function exclusiveSpus() {
+  const payload = await http.get('/client/product/exclusiveSpus');
+  return getDataList<ExclusiveSpuRecord>(payload);
+}
+
+// /client/product/onShelfSpus 上架商品列表
+export async function onShelfSpus(params?: any) {
+  const payload = await http.get('/client/product/onShelfSpus', { params: params });
+  return getDataList<ExclusiveSpuRecord>(payload);
+}
+
+// /client/product/detail/{spuId} 获取商品详情
+export async function getProductDetail(spuId: string | number) {
+  const payload = await http.get(`/client/product/detail/${spuId}`);
+  return payload && typeof payload === 'object' && 'data' in payload ? payload.data : null;
+}
+
 export default {
   register,
   getServicesList,
@@ -101,4 +165,6 @@ export default {
   paypalCancelCallback,
   getOrderPage,
   getOrderDetail,
+  level1Categories,
+  exclusiveSpus,
 };

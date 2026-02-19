@@ -84,11 +84,13 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref } from 'vue';
+import { computed, onMounted, reactive, ref, watch } from 'vue';
 import type { FormInstance, FormRules } from 'element-plus';
 import { ElMessage, ElMessageBox } from 'element-plus';
+import { useI18n } from 'vue-i18n';
 import { getSpecTypePage } from '@/modules/admin/api/specType';
 import { getSpecValuePage, addOrUpdateSpecValue, deleteSpecValue } from '@/modules/admin/api/spec';
+import { pickI18nText } from '@/modules/admin/utils/i18n';
 
 type Spec = {
   id: number;
@@ -101,6 +103,7 @@ type Spec = {
 };
 
 const initialMock: Spec[] = [];
+const { locale } = useI18n({ useScope: 'global' });
 
 const specTypeOptions = ref<{ id: number; displayName: string; nameI18n?: Record<string, string> }[]>([]);
 
@@ -232,7 +235,12 @@ const toggleStatus = (row: Spec) => {
 };
 
 const remove = (row: Spec) => {
-  ElMessageBox.confirm(`确定删除规格「${row.displayName}」吗？`, '提示', { type: 'warning' })
+  const label = pickI18nText(
+    row.nameI18n,
+    locale.value,
+    row.displayName || '',
+  );
+  ElMessageBox.confirm(`确定删除规格「${label}」吗？`, '提示', { type: 'warning' })
     .then(() => deleteSpecValue({ id: row.id }))
     .then(() => {
       ElMessage.success('删除成功');
@@ -253,13 +261,11 @@ const fetchSpecTypes = async () => {
   const records = Array.isArray(data.list) ? data.list : [];
   specTypeOptions.value = records.map((item: any) => ({
     id: item.specType?.id ?? item.id,
-    displayName:
-      item.nameI18n?.['zh-CN'] ||
-      item.nameI18n?.['zh'] ||
-      item.specType?.nameI18n?.['zh-CN'] ||
-      item.specType?.nameI18n?.['zh'] ||
-      item.specType?.typeName ||
-      item.name || '',
+    displayName: pickI18nText(
+      item.nameI18n || item.specType?.nameI18n,
+      locale.value,
+      item.specType?.typeName || item.name || '',
+    ),
     nameI18n: item.nameI18n || item.specType?.nameI18n,
   }));
   if (!form.specTypeId && specTypeOptions.value.length) form.specTypeId = specTypeOptions.value[0].id;
@@ -278,12 +284,12 @@ const fetchList = async () => {
     const records = Array.isArray(data.list) ? data.list : [];
     list.value = records.map((item: any) => ({
       id: item.specValue?.id ?? item.id,
-      displayName:
-        item.nameI18n?.['zh-CN'] ||
-        item.specValue?.nameI18n?.['zh-CN'] ||
-        item.specValue?.specValue ||
-        item.name || '',
       nameI18n: item.nameI18n || item.specValue?.nameI18n,
+      displayName: pickI18nText(
+        item.nameI18n || item.specValue?.nameI18n,
+        locale.value,
+        item.specValue?.specValue || item.name || '',
+      ),
       sort: item.specValue?.sort ?? item.sort ?? 0,
       specTypeId: item.specValue?.specTypeId ?? item.specTypeId ?? item.specTypeId ?? 0,
       createdAt: item.specValue?.createTime || item.createTime || item.createdAt || '',
@@ -309,6 +315,14 @@ onMounted(() => {
   fetchSpecTypes();
   fetchList();
 });
+
+watch(
+  () => locale.value,
+  () => {
+    fetchSpecTypes();
+    fetchList();
+  },
+);
 </script>
 
 <style scoped>

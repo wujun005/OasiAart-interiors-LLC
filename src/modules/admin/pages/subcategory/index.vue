@@ -112,11 +112,13 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref } from 'vue';
+import { computed, onMounted, reactive, ref, watch } from 'vue';
 import type { FormInstance, FormRules, UploadUserFile, UploadRequestOptions } from 'element-plus';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { Plus } from '@element-plus/icons-vue';
+import { useI18n } from 'vue-i18n';
 import { getPage, add, update, del, changeStatus, upload } from '@/modules/admin/api/category';
+import { pickI18nText } from '@/modules/admin/utils/i18n';
 
 type SubCategory = {
   id: number;
@@ -130,6 +132,7 @@ type SubCategory = {
 };
 
 const categories = ref<{ id: number; displayName: string }[]>([]);
+const { locale } = useI18n({ useScope: 'global' });
 const list = ref<SubCategory[]>([]);
 const query = reactive({
   nameKeyword: '',
@@ -290,7 +293,12 @@ const toggleStatus = (row: SubCategory) => {
 };
 
 const remove = (row: SubCategory) => {
-  ElMessageBox.confirm(`确定删除二级分类「${row.displayName || row.name}」吗？`, '提示', { type: 'warning' })
+  const label = pickI18nText(
+    row.nameI18n,
+    locale.value,
+    row.displayName || '',
+  );
+  ElMessageBox.confirm(`确定删除二级分类「${label}」吗？`, '提示', { type: 'warning' })
     .then(() => del({ id: row.id }))
     .then(() => {
       ElMessage.success('删除成功');
@@ -344,13 +352,11 @@ const fetchCategories = async () => {
   const records = Array.isArray(data.list) ? data.list : [];
   categories.value = records.map((item: any) => ({
     id: item.category?.id ?? item.id,
-    displayName:
-      item.nameI18n?.['zh-CN'] ||
-      item.category?.nameI18n?.['zh-CN'] ||
-      item.category?.categoryName ||
-      item.categoryName ||
-      item.name ||
-      '',
+    displayName: pickI18nText(
+      item.nameI18n || item.category?.nameI18n,
+      locale.value,
+      item.category?.categoryName || item.categoryName || item.name || '',
+    ),
   }));
 };
 
@@ -368,14 +374,12 @@ const fetchList = async () => {
     const records = Array.isArray(data.list) ? data.list : [];
     list.value = records.map((item: any) => ({
       id: item.category?.id ?? item.id,
-      displayName:
-        item.nameI18n?.['zh-CN'] ||
-        item.category?.nameI18n?.['zh-CN'] ||
-        item.category?.categoryName ||
-        item.categoryName ||
-        item.name ||
-        '',
       nameI18n: item.nameI18n || item.category?.nameI18n,
+      displayName: pickI18nText(
+        item.nameI18n || item.category?.nameI18n,
+        locale.value,
+        item.category?.categoryName || item.categoryName || item.name || '',
+      ),
       parentId: Number(item.category?.pcategoryId ?? item.pcategoryId ?? query.parentId ?? 0),
       iconUrl: item.imageUrls?.[0] || item.iconUrl || item.icon,
       sort: item.category?.sort ?? item.sort ?? 0,
@@ -394,6 +398,14 @@ onMounted(() => {
   fetchCategories();
   fetchList();
 });
+
+watch(
+  () => locale.value,
+  () => {
+    fetchCategories();
+    fetchList();
+  },
+);
 </script>
 
 <style scoped>

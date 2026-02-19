@@ -8,6 +8,8 @@ import { createI18n } from 'vue-i18n'
 import { createPinia } from 'pinia'
 import messages from './locales'
 
+console.log('client', import.meta.env.VITE_CLIENT_API_PROXY_TARGET);
+
 const i18n = createI18n({
   legacy: false, 
   locale: 'zh',

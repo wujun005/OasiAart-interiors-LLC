@@ -2,66 +2,33 @@
   <div class="admin-page">
     <el-container class="layout">
       <el-aside width="220px" class="sidebar">
-        <div class="logo">后台管理</div>
-        <el-menu
-          :default-active="activeMenu"
-          class="menu"
-          router
-          @select="handleSelect"
-        >
-          <el-menu-item index="/admin">
-            <el-icon><House /></el-icon>
-            <span>概览</span>
-          </el-menu-item>
-          <el-menu-item index="/admin/products">
-            <el-icon><Goods /></el-icon>
-            <span>商品管理</span>
-          </el-menu-item>
-          <el-menu-item index="/admin/orders">
-            <el-icon><Document /></el-icon>
-            <span>订单管理</span>
-          </el-menu-item>
-          <el-menu-item index="/admin/users">
-            <el-icon><User /></el-icon>
-            <span>用户管理</span>
-          </el-menu-item>
-          <el-sub-menu index="/admin/basic">
-            <template #title>
-              <el-icon><FolderOpened /></el-icon>
-              <span>基础数据</span>
-            </template>
-            <el-menu-item index="/admin/basic/categories">
-              <el-icon><CollectionTag /></el-icon>
-              <span>一级分类</span>
-            </el-menu-item>
-            <el-menu-item index="/admin/basic/subcategories">
-              <el-icon><Collection /></el-icon>
-              <span>二级分类</span>
-            </el-menu-item>
-            <el-menu-item index="/admin/basic/spec-types">
-              <el-icon><Ticket /></el-icon>
-              <span>规格类型</span>
-            </el-menu-item>
-            <el-menu-item index="/admin/basic/specs">
-              <el-icon><Tickets /></el-icon>
-              <span>规格值</span>
-            </el-menu-item>
-            <el-menu-item index="/admin/basic/addon-categories">
-              <el-icon><CollectionTag /></el-icon>
-              <span>附加项分类</span>
-            </el-menu-item>
-            <el-menu-item index="/admin/basic/addons">
-              <el-icon><Collection /></el-icon>
-              <span>附加项值</span>
-            </el-menu-item>
-          </el-sub-menu>
+        <div class="logo">{{ t('admin.layout.logo') }}</div>
+        <el-menu :default-active="activeMenu" class="menu" @select="handleSelect">
+          <PermissionMenuItem
+            v-for="item in menuTree"
+            :key="item.id"
+            :item="item"
+            :resolve-icon="resolveMenuIcon"
+          />
         </el-menu>
+        <div v-if="!menuTree.length" class="menu-empty">
+          {{ t('admin.layout.noMenuPermission') }}
+        </div>
       </el-aside>
       <el-container>
         <el-header class="header">
           <div class="breadcrumb">{{ pageTitle }}</div>
           <div class="actions">
-            <el-button size="small" @click="refresh">刷新</el-button>
+            <el-select
+              v-model="currentLocale"
+              size="small"
+              class="lang-switcher"
+              @change="handleLocaleChange"
+            >
+              <el-option value="zh" :label="t('admin.common.langZh')" />
+              <el-option value="en" :label="t('admin.common.langEn')" />
+            </el-select>
+            <el-button size="small" @click="refresh">{{ t('admin.common.refresh') }}</el-button>
           </div>
         </el-header>
         <el-main class="content">
@@ -73,60 +40,104 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, ref, type Component } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { House, Document, User, Goods, FolderOpened, CollectionTag, Collection, Tickets, Ticket } from '@element-plus/icons-vue';
+import { useI18n } from 'vue-i18n';
+import {
+  House,
+  Document,
+  User,
+  Goods,
+  FolderOpened,
+  CollectionTag,
+  Collection,
+  Tickets,
+  Ticket,
+  Menu as MenuIcon,
+} from '@element-plus/icons-vue';
+import { ADMIN_LOCALE_STORAGE_KEY, type AdminLocale } from '@/modules/admin/locales';
+import PermissionMenuItem from '@/modules/admin/components/PermissionMenuItem.vue';
+import {
+  adminMenuState,
+  loadAdminMenuPermissions,
+  resolveAllowedAdminPath,
+  type AdminMenuPermissionItem,
+} from '@/modules/admin/utils/menuPermission';
 
 const route = useRoute();
 const router = useRouter();
+const { t, locale } = useI18n({ useScope: 'global' });
+const currentLocale = ref<AdminLocale>(locale.value === 'en' ? 'en' : 'zh');
+const menuTree = computed(() => adminMenuState.menus);
+
+const menuByPath = computed(() => {
+  const map = new Map<string, AdminMenuPermissionItem>();
+  adminMenuState.flatMenus.forEach((item) => {
+    if (item.path) {
+      map.set(item.path, item);
+    }
+  });
+  return map;
+});
 
 const activeMenu = computed(() => {
-  const path = route.path;
-  if (path.startsWith('/admin/orders')) return '/admin/orders';
-  if (path.startsWith('/admin/products')) return '/admin/products';
-  if (path.startsWith('/admin/users')) return '/admin/users';
-  if (path.startsWith('/admin/basic/categories')) return '/admin/basic/categories';
-  if (path.startsWith('/admin/basic/subcategories')) return '/admin/basic/subcategories';
-  if (path.startsWith('/admin/basic/specs')) return '/admin/basic/specs';
-  if (path.startsWith('/admin/basic/spec-types')) return '/admin/basic/spec-types';
-  if (path.startsWith('/admin/basic/addon-categories')) return '/admin/basic/addon-categories';
-  if (path.startsWith('/admin/basic/addons')) return '/admin/basic/addons';
-  if (path.startsWith('/admin/basic')) return '/admin/basic';
-  return '/admin';
+  const path = resolveAllowedAdminPath(route.path);
+  return path || '';
 });
 
 const pageTitle = computed(() => {
-  switch (activeMenu.value) {
-    case '/admin/products':
-      return '商品管理';
-    case '/admin/orders':
-      return '订单管理';
-    case '/admin/users':
-      return '用户管理';
-    case '/admin/basic/categories':
-      return '一级分类';
-    case '/admin/basic/subcategories':
-      return '二级分类';
-    case '/admin/basic/specs':
-      return '规格';
-    case '/admin/basic/spec-types':
-      return '规格类型';
-    case '/admin/basic/addon-categories':
-      return '附加项分类';
-    case '/admin/basic/addons':
-      return '附加项';
-    default:
-      return '概览';
-  }
+  if (!activeMenu.value) return t('admin.layout.overview');
+  return menuByPath.value.get(activeMenu.value)?.name || t('admin.layout.overview');
 });
 
 const handleSelect = (path: string) => {
+  if (!path || !path.startsWith('/')) return;
+  if (path === route.path) return;
   router.push(path);
+};
+
+const handleLocaleChange = (lang: AdminLocale) => {
+  locale.value = lang;
+  currentLocale.value = lang;
+  localStorage.setItem(ADMIN_LOCALE_STORAGE_KEY, lang);
+  document.documentElement.lang = lang;
 };
 
 const refresh = () => {
   router.replace({ path: route.fullPath, query: { ...route.query, t: Date.now() } });
 };
+
+const iconMap: Record<string, Component> = {
+  house: House,
+  goods: Goods,
+  document: Document,
+  user: User,
+  folderopened: FolderOpened,
+  collectiontag: CollectionTag,
+  collection: Collection,
+  tickets: Tickets,
+  ticket: Ticket,
+};
+
+const resolveMenuIcon = (item: AdminMenuPermissionItem) => {
+  const iconKey = item.icon?.replace(/[-_\s]/g, '').toLowerCase() || '';
+  if (iconKey && iconMap[iconKey]) {
+    return iconMap[iconKey];
+  }
+  const path = item.path || '';
+  if (path.startsWith('/admin/products')) return Goods;
+  if (path.startsWith('/admin/orders')) return Document;
+  if (path.startsWith('/admin/users')) return User;
+  if (path.startsWith('/admin/basic/spec-types')) return Ticket;
+  if (path.startsWith('/admin/basic/specs')) return Tickets;
+  if (path.startsWith('/admin/basic')) return FolderOpened;
+  if (path === '/admin') return House;
+  return MenuIcon;
+};
+
+loadAdminMenuPermissions().catch((error) => {
+  console.error('Failed to load admin menu permissions:', error);
+});
 </script>
 
 <style scoped>
@@ -155,6 +166,14 @@ const refresh = () => {
   border-right: none;
   flex: 1;
 }
+.menu-empty {
+  margin: 12px;
+  padding: 12px;
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.75);
+  border: 1px dashed rgba(255, 255, 255, 0.35);
+  border-radius: 8px;
+}
 .header {
   display: flex;
   align-items: center;
@@ -169,7 +188,11 @@ const refresh = () => {
 }
 .actions {
   display: flex;
+  align-items: center;
   gap: 10px;
+}
+.lang-switcher {
+  width: 110px;
 }
 .content {
   padding: 20px;

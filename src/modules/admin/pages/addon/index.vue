@@ -79,11 +79,13 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref } from 'vue';
+import { computed, onMounted, reactive, ref, watch } from 'vue';
 import type { FormInstance, FormRules } from 'element-plus';
 import { ElMessage, ElMessageBox } from 'element-plus';
+import { useI18n } from 'vue-i18n';
 import { getPage, addOrUpdate, deleteAttachValue } from '../../api/addon';
 import { getPage as getAddonTypePage } from '../../api/addonType';
+import { pickI18nText } from '@/modules/admin/utils/i18n';
 
 type Addon = {
   id: number;
@@ -95,6 +97,7 @@ type Addon = {
 };
 
 const categoryOptions = ref<{ id: number; displayName: string; nameI18n?: Record<string, string> }[]>([]);
+const { locale } = useI18n({ useScope: 'global' });
 
 const list = ref<Addon[]>([]);
 const query = reactive({
@@ -223,7 +226,12 @@ const save = () => {
 };
 
 const remove = (row: Addon) => {
-  ElMessageBox.confirm(`确定删除「${row.displayName}」吗？`, '提示', { type: 'warning' })
+  const label = pickI18nText(
+    row.nameI18n,
+    locale.value,
+    row.displayName || '',
+  );
+  ElMessageBox.confirm(`确定删除「${label}」吗？`, '提示', { type: 'warning' })
     .then(() => deleteAttachValue({ id: row.id }))
     .then(() => {
       ElMessage.success('删除成功');
@@ -245,13 +253,11 @@ const fetchCategories = async () => {
     const records = Array.isArray(data.list) ? data.list : [];
     categoryOptions.value = records.map((item: any) => ({
       id: item.id ?? item.attachType?.id,
-      displayName:
-        item.nameI18n?.['zh-CN'] ||
-        item.nameI18n?.['zh'] ||
-        item.attachType?.nameI18n?.['zh-CN'] ||
-        item.attachType?.nameI18n?.['zh'] ||
-        item.name ||
-        '',
+      displayName: pickI18nText(
+        item.nameI18n || item.attachType?.nameI18n,
+        locale.value,
+        item.attachType?.typeName || item.name || '',
+      ),
       nameI18n: item.nameI18n || item.attachType?.nameI18n,
     }));
     if (!form.categoryId && categoryOptions.value.length) form.categoryId = categoryOptions.value[0].id;
@@ -273,15 +279,12 @@ const fetchList = async () => {
     const records = Array.isArray(data.list) ? data.list : [];
     list.value = records.map((item: any) => ({
       id: item.attachValue?.id ?? item.id,
-      displayName:
-        item.nameI18n?.['zh-CN'] ||
-        item.nameI18n?.['zh'] ||
-        item.attachValue?.nameI18n?.['zh-CN'] ||
-        item.attachValue?.nameI18n?.['zh'] ||
-        item.attachValue?.attachValue ||
-        item.name ||
-        '',
       nameI18n: item.nameI18n || item.attachValue?.nameI18n,
+      displayName: pickI18nText(
+        item.nameI18n || item.attachValue?.nameI18n,
+        locale.value,
+        item.attachValue?.attachValue || item.name || '',
+      ),
       categoryId: item.attachValue?.attachTypeId ?? item.attachTypeId ?? item.categoryId ?? null,
       amount: item.attachValue?.amount ?? item.amount ?? 0,
       updatedAt: item.attachValue?.modifyTime || item.attachValue?.updateTime || item.updatedAt || item.modifyTime || '',
@@ -307,6 +310,14 @@ onMounted(() => {
   fetchCategories();
   fetchList();
 });
+
+watch(
+  () => locale.value,
+  () => {
+    fetchCategories();
+    fetchList();
+  },
+);
 </script>
 
 <style scoped>
