@@ -31,9 +31,9 @@ onMounted(() => {
   }
 
   // 其他页面如果是移动设备，重定向到 H5 首页
-  if (isMobile()) {
-    window.location.href = '/h5';
-  }
+  // if (isMobile()) {
+  //   window.location.href = '/h5';
+  // }
 });
 </script>
 

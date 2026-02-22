@@ -7,18 +7,36 @@
       </a>
 
       <nav class="site-header__nav">
-        <a class="site-header__link" href="#home">首页</a>
-        <a class="site-header__link" href="#services">服务项目</a>
-        <a class="site-header__link" href="#about">关于我们</a>
+        <a class="site-header__link" href="#home">{{ t('client.header.nav.home') }}</a>
+        <a class="site-header__link" href="#services">{{ t('client.header.nav.services') }}</a>
+        <a class="site-header__link" href="#about">{{ t('client.header.nav.about') }}</a>
       </nav>
 
-      <RouterLink class="site-header__action" to="/login">登录 / 注册</RouterLink>
+      <div class="site-header__actions">
+        <el-select v-model="currentLocale" size="small" class="site-header__locale">
+          <el-option value="en" :label="t('client.header.languageEn')" />
+          <el-option value="zh" :label="t('client.header.languageZh')" />
+        </el-select>
+        <RouterLink class="site-header__action" to="/login">{{ t('client.header.auth') }}</RouterLink>
+      </div>
     </div>
   </header>
 </template>
 
 <script setup lang="ts">
+import { computed } from 'vue';
+import { useI18n } from 'vue-i18n';
+import { setClientLocale, type ClientLocale } from '@/modules/client/locales';
+
 const logoUrl = 'https://www.figma.com/api/mcp/asset/162a0088-e6aa-4cf2-bcb9-80e67d1d572a';
+const { t, locale } = useI18n({ useScope: 'global' });
+
+const currentLocale = computed<ClientLocale>({
+  get: () => (locale.value === 'zh' ? 'zh' : 'en'),
+  set: (value) => {
+    locale.value = setClientLocale(value);
+  },
+});
 </script>
 
 <style scoped lang="scss">
@@ -95,6 +113,16 @@ const logoUrl = 'https://www.figma.com/api/mcp/asset/162a0088-e6aa-4cf2-bcb9-80e
   font-weight: 700;
 }
 
+.site-header__actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.site-header__locale {
+  width: 108px;
+}
+
 @media (max-width: 900px) {
   .site-header__inner {
     height: 76px;
@@ -103,6 +131,10 @@ const logoUrl = 'https://www.figma.com/api/mcp/asset/162a0088-e6aa-4cf2-bcb9-80e
 
   .site-header__nav {
     display: none;
+  }
+
+  .site-header__locale {
+    width: 92px;
   }
 }
 </style>

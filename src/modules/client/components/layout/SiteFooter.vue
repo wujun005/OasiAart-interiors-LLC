@@ -4,7 +4,7 @@
       <div class="site-footer__main">
         <div class="site-footer__brand">
           <h3 class="site-footer__title">HourX Dubai</h3>
-          <p class="site-footer__text">为您提供专业而可靠的家庭服务体验，覆盖保洁、维修及美护场景。</p>
+          <p class="site-footer__text">{{ t('client.footer.tagline') }}</p>
           <div class="site-footer__social">
             <span class="site-footer__social-item">f</span>
             <span class="site-footer__social-item">in</span>
@@ -13,32 +13,32 @@
         </div>
 
         <div class="site-footer__col">
-          <h4 class="site-footer__col-title">快速链接</h4>
-          <a href="#home">首页</a>
-          <a href="#services">服务</a>
-          <a href="#about">关于我们</a>
+          <h4 class="site-footer__col-title">{{ t('client.footer.quickLinks') }}</h4>
+          <a href="#home">{{ t('client.header.nav.home') }}</a>
+          <a href="#services">{{ t('client.footer.services') }}</a>
+          <a href="#about">{{ t('client.footer.about') }}</a>
         </div>
 
         <div class="site-footer__col">
-          <h4 class="site-footer__col-title">办公时间</h4>
-          <p>周一至周五：9:00 - 18:00</p>
-          <p>周六：10:00 - 17:00</p>
-          <p>周日：休息</p>
+          <h4 class="site-footer__col-title">{{ t('client.footer.businessHours') }}</h4>
+          <p>{{ t('client.footer.weekday') }}</p>
+          <p>{{ t('client.footer.saturday') }}</p>
+          <p>{{ t('client.footer.sunday') }}</p>
         </div>
 
         <div class="site-footer__col">
-          <h4 class="site-footer__col-title">联系我们</h4>
+          <h4 class="site-footer__col-title">{{ t('client.footer.contactUs') }}</h4>
           <p>Info@hourxportal.com</p>
           <p>+971 54 993 6391</p>
-          <p>迪拜市中心，阿联酋</p>
+          <p>{{ t('client.footer.address') }}</p>
         </div>
       </div>
 
       <div class="site-footer__bottom">
-        <p>© {{ year }} HourX Dubai. All Rights Reserved.</p>
+        <p>{{ t('client.footer.copyright', { year }) }}</p>
         <div class="site-footer__links">
-          <a href="#">条款与条件</a>
-          <a href="#">隐私政策</a>
+          <a href="#">{{ t('client.footer.terms') }}</a>
+          <a href="#">{{ t('client.footer.privacy') }}</a>
         </div>
       </div>
     </div>
@@ -46,7 +46,10 @@
 </template>
 
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n';
+
 const year = new Date().getFullYear();
+const { t } = useI18n({ useScope: 'global' });
 </script>
 
 <style scoped lang="scss">

@@ -3,19 +3,19 @@
     <section class="hero-section">
       <div class="home-container hero-section__inner">
         <div class="hero-section__content">
-          <p class="hero-section__eyebrow">HourX Dubai</p>
-          <h1>一站式服务的<br />房屋维护</h1>
-          <p class="hero-section__desc">保洁保洁、装修及粉刷，专业团队快速响应，覆盖家庭与公寓维护场景。</p>
+          <p class="hero-section__eyebrow">{{ t('client.home.hero.eyebrow') }}</p>
+          <h1>{{ t('client.home.hero.titleLine1') }}<br />{{ t('client.home.hero.titleLine2') }}</h1>
+          <p class="hero-section__desc">{{ t('client.home.hero.desc') }}</p>
           <div class="hero-section__actions">
-            <button type="button">立即开始预约</button>
+            <button type="button">{{ t('client.home.hero.cta') }}</button>
             <div class="hero-section__tags">
-              <span>专业品质</span>
-              <span>信誉保障</span>
+              <span>{{ t('client.home.hero.tag1') }}</span>
+              <span>{{ t('client.home.hero.tag2') }}</span>
             </div>
           </div>
         </div>
         <div class="hero-section__visual">
-          <img :src="heroImageUrl" alt="HourX Cleaning Team" />
+          <img :src="heroImageUrl" :alt="t('client.home.alt.hero')" />
         </div>
       </div>
 
@@ -28,16 +28,16 @@
         @touchstart="onContactCardTouchStart"
       >
         <div class="hero-section__agent">
-          <img :src="supportAgentUrl" alt="Support Agent" />
+          <img :src="supportAgentUrl" :alt="t('client.home.alt.supportAgent')" />
         </div>
-        <p>联系我们</p>
-        <button type="button">咨询开始</button>
+        <p>{{ t('client.home.contactCard.title') }}</p>
+        <button type="button">{{ t('client.home.contactCard.button') }}</button>
       </div>
     </section>
 
     <section id="services" class="category-section">
       <div class="home-container">
-        <h2 class="section-title">我们的服务</h2>
+        <h2 class="section-title">{{ t('client.home.sections.servicesTitle') }}</h2>
         <div class="category-section__grid">
           <article v-for="item in serviceMenus" :key="item.id" class="category-section__item">
             <div class="category-section__icon">
@@ -51,21 +51,19 @@
 
     <section class="service-section">
       <div class="home-container">
-        <h2 class="section-title">HourX 能如何帮助您</h2>
-        <p class="section-desc">
-          我们的服务覆盖从日常清洁到深度养护，从客厅到空调系统，按需预约、无需长期合同，服务灵活且透明。
-        </p>
+        <h2 class="section-title">{{ t('client.home.sections.serviceCardsTitle') }}</h2>
+        <p class="section-desc">{{ t('client.home.sections.serviceCardsDesc') }}</p>
 
         <div class="service-section__grid">
           <article v-for="item in serviceCards" :key="item.id" class="service-section__card">
             <img class="service-section__image" :src="item.image" :alt="item.title" />
-            <span class="service-section__badge">限时特价</span>
+            <span class="service-section__badge">{{ t('client.home.serviceCard.badge') }}</span>
             <div class="service-section__body">
               <h3>{{ item.title }}</h3>
               <p>{{ item.desc }}</p>
               <div class="service-section__footer">
                 <strong>{{ item.price }}</strong>
-                <button type="button">立即预订</button>
+                <button type="button">{{ t('client.home.serviceCard.button') }}</button>
               </div>
             </div>
           </article>
@@ -75,25 +73,25 @@
 
     <section class="booking-section">
       <div class="home-container">
-        <h2 class="section-title section-title--light">简单的预约流程</h2>
-        <p class="section-desc section-desc--light">四个步骤，轻松完成服务预约</p>
+        <h2 class="section-title section-title--light">{{ t('client.home.sections.bookingTitle') }}</h2>
+        <p class="section-desc section-desc--light">{{ t('client.home.sections.bookingSubtitle') }}</p>
 
         <div class="booking-section__grid">
           <div class="booking-section__form-card">
-            <h3>预约详情</h3>
+            <h3>{{ t('client.home.bookingForm.title') }}</h3>
             <label>
-              服务日期
-              <input type="text" placeholder="07 / 31" />
+              {{ t('client.home.bookingForm.dateLabel') }}
+              <input type="text" :placeholder="t('client.home.bookingForm.datePlaceholder')" />
             </label>
             <label>
-              服务类型
-              <input type="text" placeholder="请选择服务类别" />
+              {{ t('client.home.bookingForm.typeLabel') }}
+              <input type="text" :placeholder="t('client.home.bookingForm.typePlaceholder')" />
             </label>
             <label>
-              联系方式
-              <input type="text" placeholder="请输入您的手机号" />
+              {{ t('client.home.bookingForm.contactLabel') }}
+              <input type="text" :placeholder="t('client.home.bookingForm.contactPlaceholder')" />
             </label>
-            <button type="button">下一步</button>
+            <button type="button">{{ t('client.home.bookingForm.next') }}</button>
           </div>
 
           <div class="booking-section__steps">
@@ -111,16 +109,14 @@
 
     <section id="about" class="about-section">
       <div class="home-container">
-        <h2 class="section-title">为什么选择我们？</h2>
-        <p class="section-desc">迪拜本地团队打造的标准化家庭服务，兼顾效率、品质与透明流程</p>
+        <h2 class="section-title">{{ t('client.home.sections.aboutTitle') }}</h2>
+        <p class="section-desc">{{ t('client.home.sections.aboutDesc') }}</p>
 
         <div class="about-section__grid">
           <div class="about-section__content">
             <div class="about-section__intro">
-              <h3>关于 HourX</h3>
-              <p>
-                HourX 是连接家庭与专业服务团队的数字化平台。我们提供保洁、维修与家居养护等服务，以规范化流程保障每一次体验。
-              </p>
+              <h3>{{ t('client.home.aboutIntro.title') }}</h3>
+              <p>{{ t('client.home.aboutIntro.desc') }}</p>
             </div>
 
             <div class="about-section__reason-list">
@@ -133,7 +129,7 @@
           </div>
 
           <div class="about-section__image-wrap">
-            <img :src="aboutImageUrl" alt="Cleaning Service Team" />
+            <img :src="aboutImageUrl" :alt="t('client.home.alt.about')" />
           </div>
         </div>
       </div>
@@ -143,13 +139,12 @@
 
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
+import { useI18n } from 'vue-i18n';
 import {
   level1Categories,
   type Level1CategoryRecord,
   exclusiveSpus,
   type ExclusiveSpuRecord,
-  onShelfSpus,
-  getProductDetail
 } from '@/modules/client/api';
 
 type ServiceMenu = {
@@ -176,6 +171,8 @@ type Reason = {
   desc: string;
   icon: string;
 };
+
+const { t, locale } = useI18n({ useScope: 'global' });
 
 const heroImageUrl = 'https://www.figma.com/api/mcp/asset/51ab48a9-57f8-4d57-aad4-d0b73840a4d3';
 const supportAgentUrl = 'https://www.figma.com/api/mcp/asset/2941720e-95cd-4749-93e2-11fc3982d1be';
@@ -278,171 +275,230 @@ function onContactCardTouchStart(event: TouchEvent) {
   startContactCardDrag(point.x, point.y);
 }
 
-const defaultServiceMenus: ServiceMenu[] = [
-  { id: 'default-1', title: '房屋清洁', icon: 'https://www.figma.com/api/mcp/asset/a9147542-21a2-4a03-8ff5-17b595720d27' },
-  { id: 'default-2', title: '深度清洁', icon: 'https://www.figma.com/api/mcp/asset/c1967d33-9dd9-45d4-ad1b-1d7c311f2d0f' },
-  { id: 'default-3', title: '空调服务', icon: 'https://www.figma.com/api/mcp/asset/3bc85a98-4b74-4957-b3fa-ec1eb5912098' },
-  { id: 'default-4', title: '粉刷', icon: 'https://www.figma.com/api/mcp/asset/4548fd59-8604-486e-a98e-87279dd2d814' },
-  { id: 'default-5', title: '沙龙水疗', icon: 'https://www.figma.com/api/mcp/asset/9ce026c8-5e6b-47ff-b1d7-5d8a614816f5' },
+const defaultMenuIcons = [
+  'https://www.figma.com/api/mcp/asset/a9147542-21a2-4a03-8ff5-17b595720d27',
+  'https://www.figma.com/api/mcp/asset/c1967d33-9dd9-45d4-ad1b-1d7c311f2d0f',
+  'https://www.figma.com/api/mcp/asset/3bc85a98-4b74-4957-b3fa-ec1eb5912098',
+  'https://www.figma.com/api/mcp/asset/4548fd59-8604-486e-a98e-87279dd2d814',
+  'https://www.figma.com/api/mcp/asset/9ce026c8-5e6b-47ff-b1d7-5d8a614816f5',
 ];
-const serviceMenus = ref<ServiceMenu[]>([...defaultServiceMenus]);
 
-const preferredLangs = ['zh-CN', 'zh', 'en-US', 'en'];
+const defaultCardImages = [
+  'https://www.figma.com/api/mcp/asset/f6ca1504-083d-4962-83dc-e2791349924c',
+  'https://www.figma.com/api/mcp/asset/de5b0ce0-d113-44fa-8657-3e43d736694d',
+  'https://www.figma.com/api/mcp/asset/e62082ed-11ba-4f92-8596-d6f6a3e9856d',
+  'https://www.figma.com/api/mcp/asset/e63c85e3-b0d2-432a-9b60-98896c50c1ab',
+];
 
-function pickLocalizedName(item: Level1CategoryRecord): string {
-  const i18n = item.nameI18n || {};
+const serviceMenuRecords = ref<Level1CategoryRecord[]>([]);
+const serviceCardRecords = ref<ExclusiveSpuRecord[]>([]);
+
+const getPreferredLangs = () =>
+  locale.value === 'zh'
+    ? ['zh-CN', 'zh', 'en', 'en-US']
+    : ['en', 'en-US', 'zh-CN', 'zh'];
+
+const pickI18nValue = (i18n?: Record<string, string>, fallback = ''): string => {
+  const valueMap = i18n || {};
+  const preferredLangs = getPreferredLangs();
   for (const lang of preferredLangs) {
-    const value = i18n[lang];
+    const value = valueMap[lang];
     if (typeof value === 'string' && value.trim()) {
       return value.trim();
     }
   }
-  return item.category?.categoryName?.trim() || '未命名服务';
-}
-
-function pickI18nValue(i18n?: Record<string, string>): string {
-  const nameI18n = i18n || {};
-  for (const lang of preferredLangs) {
-    const value = nameI18n[lang];
-    if (typeof value === 'string' && value.trim()) {
-      return value.trim();
-    }
+  const firstValue = Object.values(valueMap).find(
+    (value) => typeof value === 'string' && value.trim(),
+  );
+  if (typeof firstValue === 'string') {
+    return firstValue.trim();
   }
-  return '';
-}
+  return fallback;
+};
 
-function mapServiceMenu(item: Level1CategoryRecord, index: number): ServiceMenu {
-  const id = String(item.category?.categoryId || item.category?.id || `service-${index + 1}`);
-  const icon = item.imageUrls?.[0] || defaultServiceMenus[index % defaultServiceMenus.length].icon;
-  return {
-    id,
-    title: pickLocalizedName(item),
-    icon,
-  };
-}
+const defaultServiceMenus = computed<ServiceMenu[]>(() => [
+  {
+    id: 'default-1',
+    title: t('client.home.defaults.menu1'),
+    icon: defaultMenuIcons[0],
+  },
+  {
+    id: 'default-2',
+    title: t('client.home.defaults.menu2'),
+    icon: defaultMenuIcons[1],
+  },
+  {
+    id: 'default-3',
+    title: t('client.home.defaults.menu3'),
+    icon: defaultMenuIcons[2],
+  },
+  {
+    id: 'default-4',
+    title: t('client.home.defaults.menu4'),
+    icon: defaultMenuIcons[3],
+  },
+  {
+    id: 'default-5',
+    title: t('client.home.defaults.menu5'),
+    icon: defaultMenuIcons[4],
+  },
+]);
 
-async function loadServiceMenus() {
-  try {
-    const records = await level1Categories();
-    const activeList = records.filter((item) => {
-      const status = item.category?.status;
-      return status === undefined || status === null || String(status) === '1';
-    });
-    const sourceList = activeList.length ? activeList : records;
-    const mapped = sourceList.map(mapServiceMenu).filter((item) => item.title);
-    if (mapped.length) {
-      serviceMenus.value = mapped;
-      return;
-    }
-  } catch (error) {
-    console.error('load level1 categories failed:', error);
+const serviceMenus = computed<ServiceMenu[]>(() => {
+  const records = serviceMenuRecords.value || [];
+  if (!records.length) {
+    return defaultServiceMenus.value;
   }
-  serviceMenus.value = [...defaultServiceMenus];
-}
+  const activeList = records.filter((item) => {
+    const status = item.category?.status;
+    return status === undefined || status === null || String(status) === '1';
+  });
+  const sourceList = activeList.length ? activeList : records;
+  const mapped = sourceList
+    .map((item, index) => {
+      const id = String(
+        item.category?.categoryId || item.category?.id || `service-${index + 1}`,
+      );
+      const icon =
+        item.imageUrls?.[0] ||
+        defaultServiceMenus.value[index % defaultServiceMenus.value.length].icon;
+      const fallbackName =
+        item.category?.categoryName?.trim() || t('client.home.defaults.unnamedService');
+      return {
+        id,
+        title: pickI18nValue(item.nameI18n, fallbackName),
+        icon,
+      };
+    })
+    .filter((item) => item.title);
+  return mapped.length ? mapped : defaultServiceMenus.value;
+});
 
-const defaultServiceCards: ServiceCard[] = [
+const defaultServiceCards = computed<ServiceCard[]>(() => [
   {
     id: 'default-card-1',
-    title: '房屋清洁',
-    desc: '灵活覆盖客厅、卧室与厨房，适用于日常打扫和搬家前后清洁。',
-    price: '迪拉姆100起/小时',
-    image: 'https://www.figma.com/api/mcp/asset/f6ca1504-083d-4962-83dc-e2791349924c',
+    title: t('client.home.defaults.card1Title'),
+    desc: t('client.home.defaults.card1Desc'),
+    price: t('client.home.defaults.card1Price'),
+    image: defaultCardImages[0],
   },
   {
     id: 'default-card-2',
-    title: '深度清洁',
-    desc: '针对难清洁区域和顽固污渍，使用专业设备进行深层处理。',
-    price: '迪拉姆200起/小时',
-    image: 'https://www.figma.com/api/mcp/asset/de5b0ce0-d113-44fa-8657-3e43d736694d',
+    title: t('client.home.defaults.card2Title'),
+    desc: t('client.home.defaults.card2Desc'),
+    price: t('client.home.defaults.card2Price'),
+    image: defaultCardImages[1],
   },
   {
     id: 'default-card-3',
-    title: '空调清洗与维护',
-    desc: '包含滤网清洁、管道检查和系统调试，提升送风质量和效率。',
-    price: '迪拉姆180起/小时',
-    image: 'https://www.figma.com/api/mcp/asset/e62082ed-11ba-4f92-8596-d6f6a3e9856d',
+    title: t('client.home.defaults.card3Title'),
+    desc: t('client.home.defaults.card3Desc'),
+    price: t('client.home.defaults.card3Price'),
+    image: defaultCardImages[2],
   },
   {
     id: 'default-card-4',
-    title: '沙龙与水疗',
-    desc: '甄选认证技师，支持到家美容按摩服务，流程标准且隐私可靠。',
-    price: '迪拉姆400起/小时',
-    image: 'https://www.figma.com/api/mcp/asset/e63c85e3-b0d2-432a-9b60-98896c50c1ab',
+    title: t('client.home.defaults.card4Title'),
+    desc: t('client.home.defaults.card4Desc'),
+    price: t('client.home.defaults.card4Price'),
+    image: defaultCardImages[3],
   },
-];
-const serviceCards = ref<ServiceCard[]>([...defaultServiceCards]);
+]);
 
-function formatMinPrice(minPrice?: number | string): string {
+const formatMinPrice = (minPrice?: number | string): string => {
   if (minPrice === null || minPrice === undefined || minPrice === '') {
-    return '价格咨询';
+    return t('client.home.serviceCard.priceConsult');
   }
   const value = Number(minPrice);
   if (!Number.isFinite(value)) {
-    return '价格咨询';
+    return t('client.home.serviceCard.priceConsult');
   }
-  return `迪拉姆${value}起`;
-}
+  return t('client.home.serviceCard.priceFrom', { price: value });
+};
 
-function mapServiceCard(item: ExclusiveSpuRecord, index: number): ServiceCard {
-  const fallback = defaultServiceCards[index % defaultServiceCards.length];
-  return {
-    id: String(item.id ?? `exclusive-${index + 1}`),
-    title: pickI18nValue(item.nameI18n) || fallback.title,
-    desc: pickI18nValue(item.descI18n) || fallback.desc,
-    price: formatMinPrice(item.minPrice),
-    image: item.imageUrls?.[0] || fallback.image,
-  };
-}
+const serviceCards = computed<ServiceCard[]>(() => {
+  const records = serviceCardRecords.value || [];
+  if (!records.length) {
+    return defaultServiceCards.value;
+  }
+  const mapped = records
+    .map((item, index) => {
+      const fallback = defaultServiceCards.value[index % defaultServiceCards.value.length];
+      return {
+        id: String(item.id ?? `exclusive-${index + 1}`),
+        title: pickI18nValue(item.nameI18n, fallback.title),
+        desc: pickI18nValue(item.descI18n, fallback.desc),
+        price: formatMinPrice(item.minPrice),
+        image: item.imageUrls?.[0] || fallback.image,
+      };
+    })
+    .filter((item) => item.title);
+  return mapped.length ? mapped : defaultServiceCards.value;
+});
 
-async function loadServiceCards() {
+const loadServiceMenus = async () => {
   try {
-    const records = await exclusiveSpus();
-    const mapped = records.map(mapServiceCard).filter((item) => item.title);
-    if (mapped.length) {
-      serviceCards.value = mapped;
-      return;
-    }
+    serviceMenuRecords.value = await level1Categories();
+  } catch (error) {
+    console.error('load level1 categories failed:', error);
+    serviceMenuRecords.value = [];
+  }
+};
+
+const loadServiceCards = async () => {
+  try {
+    serviceCardRecords.value = await exclusiveSpus();
   } catch (error) {
     console.error('load exclusive spus failed:', error);
+    serviceCardRecords.value = [];
   }
-  serviceCards.value = [...defaultServiceCards];
-}
+};
 
 onMounted(() => {
   loadServiceMenus();
   loadServiceCards();
-  onShelfSpus({categoryId: 25429})
-  getProductDetail(13)
 });
 
 onBeforeUnmount(() => {
   stopContactCardDrag();
 });
 
-const bookingSteps: BookingStep[] = [
-  { title: '提交预约', desc: '选择服务时间、服务类型和地址，提交基本信息。' },
-  { title: '完成人员匹配', desc: '系统根据需求分配服务人员，并确认上门时间。' },
-  { title: '执行服务', desc: '团队准时上门，按标准流程提供服务并记录进度。' },
-  { title: '服务验收', desc: '服务完成后在线确认结果，支持反馈与售后跟进。' },
-];
-
-const reasons: Reason[] = [
+const bookingSteps = computed<BookingStep[]>(() => [
   {
-    title: '专业认证团队',
-    desc: '人员均经过技能培训与背景审核，确保服务稳定可靠。',
+    title: t('client.home.steps.step1Title'),
+    desc: t('client.home.steps.step1Desc'),
+  },
+  {
+    title: t('client.home.steps.step2Title'),
+    desc: t('client.home.steps.step2Desc'),
+  },
+  {
+    title: t('client.home.steps.step3Title'),
+    desc: t('client.home.steps.step3Desc'),
+  },
+  {
+    title: t('client.home.steps.step4Title'),
+    desc: t('client.home.steps.step4Desc'),
+  },
+]);
+
+const reasons = computed<Reason[]>(() => [
+  {
+    title: t('client.home.defaults.reason1Title'),
+    desc: t('client.home.defaults.reason1Desc'),
     icon: 'https://www.figma.com/api/mcp/asset/4ce52fb0-618b-46d7-8220-957414885980',
   },
   {
-    title: '标准服务流程',
-    desc: '从预约到售后全流程透明，服务节点可追踪。',
+    title: t('client.home.defaults.reason2Title'),
+    desc: t('client.home.defaults.reason2Desc'),
     icon: 'https://www.figma.com/api/mcp/asset/19de2f6e-64d6-4673-8b20-b7dad1a27d14',
   },
   {
-    title: '高质量服务保障',
-    desc: '不满意可反馈复查，持续优化服务细节与效率。',
+    title: t('client.home.defaults.reason3Title'),
+    desc: t('client.home.defaults.reason3Desc'),
     icon: 'https://www.figma.com/api/mcp/asset/e7cb9284-26be-41cc-b586-05a7448cadf4',
   },
-];
+]);
 
 </script>
 
