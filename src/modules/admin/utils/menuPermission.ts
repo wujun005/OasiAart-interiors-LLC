@@ -18,6 +18,16 @@ type RawMenuItem = {
   icon?: string;
   parentId?: number | string;
   sortOrder?: number;
+  children?: RawMenuItem[] | null;
+};
+
+type FlatRawMenuItem = {
+  id: number | string;
+  name?: string;
+  path?: string;
+  icon?: string;
+  parentId: number | string;
+  sortOrder?: number;
 };
 
 type AdminMenuPermissionState = {
@@ -47,12 +57,19 @@ const normalizePath = (rawPath?: unknown): string => {
   if (typeof rawPath !== 'string') return '';
   const trimmed = rawPath.trim();
   if (!trimmed || trimmed === '#') return '';
+  if (/^https?:\/\//i.test(trimmed)) return '';
   const withoutQuery = trimmed.split('?')[0].split('#')[0].trim();
   if (!withoutQuery) return '';
 
   let path = withoutQuery;
-  if (!path.startsWith('/')) {
+  if (path === '/') {
+    path = ROOT_PATH;
+  } else if (path.startsWith('/api')) {
+    return '';
+  } else if (!path.startsWith('/')) {
     path = path.startsWith('admin/') ? `/${path}` : `${ROOT_PATH}/${path}`;
+  } else if (!path.startsWith(ROOT_PATH)) {
+    path = `${ROOT_PATH}${path}`;
   }
   path = path.replace(/\/{2,}/g, '/');
   if (path.length > 1 && path.endsWith('/')) {
@@ -67,6 +84,34 @@ const parseMenuList = (res: any): RawMenuItem[] => {
   if (Array.isArray(res?.list)) return res.list;
   if (Array.isArray(res?.data?.list)) return res.data.list;
   return [];
+};
+
+const flattenRawMenus = (
+  list: RawMenuItem[],
+  parentId?: number | string,
+  target: FlatRawMenuItem[] = [],
+) => {
+  list.forEach((item) => {
+    if (item?.id === undefined || item?.id === null) return;
+    const currentParent =
+      parentId !== undefined
+        ? parentId
+        : item.parentId === undefined || item.parentId === null
+          ? 0
+          : item.parentId;
+    target.push({
+      id: item.id,
+      name: item.name,
+      path: item.path,
+      icon: item.icon ?? undefined,
+      parentId: currentParent,
+      sortOrder: item.sortOrder,
+    });
+    if (Array.isArray(item.children) && item.children.length) {
+      flattenRawMenus(item.children, item.id, target);
+    }
+  });
+  return target;
 };
 
 const sortMenus = (list: AdminMenuPermissionItem[]) => {
@@ -101,31 +146,54 @@ const findFirstPath = (list: AdminMenuPermissionItem[]): string => {
   return '';
 };
 
-const hydrateMenuState = (list: RawMenuItem[]) => {
-  const nodes = list
-    .map((item): AdminMenuPermissionItem | null => {
-      if (item.id === undefined || item.id === null) return null;
-      return {
-        id: item.id,
-        name: item.name?.trim() || '',
-        path: normalizePath(item.path),
-        icon: item.icon?.trim() || '',
-        parentId:
-          item.parentId === undefined || item.parentId === null
-            ? 0
-            : item.parentId,
-        sortOrder: Number(item.sortOrder || 0),
-        children: [],
-      };
-    })
-    .filter((item): item is AdminMenuPermissionItem => !!item)
-    .filter((item) => !item.path || item.path.startsWith(ROOT_PATH));
+const pruneMenus = (
+  list: AdminMenuPermissionItem[],
+): AdminMenuPermissionItem[] =>
+  list
+    .map((item) => ({
+      ...item,
+      children: pruneMenus(item.children),
+    }))
+    .filter((item) => {
+      if (item.children.length > 0) return true;
+      return !!item.path && item.path.startsWith(ROOT_PATH) && item.path !== LOGIN_PATH;
+    });
 
+const hydrateMenuState = (list: RawMenuItem[]) => {
+  const rawFlatItems = flattenRawMenus(list);
   const nodeMap = new Map<string, AdminMenuPermissionItem>();
-  nodes.forEach((node) => nodeMap.set(String(node.id), node));
+
+  rawFlatItems.forEach((item) => {
+    const key = String(item.id);
+    const normalizedPath = normalizePath(item.path);
+    const normalizedParentId =
+      item.parentId === undefined || item.parentId === null ? 0 : item.parentId;
+    const existing = nodeMap.get(key);
+    if (existing) {
+      if (!existing.path && normalizedPath) {
+        existing.path = normalizedPath;
+      }
+      if (!existing.name && item.name) {
+        existing.name = item.name.trim();
+      }
+      if (!existing.icon && item.icon) {
+        existing.icon = item.icon?.trim() || '';
+      }
+      return;
+    }
+    nodeMap.set(key, {
+      id: item.id,
+      name: item.name?.trim() || '',
+      path: normalizedPath,
+      icon: item.icon?.trim() || '',
+      parentId: normalizedParentId,
+      sortOrder: Number(item.sortOrder || 0),
+      children: [],
+    });
+  });
 
   const roots: AdminMenuPermissionItem[] = [];
-  nodes.forEach((node) => {
+  nodeMap.forEach((node) => {
     const parentKey = String(node.parentId);
     const parent =
       parentKey && parentKey !== '0' ? nodeMap.get(parentKey) : undefined;
@@ -136,21 +204,25 @@ const hydrateMenuState = (list: RawMenuItem[]) => {
     }
   });
 
-  sortMenus(roots);
+  const prunedRoots = pruneMenus(roots);
+  sortMenus(prunedRoots);
 
-  const flat = flattenMenus(roots, []);
+  const flat = flattenMenus(prunedRoots, []);
   const allowedPaths = Array.from(
     new Set(
       flat
         .map((item) => item.path)
-        .filter((path) => !!path && path !== LOGIN_PATH),
+        .filter(
+          (path) =>
+            !!path && path !== LOGIN_PATH && path.startsWith(ROOT_PATH),
+        ),
     ),
   );
 
-  adminMenuState.menus = roots;
+  adminMenuState.menus = prunedRoots;
   adminMenuState.flatMenus = flat;
   adminMenuState.allowedPaths = allowedPaths;
-  adminMenuState.firstPath = findFirstPath(roots) || ROOT_PATH;
+  adminMenuState.firstPath = findFirstPath(prunedRoots) || ROOT_PATH;
 };
 
 export const resetAdminMenuPermissions = () => {
@@ -227,8 +299,7 @@ export const resolveAllowedAdminPath = (path: string) => {
     (allowedPath) =>
       normalized === allowedPath || normalized.startsWith(`${allowedPath}/`),
   );
-  if (parentMatched) return normalized;
-  return '';
+  return parentMatched || '';
 };
 
 export const hasAdminMenuAccess = (path: string) =>

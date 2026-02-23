@@ -27,7 +27,7 @@ export function getPage(payload: any) {
 
 // /api/admin/user-menu/assign 设置用户的菜单权限
 export function assignUserRole(payload: any) {
-  return http.post('/api/admin/user-menu/assign ', payload);
+  return http.post('/api/admin/user-menu/assign', payload);
 }
 
 // /api/admin/user-menu/user/{adminUserId} 获取制定用户的菜单权限
@@ -40,10 +40,18 @@ export function getCurrentUserRoles() {
   return http.get('/api/admin/user-menu/current');
 }
 
+export function getAll() {
+  return http.get('/api/admin/user-menu/all');
+}
+
 export default {
   getPage,
   getInfo,
   del,
   add,
-  update
+  update,
+  assignUserRole,
+  getUserRoles,
+  getCurrentUserRoles,
+  getAll
 };

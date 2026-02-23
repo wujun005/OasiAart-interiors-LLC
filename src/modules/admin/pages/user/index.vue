@@ -40,10 +40,18 @@
             </div>
           </template>
         </el-table-column>
-        <el-table-column label="操作" width="160" fixed="right">
+        <el-table-column label="操作" width="240" fixed="right">
           <template #default="{ row }">
             <el-button link type="primary" size="small" @click="openEdit(row)">
               编辑
+            </el-button>
+            <el-button
+              link
+              type="warning"
+              size="small"
+              @click="openAssignPermission(row)"
+            >
+              分配权限
             </el-button>
             <el-button link type="danger" size="small" @click="remove(row)">
               删除
@@ -100,14 +108,47 @@
         <el-button type="primary" :loading="submitLoading" @click="save">保存</el-button>
       </template>
     </el-dialog>
+
+    <el-dialog
+      v-model="permissionDialogVisible"
+      :title="`分配权限 - ${permissionTargetUser?.name || ''}`"
+      width="540px"
+      destroy-on-close
+      @closed="onPermissionDialogClosed"
+    >
+      <el-tree
+        ref="permissionTreeRef"
+        v-loading="permissionLoading"
+        class="permission-tree"
+        node-key="id"
+        show-checkbox
+        default-expand-all
+        :data="permissionTreeData"
+        :props="permissionTreeProps"
+      />
+      <template #footer>
+        <el-button @click="permissionDialogVisible = false">取消</el-button>
+        <el-button
+          type="primary"
+          :loading="permissionSaving"
+          @click="saveUserPermissions"
+        >
+          保存
+        </el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
 <script setup lang="ts">
 import { nextTick, onMounted, reactive, ref } from 'vue';
-import type { FormInstance, FormRules } from 'element-plus';
+import type { FormInstance, FormRules, TreeInstance } from 'element-plus';
 import { ElMessage, ElMessageBox } from 'element-plus';
-import apis from '@/modules/admin/api/user';
+import apis, {
+  assignUserRole,
+  getAll,
+  getUserRoles,
+} from '@/modules/admin/api/user';
 
 type User = {
   id: number;
@@ -119,6 +160,26 @@ type User = {
   creator?: string;
   updateTime?: string;
   updater?: string;
+};
+
+type MenuPermissionItem = {
+  id: number | string;
+  name?: string;
+  path?: string;
+  icon?: string | null;
+  parentId?: number | string | null;
+  sortOrder?: number;
+  children?: MenuPermissionItem[] | null;
+};
+
+type MenuPermissionNode = {
+  id: number | string;
+  name: string;
+  path?: string;
+  icon?: string;
+  parentId: number | string;
+  sortOrder: number;
+  children: MenuPermissionNode[];
 };
 
 const query = reactive({
@@ -142,6 +203,16 @@ const form = reactive<{ id?: number; name: string; phone: string; email: string;
   email: '',
   password: '',
 });
+const permissionDialogVisible = ref(false);
+const permissionLoading = ref(false);
+const permissionSaving = ref(false);
+const permissionTargetUser = ref<User | null>(null);
+const permissionTreeRef = ref<TreeInstance>();
+const permissionTreeData = ref<MenuPermissionNode[]>([]);
+const permissionTreeProps = {
+  label: 'name',
+  children: 'children',
+};
 
 const rules: FormRules = {
   name: [
@@ -202,6 +273,87 @@ const extractList = (payload: any): { list: User[]; total: number; pageNum: numb
   const pageNum = typeof page.pageNum === 'number' ? page.pageNum : query.pageNum;
   const pageSize = typeof page.pageSize === 'number' ? page.pageSize : query.pageSize;
   return { list, total, pageNum, pageSize };
+};
+
+const extractMenuList = (payload: any): MenuPermissionItem[] => {
+  if (Array.isArray(payload)) return payload as MenuPermissionItem[];
+  if (Array.isArray(payload?.data)) return payload.data as MenuPermissionItem[];
+  if (Array.isArray(payload?.list)) return payload.list as MenuPermissionItem[];
+  if (Array.isArray(payload?.data?.list)) return payload.data.list as MenuPermissionItem[];
+  return [];
+};
+
+const flattenMenuList = (
+  list: MenuPermissionItem[],
+  parentId?: number | string,
+  target: Omit<MenuPermissionNode, 'children'>[] = [],
+) => {
+  list.forEach((item) => {
+    if (item?.id === undefined || item?.id === null) return;
+    const currentParentId =
+      parentId !== undefined
+        ? parentId
+        : item.parentId === undefined || item.parentId === null
+          ? 0
+          : item.parentId;
+    target.push({
+      id: item.id,
+      name: item.name?.trim() || `菜单-${item.id}`,
+      path: item.path || '',
+      icon: item.icon || '',
+      parentId: currentParentId,
+      sortOrder: Number(item.sortOrder || 0),
+    });
+    if (Array.isArray(item.children) && item.children.length) {
+      flattenMenuList(item.children, item.id, target);
+    }
+  });
+  return target;
+};
+
+const collectLeafMenuIds = (list: MenuPermissionItem[]) => {
+  const flat = flattenMenuList(list);
+  if (!flat.length) return [];
+  const parentIdSet = new Set(
+    flat
+      .map((item) => String(item.parentId))
+      .filter((parentId) => parentId !== '0' && parentId !== ''),
+  );
+  const leafIds = flat
+    .filter((item) => !parentIdSet.has(String(item.id)))
+    .map((item) => item.id);
+  return leafIds.length ? leafIds : flat.map((item) => item.id);
+};
+
+const buildPermissionTree = (list: MenuPermissionItem[]): MenuPermissionNode[] => {
+  const flat = flattenMenuList(list);
+  const nodeMap = new Map<string, MenuPermissionNode>();
+  flat.forEach((item) => {
+    nodeMap.set(String(item.id), {
+      ...item,
+      children: [],
+    });
+  });
+  const roots: MenuPermissionNode[] = [];
+  nodeMap.forEach((node) => {
+    const parentKey = String(node.parentId);
+    const parent =
+      parentKey && parentKey !== '0' ? nodeMap.get(parentKey) : undefined;
+    if (parent) {
+      parent.children.push(node);
+    } else {
+      roots.push(node);
+    }
+  });
+  const sortNodes = (nodes: MenuPermissionNode[]) => {
+    nodes.sort((a, b) => {
+      if (a.sortOrder !== b.sortOrder) return a.sortOrder - b.sortOrder;
+      return String(a.id).localeCompare(String(b.id));
+    });
+    nodes.forEach((node) => sortNodes(node.children));
+  };
+  sortNodes(roots);
+  return roots;
 };
 
 const fetchUsers = async () => {
@@ -276,6 +428,64 @@ const openEdit = async (row: User) => {
   } finally {
     detailLoading.value = false;
   }
+};
+
+const openAssignPermission = async (row: User) => {
+  permissionTargetUser.value = row;
+  permissionDialogVisible.value = true;
+  permissionLoading.value = true;
+  try {
+    const [allMenuRes, userRoleRes] = await Promise.all([
+      getAll(),
+      getUserRoles(row.id),
+    ]);
+    const allMenus = extractMenuList(allMenuRes);
+    const userMenus = extractMenuList(userRoleRes);
+    permissionTreeData.value = buildPermissionTree(
+      allMenus.length ? allMenus : userMenus,
+    );
+
+    const checkedKeys = collectLeafMenuIds(userMenus);
+    await nextTick();
+    // 只回显 getUserRoles 返回的叶子权限，避免父节点联动勾选整组子菜单
+    permissionTreeRef.value?.setCheckedKeys(checkedKeys, false);
+  } catch (error: any) {
+    ElMessage.error(error?.message || '获取用户菜单权限失败');
+  } finally {
+    permissionLoading.value = false;
+  }
+};
+
+const saveUserPermissions = async () => {
+  const userId = permissionTargetUser.value?.id;
+  if (!userId) return;
+  permissionSaving.value = true;
+  try {
+    const checked = permissionTreeRef.value?.getCheckedKeys(false) || [];
+    const halfChecked = permissionTreeRef.value?.getHalfCheckedKeys() || [];
+    const menuIds = Array.from(new Set([...checked, ...halfChecked])).map(
+      (id) => {
+        const numericId = Number(id);
+        return Number.isNaN(numericId) ? id : numericId;
+      },
+    );
+    await assignUserRole({
+      adminUserId: userId,
+      menuIds,
+    });
+    ElMessage.success('权限分配成功');
+    permissionDialogVisible.value = false;
+  } catch (error: any) {
+    ElMessage.error(error?.message || '权限分配失败');
+  } finally {
+    permissionSaving.value = false;
+  }
+};
+
+const onPermissionDialogClosed = () => {
+  permissionTargetUser.value = null;
+  permissionTreeData.value = [];
+  permissionTreeRef.value = undefined;
 };
 
 const save = () => {
@@ -355,5 +565,10 @@ onMounted(fetchUsers);
 .meta .time {
   color: #888;
   font-size: 12px;
+}
+.permission-tree {
+  max-height: 420px;
+  overflow: auto;
+  padding: 6px 0;
 }
 </style>

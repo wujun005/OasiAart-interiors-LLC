@@ -3,7 +3,12 @@
     <el-container class="layout">
       <el-aside width="220px" class="sidebar">
         <div class="logo">{{ t('admin.layout.logo') }}</div>
-        <el-menu :default-active="activeMenu" class="menu" @select="handleSelect">
+        <el-menu
+          :default-active="activeMenu"
+          :default-openeds="defaultOpeneds"
+          class="menu"
+          @select="handleSelect"
+        >
           <PermissionMenuItem
             v-for="item in menuTree"
             :key="item.id"
@@ -69,6 +74,8 @@ const router = useRouter();
 const { t, locale } = useI18n({ useScope: 'global' });
 const currentLocale = ref<AdminLocale>(locale.value === 'en' ? 'en' : 'zh');
 const menuTree = computed(() => adminMenuState.menus);
+const getMenuIndex = (item: AdminMenuPermissionItem) =>
+  item.path || `menu-${item.id}`;
 
 const menuByPath = computed(() => {
   const map = new Map<string, AdminMenuPermissionItem>();
@@ -79,6 +86,12 @@ const menuByPath = computed(() => {
   });
   return map;
 });
+
+const defaultOpeneds = computed(() =>
+  adminMenuState.flatMenus
+    .filter((item) => Array.isArray(item.children) && item.children.length > 0)
+    .map((item) => getMenuIndex(item)),
+);
 
 const activeMenu = computed(() => {
   const path = resolveAllowedAdminPath(route.path);
