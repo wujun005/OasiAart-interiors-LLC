@@ -4,44 +4,54 @@
       <div class="home-container hero-section__inner">
         <div class="hero-section__content">
           <p class="hero-section__eyebrow">{{ t('client.home.hero.eyebrow') }}</p>
-          <h1>{{ t('client.home.hero.titleLine1') }}<br />{{ t('client.home.hero.titleLine2') }}</h1>
+          <h1 class="hero-section__title">
+            {{ t('client.home.hero.titleLine1') }}<br />
+            {{ t('client.home.hero.titleLine2') }}
+          </h1>
           <p class="hero-section__desc">{{ t('client.home.hero.desc') }}</p>
-          <div class="hero-section__actions">
-            <button type="button">{{ t('client.home.hero.cta') }}</button>
-            <div class="hero-section__tags">
-              <span>{{ t('client.home.hero.tag1') }}</span>
-              <span>{{ t('client.home.hero.tag2') }}</span>
-            </div>
+          <button class="hero-section__cta" type="button">
+            {{ t('client.home.hero.cta') }}
+          </button>
+          <div class="hero-section__tags">
+            <span v-for="tag in heroTags" :key="tag">
+              <img src="@/assets/images/client/Icon1.png" alt="" />
+              {{ tag }}
+            </span>
           </div>
         </div>
-        <div class="hero-section__visual">
-          <img :src="heroImageUrl" :alt="t('client.home.alt.hero')" />
-        </div>
-      </div>
-
-      <div
-        ref="contactCardRef"
-        class="hero-section__contact-card"
-        :class="{ 'hero-section__contact-card--dragging': isContactCardDragging }"
-        :style="contactCardStyle"
-        @mousedown="onContactCardMouseDown"
-        @touchstart="onContactCardTouchStart"
-      >
-        <div class="hero-section__agent">
-          <img :src="supportAgentUrl" :alt="t('client.home.alt.supportAgent')" />
-        </div>
-        <p>{{ t('client.home.contactCard.title') }}</p>
-        <button type="button">{{ t('client.home.contactCard.button') }}</button>
       </div>
     </section>
 
-    <section id="services" class="category-section">
+    <div
+      ref="contactCardRef"
+      class="contact-card"
+      :class="{ 'contact-card--dragging': isContactCardDragging }"
+      :style="contactCardStyle"
+      @mousedown="onContactCardMouseDown"
+      @touchstart="onContactCardTouchStart"
+    >
+      <div class="contact-card__agent">
+        <img :src="supportAgentUrl" :alt="t('client.home.alt.supportAgent')" />
+        <span class="contact-card__status" />
+      </div>
+      <button type="button">{{ t('client.home.contactCard.button') }}</button>
+    </div>
+
+    <section id="services" class="services-section">
       <div class="home-container">
         <h2 class="section-title">{{ t('client.home.sections.servicesTitle') }}</h2>
-        <div class="category-section__grid">
-          <article v-for="item in serviceMenus" :key="item.id" class="category-section__item">
-            <div class="category-section__icon">
-              <img :src="item.icon" :alt="item.title" />
+        <p class="section-subtitle section-subtitle--line">
+          {{ t('client.home.sections.servicesSubtitle') }}
+        </p>
+        <div class="services-grid">
+          <article
+            v-for="item in serviceTiles"
+            :key="item.id"
+            class="services-grid__item"
+            :class="{ 'services-grid__item--placeholder': item.placeholder }"
+          >
+            <div class="services-grid__icon">
+              <img v-if="item.icon" :src="item.icon" :alt="item.title" />
             </div>
             <p>{{ item.title }}</p>
           </article>
@@ -49,22 +59,20 @@
       </div>
     </section>
 
-    <section class="service-section">
+    <section id="orders" class="offers-section">
       <div class="home-container">
         <h2 class="section-title">{{ t('client.home.sections.serviceCardsTitle') }}</h2>
-        <p class="section-desc">{{ t('client.home.sections.serviceCardsDesc') }}</p>
-
-        <div class="service-section__grid">
-          <article v-for="item in serviceCards" :key="item.id" class="service-section__card">
-            <img class="service-section__image" :src="item.image" :alt="item.title" />
-            <span class="service-section__badge">{{ t('client.home.serviceCard.badge') }}</span>
-            <div class="service-section__body">
+        <div class="offers-grid">
+          <article v-for="item in featuredCards" :key="item.id" class="offer-card">
+            <div class="offer-card__media">
+              <img :src="item.image" :alt="item.title" />
+              <span class="offer-card__badge">{{ t('client.home.serviceCard.badge') }}</span>
+            </div>
+            <div class="offer-card__body">
               <h3>{{ item.title }}</h3>
-              <p>{{ item.desc }}</p>
-              <div class="service-section__footer">
-                <strong>{{ item.price }}</strong>
-                <button type="button">{{ t('client.home.serviceCard.button') }}</button>
-              </div>
+              <p class="offer-card__desc">{{ item.desc }}</p>
+              <p class="offer-card__price">{{ item.price }}</p>
+              <button type="button">{{ t('client.home.serviceCard.button') }}</button>
             </div>
           </article>
         </div>
@@ -73,62 +81,52 @@
 
     <section class="booking-section">
       <div class="home-container">
-        <h2 class="section-title section-title--light">{{ t('client.home.sections.bookingTitle') }}</h2>
-        <p class="section-desc section-desc--light">{{ t('client.home.sections.bookingSubtitle') }}</p>
+        <h2 class="section-title section-title--light">
+          {{ t('client.home.sections.bookingTitle') }}
+        </h2>
+        <p class="section-subtitle section-subtitle--light">
+          {{ t('client.home.sections.bookingSubtitle') }}
+        </p>
 
-        <div class="booking-section__grid">
-          <div class="booking-section__form-card">
-            <h3>{{ t('client.home.bookingForm.title') }}</h3>
-            <label>
-              {{ t('client.home.bookingForm.dateLabel') }}
-              <input type="text" :placeholder="t('client.home.bookingForm.datePlaceholder')" />
-            </label>
-            <label>
-              {{ t('client.home.bookingForm.typeLabel') }}
-              <input type="text" :placeholder="t('client.home.bookingForm.typePlaceholder')" />
-            </label>
-            <label>
-              {{ t('client.home.bookingForm.contactLabel') }}
-              <input type="text" :placeholder="t('client.home.bookingForm.contactPlaceholder')" />
-            </label>
-            <button type="button">{{ t('client.home.bookingForm.next') }}</button>
-          </div>
-
-          <div class="booking-section__steps">
-            <article v-for="(step, index) in bookingSteps" :key="step.title" class="booking-section__step">
-              <span>{{ index + 1 }}</span>
-              <div>
-                <h4>{{ step.title }}</h4>
-                <p>{{ step.desc }}</p>
-              </div>
-            </article>
-          </div>
+        <div class="booking-steps">
+          <div class="booking-steps__line" />
+          <article v-for="(item, index) in bookingSteps" :key="item.title" class="booking-step">
+            <div class="booking-step__icon">
+              <img :src="item.icon" :alt="item.title" />
+            </div>
+            <h3>{{ index + 1 }}. {{ item.title }}</h3>
+            <p>{{ item.desc }}</p>
+          </article>
         </div>
       </div>
     </section>
 
-    <section id="about" class="about-section">
+    <section id="join-us" class="about-section">
       <div class="home-container">
         <h2 class="section-title">{{ t('client.home.sections.aboutTitle') }}</h2>
-        <p class="section-desc">{{ t('client.home.sections.aboutDesc') }}</p>
+        <p class="section-subtitle section-subtitle--line">
+          {{ t('client.home.sections.aboutSubtitle') }}
+        </p>
 
-        <div class="about-section__grid">
-          <div class="about-section__content">
-            <div class="about-section__intro">
-              <h3>{{ t('client.home.aboutIntro.title') }}</h3>
-              <p>{{ t('client.home.aboutIntro.desc') }}</p>
-            </div>
-
-            <div class="about-section__reason-list">
-              <article v-for="item in reasons" :key="item.title" class="about-section__reason-item">
-                <img :src="item.icon" :alt="item.title" />
+        <div class="about-content">
+          <div class="about-content__left">
+            <h3>{{ t('client.home.aboutIntro.title') }}</h3>
+            <ul>
+              <li v-for="line in aboutBulletList" :key="line">{{ line }}</li>
+            </ul>
+            <div class="about-reasons">
+              <article v-for="item in reasons" :key="item.title" class="about-reason">
+                <div class="about-reason__icon-wrap">
+                  <img :src="item.icon" :alt="item.title" />
+                  <span v-if="item.highlight" />
+                </div>
                 <h4>{{ item.title }}</h4>
                 <p>{{ item.desc }}</p>
               </article>
             </div>
           </div>
 
-          <div class="about-section__image-wrap">
+          <div class="about-content__image">
             <img :src="aboutImageUrl" :alt="t('client.home.alt.about')" />
           </div>
         </div>
@@ -141,19 +139,20 @@
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import {
-  level1Categories,
-  type Level1CategoryRecord,
   exclusiveSpus,
+  level1Categories,
   type ExclusiveSpuRecord,
+  type Level1CategoryRecord,
 } from '@/modules/client/api';
 
-type ServiceMenu = {
+type ServiceTile = {
   id: string;
   title: string;
   icon: string;
+  placeholder: boolean;
 };
 
-type ServiceCard = {
+type OfferCard = {
   id: string;
   title: string;
   desc: string;
@@ -164,131 +163,49 @@ type ServiceCard = {
 type BookingStep = {
   title: string;
   desc: string;
+  icon: string;
 };
 
 type Reason = {
   title: string;
   desc: string;
   icon: string;
+  highlight?: boolean;
 };
+
+const supportAgentUrl = 'https://www.figma.com/api/mcp/asset/a68939d4-75b7-40fa-90fc-302a69bd661e';
+const heroTagIcon = 'https://www.figma.com/api/mcp/asset/63d0707f-2281-4030-be91-6ffcc8453af6';
+const aboutImageUrl = 'https://www.figma.com/api/mcp/asset/fb2b53d9-2ff6-47c3-9c02-0d972cc4a398';
+
+const defaultServiceIcons = [
+  'https://www.figma.com/api/mcp/asset/eb5c30c7-689f-4ed5-bbbd-d173eed0127f',
+  'https://www.figma.com/api/mcp/asset/09552e9b-ee1f-4389-9c80-8ad2058e2a6d',
+  'https://www.figma.com/api/mcp/asset/4fd2bf43-6d9b-4120-b782-12f955ead59c',
+  'https://www.figma.com/api/mcp/asset/1cb9d72b-e802-4cc7-84c8-34ca417a10c7',
+  'https://www.figma.com/api/mcp/asset/6a649f2a-a66f-4922-b744-d52b9db77848',
+];
+
+const defaultOfferImages = [
+  'https://www.figma.com/api/mcp/asset/be119407-be81-457f-acb8-6ae8c059b658',
+  'https://www.figma.com/api/mcp/asset/1385c0da-6357-456c-a792-85c4faa896fe',
+  'https://www.figma.com/api/mcp/asset/689f06ae-e279-491b-8afb-133a682a3d8b',
+  'https://www.figma.com/api/mcp/asset/82f87dae-0f7f-4a67-a055-5619d9dfb2ea',
+];
+
+const bookingStepIcons = [
+  'https://www.figma.com/api/mcp/asset/d49f3852-48ae-42bd-9344-a92a77f9a740',
+  'https://www.figma.com/api/mcp/asset/89346f6b-7ed6-4f55-a84f-7de1ff50ba63',
+  'https://www.figma.com/api/mcp/asset/95eb69d6-f35d-4be5-95c6-29b6e966782c',
+  
+];
+
+const reasonIcons = [
+  'https://www.figma.com/api/mcp/asset/795d3ca4-5d09-4f4c-a429-c9baba6e642c',
+  'https://www.figma.com/api/mcp/asset/44beadda-0111-41ed-bdaa-2a1b69518db3',
+  'https://www.figma.com/api/mcp/asset/3e258020-3b92-4c63-983e-edc24486e585',
+];
 
 const { t, locale } = useI18n({ useScope: 'global' });
-
-const heroImageUrl = 'https://www.figma.com/api/mcp/asset/51ab48a9-57f8-4d57-aad4-d0b73840a4d3';
-const supportAgentUrl = 'https://www.figma.com/api/mcp/asset/2941720e-95cd-4749-93e2-11fc3982d1be';
-const aboutImageUrl = 'https://www.figma.com/api/mcp/asset/e3a37040-2d8a-485d-8ae8-4040982c6482';
-const contactCardRef = ref<HTMLElement | null>(null);
-const contactCardPosition = ref<{ left: number; top: number } | null>(null);
-const isContactCardDragging = ref(false);
-
-const dragState = {
-  offsetX: 0,
-  offsetY: 0,
-  cardWidth: 0,
-  cardHeight: 0,
-};
-
-const contactCardStyle = computed(() => {
-  if (!contactCardPosition.value) {
-    return {};
-  }
-  return {
-    left: `${contactCardPosition.value.left}px`,
-    top: `${contactCardPosition.value.top}px`,
-    bottom: 'auto',
-  };
-});
-
-function clamp(value: number, min: number, max: number) {
-  return Math.min(Math.max(value, min), max);
-}
-
-function extractPoint(event: MouseEvent | TouchEvent) {
-  if ('touches' in event) {
-    const touch = event.touches[0] || event.changedTouches[0];
-    return touch ? { x: touch.clientX, y: touch.clientY } : null;
-  }
-  return { x: event.clientX, y: event.clientY };
-}
-
-function handleContactCardMove(event: MouseEvent | TouchEvent) {
-  if (!isContactCardDragging.value) {
-    return;
-  }
-  const point = extractPoint(event);
-  if (!point) {
-    return;
-  }
-  if ('preventDefault' in event) {
-    event.preventDefault();
-  }
-  const maxLeft = Math.max(window.innerWidth - dragState.cardWidth, 0);
-  const maxTop = Math.max(window.innerHeight - dragState.cardHeight, 0);
-  const left = clamp(point.x - dragState.offsetX, 0, maxLeft);
-  const top = clamp(point.y - dragState.offsetY, 0, maxTop);
-  contactCardPosition.value = { left, top };
-}
-
-function stopContactCardDrag() {
-  if (!isContactCardDragging.value) {
-    return;
-  }
-  isContactCardDragging.value = false;
-  window.removeEventListener('mousemove', handleContactCardMove);
-  window.removeEventListener('mouseup', stopContactCardDrag);
-  window.removeEventListener('touchmove', handleContactCardMove);
-  window.removeEventListener('touchend', stopContactCardDrag);
-  document.body.style.userSelect = '';
-}
-
-function startContactCardDrag(pointX: number, pointY: number) {
-  const cardEl = contactCardRef.value;
-  if (!cardEl) {
-    return;
-  }
-  const rect = cardEl.getBoundingClientRect();
-  dragState.offsetX = pointX - rect.left;
-  dragState.offsetY = pointY - rect.top;
-  dragState.cardWidth = rect.width;
-  dragState.cardHeight = rect.height;
-  contactCardPosition.value = { left: rect.left, top: rect.top };
-  isContactCardDragging.value = true;
-  window.addEventListener('mousemove', handleContactCardMove);
-  window.addEventListener('mouseup', stopContactCardDrag);
-  window.addEventListener('touchmove', handleContactCardMove, { passive: false });
-  window.addEventListener('touchend', stopContactCardDrag);
-  document.body.style.userSelect = 'none';
-}
-
-function onContactCardMouseDown(event: MouseEvent) {
-  if (event.button !== 0) {
-    return;
-  }
-  startContactCardDrag(event.clientX, event.clientY);
-}
-
-function onContactCardTouchStart(event: TouchEvent) {
-  const point = extractPoint(event);
-  if (!point) {
-    return;
-  }
-  startContactCardDrag(point.x, point.y);
-}
-
-const defaultMenuIcons = [
-  'https://www.figma.com/api/mcp/asset/a9147542-21a2-4a03-8ff5-17b595720d27',
-  'https://www.figma.com/api/mcp/asset/c1967d33-9dd9-45d4-ad1b-1d7c311f2d0f',
-  'https://www.figma.com/api/mcp/asset/3bc85a98-4b74-4957-b3fa-ec1eb5912098',
-  'https://www.figma.com/api/mcp/asset/4548fd59-8604-486e-a98e-87279dd2d814',
-  'https://www.figma.com/api/mcp/asset/9ce026c8-5e6b-47ff-b1d7-5d8a614816f5',
-];
-
-const defaultCardImages = [
-  'https://www.figma.com/api/mcp/asset/f6ca1504-083d-4962-83dc-e2791349924c',
-  'https://www.figma.com/api/mcp/asset/de5b0ce0-d113-44fa-8657-3e43d736694d',
-  'https://www.figma.com/api/mcp/asset/e62082ed-11ba-4f92-8596-d6f6a3e9856d',
-  'https://www.figma.com/api/mcp/asset/e63c85e3-b0d2-432a-9b60-98896c50c1ab',
-];
 
 const serviceMenuRecords = ref<Level1CategoryRecord[]>([]);
 const serviceCardRecords = ref<ExclusiveSpuRecord[]>([]);
@@ -316,125 +233,182 @@ const pickI18nValue = (i18n?: Record<string, string>, fallback = ''): string => 
   return fallback;
 };
 
-const defaultServiceMenus = computed<ServiceMenu[]>(() => [
+const defaultServiceMenus = computed<ServiceTile[]>(() => [
   {
     id: 'default-1',
     title: t('client.home.defaults.menu1'),
-    icon: defaultMenuIcons[0],
+    icon: defaultServiceIcons[0],
+    placeholder: false,
   },
   {
     id: 'default-2',
     title: t('client.home.defaults.menu2'),
-    icon: defaultMenuIcons[1],
+    icon: defaultServiceIcons[1],
+    placeholder: false,
   },
   {
     id: 'default-3',
     title: t('client.home.defaults.menu3'),
-    icon: defaultMenuIcons[2],
+    icon: defaultServiceIcons[2],
+    placeholder: false,
   },
   {
     id: 'default-4',
     title: t('client.home.defaults.menu4'),
-    icon: defaultMenuIcons[3],
+    icon: defaultServiceIcons[3],
+    placeholder: false,
   },
   {
     id: 'default-5',
     title: t('client.home.defaults.menu5'),
-    icon: defaultMenuIcons[4],
+    icon: defaultServiceIcons[4],
+    placeholder: false,
   },
 ]);
 
-const serviceMenus = computed<ServiceMenu[]>(() => {
+const serviceTiles = computed<ServiceTile[]>(() => {
   const records = serviceMenuRecords.value || [];
-  if (!records.length) {
-    return defaultServiceMenus.value;
-  }
-  const activeList = records.filter((item) => {
+  const filtered = records.filter((item) => {
     const status = item.category?.status;
     return status === undefined || status === null || String(status) === '1';
   });
-  const sourceList = activeList.length ? activeList : records;
-  const mapped = sourceList
-    .map((item, index) => {
-      const id = String(
-        item.category?.categoryId || item.category?.id || `service-${index + 1}`,
-      );
-      const icon =
-        item.imageUrls?.[0] ||
-        defaultServiceMenus.value[index % defaultServiceMenus.value.length].icon;
-      const fallbackName =
-        item.category?.categoryName?.trim() || t('client.home.defaults.unnamedService');
-      return {
-        id,
-        title: pickI18nValue(item.nameI18n, fallbackName),
-        icon,
-      };
-    })
+  const source = filtered.length ? filtered : records;
+  const mapped = source
+    .map((item, index) => ({
+      id: String(item.category?.categoryId || item.category?.id || `service-${index + 1}`),
+      title: pickI18nValue(
+        item.nameI18n,
+        item.category?.categoryName?.trim() || t('client.home.defaults.unnamedService'),
+      ),
+      icon: item.imageUrls?.[0] || defaultServiceIcons[index % defaultServiceIcons.length],
+      placeholder: false,
+    }))
     .filter((item) => item.title);
-  return mapped.length ? mapped : defaultServiceMenus.value;
+
+  const base = mapped.length ? mapped : defaultServiceMenus.value;
+  const sliced = base.slice(0, 10);
+  const placeholders = Array.from({ length: Math.max(10 - sliced.length, 0) }, (_, index) => ({
+    id: `placeholder-${index + 1}`,
+    title: t('client.home.defaults.comingSoon'),
+    icon: '',
+    placeholder: true,
+  }));
+  return [...sliced, ...placeholders];
 });
 
-const defaultServiceCards = computed<ServiceCard[]>(() => [
+const defaultOfferCards = computed<OfferCard[]>(() => [
   {
-    id: 'default-card-1',
+    id: 'offer-default-1',
     title: t('client.home.defaults.card1Title'),
     desc: t('client.home.defaults.card1Desc'),
     price: t('client.home.defaults.card1Price'),
-    image: defaultCardImages[0],
+    image: defaultOfferImages[0],
   },
   {
-    id: 'default-card-2',
+    id: 'offer-default-2',
     title: t('client.home.defaults.card2Title'),
     desc: t('client.home.defaults.card2Desc'),
     price: t('client.home.defaults.card2Price'),
-    image: defaultCardImages[1],
+    image: defaultOfferImages[1],
   },
   {
-    id: 'default-card-3',
+    id: 'offer-default-3',
     title: t('client.home.defaults.card3Title'),
     desc: t('client.home.defaults.card3Desc'),
     price: t('client.home.defaults.card3Price'),
-    image: defaultCardImages[2],
+    image: defaultOfferImages[2],
   },
   {
-    id: 'default-card-4',
+    id: 'offer-default-4',
     title: t('client.home.defaults.card4Title'),
     desc: t('client.home.defaults.card4Desc'),
     price: t('client.home.defaults.card4Price'),
-    image: defaultCardImages[3],
+    image: defaultOfferImages[3],
   },
 ]);
 
-const formatMinPrice = (minPrice?: number | string): string => {
-  if (minPrice === null || minPrice === undefined || minPrice === '') {
+const formatPriceText = (minPrice?: number | string): string => {
+  if (minPrice === undefined || minPrice === null || minPrice === '') {
     return t('client.home.serviceCard.priceConsult');
   }
   const value = Number(minPrice);
   if (!Number.isFinite(value)) {
     return t('client.home.serviceCard.priceConsult');
   }
-  return t('client.home.serviceCard.priceFrom', { price: value });
+  return t('client.home.serviceCard.priceFrom', {
+    price: Number.isInteger(value) ? value : value.toFixed(2),
+  });
 };
 
-const serviceCards = computed<ServiceCard[]>(() => {
+const featuredCards = computed<OfferCard[]>(() => {
   const records = serviceCardRecords.value || [];
   if (!records.length) {
-    return defaultServiceCards.value;
+    return defaultOfferCards.value;
   }
   const mapped = records
     .map((item, index) => {
-      const fallback = defaultServiceCards.value[index % defaultServiceCards.value.length];
+      const fallback = defaultOfferCards.value[index % defaultOfferCards.value.length];
       return {
-        id: String(item.id ?? `exclusive-${index + 1}`),
+        id: String(item.id ?? `offer-${index + 1}`),
         title: pickI18nValue(item.nameI18n, fallback.title),
         desc: pickI18nValue(item.descI18n, fallback.desc),
-        price: formatMinPrice(item.minPrice),
+        price: formatPriceText(item.minPrice),
         image: item.imageUrls?.[0] || fallback.image,
       };
     })
     .filter((item) => item.title);
-  return mapped.length ? mapped : defaultServiceCards.value;
+  return (mapped.length ? mapped : defaultOfferCards.value).slice(0, 4);
 });
+
+const heroTags = computed(() => [
+  t('client.home.hero.tag1'),
+  t('client.home.hero.tag2'),
+  t('client.home.hero.tag3'),
+]);
+
+const bookingSteps = computed<BookingStep[]>(() => [
+  {
+    icon: bookingStepIcons[0],
+    title: t('client.home.steps.step1Title'),
+    desc: t('client.home.steps.step1Desc'),
+  },
+  {
+    icon: bookingStepIcons[1],
+    title: t('client.home.steps.step2Title'),
+    desc: t('client.home.steps.step2Desc'),
+  },
+  {
+    icon: '@/assets/images/client/Icon4.svg',
+    title: t('client.home.steps.step3Title'),
+    desc: t('client.home.steps.step3Desc'),
+  },
+]);
+
+const aboutBulletList = computed(() => [
+  t('client.home.aboutIntro.bullet1'),
+  t('client.home.aboutIntro.bullet2'),
+  t('client.home.aboutIntro.bullet3'),
+  t('client.home.aboutIntro.bullet4'),
+]);
+
+const reasons = computed<Reason[]>(() => [
+  {
+    title: t('client.home.defaults.reason1Title'),
+    desc: t('client.home.defaults.reason1Desc'),
+    icon: reasonIcons[0],
+  },
+  {
+    title: t('client.home.defaults.reason2Title'),
+    desc: t('client.home.defaults.reason2Desc'),
+    icon: reasonIcons[1],
+  },
+  {
+    title: t('client.home.defaults.reason3Title'),
+    desc: t('client.home.defaults.reason3Desc'),
+    icon: reasonIcons[2],
+    highlight: true,
+  },
+]);
 
 const loadServiceMenus = async () => {
   try {
@@ -445,7 +419,7 @@ const loadServiceMenus = async () => {
   }
 };
 
-const loadServiceCards = async () => {
+const loadExclusiveCards = async () => {
   try {
     serviceCardRecords.value = await exclusiveSpus();
   } catch (error) {
@@ -454,617 +428,768 @@ const loadServiceCards = async () => {
   }
 };
 
+const contactCardRef = ref<HTMLElement | null>(null);
+const contactCardPosition = ref<{ left: number; top: number } | null>(null);
+const isContactCardDragging = ref(false);
+
+const dragState = {
+  offsetX: 0,
+  offsetY: 0,
+  cardWidth: 0,
+  cardHeight: 0,
+};
+
+const contactCardStyle = computed(() => {
+  if (!contactCardPosition.value) {
+    return {};
+  }
+  return {
+    left: `${contactCardPosition.value.left}px`,
+    top: `${contactCardPosition.value.top}px`,
+    right: 'auto',
+    bottom: 'auto',
+  };
+});
+
+const clamp = (value: number, min: number, max: number) => Math.min(Math.max(value, min), max);
+
+const extractPoint = (event: MouseEvent | TouchEvent) => {
+  if ('touches' in event) {
+    const touch = event.touches[0] || event.changedTouches[0];
+    return touch ? { x: touch.clientX, y: touch.clientY } : null;
+  }
+  return { x: event.clientX, y: event.clientY };
+};
+
+const handleContactCardMove = (event: MouseEvent | TouchEvent) => {
+  if (!isContactCardDragging.value) {
+    return;
+  }
+  const point = extractPoint(event);
+  if (!point) {
+    return;
+  }
+  if ('preventDefault' in event) {
+    event.preventDefault();
+  }
+  const maxLeft = Math.max(window.innerWidth - dragState.cardWidth, 0);
+  const maxTop = Math.max(window.innerHeight - dragState.cardHeight, 0);
+  contactCardPosition.value = {
+    left: clamp(point.x - dragState.offsetX, 0, maxLeft),
+    top: clamp(point.y - dragState.offsetY, 0, maxTop),
+  };
+};
+
+const stopContactCardDrag = () => {
+  if (!isContactCardDragging.value) {
+    return;
+  }
+  isContactCardDragging.value = false;
+  window.removeEventListener('mousemove', handleContactCardMove);
+  window.removeEventListener('mouseup', stopContactCardDrag);
+  window.removeEventListener('touchmove', handleContactCardMove);
+  window.removeEventListener('touchend', stopContactCardDrag);
+  document.body.style.userSelect = '';
+};
+
+const startContactCardDrag = (x: number, y: number) => {
+  const card = contactCardRef.value;
+  if (!card) {
+    return;
+  }
+  const rect = card.getBoundingClientRect();
+  dragState.offsetX = x - rect.left;
+  dragState.offsetY = y - rect.top;
+  dragState.cardWidth = rect.width;
+  dragState.cardHeight = rect.height;
+  contactCardPosition.value = { left: rect.left, top: rect.top };
+  isContactCardDragging.value = true;
+  window.addEventListener('mousemove', handleContactCardMove);
+  window.addEventListener('mouseup', stopContactCardDrag);
+  window.addEventListener('touchmove', handleContactCardMove, { passive: false });
+  window.addEventListener('touchend', stopContactCardDrag);
+  document.body.style.userSelect = 'none';
+};
+
+const onContactCardMouseDown = (event: MouseEvent) => {
+  if (event.button !== 0) {
+    return;
+  }
+  startContactCardDrag(event.clientX, event.clientY);
+};
+
+const onContactCardTouchStart = (event: TouchEvent) => {
+  const point = extractPoint(event);
+  if (!point) {
+    return;
+  }
+  startContactCardDrag(point.x, point.y);
+};
+
 onMounted(() => {
   loadServiceMenus();
-  loadServiceCards();
+  loadExclusiveCards();
 });
 
 onBeforeUnmount(() => {
   stopContactCardDrag();
 });
-
-const bookingSteps = computed<BookingStep[]>(() => [
-  {
-    title: t('client.home.steps.step1Title'),
-    desc: t('client.home.steps.step1Desc'),
-  },
-  {
-    title: t('client.home.steps.step2Title'),
-    desc: t('client.home.steps.step2Desc'),
-  },
-  {
-    title: t('client.home.steps.step3Title'),
-    desc: t('client.home.steps.step3Desc'),
-  },
-  {
-    title: t('client.home.steps.step4Title'),
-    desc: t('client.home.steps.step4Desc'),
-  },
-]);
-
-const reasons = computed<Reason[]>(() => [
-  {
-    title: t('client.home.defaults.reason1Title'),
-    desc: t('client.home.defaults.reason1Desc'),
-    icon: 'https://www.figma.com/api/mcp/asset/4ce52fb0-618b-46d7-8220-957414885980',
-  },
-  {
-    title: t('client.home.defaults.reason2Title'),
-    desc: t('client.home.defaults.reason2Desc'),
-    icon: 'https://www.figma.com/api/mcp/asset/19de2f6e-64d6-4673-8b20-b7dad1a27d14',
-  },
-  {
-    title: t('client.home.defaults.reason3Title'),
-    desc: t('client.home.defaults.reason3Desc'),
-    icon: 'https://www.figma.com/api/mcp/asset/e7cb9284-26be-41cc-b586-05a7448cadf4',
-  },
-]);
-
 </script>
 
 <style scoped lang="scss">
 .home-page {
   --primary: #3972f5;
-  --bg-light: #f8fafc;
-  --text-main: #101828;
-  --text-sub: #4a5565;
-  font-family: 'Inter', 'Noto Sans SC', 'PingFang SC', sans-serif;
-  background: var(--bg-light);
+  --primary-dark: #2f63de;
+  --text-main: rgba(15, 23, 42, 0.9);
+  --text-sub: rgba(15, 23, 42, 0.5);
+  background: #fff;
   color: var(--text-main);
+  font-family: 'Inter', 'Noto Sans SC', 'PingFang SC', sans-serif;
 }
 
 .home-container {
-  width: min(1240px, calc(100% - 48px));
+  width: min(1280px, calc(100% - 48px));
   margin: 0 auto;
 }
 
 .hero-section {
-  position: relative;
-  padding: 34px 0 72px;
-  background: linear-gradient(135deg, #eef4ff 0%, #f8fafc 55%, #eef2ff 100%);
+  background: var(--primary);
+  min-height: 600px;
 }
 
 .hero-section__inner {
-  display: grid;
-  grid-template-columns: 1fr 1.05fr;
+  display: flex;
   align-items: center;
-  gap: 24px;
-  min-height: 500px;
+  min-height: 600px;
 }
 
 .hero-section__content {
-  max-width: 520px;
+  width: min(672px, 100%);
 }
 
 .hero-section__eyebrow {
-  margin: 0 0 12px;
-  color: var(--primary);
-  font-size: 15px;
-  font-weight: 700;
+  margin: 0;
+  font-size: 36px;
+  line-height: 40px;
+  font-weight: 800;
+  color: #fff;
 }
 
-.hero-section h1 {
-  margin: 0;
-  color: var(--primary);
-  font-size: 56px;
+.hero-section__title {
+  margin: 16px 0 0;
+  font-size: 36px;
+  line-height: 45px;
   font-weight: 800;
-  line-height: 1.14;
-  letter-spacing: -0.6px;
+  color: #fff;
 }
 
 .hero-section__desc {
   margin: 16px 0 0;
-  color: var(--text-sub);
-  font-size: 18px;
-  line-height: 1.7;
-}
-
-.hero-section__actions {
-  margin-top: 28px;
-  display: flex;
-  align-items: center;
-  gap: 16px;
-}
-
-.hero-section__actions button {
-  height: 48px;
-  border: 0;
-  border-radius: 10px;
-  background: var(--primary);
+  font-size: 36px;
+  line-height: 40px;
+  font-weight: 800;
   color: #fff;
-  padding: 0 24px;
-  font-size: 16px;
+}
+
+.hero-section__cta {
+  margin-top: 56px;
+  width: 178px;
+  height: 70px;
+  border: none;
+  border-radius: 10px;
+  background: #fff;
+  color: var(--primary);
+  font-size: 20px;
   font-weight: 700;
   cursor: pointer;
 }
 
 .hero-section__tags {
+  margin-top: 32px;
   display: flex;
-  gap: 8px;
+  gap: 16px;
+  flex-wrap: wrap;
 }
 
 .hero-section__tags span {
-  height: 36px;
-  padding: 0 14px;
+  height: 28px;
   border-radius: 999px;
+  background: rgba(255, 255, 255, 0.2);
+  color: #fff;
+  padding: 0 12px;
   display: inline-flex;
   align-items: center;
-  background: rgba(57, 114, 245, 0.12);
-  color: var(--primary);
-  font-size: 13px;
+  gap: 8px;
+  font-size: 14px;
   font-weight: 700;
 }
 
-.hero-section__visual {
-  position: relative;
-  border-radius: 20px;
-  overflow: hidden;
-  min-height: 500px;
-  box-shadow: 0 24px 48px rgba(13, 30, 76, 0.15);
+.hero-section__tags span img {
+  width: 16px;
+  height: 16px;
 }
 
-.hero-section__visual img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
-.hero-section__contact-card {
+.contact-card {
   position: fixed;
-  left: 24px;
-  bottom: 24px;
-  width: 196px;
-  padding: 38px 16px 14px;
-  border-radius: 16px;
-  background: linear-gradient(180deg, #1e3a8a 0%, #3972f5 100%);
-  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.25);
-  text-align: center;
+  right: 24px;
+  bottom: 120px;
+  width: 144px;
+  height: 96px;
+  background: var(--primary);
+  border-radius: 14px;
+  box-shadow: 0 25px 50px rgba(0, 0, 0, 0.25);
   z-index: 60;
   cursor: grab;
-  touch-action: none;
   user-select: none;
+  touch-action: none;
 }
 
-.hero-section__contact-card--dragging {
+.contact-card--dragging {
   cursor: grabbing;
 }
 
-.hero-section__agent {
+.contact-card__agent {
   position: absolute;
-  left: 50%;
-  top: -28px;
-  transform: translateX(-50%);
   width: 56px;
   height: 56px;
-  padding: 4px;
+  left: 44px;
+  top: -28px;
   border-radius: 50%;
-  background: #fff;
-  border: 3px solid #1e3a8a;
+  overflow: hidden;
+  box-shadow: 0 0 0 4px rgba(255, 255, 255, 0.8), 0 4px 12px rgba(0, 0, 0, 0.2);
 }
 
-.hero-section__agent img {
+.contact-card__agent img {
   width: 100%;
   height: 100%;
-  border-radius: 50%;
   object-fit: cover;
 }
 
-.hero-section__contact-card p {
-  margin: 0 0 10px;
-  color: #fff;
-  font-size: 17px;
-  font-weight: 700;
+.contact-card__status {
+  position: absolute;
+  right: 4px;
+  bottom: 4px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  border: 2px solid #fff;
+  background: #00c950;
 }
 
-.hero-section__contact-card button {
-  width: 100%;
-  border: 0;
-  height: 28px;
+.contact-card button {
+  position: absolute;
+  left: 19px;
+  top: 44px;
+  width: 106px;
+  height: 32px;
+  border: none;
   border-radius: 999px;
   background: #fff;
   color: var(--primary);
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 700;
   cursor: pointer;
 }
 
-.category-section {
-  padding: 78px 0 66px;
-  background: #fff;
+.services-section {
+  padding: 80px 0 96px;
 }
 
 .section-title {
   margin: 0;
-  text-align: center;
   color: var(--primary);
+  text-align: center;
   font-size: 40px;
-  font-weight: 800;
   line-height: 1.2;
+  font-weight: 800;
 }
 
-.category-section__grid {
-  margin-top: 56px;
+.section-subtitle {
+  margin: 20px auto 0;
+  color: rgba(15, 23, 42, 0.35);
+  text-align: center;
+  font-size: 20px;
+  line-height: 1.4;
+  font-weight: 700;
+}
+
+.section-subtitle--line {
+  width: min(1216px, 100%);
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 16px;
+}
+
+.section-subtitle--line::before,
+.section-subtitle--line::after {
+  content: '';
+  height: 1px;
+  background: linear-gradient(90deg, rgba(0, 0, 0, 0) 0%, #90a1b9 100%);
+}
+
+.section-subtitle--line::after {
+  background: linear-gradient(90deg, #90a1b9 0%, rgba(0, 0, 0, 0) 100%);
+}
+
+.services-grid {
+  margin-top: 88px;
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
-  gap: 24px;
+  row-gap: 80px;
 }
 
-.category-section__item {
+.services-grid__item {
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 16px;
 }
 
-.category-section__icon {
-  width: 110px;
-  height: 110px;
+.services-grid__icon {
+  width: 112px;
+  height: 112px;
   border-radius: 24px;
-  background: #eff6ff;
+  background: rgba(57, 114, 245, 0.05);
   display: flex;
   align-items: center;
   justify-content: center;
 }
 
-.category-section__icon img {
-  width: 52px;
-  height: 52px;
+.services-grid__icon img {
+  width: 56px;
+  height: 56px;
+  object-fit: contain;
 }
 
-.category-section__item p {
+.services-grid__item p {
   margin: 0;
-  color: #314158;
-  font-size: 20px;
-  font-weight: 700;
-}
-
-.service-section {
-  padding: 90px 0;
-}
-
-.section-desc {
-  width: min(900px, 100%);
-  margin: 18px auto 0;
-  color: var(--text-sub);
-  font-size: 18px;
-  line-height: 1.7;
+  min-height: 28px;
   text-align: center;
+  color: var(--text-main);
+  font-size: 20px;
+  line-height: 1.4;
+  font-weight: 800;
 }
 
-.service-section__grid {
-  margin-top: 58px;
+.services-grid__item--placeholder .services-grid__icon {
+  background: rgba(57, 114, 245, 0.05);
+}
+
+.offers-section {
+  background: #f8fafc;
+  padding: 84px 0 120px;
+}
+
+.offers-grid {
+  margin-top: 64px;
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 28px;
+  gap: 32px;
 }
 
-.service-section__card {
+.offer-card {
+  border: 1px solid #f3f4f6;
+  background: #fff;
+  border-radius: 16px;
+  overflow: hidden;
+}
+
+.offer-card__media {
   position: relative;
-  background: #fff;
-  border-radius: 16px;
-  overflow: hidden;
-  box-shadow: 0 10px 24px rgba(10, 31, 68, 0.12);
+  height: 224px;
 }
 
-.service-section__image {
-  width: 100%;
-  height: 220px;
-  object-fit: cover;
-}
-
-.service-section__badge {
-  position: absolute;
-  right: 14px;
-  top: 14px;
-  min-width: 74px;
-  height: 30px;
-  border-radius: 9px;
-  background: #fb2c36;
-  color: #fff;
-  font-size: 12px;
-  font-weight: 700;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.service-section__body {
-  padding: 20px 18px 22px;
-}
-
-.service-section__body h3 {
-  margin: 0;
-  font-size: 20px;
-  line-height: 1.3;
-}
-
-.service-section__body p {
-  margin: 12px 0 0;
-  color: var(--text-sub);
-  line-height: 1.6;
-  font-size: 14px;
-  min-height: 88px;
-}
-
-.service-section__footer {
-  margin-top: 16px;
-}
-
-.service-section__footer strong {
-  display: block;
-  color: var(--primary);
-  font-size: 18px;
-  text-align: center;
-}
-
-.service-section__footer button {
-  margin-top: 8px;
-  width: 100%;
-  height: 46px;
-  border: 0;
-  border-radius: 10px;
-  background: var(--primary);
-  color: #fff;
-  font-size: 15px;
-  font-weight: 700;
-  cursor: pointer;
-}
-
-.booking-section {
-  padding: 76px 0 80px;
-  background: linear-gradient(180deg, #3972f5 0%, #2d63df 100%);
-}
-
-.section-title--light,
-.section-desc--light {
-  color: #fff;
-}
-
-.booking-section__grid {
-  margin-top: 40px;
-  display: grid;
-  grid-template-columns: 440px 1fr;
-  gap: 36px;
-}
-
-.booking-section__form-card {
-  background: #fff;
-  border-radius: 14px;
-  padding: 22px 20px;
-  box-shadow: 0 20px 36px rgba(16, 36, 94, 0.2);
-}
-
-.booking-section__form-card h3 {
-  margin: 0 0 14px;
-  font-size: 18px;
-}
-
-.booking-section__form-card label {
-  display: flex;
-  flex-direction: column;
-  margin-top: 10px;
-  color: #45556c;
-  font-size: 13px;
-  gap: 6px;
-}
-
-.booking-section__form-card input {
-  height: 40px;
-  border-radius: 8px;
-  border: 1px solid #d1d5dc;
-  padding: 0 12px;
-  font-size: 14px;
-}
-
-.booking-section__form-card button {
-  margin-top: 14px;
-  width: 100%;
-  height: 42px;
-  border: 0;
-  border-radius: 8px;
-  background: var(--primary);
-  color: #fff;
-  font-size: 14px;
-  font-weight: 700;
-  cursor: pointer;
-}
-
-.booking-section__steps {
-  display: grid;
-  gap: 14px;
-}
-
-.booking-section__step {
-  border-radius: 12px;
-  background: rgba(255, 255, 255, 0.16);
-  border: 1px solid rgba(255, 255, 255, 0.18);
-  padding: 16px 18px;
-  display: flex;
-  gap: 14px;
-  color: #fff;
-}
-
-.booking-section__step span {
-  width: 30px;
-  height: 30px;
-  border-radius: 50%;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--primary);
-  background: #fff;
-  font-weight: 800;
-  flex-shrink: 0;
-}
-
-.booking-section__step h4 {
-  margin: 0;
-  font-size: 17px;
-}
-
-.booking-section__step p {
-  margin: 6px 0 0;
-  color: rgba(255, 255, 255, 0.86);
-  font-size: 14px;
-  line-height: 1.55;
-}
-
-.about-section {
-  padding: 90px 0 98px;
-}
-
-.about-section__grid {
-  margin-top: 44px;
-  display: grid;
-  grid-template-columns: 1.04fr 1fr;
-  gap: 28px;
-}
-
-.about-section__content {
-  display: grid;
-  gap: 22px;
-}
-
-.about-section__intro {
-  background: #fff;
-  border-radius: 16px;
-  padding: 24px;
-  box-shadow: 0 10px 24px rgba(10, 31, 68, 0.1);
-}
-
-.about-section__intro h3 {
-  margin: 0;
-  color: var(--primary);
-  font-size: 26px;
-}
-
-.about-section__intro p {
-  margin: 10px 0 0;
-  color: var(--text-sub);
-  line-height: 1.75;
-  font-size: 15px;
-}
-
-.about-section__reason-list {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 14px;
-}
-
-.about-section__reason-item {
-  background: #fff;
-  border-radius: 14px;
-  padding: 16px 14px;
-  box-shadow: 0 10px 20px rgba(10, 31, 68, 0.08);
-}
-
-.about-section__reason-item img {
-  width: 34px;
-  height: 34px;
-}
-
-.about-section__reason-item h4 {
-  margin: 10px 0 0;
-  font-size: 15px;
-}
-
-.about-section__reason-item p {
-  margin: 6px 0 0;
-  font-size: 13px;
-  line-height: 1.55;
-  color: var(--text-sub);
-}
-
-.about-section__image-wrap {
-  border-radius: 16px;
-  overflow: hidden;
-  min-height: 390px;
-  box-shadow: 0 18px 30px rgba(10, 31, 68, 0.14);
-}
-
-.about-section__image-wrap img {
+.offer-card__media img {
   width: 100%;
   height: 100%;
   object-fit: cover;
 }
 
-@media (max-width: 1180px) {
-  .service-section__grid {
+.offer-card__badge {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  width: 88px;
+  height: 36px;
+  border-radius: 10px;
+  background: #fb2c36;
+  color: #fff;
+  font-size: 14px;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.offer-card__body {
+  padding: 24px;
+}
+
+.offer-card__body h3 {
+  margin: 0;
+  font-size: 20px;
+  line-height: 28px;
+  font-weight: 800;
+}
+
+.offer-card__desc {
+  margin: 12px 0 0;
+  color: var(--text-sub);
+  font-size: 14px;
+  line-height: 1.6;
+  min-height: 68px;
+}
+
+.offer-card__price {
+  margin: 18px 0 0;
+  color: var(--primary);
+  text-align: center;
+  font-size: 16px;
+  line-height: 24px;
+  font-weight: 700;
+}
+
+.offer-card__body button {
+  margin-top: 8px;
+  width: 100%;
+  height: 48px;
+  border: none;
+  border-radius: 10px;
+  background: var(--primary);
+  color: #fff;
+  font-size: 16px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.booking-section {
+  background: var(--primary);
+  padding: 80px 0 96px;
+}
+
+.section-title--light {
+  color: #fff;
+}
+
+.section-subtitle--light {
+  color: #dbeafe;
+}
+
+.booking-steps {
+  margin-top: 64px;
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.booking-steps__line {
+  position: absolute;
+  top: 44px;
+  left: 16%;
+  width: 68%;
+  height: 2px;
+  background: rgba(81, 162, 255, 0.3);
+  border-top: 2px solid rgba(142, 197, 255, 0.4);
+}
+
+.booking-step {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 40px;
+  z-index: 1;
+}
+
+.booking-step__icon {
+  width: 96px;
+  height: 72px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.booking-step__icon img {
+  width: 36px;
+  height: 36px;
+  object-fit: contain;
+}
+
+.booking-step h3 {
+  margin: 0;
+  color: #fff;
+  font-size: 24px;
+  line-height: 32px;
+  font-weight: 700;
+}
+
+.booking-step p {
+  margin: 0;
+  color: rgba(219, 234, 254, 0.8);
+  font-size: 16px;
+  line-height: 26px;
+  font-weight: 500;
+}
+
+.about-section {
+  padding: 112px 0 108px;
+}
+
+.about-content {
+  margin-top: 64px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 64px;
+  align-items: start;
+}
+
+.about-content__left h3 {
+  margin: 0;
+  font-size: 40px;
+  line-height: 1.2;
+  font-weight: 800;
+}
+
+.about-content__left ul {
+  margin: 36px 0 0;
+  padding: 0 0 0 22px;
+  list-style: disc;
+}
+
+.about-content__left li {
+  color: rgba(15, 23, 42, 0.5);
+  font-size: 20px;
+  line-height: 1.4;
+  font-weight: 500;
+  margin-top: 12px;
+}
+
+.about-reasons {
+  margin-top: 56px;
+  display: flex;
+  gap: 22px;
+}
+
+.about-reason {
+  width: 140px;
+  height: 170px;
+  border-radius: 14px;
+  border: 1px solid #f3f4f6;
+  background: #fff;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding-top: 25px;
+}
+
+.about-reason__icon-wrap {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: #faf5e4;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+}
+
+.about-reason__icon-wrap img {
+  width: 28px;
+  height: 28px;
+}
+
+.about-reason__icon-wrap span {
+  position: absolute;
+  right: -2px;
+  bottom: -2px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  border: 2px solid #fff;
+  background: #fb2c36;
+}
+
+.about-reason h4 {
+  margin: 20px 0 0;
+  font-size: 20px;
+  line-height: 1.4;
+  font-weight: 800;
+}
+
+.about-reason p {
+  margin: 20px 0 0;
+  color: var(--text-sub);
+  font-size: 13px;
+  line-height: 1.25;
+}
+
+.about-content__image {
+  height: 500px;
+  border-radius: 16px;
+  overflow: hidden;
+}
+
+.about-content__image img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+@media (max-width: 1300px) {
+  .hero-section {
+    min-height: 440px;
+  }
+
+  .hero-section__inner {
+    min-height: 440px;
+  }
+
+  .hero-section__cta {
+    width: 150px;
+    height: 60px;
+    font-size: 18px;
+  }
+
+  .services-grid {
+    margin-top: 54px;
+    row-gap: 48px;
+  }
+
+  .offers-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  .category-section__grid {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+  .about-content {
+    gap: 28px;
   }
 
-  .booking-section__grid {
-    grid-template-columns: 1fr;
+  .about-content__left li {
+    font-size: 16px;
   }
 }
 
-@media (max-width: 900px) {
+@media (max-width: 960px) {
   .home-container {
     width: calc(100% - 32px);
   }
 
   .hero-section {
-    padding: 24px 0 44px;
+    min-height: auto;
+    padding: 48px 0 56px;
   }
 
   .hero-section__inner {
-    grid-template-columns: 1fr;
     min-height: auto;
   }
 
-  .hero-section h1 {
-    font-size: 40px;
+  .hero-section__eyebrow {
+    font-size: 24px;
   }
 
-  .hero-section__visual {
-    min-height: 360px;
+  .hero-section__title,
+  .hero-section__desc {
+    font-size: 32px;
   }
 
-  .hero-section__contact-card {
-    width: 168px;
-    left: 12px;
-    bottom: 12px;
-    padding: 34px 12px 12px;
+  .hero-section__desc {
+    margin-top: 8px;
+  }
+
+  .hero-section__cta {
+    margin-top: 24px;
   }
 
   .section-title {
     font-size: 32px;
   }
 
-  .section-desc {
+  .section-subtitle {
+    margin-top: 14px;
     font-size: 16px;
   }
 
-  .about-section__grid {
+  .section-subtitle--line {
     grid-template-columns: 1fr;
   }
 
-  .about-section__reason-list {
+  .section-subtitle--line::before,
+  .section-subtitle--line::after {
+    display: none;
+  }
+
+  .services-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .booking-steps {
     grid-template-columns: 1fr;
+    gap: 30px;
+  }
+
+  .booking-steps__line {
+    display: none;
+  }
+
+  .booking-step {
+    gap: 16px;
+  }
+
+  .booking-step h3 {
+    font-size: 24px;
+  }
+
+  .about-content {
+    grid-template-columns: 1fr;
+  }
+
+  .about-content__image {
+    height: 360px;
+    order: -1;
+  }
+
+  .about-reasons {
+    flex-wrap: wrap;
+  }
+
+  .contact-card {
+    width: 128px;
+    height: 88px;
+    right: 12px;
+    bottom: 90px;
+  }
+
+  .contact-card__agent {
+    left: 36px;
+  }
+
+  .contact-card button {
+    left: 10px;
+    width: 108px;
   }
 }
 
 @media (max-width: 640px) {
-  .hero-section h1 {
-    font-size: 34px;
+  .hero-section__tags {
+    gap: 8px;
   }
 
-  .hero-section__actions {
-    flex-direction: column;
-    align-items: flex-start;
-  }
-
-  .category-section {
-    padding: 56px 0 48px;
-  }
-
-  .category-section__grid,
-  .service-section__grid {
+  .services-grid {
     grid-template-columns: 1fr;
+    row-gap: 24px;
+  }
+
+  .offers-grid {
+    grid-template-columns: 1fr;
+    gap: 20px;
+  }
+
+  .about-content__left h3 {
+    font-size: 32px;
   }
 }
 </style>

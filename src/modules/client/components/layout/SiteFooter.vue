@@ -16,7 +16,8 @@
           <h4 class="site-footer__col-title">{{ t('client.footer.quickLinks') }}</h4>
           <a href="#home">{{ t('client.header.nav.home') }}</a>
           <a href="#services">{{ t('client.footer.services') }}</a>
-          <a href="#about">{{ t('client.footer.about') }}</a>
+          <a href="#orders">{{ t('client.header.nav.orders') }}</a>
+          <a href="#join-us">{{ t('client.footer.about') }}</a>
         </div>
 
         <div class="site-footer__col">
