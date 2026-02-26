@@ -4,48 +4,52 @@
       <div class="toolbar">
         <el-input
           v-model="query.nameKeyword"
-          placeholder="搜索二级分类名称"
+          :placeholder="t('admin.subcategory.searchPlaceholder')"
           clearable
           @keyup.enter="handleSearch"
         />
-        <el-select v-model="query.parentId" placeholder="所属一级分类" clearable style="width: 200px">
+        <el-select v-model="query.parentId" :placeholder="t('admin.subcategory.parentPlaceholder')" clearable style="width: 200px">
           <el-option v-for="c in categories" :key="c.id" :label="c.displayName" :value="c.id" />
         </el-select>
-        <el-button type="primary" @click="handleSearch">搜索</el-button>
-        <el-button @click="reset">重置</el-button>
-        <el-button type="primary" @click="openCreate">新增二级分类</el-button>
+        <el-button type="primary" @click="handleSearch">{{ t('admin.subcategory.actions.search') }}</el-button>
+        <el-button @click="reset">{{ t('admin.subcategory.actions.reset') }}</el-button>
+        <el-button type="primary" @click="openCreate">{{ t('admin.subcategory.actions.create') }}</el-button>
       </div>
 
       <el-table :data="displayList" border stripe row-key="id" v-loading="tableLoading">
-        <el-table-column prop="sort" label="排序" width="100" />
-        <el-table-column label="名称" min-width="180">
+        <el-table-column prop="sort" :label="t('admin.subcategory.table.sort')" width="100" />
+        <el-table-column :label="t('admin.subcategory.table.name')" min-width="180">
           <template #default="{ row }">{{ row.displayName }}</template>
         </el-table-column>
-        <el-table-column prop="parentName" label="所属一级分类" min-width="160" />
-        <el-table-column label="图标" width="120">
+        <el-table-column prop="parentName" :label="t('admin.subcategory.table.parent')" min-width="160" />
+        <el-table-column :label="t('admin.subcategory.table.icon')" width="120">
           <template #default="{ row }">
             <img v-if="row.iconUrl" :src="row.iconUrl" alt="" class="icon-thumb" />
             <span v-else>-</span>
           </template>
         </el-table-column>
-        <el-table-column label="状态" width="140">
+        <el-table-column :label="t('admin.subcategory.table.status')" width="140">
           <template #default="{ row }">
             <el-switch
               v-model="row.enabled"
-              active-text="启用"
-              inactive-text="停用"
+              :active-text="t('admin.common.enabled')"
+              :inactive-text="t('admin.common.disabled')"
               inline-prompt
               @change="toggleStatus(row)"
             />
           </template>
         </el-table-column>
-        <el-table-column label="创建时间" min-width="160">
+        <el-table-column :label="t('admin.subcategory.table.createdAt')" min-width="160">
           <template #default="{ row }">{{ formatDate(row.createdAt) }}</template>
         </el-table-column>
-        <el-table-column label="操作" width="180" fixed="right">
+        <el-table-column :label="t('admin.subcategory.table.actions')" width="180" fixed="right">
           <template #default="{ row }">
-            <el-button link type="primary" size="small" @click="openEdit(row)">编辑</el-button>
-            <el-button link type="danger" size="small" @click="remove(row)">删除</el-button>
+            <el-button link type="primary" size="small" @click="openEdit(row)">
+              {{ t('admin.subcategory.actions.edit') }}
+            </el-button>
+            <el-button link type="danger" size="small" @click="remove(row)">
+              {{ t('admin.subcategory.actions.delete') }}
+            </el-button>
           </template>
         </el-table-column>
       </el-table>
@@ -63,30 +67,36 @@
       </div>
     </el-card>
 
-    <el-dialog v-model="dialogVisible" :title="isEdit ? '编辑二级分类' : '新增二级分类'" width="520px">
+    <el-dialog
+      v-model="dialogVisible"
+      :title="isEdit ? t('admin.subcategory.dialog.editTitle') : t('admin.subcategory.dialog.createTitle')"
+      width="520px"
+    >
       <el-form ref="formRef" :model="form" :rules="rules" label-width="110px">
-        <el-form-item label="排序" prop="sort">
+        <el-form-item :label="t('admin.subcategory.form.sort')" prop="sort">
           <el-input-number v-model="form.sort" :min="0" :step="1" />
         </el-form-item>
-        <el-form-item label="所属一级分类" prop="parentId">
-          <el-select v-model="form.parentId" placeholder="请选择" style="width: 100%">
+        <el-form-item :label="t('admin.subcategory.form.parent')" prop="parentId">
+          <el-select v-model="form.parentId" :placeholder="t('admin.subcategory.form.parentPlaceholder')" style="width: 100%">
             <el-option v-for="c in categories" :key="c.id" :label="c.displayName" :value="c.id" />
           </el-select>
         </el-form-item>
-        <el-form-item label="名称(多语言)" prop="nameI18n">
+        <el-form-item :label="t('admin.subcategory.form.nameI18n')" prop="nameI18n">
           <div class="i18n-list">
             <div v-for="(item, idx) in nameI18nList" :key="idx" class="i18n-row">
-              <el-select v-model="item.lang" placeholder="语言" style="width: 140px">
-                <el-option label="中文(zh-CN)" value="zh-CN" />
-                <el-option label="英文(en)" value="en" />
+              <el-select v-model="item.lang" :placeholder="t('admin.subcategory.form.languagePlaceholder')" style="width: 140px">
+                <el-option :label="t('admin.common.langZhCn')" value="zh-CN" />
+                <el-option :label="t('admin.common.langEnCode')" value="en" />
               </el-select>
-              <el-input v-model="item.value" placeholder="名称" />
-              <el-button link type="danger" :disabled="nameI18nList.length===1" @click="removeI18n(idx)">删除</el-button>
+              <el-input v-model="item.value" :placeholder="t('admin.subcategory.form.namePlaceholder')" />
+              <el-button link type="danger" :disabled="nameI18nList.length===1" @click="removeI18n(idx)">
+                {{ t('admin.subcategory.actions.removeLang') }}
+              </el-button>
             </div>
-            <el-button link type="primary" @click="addI18n">+ 添加语言</el-button>
+            <el-button link type="primary" @click="addI18n">{{ t('admin.subcategory.actions.addLang') }}</el-button>
           </div>
         </el-form-item>
-        <el-form-item label="图标" prop="iconUrl">
+        <el-form-item :label="t('admin.subcategory.form.icon')" prop="iconUrl">
           <el-upload
             :http-request="handleIconUpload"
             list-type="picture-card"
@@ -94,18 +104,18 @@
             :on-remove="onIconRemove"
             accept="image/*"
             :limit="1"
-            :on-exceed="() => ElMessage.warning('只能上传一张图片')"
+            :on-exceed="() => ElMessage.warning(t('admin.subcategory.message.uploadOnlyOne'))"
           >
             <el-icon><Plus /></el-icon>
           </el-upload>
         </el-form-item>
-        <el-form-item label="状态" prop="enabled">
-          <el-switch v-model="form.enabled" active-text="启用" inactive-text="停用" />
+        <el-form-item :label="t('admin.subcategory.form.status')" prop="enabled">
+          <el-switch v-model="form.enabled" :active-text="t('admin.common.enabled')" :inactive-text="t('admin.common.disabled')" />
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="dialogVisible = false">取消</el-button>
-        <el-button type="primary" :loading="submitLoading" @click="save">保存</el-button>
+        <el-button @click="dialogVisible = false">{{ t('admin.subcategory.actions.cancel') }}</el-button>
+        <el-button type="primary" :loading="submitLoading" @click="save">{{ t('admin.subcategory.actions.save') }}</el-button>
       </template>
     </el-dialog>
   </div>
@@ -132,7 +142,7 @@ type SubCategory = {
 };
 
 const categories = ref<{ id: number; displayName: string }[]>([]);
-const { locale } = useI18n({ useScope: 'global' });
+const { locale, t } = useI18n({ useScope: 'global' });
 const list = ref<SubCategory[]>([]);
 const query = reactive({
   nameKeyword: '',
@@ -174,19 +184,19 @@ const iconFileList = ref<UploadUserFile[]>([]);
 const nameI18nList = ref<{ lang: string; value: string }[]>([{ lang: 'zh-CN', value: '' }]);
 
 const rules: FormRules = {
-  sort: [{ required: true, message: '请输入排序', trigger: 'blur' }],
-  parentId: [{ required: true, message: '请选择一级分类', trigger: 'change' }],
+  sort: [{ required: true, message: t('admin.subcategory.validation.sortRequired'), trigger: 'blur' }],
+  parentId: [{ required: true, message: t('admin.subcategory.validation.parentRequired'), trigger: 'change' }],
   nameI18n: [
     {
       validator: (_r, _v, cb) => {
         const invalid = nameI18nList.value.find((i) => !i.lang?.trim() || !i.value?.trim());
-        if (invalid) return cb(new Error('请完善多语言名称'));
+        if (invalid) return cb(new Error(t('admin.subcategory.validation.nameI18nIncomplete')));
         cb();
       },
       trigger: 'change',
     },
   ],
-  iconUrl: [{ required: true, message: '请上传图标', trigger: 'change' }],
+  iconUrl: [{ required: true, message: t('admin.subcategory.validation.iconRequired'), trigger: 'change' }],
 };
 
 const handleSearch = () => {
@@ -267,12 +277,12 @@ const save = () => {
     };
     action(payload)
       .then(() => {
-        ElMessage.success('保存成功');
+        ElMessage.success(t('admin.subcategory.message.saveSuccess'));
         dialogVisible.value = false;
         fetchList();
       })
       .catch((err: any) => {
-        ElMessage.error(err?.message || '保存失败');
+        ElMessage.error(err?.message || t('admin.subcategory.message.saveFailed'));
       })
       .finally(() => {
         submitLoading.value = false;
@@ -283,11 +293,15 @@ const save = () => {
 const toggleStatus = (row: SubCategory) => {
   changeStatus({ id: row.id, status: row.enabled ? 1 : 0 })
     .then(() => {
-      ElMessage.success(`已${row.enabled ? '启用' : '停用'}`);
+      ElMessage.success(
+        t('admin.subcategory.message.statusChanged', {
+          status: row.enabled ? t('admin.common.enabled') : t('admin.common.disabled'),
+        }),
+      );
       fetchList();
     })
     .catch((err: any) => {
-      ElMessage.error(err?.message || '更新状态失败');
+      ElMessage.error(err?.message || t('admin.subcategory.message.statusChangeFailed'));
       row.enabled = !row.enabled;
     });
 };
@@ -298,10 +312,14 @@ const remove = (row: SubCategory) => {
     locale.value,
     row.displayName || '',
   );
-  ElMessageBox.confirm(`确定删除二级分类「${label}」吗？`, '提示', { type: 'warning' })
+  ElMessageBox.confirm(
+    t('admin.subcategory.message.deleteConfirm', { label }),
+    t('admin.common.confirmTitle'),
+    { type: 'warning' },
+  )
     .then(() => del({ id: row.id }))
     .then(() => {
-      ElMessage.success('删除成功');
+      ElMessage.success(t('admin.subcategory.message.deleteSuccess'));
       fetchList();
     })
     .catch(() => {});
@@ -314,13 +332,13 @@ const handleIconUpload = (options: UploadRequestOptions) => {
   upload(formData)
     .then((res: any) => {
       const url = res?.data?.url || res?.data || res?.url;
-      if (!url) throw new Error('上传失败');
+      if (!url) throw new Error(t('admin.subcategory.message.uploadFailed'));
       form.iconUrl = url;
       iconFileList.value = [{ name: file.name, url }];
       options.onSuccess?.({ url } as any, file as any);
     })
     .catch((err: any) => {
-      ElMessage.error(err?.message || '上传失败');
+      ElMessage.error(err?.message || t('admin.subcategory.message.uploadFailed'));
       options.onError?.(err as any);
     });
 };
@@ -388,7 +406,7 @@ const fetchList = async () => {
     }));
     total.value = data.total ?? records.length;
   } catch (error: any) {
-    ElMessage.error(error?.message || '获取二级分类失败');
+    ElMessage.error(error?.message || t('admin.subcategory.message.fetchFailed'));
   } finally {
     tableLoading.value = false;
   }

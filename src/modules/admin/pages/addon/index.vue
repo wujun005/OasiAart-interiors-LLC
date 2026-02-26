@@ -4,31 +4,35 @@
       <div class="toolbar">
         <el-input
           v-model="query.nameKeyword"
-          placeholder="搜索附加项名称"
+          :placeholder="t('admin.addon.searchPlaceholder')"
           clearable
           @keyup.enter="handleSearch"
         />
-        <el-select v-model="query.categoryId" placeholder="附加项分类" clearable style="width: 200px">
+        <el-select v-model="query.categoryId" :placeholder="t('admin.addon.categoryPlaceholder')" clearable style="width: 200px">
           <el-option v-for="c in categoryOptions" :key="c.id" :label="c.displayName" :value="c.id" />
         </el-select>
-        <el-button type="primary" @click="handleSearch">搜索</el-button>
-        <el-button @click="reset">重置</el-button>
-        <el-button type="primary" @click="openCreate">新增附加项</el-button>
+        <el-button type="primary" @click="handleSearch">{{ t('admin.addon.actions.search') }}</el-button>
+        <el-button @click="reset">{{ t('admin.addon.actions.reset') }}</el-button>
+        <el-button type="primary" @click="openCreate">{{ t('admin.addon.actions.create') }}</el-button>
       </div>
 
       <el-table :data="displayList" border stripe row-key="id" v-loading="tableLoading">
-        <el-table-column label="名称" min-width="160">
+        <el-table-column :label="t('admin.addon.table.name')" min-width="160">
           <template #default="{ row }">{{ row.displayName }}</template>
         </el-table-column>
-        <el-table-column prop="categoryName" label="附加项分类" min-width="160" />
-        <el-table-column prop="amount" label="价格" width="120" />
-        <el-table-column label="更新时间" min-width="180">
+        <el-table-column prop="categoryName" :label="t('admin.addon.table.category')" min-width="160" />
+        <el-table-column prop="amount" :label="t('admin.addon.table.amount')" width="120" />
+        <el-table-column :label="t('admin.addon.table.updatedAt')" min-width="180">
           <template #default="{ row }">{{ formatDate(row.updatedAt) }}</template>
         </el-table-column>
-        <el-table-column label="操作" width="180" fixed="right">
+        <el-table-column :label="t('admin.addon.table.actions')" width="180" fixed="right">
           <template #default="{ row }">
-            <el-button link type="primary" size="small" @click="openEdit(row)">编辑</el-button>
-            <el-button link type="danger" size="small" @click="remove(row)">删除</el-button>
+            <el-button link type="primary" size="small" @click="openEdit(row)">
+              {{ t('admin.addon.actions.edit') }}
+            </el-button>
+            <el-button link type="danger" size="small" @click="remove(row)">
+              {{ t('admin.addon.actions.delete') }}
+            </el-button>
           </template>
         </el-table-column>
       </el-table>
@@ -46,33 +50,39 @@
       </div>
     </el-card>
 
-    <el-dialog v-model="dialogVisible" :title="isEdit ? '编辑附加项' : '新增附加项'" width="520px">
+    <el-dialog
+      v-model="dialogVisible"
+      :title="isEdit ? t('admin.addon.dialog.editTitle') : t('admin.addon.dialog.createTitle')"
+      width="520px"
+    >
       <el-form ref="formRef" :model="form" :rules="rules" label-width="100px">
-        <el-form-item label="名称(多语言)" prop="nameI18n">
+        <el-form-item :label="t('admin.addon.form.nameI18n')" prop="nameI18n">
           <div class="i18n-list">
             <div v-for="(item, idx) in nameI18nList" :key="idx" class="i18n-row">
-              <el-select v-model="item.lang" placeholder="语言" style="width: 140px">
-                <el-option label="中文(zh-CN)" value="zh-CN" />
-                <el-option label="英文(en)" value="en" />
+              <el-select v-model="item.lang" :placeholder="t('admin.addon.form.languagePlaceholder')" style="width: 140px">
+                <el-option :label="t('admin.common.langZhCn')" value="zh-CN" />
+                <el-option :label="t('admin.common.langEnCode')" value="en" />
               </el-select>
-              <el-input v-model="item.value" placeholder="名称" />
-              <el-button link type="danger" :disabled="nameI18nList.length===1" @click="removeI18n(idx)">删除</el-button>
+              <el-input v-model="item.value" :placeholder="t('admin.addon.form.namePlaceholder')" />
+              <el-button link type="danger" :disabled="nameI18nList.length===1" @click="removeI18n(idx)">
+                {{ t('admin.addon.actions.removeLang') }}
+              </el-button>
             </div>
-            <el-button link type="primary" @click="addI18n">+ 添加语言</el-button>
+            <el-button link type="primary" @click="addI18n">{{ t('admin.addon.actions.addLang') }}</el-button>
           </div>
         </el-form-item>
-        <el-form-item label="附加项分类" prop="categoryId">
-          <el-select v-model="form.categoryId" placeholder="请选择分类" style="width: 100%">
+        <el-form-item :label="t('admin.addon.form.category')" prop="categoryId">
+          <el-select v-model="form.categoryId" :placeholder="t('admin.addon.form.categoryPlaceholder')" style="width: 100%">
             <el-option v-for="c in categoryOptions" :key="c.id" :label="c.displayName" :value="c.id" />
           </el-select>
         </el-form-item>
-        <el-form-item label="价格" prop="amount">
+        <el-form-item :label="t('admin.addon.form.amount')" prop="amount">
           <el-input-number v-model="form.amount" :min="0" :step="1" />
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="dialogVisible = false">取消</el-button>
-        <el-button type="primary" :loading="submitLoading" @click="save">保存</el-button>
+        <el-button @click="dialogVisible = false">{{ t('admin.addon.actions.cancel') }}</el-button>
+        <el-button type="primary" :loading="submitLoading" @click="save">{{ t('admin.addon.actions.save') }}</el-button>
       </template>
     </el-dialog>
   </div>
@@ -97,7 +107,7 @@ type Addon = {
 };
 
 const categoryOptions = ref<{ id: number; displayName: string; nameI18n?: Record<string, string> }[]>([]);
-const { locale } = useI18n({ useScope: 'global' });
+const { locale, t } = useI18n({ useScope: 'global' });
 
 const list = ref<Addon[]>([]);
 const query = reactive({
@@ -128,14 +138,14 @@ const rules: FormRules = {
     {
       validator: (_r, _v, cb) => {
         const invalid = nameI18nList.value.find((i) => !i.lang?.trim() || !i.value?.trim());
-        if (invalid) return cb(new Error('请完善多语言名称'));
+        if (invalid) return cb(new Error(t('admin.addon.validation.nameI18nIncomplete')));
         cb();
       },
       trigger: 'change',
     },
   ],
-  categoryId: [{ required: true, message: '请选择附加项分类', trigger: 'change' }],
-  amount: [{ required: true, message: '请输入价格', trigger: 'blur' }],
+  categoryId: [{ required: true, message: t('admin.addon.validation.categoryRequired'), trigger: 'change' }],
+  amount: [{ required: true, message: t('admin.addon.validation.amountRequired'), trigger: 'blur' }],
 };
 
 const displayList = computed(() =>
@@ -212,12 +222,12 @@ const save = () => {
     };
     addOrUpdate(payload)
       .then(() => {
-        ElMessage.success('保存成功');
+        ElMessage.success(t('admin.addon.message.saveSuccess'));
         dialogVisible.value = false;
         fetchList();
       })
       .catch((err: any) => {
-        ElMessage.error(err?.message || '保存失败');
+        ElMessage.error(err?.message || t('admin.addon.message.saveFailed'));
       })
       .finally(() => {
         submitLoading.value = false;
@@ -231,10 +241,14 @@ const remove = (row: Addon) => {
     locale.value,
     row.displayName || '',
   );
-  ElMessageBox.confirm(`确定删除「${label}」吗？`, '提示', { type: 'warning' })
+  ElMessageBox.confirm(
+    t('admin.addon.message.deleteConfirm', { label }),
+    t('admin.common.confirmTitle'),
+    { type: 'warning' },
+  )
     .then(() => deleteAttachValue({ id: row.id }))
     .then(() => {
-      ElMessage.success('删除成功');
+      ElMessage.success(t('admin.addon.message.deleteSuccess'));
       fetchList();
     })
     .catch(() => {});
@@ -262,7 +276,7 @@ const fetchCategories = async () => {
     }));
     if (!form.categoryId && categoryOptions.value.length) form.categoryId = categoryOptions.value[0].id;
   } catch (error: any) {
-    ElMessage.error(error?.message || '获取附加项分类失败');
+    ElMessage.error(error?.message || t('admin.addon.message.fetchCategoryFailed'));
   }
 };
 
@@ -291,7 +305,7 @@ const fetchList = async () => {
     }));
     total.value = data.total ?? records.length;
   } catch (error: any) {
-    ElMessage.error(error?.message || '获取附加项失败');
+    ElMessage.error(error?.message || t('admin.addon.message.fetchFailed'));
   } finally {
     tableLoading.value = false;
   }

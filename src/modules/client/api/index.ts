@@ -9,6 +9,9 @@ export interface Level1CategoryRecord {
   };
   nameI18n?: Record<string, string>;
   imageUrls?: string[];
+  bannerTitleI18n?: Record<string, string>;
+  bannerDescI18n?: Record<string, string>;
+  bannerTagsI18n?: Record<string, string[] | string>;
 }
 
 export interface ExclusiveSpuRecord {
@@ -17,6 +20,52 @@ export interface ExclusiveSpuRecord {
   nameI18n?: Record<string, string>;
   descI18n?: Record<string, string>;
   minPrice?: number | string;
+}
+
+export interface OrderListRecord {
+  orderAmount?: number | string;
+  spuName?: string;
+  spuNameI18n?: Record<string, string>;
+  status?: number | string;
+  orderNo?: string;
+  firstName?: string;
+  lastName?: string;
+  phone?: string;
+  email?: string;
+  serviceAddress?: string;
+  remark?: string;
+  serviceDateTime?: string;
+  paymentMethod?: string;
+  statusName?: string;
+  statusNameI18n?: Record<string, string>;
+  skuCode?: string;
+  spuId?: number | string;
+  spuImage?: string;
+  reviewed?: boolean;
+  specSelections?: Array<{
+    specTypeId?: number | string;
+    specValueId?: number | string;
+    specTypeName?: string;
+    specValueName?: string;
+  }>;
+  attachSelections?: Array<{
+    attachTypeId?: number | string;
+    attachValueId?: number | string;
+    attachValueName?: string;
+    quantity?: number | string;
+    attachTypeName?: string;
+  }>;
+}
+
+export interface LatestAddressRecord {
+  firstName?: string;
+  lastName?: string;
+  phone?: string;
+  email?: string;
+  serviceAddress?: string;
+  remark?: string;
+  serviceDateTime?: string;
+  paymentMethod?: string;
 }
 
 type ApiSuccessEnvelope<T> = {
@@ -155,6 +204,54 @@ export async function getProductDetail(spuId: string | number) {
   return payload && typeof payload === 'object' && 'data' in payload ? payload.data : null;
 }
 
+// /client/product/sku 获取价格
+export async function getProductSku(params: any) {
+  const payload = await http.post('/client/product/sku', params);
+  return payload && typeof payload === 'object' && 'data' in payload ? payload.data : null;
+}
+
+// /client/order/list 获取订单列表
+export async function getOrderList(params?: any) {
+  const payload = await http.get('/client/order/list', { params: params });
+  return getDataList<OrderListRecord>(payload);
+}
+
+// /client/order/place 创建订单
+export async function createOrder(params: any) {
+  const payload = await http.post('/client/order/place', params);
+  return payload && typeof payload === 'object' && 'data' in payload ? payload.data : null;
+}
+
+// /client/order/getLatestAddress 获取最新地址
+export async function getLatestAddress(params?: any) {
+  const payload = await http.get('/client/order/getLatestAddress', { params: params });
+  if (payload && typeof payload === 'object') {
+    if ('data' in payload) {
+      const envelope = payload as { data?: unknown };
+      if (envelope.data && typeof envelope.data === 'object' && !Array.isArray(envelope.data)) {
+        return envelope.data as LatestAddressRecord;
+      }
+      return null;
+    }
+    if (!Array.isArray(payload)) {
+      return payload as LatestAddressRecord;
+    }
+  }
+  return null;
+}
+
+// /client/order/saveContactAddress 保存联系地址
+export async function saveContactAddress(params: any) {
+  const payload = await http.post('/client/order/saveContactAddress', params);
+  return payload && typeof payload === 'object' && 'data' in payload ? payload.data : null;
+}
+
+// /client/order/review  保存评价
+export async function review(params: any) {
+  const payload = await http.post('/client/order/review', params);
+  return payload && typeof payload === 'object' && 'data' in payload ? payload.data : null;
+}
+
 export default {
   register,
   getServicesList,
@@ -167,4 +264,5 @@ export default {
   getOrderDetail,
   level1Categories,
   exclusiveSpus,
+  getOrderList,
 };

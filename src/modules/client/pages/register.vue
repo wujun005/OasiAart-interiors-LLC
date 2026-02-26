@@ -281,6 +281,29 @@ const validateForm = () => {
   return true;
 };
 
+const saveClientToken = (raw: any) => {
+  const payload = raw?.data ?? raw ?? {};
+  const token = payload?.token || payload?.accessToken;
+  if (!token) {
+    return false;
+  }
+  localStorage.setItem('token', String(token));
+  if (payload?.tokenType) {
+    localStorage.setItem('tokenType', String(payload.tokenType));
+  }
+  if (payload?.expiresIn !== undefined && payload?.expiresIn !== null) {
+    const expiresAt = Date.now() + Number(payload.expiresIn);
+    localStorage.setItem('expiresAt', String(expiresAt));
+  }
+  if (payload?.userId !== undefined && payload?.userId !== null) {
+    localStorage.setItem('userId', String(payload.userId));
+  }
+  if (payload?.username) {
+    localStorage.setItem('username', String(payload.username));
+  }
+  return true;
+};
+
 const submitRegister = async () => {
   if (!validateForm()) return;
   submitting.value = true;
@@ -293,7 +316,10 @@ const submitRegister = async () => {
       smsCode: form.smsCode.trim(),
       verifyCode: form.smsCode.trim(),
     };
-    await registerByEmailPhone(payload);
+    const result = await registerByEmailPhone(payload);
+    if (!saveClientToken(result)) {
+      throw new Error(t('client.login.register.failed'));
+    }
     ElMessage.success(t('client.login.register.success'));
     router.push('/');
   } catch (error: any) {

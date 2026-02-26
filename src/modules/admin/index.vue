@@ -14,6 +14,7 @@
             :key="item.id"
             :item="item"
             :resolve-icon="resolveMenuIcon"
+            :resolve-label="resolveMenuLabel"
           />
         </el-menu>
         <div v-if="!menuTree.length" class="menu-empty">
@@ -100,7 +101,8 @@ const activeMenu = computed(() => {
 
 const pageTitle = computed(() => {
   if (!activeMenu.value) return t('admin.layout.overview');
-  return menuByPath.value.get(activeMenu.value)?.name || t('admin.layout.overview');
+  const activeItem = menuByPath.value.get(activeMenu.value);
+  return activeItem ? resolveMenuLabel(activeItem) : t('admin.layout.overview');
 });
 
 const handleSelect = (path: string) => {
@@ -146,6 +148,26 @@ const resolveMenuIcon = (item: AdminMenuPermissionItem) => {
   if (path.startsWith('/admin/basic')) return FolderOpened;
   if (path === '/admin') return House;
   return MenuIcon;
+};
+
+const menuLabelKeyByPath: Record<string, string> = {
+  '/admin': 'admin.layout.overview',
+  '/admin/orders': 'admin.layout.order',
+  '/admin/products': 'admin.layout.product',
+  '/admin/users': 'admin.layout.user',
+  '/admin/basic': 'admin.layout.basicData',
+  '/admin/basic/categories': 'admin.layout.categoryL1',
+  '/admin/basic/subcategories': 'admin.layout.categoryL2',
+  '/admin/basic/spec-types': 'admin.layout.specType',
+  '/admin/basic/specs': 'admin.layout.spec',
+  '/admin/basic/addon-categories': 'admin.layout.addonCategory',
+  '/admin/basic/addons': 'admin.layout.addon',
+};
+
+const resolveMenuLabel = (item: AdminMenuPermissionItem) => {
+  const key = item.path ? menuLabelKeyByPath[item.path] : '';
+  if (key) return t(key);
+  return item.name || '';
 };
 
 loadAdminMenuPermissions().catch((error) => {

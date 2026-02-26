@@ -4,36 +4,40 @@
       <div class="toolbar">
         <el-input
           v-model="query.nameKeyword"
-          placeholder="搜索规格名称"
+          :placeholder="t('admin.spec.searchPlaceholder')"
           clearable
           @keyup.enter="handleSearch"
         />
         <el-select
           v-model="query.specTypeId"
-          placeholder="规格类型"
+          :placeholder="t('admin.spec.specTypePlaceholder')"
           clearable
           style="width: 180px"
         >
           <el-option v-for="t in specTypeOptions" :key="t.id" :label="t.displayName" :value="t.id" />
         </el-select>
-        <el-button type="primary" @click="handleSearch">搜索</el-button>
-        <el-button @click="reset">重置</el-button>
-        <el-button type="primary" @click="openCreate">新增规格</el-button>
+        <el-button type="primary" @click="handleSearch">{{ t('admin.spec.actions.search') }}</el-button>
+        <el-button @click="reset">{{ t('admin.spec.actions.reset') }}</el-button>
+        <el-button type="primary" @click="openCreate">{{ t('admin.spec.actions.create') }}</el-button>
       </div>
 
       <el-table :data="displayList" border stripe row-key="id" v-loading="tableLoading">
-        <el-table-column prop="sort" label="排序" width="100" />
-        <el-table-column label="名称" min-width="160">
+        <el-table-column prop="sort" :label="t('admin.spec.table.sort')" width="100" />
+        <el-table-column :label="t('admin.spec.table.name')" min-width="160">
           <template #default="{ row }">{{ row.displayName }}</template>
         </el-table-column>
-        <el-table-column prop="typeName" label="规格类型" min-width="140" />
-        <el-table-column label="创建时间" min-width="160">
+        <el-table-column prop="typeName" :label="t('admin.spec.table.specType')" min-width="140" />
+        <el-table-column :label="t('admin.spec.table.createdAt')" min-width="160">
           <template #default="{ row }">{{ formatDate(row.createdAt) }}</template>
         </el-table-column>
-        <el-table-column label="操作" width="180" fixed="right">
+        <el-table-column :label="t('admin.spec.table.actions')" width="180" fixed="right">
           <template #default="{ row }">
-            <el-button link type="primary" size="small" @click="openEdit(row)">编辑</el-button>
-            <el-button link type="danger" size="small" @click="remove(row)">删除</el-button>
+            <el-button link type="primary" size="small" @click="openEdit(row)">
+              {{ t('admin.spec.actions.edit') }}
+            </el-button>
+            <el-button link type="danger" size="small" @click="remove(row)">
+              {{ t('admin.spec.actions.delete') }}
+            </el-button>
           </template>
         </el-table-column>
       </el-table>
@@ -51,33 +55,43 @@
       </div>
     </el-card>
 
-    <el-dialog v-model="dialogVisible" :title="isEdit ? '编辑规格' : '新增规格'" width="520px">
+    <el-dialog
+      v-model="dialogVisible"
+      :title="isEdit ? t('admin.spec.dialog.editTitle') : t('admin.spec.dialog.createTitle')"
+      width="520px"
+    >
       <el-form ref="formRef" :model="form" :rules="rules" label-width="100px">
-        <el-form-item label="排序" prop="sort">
+        <el-form-item :label="t('admin.spec.form.sort')" prop="sort">
           <el-input-number v-model="form.sort" :min="0" :step="1" />
         </el-form-item>
-        <el-form-item label="名称(多语言)" prop="nameI18n">
+        <el-form-item :label="t('admin.spec.form.nameI18n')" prop="nameI18n">
           <div class="i18n-list">
             <div v-for="(item, idx) in nameI18nList" :key="idx" class="i18n-row">
-              <el-select v-model="item.lang" placeholder="语言" style="width: 140px">
-                <el-option label="中文(zh-CN)" value="zh-CN" />
-                <el-option label="英文(en)" value="en" />
+              <el-select v-model="item.lang" :placeholder="t('admin.spec.form.languagePlaceholder')" style="width: 140px">
+                <el-option :label="t('admin.common.langZhCn')" value="zh-CN" />
+                <el-option :label="t('admin.common.langEnCode')" value="en" />
               </el-select>
-              <el-input v-model="item.value" placeholder="名称" />
-              <el-button link type="danger" :disabled="nameI18nList.length===1" @click="removeI18n(idx)">删除</el-button>
+              <el-input v-model="item.value" :placeholder="t('admin.spec.form.namePlaceholder')" />
+              <el-button link type="danger" :disabled="nameI18nList.length===1" @click="removeI18n(idx)">
+                {{ t('admin.spec.actions.removeLang') }}
+              </el-button>
             </div>
-            <el-button link type="primary" @click="addI18n">+ 添加语言</el-button>
+            <el-button link type="primary" @click="addI18n">{{ t('admin.spec.actions.addLang') }}</el-button>
           </div>
         </el-form-item>
-        <el-form-item label="规格类型" prop="specTypeId">
-          <el-select v-model="form.specTypeId" placeholder="请选择规格类型" style="width: 100%">
+        <el-form-item :label="t('admin.spec.form.specType')" prop="specTypeId">
+          <el-select
+            v-model="form.specTypeId"
+            :placeholder="t('admin.spec.form.specTypePlaceholder')"
+            style="width: 100%"
+          >
             <el-option v-for="t in specTypeOptions" :key="t.id" :label="t.displayName" :value="t.id" />
           </el-select>
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="dialogVisible = false">取消</el-button>
-        <el-button type="primary" :loading="submitLoading" @click="save">保存</el-button>
+        <el-button @click="dialogVisible = false">{{ t('admin.spec.actions.cancel') }}</el-button>
+        <el-button type="primary" :loading="submitLoading" @click="save">{{ t('admin.spec.actions.save') }}</el-button>
       </template>
     </el-dialog>
   </div>
@@ -103,7 +117,7 @@ type Spec = {
 };
 
 const initialMock: Spec[] = [];
-const { locale } = useI18n({ useScope: 'global' });
+const { locale, t } = useI18n({ useScope: 'global' });
 
 const specTypeOptions = ref<{ id: number; displayName: string; nameI18n?: Record<string, string> }[]>([]);
 
@@ -141,13 +155,13 @@ const rules: FormRules = {
     {
       validator: (_r, _v, cb) => {
         const invalid = nameI18nList.value.find((i) => !i.lang?.trim() || !i.value?.trim());
-        if (invalid) return cb(new Error('请完善多语言名称'));
+        if (invalid) return cb(new Error(t('admin.spec.validation.nameI18nIncomplete')));
         cb();
       },
       trigger: 'change',
     },
   ],
-  specTypeId: [{ required: true, message: '请选择规格类型', trigger: 'change' }],
+  specTypeId: [{ required: true, message: t('admin.spec.validation.specTypeRequired'), trigger: 'change' }],
 };
 
 const handleSearch = () => {
@@ -218,12 +232,12 @@ const save = () => {
     };
     addOrUpdateSpecValue(payload)
       .then(() => {
-        ElMessage.success('保存成功');
+        ElMessage.success(t('admin.spec.message.saveSuccess'));
         dialogVisible.value = false;
         fetchList();
       })
       .catch((err: any) => {
-        ElMessage.error(err?.message || '保存失败');
+        ElMessage.error(err?.message || t('admin.spec.message.saveFailed'));
       })
       .finally(() => {
         submitLoading.value = false;
@@ -240,10 +254,14 @@ const remove = (row: Spec) => {
     locale.value,
     row.displayName || '',
   );
-  ElMessageBox.confirm(`确定删除规格「${label}」吗？`, '提示', { type: 'warning' })
+  ElMessageBox.confirm(
+    t('admin.spec.message.deleteConfirm', { label }),
+    t('admin.common.confirmTitle'),
+    { type: 'warning' },
+  )
     .then(() => deleteSpecValue({ id: row.id }))
     .then(() => {
-      ElMessage.success('删除成功');
+      ElMessage.success(t('admin.spec.message.deleteSuccess'));
       fetchList();
     })
     .catch(() => {});
@@ -296,7 +314,7 @@ const fetchList = async () => {
     }));
     total.value = data.total ?? records.length;
   } catch (error: any) {
-    ElMessage.error(error?.message || '获取规格失败');
+    ElMessage.error(error?.message || t('admin.spec.message.fetchFailed'));
   } finally {
     tableLoading.value = false;
   }

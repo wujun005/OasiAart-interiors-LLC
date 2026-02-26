@@ -11,18 +11,18 @@
       </a>
 
       <nav class="site-header__nav">
-        <a class="site-header__link" href="#home">{{
+        <RouterLink class="site-header__link" :to="{ path: '/', hash: '#home' }">{{
           t('client.header.nav.home')
-        }}</a>
-        <a class="site-header__link" href="#services">{{
+        }}</RouterLink>
+        <RouterLink class="site-header__link" :to="{ path: '/', hash: '#services' }">{{
           t('client.header.nav.services')
-        }}</a>
-        <a class="site-header__link" href="#orders">{{
+        }}</RouterLink>
+        <RouterLink class="site-header__link" :to="{ name: 'order-list' }">{{
           t('client.header.nav.orders')
-        }}</a>
-        <a class="site-header__link" href="#join-us">{{
+        }}</RouterLink>
+        <RouterLink class="site-header__link" :to="{ name: 'join-us' }">{{
           t('client.header.nav.joinUs')
-        }}</a>
+        }}</RouterLink>
       </nav>
 
       <div class="site-header__actions">

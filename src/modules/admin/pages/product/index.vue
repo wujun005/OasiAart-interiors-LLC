@@ -4,13 +4,13 @@
       <div class="toolbar">
         <el-input
           v-model="query.nameKeyword"
-          placeholder="搜索商品名称"
+          :placeholder="t('admin.product.searchPlaceholder')"
           clearable
           @keyup.enter="handleSearch"
         />
-        <el-button type="primary" @click="handleSearch">搜索</el-button>
-        <el-button @click="reset">重置</el-button>
-        <el-button type="primary" @click="openCreate">新增商品</el-button>
+        <el-button type="primary" @click="handleSearch">{{ t('admin.product.actions.search') }}</el-button>
+        <el-button @click="reset">{{ t('admin.product.actions.reset') }}</el-button>
+        <el-button type="primary" @click="openCreate">{{ t('admin.product.actions.create') }}</el-button>
       </div>
 
       <el-table
@@ -20,7 +20,7 @@
         v-loading="tableLoading"
         row-key="id"
       >
-        <el-table-column label="图片" width="120">
+        <el-table-column :label="t('admin.product.table.image')" width="120">
           <template #default="{ row }">
             <div class="thumbs">
               <img
@@ -35,14 +35,14 @@
             </div>
           </template>
         </el-table-column>
-        <el-table-column prop="name" label="名称" min-width="160" />
-        <el-table-column prop="categoryName" label="一级分类" min-width="140" />
+        <el-table-column prop="name" :label="t('admin.product.table.name')" min-width="160" />
+        <el-table-column prop="categoryName" :label="t('admin.product.table.category')" min-width="140" />
         <el-table-column
           prop="subCategoryName"
-          label="二级分类"
+          :label="t('admin.product.table.subcategory')"
           min-width="140"
         />
-        <el-table-column prop="specNames" label="规格" min-width="300">
+        <el-table-column prop="specNames" :label="t('admin.product.table.specs')" min-width="300">
           <template #default="{ row }">
             <el-tag
               v-for="name in row.specNames"
@@ -54,15 +54,15 @@
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column label="上架" width="100">
+        <el-table-column :label="t('admin.product.table.saleStatus')" width="100">
           <template #default="{ row }">
             <el-tag :type="row.isOnSale ? 'success' : 'info'">
-              {{ row.isOnSale ? '已上架' : '未上架' }}
+              {{ row.isOnSale ? t('admin.product.sale.on') : t('admin.product.sale.off') }}
             </el-tag>
           </template>
         </el-table-column>
         <!-- <el-table-column prop="currency" label="币种" width="100" /> -->
-        <el-table-column label="语言" min-width="120">
+        <el-table-column :label="t('admin.product.table.languages')" min-width="120">
           <template #default="{ row }">
             <el-tag
               v-for="lang in row.langs"
@@ -74,20 +74,20 @@
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column label="创建时间" min-width="200">
+        <el-table-column :label="t('admin.product.table.createdAt')" min-width="200">
           <template #default="{ row }">{{
             formatDate(row.createdAt)
           }}</template>
         </el-table-column>
-        <el-table-column label="更新时间" min-width="200">
+        <el-table-column :label="t('admin.product.table.updatedAt')" min-width="200">
           <template #default="{ row }">{{
             formatDate(row.updatedAt)
           }}</template>
         </el-table-column>
-        <el-table-column label="操作" width="260" fixed="right">
+        <el-table-column :label="t('admin.product.table.actions')" width="260" fixed="right">
           <template #default="{ row }">
             <el-button link type="primary" size="small" @click="openEdit(row)">
-              编辑
+              {{ t('admin.product.actions.edit') }}
             </el-button>
             <el-button
               link
@@ -95,7 +95,7 @@
               size="small"
               @click="openPriceDialog(row)"
             >
-              价格维护
+              {{ t('admin.product.actions.maintainPrice') }}
             </el-button>
             <el-button
               link
@@ -103,7 +103,7 @@
               size="small"
               @click="toggleSale(row)"
             >
-              {{ row.isOnSale ? '下架' : '上架' }}
+              {{ row.isOnSale ? t('admin.product.actions.takeOff') : t('admin.product.actions.putOn') }}
             </el-button>
             <el-button
               link
@@ -111,10 +111,10 @@
               size="small"
               @click="toggleRecommend(row)"
             >
-              {{ row?.exclusive ? '取消推荐' : '推荐首页' }}
+              {{ row?.exclusive ? t('admin.product.actions.unrecommend') : t('admin.product.actions.recommend') }}
             </el-button>
             <el-button link type="danger" size="small" @click="remove(row)">
-              删除
+              {{ t('admin.product.actions.delete') }}
             </el-button>
           </template>
         </el-table-column>
@@ -135,7 +135,7 @@
 
     <el-dialog
       v-model="dialogVisible"
-      :title="isEdit ? '编辑商品' : '新增商品'"
+      :title="isEdit ? t('admin.product.dialog.editTitle') : t('admin.product.dialog.createTitle')"
       width="880px"
     >
       <el-form
@@ -145,10 +145,10 @@
         label-width="110px"
         v-loading="detailLoading"
       >
-        <el-form-item label="一级分类" prop="product.categoryId">
+        <el-form-item :label="t('admin.product.form.category')" prop="product.categoryId">
           <el-select
             v-model="form.product.categoryId"
-            placeholder="请选择一级分类"
+            :placeholder="t('admin.product.form.categoryPlaceholder')"
             filterable
             style="width: 100%"
             @change="onCategoryChange"
@@ -161,10 +161,10 @@
             />
           </el-select>
         </el-form-item>
-        <el-form-item label="二级分类" prop="product.subCategoryId">
+        <el-form-item :label="t('admin.product.form.subcategory')" prop="product.subCategoryId">
           <el-select
             v-model="form.product.subCategoryId"
-            placeholder="请选择二级分类"
+            :placeholder="t('admin.product.form.subcategoryPlaceholder')"
             filterable
             style="width: 100%"
           >
@@ -178,31 +178,31 @@
         </el-form-item>
 
         <div class="group-box spec-groups">
-          <div class="group-title">规格</div>
+          <div class="group-title">{{ t('admin.product.form.specGroupTitle') }}</div>
           <div
             v-for="(group, idx) in form.specGroups"
             :key="idx"
             class="spec-box"
           >
             <div class="spec-box__header">
-              <div class="spec-box__title">规格{{ idx + 1 }}</div>
+              <div class="spec-box__title">{{ `${t('admin.product.form.specGroupPrefix')}${idx + 1}` }}</div>
               <el-button
                 type="danger"
                 link
                 :disabled="form.specGroups.length === 1"
                 @click="removeSpecGroup(idx)"
               >
-                删除
+                {{ t('admin.product.actions.delete') }}
               </el-button>
             </div>
             <el-form-item
               :prop="`specGroups.${idx}.specTypeId`"
-              label="规格类型"
+              :label="t('admin.product.form.specType')"
               label-width="90px"
             >
               <el-select
                 v-model="group.specTypeId"
-                placeholder="请选择规格类型"
+                :placeholder="t('admin.product.form.specTypePlaceholder')"
                 filterable
                 style="width: 100%"
                 @change="
@@ -225,12 +225,12 @@
             </el-form-item>
             <el-form-item
               :prop="`specGroups.${idx}.specIds`"
-              label="规格"
+              :label="t('admin.product.form.spec')"
               label-width="90px"
             >
               <el-select
                 v-model="group.specIds"
-                placeholder="请选择规格"
+                :placeholder="t('admin.product.form.specPlaceholder')"
                 multiple
                 filterable
                 style="width: 100%"
@@ -246,37 +246,37 @@
           </div>
           <el-form-item label="" prop="specGroups">
             <el-button type="primary" link @click="addSpecGroup"
-              >+ 添加规格</el-button
+              >{{ t('admin.product.actions.addSpecGroup') }}</el-button
             >
           </el-form-item>
         </div>
 
         <div class="group-box spec-groups">
-          <div class="group-title">附加项</div>
+          <div class="group-title">{{ t('admin.product.form.addonGroupTitle') }}</div>
           <div
             v-for="(group, idx) in form.addonGroups"
             :key="idx"
             class="spec-box"
           >
             <div class="spec-box__header">
-              <div class="spec-box__title">附加项{{ idx + 1 }}</div>
+              <div class="spec-box__title">{{ `${t('admin.product.form.addonGroupPrefix')}${idx + 1}` }}</div>
               <el-button
                 type="danger"
                 link
                 :disabled="form.addonGroups.length === 1"
                 @click="removeAddonGroup(idx)"
               >
-                删除
+                {{ t('admin.product.actions.delete') }}
               </el-button>
             </div>
             <el-form-item
               :prop="`addonGroups.${idx}.categoryId`"
-              label="附加项分类"
+              :label="t('admin.product.form.addonCategory')"
               label-width="90px"
             >
               <el-select
                 v-model="group.categoryId"
-                placeholder="请选择附加项分类"
+                :placeholder="t('admin.product.form.addonCategoryPlaceholder')"
                 filterable
                 style="width: 100%"
                 @change="
@@ -299,12 +299,12 @@
             </el-form-item>
             <el-form-item
               :prop="`addonGroups.${idx}.addonIds`"
-              label="附加项"
+              :label="t('admin.product.form.addon')"
               label-width="90px"
             >
               <el-select
                 v-model="group.addonIds"
-                placeholder="请选择附加项"
+                :placeholder="t('admin.product.form.addonPlaceholder')"
                 multiple
                 filterable
                 style="width: 100%"
@@ -320,11 +320,11 @@
           </div>
           <el-form-item label="" prop="addonGroups">
             <el-button type="primary" link @click="addAddonGroup"
-              >+ 添加附加项</el-button
+              >{{ t('admin.product.actions.addAddonGroup') }}</el-button
             >
           </el-form-item>
         </div>
-        <el-form-item label="上架" prop="product.isOnSale">
+        <el-form-item :label="t('admin.product.form.sale')" prop="product.isOnSale">
           <el-switch v-model="form.product.isOnSale" />
         </el-form-item>
         <!-- <el-form-item label="币种" prop="product.currency">
@@ -344,8 +344,8 @@
         </el-form-item> -->
 
         <div class="group-box">
-          <div class="group-title">名称与描述</div>
-        <el-form-item label="名称(多语言)" prop="productI18nList">
+          <div class="group-title">{{ t('admin.product.form.nameDescGroupTitle') }}</div>
+        <el-form-item :label="t('admin.product.form.nameI18n')" prop="productI18nList">
           <div class="i18n-list">
             <div
               v-for="(item, idx) in form.productI18nList"
@@ -354,7 +354,7 @@
             >
               <el-select
                 v-model="item.langCode"
-                placeholder="语言"
+                :placeholder="t('admin.product.form.languagePlaceholder')"
                 filterable
                 allow-create
                 default-first-option
@@ -366,21 +366,21 @@
                   :value="lang.value"
                 />
               </el-select>
-              <el-input v-model="item.name" placeholder="名称" class="full-width" />
+              <el-input v-model="item.name" :placeholder="t('admin.product.form.namePlaceholder')" class="full-width" />
               <el-button
                 v-if="form.productI18nList.length > 1"
                 type="danger"
                 link
                 @click="removeLang(idx)"
               >
-                删除
+                {{ t('admin.product.actions.delete') }}
               </el-button>
             </div>
-            <el-button type="primary" link @click="addLang">新增语言</el-button>
+            <el-button type="primary" link @click="addLang">{{ t('admin.product.actions.addLang') }}</el-button>
           </div>
         </el-form-item>
 
-        <el-form-item label="描述(多语言)" prop="descI18nList">
+        <el-form-item :label="t('admin.product.form.descI18n')" prop="descI18nList">
           <div class="i18n-list">
             <div
               v-for="(item, idx) in form.descI18nList"
@@ -389,7 +389,7 @@
             >
               <el-select
                 v-model="item.lang"
-                placeholder="语言"
+                :placeholder="t('admin.product.form.languagePlaceholder')"
                 filterable
                 allow-create
                 default-first-option
@@ -405,7 +405,7 @@
                 v-model="item.value"
                 type="textarea"
                 :rows="2"
-                placeholder="描述"
+                :placeholder="t('admin.product.form.descPlaceholder')"
                 class="full-width"
               />
               <el-button
@@ -414,19 +414,19 @@
                 link
                 @click="removeDescLang(idx)"
               >
-                删除
+                {{ t('admin.product.actions.delete') }}
               </el-button>
             </div>
             <el-button type="primary" link @click="addDescLang"
-              >新增语言</el-button
+              >{{ t('admin.product.actions.addLang') }}</el-button
             >
           </div>
         </el-form-item>
         </div>
 
         <div class="group-box">
-          <div class="group-title">服务内容</div>
-        <el-form-item label="服务内容" prop="serviceContentI18nList">
+          <div class="group-title">{{ t('admin.product.form.serviceContentGroupTitle') }}</div>
+        <el-form-item :label="t('admin.product.form.serviceContent')" prop="serviceContentI18nList">
           <div class="i18n-list">
             <div
               v-for="(item, idx) in form.serviceContentI18nList"
@@ -435,7 +435,7 @@
             >
               <el-select
                 v-model="item.lang"
-                placeholder="语言"
+                :placeholder="t('admin.product.form.languagePlaceholder')"
                 filterable
                 allow-create
                 default-first-option
@@ -451,7 +451,7 @@
                 v-model="item.value"
                 type="textarea"
                 :rows="2"
-                placeholder="服务内容，多条用'|'分隔, 例子： 上门|打扫|清洁"
+                :placeholder="t('admin.product.form.serviceContentPlaceholder')"
                 class="full-width"
               />
               <el-button
@@ -460,19 +460,19 @@
                 link
                 @click="removeServiceContentLang(idx)"
               >
-                删除
+                {{ t('admin.product.actions.delete') }}
               </el-button>
             </div>
             <el-button type="primary" link @click="addServiceContentLang"
-              >新增语言</el-button
+              >{{ t('admin.product.actions.addLang') }}</el-button
             >
           </div>
         </el-form-item>
         </div>
 
         <div class="group-box">
-          <div class="group-title">预订须知</div>
-        <el-form-item label="预订须知" prop="bookingNoticeI18nList">
+          <div class="group-title">{{ t('admin.product.form.bookingNoticeGroupTitle') }}</div>
+        <el-form-item :label="t('admin.product.form.bookingNotice')" prop="bookingNoticeI18nList">
           <div class="i18n-list">
             <div
               v-for="(item, idx) in form.bookingNoticeI18nList"
@@ -481,7 +481,7 @@
             >
               <el-select
                 v-model="item.lang"
-                placeholder="语言"
+                :placeholder="t('admin.product.form.languagePlaceholder')"
                 filterable
                 allow-create
                 default-first-option
@@ -498,7 +498,7 @@
                   v-model:content="item.value"
                   content-type="html"
                   theme="snow"
-                  placeholder="请输入预订须知"
+                  :placeholder="t('admin.product.form.bookingNoticePlaceholder')"
                 />
               </div>
               <el-button
@@ -507,17 +507,17 @@
                 link
                 @click="removeBookingNoticeLang(idx)"
               >
-                删除
+                {{ t('admin.product.actions.delete') }}
               </el-button>
             </div>
             <el-button type="primary" link @click="addBookingNoticeLang"
-              >新增语言</el-button
+              >{{ t('admin.product.actions.addLang') }}</el-button
             >
           </div>
         </el-form-item>
         </div>
 
-        <el-form-item label="图片" prop="productImages">
+        <el-form-item :label="t('admin.product.form.images')" prop="productImages">
           <el-upload
             :http-request="handleUpload"
             list-type="picture-card"
@@ -528,24 +528,24 @@
             <el-icon><Plus /></el-icon>
           </el-upload>
           <div v-if="uploading" class="uploading-tip">
-            图片上传中，请稍候...
+            {{ t('admin.product.message.uploadingTip') }}
           </div>
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="dialogVisible = false">取消</el-button>
+        <el-button @click="dialogVisible = false">{{ t('admin.product.actions.cancel') }}</el-button>
         <el-button
           type="primary"
           :disabled="uploading"
           :loading="submitLoading"
           @click="save"
         >
-          保存
+          {{ t('admin.product.actions.save') }}
         </el-button>
       </template>
     </el-dialog>
 
-    <el-dialog v-model="priceDialogVisible" title="价格维护" width="1020px">
+    <el-dialog v-model="priceDialogVisible" :title="t('admin.product.dialog.priceTitle')" width="1020px">
       <el-table :data="priceRows" border stripe class="price-table">
         <el-table-column
           v-for="col in priceColumns"
@@ -558,20 +558,20 @@
             {{ row.specMap[col.key] }}
           </template>
         </el-table-column>
-        <el-table-column label="原价" width="160">
+        <el-table-column :label="t('admin.product.table.originPrice')" width="160">
           <template #default="{ row }">
             <el-input-number v-model="row.originPrice" :min="0" :step="1" />
           </template>
         </el-table-column>
-        <el-table-column label="优惠价" width="160">
+        <el-table-column :label="t('admin.product.table.discountPrice')" width="160">
           <template #default="{ row }">
             <el-input-number v-model="row.discountPrice" :min="0" :step="1" />
           </template>
         </el-table-column>
       </el-table>
       <template #footer>
-        <el-button @click="priceDialogVisible = false">取消</el-button>
-        <el-button type="primary" @click="savePrice">保存</el-button>
+        <el-button @click="priceDialogVisible = false">{{ t('admin.product.actions.cancel') }}</el-button>
+        <el-button type="primary" @click="savePrice">{{ t('admin.product.actions.save') }}</el-button>
       </template>
     </el-dialog>
   </div>
@@ -676,7 +676,7 @@ type AddonGroup = {
 const subCategoryOptions = ref<
   { label: string; value: number; parentId: number }[]
 >([]);
-const { locale } = useI18n({ useScope: 'global' });
+const { locale, t } = useI18n({ useScope: 'global' });
 
 const categoryOptions = ref<{ label: string; value: number }[]>([]);
 
@@ -835,10 +835,10 @@ const filteredSubCategoryOptions = computed(() =>
   ),
 );
 
-const langOptions = [
-  { label: '中文(简体)', value: 'zh-CN' },
-  { label: 'English', value: 'en' },
-];
+const langOptions = computed(() => [
+  { label: t('admin.common.langZhCn'), value: 'zh-CN' },
+  { label: t('admin.common.langEnCode'), value: 'en' },
+]);
 
 const pickName = (
   value: Record<string, unknown> | undefined | null,
@@ -847,7 +847,7 @@ const pickName = (
 
 const rules: FormRules = {
   'product.categoryId': [
-    { required: true, message: '请选择一级分类', trigger: 'change' },
+    { required: true, message: t('admin.product.validation.categoryRequired'), trigger: 'change' },
   ],
   'product.subCategoryId': [{ required: false, trigger: 'change' }],
   // 'product.currency': [{ required: true, message: '请选择币种', trigger: 'change' }],
@@ -856,14 +856,14 @@ const rules: FormRules = {
       validator: (_rule, value, callback) => {
         const list = value as ProductI18n[];
         if (!list || list.length === 0) {
-          callback(new Error('请至少添加一条多语言名称'));
+          callback(new Error(t('admin.product.validation.nameI18nRequired')));
           return;
         }
         const invalid = list.find(
           (item) => !item.langCode || !item.name.trim(),
         );
         if (invalid) {
-          callback(new Error('请填写语言和名称'));
+          callback(new Error(t('admin.product.validation.nameI18nIncomplete')));
           return;
         }
         callback();
@@ -876,7 +876,7 @@ const rules: FormRules = {
       validator: (_rule, value, callback) => {
         const list = value as { lang: string; value: string }[];
         const invalid = list.find((item) => !item.lang || !item.value?.trim());
-        if (invalid) return callback(new Error('请填写描述的语言和内容'));
+        if (invalid) return callback(new Error(t('admin.product.validation.descI18nIncomplete')));
         callback();
       },
       trigger: 'blur',
@@ -886,14 +886,14 @@ const rules: FormRules = {
     {
       validator: (_rule, value: SpecGroup[], callback) => {
         if (!value || !value.length) {
-          callback(new Error('请至少添加一个规格'));
+          callback(new Error(t('admin.product.validation.specGroupRequired')));
           return;
         }
         const invalid = value.find(
           (g) => !g.specTypeId || !g.specIds || g.specIds.length === 0,
         );
         if (invalid) {
-          callback(new Error('每个规格需要选择规格类型和至少一个规格'));
+          callback(new Error(t('admin.product.validation.specGroupIncomplete')));
           return;
         }
         callback();
@@ -905,14 +905,14 @@ const rules: FormRules = {
     {
       validator: (_rule, value: AddonGroup[], callback) => {
         if (!value || !value.length) {
-          callback(new Error('请至少添加一个附加项'));
+          callback(new Error(t('admin.product.validation.addonGroupRequired')));
           return;
         }
         const invalid = value.find(
           (g) => !g.categoryId || !g.addonIds || g.addonIds.length === 0,
         );
         if (invalid) {
-          callback(new Error('每个附加项需选择分类并至少一个附加项'));
+          callback(new Error(t('admin.product.validation.addonGroupIncomplete')));
           return;
         }
         callback();
@@ -925,7 +925,7 @@ const rules: FormRules = {
       validator: (_rule, value, callback) => {
         const list = value as { lang: string; value: string }[];
         const invalid = list.find((item) => !item.lang || !item.value?.trim());
-        if (invalid) return callback(new Error('请填写服务内容的语言和内容'));
+        if (invalid) return callback(new Error(t('admin.product.validation.serviceContentIncomplete')));
         callback();
       },
       trigger: 'blur',
@@ -934,19 +934,17 @@ const rules: FormRules = {
   bookingNoticeI18nList: [
     {
       validator: (_rule, value, callback) => {
-        console.log('valie', value)
         const list = value as { lang: string; value: string }[];
         const candidates = list.filter(
           (item) => item.lang?.trim() || !isRichTextEmpty(item.value),
         );
         if (!candidates.length) {
-          return callback(new Error('请至少填写一条预订须知'));
+          return callback(new Error(t('admin.product.validation.bookingNoticeRequired')));
         }
-        console.log('candidates', candidates);
         const invalid = candidates.find(
           (item) => !item.lang?.trim() || isRichTextEmpty(item.value),
         );
-        if (invalid) return callback(new Error('请填写预订须知的语言和内容'));
+        if (invalid) return callback(new Error(t('admin.product.validation.bookingNoticeIncomplete')));
         callback();
       },
       trigger: 'blur',
@@ -1036,13 +1034,13 @@ const toRow = (item: any): ProductRow => {
   const specNames: string[] = specBindings.map((bind) => {
     const typeLabel = pickName(
       specTypeNameI18n?.[String(bind.specTypeId)],
-      `规格${bind.specTypeId}`,
+      t('admin.product.fallback.specType', { id: bind.specTypeId }),
     );
     const valueLabels = (bind.specValueIds || []).map((vid) => {
       const map = specValueNameI18n?.[String(vid)];
-      return pickName(map, `值${vid}`);
+      return pickName(map, t('admin.product.fallback.specValue', { id: vid }));
     });
-    return `${typeLabel}: ${valueLabels.join('、')}`;
+    return `${typeLabel}: ${valueLabels.join(t('admin.product.text.separator'))}`;
   });
 
   return {
@@ -1101,7 +1099,7 @@ const fetchCurrencies = async () => {
     ensureCurrencyOption(form.product.currency);
   } catch (error: any) {
     ensureCurrencyOption(form.product.currency);
-    ElMessage.error(error?.message || '获取币种失败');
+    ElMessage.error(error?.message || t('admin.product.message.fetchCurrencyFailed'));
   } finally {
     currencyLoading.value = false;
   }
@@ -1151,7 +1149,7 @@ const fetchCategories = async () => {
       form.product.subCategoryId = filteredSubCategoryOptions.value[0].value;
     }
   } catch (error: any) {
-    ElMessage.error(error?.message || '获取分类失败');
+    ElMessage.error(error?.message || t('admin.product.message.fetchCategoryFailed'));
   }
 };
 
@@ -1175,7 +1173,7 @@ const fetchSpecTypes = async () => {
       form.specGroups[0].specTypeId = specTypeOptions.value[0].value;
     }
   } catch (error: any) {
-    ElMessage.error(error?.message || '获取规格类型失败');
+    ElMessage.error(error?.message || t('admin.product.message.fetchSpecTypeFailed'));
   }
 };
 
@@ -1193,7 +1191,7 @@ const fetchSpecs = async () => {
       return { value: id, label, typeId };
     });
   } catch (error: any) {
-    ElMessage.error(error?.message || '获取规格失败');
+    ElMessage.error(error?.message || t('admin.product.message.fetchSpecFailed'));
   }
 };
 
@@ -1217,7 +1215,7 @@ const fetchAddonCategories = async () => {
       form.addonGroups[0].categoryId = addonCategoryOptions.value[0].value;
     }
   } catch (error: any) {
-    ElMessage.error(error?.message || '获取附加项分类失败');
+    ElMessage.error(error?.message || t('admin.product.message.fetchAddonCategoryFailed'));
   }
 };
 
@@ -1235,7 +1233,7 @@ const fetchAddons = async () => {
       return { value: id, label, categoryId, price: attach.price };
     });
   } catch (error: any) {
-    ElMessage.error(error?.message || '获取附加项失败');
+    ElMessage.error(error?.message || t('admin.product.message.fetchAddonFailed'));
   }
 };
 
@@ -1248,13 +1246,12 @@ const fetchProducts = async () => {
       nameKeyword: query.nameKeyword?.trim() || undefined,
     });
     const { list, total: t, pageNum, pageSize } = extractPage(res);
-    console.log('Fetched products:', list);
     products.value = list;
     total.value = t;
     query.pageNum = pageNum;
     query.pageSize = pageSize;
   } catch (error: any) {
-    ElMessage.error(error?.message || '获取商品列表失败');
+    ElMessage.error(error?.message || t('admin.product.message.fetchListFailed'));
   } finally {
     tableLoading.value = false;
   }
@@ -1296,7 +1293,7 @@ const addDescLang = () => {
 
 const removeDescLang = (idx: number) => {
   if (form.descI18nList.length <= 1) {
-    ElMessage.warning('至少保留一种语言的描述');
+    ElMessage.warning(t('admin.product.message.keepOneDescLang'));
     return;
   }
   form.descI18nList.splice(idx, 1);
@@ -1308,7 +1305,7 @@ const addServiceContentLang = () => {
 
 const removeServiceContentLang = (idx: number) => {
   if (form.serviceContentI18nList.length <= 1) {
-    ElMessage.warning('至少保留一种语言的服务内容');
+    ElMessage.warning(t('admin.product.message.keepOneServiceLang'));
     return;
   }
   form.serviceContentI18nList.splice(idx, 1);
@@ -1320,7 +1317,7 @@ const addBookingNoticeLang = () => {
 
 const removeBookingNoticeLang = (idx: number) => {
   if (form.bookingNoticeI18nList.length <= 1) {
-    ElMessage.warning('至少保留一种语言的预订须知');
+    ElMessage.warning(t('admin.product.message.keepOneBookingNoticeLang'));
     return;
   }
   form.bookingNoticeI18nList.splice(idx, 1);
@@ -1458,7 +1455,7 @@ const openEdit = async (row: ProductRow) => {
     ensureCurrencyOption(form.product.currency);
     nextTick(() => formRef.value?.clearValidate());
   } catch (error: any) {
-    ElMessage.error(error?.message || '获取商品详情失败');
+    ElMessage.error(error?.message || t('admin.product.message.fetchDetailFailed'));
   } finally {
     detailLoading.value = false;
   }
@@ -1474,12 +1471,12 @@ const handleUpload = async (options: UploadRequestOptions) => {
       typeof res?.data === 'string'
         ? res.data
         : res?.data?.url || res?.url || '';
-    if (!url) throw new Error('上传返回地址为空');
+    if (!url) throw new Error(t('admin.product.message.uploadEmptyUrl'));
     form.productImages.push({ imageUrl: url, sort: form.productImages.length });
     uploadList.value.push({ name: options.file.name, url });
     options.onSuccess?.({ url } as any);
   } catch (error: any) {
-    ElMessage.error(error?.message || '上传失败');
+    ElMessage.error(error?.message || t('admin.product.message.uploadFailed'));
     options.onError?.(error);
   } finally {
     uploadCount.value = Math.max(0, uploadCount.value - 1);
@@ -1504,7 +1501,7 @@ const addSpecGroup = () => {
 
 const removeSpecGroup = (idx: number) => {
   if (form.specGroups.length <= 1) {
-    ElMessage.warning('至少保留一个规格');
+    ElMessage.warning(t('admin.product.message.keepOneSpecGroup'));
     return;
   }
   form.specGroups.splice(idx, 1);
@@ -1525,7 +1522,7 @@ const addAddonGroup = () => {
 
 const removeAddonGroup = (idx: number) => {
   if (form.addonGroups.length <= 1) {
-    ElMessage.warning('至少保留一个附加项');
+    ElMessage.warning(t('admin.product.message.keepOneAddonGroup'));
     return;
   }
   form.addonGroups.splice(idx, 1);
@@ -1540,10 +1537,14 @@ const toggleSale = async (row: ProductRow) => {
       await disable(row.id);
     }
     row.isOnSale = targetStatus;
-    ElMessage.success(`已${targetStatus ? '上架' : '下架'}`);
+    ElMessage.success(
+      t('admin.product.message.saleChanged', {
+        status: targetStatus ? t('admin.product.sale.on') : t('admin.product.sale.off'),
+      }),
+    );
     fetchProducts();
   } catch (error: any) {
-    ElMessage.error(error?.message || '操作失败');
+    ElMessage.error(error?.message || t('admin.product.message.operationFailed'));
   }
 };
 
@@ -1559,7 +1560,7 @@ const buildPriceTable = (
   priceColumns.value = specList.map((g, idx) => {
     const typeLabel =
       specTypeOptions.value.find((t) => t.value === g.specTypeId)?.label ||
-      `规格类型${idx + 1}`;
+      t('admin.product.fallback.specTypeIndex', { index: idx + 1 });
     return { key: `type${idx}`, label: typeLabel };
   });
 
@@ -1619,7 +1620,7 @@ const openPriceDialog = async (row: ProductRow) => {
     const data = res?.data ?? res ?? {};
     const specTypes = Array.isArray(data.specTypes) ? data.specTypes : [];
     priceColumns.value = specTypes.map((st: any, idx: number) => {
-      const label = pickName(st.nameI18n, st.specTypeName || `规格${idx + 1}`);
+      const label = pickName(st.nameI18n, st.specTypeName || t('admin.product.fallback.specTypeIndex', { index: idx + 1 }));
       const key = String(st.specKey ?? st.specTypeId ?? idx);
       return { key, label };
     });
@@ -1642,7 +1643,7 @@ const openPriceDialog = async (row: ProductRow) => {
       };
     });
   } catch (error: any) {
-    ElMessage.error(error?.message || '获取规格失败');
+    ElMessage.error(error?.message || t('admin.product.message.fetchSpecFailed'));
     priceRows.value = [];
     priceColumns.value = [];
   } finally {
@@ -1659,7 +1660,7 @@ const savePrice = () => {
       Number.isNaN(Number(r.originPrice)),
   );
   if (invalid) {
-    ElMessage.error('请填写所有原价');
+    ElMessage.error(t('admin.product.message.originPriceRequired'));
     return;
   }
   const payload = priceRows.value.map((r) => ({
@@ -1670,11 +1671,11 @@ const savePrice = () => {
   }));
   batchUpdatePrices(payload)
     .then(() => {
-      ElMessage.success('价格已保存');
+      ElMessage.success(t('admin.product.message.priceSaved'));
       priceDialogVisible.value = false;
     })
     .catch((err: any) => {
-      ElMessage.error(err?.message || '保存失败');
+      ElMessage.error(err?.message || t('admin.product.message.saveFailed'));
     });
 };
 
@@ -1682,7 +1683,7 @@ const save = () => {
   formRef.value?.validate(async (valid) => {
     if (!valid) return;
     if (uploading.value) {
-      ElMessage.warning('图片上传中，请稍候');
+      ElMessage.warning(t('admin.product.message.uploadingTip'));
       return;
     }
     submitLoading.value = true;
@@ -1760,15 +1761,15 @@ const save = () => {
       };
       if (isEdit.value) {
         await addOrUpdate(payload);
-        ElMessage.success('更新成功');
+        ElMessage.success(t('admin.product.message.updateSuccess'));
       } else {
         await addOrUpdate(payload);
-        ElMessage.success('新增成功');
+        ElMessage.success(t('admin.product.message.createSuccess'));
       }
       dialogVisible.value = false;
       fetchProducts();
     } catch (error: any) {
-      ElMessage.error(error?.message || '保存失败');
+      ElMessage.error(error?.message || t('admin.product.message.saveFailed'));
     } finally {
       submitLoading.value = false;
     }
@@ -1780,16 +1781,20 @@ const toggleRecommend = async (row) => {
   } else {
     await enableExclusive(row.id);
   }
-  ElMessage.success('推荐状态已更新');
+  ElMessage.success(t('admin.product.message.recommendUpdated'));
   fetchProducts();
 };
 const remove = async (row: ProductRow) => {
   try {
-    await ElMessageBox.confirm(`确认删除商品「${row.name}」吗？`, '提示', {
+    await ElMessageBox.confirm(
+      t('admin.product.message.deleteConfirm', { name: row.name }),
+      t('admin.common.confirmTitle'),
+      {
       type: 'warning',
-    });
+      },
+    );
     await deleteProduct(row.id);
-    ElMessage.success('删除成功');
+    ElMessage.success(t('admin.product.message.deleteSuccess'));
     fetchProducts();
   } catch (error: any) {
     if (error?.message) {

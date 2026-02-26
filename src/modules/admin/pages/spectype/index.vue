@@ -4,26 +4,30 @@
       <div class="toolbar">
         <el-input
           v-model="query.nameKeyword"
-          placeholder="搜索规格类型名称"
+          :placeholder="t('admin.specType.searchPlaceholder')"
           clearable
           @keyup.enter="handleSearch"
         />
-        <el-button type="primary" @click="handleSearch">搜索</el-button>
-        <el-button @click="reset">重置</el-button>
-        <el-button type="primary" @click="openCreate">新增规格类型</el-button>
+        <el-button type="primary" @click="handleSearch">{{ t('admin.specType.actions.search') }}</el-button>
+        <el-button @click="reset">{{ t('admin.specType.actions.reset') }}</el-button>
+        <el-button type="primary" @click="openCreate">{{ t('admin.specType.actions.create') }}</el-button>
       </div>
 
       <el-table :data="displayList" border stripe row-key="id" v-loading="tableLoading">
-        <el-table-column label="名称" min-width="160">
+        <el-table-column :label="t('admin.specType.table.name')" min-width="160">
           <template #default="{ row }">{{ row.displayName }}</template>
         </el-table-column>
-        <el-table-column label="创建时间" min-width="160">
+        <el-table-column :label="t('admin.specType.table.createdAt')" min-width="160">
           <template #default="{ row }">{{ formatDate(row.createdAt) }}</template>
         </el-table-column>
-        <el-table-column label="操作" width="180" fixed="right">
+        <el-table-column :label="t('admin.specType.table.actions')" width="180" fixed="right">
           <template #default="{ row }">
-            <el-button link type="primary" size="small" @click="openEdit(row)">编辑</el-button>
-            <el-button link type="danger" size="small" @click="remove(row)">删除</el-button>
+            <el-button link type="primary" size="small" @click="openEdit(row)">
+              {{ t('admin.specType.actions.edit') }}
+            </el-button>
+            <el-button link type="danger" size="small" @click="remove(row)">
+              {{ t('admin.specType.actions.delete') }}
+            </el-button>
           </template>
         </el-table-column>
       </el-table>
@@ -41,25 +45,31 @@
       </div>
     </el-card>
 
-    <el-dialog v-model="dialogVisible" :title="isEdit ? '编辑规格类型' : '新增规格类型'" width="520px">
+    <el-dialog
+      v-model="dialogVisible"
+      :title="isEdit ? t('admin.specType.dialog.editTitle') : t('admin.specType.dialog.createTitle')"
+      width="520px"
+    >
       <el-form ref="formRef" :model="form" :rules="rules" label-width="90px">
-        <el-form-item label="名称(多语言)" prop="nameI18n">
+        <el-form-item :label="t('admin.specType.form.nameI18n')" prop="nameI18n">
           <div class="i18n-list">
             <div v-for="(item, idx) in nameI18nList" :key="idx" class="i18n-row">
-              <el-select v-model="item.lang" placeholder="语言" style="width: 140px">
-                <el-option label="中文(zh-CN)" value="zh-CN" />
-                <el-option label="英文(en)" value="en" />
+              <el-select v-model="item.lang" :placeholder="t('admin.specType.form.languagePlaceholder')" style="width: 140px">
+                <el-option :label="t('admin.common.langZhCn')" value="zh-CN" />
+                <el-option :label="t('admin.common.langEnCode')" value="en" />
               </el-select>
-              <el-input v-model="item.value" placeholder="名称" />
-              <el-button link type="danger" :disabled="nameI18nList.length===1" @click="removeI18n(idx)">删除</el-button>
+              <el-input v-model="item.value" :placeholder="t('admin.specType.form.namePlaceholder')" />
+              <el-button link type="danger" :disabled="nameI18nList.length===1" @click="removeI18n(idx)">
+                {{ t('admin.specType.actions.removeLang') }}
+              </el-button>
             </div>
-            <el-button link type="primary" @click="addI18n">+ 添加语言</el-button>
+            <el-button link type="primary" @click="addI18n">{{ t('admin.specType.actions.addLang') }}</el-button>
           </div>
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="dialogVisible = false">取消</el-button>
-        <el-button type="primary" :loading="submitLoading" @click="save">保存</el-button>
+        <el-button @click="dialogVisible = false">{{ t('admin.specType.actions.cancel') }}</el-button>
+        <el-button type="primary" :loading="submitLoading" @click="save">{{ t('admin.specType.actions.save') }}</el-button>
       </template>
     </el-dialog>
   </div>
@@ -81,7 +91,7 @@ type SpecType = {
 };
 
 const list = ref<SpecType[]>([]);
-const { locale } = useI18n({ useScope: 'global' });
+const { locale, t } = useI18n({ useScope: 'global' });
 const query = reactive({
   nameKeyword: '',
   pageNum: 1,
@@ -109,7 +119,7 @@ const rules: FormRules = {
     {
       validator: (_r, _v, cb) => {
         const invalid = nameI18nList.value.find((i) => !i.lang?.trim() || !i.value?.trim());
-        if (invalid) return cb(new Error('请完善多语言名称'));
+        if (invalid) return cb(new Error(t('admin.specType.validation.nameI18nIncomplete')));
         cb();
       },
       trigger: 'change',
@@ -175,12 +185,12 @@ const save = () => {
     };
     addOrUpdateSpecType(payload)
       .then(() => {
-        ElMessage.success('保存成功');
+        ElMessage.success(t('admin.specType.message.saveSuccess'));
         dialogVisible.value = false;
         fetchList();
       })
       .catch((err: any) => {
-        ElMessage.error(err?.message || '保存失败');
+        ElMessage.error(err?.message || t('admin.specType.message.saveFailed'));
       })
       .finally(() => {
         submitLoading.value = false;
@@ -194,10 +204,14 @@ const remove = (row: SpecType) => {
     locale.value,
     row.displayName || '',
   );
-  ElMessageBox.confirm(`确定删除规格类型「${label}」吗？`, '提示', { type: 'warning' })
+  ElMessageBox.confirm(
+    t('admin.specType.message.deleteConfirm', { label }),
+    t('admin.common.confirmTitle'),
+    { type: 'warning' },
+  )
     .then(() => deleteSpecType({ id: row.id }))
     .then(() => {
-      ElMessage.success('删除成功');
+      ElMessage.success(t('admin.specType.message.deleteSuccess'));
       fetchList();
     })
     .catch(() => {});
@@ -232,7 +246,7 @@ const fetchList = async () => {
     }));
     total.value = data.total ?? records.length;
   } catch (error: any) {
-    ElMessage.error(error?.message || '获取规格类型失败');
+    ElMessage.error(error?.message || t('admin.specType.message.fetchFailed'));
   } finally {
     tableLoading.value = false;
   }

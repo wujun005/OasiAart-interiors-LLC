@@ -2,37 +2,46 @@
   <div class="page">
     <el-card>
       <div class="toolbar">
-        <el-input v-model="query.orderNo" placeholder="搜索订单号" clearable @keyup.enter="handleSearch" />
-        <el-button type="primary" @click="handleSearch">搜索</el-button>
-        <el-button @click="reset">重置</el-button>
-        <el-button type="primary" @click="openCreate">新增订单</el-button>
+        <el-input
+          v-model="query.orderNo"
+          :placeholder="t('admin.orders.searchPlaceholder')"
+          clearable
+          @keyup.enter="handleSearch"
+        />
+        <el-button type="primary" @click="handleSearch">{{ t('admin.orders.actions.search') }}</el-button>
+        <el-button @click="reset">{{ t('admin.orders.actions.reset') }}</el-button>
+        <el-button type="primary" @click="openCreate">{{ t('admin.orders.actions.create') }}</el-button>
       </div>
       <el-table :data="orders" border stripe v-loading="tableLoading" row-key="id">
-        <el-table-column prop="orderNo" label="订单号" width="160" />
-        <el-table-column prop="userId" label="用户ID" width="100" />
-        <el-table-column label="支付状态" width="120">
+        <el-table-column prop="orderNo" :label="t('admin.orders.table.orderNo')" width="160" />
+        <el-table-column prop="userId" :label="t('admin.orders.table.userId')" width="100" />
+        <el-table-column :label="t('admin.orders.table.payStatus')" width="120">
           <template #default="{ row }">
             <el-tag :type="payStatusTag(row.payStatus)">{{ row.payStatus || '-' }}</el-tag>
           </template>
         </el-table-column>
-        <el-table-column label="订单状态" width="120">
+        <el-table-column :label="t('admin.orders.table.orderStatus')" width="120">
           <template #default="{ row }">
             <el-tag :type="orderStatusTag(row.orderStatus)">{{ row.orderStatus || '-' }}</el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="amount" label="金额" width="120">
+        <el-table-column prop="amount" :label="t('admin.orders.table.amount')" width="120">
           <template #default="{ row }">{{ row.totalAmount }} {{ row.currency || 'CNY' }}</template>
         </el-table-column>
-        <el-table-column label="创建时间" min-width="160">
+        <el-table-column :label="t('admin.orders.table.createdAt')" min-width="160">
           <template #default="{ row }">{{ formatDate(row.createdAt) }}</template>
         </el-table-column>
-        <el-table-column label="更新时间" min-width="160">
+        <el-table-column :label="t('admin.orders.table.updatedAt')" min-width="160">
           <template #default="{ row }">{{ formatDate(row.updatedAt) }}</template>
         </el-table-column>
-        <el-table-column label="操作" width="180" fixed="right">
+        <el-table-column :label="t('admin.orders.table.actions')" width="180" fixed="right">
           <template #default="{ row }">
-            <el-button link type="primary" size="small" @click="openEdit(row)">编辑</el-button>
-            <el-button link type="danger" size="small" @click="remove(row)">删除</el-button>
+            <el-button link type="primary" size="small" @click="openEdit(row)">
+              {{ t('admin.orders.actions.edit') }}
+            </el-button>
+            <el-button link type="danger" size="small" @click="remove(row)">
+              {{ t('admin.orders.actions.delete') }}
+            </el-button>
           </template>
         </el-table-column>
       </el-table>
@@ -49,7 +58,11 @@
       </div>
     </el-card>
 
-    <el-dialog v-model="dialogVisible" :title="isEdit ? '编辑订单' : '新增订单'" width="520px">
+    <el-dialog
+      v-model="dialogVisible"
+      :title="isEdit ? t('admin.orders.dialog.editTitle') : t('admin.orders.dialog.createTitle')"
+      width="520px"
+    >
       <el-form
         ref="formRef"
         :model="form"
@@ -57,38 +70,47 @@
         label-width="90px"
         v-loading="detailLoading"
       >
-        <el-form-item label="订单号" prop="orderNo">
-          <el-input v-model="form.orderNo" placeholder="请输入订单号" />
+        <el-form-item :label="t('admin.orders.form.orderNo')" prop="orderNo">
+          <el-input v-model="form.orderNo" :placeholder="t('admin.orders.form.orderNoPlaceholder')" />
         </el-form-item>
-        <el-form-item label="用户ID" prop="userId">
-          <el-input-number v-model="form.userId" :min="1" :step="1" placeholder="请输入用户ID" />
+        <el-form-item :label="t('admin.orders.form.userId')" prop="userId">
+          <el-input-number
+            v-model="form.userId"
+            :min="1"
+            :step="1"
+            :placeholder="t('admin.orders.form.userIdPlaceholder')"
+          />
         </el-form-item>
-        <el-form-item label="支付状态" prop="payStatus">
-          <el-select v-model="form.payStatus" placeholder="请选择支付状态" style="width: 100%">
+        <el-form-item :label="t('admin.orders.form.payStatus')" prop="payStatus">
+          <el-select v-model="form.payStatus" :placeholder="t('admin.orders.form.payStatusPlaceholder')" style="width: 100%">
             <el-option v-for="item in payStatusOptions" :key="item" :label="item" :value="item" />
           </el-select>
         </el-form-item>
-        <el-form-item label="订单状态" prop="orderStatus">
-          <el-select v-model="form.orderStatus" placeholder="请选择订单状态" style="width: 100%">
+        <el-form-item :label="t('admin.orders.form.orderStatus')" prop="orderStatus">
+          <el-select
+            v-model="form.orderStatus"
+            :placeholder="t('admin.orders.form.orderStatusPlaceholder')"
+            style="width: 100%"
+          >
             <el-option v-for="item in orderStatusOptions" :key="item" :label="item" :value="item" />
           </el-select>
         </el-form-item>
-        <el-form-item label="金额" prop="totalAmount">
+        <el-form-item :label="t('admin.orders.form.totalAmount')" prop="totalAmount">
           <el-input-number v-model="form.totalAmount" :min="0" :step="1" style="width: 100%" />
         </el-form-item>
-        <el-form-item label="币种" prop="currency">
-          <el-input v-model="form.currency" placeholder="币种，如 CNY/USD" />
+        <el-form-item :label="t('admin.orders.form.currency')" prop="currency">
+          <el-input v-model="form.currency" :placeholder="t('admin.orders.form.currencyPlaceholder')" />
         </el-form-item>
-        <el-form-item label="地址" prop="recipientAddress">
-          <el-input v-model="form.recipientAddress" placeholder="收件地址" />
+        <el-form-item :label="t('admin.orders.form.address')" prop="recipientAddress">
+          <el-input v-model="form.recipientAddress" :placeholder="t('admin.orders.form.addressPlaceholder')" />
         </el-form-item>
-        <el-form-item label="电话" prop="recipientPhone">
-          <el-input v-model="form.recipientPhone" placeholder="收件电话" />
+        <el-form-item :label="t('admin.orders.form.phone')" prop="recipientPhone">
+          <el-input v-model="form.recipientPhone" :placeholder="t('admin.orders.form.phonePlaceholder')" />
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="dialogVisible = false">取消</el-button>
-        <el-button type="primary" :loading="submitLoading" @click="save">保存</el-button>
+        <el-button @click="dialogVisible = false">{{ t('admin.orders.actions.cancel') }}</el-button>
+        <el-button type="primary" :loading="submitLoading" @click="save">{{ t('admin.orders.actions.save') }}</el-button>
       </template>
     </el-dialog>
   </div>
@@ -98,6 +120,7 @@
 import { nextTick, onMounted, reactive, ref } from 'vue';
 import type { FormInstance, FormRules } from 'element-plus';
 import { ElMessage, ElMessageBox } from 'element-plus';
+import { useI18n } from 'vue-i18n';
 import api from '@/modules/admin/api/order';
 
 type Order = {
@@ -116,6 +139,7 @@ type Order = {
 
 const payStatusOptions = ['UNPAID', 'PAID', 'REFUNDED'];
 const orderStatusOptions = ['PENDING', 'CONFIRMED', 'SHIPPED', 'COMPLETED', 'CANCELLED'];
+const { t } = useI18n({ useScope: 'global' });
 
 const query = reactive({
   pageNum: 1,
@@ -145,18 +169,18 @@ const form = reactive<Order>({
 });
 
 const rules: FormRules = {
-  orderNo: [{ required: true, message: '请输入订单号', trigger: 'blur' }],
-  userId: [{ required: true, message: '请输入用户ID', trigger: 'blur' }],
-  payStatus: [{ required: true, message: '请选择支付状态', trigger: 'change' }],
-  orderStatus: [{ required: true, message: '请选择订单状态', trigger: 'change' }],
+  orderNo: [{ required: true, message: t('admin.orders.validation.orderNoRequired'), trigger: 'blur' }],
+  userId: [{ required: true, message: t('admin.orders.validation.userIdRequired'), trigger: 'blur' }],
+  payStatus: [{ required: true, message: t('admin.orders.validation.payStatusRequired'), trigger: 'change' }],
+  orderStatus: [{ required: true, message: t('admin.orders.validation.orderStatusRequired'), trigger: 'change' }],
   totalAmount: [
-    { required: true, message: '请输入金额', trigger: 'blur' },
+    { required: true, message: t('admin.orders.validation.amountRequired'), trigger: 'blur' },
     {
       validator: (_rule, value, callback) => {
         if (value === null || value === undefined || value === '') {
-          callback(new Error('请输入金额'));
+          callback(new Error(t('admin.orders.validation.amountRequired')));
         } else if (Number(value) < 0) {
-          callback(new Error('金额需大于等于 0'));
+          callback(new Error(t('admin.orders.validation.amountNonNegative')));
         } else {
           callback();
         }
@@ -164,7 +188,7 @@ const rules: FormRules = {
       trigger: 'change',
     },
   ],
-  currency: [{ required: true, message: '请输入币种', trigger: 'blur' }],
+  currency: [{ required: true, message: t('admin.orders.validation.currencyRequired'), trigger: 'blur' }],
 };
 
 const formatDate = (value?: string) => {
@@ -246,7 +270,7 @@ const fetchOrders = async () => {
     query.pageNum = pageNum;
     query.pageSize = pageSize;
   } catch (error: any) {
-    ElMessage.error(error?.message || '获取订单失败');
+    ElMessage.error(error?.message || t('admin.orders.message.fetchFailed'));
   } finally {
     tableLoading.value = false;
   }
@@ -300,7 +324,7 @@ const openEdit = async (row: Order) => {
     form.recipientPhone = order.recipientPhone ?? '';
     nextTick(() => formRef.value?.clearValidate());
   } catch (error: any) {
-    ElMessage.error(error?.message || '获取订单详情失败');
+    ElMessage.error(error?.message || t('admin.orders.message.detailFailed'));
   } finally {
     detailLoading.value = false;
   }
@@ -317,15 +341,15 @@ const save = () => {
       };
       if (isEdit.value) {
         await api.update(payload);
-        ElMessage.success('更新成功');
+        ElMessage.success(t('admin.orders.message.updateSuccess'));
       } else {
         await api.add(payload);
-        ElMessage.success('新增成功');
+        ElMessage.success(t('admin.orders.message.createSuccess'));
       }
       dialogVisible.value = false;
       fetchOrders();
     } catch (error: any) {
-      ElMessage.error(error?.message || '保存失败');
+      ElMessage.error(error?.message || t('admin.orders.message.saveFailed'));
     } finally {
       submitLoading.value = false;
     }
@@ -334,11 +358,15 @@ const save = () => {
 
 const remove = async (row: Order) => {
   try {
-    await ElMessageBox.confirm(`确认删除订单「${row.orderNo}」吗？`, '提示', {
+    await ElMessageBox.confirm(
+      t('admin.orders.message.deleteConfirm', { orderNo: row.orderNo }),
+      t('admin.common.confirmTitle'),
+      {
       type: 'warning',
-    });
+      },
+    );
     await api.del(row.id);
-    ElMessage.success('删除成功');
+    ElMessage.success(t('admin.orders.message.deleteSuccess'));
     fetchOrders();
   } catch (error: any) {
     if (error?.message) {

@@ -1,10 +1,30 @@
 <template>
   <div class="auth-page">
     <div class="auth-page-left">
-      <img
-        src="../../../assets/images/login-img.png"
-        alt=""
-      />
+      <div class="auth-brand">
+        <img class="auth-brand__logo" :src="assetLogo" alt="HourX Logo" />
+        <span class="auth-brand__name">{{ t('admin.login.leftBrand') }}</span>
+      </div>
+
+      <div class="auth-page-left-content">
+        <h1 class="auth-page-left-headline">
+          {{ t('admin.login.leftHeroLine1') }}<br />
+          {{ t('admin.login.leftHeroLine2') }}
+        </h1>
+        <p class="auth-page-left-slogan">{{ t('admin.login.leftSlogan') }}</p>
+
+        <div class="auth-feature-card">
+          <article
+            v-for="item in leftFeatures"
+            :key="item.key"
+            class="auth-feature-card__item"
+          >
+            <img :src="item.icon" alt="" />
+            <strong>{{ t(item.titleKey) }}</strong>
+            <span>{{ t(item.descKey) }}</span>
+          </article>
+        </div>
+      </div>
     </div>
 
     <div class="auth-page-right">
@@ -44,6 +64,31 @@ import {
 
 const { t, locale } = useI18n({ useScope: 'global' });
 const currentLocale = ref<AdminLocale>(locale.value === 'en' ? 'en' : 'zh');
+const assetLogo = new URL('@/assets/images/client/logo.png', import.meta.url).href;
+const assetFeature1 = 'https://www.figma.com/api/mcp/asset/ef75fc3a-3d62-4db2-a1cd-9ee8a181b227';
+const assetFeature2 = 'https://www.figma.com/api/mcp/asset/40985476-5fe7-4bab-bcc7-d4faef415060';
+const assetFeature3 = 'https://www.figma.com/api/mcp/asset/743d31dc-3585-491d-ab1e-1e9ef5756564';
+
+const leftFeatures = [
+  {
+    key: 'secure',
+    icon: assetFeature1,
+    titleKey: 'admin.login.leftFeatureSecureTitle',
+    descKey: 'admin.login.leftFeatureSecureDesc',
+  },
+  {
+    key: 'efficient',
+    icon: assetFeature2,
+    titleKey: 'admin.login.leftFeatureEfficientTitle',
+    descKey: 'admin.login.leftFeatureEfficientDesc',
+  },
+  {
+    key: 'reliable',
+    icon: assetFeature3,
+    titleKey: 'admin.login.leftFeatureReliableTitle',
+    descKey: 'admin.login.leftFeatureReliableDesc',
+  },
+];
 
 const debounceLeading = <T extends (...args: any[]) => unknown>(
   fn: T,
@@ -59,7 +104,6 @@ const debounceLeading = <T extends (...args: any[]) => unknown>(
   };
 };
 const debouncedLoginByPassword = debounceLeading((...args) => {
-  console.log('debouncedLoginByPassword', args);
   loginByPassword(...args);
 }, 800);
 
@@ -75,9 +119,8 @@ const loginByPassword = async ({
 
   try {
     const result = await login({ account, password, rememberMe: true });
-    console.log('登录成功', result);
     const data = result?.data;
-    if (!data?.token) throw new Error('登录失败');
+    if (!data?.token) throw new Error(t('admin.login.loginFailed'));
 
     const {
       token,
@@ -116,186 +159,310 @@ const handleLocaleChange = (lang: AdminLocale) => {
   document.documentElement.lang = lang;
 };
 </script>
-<style scoped>
+<style scoped lang="scss">
 .auth-page {
+  min-height: 100vh;
   display: flex;
-  padding: 30px;
-  box-sizing: border-box;
-  align-items: center;
-  background: #fff;
-  overflow: hidden;
-  .auth-page-left {
-    width: calc(50% - 30px);
-    height: calc(100vh - 60px);
-    img {
-      width: 100%;
-      height: 100%;
-    }
-  }
-  .auth-page-right {
-    width: 50%;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    position: relative;
-    .locale-switcher {
-      position: absolute;
-      top: 12px;
-      right: 12px;
-      width: 120px;
-    }
-    .language {
-      width: 24px;
-      height: 24px;
-      background: #d8d8d800;
-      position: absolute;
-      right: 30px;
-      top: 30px;
-      cursor: pointer;
-      img {
-        width: 19px;
-        height: 19px;
-      }
-    }
-    .languages {
-      background: #0000000a;
-      border: 1px solid #00000026;
-      width: 207px;
-      padding: 0px 20px;
-      box-sizing: border-box;
-      position: absolute;
-      top: 52px;
-      right: 35px;
-      border-radius: 6px;
-      .language-item {
-        font-weight: 500;
-        font-size: 16px;
-        color: #000000;
-        line-height: 40px;
-        cursor: pointer;
-        &:hover {
-          /* background: #0000000a; */
-          color: #999;
-        }
-      }
-    }
-    .auth-page-right-title {
-      width: 120px;
-      height: 42px;
-      font-family: PingFangSC-Medium;
-      font-weight: 500;
-      font-size: 30px;
-      color: #000000;
-      letter-spacing: 0;
-      text-align: center;
-      margin-bottom: 60px;
-    }
-    .auth-page-right-tab {
-      display: flex;
-      width: 552px;
-      .auth-page-right-tab-item {
-        width: 109px;
-        text-align: left;
-        font-family: AlibabaPuHuiTi_3_75_SemiBold;
-        font-weight: 600;
-        font-size: 18px;
-        color: #796f51;
-        line-height: 46px;
-        position: relative;
-        margin-right: 40px;
-        &.active {
-          border-bottom: 2px solid #796f51;
-        }
-      }
-    }
-    .auth-page-right-form {
-      width: 552px;
-      margin-top: 40px;
-      position: relative;
-
-      .btn {
-        width: 552px;
-        height: 56px;
-        background: #796f51;
-        border-radius: 6px;
-        font-weight: 400;
-        font-size: 18px;
-        color: #ffffff;
-        letter-spacing: 0;
-        text-align: center;
-        line-height: 56px;
-        cursor: pointer;
-      }
-
-      .register {
-        color: #00000080;
-        font-size: 18px;
-        font-face: PingFangSC;
-        font-weight: 400;
-        line-height: 0;
-        letter-spacing: 0;
-        text-align: right;
-        width: 100%;
-        cursor: pointer;
-        margin-top: 15px;
-        .register-text {
-          color: #000000;
-        }
-      }
-
-      .forgot-password {
-        min-width: 90px;
-        height: 25px;
-        font-family: PingFangSC-Regular;
-        font-weight: 400;
-        font-size: 18px;
-        color: #796f51;
-        letter-spacing: 0;
-        text-align: right;
-        position: absolute;
-        top: 110px;
-        right: 5px;
-        cursor: pointer;
-      }
-
-      /* 新增：验证码输入行 */
-      .code-row {
-        width: 552px;
-        display: flex;
-        align-items: center;
-        gap: 12px;
-      }
-      .code-btn {
-        min-width: 140px;
-        height: 56px;
-        border-radius: 6px;
-        border: 1px solid #796f51;
-        color: #796f51;
-        font-size: 16px;
-        line-height: 56px;
-        text-align: center;
-        cursor: pointer;
-        user-select: none;
-        &.disabled {
-          opacity: 0.6;
-          cursor: not-allowed;
-        }
-      }
-    }
-  }
+  background: #f8fafc;
 }
 
-/deep/ .el-form-item__label {
+.auth-page-left {
+  width: min(367px, 34vw);
+  min-width: 300px;
+  padding: 48px;
+  box-sizing: border-box;
+  position: relative;
+  overflow: hidden;
+  background: linear-gradient(180deg, #6faad0 0%, #3972f5 58%, #6597f0 100%);
+}
+
+.auth-page-left::before,
+.auth-page-left::after {
+  content: '';
+  position: absolute;
+  width: 500px;
+  height: 500px;
+  border-radius: 50%;
+  background: rgba(186, 247, 233, 0.65);
+  filter: blur(100px);
+  z-index: 0;
+}
+
+.auth-page-left::before {
+  left: 90px;
+  top: -228px;
+}
+
+.auth-page-left::after {
+  left: -280px;
+  bottom: -228px;
+}
+
+.auth-brand,
+.auth-page-left-content {
+  position: relative;
+  z-index: 1;
+}
+
+.auth-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.auth-brand__logo {
+  width: 50px;
+  height: 48px;
+  object-fit: contain;
+  border-radius: 8px;
+  background: #fff;
+}
+
+.auth-brand__name {
+  font-size: 36px;
+  font-weight: 800;
+  letter-spacing: 0.2px;
+  color: #fff;
+}
+
+.auth-page-left-content {
+  margin-top: 220px;
+}
+
+.auth-page-left-headline {
+  margin: 0;
+  font-size: 46px;
+  line-height: 1.25;
+  font-weight: 800;
+  color: #fff;
+}
+
+.auth-page-left-slogan {
+  margin: 64px 0 0;
+  font-size: 26px;
+  line-height: 1.4;
+  font-weight: 700;
+  color: #fff;
+}
+
+.auth-feature-card {
+  margin-top: 64px;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.1);
+  overflow: hidden;
+}
+
+.auth-feature-card__item {
+  min-height: 122px;
+  padding: 18px 10px 14px;
+  text-align: center;
+  color: #fff;
+}
+
+.auth-feature-card__item + .auth-feature-card__item {
+  border-left: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.auth-feature-card__item img {
+  width: 26px;
+  height: 26px;
+}
+
+.auth-feature-card__item strong {
+  display: block;
+  margin-top: 10px;
+  font-size: 28px;
+  line-height: 1.25;
+}
+
+.auth-feature-card__item span {
+  display: block;
+  margin-top: 4px;
   font-size: 18px;
-  color: #000000;
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.auth-page-right {
+  flex: 1;
+  min-width: 0;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 32px 48px;
+  box-sizing: border-box;
+  background: #fff;
+}
+
+.locale-switcher {
+  position: absolute;
+  top: 20px;
+  right: 24px;
+  width: 120px;
+}
+
+.auth-page-right-title {
+  margin: 0 0 40px;
+  font-size: 30px;
+  line-height: 1.2;
+  font-weight: 700;
+  color: rgba(15, 23, 42, 0.9);
+  text-align: center;
+}
+
+.auth-page-right-form {
+  width: min(552px, 100%);
+  position: relative;
+}
+
+.auth-page-right-form :deep(.btn) {
+  width: 100%;
+  height: 56px;
+  background: #796f51;
+  border-radius: 6px;
+  font-size: 18px;
+  color: #fff;
+  text-align: center;
+  line-height: 56px;
+  cursor: pointer;
+}
+
+.auth-page-right-form :deep(.register) {
+  color: rgba(0, 0, 0, 0.5);
+  font-size: 18px;
+  text-align: right;
+  width: 100%;
+  cursor: pointer;
+  margin-top: 15px;
+}
+
+.auth-page-right-form :deep(.register-text) {
+  color: #000;
+}
+
+.auth-page-right-form :deep(.forgot-password) {
+  min-width: 90px;
+  height: 25px;
+  font-size: 18px;
+  color: #796f51;
+  text-align: right;
+  position: absolute;
+  top: 110px;
+  right: 5px;
+  cursor: pointer;
+}
+
+:deep(.el-form-item__label) {
+  font-size: 18px;
+  color: #000;
   font-weight: 500;
 }
-/deep/ .el-input {
+
+:deep(.el-input) {
   height: 56px;
 }
-/deep/ .el-input__inner {
+
+:deep(.el-input__inner) {
   height: 50px;
   line-height: 50px;
   font-size: 20px;
+}
+
+@media (max-width: 1320px) {
+  .auth-brand__name {
+    font-size: 34px;
+  }
+
+  .auth-page-left-headline {
+    font-size: 40px;
+  }
+
+  .auth-page-left-slogan {
+    font-size: 22px;
+  }
+
+  .auth-feature-card__item strong {
+    font-size: 24px;
+  }
+
+  .auth-feature-card__item span {
+    font-size: 15px;
+  }
+}
+
+@media (max-width: 1024px) {
+  .auth-page {
+    flex-direction: column;
+  }
+
+  .auth-page-left {
+    width: 100%;
+    min-width: 0;
+    padding: 24px 20px 32px;
+  }
+
+  .auth-brand__name {
+    font-size: 28px;
+  }
+
+  .auth-page-left-content {
+    margin-top: 56px;
+  }
+
+  .auth-page-left-headline {
+    font-size: 32px;
+  }
+
+  .auth-page-left-slogan {
+    margin-top: 24px;
+    font-size: 20px;
+  }
+
+  .auth-feature-card {
+    margin-top: 24px;
+  }
+
+  .auth-page-right {
+    width: 100%;
+    padding: 82px 16px 24px;
+    align-items: flex-start;
+  }
+
+  .locale-switcher {
+    top: 18px;
+    right: 16px;
+  }
+
+  .auth-page-right-title {
+    margin-bottom: 24px;
+    font-size: 28px;
+  }
+}
+
+@media (max-width: 520px) {
+  .auth-feature-card__item strong {
+    font-size: 18px;
+  }
+
+  .auth-feature-card__item span {
+    font-size: 12px;
+  }
+
+  .auth-page-right-title {
+    font-size: 24px;
+  }
+
+  :deep(.el-form-item__label) {
+    font-size: 16px;
+  }
+
+  :deep(.el-input__inner) {
+    font-size: 16px;
+  }
 }
 </style>

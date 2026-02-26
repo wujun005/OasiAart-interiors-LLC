@@ -2,47 +2,62 @@
   <div class="page">
     <el-card>
       <div class="toolbar">
-        <el-input v-model="query.nameKeyword" placeholder="搜索分类名称" clearable @keyup.enter="handleSearch" />
-        <el-button type="primary" @click="handleSearch">搜索</el-button>
-        <el-button @click="reset">重置</el-button>
-        <el-button type="primary" @click="openCreate">新增附加项分类</el-button>
+        <el-input
+          v-model="query.nameKeyword"
+          :placeholder="t('admin.addonCategory.searchPlaceholder')"
+          clearable
+          @keyup.enter="handleSearch"
+        />
+        <el-button type="primary" @click="handleSearch">{{ t('admin.addonCategory.actions.search') }}</el-button>
+        <el-button @click="reset">{{ t('admin.addonCategory.actions.reset') }}</el-button>
+        <el-button type="primary" @click="openCreate">{{ t('admin.addonCategory.actions.create') }}</el-button>
       </div>
 
       <el-table :data="displayList" border stripe row-key="id" v-loading="tableLoading">
-        <el-table-column label="名称" min-width="160">
+        <el-table-column :label="t('admin.addonCategory.table.name')" min-width="160">
           <template #default="{ row }">{{ row.displayName }}</template>
         </el-table-column>
-        <el-table-column label="更新时间" min-width="180">
+        <el-table-column :label="t('admin.addonCategory.table.updatedAt')" min-width="180">
           <template #default="{ row }">{{ formatDate(row.updatedAt) }}</template>
         </el-table-column>
-        <el-table-column label="操作" width="180" fixed="right">
+        <el-table-column :label="t('admin.addonCategory.table.actions')" width="180" fixed="right">
           <template #default="{ row }">
-            <el-button link type="primary" size="small" @click="openEdit(row)">编辑</el-button>
-            <el-button link type="danger" size="small" @click="remove(row)">删除</el-button>
+            <el-button link type="primary" size="small" @click="openEdit(row)">
+              {{ t('admin.addonCategory.actions.edit') }}
+            </el-button>
+            <el-button link type="danger" size="small" @click="remove(row)">
+              {{ t('admin.addonCategory.actions.delete') }}
+            </el-button>
           </template>
         </el-table-column>
       </el-table>
     </el-card>
 
-    <el-dialog v-model="dialogVisible" :title="isEdit ? '编辑附加项分类' : '新增附加项分类'" width="480px">
+    <el-dialog
+      v-model="dialogVisible"
+      :title="isEdit ? t('admin.addonCategory.dialog.editTitle') : t('admin.addonCategory.dialog.createTitle')"
+      width="480px"
+    >
       <el-form ref="formRef" :model="form" :rules="rules" label-width="100px">
-        <el-form-item label="名称(多语言)" prop="nameI18n">
+        <el-form-item :label="t('admin.addonCategory.form.nameI18n')" prop="nameI18n">
           <div class="i18n-list">
             <div v-for="(item, idx) in nameI18nList" :key="idx" class="i18n-row">
-              <el-select v-model="item.lang" placeholder="语言" style="width: 140px">
-                <el-option label="中文(zh-CN)" value="zh-CN" />
-                <el-option label="英文(en)" value="en" />
+              <el-select v-model="item.lang" :placeholder="t('admin.addonCategory.form.languagePlaceholder')" style="width: 140px">
+                <el-option :label="t('admin.common.langZhCn')" value="zh-CN" />
+                <el-option :label="t('admin.common.langEnCode')" value="en" />
               </el-select>
-              <el-input v-model="item.value" placeholder="名称" />
-              <el-button link type="danger" :disabled="nameI18nList.length===1" @click="removeI18n(idx)">删除</el-button>
+              <el-input v-model="item.value" :placeholder="t('admin.addonCategory.form.namePlaceholder')" />
+              <el-button link type="danger" :disabled="nameI18nList.length===1" @click="removeI18n(idx)">
+                {{ t('admin.addonCategory.actions.removeLang') }}
+              </el-button>
             </div>
-            <el-button link type="primary" @click="addI18n">+ 添加语言</el-button>
+            <el-button link type="primary" @click="addI18n">{{ t('admin.addonCategory.actions.addLang') }}</el-button>
           </div>
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="dialogVisible = false">取消</el-button>
-        <el-button type="primary" @click="save">保存</el-button>
+        <el-button @click="dialogVisible = false">{{ t('admin.addonCategory.actions.cancel') }}</el-button>
+        <el-button type="primary" @click="save">{{ t('admin.addonCategory.actions.save') }}</el-button>
       </template>
     </el-dialog>
   </div>
@@ -64,7 +79,7 @@ type AddonCategory = {
 };
 
 const list = ref<AddonCategory[]>([]);
-const { locale } = useI18n({ useScope: 'global' });
+const { locale, t } = useI18n({ useScope: 'global' });
 const query = reactive({ nameKeyword: '', pageNum: 1, pageSize: 10 });
 const total = ref(0);
 const tableLoading = ref(false);
@@ -84,7 +99,7 @@ const rules: FormRules = {
     {
       validator: (_r, _v, cb) => {
         const invalid = nameI18nList.value.find((i) => !i.lang?.trim() || !i.value?.trim());
-        if (invalid) return cb(new Error('请完善多语言名称'));
+        if (invalid) return cb(new Error(t('admin.addonCategory.validation.nameI18nIncomplete')));
         cb();
       },
       trigger: 'change',
@@ -133,11 +148,11 @@ const save = () => {
     };
     addOrUpdate(payload)
       .then(() => {
-        ElMessage.success('保存成功');
+        ElMessage.success(t('admin.addonCategory.message.saveSuccess'));
         dialogVisible.value = false;
         fetchList();
       })
-      .catch((err: any) => ElMessage.error(err?.message || '保存失败'));
+      .catch((err: any) => ElMessage.error(err?.message || t('admin.addonCategory.message.saveFailed')));
   });
 };
 
@@ -147,10 +162,14 @@ const remove = (row: AddonCategory) => {
     locale.value,
     row.displayName || '',
   );
-  ElMessageBox.confirm(`确定删除「${label}」吗？`, '提示', { type: 'warning' })
+  ElMessageBox.confirm(
+    t('admin.addonCategory.message.deleteConfirm', { label }),
+    t('admin.common.confirmTitle'),
+    { type: 'warning' },
+  )
     .then(() => deleteAttachType({ id: row.id }))
     .then(() => {
-      ElMessage.success('删除成功');
+      ElMessage.success(t('admin.addonCategory.message.deleteSuccess'));
       fetchList();
     })
     .catch(() => {});
@@ -183,7 +202,7 @@ const fetchList = async () => {
     });
     total.value = data.total ?? records.length;
   } catch (error: any) {
-    ElMessage.error(error?.message || '获取分类失败');
+    ElMessage.error(error?.message || t('admin.addonCategory.message.fetchFailed'));
   } finally {
     tableLoading.value = false;
   }

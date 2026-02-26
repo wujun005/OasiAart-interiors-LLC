@@ -2,18 +2,19 @@
   <el-sub-menu v-if="hasChildren" :index="submenuIndex">
     <template #title>
       <el-icon><component :is="iconComponent" /></el-icon>
-      <span>{{ item.name }}</span>
+      <span>{{ labelText }}</span>
     </template>
     <PermissionMenuItem
       v-for="child in item.children"
       :key="child.id"
       :item="child"
       :resolve-icon="resolveIcon"
+      :resolve-label="resolveLabel"
     />
   </el-sub-menu>
   <el-menu-item v-else :index="item.path || fallbackIndex" :disabled="!item.path">
     <el-icon><component :is="iconComponent" /></el-icon>
-    <span>{{ item.name }}</span>
+    <span>{{ labelText }}</span>
   </el-menu-item>
 </template>
 
@@ -29,6 +30,7 @@ defineOptions({
 const props = defineProps<{
   item: AdminMenuPermissionItem;
   resolveIcon: (item: AdminMenuPermissionItem) => Component;
+  resolveLabel?: (item: AdminMenuPermissionItem) => string;
 }>();
 
 const hasChildren = computed(
@@ -38,5 +40,8 @@ const submenuIndex = computed(() => props.item.path || `menu-${props.item.id}`);
 const fallbackIndex = computed(() => `menu-${props.item.id}`);
 const iconComponent = computed(
   () => props.resolveIcon?.(props.item) || MenuIcon,
+);
+const labelText = computed(
+  () => props.resolveLabel?.(props.item) || props.item.name || '',
 );
 </script>

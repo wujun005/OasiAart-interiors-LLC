@@ -45,7 +45,13 @@
 
       <div class="auth-form-wrap">
         <header class="auth-form-wrap__header">
-          <h2>{{ t('client.login.password.title') }}</h2>
+          <h2>
+            {{
+              isCodeLogin
+                ? t('client.login.password.codeTitle')
+                : t('client.login.password.title')
+            }}
+          </h2>
           <p>
             {{ t('client.login.password.noAccount') }}
             <button type="button" class="link-btn" @click="goRegister">
@@ -56,19 +62,29 @@
 
         <form class="auth-form" @submit.prevent="submitLogin">
           <label class="form-item">
-            <span>{{ t('client.login.password.accountLabel') }}</span>
+            <span>
+              {{
+                isCodeLogin
+                  ? t('client.login.password.phoneEmailLabel')
+                  : t('client.login.password.accountLabel')
+              }}
+            </span>
             <div class="form-item__control">
               <img :src="assetAccount" alt="" />
               <input
                 v-model.trim="form.account"
                 type="text"
                 autocomplete="username"
-                :placeholder="t('client.login.password.accountPlaceholder')"
+                :placeholder="
+                  isCodeLogin
+                    ? t('client.login.password.phoneEmailPlaceholder')
+                    : t('client.login.password.accountPlaceholder')
+                "
               />
             </div>
           </label>
 
-          <label class="form-item">
+          <label v-if="!isCodeLogin" class="form-item">
             <span>{{ t('client.login.password.passwordLabel') }}</span>
             <div class="form-item__control">
               <img :src="assetPassword" alt="" />
@@ -81,9 +97,37 @@
             </div>
           </label>
 
+          <label v-else class="form-item">
+            <span>{{ t('client.login.password.codeLabel') }}</span>
+            <div class="code-row">
+              <div class="form-item__control form-item__control--code">
+                <img :src="assetCode" alt="" />
+                <input
+                  v-model.trim="form.code"
+                  type="text"
+                  inputmode="numeric"
+                  maxlength="8"
+                  :placeholder="t('client.login.password.codeInputPlaceholder')"
+                />
+              </div>
+              <button
+                class="code-btn"
+                type="button"
+                :disabled="sendingCode || codeCooldown > 0"
+                @click="requestLoginCode"
+              >
+                {{ codeBtnText }}
+              </button>
+            </div>
+          </label>
+
           <div class="auth-form__helper">
-            <button type="button" class="link-btn link-btn--helper" @click="loginWithVerifyCode">
-              {{ t('client.login.password.forgotByCode') }}
+            <button type="button" class="link-btn link-btn--helper" @click="toggleLoginMode">
+              {{
+                isCodeLogin
+                  ? t('client.login.password.usePasswordLogin')
+                  : t('client.login.password.useCodeLogin')
+              }}
             </button>
           </div>
 
@@ -104,8 +148,8 @@
 </template>
 
 <script setup lang="ts">
-import { computed, reactive, ref } from 'vue';
-import { ElMessage, ElMessageBox } from 'element-plus';
+import { computed, onBeforeUnmount, reactive, ref } from 'vue';
+import { ElMessage } from 'element-plus';
 import { useI18n } from 'vue-i18n';
 import { useRouter } from 'vue-router';
 import {
@@ -121,20 +165,38 @@ const assetFeature2 = 'https://www.figma.com/api/mcp/asset/40985476-5fe7-4bab-bc
 const assetFeature3 = 'https://www.figma.com/api/mcp/asset/743d31dc-3585-491d-ab1e-1e9ef5756564';
 const assetAccount = 'https://www.figma.com/api/mcp/asset/4b012541-9ead-451b-a153-922f45572485';
 const assetPassword = 'https://www.figma.com/api/mcp/asset/58e9c021-fdf9-42ac-ad10-41c77d01d7f7';
+const assetCode = 'https://www.figma.com/api/mcp/asset/5c38b0ee-8e8c-4241-bdab-7ae9a7ff5959';
 const assetLocale = 'https://www.figma.com/api/mcp/asset/64934f0d-f62b-4bc7-882c-713ff6cf293e';
 
 const { t, locale } = useI18n({ useScope: 'global' });
 const router = useRouter();
 
+type LoginMode = 'password' | 'code';
+
 const form = reactive({
   account: '',
   password: '',
+  code: '',
 });
+const loginMode = ref<LoginMode>('password');
+const sendingCode = ref(false);
+const codeCooldown = ref(0);
 const submitting = ref(false);
+let codeTimer: number | null = null;
 
 const localeLabel = computed(() =>
   locale.value === 'zh' ? t('client.header.languageZh') : t('client.header.languageEn'),
 );
+const isCodeLogin = computed(() => loginMode.value === 'code');
+const codeBtnText = computed(() => {
+  if (codeCooldown.value > 0) {
+    return t('client.login.password.resendIn', { seconds: codeCooldown.value });
+  }
+  if (sendingCode.value) {
+    return t('client.login.password.sendingCode');
+  }
+  return t('client.login.password.getCode');
+});
 
 const leftFeatures = [
   {
@@ -168,6 +230,16 @@ const goHome = () => {
 
 const goRegister = () => {
   router.push('/register');
+};
+
+const toggleLoginMode = () => {
+  const nextMode: LoginMode = isCodeLogin.value ? 'password' : 'code';
+  loginMode.value = nextMode;
+  if (nextMode === 'code') {
+    form.password = '';
+    return;
+  }
+  form.code = '';
 };
 
 const saveClientToken = (raw: any) => {
@@ -205,66 +277,82 @@ const validatePasswordLogin = () => {
   return true;
 };
 
-const submitLogin = async () => {
-  if (!validatePasswordLogin()) return;
-  submitting.value = true;
-  const accountValue = form.account.trim();
-  try {
-    const result = await loginByPassword({
-      account: accountValue,
-      username: accountValue,
-      emailOrPhone: accountValue,
-      password: form.password,
-    });
-    if (!saveClientToken(result)) {
-      throw new Error(t('client.login.password.failed'));
-    }
-    ElMessage.success(t('client.login.password.success'));
-    router.push('/');
-  } catch (error: any) {
-    ElMessage.error(error?.message || t('client.login.password.failed'));
-  } finally {
-    submitting.value = false;
+const validateCodeLogin = () => {
+  if (!form.account.trim()) {
+    ElMessage.warning(t('client.login.password.accountRequired'));
+    return false;
   }
+  if (!/^\d{4,8}$/.test(form.code.trim())) {
+    ElMessage.warning(t('client.login.password.codeInvalid'));
+    return false;
+  }
+  return true;
 };
 
-const loginWithVerifyCode = async () => {
+const startCodeCountdown = () => {
+  if (codeTimer) {
+    window.clearInterval(codeTimer);
+  }
+  codeCooldown.value = 60;
+  codeTimer = window.setInterval(() => {
+    if (codeCooldown.value <= 1) {
+      codeCooldown.value = 0;
+      if (codeTimer) {
+        window.clearInterval(codeTimer);
+        codeTimer = null;
+      }
+      return;
+    }
+    codeCooldown.value -= 1;
+  }, 1000);
+};
+
+const requestLoginCode = async () => {
   const accountValue = form.account.trim();
   if (!accountValue) {
     ElMessage.warning(t('client.login.password.accountRequired'));
     return;
   }
+  sendingCode.value = true;
   try {
     await sendCode({
-      account: accountValue,
-      emailOrPhone: accountValue,
+      phoneOrEmail: accountValue,
     });
     ElMessage.success(t('client.login.password.codeSent'));
+    startCodeCountdown();
   } catch (error: any) {
     ElMessage.error(error?.message || t('client.login.password.codeSendFailed'));
-    return;
+  } finally {
+    sendingCode.value = false;
   }
+};
 
+const submitLogin = async () => {
+  const valid = isCodeLogin.value ? validateCodeLogin() : validatePasswordLogin();
+  if (!valid) return;
+
+  submitting.value = true;
+  const accountValue = form.account.trim();
   try {
-    const { value } = await ElMessageBox.prompt(
-      t('client.login.password.codeInputMessage'),
-      t('client.login.password.codeInputTitle'),
-      {
-        confirmButtonText: t('client.login.password.codeLoginConfirm'),
-        cancelButtonText: t('client.login.password.codeLoginCancel'),
-        inputPlaceholder: t('client.login.password.codeInputPlaceholder'),
-        inputPattern: /^\d{4,8}$/,
-        inputErrorMessage: t('client.login.password.codeInvalid'),
-      },
-    );
-    const codeValue = String(value || '').trim();
-    if (!codeValue) {
-      ElMessage.warning(t('client.login.password.codeRequired'));
+    if (!isCodeLogin.value) {
+      const result = await loginByPassword({
+        account: accountValue,
+        username: accountValue,
+        phoneOrEmail: accountValue,
+        password: form.password,
+      });
+      if (!saveClientToken(result)) {
+        throw new Error(t('client.login.password.failed'));
+      }
+      ElMessage.success(t('client.login.password.success'));
+      router.push('/');
       return;
     }
+
+    const codeValue = form.code.trim();
     const result = await loginByVerifyCode({
       account: accountValue,
-      emailOrPhone: accountValue,
+      phoneOrEmail: accountValue,
       code: codeValue,
       verifyCode: codeValue,
     });
@@ -274,10 +362,23 @@ const loginWithVerifyCode = async () => {
     ElMessage.success(t('client.login.password.codeLoginSuccess'));
     router.push('/');
   } catch (error: any) {
-    if (error === 'cancel' || error === 'close' || error?.message === 'cancel') return;
-    ElMessage.error(error?.message || t('client.login.password.codeLoginFailed'));
+    ElMessage.error(
+      error?.message
+        || (isCodeLogin.value
+          ? t('client.login.password.codeLoginFailed')
+          : t('client.login.password.failed')),
+    );
+  } finally {
+    submitting.value = false;
   }
 };
+
+onBeforeUnmount(() => {
+  if (codeTimer) {
+    window.clearInterval(codeTimer);
+    codeTimer = null;
+  }
+});
 </script>
 
 <style scoped lang="scss">
@@ -352,7 +453,7 @@ const loginWithVerifyCode = async () => {
 
 .auth-page__headline {
   margin: 0;
-  font-size: 58px;
+  font-size: 48px;
   line-height: 1.25;
   font-weight: 800;
   color: #fff;
@@ -529,6 +630,31 @@ const loginWithVerifyCode = async () => {
   color: rgba(10, 10, 10, 0.5);
 }
 
+.code-row {
+  display: flex;
+  gap: 12px;
+}
+
+.form-item__control--code {
+  flex: 1;
+}
+
+.code-btn {
+  width: 102px;
+  border: 0;
+  border-radius: 10px;
+  background: #eff6ff;
+  color: #3972f5;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.code-btn:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
 .auth-form__helper {
   display: flex;
   justify-content: flex-end;
@@ -587,7 +713,7 @@ const loginWithVerifyCode = async () => {
   }
 
   .auth-page__headline {
-    font-size: 50px;
+    font-size: 40px;
   }
 
   .auth-page__slogan {
@@ -675,6 +801,15 @@ const loginWithVerifyCode = async () => {
 
   .auth-feature-card__item span {
     font-size: 12px;
+  }
+
+  .code-row {
+    flex-direction: column;
+  }
+
+  .code-btn {
+    width: 100%;
+    height: 44px;
   }
 }
 </style>

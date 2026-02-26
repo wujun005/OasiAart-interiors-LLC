@@ -5,11 +5,11 @@
         <div class="hero-section__content">
           <p class="hero-section__eyebrow">{{ t('client.home.hero.eyebrow') }}</p>
           <h1 class="hero-section__title">
-            {{ t('client.home.hero.titleLine1') }}<br />
+            {{ t('client.home.hero.titleLine1') }}
             {{ t('client.home.hero.titleLine2') }}
           </h1>
           <p class="hero-section__desc">{{ t('client.home.hero.desc') }}</p>
-          <button class="hero-section__cta" type="button">
+          <button class="hero-section__cta" type="button" @click="scrollToOffers">
             {{ t('client.home.hero.cta') }}
           </button>
           <div class="hero-section__tags">
@@ -49,6 +49,7 @@
             :key="item.id"
             class="services-grid__item"
             :class="{ 'services-grid__item--placeholder': item.placeholder }"
+            @click="openServiceList(item)"
           >
             <div class="services-grid__icon">
               <img v-if="item.icon" :src="item.icon" :alt="item.title" />
@@ -72,7 +73,9 @@
               <h3>{{ item.title }}</h3>
               <p class="offer-card__desc">{{ item.desc }}</p>
               <p class="offer-card__price">{{ item.price }}</p>
-              <button type="button">{{ t('client.home.serviceCard.button') }}</button>
+              <button type="button" @click="goProductDetail(item.spuId)">
+                {{ t('client.home.serviceCard.button') }}
+              </button>
             </div>
           </article>
         </div>
@@ -138,6 +141,7 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
+import { useRouter } from 'vue-router';
 import {
   exclusiveSpus,
   level1Categories,
@@ -147,13 +151,16 @@ import {
 
 type ServiceTile = {
   id: string;
+  categoryId: string;
   title: string;
   icon: string;
   placeholder: boolean;
+  source?: Level1CategoryRecord;
 };
 
 type OfferCard = {
   id: string;
+  spuId: string;
   title: string;
   desc: string;
   price: string;
@@ -173,9 +180,8 @@ type Reason = {
   highlight?: boolean;
 };
 
-const supportAgentUrl = 'https://www.figma.com/api/mcp/asset/a68939d4-75b7-40fa-90fc-302a69bd661e';
-const heroTagIcon = 'https://www.figma.com/api/mcp/asset/63d0707f-2281-4030-be91-6ffcc8453af6';
-const aboutImageUrl = 'https://www.figma.com/api/mcp/asset/fb2b53d9-2ff6-47c3-9c02-0d972cc4a398';
+const supportAgentUrl = new URL('@/assets/images/client/kefu.jpeg', import.meta.url).href;
+const aboutImageUrl = new URL('@/assets/images/client/fengmian.png', import.meta.url).href;;
 
 const defaultServiceIcons = [
   'https://www.figma.com/api/mcp/asset/eb5c30c7-689f-4ed5-bbbd-d173eed0127f',
@@ -193,19 +199,20 @@ const defaultOfferImages = [
 ];
 
 const bookingStepIcons = [
-  'https://www.figma.com/api/mcp/asset/d49f3852-48ae-42bd-9344-a92a77f9a740',
-  'https://www.figma.com/api/mcp/asset/89346f6b-7ed6-4f55-a84f-7de1ff50ba63',
-  'https://www.figma.com/api/mcp/asset/95eb69d6-f35d-4be5-95c6-29b6e966782c',
+  new URL('@/assets/images/client/Icon6.svg', import.meta.url).href,
+  new URL('@/assets/images/client/Icon5.svg', import.meta.url).href,
+  new URL('@/assets/images/client/Icon4.svg', import.meta.url).href,
   
 ];
 
 const reasonIcons = [
-  'https://www.figma.com/api/mcp/asset/795d3ca4-5d09-4f4c-a429-c9baba6e642c',
-  'https://www.figma.com/api/mcp/asset/44beadda-0111-41ed-bdaa-2a1b69518db3',
-  'https://www.figma.com/api/mcp/asset/3e258020-3b92-4c63-983e-edc24486e585',
+  new URL('@/assets/images/client/Icon7.svg', import.meta.url).href,
+  new URL('@/assets/images/client/Icon8.svg', import.meta.url).href,
+  new URL('@/assets/images/client/Icon9.svg', import.meta.url).href,
 ];
 
 const { t, locale } = useI18n({ useScope: 'global' });
+const router = useRouter();
 
 const serviceMenuRecords = ref<Level1CategoryRecord[]>([]);
 const serviceCardRecords = ref<ExclusiveSpuRecord[]>([]);
@@ -233,39 +240,6 @@ const pickI18nValue = (i18n?: Record<string, string>, fallback = ''): string => 
   return fallback;
 };
 
-const defaultServiceMenus = computed<ServiceTile[]>(() => [
-  {
-    id: 'default-1',
-    title: t('client.home.defaults.menu1'),
-    icon: defaultServiceIcons[0],
-    placeholder: false,
-  },
-  {
-    id: 'default-2',
-    title: t('client.home.defaults.menu2'),
-    icon: defaultServiceIcons[1],
-    placeholder: false,
-  },
-  {
-    id: 'default-3',
-    title: t('client.home.defaults.menu3'),
-    icon: defaultServiceIcons[2],
-    placeholder: false,
-  },
-  {
-    id: 'default-4',
-    title: t('client.home.defaults.menu4'),
-    icon: defaultServiceIcons[3],
-    placeholder: false,
-  },
-  {
-    id: 'default-5',
-    title: t('client.home.defaults.menu5'),
-    icon: defaultServiceIcons[4],
-    placeholder: false,
-  },
-]);
-
 const serviceTiles = computed<ServiceTile[]>(() => {
   const records = serviceMenuRecords.value || [];
   const filtered = records.filter((item) => {
@@ -276,29 +250,24 @@ const serviceTiles = computed<ServiceTile[]>(() => {
   const mapped = source
     .map((item, index) => ({
       id: String(item.category?.categoryId || item.category?.id || `service-${index + 1}`),
+      categoryId: String(item.category?.categoryId || item.category?.id || ''),
       title: pickI18nValue(
         item.nameI18n,
         item.category?.categoryName?.trim() || t('client.home.defaults.unnamedService'),
       ),
       icon: item.imageUrls?.[0] || defaultServiceIcons[index % defaultServiceIcons.length],
       placeholder: false,
+      source: item,
     }))
     .filter((item) => item.title);
 
-  const base = mapped.length ? mapped : defaultServiceMenus.value;
-  const sliced = base.slice(0, 10);
-  const placeholders = Array.from({ length: Math.max(10 - sliced.length, 0) }, (_, index) => ({
-    id: `placeholder-${index + 1}`,
-    title: t('client.home.defaults.comingSoon'),
-    icon: '',
-    placeholder: true,
-  }));
-  return [...sliced, ...placeholders];
+  return mapped.slice(0, 10);
 });
 
 const defaultOfferCards = computed<OfferCard[]>(() => [
   {
     id: 'offer-default-1',
+    spuId: '',
     title: t('client.home.defaults.card1Title'),
     desc: t('client.home.defaults.card1Desc'),
     price: t('client.home.defaults.card1Price'),
@@ -306,6 +275,7 @@ const defaultOfferCards = computed<OfferCard[]>(() => [
   },
   {
     id: 'offer-default-2',
+    spuId: '',
     title: t('client.home.defaults.card2Title'),
     desc: t('client.home.defaults.card2Desc'),
     price: t('client.home.defaults.card2Price'),
@@ -313,6 +283,7 @@ const defaultOfferCards = computed<OfferCard[]>(() => [
   },
   {
     id: 'offer-default-3',
+    spuId: '',
     title: t('client.home.defaults.card3Title'),
     desc: t('client.home.defaults.card3Desc'),
     price: t('client.home.defaults.card3Price'),
@@ -320,6 +291,7 @@ const defaultOfferCards = computed<OfferCard[]>(() => [
   },
   {
     id: 'offer-default-4',
+    spuId: '',
     title: t('client.home.defaults.card4Title'),
     desc: t('client.home.defaults.card4Desc'),
     price: t('client.home.defaults.card4Price'),
@@ -350,6 +322,7 @@ const featuredCards = computed<OfferCard[]>(() => {
       const fallback = defaultOfferCards.value[index % defaultOfferCards.value.length];
       return {
         id: String(item.id ?? `offer-${index + 1}`),
+        spuId: String(item.id ?? ''),
         title: pickI18nValue(item.nameI18n, fallback.title),
         desc: pickI18nValue(item.descI18n, fallback.desc),
         price: formatPriceText(item.minPrice),
@@ -378,7 +351,7 @@ const bookingSteps = computed<BookingStep[]>(() => [
     desc: t('client.home.steps.step2Desc'),
   },
   {
-    icon: '@/assets/images/client/Icon4.svg',
+    icon: bookingStepIcons[2],
     title: t('client.home.steps.step3Title'),
     desc: t('client.home.steps.step3Desc'),
   },
@@ -417,6 +390,56 @@ const loadServiceMenus = async () => {
     console.error('load level1 categories failed:', error);
     serviceMenuRecords.value = [];
   }
+};
+
+const openServiceList = (item: ServiceTile) => {
+  if (item.placeholder) {
+    return;
+  }
+  const level1Payload = item.source
+    ? JSON.stringify({
+      category: item.source.category || {},
+      nameI18n: item.source.nameI18n || {},
+      imageUrls: item.source.imageUrls || [],
+      bannerTitleI18n: item.source.bannerTitleI18n || {},
+      bannerDescI18n: item.source.bannerDescI18n || {},
+      bannerTagsI18n: item.source.bannerTagsI18n || {},
+    })
+    : '';
+  const query: Record<string, string> = {
+    name: item.title,
+  };
+  if (item.categoryId) {
+    query.categoryId = item.categoryId;
+  }
+  if (level1Payload) {
+    query.level1 = level1Payload;
+  }
+
+  router.push({
+    path: '/services/daily-cleaning',
+    query,
+  });
+};
+
+const scrollToOffers = () => {
+  const offersSection = document.getElementById('orders');
+  if (offersSection) {
+    const targetTop = offersSection.getBoundingClientRect().top + window.scrollY - 96;
+    window.scrollTo({ top: Math.max(targetTop, 0), behavior: 'smooth' });
+    return;
+  }
+  router.push({ path: '/', hash: '#orders' });
+};
+
+const goProductDetail = (spuId: string) => {
+  if (!spuId) {
+    return;
+  }
+  router.push({
+    name: 'product-detail',
+    params: { spuId },
+  });
 };
 
 const loadExclusiveCards = async () => {
@@ -564,7 +587,7 @@ onBeforeUnmount(() => {
 }
 
 .hero-section__content {
-  width: min(672px, 100%);
+  // width: min(672px, 100%);
 }
 
 .hero-section__eyebrow {
@@ -744,6 +767,12 @@ onBeforeUnmount(() => {
   flex-direction: column;
   align-items: center;
   gap: 16px;
+  cursor: pointer;
+  transition: transform 0.2s ease;
+}
+
+.services-grid__item:hover {
+  transform: translateY(-4px);
 }
 
 .services-grid__icon {
@@ -774,6 +803,15 @@ onBeforeUnmount(() => {
 
 .services-grid__item--placeholder .services-grid__icon {
   background: rgba(57, 114, 245, 0.05);
+}
+
+.services-grid__item--placeholder {
+  cursor: default;
+  transform: none;
+}
+
+.services-grid__item--placeholder:hover {
+  transform: none;
 }
 
 .offers-section {
@@ -810,7 +848,9 @@ onBeforeUnmount(() => {
   position: absolute;
   top: 16px;
   right: 16px;
-  width: 88px;
+  width: fit-content;
+  max-width: calc(100% - 32px);
+  padding: 0 12px;
   height: 36px;
   border-radius: 10px;
   background: #fb2c36;
@@ -820,6 +860,7 @@ onBeforeUnmount(() => {
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  white-space: nowrap;
 }
 
 .offer-card__body {

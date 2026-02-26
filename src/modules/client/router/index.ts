@@ -17,12 +17,43 @@ const routes: RouteRecordRaw[] = [
     name: 'register',
     component: () => import('@/modules/client/pages/register.vue'),
   },
+  {
+    path: '/services/daily-cleaning',
+    name: 'service-list',
+    component: () => import('@/modules/client/pages/service-list.vue'),
+  },
+  {
+    path: '/services/detail/:spuId',
+    name: 'product-detail',
+    component: () => import('@/modules/client/pages/product-detail.vue'),
+  },
+  {
+    path: '/orders/confirm',
+    name: 'order-confirm',
+    component: () => import('@/modules/client/pages/order-confirm.vue'),
+  },
+  {
+    path: '/orders',
+    name: 'order-list',
+    component: () => import('@/modules/client/pages/order-list.vue'),
+  },
+  {
+    path: '/join-us',
+    name: 'join-us',
+    component: () => import('@/modules/client/pages/join-us.vue'),
+  },
 ];
 
 export const router = createRouter({
   history: createWebHistory(),
   routes,
-  scrollBehavior() {
+  scrollBehavior(to) {
+    if (to.hash) {
+      return {
+        el: to.hash,
+        top: 96,
+      };
+    }
     return { top: 0, left: 0 };
   },
 });

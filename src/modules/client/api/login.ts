@@ -4,14 +4,14 @@ export interface PasswordLoginPayload {
   account: string;
   password: string;
   username?: string;
-  emailOrPhone?: string;
+  phoneOrEmail?: string;
 }
 
 export interface VerifyCodeLoginPayload {
   account: string;
   code?: string;
   verifyCode?: string;
-  emailOrPhone?: string;
+  phoneOrEmail?: string;
 }
 
 export interface RegisterPayload {
@@ -27,7 +27,7 @@ export interface SendCodePayload {
   account?: string;
   phone?: string;
   email?: string;
-  emailOrPhone?: string;
+  phoneOrEmail?: string;
 }
 
 // 发送注册验证码 /api/client/auth/sendRegisterCode
