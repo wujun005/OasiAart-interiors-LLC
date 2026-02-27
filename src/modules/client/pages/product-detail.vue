@@ -2,10 +2,19 @@
   <div class="product-detail-page">
     <section class="product-detail-subheader">
       <div class="product-detail-container">
-        <button class="product-detail-back" type="button" @click="goBack">
-          <span class="product-detail-back__icon" aria-hidden="true">&lt;</span>
-          <span>{{ t('client.productDetail.pageTitle') }}</span>
-        </button>
+        <nav class="product-detail-back" aria-label="breadcrumb">
+          <button class="product-detail-back__link" type="button" @click="goServicesHome">
+            {{ t('client.header.nav.services') }}
+          </button>
+          <span class="product-detail-back__separator" aria-hidden="true">&lt;</span>
+          <template v-if="parentBreadcrumbTitle">
+            <button class="product-detail-back__link" type="button" @click="goServiceList">
+              {{ parentBreadcrumbTitle }}
+            </button>
+            <span class="product-detail-back__separator" aria-hidden="true">&lt;</span>
+          </template>
+          <span class="product-detail-back__current">{{ displayTitle }}</span>
+        </nav>
       </div>
     </section>
 
@@ -44,7 +53,7 @@
           <section class="product-card">
             <div class="product-card__head">
               <h1>{{ displayTitle }}</h1>
-              <p>{{ formatAed(basePrice) }}</p>
+              <p>{{ formatAed(subtotalPrice) }}</p>
             </div>
             <div v-if="selectedSpecSummary" class="product-card__meta">
               <span>{{ selectedSpecSummary }}</span>
@@ -62,7 +71,7 @@
             <h2>{{ t('client.productDetail.includesTitle') }}</h2>
             <ul v-if="includesItems.length" class="product-check-list">
               <li v-for="item in includesItems" :key="item">
-                <span class="product-check-list__icon">v</span>
+                <!-- <span class="product-check-list__icon">v</span> -->
                 <span>{{ item }}</span>
               </li>
             </ul>
@@ -143,7 +152,16 @@
                     :key="`${group.typeId}-${option.id}`"
                     class="booking-attach-item"
                   >
-                    <span class="booking-attach-item__name">{{ option.label }}</span>
+                    <div class="booking-attach-item__meta">
+                      <span class="booking-attach-item__name">{{ option.label }}</span>
+                      <span class="booking-attach-item__price">
+                        {{
+                          t('client.productDetail.booking.attachUnitPrice', {
+                            price: option.price.toFixed(2),
+                          })
+                        }}
+                      </span>
+                    </div>
                     <div class="booking-attach-item__stepper">
                       <button
                         class="booking-option booking-option--step"
@@ -180,6 +198,10 @@
             </p>
 
             <div class="booking-summary">
+              <div class="booking-summary__row booking-summary__row--attach">
+                <span>{{ t('client.productDetail.booking.attachTotal') }}</span>
+                <strong>{{ formatAed(attachTotalPrice) }}</strong>
+              </div>
               <div class="booking-summary__row">
                 <span>{{ t('client.productDetail.booking.subtotal') }}</span>
                 <strong>{{ formatAed(subtotalPrice) }}</strong>
@@ -507,6 +529,27 @@ const displayTitle = computed(() =>
   ),
 );
 
+const parentBreadcrumbTitle = computed(() =>
+  getRouteQueryText('breadcrumb'),
+);
+
+const serviceListQuery = computed(() => {
+  const query: Record<string, string> = {};
+  const categoryId = getRouteQueryText('categoryId');
+  const level1 = getRouteQueryText('level1');
+  const name = parentBreadcrumbTitle.value || getRouteQueryText('name');
+  if (categoryId) {
+    query.categoryId = categoryId;
+  }
+  if (level1) {
+    query.level1 = level1;
+  }
+  if (name) {
+    query.name = name;
+  }
+  return query;
+});
+
 const displayDesc = computed(() =>
   pickI18nValue(productDetail.value?.descI18n, ''),
 );
@@ -564,6 +607,23 @@ const skuRequestSignature = computed(() => {
 const subtotalPrice = computed(() => {
   const skuSubtotal = resolveOptionalNumber(skuPrice.value?.totalPrice);
   return skuSubtotal ?? basePrice.value;
+});
+
+const attachTotalPrice = computed(() => {
+  const fromSku = resolveOptionalNumber(skuPrice.value?.attachTotalPrice);
+  if (fromSku !== null) {
+    return fromSku;
+  }
+  const fromSkuWithTax = resolveOptionalNumber(skuPrice.value?.attachTotalPriceWithTax);
+  if (fromSkuWithTax !== null) {
+    return fromSkuWithTax;
+  }
+  return bookingAttachGroups.value.reduce((sum, group) => {
+    return sum + group.options.reduce((groupSum, option) => {
+      const quantity = Math.max(0, Number(attachQuantities.value[option.id] || 0));
+      return groupSum + option.price * quantity;
+    }, 0);
+  }, 0);
 });
 
 const vatPrice = computed(() => {
@@ -644,6 +704,7 @@ type BookingSpecGroup = {
 type BookingAttachOption = {
   id: string;
   label: string;
+  price: number;
 };
 
 type BookingAttachGroup = {
@@ -651,6 +712,86 @@ type BookingAttachGroup = {
   label: string;
   options: BookingAttachOption[];
 };
+
+const buildAttachOptionPriceMap = (record: ProductDetailRecord | null) => {
+  const map: Record<string, number> = {};
+  if (!record || typeof record !== 'object') {
+    return map;
+  }
+
+  const appendByMap = (source: unknown) => {
+    if (!source || typeof source !== 'object' || Array.isArray(source)) {
+      return;
+    }
+    Object.entries(source as Record<string, unknown>).forEach(([id, rawPrice]) => {
+      const cleanId = String(id || '').trim();
+      if (!cleanId) {
+        return;
+      }
+      const price = resolveOptionalNumber(rawPrice);
+      if (price === null) {
+        return;
+      }
+      if (map[cleanId] === undefined || map[cleanId] <= 0) {
+        map[cleanId] = price;
+      }
+    });
+  };
+
+  const appendByArray = (source: unknown) => {
+    if (!Array.isArray(source)) {
+      return;
+    }
+    source.forEach((item) => {
+      if (!item || typeof item !== 'object') {
+        return;
+      }
+      const entry = item as Record<string, unknown>;
+      const id = String(entry.id ?? entry.attachValueId ?? entry.valueId ?? '').trim();
+      if (!id) {
+        return;
+      }
+      const price = resolveOptionalNumber(
+        entry.price ?? entry.amount ?? entry.attachPrice ?? entry.attachAmount,
+      );
+      if (price === null) {
+        return;
+      }
+      if (map[id] === undefined || map[id] <= 0) {
+        map[id] = price;
+      }
+    });
+  };
+
+  appendByMap((record as any).attachValuePriceMap);
+  appendByMap((record as any).attachValueAmountMap);
+  appendByMap((record as any).attachPriceMap);
+  appendByMap((record as any).attachAmountMap);
+  appendByMap((record as any).attachValuePrices);
+  appendByMap((record as any).attachValueAmounts);
+
+  appendByArray((record as any).attachValues);
+  appendByArray((record as any).attachValueList);
+  appendByArray((record as any).attachValueItems);
+  appendByArray((record as any).attachOptions);
+  appendByArray((record as any).addons);
+  appendByArray((record as any).addonOptions);
+
+  const bindings = Array.isArray((record as any).attachBindings)
+    ? ((record as any).attachBindings as Array<Record<string, unknown>>)
+    : [];
+  bindings.forEach((binding) => {
+    Object.values(binding).forEach((value) => {
+      appendByArray(value);
+    });
+  });
+
+  return map;
+};
+
+const attachOptionPriceMap = computed(() =>
+  buildAttachOptionPriceMap(productDetail.value),
+);
 
 const bookingSpecGroups = computed<BookingSpecGroup[]>(() => {
   const record = productDetail.value;
@@ -714,7 +855,9 @@ const bookingAttachGroups = computed<BookingAttachGroup[]>(() => {
             return null;
           }
           const optionLabel = pickI18nValue(record?.attachValueNameI18n?.[id], id);
-          return optionLabel ? { id, label: optionLabel } : null;
+          return optionLabel
+            ? { id, label: optionLabel, price: attachOptionPriceMap.value[id] ?? 0 }
+            : null;
         })
         .filter((item): item is BookingAttachOption => Boolean(item));
       if (!options.length) {
@@ -878,12 +1021,15 @@ const decreaseAttachQty = (valueId: string) => {
   };
 };
 
-const goBack = () => {
-  if (typeof window !== 'undefined' && window.history.length > 1) {
-    router.back();
-    return;
-  }
-  router.push('/services/daily-cleaning');
+const goServicesHome = () => {
+  router.push({ path: '/', hash: '#services' });
+};
+
+const goServiceList = () => {
+  router.push({
+    path: '/services/daily-cleaning',
+    query: Object.keys(serviceListQuery.value).length ? serviceListQuery.value : undefined,
+  });
 };
 
 const goOrderConfirm = async () => {
@@ -947,22 +1093,37 @@ const goOrderConfirm = async () => {
 
 .product-detail-back {
   height: 64px;
-  border: 0;
-  background: transparent;
   display: inline-flex;
   align-items: center;
-  gap: 12px;
-  color: #3972f5;
-  font-size: 30px;
-  font-weight: 800;
+  gap: 8px;
+  color: rgba(15, 23, 42, 0.78);
+  font-size: 17px;
+  font-weight: 600;
   line-height: 1;
-  cursor: pointer;
   padding: 0;
 }
 
-.product-detail-back__icon {
-  color: rgba(15, 23, 42, 0.9);
-  font-size: 24px;
+.product-detail-back__link {
+  border: 0;
+  background: transparent;
+  padding: 0;
+  color: #3972f5;
+  font-size: inherit;
+  line-height: 1;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.product-detail-back__separator {
+  color: rgba(15, 23, 42, 0.45);
+  font-size: 16px;
+}
+
+.product-detail-back__current {
+  color: rgba(15, 23, 42, 0.88);
+  font-size: inherit;
+  line-height: 1;
+  font-weight: 700;
 }
 
 .product-detail-body {
@@ -1354,15 +1515,31 @@ const goOrderConfirm = async () => {
   background: #f8fafc;
   padding: 8px 10px;
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
   gap: 8px;
 }
 
+.booking-attach-item__meta {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
 .booking-attach-item__name {
+  display: block;
   color: rgba(15, 23, 42, 0.82);
   font-size: 13px;
   font-weight: 700;
+}
+
+.booking-attach-item__price {
+  display: block;
+  margin-top: 2px;
+  color: rgba(15, 23, 42, 0.52);
+  font-size: 12px;
+  font-weight: 600;
 }
 
 .booking-attach-item__stepper {
@@ -1488,7 +1665,7 @@ const goOrderConfirm = async () => {
   }
 
   .product-detail-back {
-    font-size: 24px;
+    font-size: 16px;
   }
 
   .product-card {

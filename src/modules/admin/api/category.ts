@@ -29,3 +29,8 @@ export function del(payload: any) {
 export function upload(payload: any) {
   return http.post('/api/file/upload', payload);
 }
+
+// /api/category/search 查询分类
+export function searchCategory(payload: any) {
+  return http.post('/api/category/search', payload);
+}

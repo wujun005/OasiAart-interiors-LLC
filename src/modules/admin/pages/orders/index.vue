@@ -2,49 +2,158 @@
   <div class="page">
     <el-card>
       <div class="toolbar">
-        <el-input
-          v-model="query.orderNo"
-          :placeholder="t('admin.orders.searchPlaceholder')"
-          clearable
-          @keyup.enter="handleSearch"
-        />
-        <el-button type="primary" @click="handleSearch">{{ t('admin.orders.actions.search') }}</el-button>
-        <el-button @click="reset">{{ t('admin.orders.actions.reset') }}</el-button>
-        <el-button type="primary" @click="openCreate">{{ t('admin.orders.actions.create') }}</el-button>
+        <div class="toolbar-row">
+          <el-input
+            v-model.trim="query.orderNo"
+            :placeholder="t('admin.orders.filters.orderNo')"
+            clearable
+            @keyup.enter="handleSearch"
+          />
+          <el-input
+            v-model.trim="query.userPhone"
+            :placeholder="t('admin.orders.filters.userPhone')"
+            clearable
+            @keyup.enter="handleSearch"
+          />
+          <el-input
+            v-model.trim="query.contactPhone"
+            :placeholder="t('admin.orders.filters.contactPhone')"
+            clearable
+            @keyup.enter="handleSearch"
+          />
+          <el-input
+            v-model.trim="query.productName"
+            :placeholder="t('admin.orders.filters.productName')"
+            clearable
+            @keyup.enter="handleSearch"
+          />
+          <div class="toolbar-time">
+            <span class="toolbar-time__label">
+              {{ t('admin.orders.table.serviceTime') }}
+            </span>
+            <el-date-picker
+              v-model="query.serviceTimeRange"
+              type="daterange"
+              unlink-panels
+              value-format="YYYY-MM-DD"
+              :range-separator="t('admin.orders.filters.rangeSeparator')"
+              :start-placeholder="t('admin.orders.filters.serviceTimeStart')"
+              :end-placeholder="t('admin.orders.filters.serviceTimeEnd')"
+              clearable
+            />
+          </div>
+        </div>
+        <div class="toolbar-row">
+          <el-select
+            v-model="query.orderStatus"
+            :placeholder="t('admin.orders.filters.orderStatus')"
+            clearable
+          >
+            <el-option
+              v-for="item in orderStatusOptions"
+              :key="item.value"
+              :label="item.label"
+              :value="item.value"
+            />
+          </el-select>
+          <el-select
+            v-model="query.paymentStatus"
+            :placeholder="t('admin.orders.filters.paymentStatus')"
+            clearable
+          >
+            <el-option
+              v-for="item in paymentStatusOptions"
+              :key="item.value"
+              :label="item.label"
+              :value="item.value"
+            />
+          </el-select>
+          <el-button type="primary" @click="handleSearch">
+            {{ t('admin.orders.actions.search') }}
+          </el-button>
+          <el-button @click="reset">
+            {{ t('admin.orders.actions.reset') }}
+          </el-button>
+        </div>
       </div>
+
       <el-table :data="orders" border stripe v-loading="tableLoading" row-key="id">
-        <el-table-column prop="orderNo" :label="t('admin.orders.table.orderNo')" width="160" />
-        <el-table-column prop="userId" :label="t('admin.orders.table.userId')" width="100" />
-        <el-table-column :label="t('admin.orders.table.payStatus')" width="120">
+        <el-table-column prop="orderNo" :label="t('admin.orders.table.orderNo')" min-width="180" />
+        <el-table-column
+          prop="productName"
+          :label="t('admin.orders.table.productName')"
+          min-width="160"
+        />
+        <el-table-column
+          prop="specDescText"
+          :label="t('admin.orders.table.specDesc')"
+          min-width="240"
+          show-overflow-tooltip
+        />
+        <el-table-column
+          prop="userPhone"
+          :label="t('admin.orders.table.userPhone')"
+          min-width="140"
+        />
+        <el-table-column
+          prop="contactPhone"
+          :label="t('admin.orders.table.contactPhone')"
+          min-width="140"
+        />
+        <el-table-column
+          prop="serviceTime"
+          :label="t('admin.orders.table.serviceTime')"
+          min-width="160"
+        >
           <template #default="{ row }">
-            <el-tag :type="payStatusTag(row.payStatus)">{{ row.payStatus || '-' }}</el-tag>
+            {{ row.serviceTime || '-' }}
           </template>
         </el-table-column>
-        <el-table-column :label="t('admin.orders.table.orderStatus')" width="120">
+        <el-table-column :label="t('admin.orders.table.paymentStatus')" min-width="120">
           <template #default="{ row }">
-            <el-tag :type="orderStatusTag(row.orderStatus)">{{ row.orderStatus || '-' }}</el-tag>
+            <el-tag :type="paymentStatusTag(row.paymentStatusCode)">
+              {{ row.paymentStatusText }}
+            </el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="amount" :label="t('admin.orders.table.amount')" width="120">
-          <template #default="{ row }">{{ row.totalAmount }} {{ row.currency || 'CNY' }}</template>
-        </el-table-column>
-        <el-table-column :label="t('admin.orders.table.createdAt')" min-width="160">
-          <template #default="{ row }">{{ formatDate(row.createdAt) }}</template>
-        </el-table-column>
-        <el-table-column :label="t('admin.orders.table.updatedAt')" min-width="160">
-          <template #default="{ row }">{{ formatDate(row.updatedAt) }}</template>
-        </el-table-column>
-        <el-table-column :label="t('admin.orders.table.actions')" width="180" fixed="right">
+        <el-table-column :label="t('admin.orders.table.orderStatus')" min-width="130">
           <template #default="{ row }">
-            <el-button link type="primary" size="small" @click="openEdit(row)">
-              {{ t('admin.orders.actions.edit') }}
-            </el-button>
-            <el-button link type="danger" size="small" @click="remove(row)">
-              {{ t('admin.orders.actions.delete') }}
+            <el-tag :type="orderStatusTag(row.orderStatusCode)">
+              {{ row.orderStatusText }}
+            </el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column prop="amountText" :label="t('admin.orders.table.amount')" min-width="120" />
+        <el-table-column :label="t('admin.orders.table.createdAt')" min-width="170">
+          <template #default="{ row }">
+            {{ formatDateTime(row.createdAt) }}
+          </template>
+        </el-table-column>
+        <el-table-column
+          prop="adminRemark"
+          :label="t('admin.orders.table.adminRemark')"
+          min-width="200"
+          show-overflow-tooltip
+        >
+          <template #default="{ row }">
+            {{ row.adminRemark || '-' }}
+          </template>
+        </el-table-column>
+        <el-table-column :label="t('admin.orders.table.actions')" width="120" fixed="right">
+          <template #default="{ row }">
+            <el-button
+              link
+              type="primary"
+              size="small"
+              :disabled="!row.orderId"
+              @click="openRemarkDialog(row)"
+            >
+              {{ t('admin.orders.actions.remark') }}
             </el-button>
           </template>
         </el-table-column>
       </el-table>
+
       <div class="pager">
         <el-pagination
           v-model:current-page="query.pageNum"
@@ -59,220 +168,442 @@
     </el-card>
 
     <el-dialog
-      v-model="dialogVisible"
-      :title="isEdit ? t('admin.orders.dialog.editTitle') : t('admin.orders.dialog.createTitle')"
-      width="520px"
+      v-model="remarkDialogVisible"
+      :title="t('admin.orders.dialog.remarkTitle')"
+      width="560px"
     >
-      <el-form
-        ref="formRef"
-        :model="form"
-        :rules="rules"
-        label-width="90px"
-        v-loading="detailLoading"
-      >
-        <el-form-item :label="t('admin.orders.form.orderNo')" prop="orderNo">
-          <el-input v-model="form.orderNo" :placeholder="t('admin.orders.form.orderNoPlaceholder')" />
+      <el-form label-width="90px">
+        <el-form-item :label="t('admin.orders.form.orderNo')">
+          <el-input :model-value="remarkForm.orderNo" disabled />
         </el-form-item>
-        <el-form-item :label="t('admin.orders.form.userId')" prop="userId">
-          <el-input-number
-            v-model="form.userId"
-            :min="1"
-            :step="1"
-            :placeholder="t('admin.orders.form.userIdPlaceholder')"
+        <el-form-item :label="t('admin.orders.form.adminRemark')">
+          <el-input
+            v-model="remarkForm.adminRemark"
+            type="textarea"
+            :rows="5"
+            :placeholder="t('admin.orders.form.adminRemarkPlaceholder')"
+            maxlength="1000"
+            show-word-limit
           />
-        </el-form-item>
-        <el-form-item :label="t('admin.orders.form.payStatus')" prop="payStatus">
-          <el-select v-model="form.payStatus" :placeholder="t('admin.orders.form.payStatusPlaceholder')" style="width: 100%">
-            <el-option v-for="item in payStatusOptions" :key="item" :label="item" :value="item" />
-          </el-select>
-        </el-form-item>
-        <el-form-item :label="t('admin.orders.form.orderStatus')" prop="orderStatus">
-          <el-select
-            v-model="form.orderStatus"
-            :placeholder="t('admin.orders.form.orderStatusPlaceholder')"
-            style="width: 100%"
-          >
-            <el-option v-for="item in orderStatusOptions" :key="item" :label="item" :value="item" />
-          </el-select>
-        </el-form-item>
-        <el-form-item :label="t('admin.orders.form.totalAmount')" prop="totalAmount">
-          <el-input-number v-model="form.totalAmount" :min="0" :step="1" style="width: 100%" />
-        </el-form-item>
-        <el-form-item :label="t('admin.orders.form.currency')" prop="currency">
-          <el-input v-model="form.currency" :placeholder="t('admin.orders.form.currencyPlaceholder')" />
-        </el-form-item>
-        <el-form-item :label="t('admin.orders.form.address')" prop="recipientAddress">
-          <el-input v-model="form.recipientAddress" :placeholder="t('admin.orders.form.addressPlaceholder')" />
-        </el-form-item>
-        <el-form-item :label="t('admin.orders.form.phone')" prop="recipientPhone">
-          <el-input v-model="form.recipientPhone" :placeholder="t('admin.orders.form.phonePlaceholder')" />
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="dialogVisible = false">{{ t('admin.orders.actions.cancel') }}</el-button>
-        <el-button type="primary" :loading="submitLoading" @click="save">{{ t('admin.orders.actions.save') }}</el-button>
+        <el-button @click="remarkDialogVisible = false">
+          {{ t('admin.orders.actions.cancel') }}
+        </el-button>
+        <el-button type="primary" :loading="remarkSubmitting" @click="submitRemark">
+          {{ t('admin.orders.actions.save') }}
+        </el-button>
       </template>
     </el-dialog>
   </div>
 </template>
 
 <script setup lang="ts">
-import { nextTick, onMounted, reactive, ref } from 'vue';
-import type { FormInstance, FormRules } from 'element-plus';
-import { ElMessage, ElMessageBox } from 'element-plus';
+import { computed, onMounted, reactive, ref } from 'vue';
+import { ElMessage } from 'element-plus';
 import { useI18n } from 'vue-i18n';
-import api from '@/modules/admin/api/order';
+import { page, updateAdminRemark } from '@/modules/admin/api/order';
 
-type Order = {
-  id?: number;
+type OrderRow = {
+  orderId: number | null;
+  id: string | number;
   orderNo: string;
-  userId?: number;
-  totalAmount: number;
-  currency?: string;
-  payStatus?: string;
-  orderStatus?: string;
-  recipientAddress?: string;
-  recipientPhone?: string;
-  createdAt?: string;
-  updatedAt?: string;
+  userPhone: string;
+  contactPhone: string;
+  productName: string;
+  adminRemark: string;
+  specDescText: string;
+  serviceTime: string;
+  orderStatusCode: number | null;
+  paymentStatusCode: number | null;
+  orderStatusText: string;
+  paymentStatusText: string;
+  amountText: string;
+  createdAt: string;
 };
 
-const payStatusOptions = ['UNPAID', 'PAID', 'REFUNDED'];
-const orderStatusOptions = ['PENDING', 'CONFIRMED', 'SHIPPED', 'COMPLETED', 'CANCELLED'];
+type RawSpecSelection = {
+  specTypeName?: string;
+  specValueName?: string;
+};
+
+type RawAttachDetail = {
+  amountWithTax?: number | string;
+};
+
+const orderStatusNameMap: Record<string, number> = {
+  CREATED: 0,
+  PENDING_PAYMENT: 1,
+  PAID: 2,
+  PROCESSING: 3,
+  COMPLETED: 4,
+  CANCELLED: 5,
+  CLOSED: 6,
+};
+
+const paymentStatusNameMap: Record<string, number> = {
+  UNPAID: 0,
+  PENDING_PAYMENT: 0,
+  PARTIAL_PAID: 1,
+  PARTIALLY_PAID: 1,
+  PAID: 2,
+  REFUNDED: 3,
+};
+
 const { t } = useI18n({ useScope: 'global' });
 
-const query = reactive({
-  pageNum: 1,
-  pageSize: 10,
-  orderNo: '',
-});
-const orders = ref<Order[]>([]);
-const total = ref(0);
-const tableLoading = ref(false);
+const orderStatusOptions = computed(() => [
+  { value: 0, label: t('admin.orders.status.orderCreated') },
+  { value: 1, label: t('admin.orders.status.orderPendingPayment') },
+  { value: 2, label: t('admin.orders.status.orderPaid') },
+  { value: 3, label: t('admin.orders.status.orderProcessing') },
+  { value: 4, label: t('admin.orders.status.orderCompleted') },
+  { value: 5, label: t('admin.orders.status.orderCancelled') },
+  { value: 6, label: t('admin.orders.status.orderClosed') },
+]);
 
-const dialogVisible = ref(false);
-const isEdit = ref(false);
-const formRef = ref<FormInstance>();
-const detailLoading = ref(false);
-const submitLoading = ref(false);
+const paymentStatusOptions = computed(() => [
+  { value: 0, label: t('admin.orders.status.paymentPending') },
+  { value: 1, label: t('admin.orders.status.paymentPartial') },
+  { value: 2, label: t('admin.orders.status.paymentPaid') },
+  { value: 3, label: t('admin.orders.status.paymentRefunded') },
+]);
 
-const form = reactive<Order>({
-  id: undefined,
-  orderNo: '',
-  userId: undefined,
-  totalAmount: 0,
-  currency: 'CNY',
-  payStatus: 'UNPAID',
-  orderStatus: 'PENDING',
-  recipientAddress: '',
-  recipientPhone: '',
-});
-
-const rules: FormRules = {
-  orderNo: [{ required: true, message: t('admin.orders.validation.orderNoRequired'), trigger: 'blur' }],
-  userId: [{ required: true, message: t('admin.orders.validation.userIdRequired'), trigger: 'blur' }],
-  payStatus: [{ required: true, message: t('admin.orders.validation.payStatusRequired'), trigger: 'change' }],
-  orderStatus: [{ required: true, message: t('admin.orders.validation.orderStatusRequired'), trigger: 'change' }],
-  totalAmount: [
-    { required: true, message: t('admin.orders.validation.amountRequired'), trigger: 'blur' },
-    {
-      validator: (_rule, value, callback) => {
-        if (value === null || value === undefined || value === '') {
-          callback(new Error(t('admin.orders.validation.amountRequired')));
-        } else if (Number(value) < 0) {
-          callback(new Error(t('admin.orders.validation.amountNonNegative')));
-        } else {
-          callback();
-        }
-      },
-      trigger: 'change',
-    },
-  ],
-  currency: [{ required: true, message: t('admin.orders.validation.currencyRequired'), trigger: 'blur' }],
+const getTodayString = () => {
+  const now = new Date();
+  const y = now.getFullYear();
+  const m = `${now.getMonth() + 1}`.padStart(2, '0');
+  const d = `${now.getDate()}`.padStart(2, '0');
+  return `${y}-${m}-${d}`;
 };
 
-const formatDate = (value?: string) => {
-  if (!value) return '';
-  const d = new Date(value);
-  if (Number.isNaN(d.getTime())) return value;
+const defaultServiceTimeRange = (): [string, string] => {
+  const today = getTodayString();
+  return [today, today];
+};
+
+const query = reactive({
+  orderNo: '',
+  userPhone: '',
+  contactPhone: '',
+  productName: '',
+  serviceTimeRange: defaultServiceTimeRange() as [string, string],
+  orderStatus: '' as '' | number,
+  paymentStatus: '' as '' | number,
+  pageNum: 1,
+  pageSize: 10,
+});
+
+const orders = ref<OrderRow[]>([]);
+const total = ref(0);
+const tableLoading = ref(false);
+const remarkDialogVisible = ref(false);
+const remarkSubmitting = ref(false);
+const remarkForm = reactive({
+  orderId: null as number | null,
+  orderNo: '',
+  adminRemark: '',
+});
+
+const formatDateTime = (value?: string) => {
+  const text = String(value || '').trim();
+  if (!text) return '-';
+  const d = new Date(text);
+  if (Number.isNaN(d.getTime())) return text;
   const y = d.getFullYear();
   const m = `${d.getMonth() + 1}`.padStart(2, '0');
   const day = `${d.getDate()}`.padStart(2, '0');
-  return `${y}-${m}-${day}`;
+  const hh = `${d.getHours()}`.padStart(2, '0');
+  const mm = `${d.getMinutes()}`.padStart(2, '0');
+  const ss = `${d.getSeconds()}`.padStart(2, '0');
+  return `${y}-${m}-${day} ${hh}:${mm}:${ss}`;
 };
 
-const payStatusTag = (status?: string) => {
-  if (status === 'PAID') return 'success';
-  if (status === 'REFUNDED') return 'info';
-  if (status === 'UNPAID') return 'warning';
+const paymentStatusTag = (code: number | null) => {
+  if (code === 2) return 'success';
+  if (code === 3) return 'info';
+  if (code === 0 || code === 1) return 'warning';
   return '';
 };
 
-const orderStatusTag = (status?: string) => {
-  if (status === 'COMPLETED') return 'success';
-  if (status === 'SHIPPED' || status === 'CONFIRMED') return 'warning';
-  if (status === 'CANCELLED') return 'info';
+const orderStatusTag = (code: number | null) => {
+  if (code === 4) return 'success';
+  if (code === 5 || code === 6) return 'info';
+  if (code === 0 || code === 1 || code === 2 || code === 3) return 'warning';
   return '';
 };
 
-const resetForm = () => {
-  form.id = undefined;
-  form.orderNo = '';
-  form.userId = undefined;
-  form.totalAmount = 0;
-  form.currency = 'CNY';
-  form.payStatus = 'UNPAID';
-  form.orderStatus = 'PENDING';
-  form.recipientAddress = '';
-  form.recipientPhone = '';
-  nextTick(() => formRef.value?.clearValidate());
+const formatAmount = (raw: unknown) => {
+  if (raw === null || raw === undefined || raw === '') return '-';
+  const num = Number(raw);
+  if (!Number.isFinite(num)) return String(raw);
+  return Number.isInteger(num) ? `${num}` : num.toFixed(2);
 };
 
-const extractPage = (payload: any) => {
-  const page = payload?.data ?? payload ?? {};
-  const list = Array.isArray(page.list) ? page.list : [];
-  const parsed = list.map((item) => {
-    const order = item?.order ?? item ?? {};
+const normalizeCode = (
+  value: unknown,
+  nameMap: Record<string, number>,
+): number | null => {
+  if (value === null || value === undefined || value === '') return null;
+  const num = Number(value);
+  if (Number.isFinite(num)) {
+    return num;
+  }
+  const key = String(value).trim().toUpperCase();
+  if (!key) return null;
+  return key in nameMap ? nameMap[key] : null;
+};
+
+const normalizeOrderId = (value: unknown): number | null => {
+  const id = Number(value);
+  return Number.isFinite(id) && id > 0 ? id : null;
+};
+
+const getOrderStatusText = (code: number | null) => {
+  if (code === 0) return t('admin.orders.status.orderCreated');
+  if (code === 1) return t('admin.orders.status.orderPendingPayment');
+  if (code === 2) return t('admin.orders.status.orderPaid');
+  if (code === 3) return t('admin.orders.status.orderProcessing');
+  if (code === 4) return t('admin.orders.status.orderCompleted');
+  if (code === 5) return t('admin.orders.status.orderCancelled');
+  if (code === 6) return t('admin.orders.status.orderClosed');
+  return '-';
+};
+
+const getPaymentStatusText = (code: number | null) => {
+  if (code === 0) return t('admin.orders.status.paymentPending');
+  if (code === 1) return t('admin.orders.status.paymentPartial');
+  if (code === 2) return t('admin.orders.status.paymentPaid');
+  if (code === 3) return t('admin.orders.status.paymentRefunded');
+  return '-';
+};
+
+const parseSpecDescText = (item: any) => {
+  const order = item?.order ?? item?.orderHeader ?? item ?? {};
+  const selections = (
+    Array.isArray(order.specSelections)
+      ? order.specSelections
+      : Array.isArray(item.specSelections)
+        ? item.specSelections
+        : []
+  ) as RawSpecSelection[];
+  const values = selections
+    .map((s) => {
+      const typeName = String(s?.specTypeName || '').trim();
+      const valueName = String(s?.specValueName || '').trim();
+      if (typeName && valueName) return `${typeName}: ${valueName}`;
+      return typeName || valueName;
+    })
+    .filter(Boolean);
+  if (values.length) return values.join(' / ');
+  const fallback = String(order.specDesc ?? item.specDesc ?? '').trim();
+  return fallback || '-';
+};
+
+const parseAmountText = (item: any) => {
+  const order = item?.order ?? item?.orderHeader ?? item ?? {};
+  const explicitAmount =
+    order.totalAmount ??
+    item.totalAmount ??
+    order.orderAmount ??
+    item.orderAmount ??
+    order.amount ??
+    item.amount;
+  const currency = String(order.currency ?? item.currency ?? '').trim();
+  if (explicitAmount !== null && explicitAmount !== undefined && explicitAmount !== '') {
+    const amountText = formatAmount(explicitAmount);
+    return currency ? `${amountText} ${currency}` : amountText;
+  }
+  const attachList = (
+    Array.isArray(order.attachDetails)
+      ? order.attachDetails
+      : Array.isArray(item.attachDetails)
+        ? item.attachDetails
+        : []
+  ) as RawAttachDetail[];
+  const attachTotal = attachList.reduce((sum, attach) => {
+    const current = Number(attach?.amountWithTax ?? 0);
+    return Number.isFinite(current) ? sum + current : sum;
+  }, 0);
+  if (attachTotal > 0) {
+    const totalText = formatAmount(attachTotal);
+    return currency ? `${totalText} ${currency}` : totalText;
+  }
+  return '-';
+};
+
+const normalizePage = (payload: any) => {
+  const root = payload?.data ?? payload ?? {};
+  if (Array.isArray(root.list)) {
     return {
-      id: order.id,
-      orderNo: order.orderNo,
-      userId: order.userId,
-      totalAmount: order.totalAmount ?? 0,
-      currency: order.currency ?? 'CNY',
-      payStatus: order.payStatus,
-      orderStatus: order.orderStatus,
-      recipientAddress: order.recipientAddress,
-      recipientPhone: order.recipientPhone,
-      createdAt: order.createdAt,
-      updatedAt: order.updatedAt,
-      orderItems: item?.orderItems ?? [],
-    } as Order & { orderItems?: any[] };
-  });
+      list: root.list,
+      total: Number(root.total ?? root.list.length) || root.list.length,
+      pageNum: Number(root.pageNum ?? query.pageNum) || query.pageNum,
+      pageSize: Number(root.pageSize ?? query.pageSize) || query.pageSize,
+    };
+  }
+  if (Array.isArray(root.data?.list)) {
+    const pageData = root.data;
+    return {
+      list: pageData.list,
+      total: Number(pageData.total ?? pageData.list.length) || pageData.list.length,
+      pageNum: Number(pageData.pageNum ?? query.pageNum) || query.pageNum,
+      pageSize: Number(pageData.pageSize ?? query.pageSize) || query.pageSize,
+    };
+  }
+  if (Array.isArray(root.data)) {
+    return {
+      list: root.data,
+      total: Number(root.total ?? root.data.length) || root.data.length,
+      pageNum: Number(root.pageNum ?? query.pageNum) || query.pageNum,
+      pageSize: Number(root.pageSize ?? query.pageSize) || query.pageSize,
+    };
+  }
+  return { list: [], total: 0, pageNum: query.pageNum, pageSize: query.pageSize };
+};
+
+const parseOrderRow = (item: any): OrderRow => {
+  const order = item?.order ?? item?.orderHeader ?? item ?? {};
+  const orderId = normalizeOrderId(
+    order.orderId ?? item.orderId ?? order.id ?? item.id,
+  );
+  const rawOrderStatus =
+    order.orderStatus ?? item.orderStatus ?? order.status ?? item.status;
+  const rawPaymentStatus =
+    order.paymentStatus ?? item.paymentStatus ?? order.payStatus ?? item.payStatus;
+  const orderStatusCode = normalizeCode(
+    rawOrderStatus,
+    orderStatusNameMap,
+  );
+  const paymentStatusCode = normalizeCode(
+    rawPaymentStatus,
+    paymentStatusNameMap,
+  );
+
   return {
-    list: parsed,
-    total: typeof page.total === 'number' ? page.total : list.length,
-    pageNum: page.pageNum ?? query.pageNum,
-    pageSize: page.pageSize ?? query.pageSize,
+    orderId,
+    id: orderId ?? String(order.orderNo ?? item.orderNo ?? ''),
+    orderNo: String(order.orderNo ?? item.orderNo ?? '').trim(),
+    userPhone: String(order.userPhone ?? item.userPhone ?? order.phone ?? item.phone ?? '').trim(),
+    contactPhone: String(
+      order.contactPhone ?? item.contactPhone ?? order.recipientPhone ?? item.recipientPhone ?? '',
+    ).trim(),
+    productName: String(order.productName ?? item.productName ?? order.spuName ?? item.spuName ?? '').trim(),
+    adminRemark: String(order.adminRemark ?? item.adminRemark ?? '').trim(),
+    specDescText: parseSpecDescText(item),
+    serviceTime: String(order.serviceTime ?? item.serviceTime ?? '').trim(),
+    orderStatusCode,
+    paymentStatusCode,
+    orderStatusText:
+      orderStatusCode === null
+        ? String(rawOrderStatus ?? '').trim() || '-'
+        : getOrderStatusText(orderStatusCode),
+    paymentStatusText:
+      paymentStatusCode === null
+        ? String(rawPaymentStatus ?? '').trim() || '-'
+        : getPaymentStatusText(paymentStatusCode),
+    amountText: parseAmountText(item),
+    createdAt: String(order.orderTime ?? item.orderTime ?? order.createTime ?? item.createTime ?? '').trim(),
   };
 };
+
+const normalizeOptionalParam = (value: unknown) => {
+  if (value === null || value === undefined) return '';
+  const text = String(value).trim();
+  if (!text) return '';
+  const lower = text.toLowerCase();
+  if (lower === 'undefined' || lower === 'null') return '';
+  return text;
+};
+
+const normalizeOptionalNumberParam = (value: unknown): number | null => {
+  if (value === null || value === undefined || value === '') return null;
+  const num = Number(value);
+  return Number.isFinite(num) ? num : null;
+};
+
+const requestPayload = computed(() => {
+  const payload: Record<string, any> = {
+    pageNum: query.pageNum,
+    pageSize: query.pageSize,
+  };
+
+  const orderNo = normalizeOptionalParam(query.orderNo);
+  if (orderNo) payload.orderNo = orderNo;
+
+  const userPhone = normalizeOptionalParam(query.userPhone);
+  if (userPhone) payload.userPhone = userPhone;
+
+  const contactPhone = normalizeOptionalParam(query.contactPhone);
+  if (contactPhone) payload.contactPhone = contactPhone;
+
+  const productName = normalizeOptionalParam(query.productName);
+  if (productName) payload.productName = productName;
+
+  const [rawServiceTimeStart = '', rawServiceTimeEnd = ''] = Array.isArray(query.serviceTimeRange)
+    ? query.serviceTimeRange
+    : ['', ''];
+  const serviceTimeStart = normalizeOptionalParam(rawServiceTimeStart);
+  const serviceTimeEnd = normalizeOptionalParam(rawServiceTimeEnd);
+  if (serviceTimeStart) payload.serviceTimeStart = serviceTimeStart;
+  if (serviceTimeEnd) payload.serviceTimeEnd = serviceTimeEnd;
+
+  const orderStatus = normalizeOptionalNumberParam(query.orderStatus);
+  if (orderStatus !== null) payload.orderStatus = orderStatus;
+
+  const paymentStatus = normalizeOptionalNumberParam(query.paymentStatus);
+  if (paymentStatus !== null) payload.paymentStatus = paymentStatus;
+
+  return payload;
+});
 
 const fetchOrders = async () => {
   tableLoading.value = true;
   try {
-    const res = await api.getPage({
-      pageNum: query.pageNum,
-      pageSize: query.pageSize,
-      orderNo: query.orderNo?.trim() || undefined,
-    });
-    const { list, total: t, pageNum, pageSize } = extractPage(res);
-    orders.value = list;
-    total.value = t;
-    query.pageNum = pageNum;
-    query.pageSize = pageSize;
+    const res = await page(requestPayload.value);
+    const parsed = normalizePage(res);
+    orders.value = (parsed.list || []).map(parseOrderRow);
+    total.value = parsed.total;
+    query.pageNum = parsed.pageNum;
+    query.pageSize = parsed.pageSize;
   } catch (error: any) {
     ElMessage.error(error?.message || t('admin.orders.message.fetchFailed'));
   } finally {
     tableLoading.value = false;
+  }
+};
+
+const openRemarkDialog = (row: OrderRow) => {
+  if (!row.orderId) {
+    ElMessage.warning(t('admin.orders.message.remarkOrderIdMissing'));
+    return;
+  }
+  remarkForm.orderId = row.orderId;
+  remarkForm.orderNo = row.orderNo;
+  remarkForm.adminRemark = row.adminRemark || '';
+  remarkDialogVisible.value = true;
+};
+
+const submitRemark = async () => {
+  if (!remarkForm.orderId) {
+    ElMessage.warning(t('admin.orders.message.remarkOrderIdMissing'));
+    return;
+  }
+  remarkSubmitting.value = true;
+  try {
+    await updateAdminRemark({
+      orderId: remarkForm.orderId,
+      adminRemark: remarkForm.adminRemark || '',
+    });
+    ElMessage.success(t('admin.orders.message.remarkSaveSuccess'));
+    remarkDialogVisible.value = false;
+    const target = orders.value.find((item) => item.orderId === remarkForm.orderId);
+    if (target) target.adminRemark = remarkForm.adminRemark || '';
+  } catch (error: any) {
+    ElMessage.error(error?.message || t('admin.orders.message.remarkSaveFailed'));
+  } finally {
+    remarkSubmitting.value = false;
   }
 };
 
@@ -283,96 +614,26 @@ const handleSearch = () => {
 
 const reset = () => {
   query.orderNo = '';
+  query.userPhone = '';
+  query.contactPhone = '';
+  query.productName = '';
+  query.serviceTimeRange = defaultServiceTimeRange();
+  query.orderStatus = '';
+  query.paymentStatus = '';
+  query.pageNum = 1;
+  query.pageSize = 10;
+  fetchOrders();
+};
+
+const onPageChange = (pageNum: number) => {
+  query.pageNum = pageNum;
+  fetchOrders();
+};
+
+const onSizeChange = (pageSize: number) => {
+  query.pageSize = pageSize;
   query.pageNum = 1;
   fetchOrders();
-};
-
-const onPageChange = (page: number) => {
-  query.pageNum = page;
-  fetchOrders();
-};
-
-const onSizeChange = (size: number) => {
-  query.pageSize = size;
-  query.pageNum = 1;
-  fetchOrders();
-};
-
-const openCreate = () => {
-  isEdit.value = false;
-  resetForm();
-  dialogVisible.value = true;
-};
-
-const openEdit = async (row: Order) => {
-  isEdit.value = true;
-  resetForm();
-  dialogVisible.value = true;
-  detailLoading.value = true;
-  try {
-    const detailRes = await api.getInfo(row.id);
-    const detail = detailRes?.data ?? detailRes ?? {};
-    const order = detail.order ?? detail ?? {};
-    form.id = order.id ?? row.id;
-    form.orderNo = order.orderNo ?? row.orderNo ?? '';
-    form.userId = order.userId ?? row.userId;
-    form.totalAmount = order.totalAmount ?? row.totalAmount ?? 0;
-    form.currency = order.currency ?? row.currency ?? 'CNY';
-    form.payStatus = order.payStatus ?? row.payStatus ?? 'UNPAID';
-    form.orderStatus = order.orderStatus ?? row.orderStatus ?? 'PENDING';
-    form.recipientAddress = order.recipientAddress ?? '';
-    form.recipientPhone = order.recipientPhone ?? '';
-    nextTick(() => formRef.value?.clearValidate());
-  } catch (error: any) {
-    ElMessage.error(error?.message || t('admin.orders.message.detailFailed'));
-  } finally {
-    detailLoading.value = false;
-  }
-};
-
-const save = () => {
-  formRef.value?.validate(async (valid) => {
-    if (!valid) return;
-    submitLoading.value = true;
-    try {
-      const payload = {
-        order: { ...form },
-        orderItems: [],
-      };
-      if (isEdit.value) {
-        await api.update(payload);
-        ElMessage.success(t('admin.orders.message.updateSuccess'));
-      } else {
-        await api.add(payload);
-        ElMessage.success(t('admin.orders.message.createSuccess'));
-      }
-      dialogVisible.value = false;
-      fetchOrders();
-    } catch (error: any) {
-      ElMessage.error(error?.message || t('admin.orders.message.saveFailed'));
-    } finally {
-      submitLoading.value = false;
-    }
-  });
-};
-
-const remove = async (row: Order) => {
-  try {
-    await ElMessageBox.confirm(
-      t('admin.orders.message.deleteConfirm', { orderNo: row.orderNo }),
-      t('admin.common.confirmTitle'),
-      {
-      type: 'warning',
-      },
-    );
-    await api.del(row.id);
-    ElMessage.success(t('admin.orders.message.deleteSuccess'));
-    fetchOrders();
-  } catch (error: any) {
-    if (error?.message) {
-      ElMessage.error(error.message);
-    }
-  }
 };
 
 onMounted(fetchOrders);
@@ -384,12 +645,33 @@ onMounted(fetchOrders);
 }
 .toolbar {
   display: flex;
-  gap: 12px;
+  flex-direction: column;
+  gap: 10px;
   margin-bottom: 16px;
-  align-items: center;
 }
-.toolbar .el-input {
-  max-width: 260px;
+.toolbar-row {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.toolbar-time {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.toolbar-time__label {
+  color: #606266;
+  font-size: 14px;
+  white-space: nowrap;
+}
+.toolbar .el-input,
+.toolbar .el-select,
+.toolbar .el-date-editor {
+  width: 180px;
+}
+.toolbar-time .el-date-editor {
+  width: 280px;
 }
 .pager {
   display: flex;

@@ -84,10 +84,19 @@
             formatDate(row.updatedAt)
           }}</template>
         </el-table-column>
-        <el-table-column :label="t('admin.product.table.actions')" width="260" fixed="right">
+        <el-table-column :label="t('admin.product.table.actions')" width="320" fixed="right">
           <template #default="{ row }">
             <el-button link type="primary" size="small" @click="openEdit(row)">
               {{ t('admin.product.actions.edit') }}
+            </el-button>
+            <el-button
+              link
+              type="primary"
+              size="small"
+              :disabled="!row.previewUrl"
+              @click="openPreview(row)"
+            >
+              {{ t('admin.product.actions.preview') }}
             </el-button>
             <el-button
               link
@@ -208,7 +217,10 @@
                 @change="
                   () => {
                     group.specIds = group.specIds.filter((id) =>
-                      filteredSpecOptions(group.specTypeId).some(
+                      filteredSpecOptions(
+                        group.specTypeId,
+                        form.product.subCategoryId,
+                      ).some(
                         (o) => o.value === id,
                       ),
                     );
@@ -216,7 +228,7 @@
                 "
               >
                 <el-option
-                  v-for="item in specTypeOptions"
+                  v-for="item in filteredSpecTypeOptions"
                   :key="item.value"
                   :label="item.label"
                   :value="item.value"
@@ -236,7 +248,7 @@
                 style="width: 100%"
               >
                 <el-option
-                  v-for="item in filteredSpecOptions(group.specTypeId)"
+                  v-for="item in filteredSpecOptions(group.specTypeId, form.product.subCategoryId)"
                   :key="item.value"
                   :label="item.label"
                   :value="item.value"
@@ -603,7 +615,7 @@ import {
   enableExclusive,
   disableExclusive,
 } from '@/modules/admin/api/spu';
-import { getPage as getCategoryPage } from '@/modules/admin/api/category';
+import { getPage as getCategoryPage, searchCategory } from '@/modules/admin/api/category';
 import { getSpecTypePage } from '@/modules/admin/api/specType';
 import { getSpecValuePage } from '@/modules/admin/api/spec';
 import { getPage as getAddonTypePage } from '@/modules/admin/api/addonType';
@@ -645,6 +657,7 @@ type ProductRow = {
   id: number;
   name: string;
   images: string[];
+  previewUrl?: string;
   price: number;
   stock: number;
   isOnSale: boolean;
@@ -673,16 +686,25 @@ type AddonGroup = {
   addonIds: number[];
 };
 
+const normalizeOptionalId = (value: unknown): number | null => {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+};
+
 const subCategoryOptions = ref<
-  { label: string; value: number; parentId: number }[]
+  { label: string; value: number; parentId: number | null }[]
 >([]);
 const { locale, t } = useI18n({ useScope: 'global' });
 
 const categoryOptions = ref<{ label: string; value: number }[]>([]);
 
-const specOptions = ref<{ label: string; value: number; typeId: number }[]>([]);
+const specOptions = ref<
+  { label: string; value: number; typeId: number | null; subCategoryId: number | null }[]
+>([]);
 
-const specTypeOptions = ref<{ label: string; value: number }[]>([]);
+const specTypeOptions = ref<
+  { label: string; value: number; subCategoryId: number | null }[]
+>([]);
 
 const addonCategoryOptions = ref<{ label: string; value: number }[]>([]);
 
@@ -702,9 +724,11 @@ const subCategoryMap = computed(() => {
 });
 const subCategoryParentMap = computed(() => {
   const map = new Map<number, number>();
-  subCategoryOptions.value.forEach((item) =>
-    map.set(item.value, item.parentId),
-  );
+  subCategoryOptions.value.forEach((item) => {
+    if (item.parentId) {
+      map.set(item.value, item.parentId);
+    }
+  });
   return map;
 });
 const categoryMap = computed(() => {
@@ -718,8 +742,18 @@ const specMap = computed(() => {
   specOptions.value.forEach((item) => map.set(item.value, item.label));
   return map;
 });
-const filteredSpecOptions = (typeId: number | null) =>
-  specOptions.value.filter((item) => !typeId || item.typeId === typeId);
+const filteredSpecOptions = (
+  typeId: number | null,
+  subCategoryId?: number | null,
+) =>
+  specOptions.value.filter((item) => {
+    const typeMatched = !typeId || item.typeId === typeId;
+    const subCategoryMatched =
+      !subCategoryId ||
+      !item.subCategoryId ||
+      item.subCategoryId === subCategoryId;
+    return typeMatched && subCategoryMatched;
+  });
 
 const query = reactive({
   pageNum: 1,
@@ -792,8 +826,11 @@ const defaultProduct = (): ProductEntity => ({
   sort: undefined,
   categoryId: categoryOptions.value[0]?.value,
   subCategoryId: subCategoryOptions.value.find(
-    (s) => s.parentId === categoryOptions.value[0]?.value,
-  )?.value,
+    (s) =>
+      !categoryOptions.value[0]?.value ||
+      !s.parentId ||
+      s.parentId === categoryOptions.value[0]?.value,
+  )?.value ?? subCategoryOptions.value[0]?.value,
   specTypeId: null,
   specIds: [],
 });
@@ -831,9 +868,51 @@ const form = reactive<{
 const filteredSubCategoryOptions = computed(() =>
   subCategoryOptions.value.filter(
     (item) =>
-      !form.product.categoryId || item.parentId === form.product.categoryId,
+      !form.product.categoryId ||
+      !item.parentId ||
+      item.parentId === form.product.categoryId,
   ),
 );
+
+const filteredSpecTypeOptions = computed(() =>
+  specTypeOptions.value.filter(
+    (item) =>
+      !form.product.subCategoryId ||
+      !item.subCategoryId ||
+      item.subCategoryId === form.product.subCategoryId,
+  ),
+);
+
+const getDefaultSpecTypeId = () => filteredSpecTypeOptions.value[0]?.value ?? null;
+
+const normalizeSpecGroup = (group: SpecGroup, autoFillType = true) => {
+  const availableTypeIds = new Set(
+    filteredSpecTypeOptions.value.map((item) => item.value),
+  );
+  if (
+    group.specTypeId &&
+    !availableTypeIds.has(group.specTypeId)
+  ) {
+    group.specTypeId = autoFillType ? getDefaultSpecTypeId() : null;
+  } else if (!group.specTypeId && autoFillType) {
+    group.specTypeId = getDefaultSpecTypeId();
+  }
+  const availableSpecIds = new Set(
+    filteredSpecOptions(
+      group.specTypeId,
+      form.product.subCategoryId ?? null,
+    ).map((item) => item.value),
+  );
+  group.specIds = (group.specIds || []).filter((id) => availableSpecIds.has(id));
+};
+
+const normalizeSpecGroups = (autoFillType = true) => {
+  if (!form.specGroups.length) {
+    form.specGroups = [{ specTypeId: autoFillType ? getDefaultSpecTypeId() : null, specIds: [] }];
+    return;
+  }
+  form.specGroups.forEach((group) => normalizeSpecGroup(group, autoFillType));
+};
 
 const langOptions = computed(() => [
   { label: t('admin.common.langZhCn'), value: 'zh-CN' },
@@ -973,6 +1052,9 @@ const isRichTextEmpty = (html?: string) => {
 
 const resetForm = () => {
   form.product = defaultProduct();
+  if (!form.product.subCategoryId && filteredSubCategoryOptions.value.length) {
+    form.product.subCategoryId = filteredSubCategoryOptions.value[0].value;
+  }
   form.productI18nList = defaultI18nList();
   form.descI18nList = [{ lang: 'zh-CN', value: '' }];
   form.serviceContentI18nList = [{ lang: 'zh-CN', value: '' }];
@@ -980,7 +1062,7 @@ const resetForm = () => {
   form.productImages = [];
   form.specGroups = [
     {
-      specTypeId: specTypeOptions.value[0]?.value ?? null,
+      specTypeId: getDefaultSpecTypeId(),
       specIds: [],
     },
   ];
@@ -993,15 +1075,14 @@ const resetForm = () => {
   uploadList.value = [];
   uploadCount.value = 0;
   ensureCurrencyOption(form.product.currency);
-  if (!form.product.subCategoryId && filteredSubCategoryOptions.value.length) {
-    form.product.subCategoryId = filteredSubCategoryOptions.value[0].value;
-  }
+  normalizeSpecGroups(true);
   nextTick(() => formRef.value?.clearValidate());
 };
 
 const toRow = (item: any): ProductRow => {
   // new page schema uses spu + i18n fields
   const spu = item?.spu ?? {};
+  const previewUrl = item?.previewUrl || spu?.previewUrl || '';
   const nameI18n = item?.nameI18n ?? {};
   const descI18n = item?.descI18n ?? {};
   const i18nList: ProductI18n[] = Object.keys(nameI18n || {}).map((lang) => ({
@@ -1047,6 +1128,7 @@ const toRow = (item: any): ProductRow => {
     id: spu.id ?? item.id ?? 0,
     name,
     images,
+    previewUrl: typeof previewUrl === 'string' ? previewUrl : '',
     price: spu.price ?? undefined,
     stock: spu.stock ?? undefined,
     isOnSale:
@@ -1109,12 +1191,21 @@ const fetchCategories = async () => {
   try {
     const [level1Res, level2Res] = await Promise.all([
       getCategoryPage({ pageNum: 1, pageSize: 200, level: '1' }),
-      getCategoryPage({ pageNum: 1, pageSize: 500, level: '2' }),
+      searchCategory({
+        pageNum: 1,
+        pageSize: 500,
+        categoryDomain: '2',
+        nameKeyword: '',
+        offset: 0,
+      }),
     ]);
     const normalizeList = (res: any) => {
-      const data = res?.data ?? res ?? {};
-      const records = Array.isArray(data.list) ? data.list : [];
-      return records;
+      const payload = res?.data ?? res ?? {};
+      if (Array.isArray(payload)) return payload;
+      if (Array.isArray(payload.list)) return payload.list;
+      if (Array.isArray(payload.data)) return payload.data;
+      if (Array.isArray(payload.data?.list)) return payload.data.list;
+      return [];
     };
     const level1 = normalizeList(level1Res).map((item: any) => {
       const cat = item.category ?? item;
@@ -1126,27 +1217,46 @@ const fetchCategories = async () => {
       );
       return { value: id, label };
     });
-    const level2 = normalizeList(level2Res).map((item: any) => {
-      const cat = item.category ?? item;
-      const id = Number(cat.id ?? cat.categoryId);
-      const parentId = Number(cat.pcategoryId ?? cat.parentId ?? cat.rootId);
-      const nameI18n = item.nameI18n || cat.nameI18n || {};
-      const label = pickName(
-        nameI18n,
-        cat.categoryName || item.displayName || cat.name || '',
+    const level2 = normalizeList(level2Res)
+      .map((item: any) => {
+        const cat = item.category ?? item;
+        const id = Number(cat.id ?? cat.categoryId ?? item.id);
+        if (!Number.isFinite(id) || id <= 0) {
+          return null;
+        }
+        const parentId = normalizeOptionalId(
+          cat.pcategoryId ??
+            cat.parentId ??
+            cat.rootId ??
+            item.pcategoryId ??
+            item.parentId ??
+            item.rootId,
+        );
+        const nameI18n = item.nameI18n || cat.nameI18n || {};
+        const label = pickName(
+          nameI18n,
+          cat.categoryName || item.categoryName || item.displayName || cat.name || '',
+        );
+        return { value: id, label, parentId };
+      })
+      .filter(
+        (
+          item,
+        ): item is { label: string; value: number; parentId: number | null } =>
+          Boolean(item),
       );
-      return { value: id, label, parentId };
-    });
     categoryOptions.value = level1;
     subCategoryOptions.value = level2;
     // adjust defaults if empty
     if (!form.product.categoryId && level1.length)
       form.product.categoryId = level1[0].value;
     if (
-      !form.product.subCategoryId &&
-      filteredSubCategoryOptions.value.length
+      !form.product.subCategoryId ||
+      !filteredSubCategoryOptions.value.some(
+        (item) => item.value === form.product.subCategoryId,
+      )
     ) {
-      form.product.subCategoryId = filteredSubCategoryOptions.value[0].value;
+      form.product.subCategoryId = filteredSubCategoryOptions.value[0]?.value;
     }
   } catch (error: any) {
     ElMessage.error(error?.message || t('admin.product.message.fetchCategoryFailed'));
@@ -1155,23 +1265,43 @@ const fetchCategories = async () => {
 
 const fetchSpecTypes = async () => {
   try {
-    const res = await getSpecTypePage({ pageNum: 1, pageSize: 200 });
-    const data = res?.data ?? res ?? {};
-    const records = Array.isArray(data.list) ? data.list : [];
-    specTypeOptions.value = records.map((item: any) => {
-      const specType = item.specType ?? item;
-      const id = Number(specType.id);
-      const nameI18n = item.nameI18n || specType.nameI18n || {};
-      const label = pickName(nameI18n, specType.typeName || '');
-      return { value: id, label };
-    });
-    if (
-      form.specGroups.length &&
-      !form.specGroups[0].specTypeId &&
-      specTypeOptions.value.length
-    ) {
-      form.specGroups[0].specTypeId = specTypeOptions.value[0].value;
-    }
+    const res = await getSpecTypePage({ pageNum: 1, pageSize: 500 });
+    const payload = res?.data ?? res ?? {};
+    const records = Array.isArray(payload)
+      ? payload
+      : Array.isArray(payload.list)
+        ? payload.list
+        : Array.isArray(payload.data)
+          ? payload.data
+          : Array.isArray(payload.data?.list)
+            ? payload.data.list
+            : [];
+    specTypeOptions.value = records
+      .map((item: any) => {
+        const specType = item.specType ?? item;
+        const id = Number(specType.id ?? item.id);
+        if (!Number.isFinite(id) || id <= 0) {
+          return null;
+        }
+        const nameI18n = item.nameI18n || specType.nameI18n || {};
+        const label = pickName(nameI18n, specType.typeName || item.name || '');
+        const subCategoryId = normalizeOptionalId(
+          specType.subCategoryId ??
+            specType.categoryId ??
+            specType.pcategoryId ??
+            item.subCategoryId ??
+            item.categoryId ??
+            item.pcategoryId,
+        );
+        return { value: id, label, subCategoryId };
+      })
+      .filter(
+        (
+          item,
+        ): item is { label: string; value: number; subCategoryId: number | null } =>
+          Boolean(item),
+      );
+    normalizeSpecGroups(true);
   } catch (error: any) {
     ElMessage.error(error?.message || t('admin.product.message.fetchSpecTypeFailed'));
   }
@@ -1180,16 +1310,49 @@ const fetchSpecTypes = async () => {
 const fetchSpecs = async () => {
   try {
     const res = await getSpecValuePage({ pageNum: 1, pageSize: 500 });
-    const data = res?.data ?? res ?? {};
-    const records = Array.isArray(data.list) ? data.list : [];
-    specOptions.value = records.map((item: any) => {
-      const specValue = item.specValue ?? item;
-      const id = Number(specValue.id);
-      const typeId = Number(specValue.specTypeId ?? specValue.typeId ?? 0);
-      const nameI18n = item.nameI18n || specValue.nameI18n || {};
-      const label = pickName(nameI18n, specValue.specValue || '');
-      return { value: id, label, typeId };
-    });
+    const payload = res?.data ?? res ?? {};
+    const records = Array.isArray(payload)
+      ? payload
+      : Array.isArray(payload.list)
+        ? payload.list
+        : Array.isArray(payload.data)
+          ? payload.data
+          : Array.isArray(payload.data?.list)
+            ? payload.data.list
+            : [];
+    specOptions.value = records
+      .map((item: any) => {
+        const specValue = item.specValue ?? item;
+        const id = Number(specValue.id ?? item.id);
+        if (!Number.isFinite(id) || id <= 0) {
+          return null;
+        }
+        const typeId = normalizeOptionalId(
+          specValue.specTypeId ?? specValue.typeId ?? item.specTypeId,
+        );
+        const subCategoryId = normalizeOptionalId(
+          specValue.subCategoryId ??
+            specValue.categoryId ??
+            specValue.pcategoryId ??
+            item.subCategoryId ??
+            item.categoryId ??
+            item.pcategoryId,
+        );
+        const nameI18n = item.nameI18n || specValue.nameI18n || {};
+        const label = pickName(nameI18n, specValue.specValue || item.name || '');
+        return { value: id, label, typeId, subCategoryId };
+      })
+      .filter(
+        (
+          item,
+        ): item is {
+          label: string;
+          value: number;
+          typeId: number | null;
+          subCategoryId: number | null;
+        } => Boolean(item),
+      );
+    normalizeSpecGroups(true);
   } catch (error: any) {
     ElMessage.error(error?.message || t('admin.product.message.fetchSpecFailed'));
   }
@@ -1341,6 +1504,12 @@ const openCreate = () => {
   dialogVisible.value = true;
 };
 
+const openPreview = (row: ProductRow) => {
+  const url = row.previewUrl?.trim();
+  if (!url) return;
+  window.open(url, '_blank', 'noopener,noreferrer');
+};
+
 const openEdit = async (row: ProductRow) => {
   isEdit.value = true;
   resetForm();
@@ -1372,7 +1541,9 @@ const openEdit = async (row: ProductRow) => {
     const subCategoryId =
       (categoryIds[1] !== undefined ? Number(categoryIds[1]) : undefined) ??
       row.subCategoryId ??
-      filteredSubCategoryOptions.value.find((s) => s.parentId === categoryId)
+      filteredSubCategoryOptions.value.find(
+        (s) => !s.parentId || s.parentId === categoryId,
+      )
         ?.value;
     form.product = {
       id: spu.id,
@@ -1403,6 +1574,7 @@ const openEdit = async (row: ProductRow) => {
           },
         ];
     form.specGroups = mappedSpecGroups;
+    normalizeSpecGroups(true);
     form.product.specIds = mappedSpecGroups[0]?.specIds ?? [];
     form.product.specTypeId = mappedSpecGroups[0]?.specTypeId ?? undefined;
 
@@ -1494,7 +1666,7 @@ const onRemove = (file: UploadUserFile) => {
 
 const addSpecGroup = () => {
   form.specGroups.push({
-    specTypeId: specTypeOptions.value[0]?.value ?? null,
+    specTypeId: getDefaultSpecTypeId(),
     specIds: [],
   });
 };
@@ -1507,8 +1679,8 @@ const removeSpecGroup = (idx: number) => {
   form.specGroups.splice(idx, 1);
 };
 
-const onCategoryChange = (val: number | undefined | null) => {
-  // 重置二级分类到当前类别下的第一个
+const onCategoryChange = () => {
+  // 重置服务子类到当前类别下的第一个
   const target = filteredSubCategoryOptions.value[0];
   form.product.subCategoryId = target ? target.value : undefined;
 };
@@ -1695,7 +1867,7 @@ const save = () => {
       };
       form.product.specTypeId = firstGroup.specTypeId ?? undefined;
       form.product.specIds = firstGroup.specIds ?? [];
-      // 确保分类与二级分类一致
+      // 确保分类与服务子类一致
       if (form.product.subCategoryId) {
         const parentId = subCategoryParentMap.value.get(
           form.product.subCategoryId,
@@ -1812,6 +1984,13 @@ onMounted(() => {
   fetchAddons();
   fetchProducts();
 });
+
+watch(
+  () => form.product.subCategoryId,
+  () => {
+    normalizeSpecGroups(true);
+  },
+);
 
 watch(
   () => locale.value,

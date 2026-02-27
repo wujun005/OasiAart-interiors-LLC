@@ -221,10 +221,6 @@ const rules: FormRules = {
     { required: true, message: t('admin.user.validation.nameRequired'), trigger: 'blur' },
     { min: 2, max: 30, message: t('admin.user.validation.nameLength'), trigger: 'blur' },
   ],
-  phone: [
-    { required: true, message: t('admin.user.validation.phoneRequired'), trigger: 'blur' },
-    { pattern: /^1[3-9]\d{9}$/, message: t('admin.user.validation.phoneInvalid'), trigger: 'blur' },
-  ],
   email: [
     { required: true, message: t('admin.user.validation.emailRequired'), trigger: 'blur' },
     { type: 'email', message: t('admin.user.validation.emailInvalid'), trigger: 'blur' },

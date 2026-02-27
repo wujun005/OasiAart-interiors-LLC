@@ -2,10 +2,13 @@
   <div class="service-page">
     <section class="service-subheader">
       <div class="service-container">
-        <button class="service-back" type="button" @click="goBackToHome">
-          <span class="service-back__icon" aria-hidden="true">←</span>
-          <span>{{ pageTitle }}</span>
-        </button>
+        <nav class="service-back" aria-label="breadcrumb">
+          <button class="service-back__link" type="button" @click="goBackToHome">
+            {{ t('client.header.nav.services') }}
+          </button>
+          <span class="service-back__separator" aria-hidden="true">&lt;</span>
+          <span class="service-back__current">{{ pageTitle }}</span>
+        </nav>
       </div>
     </section>
 
@@ -275,9 +278,16 @@ const goProductDetail = (spuId: string) => {
   if (!spuId) {
     return;
   }
+  const level1Raw = getQueryValue(route.query.level1);
   router.push({
     name: 'product-detail',
     params: { spuId },
+    query: {
+      breadcrumb: pageTitle.value,
+      name: pageTitle.value,
+      categoryId: categoryId.value,
+      level1: level1Raw,
+    },
   });
 };
 </script>
@@ -302,24 +312,37 @@ const goProductDetail = (spuId: string) => {
 
 .service-back {
   height: 64px;
-  border: 0;
-  background: transparent;
   display: inline-flex;
   align-items: center;
-  gap: 12px;
-  color: #3972f5;
-  font-size: 30px;
+  gap: 8px;
+  color: rgba(15, 23, 42, 0.78);
+  font-size: 17px;
   line-height: 1;
-  font-weight: 800;
-  cursor: pointer;
+  font-weight: 600;
   padding: 0;
 }
 
-.service-back__icon {
-  color: rgba(15, 23, 42, 0.9);
-  font-size: 26px;
+.service-back__link {
+  border: 0;
+  background: transparent;
+  padding: 0;
+  color: #3972f5;
+  font-size: inherit;
   line-height: 1;
-  transform: translateY(-1px);
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.service-back__separator {
+  color: rgba(15, 23, 42, 0.45);
+  font-size: 16px;
+}
+
+.service-back__current {
+  color: rgba(15, 23, 42, 0.88);
+  font-size: inherit;
+  line-height: 1;
+  font-weight: 700;
 }
 
 .service-body {
@@ -509,7 +532,7 @@ const goProductDetail = (spuId: string) => {
   }
 
   .service-back {
-    font-size: 24px;
+    font-size: 16px;
   }
 
   .service-grid {

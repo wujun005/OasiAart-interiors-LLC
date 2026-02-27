@@ -57,14 +57,27 @@
         <form class="register-form" @submit.prevent="submitRegister">
           <label class="form-item">
             <span>{{ t('client.login.register.phoneLabel') }}</span>
-            <div class="form-item__control">
-              <img :src="assetPhone" alt="" />
-              <input
-                v-model.trim="form.phone"
-                type="text"
-                autocomplete="tel"
-                :placeholder="t('client.login.register.phonePlaceholder')"
-              />
+            <div class="phone-row">
+              <div class="form-item__control form-item__control--dial">
+                <select v-model="form.countryCode" autocomplete="tel-country-code">
+                  <option
+                    v-for="item in countryCodeOptions"
+                    :key="item.value"
+                    :value="item.value"
+                  >
+                    {{ item.label }}
+                  </option>
+                </select>
+              </div>
+              <div class="form-item__control form-item__control--phone">
+                <img :src="assetPhone" alt="" />
+                <input
+                  v-model.trim="form.phone"
+                  type="text"
+                  autocomplete="tel-national"
+                  :placeholder="t('client.login.register.phoneNumberPlaceholder')"
+                />
+              </div>
             </div>
           </label>
 
@@ -87,9 +100,48 @@
               <img :src="assetPassword" alt="" />
               <input
                 v-model="form.password"
-                type="password"
+                :type="passwordInputType"
                 autocomplete="new-password"
                 :placeholder="t('client.login.register.passwordPlaceholder')"
+              />
+              <button
+                class="password-toggle"
+                type="button"
+                :aria-label="
+                  showPassword
+                    ? t('client.login.register.hidePassword')
+                    : t('client.login.register.showPassword')
+                "
+                @click="showPassword = !showPassword"
+              >
+                <svg v-if="showPassword" viewBox="0 0 24 24" aria-hidden="true">
+                  <path
+                    d="M3 3L21 21M10.58 10.59A2 2 0 0 0 13.41 13.42M9.88 4.24A10.94 10.94 0 0 1 12 4C17 4 21 8 22 12A11.77 11.77 0 0 1 18.76 16.24M6.61 6.61C4.62 8.05 3.29 9.87 2 12C3 16 7 20 12 20C13.85 20 15.55 19.42 17.01 18.42"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  />
+                </svg>
+                <svg v-else viewBox="0 0 24 24" aria-hidden="true">
+                  <path
+                    d="M2 12C3 8 7 4 12 4S21 8 22 12C21 16 17 20 12 20S3 16 2 12Z"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  />
+                  <circle cx="12" cy="12" r="3" />
+                </svg>
+              </button>
+            </div>
+          </label>
+
+          <label class="form-item">
+            <span>{{ t('client.login.register.confirmPasswordLabel') }}</span>
+            <div class="form-item__control">
+              <img :src="assetPassword" alt="" />
+              <input
+                v-model="form.confirmPassword"
+                :type="passwordInputType"
+                autocomplete="new-password"
+                :placeholder="t('client.login.register.confirmPasswordPlaceholder')"
               />
             </div>
           </label>
@@ -159,15 +211,18 @@ const { t, locale } = useI18n({ useScope: 'global' });
 const router = useRouter();
 
 const form = reactive({
+  countryCode: '+971',
   phone: '',
   email: '',
   password: '',
+  confirmPassword: '',
   smsCode: '',
 });
 
 const sendingCode = ref(false);
 const codeCooldown = ref(0);
 const submitting = ref(false);
+const showPassword = ref(false);
 let codeTimer: number | null = null;
 
 const localeLabel = computed(() =>
@@ -194,6 +249,21 @@ const leftFeatures = [
     descKey: 'client.login.register.featureReliableDesc',
   },
 ];
+
+const countryCodeOptions = [
+  { label: 'UAE +971', value: '+971' },
+  { label: 'Saudi Arabia +966', value: '+966' },
+  { label: 'United States +1', value: '+1' },
+  { label: 'United Kingdom +44', value: '+44' },
+  { label: 'India +91', value: '+91' },
+  { label: 'China +86', value: '+86' },
+];
+
+const passwordInputType = computed(() => (showPassword.value ? 'text' : 'password'));
+
+const normalizePhoneNumber = (value: string) => value.replace(/[^\d]/g, '');
+
+const buildFullPhone = () => `${form.countryCode}${normalizePhoneNumber(form.phone)}`;
 
 const codeBtnText = computed(() => {
   if (codeCooldown.value > 0) {
@@ -237,15 +307,14 @@ const startCodeCountdown = () => {
 };
 
 const requestSmsCode = async () => {
-  const phone = form.phone.trim();
-  if (!phone) {
+  if (!normalizePhoneNumber(form.phone)) {
     ElMessage.warning(t('client.login.register.phoneRequired'));
     return;
   }
   sendingCode.value = true;
   try {
     await sendRegisterCode({
-      phone,
+      phone: buildFullPhone(),
       email: form.email.trim() || undefined,
     });
     ElMessage.success(t('client.login.register.codeSent'));
@@ -258,7 +327,7 @@ const requestSmsCode = async () => {
 };
 
 const validateForm = () => {
-  if (!form.phone.trim()) {
+  if (!normalizePhoneNumber(form.phone)) {
     ElMessage.warning(t('client.login.register.phoneRequired'));
     return false;
   }
@@ -272,6 +341,14 @@ const validateForm = () => {
   }
   if (!form.password || form.password.length < 6) {
     ElMessage.warning(t('client.login.register.passwordInvalid'));
+    return false;
+  }
+  if (!form.confirmPassword) {
+    ElMessage.warning(t('client.login.register.confirmPasswordRequired'));
+    return false;
+  }
+  if (form.password !== form.confirmPassword) {
+    ElMessage.warning(t('client.login.register.passwordMismatch'));
     return false;
   }
   if (!/^\d{6}$/.test(form.smsCode.trim())) {
@@ -309,7 +386,7 @@ const submitRegister = async () => {
   submitting.value = true;
   try {
     const payload = {
-      phone: form.phone.trim(),
+      phone: buildFullPhone(),
       email: form.email.trim(),
       password: form.password,
       code: form.smsCode.trim(),
@@ -584,6 +661,16 @@ onBeforeUnmount(() => {
 }
 
 .form-item__control input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: rgba(15, 23, 42, 0.88);
+  font-size: 16px;
+}
+
+.form-item__control select {
   width: 100%;
   border: 0;
   outline: 0;
@@ -594,6 +681,40 @@ onBeforeUnmount(() => {
 
 .form-item__control input::placeholder {
   color: rgba(10, 10, 10, 0.5);
+}
+
+.phone-row {
+  display: flex;
+  gap: 12px;
+}
+
+.form-item__control--dial {
+  width: 150px;
+}
+
+.form-item__control--phone {
+  flex: 1;
+}
+
+.password-toggle {
+  width: 24px;
+  height: 24px;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: rgba(15, 23, 42, 0.58);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.password-toggle svg {
+  width: 18px;
+  height: 18px;
+  stroke: currentColor;
+  fill: none;
+  stroke-width: 2;
 }
 
 .code-row {
@@ -747,6 +868,14 @@ onBeforeUnmount(() => {
 
   .left-feature-card__item span {
     font-size: 12px;
+  }
+
+  .phone-row {
+    gap: 8px;
+  }
+
+  .form-item__control--dial {
+    width: 130px;
   }
 
   .code-row {

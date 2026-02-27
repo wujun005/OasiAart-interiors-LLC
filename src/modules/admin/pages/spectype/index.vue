@@ -8,6 +8,19 @@
           clearable
           @keyup.enter="handleSearch"
         />
+        <el-select
+          v-model="query.subCategoryId"
+          :placeholder="t('admin.specType.subcategoryPlaceholder')"
+          clearable
+          style="width: 200px"
+        >
+          <el-option
+            v-for="item in subCategoryOptions"
+            :key="item.id"
+            :label="item.displayName"
+            :value="item.id"
+          />
+        </el-select>
         <el-button type="primary" @click="handleSearch">{{ t('admin.specType.actions.search') }}</el-button>
         <el-button @click="reset">{{ t('admin.specType.actions.reset') }}</el-button>
         <el-button type="primary" @click="openCreate">{{ t('admin.specType.actions.create') }}</el-button>
@@ -16,6 +29,9 @@
       <el-table :data="displayList" border stripe row-key="id" v-loading="tableLoading">
         <el-table-column :label="t('admin.specType.table.name')" min-width="160">
           <template #default="{ row }">{{ row.displayName }}</template>
+        </el-table-column>
+        <el-table-column :label="t('admin.specType.table.subcategory')" min-width="180">
+          <template #default="{ row }">{{ row.subCategoryName || '-' }}</template>
         </el-table-column>
         <el-table-column :label="t('admin.specType.table.createdAt')" min-width="160">
           <template #default="{ row }">{{ formatDate(row.createdAt) }}</template>
@@ -51,6 +67,20 @@
       width="520px"
     >
       <el-form ref="formRef" :model="form" :rules="rules" label-width="90px">
+        <el-form-item :label="t('admin.specType.form.subcategory')" prop="subCategoryId">
+          <el-select
+            v-model="form.subCategoryId"
+            :placeholder="t('admin.specType.form.subcategoryPlaceholder')"
+            style="width: 100%"
+          >
+            <el-option
+              v-for="item in subCategoryOptions"
+              :key="item.id"
+              :label="item.displayName"
+              :value="item.id"
+            />
+          </el-select>
+        </el-form-item>
         <el-form-item :label="t('admin.specType.form.nameI18n')" prop="nameI18n">
           <div class="i18n-list">
             <div v-for="(item, idx) in nameI18nList" :key="idx" class="i18n-row">
@@ -81,24 +111,54 @@ import type { FormInstance, FormRules } from 'element-plus';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { useI18n } from 'vue-i18n';
 import { getSpecTypePage, addOrUpdateSpecType, deleteSpecType } from '@/modules/admin/api/specType';
+import { searchCategory } from '@/modules/admin/api/category';
 import { pickI18nText } from '@/modules/admin/utils/i18n';
 
 type SpecType = {
   id: number;
   displayName: string;
+  subCategoryId: number | null;
+  subCategoryName?: string;
   nameI18n?: Record<string, string>;
   createdAt: string;
 };
 
+type SubCategoryOption = {
+  id: number;
+  displayName: string;
+  nameI18n?: Record<string, string>;
+};
+
+const normalizeOptionalId = (value: unknown): number | null => {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+};
+
 const list = ref<SpecType[]>([]);
+const subCategoryOptions = ref<SubCategoryOption[]>([]);
 const { locale, t } = useI18n({ useScope: 'global' });
 const query = reactive({
   nameKeyword: '',
+  subCategoryId: null as number | null,
   pageNum: 1,
   pageSize: 10,
 });
 
-const displayList = computed(() => list.value);
+const subCategoryMap = computed(() => {
+  const map = new Map<number, string>();
+  subCategoryOptions.value.forEach((item) => {
+    map.set(item.id, item.displayName);
+  });
+  return map;
+});
+
+const displayList = computed(() =>
+  list.value.map((item) => ({
+    ...item,
+    subCategoryName:
+      (item.subCategoryId ? subCategoryMap.value.get(item.subCategoryId) : '') || '-',
+  })),
+);
 const total = ref(0);
 const tableLoading = ref(false);
 
@@ -109,12 +169,16 @@ const formRef = ref<FormInstance>();
 const form = reactive<SpecType>({
   id: 0,
   displayName: '',
+  subCategoryId: null,
   nameI18n: {},
   createdAt: '',
 });
 const nameI18nList = ref<{ lang: string; value: string }[]>([{ lang: 'zh-CN', value: '' }]);
 
 const rules: FormRules = {
+  subCategoryId: [
+    { required: true, message: t('admin.specType.validation.subcategoryRequired'), trigger: 'change' },
+  ],
   nameI18n: [
     {
       validator: (_r, _v, cb) => {
@@ -134,6 +198,7 @@ const handleSearch = () => {
 
 const reset = () => {
   query.nameKeyword = '';
+  query.subCategoryId = null;
   query.pageNum = 1;
   query.pageSize = 10;
   fetchList();
@@ -155,6 +220,7 @@ const openCreate = () => {
   Object.assign(form, {
     id: 0,
     displayName: '',
+    subCategoryId: subCategoryOptions.value[0]?.id ?? null,
     nameI18n: {},
     createdAt: new Date().toISOString(),
   });
@@ -164,7 +230,13 @@ const openCreate = () => {
 
 const openEdit = (row: SpecType) => {
   isEdit.value = true;
-  Object.assign(form, { ...row });
+  Object.assign(form, {
+    id: row.id,
+    displayName: row.displayName,
+    subCategoryId: row.subCategoryId ?? null,
+    nameI18n: row.nameI18n || {},
+    createdAt: row.createdAt,
+  });
   nameI18nList.value = row.nameI18n && Object.keys(row.nameI18n).length
     ? Object.entries(row.nameI18n).map(([lang, value]) => ({ lang, value: value as string }))
     : [{ lang: 'zh-CN', value: row.displayName || '' }];
@@ -176,8 +248,13 @@ const save = () => {
   formRef.value.validate((valid) => {
     if (!valid) return;
     submitLoading.value = true;
+    const subCategoryId = form.subCategoryId || undefined;
+    const subCategoryIdStr = subCategoryId ? String(subCategoryId) : undefined;
     const payload = {
       id: form.id || undefined,
+      subCategoryId,
+      categoryId: subCategoryId,
+      pcategoryId: subCategoryIdStr,
       nameI18n: nameI18nList.value.reduce<Record<string, string>>((acc, cur) => {
         if (cur.lang && cur.value) acc[cur.lang] = cur.value;
         return acc;
@@ -230,25 +307,87 @@ const fetchList = async () => {
       pageNum: query.pageNum,
       pageSize: query.pageSize,
       nameKeyword: query.nameKeyword?.trim() || undefined,
+      subCategoryId: query.subCategoryId || undefined,
+      categoryId: query.subCategoryId || undefined,
+      pcategoryId: query.subCategoryId ? String(query.subCategoryId) : undefined,
     });
-    const data = res?.data ?? res ?? {};
-    const records = Array.isArray(data.list) ? data.list : [];
+    const payload = res?.data ?? res ?? {};
+    const records = Array.isArray(payload)
+      ? payload
+      : Array.isArray(payload.list)
+        ? payload.list
+        : Array.isArray(payload.data)
+          ? payload.data
+          : Array.isArray(payload.data?.list)
+            ? payload.data.list
+            : [];
     list.value = records.map((item: any) => ({
       id: item.specType?.id ?? item.id,
+      subCategoryId: normalizeOptionalId(
+        item.specType?.subCategoryId ??
+          item.specType?.categoryId ??
+          item.specType?.pcategoryId ??
+          item.subCategoryId ??
+          item.categoryId ??
+          item.pcategoryId,
+      ),
       nameI18n: item.nameI18n || item.specType?.nameI18n,
       displayName: pickI18nText(
         item.nameI18n || item.specType?.nameI18n,
         locale.value,
         item.specType?.typeName || item.name || '',
       ),
-      enabled: (item.specType?.status ?? item.status ?? item.enabled) === 1,
       createdAt: item.specType?.createTime || item.createTime || item.createdAt || '',
     }));
-    total.value = data.total ?? records.length;
+    total.value = payload.total ?? payload.data?.total ?? records.length;
   } catch (error: any) {
     ElMessage.error(error?.message || t('admin.specType.message.fetchFailed'));
   } finally {
     tableLoading.value = false;
+  }
+};
+
+const fetchSubCategoryOptions = async () => {
+  try {
+    const res = await searchCategory({
+      pageNum: 1,
+      pageSize: 500,
+      categoryDomain: '2',
+      nameKeyword: '',
+      offset: 0,
+    });
+    const payload = res?.data ?? res ?? {};
+    const records = Array.isArray(payload)
+      ? payload
+      : Array.isArray(payload.list)
+        ? payload.list
+        : Array.isArray(payload.data)
+          ? payload.data
+          : Array.isArray(payload.data?.list)
+            ? payload.data.list
+            : [];
+    subCategoryOptions.value = records
+      .map((item: any) => {
+        const category = item.category ?? item;
+        const id = Number(category.id ?? category.categoryId ?? item.id);
+        if (!Number.isFinite(id) || id <= 0) {
+          return null;
+        }
+        const nameI18n = item.nameI18n || category.nameI18n;
+        const displayName = pickI18nText(
+          nameI18n,
+          locale.value,
+          category.categoryName || item.categoryName || item.displayName || '',
+        );
+        return {
+          id,
+          displayName,
+          nameI18n,
+        };
+      })
+      .filter((item): item is SubCategoryOption => Boolean(item));
+  } catch (error) {
+    console.error('fetch subcategory failed:', error);
   }
 };
 
@@ -261,13 +400,15 @@ const removeI18n = (idx: number) => {
   nameI18nList.value.splice(idx, 1);
 };
 
-onMounted(() => {
+onMounted(async () => {
+  await fetchSubCategoryOptions();
   fetchList();
 });
 
 watch(
   () => locale.value,
-  () => {
+  async () => {
+    await fetchSubCategoryOptions();
     fetchList();
   },
 );
