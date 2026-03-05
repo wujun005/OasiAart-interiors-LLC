@@ -64,6 +64,8 @@ export interface LatestAddressRecord {
   email?: string;
   serviceAddress?: string;
   remark?: string;
+  serviceTime?: string;
+  timeRange?: number | string;
   serviceDateTime?: string;
   paymentMethod?: string;
 }
@@ -207,6 +209,12 @@ export async function getProductDetail(spuId: string | number) {
 // /client/product/sku 获取价格
 export async function getProductSku(params: any) {
   const payload = await http.post('/client/product/sku', params);
+  return payload && typeof payload === 'object' && 'data' in payload ? payload.data : null;
+}
+
+// /client/product/availableSelectTime 获取可选时间
+export async function getAvailableSelectTime(params: any) {
+  const payload = await http.get('/client/product/availableSelectTime', {params});
   return payload && typeof payload === 'object' && 'data' in payload ? payload.data : null;
 }
 

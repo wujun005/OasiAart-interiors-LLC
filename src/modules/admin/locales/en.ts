@@ -528,6 +528,17 @@ const en = {
     },
     product: {
       searchPlaceholder: 'Search service name',
+      filters: {
+        spuCodePlaceholder: 'Please enter service code',
+        categoryPlaceholder: 'Please select service category',
+        serviceSubCategoryPlaceholder: 'Please select service subcategory',
+        shelfStatusPlaceholder: 'Please select shelf status',
+        nameKeywordPlaceholder: 'Please enter service name',
+        statusPlaceholder: 'Please select status',
+        exclusivePlaceholder: 'Please select recommend status',
+        recommended: 'Recommended',
+        notRecommended: 'Not Recommended',
+      },
       actions: {
         search: 'Search',
         reset: 'Reset',
@@ -595,7 +606,7 @@ const en = {
         addonPlaceholder: 'Please select addon',
         serviceContentGroupTitle: 'Service Content',
         serviceContent: 'Service Content',
-        serviceContentPlaceholder: "Use '|' to separate items, e.g. Door-to-door|Cleaning|Sanitizing",
+        serviceContentPlaceholder: "Use {'|'} to separate items, e.g. Door-to-door{'|'}Cleaning{'|'}Sanitizing",
         bookingNoticeGroupTitle: 'Booking Notice',
         bookingNotice: 'Booking Notice',
         bookingNoticePlaceholder: 'Please enter booking notice',

@@ -528,6 +528,17 @@ const zh = {
     },
     product: {
       searchPlaceholder: '搜索服务名称',
+      filters: {
+        spuCodePlaceholder: '请输入服务编码',
+        categoryPlaceholder: '请选择服务分类',
+        serviceSubCategoryPlaceholder: '请选择服务子类',
+        shelfStatusPlaceholder: '请选择上架状态',
+        nameKeywordPlaceholder: '请输入服务名称',
+        statusPlaceholder: '请选择状态',
+        exclusivePlaceholder: '请选择推荐状态',
+        recommended: '已推荐',
+        notRecommended: '未推荐',
+      },
       actions: {
         search: '搜索',
         reset: '重置',
@@ -595,7 +606,7 @@ const zh = {
         addonPlaceholder: '请选择附加项',
         serviceContentGroupTitle: '服务内容',
         serviceContent: '服务内容',
-        serviceContentPlaceholder: "服务内容，多条用'|'分隔，如：上门|打扫|清洁",
+        serviceContentPlaceholder: "服务内容，多条用{'|'}分隔，如：上门{'|'}打扫{'|'}清洁",
         bookingNoticeGroupTitle: '预订须知',
         bookingNotice: '预订须知',
         bookingNoticePlaceholder: '请输入预订须知',

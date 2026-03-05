@@ -123,7 +123,7 @@
                   <img :src="item.icon" :alt="item.title" />
                   <span v-if="item.highlight" />
                 </div>
-                <h4>{{ item.title }}</h4>
+                <h4 style="text-align: center;">{{ item.title }}</h4>
                 <p>{{ item.desc }}</p>
               </article>
             </div>
@@ -827,6 +827,9 @@ onBeforeUnmount(() => {
 }
 
 .offer-card {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
   border: 1px solid #f3f4f6;
   background: #fff;
   border-radius: 16px;
@@ -864,6 +867,9 @@ onBeforeUnmount(() => {
 }
 
 .offer-card__body {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
   padding: 24px;
 }
 
@@ -883,7 +889,7 @@ onBeforeUnmount(() => {
 }
 
 .offer-card__price {
-  margin: 18px 0 0;
+  margin: auto 0 0;
   color: var(--primary);
   text-align: center;
   font-size: 16px;
@@ -892,7 +898,7 @@ onBeforeUnmount(() => {
 }
 
 .offer-card__body button {
-  margin-top: 8px;
+  margin-top: 12px;
   width: 100%;
   height: 48px;
   border: none;
@@ -927,11 +933,11 @@ onBeforeUnmount(() => {
 .booking-steps__line {
   position: absolute;
   top: 44px;
-  left: 16%;
+  left: 16%; 
   width: 68%;
   height: 2px;
-  background: rgba(81, 162, 255, 0.3);
-  border-top: 2px solid rgba(142, 197, 255, 0.4);
+  // background: rgba(81, 162, 255, 0.3);
+  // border-top: 2px solid rgba(142, 197, 255, 0.4);
 }
 
 .booking-step {

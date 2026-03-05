@@ -124,9 +124,20 @@
                 <span>{{ t('client.orderConfirm.fields.serviceTime') }}</span>
                 <div class="order-input-wrap">
                   <i aria-hidden="true">T</i>
-                  <select v-model="form.serviceTime" required :disabled="!selectableTimeOptions.length">
-                    <option v-if="!selectableTimeOptions.length" value="" disabled>请选择未来时间</option>
-                    <option v-for="item in selectableTimeOptions" :key="item" :value="item">{{ item }}</option>
+                  <select
+                    v-model="form.timeRange"
+                    required
+                    @mousedown="handleServiceTimeOpen"
+                  >
+                    <option value="" disabled>{{ serviceTimePlaceholder }}</option>
+                    <option
+                      v-for="item in selectableTimeOptions"
+                      :key="item.timeRange"
+                      :value="item.timeRange"
+                      :disabled="!item.available"
+                    >
+                      {{ item.time }}
+                    </option>
                   </select>
                 </div>
               </label>
@@ -210,11 +221,18 @@ import { ElMessage } from 'element-plus';
 import { computed, onMounted, reactive, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRoute, useRouter } from 'vue-router';
-import { saveContactAddress, getLatestAddress, type LatestAddressRecord } from '@/modules/client/api';
+import { saveContactAddress, getLatestAddress, type LatestAddressRecord, getAvailableSelectTime } from '@/modules/client/api';
+
+type AvailableTimeRecord = {
+  time?: string;
+  avaiable?: boolean;
+  available?: boolean;
+  timeRange?: number | string;
+};
 
 const route = useRoute();
 const router = useRouter();
-const { t } = useI18n({ useScope: 'global' });
+const { t, locale } = useI18n({ useScope: 'global' });
 
 const form = reactive({
   firstName: '',
@@ -224,21 +242,13 @@ const form = reactive({
   address: '',
   remark: '',
   serviceDate: '',
-  serviceTime: '09:00',
+  timeRange: '',
 });
 
-const timeOptions = ref([
-  '09:00',
-  '10:00',
-  '11:00',
-  '12:00',
-  '13:00',
-  '14:00',
-  '15:00',
-  '16:00',
-  '17:00',
-  '18:00',
-]);
+const availableTimeRecords = ref<AvailableTimeRecord[]>([]);
+const isTimeOptionsLoading = ref(false);
+const lastLoadedServiceDate = ref('');
+const pendingTimeText = ref('');
 
 const paymentMethod = ref<'applePay' | 'alipay'>('alipay');
 const agreedPolicy = ref(true);
@@ -255,31 +265,83 @@ const getDateText = (date: Date): string => {
 const normalizeText = (value: unknown): string =>
   typeof value === 'string' ? value.trim() : '';
 
+const normalizeTimeRangeValue = (value: unknown): string => {
+  if (value === null || value === undefined) {
+    return '';
+  }
+  const text = String(value).trim();
+  return text;
+};
+
 const minServiceDate = computed(() => getDateText(new Date()));
+
+const extractServiceStartTime = (value: string): string => {
+  const text = normalizeText(value);
+  if (!text) {
+    return '';
+  }
+  const [rangeStart = ''] = text.split('-');
+  return normalizeText(rangeStart);
+};
+
+const isFutureServiceSlot = (dateText: string, timeText: string): boolean => {
+  const startTime = extractServiceStartTime(timeText);
+  if (!dateText || !startTime) {
+    return false;
+  }
+  const parsed = new Date(`${dateText}T${startTime}:00`);
+  if (Number.isNaN(parsed.getTime())) {
+    return false;
+  }
+  return parsed.getTime() > Date.now();
+};
 
 const selectableTimeOptions = computed(() => {
   const selectedDate = normalizeText(form.serviceDate);
   if (!selectedDate) {
-    return [...timeOptions.value];
+    return [] as Array<{ time: string; available: boolean; timeRange: string }>;
   }
 
   const today = getDateText(new Date());
   if (selectedDate < today) {
     return [];
   }
-  if (selectedDate > today) {
-    return [...timeOptions.value];
-  }
 
-  const now = Date.now();
-  return timeOptions.value.filter((item) => {
-    const parsed = new Date(`${selectedDate}T${item}:00`);
-    if (Number.isNaN(parsed.getTime())) {
-      return false;
-    }
-    return parsed.getTime() > now;
-  });
+  return availableTimeRecords.value
+    .map((item) => {
+      const timeRange = normalizeTimeRangeValue(item.timeRange);
+      const time = normalizeText(item.time);
+      if (!time || !timeRange) {
+        return null;
+      }
+      const apiAvailable = item.avaiable ?? item.available ?? false;
+      return {
+        time,
+        timeRange,
+        available: Boolean(apiAvailable) && isFutureServiceSlot(selectedDate, time),
+      };
+    })
+    .filter((item): item is { time: string; available: boolean; timeRange: string } => Boolean(item));
 });
+
+const selectedTimeOption = computed(() =>
+  selectableTimeOptions.value.find((item) => item.timeRange === normalizeTimeRangeValue(form.timeRange)) ||
+  null,
+);
+
+const applyPendingTimeText = () => {
+  if (!pendingTimeText.value) {
+    return;
+  }
+  const matched = selectableTimeOptions.value.find((item) => {
+    const time = normalizeText(item.time);
+    return time === pendingTimeText.value || extractServiceStartTime(time) === pendingTimeText.value;
+  });
+  if (matched) {
+    form.timeRange = matched.timeRange;
+  }
+  pendingTimeText.value = '';
+};
 
 const openServiceDatePicker = () => {
   const input = serviceDateInputRef.value;
@@ -298,11 +360,94 @@ const openServiceDatePicker = () => {
   input.click();
 };
 
+const serviceTimePlaceholder = computed(() => {
+  if (!normalizeText(form.serviceDate)) {
+    return locale.value === 'zh' ? '请先选择日期' : 'Please select a date first';
+  }
+  if (isTimeOptionsLoading.value) {
+    return locale.value === 'zh' ? '时间加载中...' : 'Loading times...';
+  }
+  if (!selectableTimeOptions.value.length) {
+    return locale.value === 'zh' ? '暂无可选时间' : 'No available times';
+  }
+  return locale.value === 'zh' ? '请选择时间' : 'Please select time';
+});
+
+const fetchAvailableTimes = async (force = false) => {
+  const serviceDate = normalizeText(form.serviceDate);
+  const spuIdText = getQueryText('spuId');
+  if (!serviceDate) {
+    return;
+  }
+  if (!spuIdText) {
+    return;
+  }
+  if (!force && lastLoadedServiceDate.value === serviceDate && availableTimeRecords.value.length) {
+    return;
+  }
+
+  isTimeOptionsLoading.value = true;
+  try {
+    const payload = await getAvailableSelectTime({
+      spuId: Number.isFinite(Number(spuIdText)) ? Number(spuIdText) : spuIdText,
+      serviceTime: serviceDate,
+    });
+    availableTimeRecords.value = Array.isArray(payload) ? payload : [];
+    lastLoadedServiceDate.value = serviceDate;
+    applyPendingTimeText();
+  } catch (error) {
+    console.error('load available select time failed:', error);
+    availableTimeRecords.value = [];
+    lastLoadedServiceDate.value = '';
+  } finally {
+    isTimeOptionsLoading.value = false;
+  }
+};
+
+const handleServiceTimeOpen = async () => {
+  if (!normalizeText(form.serviceDate)) {
+    ElMessage.warning(
+      t('client.orderConfirm.validation.requiredField', {
+        field: t('client.orderConfirm.fields.serviceDate'),
+      }),
+    );
+    return;
+  }
+  await fetchAvailableTimes();
+};
+
 watch(
-  () => [form.serviceDate, selectableTimeOptions.value.join('|')],
+  () => form.serviceDate,
+  (value, oldValue) => {
+    if (value !== oldValue) {
+      availableTimeRecords.value = [];
+      lastLoadedServiceDate.value = '';
+      pendingTimeText.value = '';
+      form.timeRange = '';
+      if (normalizeText(value)) {
+        void fetchAvailableTimes(true);
+      }
+    }
+  },
+);
+
+watch(
+  () =>
+    selectableTimeOptions.value
+      .map((item) => `${item.timeRange}:${item.available}`)
+      .join('|'),
   () => {
-    if (!selectableTimeOptions.value.includes(form.serviceTime)) {
-      form.serviceTime = selectableTimeOptions.value[0] || '';
+    if (isTimeOptionsLoading.value) {
+      return;
+    }
+    applyPendingTimeText();
+    const currentValue = normalizeTimeRangeValue(form.timeRange);
+    const currentExists = selectableTimeOptions.value.some(
+      (item) => item.timeRange === currentValue && item.available,
+    );
+    if (!currentExists) {
+      const firstAvailable = selectableTimeOptions.value.find((item) => item.available);
+      form.timeRange = firstAvailable?.timeRange || '';
     }
   },
   { immediate: true },
@@ -444,14 +589,19 @@ const fillFormByLatestAddress = (payload: LatestAddressRecord | null) => {
   }
 
   const dateTime = parseServiceDateTime(payload.serviceDateTime);
-  if (dateTime.date) {
+  const serviceDate = normalizeText((payload as LatestAddressRecord & { serviceTime?: string }).serviceTime);
+  const timeRange = normalizeTimeRangeValue((payload as LatestAddressRecord & { timeRange?: number | string }).timeRange);
+
+  if (serviceDate) {
+    form.serviceDate = serviceDate;
+  } else if (dateTime.date) {
     form.serviceDate = dateTime.date;
   }
-  if (dateTime.time) {
-    if (!timeOptions.value.includes(dateTime.time)) {
-      timeOptions.value.push(dateTime.time);
-    }
-    form.serviceTime = dateTime.time;
+
+  if (timeRange) {
+    form.timeRange = timeRange;
+  } else if (dateTime.time) {
+    pendingTimeText.value = dateTime.time;
   }
 };
 
@@ -466,7 +616,7 @@ const loadLatestAddress = async () => {
 
 const buildServiceDateTime = (): string | undefined => {
   const date = normalizeText(form.serviceDate);
-  const time = normalizeText(form.serviceTime);
+  const time = extractServiceStartTime(selectedTimeOption.value?.time || '');
   if (!date) {
     return undefined;
   }
@@ -515,7 +665,7 @@ const getValidationMessage = (): string => {
       field: t('client.orderConfirm.fields.serviceDate'),
     });
   }
-  if (!normalizeText(form.serviceTime)) {
+  if (!normalizeTimeRangeValue(form.timeRange)) {
     return t('client.orderConfirm.validation.requiredField', {
       field: t('client.orderConfirm.fields.serviceTime'),
     });
@@ -579,7 +729,8 @@ const handleConfirm = async () => {
     email: normalizeText(form.email),
     serviceAddress: normalizeText(form.address),
     remark: normalizeText(form.remark),
-    serviceDateTime,
+    serviceTime: normalizeText(form.serviceDate),
+    timeRange: Number(form.timeRange),
     paymentMethod: paymentMethod.value,
   };
 

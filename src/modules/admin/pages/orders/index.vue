@@ -205,6 +205,8 @@ import { ElMessage } from 'element-plus';
 import { useI18n } from 'vue-i18n';
 import { page, updateAdminRemark } from '@/modules/admin/api/order';
 
+type I18nText = Record<string, string>;
+
 type OrderRow = {
   orderId: number | null;
   id: string | number;
@@ -224,11 +226,16 @@ type OrderRow = {
 };
 
 type RawSpecSelection = {
+  specTypeId?: number | string;
+  specValueId?: number | string;
   specTypeName?: string;
   specValueName?: string;
 };
 
 type RawAttachDetail = {
+  attachTypeId?: number | string;
+  attachValueId?: number | string;
+  quantity?: number | string;
   amountWithTax?: number | string;
 };
 
@@ -251,7 +258,7 @@ const paymentStatusNameMap: Record<string, number> = {
   REFUNDED: 3,
 };
 
-const { t } = useI18n({ useScope: 'global' });
+const { t, locale } = useI18n({ useScope: 'global' });
 
 const orderStatusOptions = computed(() => [
   { value: 0, label: t('admin.orders.status.orderCreated') },
@@ -360,6 +367,52 @@ const normalizeOrderId = (value: unknown): number | null => {
   return Number.isFinite(id) && id > 0 ? id : null;
 };
 
+const getPreferredLangs = () =>
+  locale.value === 'zh'
+    ? ['zh-CN', 'zh', 'en', 'en-US']
+    : ['en', 'en-US', 'zh-CN', 'zh'];
+
+const pickI18nValue = (i18n?: I18nText, fallback = ''): string => {
+  const valueMap = i18n || {};
+  const preferredLangs = getPreferredLangs();
+  for (const lang of preferredLangs) {
+    const value = valueMap[lang];
+    if (typeof value === 'string' && value.trim()) {
+      return value.trim();
+    }
+  }
+  const firstValue = Object.values(valueMap).find(
+    (value) => typeof value === 'string' && value.trim(),
+  );
+  if (typeof firstValue === 'string') {
+    return firstValue.trim();
+  }
+  return fallback;
+};
+
+const getI18nMapValue = (
+  source: Record<string, I18nText> | undefined,
+  id: unknown,
+  fallback = '',
+) => {
+  const key = String(id ?? '').trim();
+  if (!key || !source || typeof source !== 'object') {
+    return fallback;
+  }
+  return pickI18nValue(source[key], fallback);
+};
+
+const joinLabelValue = (label: string, value: string) => {
+  const normalizedLabel = String(label || '').trim();
+  const normalizedValue = String(value || '').trim();
+  if (!normalizedLabel) return normalizedValue;
+  if (!normalizedValue) return normalizedLabel;
+  if (/[：:]$/.test(normalizedLabel)) {
+    return `${normalizedLabel}${normalizedValue}`;
+  }
+  return `${normalizedLabel}: ${normalizedValue}`;
+};
+
 const getOrderStatusText = (code: number | null) => {
   if (code === 0) return t('admin.orders.status.orderCreated');
   if (code === 1) return t('admin.orders.status.orderPendingPayment');
@@ -381,6 +434,18 @@ const getPaymentStatusText = (code: number | null) => {
 
 const parseSpecDescText = (item: any) => {
   const order = item?.order ?? item?.orderHeader ?? item ?? {};
+  const specTypeNameI18n = (
+    order.specTypeNameI18n ?? item.specTypeNameI18n ?? {}
+  ) as Record<string, I18nText>;
+  const specValueNameI18n = (
+    order.specValueNameI18n ?? item.specValueNameI18n ?? {}
+  ) as Record<string, I18nText>;
+  const attachTypeNameI18n = (
+    order.attachTypeNameI18n ?? item.attachTypeNameI18n ?? {}
+  ) as Record<string, I18nText>;
+  const attachValueNameI18n = (
+    order.attachValueNameI18n ?? item.attachValueNameI18n ?? {}
+  ) as Record<string, I18nText>;
   const selections = (
     Array.isArray(order.specSelections)
       ? order.specSelections
@@ -388,14 +453,37 @@ const parseSpecDescText = (item: any) => {
         ? item.specSelections
         : []
   ) as RawSpecSelection[];
-  const values = selections
+  const specValues = selections
     .map((s) => {
-      const typeName = String(s?.specTypeName || '').trim();
-      const valueName = String(s?.specValueName || '').trim();
-      if (typeName && valueName) return `${typeName}: ${valueName}`;
-      return typeName || valueName;
+      const typeName =
+        String(s?.specTypeName || '').trim() ||
+        getI18nMapValue(specTypeNameI18n, s?.specTypeId);
+      const valueName =
+        String(s?.specValueName || '').trim() ||
+        getI18nMapValue(specValueNameI18n, s?.specValueId);
+      return joinLabelValue(typeName, valueName);
     })
     .filter(Boolean);
+  const attachDetails = (
+    Array.isArray(order.attachDetails)
+      ? order.attachDetails
+      : Array.isArray(item.attachDetails)
+        ? item.attachDetails
+        : []
+  ) as RawAttachDetail[];
+  const attachValues = attachDetails
+    .map((attach) => {
+      const typeName = getI18nMapValue(attachTypeNameI18n, attach?.attachTypeId);
+      const valueName = getI18nMapValue(attachValueNameI18n, attach?.attachValueId);
+      const quantity = Number(attach?.quantity ?? 0);
+      const summary = joinLabelValue(typeName, valueName);
+      if (!summary) {
+        return '';
+      }
+      return quantity > 0 ? `${summary} x ${quantity}` : summary;
+    })
+    .filter(Boolean);
+  const values = [...specValues, ...attachValues];
   if (values.length) return values.join(' / ');
   const fallback = String(order.specDesc ?? item.specDesc ?? '').trim();
   return fallback || '-';
@@ -472,6 +560,13 @@ const parseOrderRow = (item: any): OrderRow => {
     order.orderStatus ?? item.orderStatus ?? order.status ?? item.status;
   const rawPaymentStatus =
     order.paymentStatus ?? item.paymentStatus ?? order.payStatus ?? item.payStatus;
+  const productNameI18n = (order.productNameI18n ?? item.productNameI18n ?? {}) as I18nText;
+  const orderStatusNameI18n = (
+    order.orderStatusNameI18n ?? item.orderStatusNameI18n ?? {}
+  ) as I18nText;
+  const paymentStatusNameI18n = (
+    order.paymentStatusNameI18n ?? item.paymentStatusNameI18n ?? {}
+  ) as I18nText;
   const orderStatusCode = normalizeCode(
     rawOrderStatus,
     orderStatusNameMap,
@@ -489,20 +584,27 @@ const parseOrderRow = (item: any): OrderRow => {
     contactPhone: String(
       order.contactPhone ?? item.contactPhone ?? order.recipientPhone ?? item.recipientPhone ?? '',
     ).trim(),
-    productName: String(order.productName ?? item.productName ?? order.spuName ?? item.spuName ?? '').trim(),
+    productName: pickI18nValue(
+      productNameI18n,
+      String(order.productName ?? item.productName ?? order.spuName ?? item.spuName ?? '').trim(),
+    ),
     adminRemark: String(order.adminRemark ?? item.adminRemark ?? '').trim(),
     specDescText: parseSpecDescText(item),
     serviceTime: String(order.serviceTime ?? item.serviceTime ?? '').trim(),
     orderStatusCode,
     paymentStatusCode,
-    orderStatusText:
+    orderStatusText: pickI18nValue(
+      orderStatusNameI18n,
       orderStatusCode === null
         ? String(rawOrderStatus ?? '').trim() || '-'
         : getOrderStatusText(orderStatusCode),
-    paymentStatusText:
+    ),
+    paymentStatusText: pickI18nValue(
+      paymentStatusNameI18n,
       paymentStatusCode === null
         ? String(rawPaymentStatus ?? '').trim() || '-'
         : getPaymentStatusText(paymentStatusCode),
+    ),
     amountText: parseAmountText(item),
     createdAt: String(order.orderTime ?? item.orderTime ?? order.createTime ?? item.createTime ?? '').trim(),
   };

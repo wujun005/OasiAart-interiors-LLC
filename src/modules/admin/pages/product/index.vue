@@ -3,14 +3,84 @@
     <el-card>
       <div class="toolbar">
         <el-input
-          v-model="query.nameKeyword"
-          :placeholder="t('admin.product.searchPlaceholder')"
+          v-model="query.spuCode"
+          :placeholder="t('admin.product.filters.spuCodePlaceholder')"
           clearable
           @keyup.enter="handleSearch"
         />
-        <el-button type="primary" @click="handleSearch">{{ t('admin.product.actions.search') }}</el-button>
-        <el-button @click="reset">{{ t('admin.product.actions.reset') }}</el-button>
-        <el-button type="primary" @click="openCreate">{{ t('admin.product.actions.create') }}</el-button>
+        <el-select
+          v-model="query.categoryId"
+          :placeholder="t('admin.product.filters.categoryPlaceholder')"
+          clearable
+          filterable
+        >
+          <el-option
+            v-for="item in categoryOptions"
+            :key="item.value"
+            :label="item.label"
+            :value="item.value"
+          />
+        </el-select>
+        <el-select
+          v-model="query.serviceSubCategoryId"
+          :placeholder="t('admin.product.filters.serviceSubCategoryPlaceholder')"
+          clearable
+          filterable
+        >
+          <el-option
+            v-for="item in searchSubCategoryOptions"
+            :key="item.value"
+            :label="item.label"
+            :value="item.value"
+          />
+        </el-select>
+        <el-select
+          v-model="query.shelfStatus"
+          :placeholder="t('admin.product.filters.shelfStatusPlaceholder')"
+          clearable
+        >
+          <el-option
+            v-for="item in shelfStatusOptions"
+            :key="item.value"
+            :label="item.label"
+            :value="item.value"
+          />
+        </el-select>
+        <el-input
+          v-model="query.nameKeyword"
+          :placeholder="t('admin.product.filters.nameKeywordPlaceholder')"
+          clearable
+          @keyup.enter="handleSearch"
+        />
+        <el-select
+          v-model="query.status"
+          :placeholder="t('admin.product.filters.statusPlaceholder')"
+          clearable
+        >
+          <el-option
+            v-for="item in statusOptions"
+            :key="item.value"
+            :label="item.label"
+            :value="item.value"
+          />
+        </el-select>
+        <el-select
+          v-model="query.exclusive"
+          :placeholder="t('admin.product.filters.exclusivePlaceholder')"
+          clearable
+        >
+          <el-option
+            v-for="item in exclusiveOptions"
+            :key="item.value"
+            :label="item.label"
+            :value="item.value"
+          />
+        </el-select>
+        <div class="toolbar-actions">
+          <el-button type="primary" @click="handleSearch">{{ t('admin.product.actions.search') }}</el-button>
+          <el-button @click="reset">{{ t('admin.product.actions.reset') }}</el-button>
+          <el-button type="primary" @click="openCreate">{{ t('admin.product.actions.create') }}</el-button>
+        </div>
       </div>
 
       <el-table
@@ -275,7 +345,6 @@
               <el-button
                 type="danger"
                 link
-                :disabled="form.addonGroups.length === 1"
                 @click="removeAddonGroup(idx)"
               >
                 {{ t('admin.product.actions.delete') }}
@@ -758,7 +827,13 @@ const filteredSpecOptions = (
 const query = reactive({
   pageNum: 1,
   pageSize: 10,
+  spuCode: '',
+  categoryId: '' as '' | number,
+  shelfStatus: '',
+  serviceSubCategoryId: '' as '' | number,
   nameKeyword: '',
+  status: '',
+  exclusive: '',
 });
 const products = ref<ProductRow[]>([]);
 const total = ref(0);
@@ -874,6 +949,17 @@ const filteredSubCategoryOptions = computed(() =>
   ),
 );
 
+const queryCategoryId = computed(() => normalizeOptionalId(query.categoryId));
+
+const searchSubCategoryOptions = computed(() =>
+  subCategoryOptions.value.filter(
+    (item) =>
+      !queryCategoryId.value ||
+      !item.parentId ||
+      item.parentId === queryCategoryId.value,
+  ),
+);
+
 const filteredSpecTypeOptions = computed(() =>
   specTypeOptions.value.filter(
     (item) =>
@@ -917,6 +1003,21 @@ const normalizeSpecGroups = (autoFillType = true) => {
 const langOptions = computed(() => [
   { label: t('admin.common.langZhCn'), value: 'zh-CN' },
   { label: t('admin.common.langEnCode'), value: 'en' },
+]);
+
+const shelfStatusOptions = computed(() => [
+  { label: t('admin.product.sale.on'), value: '1' },
+  { label: t('admin.product.sale.off'), value: '0' },
+]);
+
+const statusOptions = computed(() => [
+  { label: t('admin.common.enabled'), value: '1' },
+  { label: t('admin.common.disabled'), value: '0' },
+]);
+
+const exclusiveOptions = computed(() => [
+  { label: t('admin.product.filters.recommended'), value: '1' },
+  { label: t('admin.product.filters.notRecommended'), value: '0' },
 ]);
 
 const pickName = (
@@ -984,10 +1085,13 @@ const rules: FormRules = {
     {
       validator: (_rule, value: AddonGroup[], callback) => {
         if (!value || !value.length) {
-          callback(new Error(t('admin.product.validation.addonGroupRequired')));
+          callback();
           return;
         }
-        const invalid = value.find(
+        const filledGroups = value.filter(
+          (g) => g.categoryId || (g.addonIds && g.addonIds.length > 0),
+        );
+        const invalid = filledGroups.find(
           (g) => !g.categoryId || !g.addonIds || g.addonIds.length === 0,
         );
         if (invalid) {
@@ -1403,11 +1507,34 @@ const fetchAddons = async () => {
 const fetchProducts = async () => {
   tableLoading.value = true;
   try {
-    const res = await page({
+    const payload: Record<string, unknown> = {
       pageNum: query.pageNum,
       pageSize: query.pageSize,
-      nameKeyword: query.nameKeyword?.trim() || undefined,
-    });
+    };
+    const spuCode = query.spuCode?.trim();
+    if (spuCode) payload.spuCode = spuCode;
+
+    const categoryId = normalizeOptionalId(query.categoryId);
+    if (categoryId !== null) payload.categoryId = String(categoryId);
+
+    const shelfStatus = String(query.shelfStatus ?? '').trim();
+    if (shelfStatus) payload.shelfStatus = shelfStatus;
+
+    const serviceSubCategoryId = normalizeOptionalId(query.serviceSubCategoryId);
+    if (serviceSubCategoryId !== null) {
+      payload.serviceSubCategoryId = serviceSubCategoryId;
+    }
+
+    const nameKeyword = query.nameKeyword?.trim();
+    if (nameKeyword) payload.nameKeyword = nameKeyword;
+
+    const status = String(query.status ?? '').trim();
+    if (status) payload.status = status;
+
+    const exclusive = String(query.exclusive ?? '').trim();
+    if (exclusive) payload.exclusive = exclusive;
+
+    const res = await page(payload);
     const { list, total: t, pageNum, pageSize } = extractPage(res);
     products.value = list;
     total.value = t;
@@ -1437,7 +1564,13 @@ const handleSearch = () => {
 };
 
 const reset = () => {
+  query.spuCode = '';
+  query.categoryId = '';
+  query.shelfStatus = '';
+  query.serviceSubCategoryId = '';
   query.nameKeyword = '';
+  query.status = '';
+  query.exclusive = '';
   query.pageNum = 1;
   fetchProducts();
 };
@@ -1540,11 +1673,7 @@ const openEdit = async (row: ProductRow) => {
       categoryOptions.value[0]?.value;
     const subCategoryId =
       (categoryIds[1] !== undefined ? Number(categoryIds[1]) : undefined) ??
-      row.subCategoryId ??
-      filteredSubCategoryOptions.value.find(
-        (s) => !s.parentId || s.parentId === categoryId,
-      )
-        ?.value;
+      row.subCategoryId;
     form.product = {
       id: spu.id,
       price: spu.price ?? row.price,
@@ -1693,10 +1822,6 @@ const addAddonGroup = () => {
 };
 
 const removeAddonGroup = (idx: number) => {
-  if (form.addonGroups.length <= 1) {
-    ElMessage.warning(t('admin.product.message.keepOneAddonGroup'));
-    return;
-  }
   form.addonGroups.splice(idx, 1);
 };
 
@@ -1876,12 +2001,6 @@ const save = () => {
           form.product.categoryId = parentId;
         }
       }
-      if (
-        !form.product.subCategoryId &&
-        filteredSubCategoryOptions.value.length
-      ) {
-        form.product.subCategoryId = filteredSubCategoryOptions.value[0].value;
-      }
       const nameI18n = form.productI18nList.reduce<Record<string, string>>(
         (acc, cur) => {
           if (cur.langCode && cur.name) acc[cur.langCode] = cur.name;
@@ -1926,10 +2045,12 @@ const save = () => {
           specTypeId: g.specTypeId,
           specValueIds: g.specIds,
         })),
-        attachBindings: form.addonGroups.map((g) => ({
-          attachTypeId: g.categoryId,
-          attachValueIds: g.addonIds,
-        })),
+        attachBindings: form.addonGroups
+          .filter((g) => g.categoryId && g.addonIds && g.addonIds.length > 0)
+          .map((g) => ({
+            attachTypeId: g.categoryId,
+            attachValueIds: g.addonIds,
+          })),
       };
       if (isEdit.value) {
         await addOrUpdate(payload);
@@ -1993,6 +2114,20 @@ watch(
 );
 
 watch(
+  queryCategoryId,
+  () => {
+    if (
+      query.serviceSubCategoryId &&
+      !searchSubCategoryOptions.value.some(
+        (item) => item.value === query.serviceSubCategoryId,
+      )
+    ) {
+      query.serviceSubCategoryId = '';
+    }
+  },
+);
+
+watch(
   () => locale.value,
   () => {
     fetchCategories();
@@ -2012,8 +2147,19 @@ watch(
 .toolbar {
   display: flex;
   justify-content: flex-start;
+  align-items: center;
+  flex-wrap: wrap;
   margin-bottom: 16px;
   gap: 12px;
+}
+.toolbar :deep(.el-input),
+.toolbar :deep(.el-select) {
+  width: 180px;
+}
+.toolbar-actions {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
 }
 .pager {
   display: flex;
