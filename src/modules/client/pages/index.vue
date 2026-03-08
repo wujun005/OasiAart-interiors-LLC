@@ -22,14 +22,7 @@
       </div>
     </section>
 
-    <div
-      ref="contactCardRef"
-      class="contact-card"
-      :class="{ 'contact-card--dragging': isContactCardDragging }"
-      :style="contactCardStyle"
-      @mousedown="onContactCardMouseDown"
-      @touchstart="onContactCardTouchStart"
-    >
+    <div class="contact-card">
       <div class="contact-card__agent">
         <img :src="supportAgentUrl" :alt="t('client.home.alt.supportAgent')" />
         <span class="contact-card__status" />
@@ -139,7 +132,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
+import { computed, onMounted, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRouter } from 'vue-router';
 import {
@@ -451,111 +444,9 @@ const loadExclusiveCards = async () => {
   }
 };
 
-const contactCardRef = ref<HTMLElement | null>(null);
-const contactCardPosition = ref<{ left: number; top: number } | null>(null);
-const isContactCardDragging = ref(false);
-
-const dragState = {
-  offsetX: 0,
-  offsetY: 0,
-  cardWidth: 0,
-  cardHeight: 0,
-};
-
-const contactCardStyle = computed(() => {
-  if (!contactCardPosition.value) {
-    return {};
-  }
-  return {
-    left: `${contactCardPosition.value.left}px`,
-    top: `${contactCardPosition.value.top}px`,
-    right: 'auto',
-    bottom: 'auto',
-  };
-});
-
-const clamp = (value: number, min: number, max: number) => Math.min(Math.max(value, min), max);
-
-const extractPoint = (event: MouseEvent | TouchEvent) => {
-  if ('touches' in event) {
-    const touch = event.touches[0] || event.changedTouches[0];
-    return touch ? { x: touch.clientX, y: touch.clientY } : null;
-  }
-  return { x: event.clientX, y: event.clientY };
-};
-
-const handleContactCardMove = (event: MouseEvent | TouchEvent) => {
-  if (!isContactCardDragging.value) {
-    return;
-  }
-  const point = extractPoint(event);
-  if (!point) {
-    return;
-  }
-  if ('preventDefault' in event) {
-    event.preventDefault();
-  }
-  const maxLeft = Math.max(window.innerWidth - dragState.cardWidth, 0);
-  const maxTop = Math.max(window.innerHeight - dragState.cardHeight, 0);
-  contactCardPosition.value = {
-    left: clamp(point.x - dragState.offsetX, 0, maxLeft),
-    top: clamp(point.y - dragState.offsetY, 0, maxTop),
-  };
-};
-
-const stopContactCardDrag = () => {
-  if (!isContactCardDragging.value) {
-    return;
-  }
-  isContactCardDragging.value = false;
-  window.removeEventListener('mousemove', handleContactCardMove);
-  window.removeEventListener('mouseup', stopContactCardDrag);
-  window.removeEventListener('touchmove', handleContactCardMove);
-  window.removeEventListener('touchend', stopContactCardDrag);
-  document.body.style.userSelect = '';
-};
-
-const startContactCardDrag = (x: number, y: number) => {
-  const card = contactCardRef.value;
-  if (!card) {
-    return;
-  }
-  const rect = card.getBoundingClientRect();
-  dragState.offsetX = x - rect.left;
-  dragState.offsetY = y - rect.top;
-  dragState.cardWidth = rect.width;
-  dragState.cardHeight = rect.height;
-  contactCardPosition.value = { left: rect.left, top: rect.top };
-  isContactCardDragging.value = true;
-  window.addEventListener('mousemove', handleContactCardMove);
-  window.addEventListener('mouseup', stopContactCardDrag);
-  window.addEventListener('touchmove', handleContactCardMove, { passive: false });
-  window.addEventListener('touchend', stopContactCardDrag);
-  document.body.style.userSelect = 'none';
-};
-
-const onContactCardMouseDown = (event: MouseEvent) => {
-  if (event.button !== 0) {
-    return;
-  }
-  startContactCardDrag(event.clientX, event.clientY);
-};
-
-const onContactCardTouchStart = (event: TouchEvent) => {
-  const point = extractPoint(event);
-  if (!point) {
-    return;
-  }
-  startContactCardDrag(point.x, point.y);
-};
-
 onMounted(() => {
   loadServiceMenus();
   loadExclusiveCards();
-});
-
-onBeforeUnmount(() => {
-  stopContactCardDrag();
 });
 </script>
 
@@ -592,7 +483,7 @@ onBeforeUnmount(() => {
 
 .hero-section__eyebrow {
   margin: 0;
-  font-size: 36px;
+  font-size: 26px;
   line-height: 40px;
   font-weight: 800;
   color: #fff;
@@ -600,7 +491,7 @@ onBeforeUnmount(() => {
 
 .hero-section__title {
   margin: 16px 0 0;
-  font-size: 36px;
+  font-size: 26px;
   line-height: 45px;
   font-weight: 800;
   color: #fff;
@@ -608,7 +499,7 @@ onBeforeUnmount(() => {
 
 .hero-section__desc {
   margin: 16px 0 0;
-  font-size: 36px;
+  font-size: 26px;
   line-height: 40px;
   font-weight: 800;
   color: #fff;
@@ -662,13 +553,6 @@ onBeforeUnmount(() => {
   border-radius: 14px;
   box-shadow: 0 25px 50px rgba(0, 0, 0, 0.25);
   z-index: 60;
-  cursor: grab;
-  user-select: none;
-  touch-action: none;
-}
-
-.contact-card--dragging {
-  cursor: grabbing;
 }
 
 .contact-card__agent {
@@ -722,7 +606,7 @@ onBeforeUnmount(() => {
   margin: 0;
   color: var(--primary);
   text-align: center;
-  font-size: 40px;
+  font-size: 26px;
   line-height: 1.2;
   font-weight: 800;
 }
@@ -997,7 +881,7 @@ onBeforeUnmount(() => {
 
 .about-content__left h3 {
   margin: 0;
-  font-size: 40px;
+  font-size: 30px;
   line-height: 1.2;
   font-weight: 800;
 }
@@ -1152,7 +1036,7 @@ onBeforeUnmount(() => {
   }
 
   .section-title {
-    font-size: 32px;
+    font-size: 26px;
   }
 
   .section-subtitle {
@@ -1236,7 +1120,7 @@ onBeforeUnmount(() => {
   }
 
   .about-content__left h3 {
-    font-size: 32px;
+    font-size: 26px;
   }
 }
 </style>

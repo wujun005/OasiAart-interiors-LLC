@@ -8,6 +8,14 @@ export interface ApiEnvelope<T = unknown> {
   data?: T;
 }
 
+interface ApiSuccessEnvelope<T = unknown> {
+  success: boolean;
+  message?: string;
+  msg?: string;
+  data?: T;
+  errorCode?: string | null;
+}
+
 let getToken: TokenGetter = () => {
   try {
     return localStorage.getItem('token');
@@ -26,15 +34,27 @@ function isApiEnvelope(value: unknown): value is ApiEnvelope {
   return typeof maybe.code === 'number';
 }
 
+function isApiSuccessEnvelope(value: unknown): value is ApiSuccessEnvelope {
+  if (!value || typeof value !== 'object') return false;
+  const maybe = value as Record<string, unknown>;
+  return typeof maybe.success === 'boolean';
+}
+
+function getServerMessage(payload: unknown, fallback = 'Request failed'): string {
+  if (payload && typeof payload === 'object') {
+    const maybe = payload as Record<string, unknown>;
+    if (typeof maybe.message === 'string' && maybe.message.trim()) return maybe.message;
+    if (typeof maybe.msg === 'string' && maybe.msg.trim()) return maybe.msg;
+  }
+  return fallback;
+}
+
 // 处理错误，主要是用来处理axios请求错误
 function normalizeAxiosError(error: unknown): Error {
   if (axios.isAxiosError(error)) {
     const axiosError = error as AxiosError<any>;
     const status = axiosError.response?.status;
-    const serverMessage =
-      axiosError.response?.data?.message ||
-      axiosError.response?.data?.msg ||
-      axiosError.message;
+    const serverMessage = getServerMessage(axiosError.response?.data, axiosError.message);
     return Object.assign(new Error(serverMessage || `Request failed (${status ?? 'network'})`), {
       status,
       data: axiosError.response?.data,
@@ -89,20 +109,36 @@ export function createHttpClient(overrides?: {
     (response) => {
       const payload = response.data;
       if (isApiEnvelope(payload)) {
+        const maybe = payload as Record<string, unknown>;
+        if (typeof maybe.success === 'boolean' && !maybe.success) {
+          throw Object.assign(new Error(getServerMessage(payload)), {
+            code: maybe.errorCode || 'BUSINESS_ERROR',
+            data: payload,
+          });
+        }
         const ok = payload.code === 0 || payload.code === 200;
         if (!ok) {
-          throw Object.assign(new Error(payload.message || 'Request failed'), {
+          throw Object.assign(new Error(getServerMessage(payload)), {
             code: payload.code,
             data: payload,
           });
         }
         return payload.data;
       }
+      if (isApiSuccessEnvelope(payload)) {
+        if (!payload.success) {
+          throw Object.assign(new Error(getServerMessage(payload)), {
+            code: payload.errorCode || 'BUSINESS_ERROR',
+            data: payload,
+          });
+        }
+        return payload;
+      }
       return payload;
     },
     (error) => {
       // 如果是 token 过期错误，直接清除 token 并跳转
-      if (error.message === 'Token expired') {
+      if (error === 'Token expired' || error?.message === 'Token expired') {
         localStorage.clear();
         window.location.href = '/login'; // 跳转到登录页
       }

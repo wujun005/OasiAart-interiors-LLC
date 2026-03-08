@@ -65,9 +65,9 @@ import {
 const { t, locale } = useI18n({ useScope: 'global' });
 const currentLocale = ref<AdminLocale>(locale.value === 'en' ? 'en' : 'zh');
 const assetLogo = new URL('@/assets/images/client/logo.png', import.meta.url).href;
-const assetFeature1 = 'https://www.figma.com/api/mcp/asset/ef75fc3a-3d62-4db2-a1cd-9ee8a181b227';
-const assetFeature2 = 'https://www.figma.com/api/mcp/asset/40985476-5fe7-4bab-bcc7-d4faef415060';
-const assetFeature3 = 'https://www.figma.com/api/mcp/asset/743d31dc-3585-491d-ab1e-1e9ef5756564';
+const assetFeature1 = new URL('@/assets/images/client/icon.png', import.meta.url).href;
+const assetFeature2 = new URL('@/assets/images/client/Icon (1).png', import.meta.url).href;
+const assetFeature3 = new URL('@/assets/images/client/Icon (2).png', import.meta.url).href;
 
 const leftFeatures = [
   {

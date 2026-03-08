@@ -177,12 +177,21 @@
 
         <p class="agreement">
           {{ t('client.login.register.agreementPrefix') }}
-          <a href="javascript:void(0)">{{ t('client.login.register.terms') }}</a>
+          <a href="javascript:void(0)" @click.prevent="openAgreement('terms')">
+            {{ t('client.login.register.terms') }}
+          </a>
           {{ t('client.login.register.agreementAnd') }}
-          <a href="javascript:void(0)">{{ t('client.login.register.privacy') }}</a>
+          <a href="javascript:void(0)" @click.prevent="openAgreement('privacy')">
+            {{ t('client.login.register.privacy') }}
+          </a>
         </p>
       </div>
     </section>
+
+    <agreement-dialog
+      v-model="agreementDialogVisible"
+      :doc-type="agreementDocType"
+    />
   </div>
 </template>
 
@@ -195,17 +204,19 @@ import {
   register as sendRegisterCode,
   registerByEmailPhone,
 } from '@/modules/client/api/login';
+import AgreementDialog from '@/modules/client/components/agreement-dialog.vue';
+import type { LegalDocType } from '@/modules/client/constants/legal';
 import { setClientLocale, type ClientLocale } from '@/modules/client/locales';
 
 const assetLogo = 'https://www.figma.com/api/mcp/asset/d235cecd-85f7-44e5-b4f9-f5febd8109d6';
-const assetFeature1 = 'https://www.figma.com/api/mcp/asset/5e2747a2-43b5-4f19-9e52-e4eec02e8be2';
-const assetFeature2 = 'https://www.figma.com/api/mcp/asset/4322c8a0-0050-418f-930d-c14831bc0e6b';
-const assetFeature3 = 'https://www.figma.com/api/mcp/asset/d8546882-75c7-4904-9203-1c3b4cadaaed';
-const assetPhone = 'https://www.figma.com/api/mcp/asset/7e67a1ac-e671-487a-a146-deca82c26fa7';
-const assetEmail = 'https://www.figma.com/api/mcp/asset/0549c4e7-0a74-49ea-9758-60067d97b13b';
-const assetPassword = 'https://www.figma.com/api/mcp/asset/7ccc9429-cb1a-4964-ae96-135662d4671f';
-const assetCode = 'https://www.figma.com/api/mcp/asset/5c38b0ee-8e8c-4241-bdab-7ae9a7ff5959';
-const assetLocale = 'https://www.figma.com/api/mcp/asset/d0ab65a6-42bb-43d1-a9d2-ece0ee924d7c';
+const assetFeature1 = new URL('@/assets/images/client/Icon.png', import.meta.url).href;
+const assetFeature2 = new URL('@/assets/images/client/Icon (1).png', import.meta.url).href;
+const assetFeature3 = new URL('@/assets/images/client/Icon (2).png', import.meta.url).href;
+const assetPhone = new URL('@/assets/images/client/Icon (6).png', import.meta.url).href;
+const assetEmail = new URL('@/assets/images/client/Icon (7).png', import.meta.url).href;
+const assetPassword = new URL('@/assets/images/client/Icon (4).png', import.meta.url).href;
+const assetCode = new URL('@/assets/images/client/Icon (5).png', import.meta.url).href;
+const assetLocale = new URL('@/assets/images/client/Icon (8).png', import.meta.url).href;
 
 const { t, locale } = useI18n({ useScope: 'global' });
 const router = useRouter();
@@ -223,6 +234,8 @@ const sendingCode = ref(false);
 const codeCooldown = ref(0);
 const submitting = ref(false);
 const showPassword = ref(false);
+const agreementDialogVisible = ref(false);
+const agreementDocType = ref<LegalDocType>('terms');
 let codeTimer: number | null = null;
 
 const localeLabel = computed(() =>
@@ -286,6 +299,11 @@ const goHome = () => {
 
 const goLogin = () => {
   router.push('/login');
+};
+
+const openAgreement = (type: LegalDocType) => {
+  agreementDocType.value = type;
+  agreementDialogVisible.value = true;
 };
 
 const startCodeCountdown = () => {

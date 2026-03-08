@@ -102,7 +102,7 @@
       v-model="reviewDialogVisible"
       :title="t('client.orderList.reviewDialog.title')"
       width="520px"
-      :close-on-click-modal="!isReviewSubmitting"
+      :close-on-click-modal="false"
       :show-close="!isReviewSubmitting"
     >
       <div class="order-review-form">
@@ -509,7 +509,7 @@ onBeforeUnmount(() => {
 .order-list-head h1 {
   margin: 0;
   color: rgba(15, 23, 42, 0.9);
-  font-size: 30px;
+  font-size: 26px;
   line-height: 1.2;
   font-weight: 900;
 }

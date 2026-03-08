@@ -11,6 +11,7 @@
         <el-button type="primary" @click="handleSearch">{{ t('admin.category.actions.search') }}</el-button>
         <el-button @click="reset">{{ t('admin.category.actions.reset') }}</el-button>
         <el-button type="primary" @click="openCreate">{{ t('admin.category.actions.create') }}</el-button>
+        <el-button @click="openPreview">{{ t('admin.category.actions.preview') }}</el-button>
       </div>
 
       <el-table :data="displayList" border stripe row-key="id" v-loading="tableLoading">
@@ -67,9 +68,10 @@
     <el-dialog
       v-model="dialogVisible"
       :title="isEdit ? t('admin.category.dialog.editTitle') : t('admin.category.dialog.createTitle')"
-      width="520px"
+      :close-on-click-modal="false"
+      width="1000px"
     >
-      <el-form ref="formRef" :model="form" :rules="rules" label-width="90px">
+      <el-form ref="formRef" class="category-form" :model="form" :rules="rules" label-width="90px">
         <el-form-item :label="t('admin.category.form.icon')" prop="iconUrl">
           <el-upload
             :http-request="handleIconUpload"
@@ -86,7 +88,7 @@
         <el-form-item :label="t('admin.category.form.nameI18n')" prop="nameI18n">
           <div class="i18n-list">
             <div v-for="(item, idx) in nameI18nList" :key="idx" class="i18n-row">
-              <el-select v-model="item.lang" :placeholder="t('admin.category.form.languagePlaceholder')" style="width: 140px">
+              <el-select v-model="item.lang" :placeholder="t('admin.category.form.languagePlaceholder')" style="width: 180px">
                 <el-option :label="t('admin.common.langZhCn')" value="zh-CN" />
                 <el-option :label="t('admin.common.langEnCode')" value="en" />
               </el-select>
@@ -101,7 +103,7 @@
         <el-form-item :label="t('admin.category.form.bannerTitle')" prop="bannerTitleI18n">
           <div class="i18n-list">
             <div v-for="(item, idx) in bannerTitleList" :key="idx" class="i18n-row">
-              <el-select v-model="item.lang" :placeholder="t('admin.category.form.languagePlaceholder')" style="width: 140px">
+              <el-select v-model="item.lang" :placeholder="t('admin.category.form.languagePlaceholder')" style="width: 180px">
                 <el-option :label="t('admin.common.langZhCn')" value="zh-CN" />
                 <el-option :label="t('admin.common.langEnCode')" value="en" />
               </el-select>
@@ -117,14 +119,14 @@
         <el-form-item :label="t('admin.category.form.bannerDesc')" prop="bannerDescI18n">
           <div class="i18n-list">
             <div v-for="(item, idx) in bannerDescList" :key="idx" class="i18n-row">
-              <el-select v-model="item.lang" :placeholder="t('admin.category.form.languagePlaceholder')" style="width: 140px">
+              <el-select v-model="item.lang" :placeholder="t('admin.category.form.languagePlaceholder')" style="width: 180px">
                 <el-option :label="t('admin.common.langZhCn')" value="zh-CN" />
                 <el-option :label="t('admin.common.langEnCode')" value="en" />
               </el-select>
               <el-input
                 v-model="item.value"
                 type="textarea"
-                :rows="2"
+                :rows="4"
                 :placeholder="t('admin.category.form.bannerDescPlaceholder')"
               />
               <el-button link type="danger" :disabled="bannerDescList.length===1" @click="removeBannerDesc(idx)">
@@ -138,13 +140,13 @@
         <el-form-item :label="t('admin.category.form.bannerTags')" prop="bannerTagsI18n">
           <div class="i18n-list">
             <div v-for="(item, idx) in bannerTagsList" :key="idx" class="i18n-row">
-              <el-select v-model="item.lang" :placeholder="t('admin.category.form.languagePlaceholder')" style="width: 140px">
+              <el-select v-model="item.lang" :placeholder="t('admin.category.form.languagePlaceholder')" style="width: 180px">
                 <el-option :label="t('admin.common.langZhCn')" value="zh-CN" />
                 <el-option :label="t('admin.common.langEnCode')" value="en" />
               </el-select>
               <el-input
                 v-model="item.value"
-                type="textarea" :rows="2" 
+                type="textarea" :rows="4" 
                 :placeholder="t('admin.category.form.bannerTagsPlaceholder')"
               />
               <el-button link type="danger" :disabled="bannerTagsList.length===1" @click="removeBannerTags(idx)">
@@ -163,6 +165,36 @@
         <el-button @click="dialogVisible = false">{{ t('admin.category.actions.cancel') }}</el-button>
         <el-button type="primary" :loading="submitLoading" @click="save">{{ t('admin.category.actions.save') }}</el-button>
       </template>
+    </el-dialog>
+
+    <el-dialog
+      v-model="previewVisible"
+      class="category-preview-dialog"
+      :title="t('admin.category.dialog.previewTitle')"
+      :close-on-click-modal="false"
+      width="1100px"
+    >
+      <div class="preview-panel">
+        <h3 class="preview-panel__title">{{ t('admin.category.preview.title') }}</h3>
+        <!-- <p class="preview-panel__subtitle">{{ t('admin.category.preview.subtitle') }}</p> -->
+        <div v-if="!previewTiles.length" class="preview-panel__empty">
+          {{ t('admin.category.preview.empty') }}
+        </div>
+        <div v-else class="preview-services-grid">
+          <article
+            v-for="item in previewTiles"
+            :key="item.id"
+            class="preview-services-grid__item"
+            :class="{ 'preview-services-grid__item--placeholder': !item.icon }"
+          >
+            <div class="preview-services-grid__icon">
+              <img v-if="item.icon" :src="item.icon" :alt="item.title" />
+              <span v-else>{{ item.initial }}</span>
+            </div>
+            <p>{{ item.title }}</p>
+          </article>
+        </div>
+      </div>
     </el-dialog>
   </div>
 </template>
@@ -235,6 +267,7 @@ const fetchList = async () => {
 };
 
 const dialogVisible = ref(false);
+const previewVisible = ref(false);
 const isEdit = ref(false);
 const submitLoading = ref(false);
 const formRef = ref<FormInstance>();
@@ -250,6 +283,24 @@ const nameI18nList = ref<{ lang: string; value: string }[]>([{ lang: 'zh-CN', va
 const bannerTitleList = ref<{ lang: string; value: string }[]>([{ lang: 'zh-CN', value: '' }]);
 const bannerDescList = ref<{ lang: string; value: string }[]>([{ lang: 'zh-CN', value: '' }]);
 const bannerTagsList = ref<{ lang: string; value: string }[]>([{ lang: 'zh-CN', value: '' }]);
+
+const previewTiles = computed(() => {
+  const source = displayList.value || [];
+  const enabledList = source.filter((item) => item.enabled);
+  const target = enabledList.length ? enabledList : source;
+  return target
+    .map((item, index) => {
+      const title = item.displayName?.trim() || t('admin.category.preview.unnamed');
+      const initial = title.slice(0, 1).toUpperCase();
+      return {
+        id: String(item.id || `service-${index + 1}`),
+        title,
+        icon: item.iconUrl || '',
+        initial,
+      };
+    })
+    .slice(0, 10);
+});
 
 const rules: FormRules = {
   nameI18n: [
@@ -316,6 +367,13 @@ const onSizeChange = (size: number) => {
   query.pageSize = size;
   query.pageNum = 1;
   fetchList();
+};
+
+const openPreview = async () => {
+  if (!displayList.value.length) {
+    await fetchList();
+  }
+  previewVisible.value = true;
 };
 
 const openCreate = () => {
@@ -470,7 +528,10 @@ const remove = (row: Category) => {
       ElMessage.success(t('admin.category.message.deleteSuccess'));
       fetchList();
     })
-    .catch(() => {});
+    .catch((err: any) => {
+      if (err === 'cancel' || err === 'close') return;
+      ElMessage.error(err?.message || 'Request failed');
+    });
 };
 
 const formatDate = (val?: string) => {
@@ -549,8 +610,98 @@ const removeBannerTags = (idx: number) => {
 }
 .i18n-row {
   display: grid;
-  grid-template-columns: 160px 1fr auto;
+  grid-template-columns: 180px minmax(560px, 1fr) auto;
   gap: 8px;
   align-items: center;
+}
+.category-form :deep(.el-input),
+.category-form :deep(.el-textarea) {
+  width: 100%;
+}
+.preview-panel {
+  padding: 8px 12px 16px;
+}
+.preview-panel__title {
+  margin: 0;
+  text-align: center;
+  font-size: 26px;
+  font-weight: 700;
+  color: rgba(15, 23, 42, 0.9);
+}
+.preview-panel__subtitle {
+  margin: 16px 0 0;
+  text-align: center;
+  color: rgba(15, 23, 42, 0.55);
+  font-size: 14px;
+  line-height: 1.4;
+  font-weight: 600;
+}
+.preview-panel__empty {
+  margin-top: 36px;
+  text-align: center;
+  color: #94a3b8;
+  font-size: 14px;
+}
+.preview-services-grid {
+  margin-top: 48px;
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  row-gap: 42px;
+}
+.preview-services-grid__item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  transition: transform 0.2s ease;
+}
+.preview-services-grid__item:hover {
+  transform: translateY(-4px);
+}
+.preview-services-grid__icon {
+  width: 112px;
+  height: 112px;
+  border-radius: 24px;
+  background: rgba(57, 114, 245, 0.05);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.preview-services-grid__icon img {
+  width: 56px;
+  height: 56px;
+  object-fit: contain;
+}
+.preview-services-grid__icon span {
+  font-size: 28px;
+  font-weight: 700;
+  color: #3972f5;
+}
+.preview-services-grid__item p {
+  margin: 0;
+  min-height: 28px;
+  text-align: center;
+  color: rgba(15, 23, 42, 0.9);
+  font-size: 20px;
+  line-height: 1.4;
+  font-weight: 800;
+}
+.preview-services-grid__item--placeholder:hover {
+  transform: none;
+}
+@media (max-width: 1200px) {
+  .preview-services-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+@media (max-width: 900px) {
+  .preview-services-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+@media (max-width: 700px) {
+  .preview-services-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 </style>

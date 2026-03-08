@@ -68,9 +68,9 @@ type ServiceCardView = {
 };
 
 const heroImage = 'https://www.figma.com/api/mcp/asset/9940165e-0acb-4e47-a159-467533923434';
-const tagIconCertified = 'https://www.figma.com/api/mcp/asset/6291cb17-48c7-4cd8-9745-e11119df4047';
-const tagIconFast = 'https://www.figma.com/api/mcp/asset/3aa3e73c-534b-4984-b509-efece843faaf';
-const tagIconReliable = 'https://www.figma.com/api/mcp/asset/6c6b8215-4144-49c6-a1b7-afc48417d32f';
+const tagIconCertified = new URL('@/assets/images/client/icon10.png', import.meta.url).href;
+const tagIconFast = new URL('@/assets/images/client/icon11.png', import.meta.url).href;
+const tagIconReliable = new URL('@/assets/images/client/icon12.png', import.meta.url).href;
 
 const cardIconSet = [
   'https://www.figma.com/api/mcp/asset/eb5c30c7-689f-4ed5-bbbd-d173eed0127f',
@@ -176,7 +176,10 @@ const defaultHeroTags = computed(() => [
 
 const pageTitle = computed(() => {
   const fromQuery = getQueryValue(route.query.name);
-  return fromQuery || pickI18nValue(selectedLevel1.value?.nameI18n, t('client.serviceList.pageTitle'));
+  return pickI18nValue(
+    selectedLevel1.value?.nameI18n,
+    fromQuery || t('client.serviceList.pageTitle'),
+  );
 });
 
 const heroTitle = computed(() =>
@@ -384,7 +387,7 @@ const goProductDetail = (spuId: string) => {
 .service-hero__content h1 {
   margin: 0;
   color: #fff;
-  font-size: 42px;
+  font-size: 26px;
   line-height: 1.2;
   font-weight: 900;
 }
@@ -393,7 +396,7 @@ const goProductDetail = (spuId: string) => {
   margin: 16px 0 0;
   width: min(1060px, 100%);
   color: #dbeafe;
-  font-size: 22px;
+  font-size: 20px;
   line-height: 1.45;
   font-weight: 500;
 }
@@ -475,7 +478,7 @@ const goProductDetail = (spuId: string) => {
   margin: 24px 0 0;
   text-align: center;
   color: rgba(15, 23, 42, 0.9);
-  font-size: 30px;
+  font-size: 20px;
   line-height: 1.2;
   font-weight: 800;
   min-height: 72px;

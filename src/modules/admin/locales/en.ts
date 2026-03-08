@@ -357,6 +357,7 @@ const en = {
         search: 'Search',
         reset: 'Reset',
         create: 'Create Service Category',
+        preview: 'Preview',
         edit: 'Edit',
         delete: 'Delete',
         save: 'Save',
@@ -374,6 +375,13 @@ const en = {
       dialog: {
         createTitle: 'Create Service Category',
         editTitle: 'Edit Service Category',
+        previewTitle: 'Homepage Category Preview',
+      },
+      preview: {
+        title: 'Service Category Preview',
+        subtitle: 'Preview based on the client homepage services-grid style',
+        empty: 'No category data available for preview',
+        unnamed: 'Unnamed category',
       },
       form: {
         icon: 'Icon',

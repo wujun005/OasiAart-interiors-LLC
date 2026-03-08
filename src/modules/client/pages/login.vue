@@ -138,12 +138,21 @@
 
         <p class="agreement">
           {{ t('client.login.password.agreementPrefix') }}
-          <a href="javascript:void(0)">{{ t('client.login.password.terms') }}</a>
+          <a href="javascript:void(0)" @click.prevent="openAgreement('terms')">
+            {{ t('client.login.password.terms') }}
+          </a>
           {{ t('client.login.password.agreementAnd') }}
-          <a href="javascript:void(0)">{{ t('client.login.password.privacy') }}</a>
+          <a href="javascript:void(0)" @click.prevent="openAgreement('privacy')">
+            {{ t('client.login.password.privacy') }}
+          </a>
         </p>
       </div>
     </section>
+
+    <agreement-dialog
+      v-model="agreementDialogVisible"
+      :doc-type="agreementDocType"
+    />
   </div>
 </template>
 
@@ -157,16 +166,18 @@ import {
   loginByVerifyCode,
   sendCode,
 } from '@/modules/client/api/login';
+import AgreementDialog from '@/modules/client/components/agreement-dialog.vue';
+import type { LegalDocType } from '@/modules/client/constants/legal';
 import { setClientLocale, type ClientLocale } from '@/modules/client/locales';
 
 const assetLogo = 'https://www.figma.com/api/mcp/asset/c86fdc20-0cd0-4496-8ff1-4775b50855ee';
-const assetFeature1 = 'https://www.figma.com/api/mcp/asset/ef75fc3a-3d62-4db2-a1cd-9ee8a181b227';
-const assetFeature2 = 'https://www.figma.com/api/mcp/asset/40985476-5fe7-4bab-bcc7-d4faef415060';
-const assetFeature3 = 'https://www.figma.com/api/mcp/asset/743d31dc-3585-491d-ab1e-1e9ef5756564';
-const assetAccount = 'https://www.figma.com/api/mcp/asset/4b012541-9ead-451b-a153-922f45572485';
-const assetPassword = 'https://www.figma.com/api/mcp/asset/58e9c021-fdf9-42ac-ad10-41c77d01d7f7';
-const assetCode = 'https://www.figma.com/api/mcp/asset/5c38b0ee-8e8c-4241-bdab-7ae9a7ff5959';
-const assetLocale = 'https://www.figma.com/api/mcp/asset/64934f0d-f62b-4bc7-882c-713ff6cf293e';
+const assetFeature1 = new URL('@/assets/images/client/icon.png', import.meta.url).href;
+const assetFeature2 = new URL('@/assets/images/client/Icon (1).png', import.meta.url).href;
+const assetFeature3 = new URL('@/assets/images/client/Icon (2).png', import.meta.url).href;
+const assetAccount = new URL('@/assets/images/client/Icon (3).png', import.meta.url).href;
+const assetPassword = new URL('@/assets/images/client/Icon (4).png', import.meta.url).href;
+const assetCode = new URL('@/assets/images/client/Icon (5).png', import.meta.url).href;
+const assetLocale = new URL('@/assets/images/client/Icon (8).png', import.meta.url).href;
 
 const { t, locale } = useI18n({ useScope: 'global' });
 const router = useRouter();
@@ -182,6 +193,8 @@ const loginMode = ref<LoginMode>('password');
 const sendingCode = ref(false);
 const codeCooldown = ref(0);
 const submitting = ref(false);
+const agreementDialogVisible = ref(false);
+const agreementDocType = ref<LegalDocType>('terms');
 let codeTimer: number | null = null;
 
 const localeLabel = computed(() =>
@@ -240,6 +253,11 @@ const toggleLoginMode = () => {
     return;
   }
   form.code = '';
+};
+
+const openAgreement = (type: LegalDocType) => {
+  agreementDocType.value = type;
+  agreementDialogVisible.value = true;
 };
 
 const saveClientToken = (raw: any) => {

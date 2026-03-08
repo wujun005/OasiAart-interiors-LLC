@@ -76,6 +76,7 @@
     <el-dialog
       v-model="dialogVisible"
       :title="isEdit ? t('admin.user.dialog.editTitle') : t('admin.user.dialog.createTitle')"
+      :close-on-click-modal="false"
       width="480px"
     >
       <el-form
@@ -112,6 +113,7 @@
     <el-dialog
       v-model="permissionDialogVisible"
       :title="t('admin.user.permission.title', { name: permissionTargetUser?.name || '' })"
+      :close-on-click-modal="false"
       width="540px"
       destroy-on-close
       @closed="onPermissionDialogClosed"

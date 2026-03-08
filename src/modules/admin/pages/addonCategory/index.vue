@@ -36,6 +36,7 @@
     <el-dialog
       v-model="dialogVisible"
       :title="isEdit ? t('admin.addonCategory.dialog.editTitle') : t('admin.addonCategory.dialog.createTitle')"
+      :close-on-click-modal="false"
       width="480px"
     >
       <el-form ref="formRef" :model="form" :rules="rules" label-width="100px">
@@ -172,7 +173,10 @@ const remove = (row: AddonCategory) => {
       ElMessage.success(t('admin.addonCategory.message.deleteSuccess'));
       fetchList();
     })
-    .catch(() => {});
+    .catch((err: any) => {
+      if (err === 'cancel' || err === 'close') return;
+      ElMessage.error(err?.message || 'Request failed');
+    });
 };
 
 const formatDate = (val?: string) => {

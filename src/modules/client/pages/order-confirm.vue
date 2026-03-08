@@ -119,6 +119,9 @@
                     :min="minServiceDate"
                   />
                 </div>
+                <small class="order-field__hint">
+                  {{ t('client.orderConfirm.fields.serviceDateHint') }}
+                </small>
               </label>
               <label class="order-field">
                 <span>{{ t('client.orderConfirm.fields.serviceTime') }}</span>
@@ -222,6 +225,8 @@ import { computed, onMounted, reactive, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRoute, useRouter } from 'vue-router';
 import { saveContactAddress, getLatestAddress, type LatestAddressRecord, getAvailableSelectTime } from '@/modules/client/api';
+
+type I18nText = Record<string, string>;
 
 type AvailableTimeRecord = {
   time?: string;
@@ -461,6 +466,46 @@ const getQueryText = (key: string) => {
   return typeof raw === 'string' ? raw.trim() : '';
 };
 
+const parseQueryJson = <T>(key: string, fallback: T): T => {
+  const raw = getQueryText(key);
+  if (!raw) {
+    return fallback;
+  }
+  try {
+    return JSON.parse(raw) as T;
+  } catch {
+    try {
+      const decoded = decodeURIComponent(raw);
+      return JSON.parse(decoded) as T;
+    } catch {
+      return fallback;
+    }
+  }
+};
+
+const getPreferredLangs = () =>
+  locale.value === 'zh'
+    ? ['zh-CN', 'zh', 'en', 'en-US']
+    : ['en', 'en-US', 'zh-CN', 'zh'];
+
+const pickI18nValue = (i18n?: I18nText, fallback = ''): string => {
+  const valueMap = i18n || {};
+  const preferredLangs = getPreferredLangs();
+  for (const lang of preferredLangs) {
+    const value = valueMap[lang];
+    if (typeof value === 'string' && value.trim()) {
+      return value.trim();
+    }
+  }
+  const firstValue = Object.values(valueMap).find(
+    (value) => typeof value === 'string' && value.trim(),
+  );
+  if (typeof firstValue === 'string') {
+    return firstValue.trim();
+  }
+  return fallback;
+};
+
 const getQueryNumber = (key: string, fallback = 0) => {
   const numeric = Number(getQueryText(key));
   return Number.isFinite(numeric) ? numeric : fallback;
@@ -478,12 +523,25 @@ const getQueryOrderId = (): number | null => {
 const orderId = computed(() => getQueryOrderId());
 
 const summaryTitle = computed(() =>
-  getQueryText('title') || t('client.orderConfirm.summary.itemDefault'),
+  pickI18nValue(
+    parseQueryJson<I18nText>('titleI18n', {}),
+    getQueryText('title') || t('client.orderConfirm.summary.itemDefault'),
+  ),
 );
 
-const summaryMeta = computed(() =>
-  getQueryText('specSummary') || t('client.orderConfirm.summary.metaDefault'),
-);
+const summaryMeta = computed(() => {
+  const selectedSpecValueIds = parseQueryJson<string[]>('selectedSpecValueIds', []);
+  const specValueNameI18n = parseQueryJson<Record<string, I18nText>>('specValueNameI18n', {});
+  if (Array.isArray(selectedSpecValueIds) && selectedSpecValueIds.length) {
+    const labels = selectedSpecValueIds
+      .map((id) => pickI18nValue(specValueNameI18n[String(id)], String(id)))
+      .filter(Boolean);
+    if (labels.length) {
+      return labels.join(' / ');
+    }
+  }
+  return getQueryText('specSummary') || t('client.orderConfirm.summary.metaDefault');
+});
 
 const subtotal = computed(() => getQueryNumber('subtotal', 0));
 const tax = computed(() => getQueryNumber('tax', 0));
@@ -784,7 +842,7 @@ onMounted(() => {
   align-items: center;
   gap: 12px;
   color: #3972f5;
-  font-size: 30px;
+  font-size: 20px;
   font-weight: 800;
   line-height: 1;
   cursor: pointer;
@@ -849,7 +907,7 @@ onMounted(() => {
 .order-section-title h2 {
   margin: 0;
   color: rgba(15, 23, 42, 0.9);
-  font-size: 28px;
+  font-size: 22px;
   line-height: 1.2;
   font-weight: 900;
 }
@@ -878,6 +936,12 @@ onMounted(() => {
   color: rgba(15, 23, 42, 0.9);
   font-size: 14px;
   font-weight: 700;
+}
+
+.order-field__hint {
+  color: rgba(15, 23, 42, 0.55);
+  font-size: 12px;
+  line-height: 1.4;
 }
 
 .order-input-wrap {
@@ -1103,7 +1167,7 @@ onMounted(() => {
 
   .order-section-title h2,
   .order-summary-card h2 {
-    font-size: 24px;
+    font-size: 22px;
   }
 }
 </style>

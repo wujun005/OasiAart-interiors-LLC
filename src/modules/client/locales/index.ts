@@ -234,6 +234,7 @@ const clientExtraMessages = {
           address: 'Detailed Address',
           remark: 'Remark (optional)',
           serviceDate: 'Select Date',
+          serviceDateHint: 'Date format: YYYY-MM-DD (Year-Month-Day)',
           serviceTime: 'Select Time',
         },
         placeholders: {
@@ -299,7 +300,38 @@ const clientExtraMessages = {
           submitFailed: 'Failed to submit review.',
         },
       },
+      profile: {
+        title: 'Profile Center',
+        subtitle: 'Reset your account password here.',
+        form: {
+          currentPassword: 'Current Password',
+          currentPasswordPlaceholder: 'Enter current password',
+          newPassword: 'New Password',
+          newPasswordPlaceholder: 'Enter new password',
+          confirmPassword: 'Confirm New Password',
+          confirmPasswordPlaceholder: 'Enter new password again',
+        },
+        actions: {
+          confirm: 'Confirm',
+          submitting: 'Submitting...',
+        },
+        validation: {
+          currentPasswordRequired: 'Please enter current password',
+          newPasswordRequired: 'Please enter new password',
+          newPasswordMin: 'New password must be at least 6 characters',
+          confirmPasswordRequired: 'Please confirm new password',
+          passwordMismatch: 'The two new passwords do not match',
+        },
+        message: {
+          loginRequired: 'Please log in first.',
+          updateSuccess: 'Password reset form submitted.',
+        },
+      },
       login: {
+        legal: {
+          lastUpdated: 'Last Updated',
+          close: 'Close',
+        },
         password: {
           title: 'Account Password Login',
           codeTitle: 'Verification Code Login',
@@ -610,6 +642,7 @@ const clientExtraMessages = {
           address: '详细地址',
           remark: '备注 (选填)',
           serviceDate: '选择日期',
+          serviceDateHint: '日期格式：YYYY-MM-DD（年-月-日）',
           serviceTime: '选择时间',
         },
         placeholders: {
@@ -674,7 +707,38 @@ const clientExtraMessages = {
           submitFailed: '评价提交失败',
         },
       },
+      profile: {
+        title: '个人中心',
+        subtitle: '在这里重置您的账户密码。',
+        form: {
+          currentPassword: '当前密码',
+          currentPasswordPlaceholder: '请输入当前密码',
+          newPassword: '新密码',
+          newPasswordPlaceholder: '请输入新密码',
+          confirmPassword: '确认新密码',
+          confirmPasswordPlaceholder: '请再次输入新密码',
+        },
+        actions: {
+          confirm: '确认',
+          submitting: '提交中...',
+        },
+        validation: {
+          currentPasswordRequired: '请输入当前密码',
+          newPasswordRequired: '请输入新密码',
+          newPasswordMin: '新密码至少 6 位',
+          confirmPasswordRequired: '请再次输入新密码',
+          passwordMismatch: '两次输入的新密码不一致',
+        },
+        message: {
+          loginRequired: '请先登录',
+          updateSuccess: '重置密码表单已提交',
+        },
+      },
       login: {
+        legal: {
+          lastUpdated: '最后更新日期',
+          close: '关闭',
+        },
         password: {
           title: '账号密码登录',
           codeTitle: '验证码登录',

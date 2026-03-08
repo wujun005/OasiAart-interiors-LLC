@@ -1,4 +1,5 @@
 import { createRouter, createWebHistory, RouteRecordRaw } from 'vue-router';
+import ProfilePage from '@/modules/client/pages/profile.vue';
 
 const routes: RouteRecordRaw[] = [
   // C端：/index 开头
@@ -41,6 +42,11 @@ const routes: RouteRecordRaw[] = [
     path: '/join-us',
     name: 'join-us',
     component: () => import('@/modules/client/pages/join-us.vue'),
+  },
+  {
+    path: '/profile',
+    name: 'profile',
+    component: ProfilePage,
   },
 ];
 

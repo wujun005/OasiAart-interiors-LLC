@@ -121,14 +121,19 @@ const handleLocaleCommand = (value: string | number | object) => {
 };
 
 const handleUserCommand = (command: string | number | object) => {
-  if (command !== 'logout') return;
-  localStorage.removeItem('token');
-  localStorage.removeItem('tokenType');
-  localStorage.removeItem('expiresAt');
-  localStorage.removeItem('userId');
-  localStorage.removeItem('username');
-  syncAuthState();
-  router.push('/login');
+  if (command === 'profile') {
+    router.push({ name: 'profile' });
+    return;
+  }
+  if (command === 'logout') {
+    localStorage.removeItem('token');
+    localStorage.removeItem('tokenType');
+    localStorage.removeItem('expiresAt');
+    localStorage.removeItem('userId');
+    localStorage.removeItem('username');
+    syncAuthState();
+    router.push('/login');
+  }
 };
 
 onMounted(() => {

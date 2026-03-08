@@ -109,6 +109,7 @@
           ? t('admin.spec.dialog.editTitle')
           : t('admin.spec.dialog.createTitle')
       "
+      :close-on-click-modal="false"
       width="520px"
     >
       <el-form ref="formRef" :model="form" :rules="rules" label-width="100px">
@@ -445,7 +446,10 @@ const remove = (row: Spec) => {
       ElMessage.success(t('admin.spec.message.deleteSuccess'));
       fetchList();
     })
-    .catch(() => {});
+    .catch((err: any) => {
+      if (err === 'cancel' || err === 'close') return;
+      ElMessage.error(err?.message || 'Request failed');
+    });
 };
 
 const formatDate = (val?: string) => {
@@ -520,7 +524,7 @@ const fetchList = async () => {
       pageNum: query.pageNum,
       pageSize: query.pageSize,
       nameKeyword: query.nameKeyword?.trim() || undefined,
-      subCategoryId: query.subCategoryId || undefined,
+      categoryId: query.subCategoryId || undefined,
       specTypeId: query.specTypeId || undefined,
     });
     const data = res?.data ?? res ?? {};

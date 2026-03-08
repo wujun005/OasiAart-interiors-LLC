@@ -1,7 +1,7 @@
 <template>
   <div class="admin-page">
     <el-container class="layout">
-      <el-aside width="220px" class="sidebar">
+      <el-aside width="270px" class="sidebar">
         <div class="logo">{{ t('admin.layout.logo') }}</div>
         <el-menu
           :default-active="activeMenu"

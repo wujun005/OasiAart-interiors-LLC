@@ -468,6 +468,24 @@ const parseRebookAttachSelections = (): RebookAttachSelection[] => {
 };
 
 const spuId = computed(() => parseSpuId());
+const level1FromQuery = computed(() => {
+  const raw = getRouteQueryText('level1');
+  if (!raw) {
+    return null;
+  }
+  try {
+    const parsed = JSON.parse(raw);
+    return parsed && typeof parsed === 'object' ? (parsed as { nameI18n?: I18nText }) : null;
+  } catch {
+    try {
+      const decoded = decodeURIComponent(raw);
+      const parsed = JSON.parse(decoded);
+      return parsed && typeof parsed === 'object' ? (parsed as { nameI18n?: I18nText }) : null;
+    } catch {
+      return null;
+    }
+  }
+});
 
 const rebookSpecSelections = computed(() => parseRebookSpecSelections());
 const rebookAttachSelections = computed(() => parseRebookAttachSelections());
@@ -530,7 +548,10 @@ const displayTitle = computed(() =>
 );
 
 const parentBreadcrumbTitle = computed(() =>
-  getRouteQueryText('breadcrumb'),
+  pickI18nValue(
+    level1FromQuery.value?.nameI18n,
+    getRouteQueryText('breadcrumb') || getRouteQueryText('name'),
+  ),
 );
 
 const serviceListQuery = computed(() => {
@@ -1059,7 +1080,12 @@ const goOrderConfirm = async () => {
         spuId: spuId.value,
         skuId: skuPrice.value?.skuId ? String(skuPrice.value.skuId) : '',
         title: displayTitle.value,
+        titleI18n: JSON.stringify(productDetail.value?.nameI18n || {}),
         specSummary: selectedSpecSummary.value,
+        selectedSpecValueIds: JSON.stringify(
+          selectedSpecValueIds.value.map((id) => String(id)),
+        ),
+        specValueNameI18n: JSON.stringify(productDetail.value?.specValueNameI18n || {}),
         subtotal: subtotalPrice.value.toFixed(2),
         tax: vatPrice.value.toFixed(2),
         total: totalPrice.value.toFixed(2),
@@ -1253,7 +1279,7 @@ const goOrderConfirm = async () => {
 .product-card__head h1 {
   margin: 0;
   color: rgba(15, 23, 42, 0.9);
-  font-size: 34px;
+  font-size: 26px;
   line-height: 1.2;
   font-weight: 900;
 }
@@ -1261,7 +1287,7 @@ const goOrderConfirm = async () => {
 .product-card__head p {
   margin: 0;
   color: #3972f5;
-  font-size: 36px;
+  font-size: 26px;
   line-height: 1.2;
   font-weight: 900;
   white-space: nowrap;
@@ -1448,7 +1474,7 @@ const goOrderConfirm = async () => {
 .booking-card h2 {
   margin: 0;
   color: rgba(15, 23, 42, 0.9);
-  font-size: 22px;
+  font-size: 20px;
   font-weight: 800;
 }
 

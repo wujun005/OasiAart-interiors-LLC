@@ -52,6 +52,7 @@
     <el-dialog
       v-model="dialogVisible"
       :title="isEdit ? t('admin.subcategory.dialog.editTitle') : t('admin.subcategory.dialog.createTitle')"
+      :close-on-click-modal="false"
       width="520px"
     >
       <el-form ref="formRef" :model="form" :rules="rules" label-width="110px">
@@ -236,7 +237,10 @@ const remove = (row: SubCategoryRow) => {
       ElMessage.success(t('admin.subcategory.message.deleteSuccess'));
       fetchList();
     })
-    .catch(() => {});
+    .catch((err: any) => {
+      if (err === 'cancel' || err === 'close') return;
+      ElMessage.error(err?.message || 'Request failed');
+    });
 };
 
 const addI18n = () => {

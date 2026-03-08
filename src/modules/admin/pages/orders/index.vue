@@ -170,6 +170,7 @@
     <el-dialog
       v-model="remarkDialogVisible"
       :title="t('admin.orders.dialog.remarkTitle')"
+      :close-on-click-modal="false"
       width="560px"
     >
       <el-form label-width="90px">

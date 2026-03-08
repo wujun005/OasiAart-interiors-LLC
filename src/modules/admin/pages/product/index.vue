@@ -215,6 +215,7 @@
     <el-dialog
       v-model="dialogVisible"
       :title="isEdit ? t('admin.product.dialog.editTitle') : t('admin.product.dialog.createTitle')"
+      :close-on-click-modal="false"
       width="880px"
     >
       <el-form
@@ -626,7 +627,7 @@
       </template>
     </el-dialog>
 
-    <el-dialog v-model="priceDialogVisible" :title="t('admin.product.dialog.priceTitle')" width="1020px">
+    <el-dialog v-model="priceDialogVisible" :title="t('admin.product.dialog.priceTitle')" :close-on-click-modal="false" width="1020px">
       <el-table :data="priceRows" border stripe class="price-table">
         <el-table-column
           v-for="col in priceColumns"

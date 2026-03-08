@@ -64,6 +64,7 @@
     <el-dialog
       v-model="dialogVisible"
       :title="isEdit ? t('admin.specType.dialog.editTitle') : t('admin.specType.dialog.createTitle')"
+      :close-on-click-modal="false"
       width="520px"
     >
       <el-form ref="formRef" :model="form" :rules="rules" label-width="90px">
@@ -291,7 +292,10 @@ const remove = (row: SpecType) => {
       ElMessage.success(t('admin.specType.message.deleteSuccess'));
       fetchList();
     })
-    .catch(() => {});
+    .catch((err: any) => {
+      if (err === 'cancel' || err === 'close') return;
+      ElMessage.error(err?.message || 'Request failed');
+    });
 };
 
 const formatDate = (val?: string) => {

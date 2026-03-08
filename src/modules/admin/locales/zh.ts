@@ -357,6 +357,7 @@ const zh = {
         search: '搜索',
         reset: '重置',
         create: '新增服务分类',
+        preview: '预览',
         edit: '编辑',
         delete: '删除',
         save: '保存',
@@ -374,6 +375,13 @@ const zh = {
       dialog: {
         createTitle: '新增服务分类',
         editTitle: '编辑服务分类',
+        previewTitle: '首页分类预览',
+      },
+      preview: {
+        title: '服务分类预览',
+        subtitle: '效果参考客户端首页 services-grid 样式',
+        empty: '暂无可预览的分类数据',
+        unnamed: '未命名分类',
       },
       form: {
         icon: '图标',
