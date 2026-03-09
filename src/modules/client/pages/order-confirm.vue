@@ -1038,7 +1038,7 @@ onMounted(() => {
 .order-summary-card h2 {
   margin: 0;
   color: rgba(15, 23, 42, 0.9);
-  font-size: 28px;
+  font-size: 22px;
   line-height: 1.2;
   font-weight: 900;
 }

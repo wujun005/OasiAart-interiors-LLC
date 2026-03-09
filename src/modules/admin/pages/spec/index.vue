@@ -403,8 +403,16 @@ const save = () => {
       nameI18nList.value[0]?.value ||
       '';
     const enName = nameI18nList.value.find((i) => i.lang === 'en')?.value || '';
+    const subCategoryId =
+      form.subCategoryId ??
+      findSubCategoryIdBySpecTypeId(form.specTypeId) ??
+      undefined;
+    const subCategoryIdStr = subCategoryId ? String(subCategoryId) : undefined;
     const payload = {
       id: form.id || undefined,
+      subCategoryId,
+      categoryId: subCategoryId,
+      pcategoryId: subCategoryIdStr,
       specTypeId: form.specTypeId || undefined,
       specValue: zhName,
       specValueEn: enName,
