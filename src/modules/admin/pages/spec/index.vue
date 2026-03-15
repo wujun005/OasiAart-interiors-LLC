@@ -61,6 +61,11 @@
           <template #default="{ row }">{{ row.displayName }}</template>
         </el-table-column>
         <el-table-column
+          prop="subCategoryName"
+          :label="t('admin.spec.table.subcategory')"
+          min-width="180"
+        />
+        <el-table-column
           prop="typeName"
           :label="t('admin.spec.table.specType')"
           min-width="140"
@@ -201,7 +206,7 @@ import {
   addOrUpdateSpecValue,
   deleteSpecValue,
 } from '@/modules/admin/api/spec';
-import { pickI18nText } from '@/modules/admin/utils/i18n';
+import { ADMIN_LANG_EN, pickI18nText } from '@/modules/admin/utils/i18n';
 import { searchCategory } from '@/modules/admin/api/category';
 
 type Spec = {
@@ -235,6 +240,10 @@ const normalizeOptionalId = (value: unknown): number | null => {
 
 const initialMock: Spec[] = [];
 const { locale, t } = useI18n({ useScope: 'global' });
+const createEmptyI18nItem = (value = '') => ({
+  lang: ADMIN_LANG_EN,
+  value,
+});
 
 const specTypeOptions = ref<SpecTypeOption[]>([]);
 const subCategoryOptions = ref<SubCategoryOption[]>([]);
@@ -274,9 +283,20 @@ const findSubCategoryIdBySpecTypeId = (specTypeId: unknown) => {
   );
 };
 
+const subCategoryMap = computed(() => {
+  const map = new Map<number, string>();
+  subCategoryOptions.value.forEach((item) => {
+    map.set(item.id, item.displayName);
+  });
+  return map;
+});
+
 const displayList = computed(() =>
   list.value.map((item) => ({
     ...item,
+    subCategoryName:
+      (item.subCategoryId ? subCategoryMap.value.get(item.subCategoryId) : '') ||
+      '-',
     typeName:
       specTypeOptions.value.find((t) => t.id === item.specTypeId)
         ?.displayName || '-',
@@ -299,7 +319,7 @@ const form = reactive<Spec>({
   nameI18n: {},
 });
 const nameI18nList = ref<{ lang: string; value: string }[]>([
-  { lang: 'zh-CN', value: '' },
+  createEmptyI18nItem(),
 ]);
 
 const rules: FormRules = {
@@ -366,14 +386,14 @@ const openCreate = () => {
     )?.id ?? null;
   Object.assign(form, {
     id: 0,
-    sort: list.value.length + 1,
+    sort: 0,
     subCategoryId,
     specTypeId: defaultSpecTypeId,
     createdAt: new Date().toISOString(),
     displayName: '',
     nameI18n: {},
   });
-  nameI18nList.value = [{ lang: 'zh-CN', value: '' }];
+  nameI18nList.value = [createEmptyI18nItem()];
   dialogVisible.value = true;
 };
 
@@ -388,7 +408,7 @@ const openEdit = (row: Spec) => {
           lang,
           value: value as string,
         }))
-      : [{ lang: 'zh-CN', value: row.displayName || '' }];
+      : [createEmptyI18nItem(row.displayName || '')];
   dialogVisible.value = true;
 };
 
@@ -545,7 +565,7 @@ const fetchList = async () => {
         locale.value,
         item.specValue?.specValue || item.name || '',
       ),
-      sort: item.specValue?.sort ?? item.sort ?? 0,
+      sort: item.sort ?? item.specValue?.sort ?? 0,
       specTypeId: normalizeOptionalId(
         item.specValue?.specTypeId ?? item.specTypeId,
       ),
@@ -620,7 +640,7 @@ const fetchSubCategoryOptions = async () => {
 };
 
 const addI18n = () => {
-  nameI18nList.value.push({ lang: 'zh-CN', value: '' });
+  nameI18nList.value.push(createEmptyI18nItem());
 };
 
 const removeI18n = (idx: number) => {

@@ -74,7 +74,7 @@
                   {{ item.addressText }}
                 </div>
 
-                <div v-if="item.showActions" class="order-card__actions">
+                <div class="order-card__actions">
                   <button
                     v-if="!item.reviewed"
                     type="button"
@@ -179,12 +179,12 @@ type OrderCardView = {
   attachSelections: RebookAttachSelection[];
 };
 
-const searchIconUrl = 'https://www.figma.com/api/mcp/asset/5800e6a9-26ee-4d71-9da6-88a4e26fc1b0';
-const filterIconUrl = 'https://www.figma.com/api/mcp/asset/f4d5581f-77f2-4432-8e19-eab618c816ae';
-const orderNoIconUrl = 'https://www.figma.com/api/mcp/asset/c6d6c47e-cdb9-4a19-9a5d-bff53c7c2e6d';
-const dateIconUrl = 'https://www.figma.com/api/mcp/asset/7d2cb413-d9db-47f4-98d5-d03e74934247';
-const timeIconUrl = 'https://www.figma.com/api/mcp/asset/402a15a3-b20b-4eef-bcf2-d827aeff126f';
-const addressIconUrl = 'https://www.figma.com/api/mcp/asset/867f0033-f708-4761-bebd-1633c4d3567d';
+const searchIconUrl = new URL('@/assets/images/client/Icon (13).png', import.meta.url).href;
+const filterIconUrl = new URL('@/assets/images/client/Icon (14).png', import.meta.url).href;
+const orderNoIconUrl = new URL('@/assets/images/client/Icon (9).png', import.meta.url).href;
+const dateIconUrl =  new URL('@/assets/images/client/Icon (10).png', import.meta.url).href;
+const timeIconUrl = new URL('@/assets/images/client/Icon (11).png', import.meta.url).href;
+const addressIconUrl = new URL('@/assets/images/client/Icon (12).png', import.meta.url).href;
 
 const fallbackImages = [
   'https://www.figma.com/api/mcp/asset/9e6bc861-0df1-4513-8431-93f5aca90399',

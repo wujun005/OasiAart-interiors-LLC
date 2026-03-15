@@ -206,7 +206,7 @@ import { ElMessage, ElMessageBox } from 'element-plus';
 import { Plus } from '@element-plus/icons-vue';
 import { useI18n } from 'vue-i18n';
 import { getPage, add, update, del, changeStatus, upload } from '@/modules/admin/api/category';
-import { pickI18nText } from '@/modules/admin/utils/i18n';
+import { ADMIN_LANG_EN, pickI18nText } from '@/modules/admin/utils/i18n';
 
 type Category = {
   id: number;
@@ -222,6 +222,10 @@ type Category = {
 
 const list = ref<Category[]>([]);
 const { locale, t } = useI18n({ useScope: 'global' });
+const createEmptyI18nItem = (value = '') => ({
+  lang: ADMIN_LANG_EN,
+  value,
+});
 const query = reactive({
   nameKeyword: '',
   pageNum: 1,
@@ -279,10 +283,10 @@ const form = reactive<Category>({
   displayName: '',
 });
 const iconFileList = ref<UploadUserFile[]>([]);
-const nameI18nList = ref<{ lang: string; value: string }[]>([{ lang: 'zh-CN', value: '' }]);
-const bannerTitleList = ref<{ lang: string; value: string }[]>([{ lang: 'zh-CN', value: '' }]);
-const bannerDescList = ref<{ lang: string; value: string }[]>([{ lang: 'zh-CN', value: '' }]);
-const bannerTagsList = ref<{ lang: string; value: string }[]>([{ lang: 'zh-CN', value: '' }]);
+const nameI18nList = ref<{ lang: string; value: string }[]>([createEmptyI18nItem()]);
+const bannerTitleList = ref<{ lang: string; value: string }[]>([createEmptyI18nItem()]);
+const bannerDescList = ref<{ lang: string; value: string }[]>([createEmptyI18nItem()]);
+const bannerTagsList = ref<{ lang: string; value: string }[]>([createEmptyI18nItem()]);
 
 const previewTiles = computed(() => {
   const source = displayList.value || [];
@@ -380,10 +384,10 @@ const openCreate = () => {
   isEdit.value = false;
   Object.assign(form, { id: 0, sort: 0, enabled: true, createdAt: '', displayName: '' });
   iconFileList.value = [];
-  nameI18nList.value = [{ lang: 'zh-CN', value: '' }];
-  bannerTitleList.value = [{ lang: 'zh-CN', value: '' }];
-  bannerDescList.value = [{ lang: 'zh-CN', value: '' }];
-  bannerTagsList.value = [{ lang: 'zh-CN', value: '' }];
+  nameI18nList.value = [createEmptyI18nItem()];
+  bannerTitleList.value = [createEmptyI18nItem()];
+  bannerDescList.value = [createEmptyI18nItem()];
+  bannerTagsList.value = [createEmptyI18nItem()];
   dialogVisible.value = true;
 };
 
@@ -401,22 +405,22 @@ const openEdit = (row: Category) => {
   nameI18nList.value =
     row.nameI18n && Object.keys(row.nameI18n).length
       ? Object.entries(row.nameI18n).map(([lang, value]) => ({ lang, value: value as string }))
-      : [{ lang: 'zh-CN', value: row.displayName || '' }];
+      : [createEmptyI18nItem(row.displayName || '')];
   bannerTitleList.value =
     row.bannerTitleI18n && Object.keys(row.bannerTitleI18n).length
       ? Object.entries(row.bannerTitleI18n).map(([lang, value]) => ({ lang, value: value as string }))
-      : [{ lang: 'zh-CN', value: '' }];
+      : [createEmptyI18nItem()];
   bannerDescList.value =
     row.bannerDescI18n && Object.keys(row.bannerDescI18n).length
       ? Object.entries(row.bannerDescI18n).map(([lang, value]) => ({ lang, value: value as string }))
-      : [{ lang: 'zh-CN', value: '' }];
+      : [createEmptyI18nItem()];
   bannerTagsList.value =
     row.bannerTagsI18n && Object.keys(row.bannerTagsI18n).length
       ? Object.entries(row.bannerTagsI18n).map(([lang, value]) => ({
           lang,
           value: Array.isArray(value) ? (value as string[]).join(',') : (value as string),
         }))
-      : [{ lang: 'zh-CN', value: '' }];
+      : [createEmptyI18nItem()];
   dialogVisible.value = true;
 };
 
@@ -552,7 +556,7 @@ watch(
 );
 
 const addI18n = () => {
-  nameI18nList.value.push({ lang: '', value: '' });
+  nameI18nList.value.push(createEmptyI18nItem());
 };
 
 const removeI18n = (idx: number) => {
@@ -561,21 +565,21 @@ const removeI18n = (idx: number) => {
 };
 
 const addBannerTitle = () => {
-  bannerTitleList.value.push({ lang: '', value: '' });
+  bannerTitleList.value.push(createEmptyI18nItem());
 };
 const removeBannerTitle = (idx: number) => {
   if (bannerTitleList.value.length === 1) return;
   bannerTitleList.value.splice(idx, 1);
 };
 const addBannerDesc = () => {
-  bannerDescList.value.push({ lang: '', value: '' });
+  bannerDescList.value.push(createEmptyI18nItem());
 };
 const removeBannerDesc = (idx: number) => {
   if (bannerDescList.value.length === 1) return;
   bannerDescList.value.splice(idx, 1);
 };
 const addBannerTags = () => {
-  bannerTagsList.value.push({ lang: '', value: '' });
+  bannerTagsList.value.push(createEmptyI18nItem());
 };
 const removeBannerTags = (idx: number) => {
   if (bannerTagsList.value.length === 1) return;

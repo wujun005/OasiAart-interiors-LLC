@@ -79,6 +79,9 @@
         <div class="toolbar-actions">
           <el-button type="primary" @click="handleSearch">{{ t('admin.product.actions.search') }}</el-button>
           <el-button @click="reset">{{ t('admin.product.actions.reset') }}</el-button>
+          <el-button :loading="exportLoading" @click="handleExportI18n">
+            {{ t('admin.product.actions.export') }}
+          </el-button>
           <el-button type="primary" @click="openCreate">{{ t('admin.product.actions.create') }}</el-button>
         </div>
       </div>
@@ -690,7 +693,7 @@ import { getSpecTypePage } from '@/modules/admin/api/specType';
 import { getSpecValuePage } from '@/modules/admin/api/spec';
 import { getPage as getAddonTypePage } from '@/modules/admin/api/addonType';
 import { getPage as getAddonPage } from '@/modules/admin/api/addon';
-import { pickI18nText } from '@/modules/admin/utils/i18n';
+import { ADMIN_LANG_EN, ADMIN_LANG_ZH, pickI18nText } from '@/modules/admin/utils/i18n';
 
 type ProductEntity = {
   id?: number;
@@ -765,6 +768,16 @@ const subCategoryOptions = ref<
   { label: string; value: number; parentId: number | null }[]
 >([]);
 const { locale, t } = useI18n({ useScope: 'global' });
+const getDefaultI18nLang = () => ADMIN_LANG_EN;
+const createEmptyProductI18n = (lang = ADMIN_LANG_EN): ProductI18n => ({
+  langCode: lang,
+  name: '',
+  details: '',
+});
+const createEmptyLangValue = (value = '') => ({
+  lang: ADMIN_LANG_EN,
+  value,
+});
 
 const categoryOptions = ref<{ label: string; value: number }[]>([]);
 
@@ -839,6 +852,7 @@ const query = reactive({
 const products = ref<ProductRow[]>([]);
 const total = ref(0);
 const tableLoading = ref(false);
+const exportLoading = ref(false);
 
 const dialogVisible = ref(false);
 const isEdit = ref(false);
@@ -912,8 +926,8 @@ const defaultProduct = (): ProductEntity => ({
 });
 
 const defaultI18nList = (): ProductI18n[] => [
-  { langCode: 'zh-CN', name: '', details: '' },
-  { langCode: 'en', name: '', details: '' },
+  createEmptyProductI18n(ADMIN_LANG_EN),
+  createEmptyProductI18n(ADMIN_LANG_ZH),
 ];
 
 const form = reactive<{
@@ -931,9 +945,9 @@ const form = reactive<{
 }>({
   product: defaultProduct(),
   productI18nList: defaultI18nList(),
-  descI18nList: [{ lang: 'zh-CN', value: '' }],
-  serviceContentI18nList: [{ lang: 'zh-CN', value: '' }],
-  bookingNoticeI18nList: [{ lang: 'zh-CN', value: '' }],
+  descI18nList: [createEmptyLangValue()],
+  serviceContentI18nList: [createEmptyLangValue()],
+  bookingNoticeI18nList: [createEmptyLangValue()],
   productImages: [],
   specGroups: [{ specTypeId: null, specIds: [] }],
   addonGroups: [
@@ -1161,9 +1175,9 @@ const resetForm = () => {
     form.product.subCategoryId = filteredSubCategoryOptions.value[0].value;
   }
   form.productI18nList = defaultI18nList();
-  form.descI18nList = [{ lang: 'zh-CN', value: '' }];
-  form.serviceContentI18nList = [{ lang: 'zh-CN', value: '' }];
-  form.bookingNoticeI18nList = [{ lang: 'zh-CN', value: '' }];
+  form.descI18nList = [createEmptyLangValue()];
+  form.serviceContentI18nList = [createEmptyLangValue()];
+  form.bookingNoticeI18nList = [createEmptyLangValue()];
   form.productImages = [];
   form.specGroups = [
     {
@@ -1576,8 +1590,70 @@ const reset = () => {
   fetchProducts();
 };
 
+const getExportFilename = (response: Response) => {
+  const disposition = response.headers.get('content-disposition') || '';
+  const utf8Match = disposition.match(/filename\*=UTF-8''([^;]+)/i);
+  if (utf8Match?.[1]) {
+    return decodeURIComponent(utf8Match[1]);
+  }
+  const plainMatch = disposition.match(/filename="?([^";]+)"?/i);
+  if (plainMatch?.[1]) {
+    return plainMatch[1];
+  }
+  return 'product-spu-i18n.xlsx';
+};
+
+const getExportErrorMessage = async (response: Response) => {
+  const contentType = response.headers.get('content-type') || '';
+  if (contentType.includes('application/json')) {
+    const payload = await response.json().catch(() => null);
+    if (payload && typeof payload.message === 'string' && payload.message.trim()) {
+      return payload.message.trim();
+    }
+  }
+  const text = await response.text().catch(() => '');
+  return text.trim() || `Export failed (${response.status})`;
+};
+
+const handleExportI18n = async () => {
+  if (typeof window === 'undefined') return;
+  const token = localStorage.getItem('token');
+  if (!token) {
+    ElMessage.error(locale.value.startsWith('zh') ? '未登录，请重新登录' : 'Please sign in again.');
+    return;
+  }
+
+  exportLoading.value = true;
+  try {
+    const response = await fetch('/api/api/productSpu/export/i18n', {
+      method: 'GET',
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(await getExportErrorMessage(response));
+    }
+
+    const blob = await response.blob();
+    const downloadUrl = window.URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = downloadUrl;
+    link.download = getExportFilename(response);
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    window.URL.revokeObjectURL(downloadUrl);
+  } catch (error: any) {
+    ElMessage.error(error?.message || t('admin.product.message.operationFailed'));
+  } finally {
+    exportLoading.value = false;
+  }
+};
+
 const addLang = () => {
-  form.productI18nList.push({ langCode: '', name: '', details: '' });
+  form.productI18nList.push(createEmptyProductI18n());
 };
 
 const removeLang = (idx: number) => {
@@ -1585,7 +1661,7 @@ const removeLang = (idx: number) => {
 };
 
 const addDescLang = () => {
-  form.descI18nList.push({ lang: '', value: '' });
+  form.descI18nList.push(createEmptyLangValue());
 };
 
 const removeDescLang = (idx: number) => {
@@ -1597,7 +1673,7 @@ const removeDescLang = (idx: number) => {
 };
 
 const addServiceContentLang = () => {
-  form.serviceContentI18nList.push({ lang: '', value: '' });
+  form.serviceContentI18nList.push(createEmptyLangValue());
 };
 
 const removeServiceContentLang = (idx: number) => {
@@ -1609,7 +1685,7 @@ const removeServiceContentLang = (idx: number) => {
 };
 
 const addBookingNoticeLang = () => {
-  form.bookingNoticeI18nList.push({ lang: '', value: '' });
+  form.bookingNoticeI18nList.push(createEmptyLangValue());
 };
 
 const removeBookingNoticeLang = (idx: number) => {
@@ -1732,19 +1808,19 @@ const openEdit = async (row: ProductRow) => {
     form.productI18nList = i18nList;
     form.descI18nList = Object.keys(descI18n || {}).length
       ? Object.keys(descI18n).map((lang) => ({ lang, value: descI18n[lang] }))
-      : [{ lang: 'zh-CN', value: '' }];
+      : [createEmptyLangValue()];
     form.serviceContentI18nList = Object.keys(serviceContentI18n || {}).length
       ? Object.keys(serviceContentI18n).map((lang) => ({
           lang,
           value: serviceContentI18n[lang],
         }))
-      : [{ lang: 'zh-CN', value: '' }];
+      : [createEmptyLangValue()];
     form.bookingNoticeI18nList = Object.keys(bookingNoticeI18n || {}).length
       ? Object.keys(bookingNoticeI18n).map((lang) => ({
           lang,
           value: bookingNoticeI18n[lang],
         }))
-      : [{ lang: 'zh-CN', value: '' }];
+      : [createEmptyLangValue()];
 
     form.productImages = images.map((url: string, idx: number) => ({
       id: undefined,

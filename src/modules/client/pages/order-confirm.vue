@@ -45,14 +45,28 @@
               </label>
               <label class="order-field">
                 <span>{{ t('client.orderConfirm.fields.phone') }}</span>
-                <div class="order-input-wrap">
-                  <i aria-hidden="true">P</i>
-                  <input
-                    v-model="form.phone"
-                    type="text"
-                    required
-                    :placeholder="t('client.orderConfirm.placeholders.phone')"
-                  />
+                <div class="order-phone-row">
+                  <div class="order-input-wrap order-input-wrap--dial">
+                    <select v-model="form.countryCode" autocomplete="tel-country-code">
+                      <option
+                        v-for="item in countryCodeOptions"
+                        :key="item.value"
+                        :value="item.value"
+                      >
+                        {{ item.label }}
+                      </option>
+                    </select>
+                  </div>
+                  <div class="order-input-wrap order-input-wrap--phone">
+                    <i aria-hidden="true">P</i>
+                    <input
+                      v-model="form.phone"
+                      type="text"
+                      required
+                      autocomplete="tel-national"
+                      :placeholder="t('client.login.register.phoneNumberPlaceholder')"
+                    />
+                  </div>
                 </div>
               </label>
               <label class="order-field">
@@ -153,22 +167,16 @@
               <h2>{{ t('client.orderConfirm.sections.payment') }}</h2>
             </header>
             <div class="payment-methods">
-              <button
-                class="payment-method"
-                :class="{ 'payment-method--active': paymentMethod === 'applePay' }"
-                type="button"
-                @click="paymentMethod = 'applePay'"
-              >
-                <strong>{{ t('client.orderConfirm.payment.applePay') }}</strong>
-              </button>
-              <button
-                class="payment-method"
-                :class="{ 'payment-method--active': paymentMethod === 'alipay' }"
-                type="button"
-                @click="paymentMethod = 'alipay'"
-              >
-                <strong>{{ t('client.orderConfirm.payment.alipay') }}</strong>
-              </button>
+              <div class="payment-method payment-method--active payment-method--static">
+                <strong>Stripe</strong>
+                <p>
+                  {{
+                    locale === 'zh'
+                      ? 'Apple Pay、Google Pay、Link 与银行卡会由 Stripe 根据当前设备和浏览器自动展示。'
+                      : 'Apple Pay, Google Pay, Link, and cards are shown automatically by Stripe based on the current device and browser.'
+                  }}
+                </p>
+              </div>
             </div>
             <label class="payment-policy">
               <input v-model="agreedPolicy" type="checkbox" required />
@@ -216,15 +224,72 @@
         </aside>
       </div>
     </section>
+
+    <el-dialog
+      v-model="stripeDialogVisible"
+      :title="locale === 'zh' ? 'Stripe 支付' : 'Stripe Payment'"
+      width="560px"
+      :close-on-click-modal="false"
+      :close-on-press-escape="!stripeSubmitting"
+      :show-close="!stripeSubmitting"
+      @closed="destroyStripeElements"
+    >
+      <div class="stripe-dialog-body">
+        <p class="stripe-dialog-tip">
+          {{
+            locale === 'zh'
+              ? '可用的钱包方式会显示在上方；也可以直接填写银行卡信息完成支付'
+              : 'Available wallets appear above; you can also enter your card details below'
+          }}
+        </p>
+        <div
+          class="stripe-express-wrap"
+          :class="{ 'stripe-express-wrap--hidden': !stripeExpressVisible && !stripeInitializing }"
+        >
+          <div ref="stripeExpressContainerRef" class="stripe-express-container"></div>
+        </div>
+        <div ref="stripeElementContainerRef" class="stripe-element-container"></div>
+      </div>
+      <template #footer>
+        <div class="stripe-dialog-actions">
+          <button
+            class="stripe-dialog-btn stripe-dialog-btn--ghost"
+            type="button"
+            :disabled="stripeSubmitting"
+            @click="stripeDialogVisible = false"
+          >
+            {{ locale === 'zh' ? '取消' : 'Cancel' }}
+          </button>
+          <button
+            class="stripe-dialog-btn stripe-dialog-btn--primary"
+            type="button"
+            :disabled="stripeSubmitting || stripeInitializing"
+            @click="handleStripeConfirm"
+          >
+            {{
+              stripeSubmitting
+                ? (locale === 'zh' ? '支付中...' : 'Paying...')
+                : (locale === 'zh' ? '立即支付' : 'Pay Now')
+            }}
+          </button>
+        </div>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ElMessage } from 'element-plus';
-import { computed, onMounted, reactive, ref, watch } from 'vue';
+import { computed, nextTick, onMounted, reactive, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRoute, useRouter } from 'vue-router';
-import { saveContactAddress, getLatestAddress, type LatestAddressRecord, getAvailableSelectTime } from '@/modules/client/api';
+import {
+  saveContactAddress,
+  getLatestAddress,
+  type LatestAddressRecord,
+  getAvailableSelectTime,
+  createPay,
+} from '@/modules/client/api';
 
 type I18nText = Record<string, string>;
 
@@ -238,10 +303,20 @@ type AvailableTimeRecord = {
 const route = useRoute();
 const router = useRouter();
 const { t, locale } = useI18n({ useScope: 'global' });
+const DEFAULT_COUNTRY_CODE = '+971';
+const COUNTRY_CODE_ENTRIES = [
+  { value: '+971', labelEn: 'UAE +971', labelZh: '阿联酋 +971' },
+  { value: '+966', labelEn: 'Saudi Arabia +966', labelZh: '沙特阿拉伯 +966' },
+  { value: '+1', labelEn: 'United States +1', labelZh: '美国 +1' },
+  { value: '+44', labelEn: 'United Kingdom +44', labelZh: '英国 +44' },
+  { value: '+91', labelEn: 'India +91', labelZh: '印度 +91' },
+  { value: '+86', labelEn: 'China +86', labelZh: '中国 +86' },
+];
 
 const form = reactive({
   firstName: '',
   lastName: '',
+  countryCode: DEFAULT_COUNTRY_CODE,
   phone: '',
   email: '',
   address: '',
@@ -255,10 +330,55 @@ const isTimeOptionsLoading = ref(false);
 const lastLoadedServiceDate = ref('');
 const pendingTimeText = ref('');
 
-const paymentMethod = ref<'applePay' | 'alipay'>('alipay');
 const agreedPolicy = ref(true);
 const isSubmitting = ref(false);
 const serviceDateInputRef = ref<HTMLInputElement | null>(null);
+const ORDER_PAYMENT_METHOD = 'STRIPE';
+const CREATE_PAY_METHOD = 'stripe';
+const STRIPE_SCRIPT_ID = 'hourx-stripe-js';
+const stripePublishableKey =
+  typeof import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY === 'string'
+    ? import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY.trim()
+    : '';
+
+type StripeElementInstance = {
+  mount: (domElement: HTMLElement | string) => void;
+  destroy: () => void;
+  on?: (eventName: string, handler: (event?: any) => void | Promise<void>) => void;
+};
+
+type StripeElementsInstance = {
+  create: (type: string, options?: Record<string, unknown>) => StripeElementInstance;
+};
+
+type StripeConfirmResult = {
+  error?: { message?: string };
+  paymentIntent?: { status?: string };
+};
+
+type StripeInstance = {
+  elements: (options: Record<string, unknown>) => StripeElementsInstance;
+  confirmPayment: (options: Record<string, unknown>) => Promise<StripeConfirmResult>;
+};
+
+type StripeFactory = (
+  publishableKey: string,
+  options?: { locale?: string },
+) => StripeInstance | null;
+
+const stripeDialogVisible = ref(false);
+const stripeInitializing = ref(false);
+const stripeSubmitting = ref(false);
+const stripeClientSecret = ref('');
+const stripeExpressVisible = ref(true);
+const stripeExpressContainerRef = ref<HTMLElement | null>(null);
+const stripeElementContainerRef = ref<HTMLElement | null>(null);
+const stripeInstance = ref<StripeInstance | null>(null);
+const stripeElements = ref<StripeElementsInstance | null>(null);
+const stripeExpressElement = ref<StripeElementInstance | null>(null);
+const stripePaymentElement = ref<StripeElementInstance | null>(null);
+
+const getStripeLocale = () => (locale.value.startsWith('zh') ? 'zh' : 'en');
 
 const getDateText = (date: Date): string => {
   const yyyy = date.getFullYear();
@@ -269,6 +389,53 @@ const getDateText = (date: Date): string => {
 
 const normalizeText = (value: unknown): string =>
   typeof value === 'string' ? value.trim() : '';
+
+const normalizePhoneNumber = (value: unknown): string =>
+  typeof value === 'string' ? value.replace(/[^\d]/g, '') : '';
+
+const countryCodeOptions = computed(() =>
+  COUNTRY_CODE_ENTRIES.map((item) => ({
+    value: item.value,
+    label: locale.value === 'zh' ? item.labelZh : item.labelEn,
+  })),
+);
+
+const buildFullPhone = (): string => `${form.countryCode}${normalizePhoneNumber(form.phone)}`;
+
+const splitPhoneNumber = (value: unknown): { countryCode: string; phone: string } => {
+  const text = normalizeText(value);
+  if (!text) {
+    return {
+      countryCode: DEFAULT_COUNTRY_CODE,
+      phone: '',
+    };
+  }
+
+  const normalized = text.startsWith('+')
+    ? `+${text.slice(1).replace(/[^\d]/g, '')}`
+    : normalizePhoneNumber(text);
+  const matchedCode = COUNTRY_CODE_ENTRIES.map((item) => item.value)
+    .sort((left, right) => right.length - left.length)
+    .find((code) => {
+      const codeDigits = normalizePhoneNumber(code);
+      return normalized.startsWith(code) || (!normalized.startsWith('+') && normalized.startsWith(codeDigits));
+    });
+
+  if (!matchedCode) {
+    return {
+      countryCode: DEFAULT_COUNTRY_CODE,
+      phone: normalized.startsWith('+') ? normalizePhoneNumber(normalized) : normalized,
+    };
+  }
+
+  const matchedDigits = normalizePhoneNumber(matchedCode);
+  return {
+    countryCode: matchedCode,
+    phone: normalized.startsWith(matchedCode)
+      ? normalizePhoneNumber(normalized.slice(matchedCode.length))
+      : normalizePhoneNumber(normalized.slice(matchedDigits.length)),
+  };
+};
 
 const normalizeTimeRangeValue = (value: unknown): string => {
   if (value === null || value === undefined) {
@@ -458,6 +625,27 @@ watch(
   { immediate: true },
 );
 
+watch(
+  () => stripeDialogVisible.value,
+  (visible) => {
+    if (visible) {
+      return;
+    }
+    stripeClientSecret.value = '';
+    destroyStripeElements();
+  },
+);
+
+watch(
+  () => locale.value,
+  async () => {
+    if (!stripeDialogVisible.value || !stripeClientSecret.value) {
+      return;
+    }
+    await initStripeElements();
+  },
+);
+
 const getQueryText = (key: string) => {
   const raw = route.query[key];
   if (Array.isArray(raw)) {
@@ -549,6 +737,234 @@ const total = computed(() => getQueryNumber('total', subtotal.value + tax.value)
 
 const formatAed = (value: number) => `${value.toFixed(2)} AED`;
 
+const extractEnvelopeData = <T>(payload: unknown): T | null => {
+  if (payload === null || payload === undefined) {
+    return null;
+  }
+  if (payload && typeof payload === 'object') {
+    const maybe = payload as Record<string, unknown>;
+    if ('data' in maybe) {
+      return (maybe.data ?? null) as T | null;
+    }
+  }
+  return payload as T;
+};
+
+const buildValidationUrl = (): string => {
+  if (typeof window === 'undefined') {
+    return '';
+  }
+  return `${window.location.origin}${window.location.pathname}`;
+};
+
+const loadStripeJs = async () => {
+  if (typeof window === 'undefined') {
+    throw new Error('Stripe is only available in browser');
+  }
+
+  if (typeof (window as any).Stripe === 'function') {
+    return;
+  }
+
+  await new Promise<void>((resolve, reject) => {
+    const existed = document.getElementById(STRIPE_SCRIPT_ID) as HTMLScriptElement | null;
+    if (existed) {
+      existed.addEventListener('load', () => resolve(), { once: true });
+      existed.addEventListener('error', () => reject(new Error('Failed to load Stripe.js')), {
+        once: true,
+      });
+      return;
+    }
+
+    const script = document.createElement('script');
+    script.id = STRIPE_SCRIPT_ID;
+    script.src = 'https://js.stripe.com/v3/';
+    script.async = true;
+    script.onload = () => resolve();
+    script.onerror = () => reject(new Error('Failed to load Stripe.js'));
+    document.head.appendChild(script);
+  });
+};
+
+const destroyStripeElements = () => {
+  try {
+    stripeExpressElement.value?.destroy?.();
+  } catch {
+    // Ignore express checkout destroy errors during dialog close.
+  }
+  try {
+    stripePaymentElement.value?.destroy?.();
+  } catch {
+    // Ignore stripe element destroy errors during dialog close.
+  }
+  stripeExpressElement.value = null;
+  stripePaymentElement.value = null;
+  stripeElements.value = null;
+  stripeExpressVisible.value = true;
+};
+
+const initStripeElements = async () => {
+  if (!stripeClientSecret.value) {
+    return;
+  }
+  if (!stripePublishableKey) {
+    throw new Error(
+      locale.value === 'zh'
+        ? '缺少 Stripe 公钥，请配置 VITE_STRIPE_PUBLISHABLE_KEY'
+        : 'Missing Stripe publishable key, please set VITE_STRIPE_PUBLISHABLE_KEY.',
+    );
+  }
+
+  stripeInitializing.value = true;
+  try {
+    await loadStripeJs();
+    const stripeFactory = (window as any).Stripe as StripeFactory | undefined;
+    if (typeof stripeFactory !== 'function') {
+      throw new Error('Stripe SDK is unavailable');
+    }
+
+    stripeInstance.value = stripeFactory(stripePublishableKey, {
+      locale: getStripeLocale(),
+    }) as StripeInstance;
+    if (!stripeInstance.value) {
+      throw new Error('Stripe initialization failed');
+    }
+
+    await nextTick();
+    const expressContainer = stripeExpressContainerRef.value;
+    const container = stripeElementContainerRef.value;
+    if (!container) {
+      throw new Error('Stripe container is missing');
+    }
+
+    destroyStripeElements();
+    const elements = stripeInstance.value.elements({
+      clientSecret: stripeClientSecret.value,
+      appearance: { theme: 'stripe' },
+    });
+    if (expressContainer) {
+      const expressElement = elements.create('expressCheckout', {
+        paymentMethods: {
+          applePay: 'always',
+          googlePay: 'always',
+        },
+      });
+      expressElement.on?.('ready', (event?: { availablePaymentMethods?: Record<string, unknown> | null }) => {
+        stripeExpressVisible.value = Boolean(event?.availablePaymentMethods);
+      });
+      expressElement.on?.('confirm', async () => {
+        await handleStripeExpressConfirm();
+      });
+      expressElement.mount(expressContainer);
+      stripeExpressElement.value = expressElement;
+    }
+    const paymentElement = elements.create('payment');
+    paymentElement.mount(container);
+    stripeElements.value = elements;
+    stripePaymentElement.value = paymentElement;
+  } finally {
+    stripeInitializing.value = false;
+  }
+};
+
+const openStripeDialog = async (clientSecret: string) => {
+  stripeClientSecret.value = clientSecret;
+  stripeDialogVisible.value = true;
+  await initStripeElements();
+};
+
+const handleStripeSuccess = async () => {
+  stripeDialogVisible.value = false;
+  ElMessage.success(t('client.orderConfirm.validation.orderSuccess'));
+  await router.push({ name: 'order-list' });
+};
+
+const handleStripeConfirmResult = async (confirmResult: StripeConfirmResult) => {
+  const errorMessage = normalizeText(confirmResult.error?.message);
+  if (errorMessage) {
+    throw new Error(errorMessage);
+  }
+
+  const status = normalizeText(confirmResult.paymentIntent?.status).toLowerCase();
+  if (
+    status === 'succeeded' ||
+    status === 'processing' ||
+    status === 'requires_capture'
+  ) {
+    await handleStripeSuccess();
+    return;
+  }
+
+  if (!status) {
+    return;
+  }
+
+  throw new Error(
+    locale.value === 'zh'
+      ? `支付状态异常: ${status}`
+      : `Unexpected payment status: ${status}`,
+  );
+};
+
+const handleStripeExpressConfirm = async () => {
+  if (stripeSubmitting.value || stripeInitializing.value) {
+    return;
+  }
+  if (!stripeInstance.value || !stripeElements.value) {
+    ElMessage.error(
+      locale.value === 'zh'
+        ? 'Stripe 钱包支付组件尚未初始化'
+        : 'Stripe wallet checkout is not ready.',
+    );
+    return;
+  }
+
+  stripeSubmitting.value = true;
+  try {
+    const confirmResult = await stripeInstance.value.confirmPayment({
+      elements: stripeElements.value,
+      confirmParams: {
+        return_url: `${window.location.origin}/orders`,
+      },
+    });
+    await handleStripeConfirmResult(confirmResult);
+  } catch (error: any) {
+    ElMessage.error(error?.message || 'Stripe wallet payment failed');
+  } finally {
+    stripeSubmitting.value = false;
+  }
+};
+
+const handleStripeConfirm = async () => {
+  if (stripeSubmitting.value || stripeInitializing.value) {
+    return;
+  }
+  if (!stripeInstance.value || !stripeElements.value) {
+    ElMessage.error(
+      locale.value === 'zh'
+        ? 'Stripe 支付组件尚未初始化'
+        : 'Stripe payment component is not ready.',
+    );
+    return;
+  }
+
+  stripeSubmitting.value = true;
+  try {
+    const confirmResult = await stripeInstance.value.confirmPayment({
+      elements: stripeElements.value,
+      redirect: 'if_required',
+      confirmParams: {
+        return_url: `${window.location.origin}/orders`,
+      },
+    });
+    await handleStripeConfirmResult(confirmResult);
+  } catch (error: any) {
+    ElMessage.error(error?.message || 'Stripe payment failed');
+  } finally {
+    stripeSubmitting.value = false;
+  }
+};
+
 const normalizeTimestamp = (value: unknown): number | null => {
   if (typeof value === 'number' && Number.isFinite(value)) {
     return Math.abs(value) < 1e12 ? value * 1000 : value;
@@ -562,16 +978,6 @@ const normalizeTimestamp = (value: unknown): number | null => {
     }
   }
   return null;
-};
-
-const normalizePaymentMethod = (
-  value: unknown,
-): 'applePay' | 'alipay' | '' => {
-  const text = normalizeText(value).toLowerCase();
-  if (!text) return '';
-  if (text.includes('apple')) return 'applePay';
-  if (text.includes('ali')) return 'alipay';
-  return '';
 };
 
 const parseServiceDateTime = (
@@ -630,7 +1036,11 @@ const fillFormByLatestAddress = (payload: LatestAddressRecord | null) => {
   if (lastName) form.lastName = lastName;
 
   const phone = normalizeText(payload.phone);
-  if (phone) form.phone = phone;
+  if (phone) {
+    const parsedPhone = splitPhoneNumber(phone);
+    form.countryCode = parsedPhone.countryCode;
+    form.phone = parsedPhone.phone;
+  }
 
   const email = normalizeText(payload.email);
   if (email) form.email = email;
@@ -640,11 +1050,6 @@ const fillFormByLatestAddress = (payload: LatestAddressRecord | null) => {
 
   const remark = normalizeText(payload.remark);
   if (remark) form.remark = remark;
-
-  const normalizedPayment = normalizePaymentMethod(payload.paymentMethod);
-  if (normalizedPayment) {
-    paymentMethod.value = normalizedPayment;
-  }
 
   const dateTime = parseServiceDateTime(payload.serviceDateTime);
   const serviceDate = normalizeText((payload as LatestAddressRecord & { serviceTime?: string }).serviceTime);
@@ -689,6 +1094,42 @@ const buildServiceDateTime = (): string | undefined => {
   return `${date} ${timeValue}`;
 };
 
+const startStripePayment = async (targetOrderId: number) => {
+  const validationUrl = buildValidationUrl();
+  const createPayload = {
+    orderId: targetOrderId,
+    paymentMethod: CREATE_PAY_METHOD,
+    validationUrl,
+  };
+  const paymentResponse = await createPay(createPayload);
+  const paymentData = extractEnvelopeData<Record<string, unknown>>(paymentResponse);
+  if (!paymentData || typeof paymentData !== 'object') {
+    throw new Error('Create payment response is empty');
+  }
+
+  const clientSecret = normalizeText(paymentData.clientSecret);
+  if (clientSecret) {
+    await openStripeDialog(clientSecret);
+    return;
+  }
+
+  const approvalUrl = normalizeText(
+    paymentData.approvalUrl ||
+      paymentData.redirectUrl ||
+      paymentData.checkoutUrl,
+  );
+  if (approvalUrl && typeof window !== 'undefined') {
+    window.location.href = approvalUrl;
+    return;
+  }
+
+  throw new Error(
+    locale.value === 'zh'
+      ? '未获取到支付参数（clientSecret/跳转链接），请稍后重试'
+      : 'Missing Stripe payment params (clientSecret/redirect URL), please try again.',
+  );
+};
+
 const getValidationMessage = (): string => {
   if (orderId.value === null) {
     return t('client.orderConfirm.validation.orderIdMissing');
@@ -703,7 +1144,7 @@ const getValidationMessage = (): string => {
       field: t('client.orderConfirm.fields.lastName'),
     });
   }
-  if (!normalizeText(form.phone)) {
+  if (!normalizePhoneNumber(form.phone)) {
     return t('client.orderConfirm.validation.requiredField', {
       field: t('client.orderConfirm.fields.phone'),
     });
@@ -726,11 +1167,6 @@ const getValidationMessage = (): string => {
   if (!normalizeTimeRangeValue(form.timeRange)) {
     return t('client.orderConfirm.validation.requiredField', {
       field: t('client.orderConfirm.fields.serviceTime'),
-    });
-  }
-  if (!paymentMethod.value) {
-    return t('client.orderConfirm.validation.requiredField', {
-      field: t('client.orderConfirm.sections.payment'),
     });
   }
   if (!agreedPolicy.value) {
@@ -783,22 +1219,23 @@ const handleConfirm = async () => {
     orderId: orderId.value,
     firstName: normalizeText(form.firstName),
     lastName: normalizeText(form.lastName),
-    phone: normalizeText(form.phone),
+    phone: buildFullPhone(),
     email: normalizeText(form.email),
     serviceAddress: normalizeText(form.address),
     remark: normalizeText(form.remark),
     serviceTime: normalizeText(form.serviceDate),
     timeRange: Number(form.timeRange),
-    paymentMethod: paymentMethod.value,
+    paymentMethod: ORDER_PAYMENT_METHOD,
   };
 
   isSubmitting.value = true;
   try {
     const result = await saveContactAddress(payload);
     console.info('save contact address success:', result);
-    ElMessage.success(t('client.orderConfirm.validation.orderSuccess'));
-  } catch (error) {
+    await startStripePayment(orderId.value);
+  } catch (error: any) {
     console.error('save contact address failed:', error);
+    ElMessage.error(error?.message || 'Payment request failed');
   } finally {
     isSubmitting.value = false;
   }
@@ -978,6 +1415,23 @@ onMounted(() => {
   color: rgba(15, 23, 42, 0.45);
 }
 
+.order-phone-row {
+  display: flex;
+  gap: 12px;
+}
+
+.order-input-wrap--dial {
+  width: 162px;
+}
+
+.order-input-wrap--dial select {
+  cursor: pointer;
+}
+
+.order-input-wrap--phone {
+  flex: 1;
+}
+
 .payment-methods {
   margin-top: 18px;
   display: grid;
@@ -986,14 +1440,30 @@ onMounted(() => {
 }
 
 .payment-method {
-  height: 84px;
+  min-height: 84px;
   border-radius: 14px;
   border: 1px solid #e5e7eb;
   background: #fff;
   color: rgba(15, 23, 42, 0.58);
   font-size: 16px;
   font-weight: 700;
-  cursor: pointer;
+}
+
+.payment-method--static {
+  padding: 16px 18px;
+  cursor: default;
+}
+
+.payment-method--static strong {
+  display: block;
+}
+
+.payment-method--static p {
+  margin: 8px 0 0;
+  color: rgba(15, 23, 42, 0.5);
+  font-size: 13px;
+  line-height: 1.5;
+  font-weight: 500;
 }
 
 .payment-method--active {
@@ -1126,6 +1596,70 @@ onMounted(() => {
   font-weight: 500;
 }
 
+.stripe-dialog-body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.stripe-dialog-tip {
+  margin: 0;
+  color: rgba(15, 23, 42, 0.7);
+  font-size: 14px;
+}
+
+.stripe-express-wrap {
+  min-height: 56px;
+}
+
+.stripe-express-wrap--hidden {
+  display: none;
+}
+
+.stripe-express-container {
+  min-height: 56px;
+}
+
+.stripe-element-container {
+  min-height: 62px;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  padding: 12px;
+  background: #fff;
+}
+
+.stripe-dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.stripe-dialog-btn {
+  height: 38px;
+  padding: 0 16px;
+  border-radius: 10px;
+  border: 1px solid #d1d5db;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.stripe-dialog-btn--ghost {
+  background: #fff;
+  color: rgba(15, 23, 42, 0.75);
+}
+
+.stripe-dialog-btn--primary {
+  border-color: #3972f5;
+  background: #3972f5;
+  color: #fff;
+}
+
+.stripe-dialog-btn:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
 @media (max-width: 1160px) {
   .order-confirm-layout {
     grid-template-columns: 1fr;
@@ -1168,6 +1702,24 @@ onMounted(() => {
   .order-section-title h2,
   .order-summary-card h2 {
     font-size: 22px;
+  }
+
+  .order-phone-row {
+    gap: 8px;
+  }
+
+  .order-input-wrap--dial {
+    width: 138px;
+  }
+}
+
+@media (max-width: 480px) {
+  .order-phone-row {
+    flex-direction: column;
+  }
+
+  .order-input-wrap--dial {
+    width: 100%;
   }
 }
 </style>

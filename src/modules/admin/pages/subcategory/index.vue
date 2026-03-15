@@ -21,9 +21,9 @@
         <el-table-column :label="t('admin.subcategory.table.createdAt')" min-width="160">
           <template #default="{ row }">{{ formatDate(row.createdAt) }}</template>
         </el-table-column>
-        <el-table-column :label="t('admin.subcategory.table.updateBy')" min-width="140">
+        <!-- <el-table-column :label="t('admin.subcategory.table.updateBy')" min-width="140">
           <template #default="{ row }">{{ row.updateBy || '-' }}</template>
-        </el-table-column>
+        </el-table-column> -->
         <el-table-column :label="t('admin.subcategory.table.actions')" width="180" fixed="right">
           <template #default="{ row }">
             <el-button link type="primary" size="small" @click="openEdit(row)">
@@ -86,7 +86,7 @@ import type { FormInstance, FormRules } from 'element-plus';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { useI18n } from 'vue-i18n';
 import { getPage, add, update, del } from '@/modules/admin/api/category';
-import { pickI18nText } from '@/modules/admin/utils/i18n';
+import { ADMIN_LANG_EN, pickI18nText } from '@/modules/admin/utils/i18n';
 
 type SubCategoryRow = {
   id: number;
@@ -104,6 +104,10 @@ type SubCategoryForm = {
 };
 
 const { locale, t } = useI18n({ useScope: 'global' });
+const createEmptyI18nItem = (value = '') => ({
+  lang: ADMIN_LANG_EN,
+  value,
+});
 const list = ref<SubCategoryRow[]>([]);
 const query = reactive({
   nameKeyword: '',
@@ -124,7 +128,7 @@ const form = reactive<SubCategoryForm>({
   nameI18n: {},
   displayName: '',
 });
-const nameI18nList = ref<{ lang: string; value: string }[]>([{ lang: 'zh-CN', value: '' }]);
+const nameI18nList = ref<{ lang: string; value: string }[]>([createEmptyI18nItem()]);
 
 const rules: FormRules = {
   nameI18n: [
@@ -169,7 +173,7 @@ const openCreate = () => {
     displayName: '',
     nameI18n: {},
   });
-  nameI18nList.value = [{ lang: 'zh-CN', value: '' }];
+  nameI18nList.value = [createEmptyI18nItem()];
   dialogVisible.value = true;
 };
 
@@ -182,7 +186,7 @@ const openEdit = (row: SubCategoryRow) => {
   });
   nameI18nList.value = row.nameI18n && Object.keys(row.nameI18n).length
     ? Object.entries(row.nameI18n).map(([lang, value]) => ({ lang, value: value as string }))
-    : [{ lang: 'zh-CN', value: row.displayName || '' }];
+    : [createEmptyI18nItem(row.displayName || '')];
   dialogVisible.value = true;
 };
 
@@ -244,7 +248,7 @@ const remove = (row: SubCategoryRow) => {
 };
 
 const addI18n = () => {
-  nameI18nList.value.push({ lang: 'zh-CN', value: '' });
+  nameI18nList.value.push(createEmptyI18nItem());
 };
 
 const removeI18n = (idx: number) => {

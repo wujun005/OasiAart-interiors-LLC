@@ -44,6 +44,21 @@ const routes: RouteRecordRaw[] = [
     component: () => import('@/modules/client/pages/join-us.vue'),
   },
   {
+    path: '/terms',
+    name: 'legal-terms',
+    component: () => import('@/modules/client/pages/terms.vue'),
+  },
+  {
+    path: '/privacy',
+    name: 'legal-privacy',
+    component: () => import('@/modules/client/pages/privacy.vue'),
+  },
+  {
+    path: '/data-deletion',
+    name: 'legal-data-deletion',
+    component: () => import('@/modules/client/pages/data-deletion.vue'),
+  },
+  {
     path: '/profile',
     name: 'profile',
     component: ProfilePage,

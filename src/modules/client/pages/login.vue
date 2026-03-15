@@ -138,21 +138,16 @@
 
         <p class="agreement">
           {{ t('client.login.password.agreementPrefix') }}
-          <a href="javascript:void(0)" @click.prevent="openAgreement('terms')">
+          <RouterLink :to="{ name: 'legal-terms' }">
             {{ t('client.login.password.terms') }}
-          </a>
+          </RouterLink>
           {{ t('client.login.password.agreementAnd') }}
-          <a href="javascript:void(0)" @click.prevent="openAgreement('privacy')">
+          <RouterLink :to="{ name: 'legal-privacy' }">
             {{ t('client.login.password.privacy') }}
-          </a>
+          </RouterLink>
         </p>
       </div>
     </section>
-
-    <agreement-dialog
-      v-model="agreementDialogVisible"
-      :doc-type="agreementDocType"
-    />
   </div>
 </template>
 
@@ -166,11 +161,9 @@ import {
   loginByVerifyCode,
   sendCode,
 } from '@/modules/client/api/login';
-import AgreementDialog from '@/modules/client/components/agreement-dialog.vue';
-import type { LegalDocType } from '@/modules/client/constants/legal';
 import { setClientLocale, type ClientLocale } from '@/modules/client/locales';
 
-const assetLogo = 'https://www.figma.com/api/mcp/asset/c86fdc20-0cd0-4496-8ff1-4775b50855ee';
+const assetLogo = new URL('@/assets/images/client/logo.png', import.meta.url).href;
 const assetFeature1 = new URL('@/assets/images/client/icon.png', import.meta.url).href;
 const assetFeature2 = new URL('@/assets/images/client/Icon (1).png', import.meta.url).href;
 const assetFeature3 = new URL('@/assets/images/client/Icon (2).png', import.meta.url).href;
@@ -193,8 +186,6 @@ const loginMode = ref<LoginMode>('password');
 const sendingCode = ref(false);
 const codeCooldown = ref(0);
 const submitting = ref(false);
-const agreementDialogVisible = ref(false);
-const agreementDocType = ref<LegalDocType>('terms');
 let codeTimer: number | null = null;
 
 const localeLabel = computed(() =>
@@ -253,11 +244,6 @@ const toggleLoginMode = () => {
     return;
   }
   form.code = '';
-};
-
-const openAgreement = (type: LegalDocType) => {
-  agreementDocType.value = type;
-  agreementDialogVisible.value = true;
 };
 
 const saveClientToken = (raw: any) => {
@@ -459,7 +445,7 @@ onBeforeUnmount(() => {
 }
 
 .auth-brand__name {
-  font-size: 36px;
+  font-size: 30px;
   font-weight: 800;
   letter-spacing: 0.2px;
   color: #fff;
@@ -471,7 +457,7 @@ onBeforeUnmount(() => {
 
 .auth-page__headline {
   margin: 0;
-  font-size: 48px;
+  font-size: 30px;
   line-height: 1.25;
   font-weight: 800;
   color: #fff;
@@ -515,14 +501,15 @@ onBeforeUnmount(() => {
 .auth-feature-card__item strong {
   display: block;
   margin-top: 10px;
-  font-size: 30px;
+  font-size: 14px;
   line-height: 1.25;
+  text-align: center;
 }
 
 .auth-feature-card__item span {
   display: block;
   margin-top: 4px;
-  font-size: 20px;
+  font-size: 14px;
   color: rgba(255, 255, 255, 0.8);
 }
 
@@ -727,11 +714,11 @@ onBeforeUnmount(() => {
 
 @media (max-width: 1320px) {
   .auth-brand__name {
-    font-size: 34px;
+    font-size: 30px;
   }
 
   .auth-page__headline {
-    font-size: 40px;
+    font-size: 30px;
   }
 
   .auth-page__slogan {
@@ -776,7 +763,7 @@ onBeforeUnmount(() => {
   }
 
   .auth-page__headline {
-    font-size: 36px;
+    font-size: 30px;
   }
 
   .auth-page__slogan {

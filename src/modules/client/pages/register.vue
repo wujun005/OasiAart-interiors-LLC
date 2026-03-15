@@ -177,21 +177,16 @@
 
         <p class="agreement">
           {{ t('client.login.register.agreementPrefix') }}
-          <a href="javascript:void(0)" @click.prevent="openAgreement('terms')">
+          <RouterLink :to="{ name: 'legal-terms' }">
             {{ t('client.login.register.terms') }}
-          </a>
+          </RouterLink>
           {{ t('client.login.register.agreementAnd') }}
-          <a href="javascript:void(0)" @click.prevent="openAgreement('privacy')">
+          <RouterLink :to="{ name: 'legal-privacy' }">
             {{ t('client.login.register.privacy') }}
-          </a>
+          </RouterLink>
         </p>
       </div>
     </section>
-
-    <agreement-dialog
-      v-model="agreementDialogVisible"
-      :doc-type="agreementDocType"
-    />
   </div>
 </template>
 
@@ -204,8 +199,6 @@ import {
   register as sendRegisterCode,
   registerByEmailPhone,
 } from '@/modules/client/api/login';
-import AgreementDialog from '@/modules/client/components/agreement-dialog.vue';
-import type { LegalDocType } from '@/modules/client/constants/legal';
 import { setClientLocale, type ClientLocale } from '@/modules/client/locales';
 
 const assetLogo = 'https://www.figma.com/api/mcp/asset/d235cecd-85f7-44e5-b4f9-f5febd8109d6';
@@ -234,8 +227,6 @@ const sendingCode = ref(false);
 const codeCooldown = ref(0);
 const submitting = ref(false);
 const showPassword = ref(false);
-const agreementDialogVisible = ref(false);
-const agreementDocType = ref<LegalDocType>('terms');
 let codeTimer: number | null = null;
 
 const localeLabel = computed(() =>
@@ -299,11 +290,6 @@ const goHome = () => {
 
 const goLogin = () => {
   router.push('/login');
-};
-
-const openAgreement = (type: LegalDocType) => {
-  agreementDocType.value = type;
-  agreementDialogVisible.value = true;
 };
 
 const startCodeCountdown = () => {

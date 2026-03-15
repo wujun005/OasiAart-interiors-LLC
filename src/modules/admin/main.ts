@@ -15,7 +15,7 @@ const locale = getAdminLocale();
 const i18n = createI18n({
   legacy: false,
   locale,
-  fallbackLocale: 'zh',
+  fallbackLocale: 'en',
   messages: adminMessages,
 });
 

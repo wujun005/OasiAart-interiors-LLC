@@ -7,7 +7,7 @@
           src="@/assets/images/client/logo.png"
           alt="HourX Logo"
         />
-        <span class="site-header__brand-text">HourX</span>
+        <!-- <span class="site-header__brand-text">HourX</span> -->
       </a>
 
       <nav class="site-header__nav">

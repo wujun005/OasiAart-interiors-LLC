@@ -4,7 +4,7 @@
       <div class="join-container join-hero__inner">
         <div class="join-hero__content">
           <h1>
-            {{ pageCopy.heroTitleLine1 }}<br />
+            {{ pageCopy.heroTitleLine1 }}
             {{ pageCopy.heroTitleLine2 }}
           </h1>
           <p>{{ pageCopy.heroDesc }}</p>
@@ -77,12 +77,13 @@ type JoinValue = {
 
 const { locale } = useI18n({ useScope: 'global' });
 
-const cityImageUrl = 'https://www.figma.com/api/mcp/asset/8c23ea27-c49c-4a55-9ad4-3ce082640fa3';
-const heroArtUrl = 'https://www.figma.com/api/mcp/asset/6cff5a0e-ef38-4843-a941-f2fd5181e121';
-const valueIconShieldUrl = 'https://www.figma.com/api/mcp/asset/3a8ade16-c4bc-43fe-b74b-8c661ab2f39a';
-const valueIconClockUrl = 'https://www.figma.com/api/mcp/asset/2b928379-6ecc-473c-a3e5-0180536fcdef';
-const valueIconPinUrl = 'https://www.figma.com/api/mcp/asset/6263fb18-6da2-4f67-a2c3-1e96aace388c';
-const joinEmailIconUrl = 'https://www.figma.com/api/mcp/asset/22eef040-cbd3-42b3-a107-809100e02a4d';
+// const cityImageUrl = 'https://www.figma.com/api/mcp/asset/8c23ea27-c49c-4a55-9ad4-3ce082640fa3';
+const cityImageUrl = new URL('@/assets/images/client/Container.png', import.meta.url).href;
+const heroArtUrl = new URL('@/assets/images/client/icon-banner.png', import.meta.url).href;
+const valueIconShieldUrl = new URL('@/assets/images/client/icon2.png', import.meta.url).href;;
+const valueIconClockUrl = new URL('@/assets/images/client/icon3.png', import.meta.url).href;
+const valueIconPinUrl = new URL('@/assets/images/client/icon4.png', import.meta.url).href;
+const joinEmailIconUrl = new URL('@/assets/images/client/email.png', import.meta.url).href;
 
 const joinEmail = 'careers@hourxportal.com';
 const isZh = computed(() => locale.value.startsWith('zh'));
@@ -91,37 +92,38 @@ const pageCopy = computed(() =>
   isZh.value
     ? {
       badge: '关于我们',
-      heroTitleLine1: '致力于打造',
-      heroTitleLine2: '更美好的居住生活',
+      heroTitleLine1: '加入HourX成为服务合作伙伴',
+      heroTitleLine2: '',
       heroDesc:
-        'HourX 是迪拜领先的按需家居服务平台。我们连接专业服务人员与家庭，为您提供从清洁、维修到美容护理的一站式解决方案。',
-      introTitle: 'HOURX 公司介绍',
+        '通过值得信赖的上门服务平台，连接迪拜各地客户,拓展您的业务并实现增长。成为合作伙伴',
+      introTitle: '为什么选择我们关于HourX',
       introDesc:
-        'HOURX 是一家立足迪拜的本地按需上门服务平台，通过一个平台、一键预约，将专业服务送到家门口，让生活更高效、更省心。',
-      valuesTitle: '我们的核心价值',
-      valuesDesc: '我们坚持最高标准的服务质量，为您带来无忧的生活体验。',
-      joinTitleLine1: '加入 HOURX',
-      joinTitleLine2: '招募本地维修合作伙伴',
+        'HourX是一家专注迪拜市场的本地化上门服务平台。通过统一平台预约与专业团队管理，为您提供高效、可靠的居家服务。',
+      valuesTitle: '关于HourX',
+      valuesDesc: '所有服务人员均经过严格筛选与认证，确保每一次上门服务都专业、安心、值得信赖。',
+      joinTitleLine1: '加入 HourX',
+      joinTitleLine2: '服务合作伙伴和专业人员',
       joinDesc:
-        'HOURX 正在寻找在迪拜本地从事维修服务、拥有自有团队、具备实际经营经验与执行能力的合作伙伴，共同拓展城市按需服务网络。',
-      joinContactLabel: '合作咨询 / 资料投送请联系：',
+        'HourX正在寻找位于迪拜的服务合作伙伴和专业技师，加入我们不断发展的按需上门服务网络。如果您拥有经验丰富的团队，并具备良好的服务意识，我们欢迎您与HourX一起发展业务，共同成长。',
+      joinContactLabel: '申请加入HourX',
     }
     : {
-      badge: 'About Us',
-      heroTitleLine1: 'Building Better',
-      heroTitleLine2: 'Living Experiences',
+      badge: 'About HourX',
+      heroTitleLine1: 'Join HourX as a',
+      heroTitleLine2: 'Service Partner',
       heroDesc:
-        'HourX is a leading on-demand home service platform in Dubai. We connect verified professionals with families for cleaning, maintenance and beauty services in one place.',
-      introTitle: 'About HOURX',
+        'Connect with customers across Dubai and grow your business through a trusted home service platform.',
+      introTitle: 'Why Choose HourX',
       introDesc:
-        'HOURX is a Dubai-based local on-demand service platform. With one platform and one-click booking, we deliver trusted professional services directly to your home.',
-      valuesTitle: 'Our Core Values',
-      valuesDesc: 'We keep the highest service standards so every booking feels reliable and effortless.',
-      joinTitleLine1: 'Join HOURX',
-      joinTitleLine2: 'Hiring Local Service Partners',
+        'HourX is a Dubai-based on-demand home service platform. With a unified booking system and professionally managed service network, we deliver efficient and reliable home services to your doorstep.',
+      valuesTitle: 'About HourX',
+      valuesDesc:
+        'All professionals are carefully vetted and verified to ensure every service is safe, professional, and trustworthy.',
+      joinTitleLine1: 'Join HourX',
+      joinTitleLine2: 'Service Partners & Professionals',
       joinDesc:
-        'HOURX is looking for local operators in Dubai with real service experience, active teams and strong execution to grow our citywide on-demand network together.',
-      joinContactLabel: 'For partnership details and profile submissions:',
+        'HourX is looking for Dubai-based service partners and skilled professionals to join our growing on-demand home service network. If you have an experienced team and a strong service mindset, we welcome you to grow your business with HourX.',
+      joinContactLabel: 'Apply to Join HourX:',
     },
 );
 
@@ -129,35 +131,35 @@ const valueItems = computed<JoinValue[]>(() =>
   isZh.value
     ? [
       {
-        title: '严格甄选',
-        desc: '我们严格甄选并认证每位服务人员，确保您享受真正可靠的专业服务。',
+        title: '专业',
+        desc: '严选认证',
         icon: valueIconShieldUrl,
       },
       {
-        title: '高效响应',
-        desc: '以高效响应和灵活安排，为您提供快速、及时的家居服务体验。',
+        title: '快速',
+        desc: '高效响应',
         icon: valueIconClockUrl,
       },
       {
-        title: '深受信赖',
-        desc: '深受迪拜信赖，我们为全城提供专业、高效的家居服务。',
+        title: '可靠',
+        desc: '值得信赖',
         icon: valueIconPinUrl,
       },
     ]
     : [
       {
-        title: 'Strict Selection',
-        desc: 'Every professional is carefully screened and verified to ensure dependable, high-quality service.',
+        title: 'Professional',
+        desc: 'Vetted professionals',
         icon: valueIconShieldUrl,
       },
       {
-        title: 'Fast Response',
-        desc: 'With flexible scheduling and fast response, we deliver timely support when you need it most.',
+        title: 'Fast',
+        desc: 'Quick response',
         icon: valueIconClockUrl,
       },
       {
-        title: 'Trusted Locally',
-        desc: 'Trusted across Dubai, we provide consistent and professional services citywide.',
+        title: 'Reliable',
+        desc: 'Trusted service',
         icon: valueIconPinUrl,
       },
     ],
@@ -211,19 +213,20 @@ const valueItems = computed<JoinValue[]>(() =>
   align-items: center;
   justify-content: space-between;
   gap: 48px;
-  padding: 96px 0;
+  // padding: 96px 0;
 }
 
 .join-hero__content {
-  width: min(584px, 100%);
+  // width: min(584px, 100%);
 }
 
 .join-hero__content h1 {
   margin: 0;
   color: #fff;
-  font-size: 60px;
+  font-size: 40px;
   line-height: 1;
   font-weight: 900;
+  white-space: nowrap;
 }
 
 .join-hero__content p {
@@ -273,7 +276,7 @@ const valueItems = computed<JoinValue[]>(() =>
 .join-about__left h2 {
   margin: 24px 0 0;
   color: rgba(15, 23, 42, 0.9);
-  font-size: 30px;
+  font-size: 26px;
   line-height: 1.2;
   font-weight: 900;
 }
@@ -324,8 +327,8 @@ const valueItems = computed<JoinValue[]>(() =>
 }
 
 .join-value__icon img {
-  width: 24px;
-  height: 24px;
+  width: 48px;
+  height: 48px;
 }
 
 .join-value__body h4 {
@@ -366,7 +369,7 @@ const valueItems = computed<JoinValue[]>(() =>
 .join-partner h2 {
   margin: 0;
   color: rgba(15, 23, 42, 0.9);
-  font-size: 42px;
+  font-size: 30px;
   line-height: 1.15;
   font-weight: 900;
 }
@@ -422,7 +425,8 @@ const valueItems = computed<JoinValue[]>(() =>
   }
 
   .join-hero__content h1 {
-    font-size: 48px;
+    font-size: 38px;
+    white-space: normal;
   }
 
   .join-hero__art {

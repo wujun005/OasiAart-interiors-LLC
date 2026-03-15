@@ -133,33 +133,71 @@ export function getServiceDetail(id: string | number) {
   return http.get(`/api/product/${id}`);
 }
 
-// ========== PayPal 支付相关接口 ==========
+// 支付创建
+export type ClientPaymentMethod = 'stripe' | 'STRIPE' | 'APPLE_PAY' | 'PAYPAL' | string;
 
-/**
- * 创建订单并拉起支付
- * @param payload 订单信息 { productId, quantity, amount, currency, ... }
- * @returns 支付跳转 URL
- */
-export function createPaypalOrder(payload: any) {
-  return http.post('/api/paypal/create-order-payment', payload);
+export type CreatePayRequest = {
+  orderId: number | string;
+  paymentMethod: ClientPaymentMethod;
+  validationUrl?: string;
+};
+
+export type CreatePayResponse = {
+  paymentMethod?: string;
+  paymentId?: string;
+  approvalUrl?: string;
+  merchantSession?: string;
+  orderId?: number | string;
+  orderNo?: string;
+  currency?: string;
+  amount?: string;
+};
+
+export function createPay(payload: CreatePayRequest) {
+  return http.post('/client/payment/create', payload);
 }
 
-/**
- * 支付成功回调（由后端重定向调用）
- * @param params 回调参数 { token?, PayerID?, ... }
- * @returns 订单信息
- */
-export function paypalSuccessCallback(params?: any) {
-  return http.get('/api/paypal/success-order', { params });
+// /client/payment/apple-pay/merchant-session. apple pay 商户验证
+export type MerchantSessionRequest = {
+  validationUrl: string;
+};
+
+export function merchant(params: MerchantSessionRequest) {
+  return http.post('/client/payment/apple-pay/merchant-session', undefined, {
+    params,
+  });
 }
 
-/**
- * 支付取消回调（由后端重定向调用）
- * @param params 回调参数
- * @returns 取消信息
- */
-export function paypalCancelCallback(params?: any) {
-  return http.get('/api/paypal/cancel', { params });
+// /client/payment/apple-pay/complete apple pay 支付完成
+export type CompletePaymentRequest = {
+  orderId: number | string;
+  paymentToken: string;
+};
+
+export function complete(params: CompletePaymentRequest) {
+  return http.post('/client/payment/apple-pay/complete', undefined, {
+    params,
+  });
+}
+
+// /client/payment/paypal/success-callback paypal支付成功回调
+export type PaypalSuccessCallbackRequest = {
+  paymentId: string;
+  PayerID: string;
+};
+
+export function paypalSuccessCallback(params: PaypalSuccessCallbackRequest) {
+  return http.get('/client/payment/paypal/success-callback', { params });
+}
+
+// /client/payment/paypal/cancel-callback paypal支付取消回调
+export type PaypalCancelCallbackRequest = {
+  orderNo?: string;
+  token?: string;
+};
+
+export function paypalCancelCallback(params?: PaypalCancelCallbackRequest) {
+  return http.get('/client/payment/paypal/cancel-callback', { params });
 }
 
 // ========== 订单相关接口 ==========
@@ -265,7 +303,9 @@ export default {
   getServicesList,
   getServicesPage,
   getServiceDetail,
-  createPaypalOrder,
+  createPay,
+  merchant,
+  complete,
   paypalSuccessCallback,
   paypalCancelCallback,
   getOrderPage,

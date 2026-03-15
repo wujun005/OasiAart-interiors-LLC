@@ -258,38 +258,7 @@ const serviceTiles = computed<ServiceTile[]>(() => {
 });
 
 const defaultOfferCards = computed<OfferCard[]>(() => [
-  {
-    id: 'offer-default-1',
-    spuId: '',
-    title: t('client.home.defaults.card1Title'),
-    desc: t('client.home.defaults.card1Desc'),
-    price: t('client.home.defaults.card1Price'),
-    image: defaultOfferImages[0],
-  },
-  {
-    id: 'offer-default-2',
-    spuId: '',
-    title: t('client.home.defaults.card2Title'),
-    desc: t('client.home.defaults.card2Desc'),
-    price: t('client.home.defaults.card2Price'),
-    image: defaultOfferImages[1],
-  },
-  {
-    id: 'offer-default-3',
-    spuId: '',
-    title: t('client.home.defaults.card3Title'),
-    desc: t('client.home.defaults.card3Desc'),
-    price: t('client.home.defaults.card3Price'),
-    image: defaultOfferImages[2],
-  },
-  {
-    id: 'offer-default-4',
-    spuId: '',
-    title: t('client.home.defaults.card4Title'),
-    desc: t('client.home.defaults.card4Desc'),
-    price: t('client.home.defaults.card4Price'),
-    image: defaultOfferImages[3],
-  },
+ 
 ]);
 
 const formatPriceText = (minPrice?: number | string): string => {
@@ -353,8 +322,8 @@ const bookingSteps = computed<BookingStep[]>(() => [
 const aboutBulletList = computed(() => [
   t('client.home.aboutIntro.bullet1'),
   t('client.home.aboutIntro.bullet2'),
-  t('client.home.aboutIntro.bullet3'),
-  t('client.home.aboutIntro.bullet4'),
+  // t('client.home.aboutIntro.bullet3'),
+  // t('client.home.aboutIntro.bullet4'),
 ]);
 
 const reasons = computed<Reason[]>(() => [
@@ -908,14 +877,15 @@ onMounted(() => {
 
 .about-reason {
   width: 140px;
-  height: 170px;
+  height: 205px;
   border-radius: 14px;
   border: 1px solid #f3f4f6;
   background: #fff;
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding-top: 25px;
+  box-sizing: border-box;
+  padding: 25px 10px 14px;
 }
 
 .about-reason__icon-wrap {
@@ -946,17 +916,29 @@ onMounted(() => {
 }
 
 .about-reason h4 {
-  margin: 20px 0 0;
+  margin: 16px 0 0;
   font-size: 20px;
   line-height: 1.4;
   font-weight: 800;
+  min-height: calc(1.4em * 2);
+  text-align: center;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
 }
 
 .about-reason p {
-  margin: 20px 0 0;
+  margin: 10px 0 0;
   color: var(--text-sub);
   font-size: 13px;
   line-height: 1.25;
+  text-align: center;
+  min-height: calc(1.25em * 2);
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
 }
 
 .about-content__image {

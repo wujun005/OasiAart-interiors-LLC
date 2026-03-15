@@ -91,6 +91,12 @@
           show-overflow-tooltip
         />
         <el-table-column
+          prop="attachDetailsText"
+          :label="t('admin.orders.table.attachDetails')"
+          min-width="240"
+          show-overflow-tooltip
+        />
+        <el-table-column
           prop="userPhone"
           :label="t('admin.orders.table.userPhone')"
           min-width="140"
@@ -217,6 +223,7 @@ type OrderRow = {
   productName: string;
   adminRemark: string;
   specDescText: string;
+  attachDetailsText: string;
   serviceTime: string;
   orderStatusCode: number | null;
   paymentStatusCode: number | null;
@@ -252,11 +259,13 @@ const orderStatusNameMap: Record<string, number> = {
 
 const paymentStatusNameMap: Record<string, number> = {
   UNPAID: 0,
-  PENDING_PAYMENT: 0,
-  PARTIAL_PAID: 1,
-  PARTIALLY_PAID: 1,
-  PAID: 2,
-  REFUNDED: 3,
+  PAID: 1,
+  CANCELLED: 2,
+  FAILED: 3,
+  REFUNDING: 4,
+  REFUNDED: 5,
+  REFUNDED_FAIL: 6,
+  REFUND_FAILED: 6,
 };
 
 const { t, locale } = useI18n({ useScope: 'global' });
@@ -272,10 +281,13 @@ const orderStatusOptions = computed(() => [
 ]);
 
 const paymentStatusOptions = computed(() => [
-  { value: 0, label: t('admin.orders.status.paymentPending') },
-  { value: 1, label: t('admin.orders.status.paymentPartial') },
-  { value: 2, label: t('admin.orders.status.paymentPaid') },
-  { value: 3, label: t('admin.orders.status.paymentRefunded') },
+  { value: 0, label: t('admin.orders.status.paymentUnpaid') },
+  { value: 1, label: t('admin.orders.status.paymentPaid') },
+  { value: 2, label: t('admin.orders.status.paymentCancelled') },
+  { value: 3, label: t('admin.orders.status.paymentFailed') },
+  { value: 4, label: t('admin.orders.status.paymentRefunding') },
+  { value: 5, label: t('admin.orders.status.paymentRefunded') },
+  { value: 6, label: t('admin.orders.status.paymentRefundFailed') },
 ]);
 
 const getTodayString = () => {
@@ -329,9 +341,10 @@ const formatDateTime = (value?: string) => {
 };
 
 const paymentStatusTag = (code: number | null) => {
-  if (code === 2) return 'success';
-  if (code === 3) return 'info';
-  if (code === 0 || code === 1) return 'warning';
+  if (code === 1) return 'success';
+  if (code === 2 || code === 5) return 'info';
+  if (code === 0 || code === 4) return 'warning';
+  if (code === 3 || code === 6) return 'danger';
   return '';
 };
 
@@ -340,13 +353,6 @@ const orderStatusTag = (code: number | null) => {
   if (code === 5 || code === 6) return 'info';
   if (code === 0 || code === 1 || code === 2 || code === 3) return 'warning';
   return '';
-};
-
-const formatAmount = (raw: unknown) => {
-  if (raw === null || raw === undefined || raw === '') return '-';
-  const num = Number(raw);
-  if (!Number.isFinite(num)) return String(raw);
-  return Number.isInteger(num) ? `${num}` : num.toFixed(2);
 };
 
 const normalizeCode = (
@@ -426,10 +432,13 @@ const getOrderStatusText = (code: number | null) => {
 };
 
 const getPaymentStatusText = (code: number | null) => {
-  if (code === 0) return t('admin.orders.status.paymentPending');
-  if (code === 1) return t('admin.orders.status.paymentPartial');
-  if (code === 2) return t('admin.orders.status.paymentPaid');
-  if (code === 3) return t('admin.orders.status.paymentRefunded');
+  if (code === 0) return t('admin.orders.status.paymentUnpaid');
+  if (code === 1) return t('admin.orders.status.paymentPaid');
+  if (code === 2) return t('admin.orders.status.paymentCancelled');
+  if (code === 3) return t('admin.orders.status.paymentFailed');
+  if (code === 4) return t('admin.orders.status.paymentRefunding');
+  if (code === 5) return t('admin.orders.status.paymentRefunded');
+  if (code === 6) return t('admin.orders.status.paymentRefundFailed');
   return '-';
 };
 
@@ -440,12 +449,6 @@ const parseSpecDescText = (item: any) => {
   ) as Record<string, I18nText>;
   const specValueNameI18n = (
     order.specValueNameI18n ?? item.specValueNameI18n ?? {}
-  ) as Record<string, I18nText>;
-  const attachTypeNameI18n = (
-    order.attachTypeNameI18n ?? item.attachTypeNameI18n ?? {}
-  ) as Record<string, I18nText>;
-  const attachValueNameI18n = (
-    order.attachValueNameI18n ?? item.attachValueNameI18n ?? {}
   ) as Record<string, I18nText>;
   const selections = (
     Array.isArray(order.specSelections)
@@ -465,6 +468,19 @@ const parseSpecDescText = (item: any) => {
       return joinLabelValue(typeName, valueName);
     })
     .filter(Boolean);
+  if (specValues.length) return specValues.join(' / ');
+  const fallback = String(order.specDesc ?? item.specDesc ?? '').trim();
+  return fallback || '-';
+};
+
+const parseAttachDetailsText = (item: any) => {
+  const order = item?.order ?? item?.orderHeader ?? item ?? {};
+  const attachTypeNameI18n = (
+    order.attachTypeNameI18n ?? item.attachTypeNameI18n ?? {}
+  ) as Record<string, I18nText>;
+  const attachValueNameI18n = (
+    order.attachValueNameI18n ?? item.attachValueNameI18n ?? {}
+  ) as Record<string, I18nText>;
   const attachDetails = (
     Array.isArray(order.attachDetails)
       ? order.attachDetails
@@ -484,42 +500,12 @@ const parseSpecDescText = (item: any) => {
       return quantity > 0 ? `${summary} x ${quantity}` : summary;
     })
     .filter(Boolean);
-  const values = [...specValues, ...attachValues];
-  if (values.length) return values.join(' / ');
-  const fallback = String(order.specDesc ?? item.specDesc ?? '').trim();
-  return fallback || '-';
+  return attachValues.length ? attachValues.join(' / ') : '-';
 };
 
 const parseAmountText = (item: any) => {
   const order = item?.order ?? item?.orderHeader ?? item ?? {};
-  const explicitAmount =
-    order.totalAmount ??
-    item.totalAmount ??
-    order.orderAmount ??
-    item.orderAmount ??
-    order.amount ??
-    item.amount;
-  const currency = String(order.currency ?? item.currency ?? '').trim();
-  if (explicitAmount !== null && explicitAmount !== undefined && explicitAmount !== '') {
-    const amountText = formatAmount(explicitAmount);
-    return currency ? `${amountText} ${currency}` : amountText;
-  }
-  const attachList = (
-    Array.isArray(order.attachDetails)
-      ? order.attachDetails
-      : Array.isArray(item.attachDetails)
-        ? item.attachDetails
-        : []
-  ) as RawAttachDetail[];
-  const attachTotal = attachList.reduce((sum, attach) => {
-    const current = Number(attach?.amountWithTax ?? 0);
-    return Number.isFinite(current) ? sum + current : sum;
-  }, 0);
-  if (attachTotal > 0) {
-    const totalText = formatAmount(attachTotal);
-    return currency ? `${totalText} ${currency}` : totalText;
-  }
-  return '-';
+  return String(order.amountText ?? item.amountText ?? '').trim() || '-';
 };
 
 const normalizePage = (payload: any) => {
@@ -591,6 +577,7 @@ const parseOrderRow = (item: any): OrderRow => {
     ),
     adminRemark: String(order.adminRemark ?? item.adminRemark ?? '').trim(),
     specDescText: parseSpecDescText(item),
+    attachDetailsText: parseAttachDetailsText(item),
     serviceTime: String(order.serviceTime ?? item.serviceTime ?? '').trim(),
     orderStatusCode,
     paymentStatusCode,

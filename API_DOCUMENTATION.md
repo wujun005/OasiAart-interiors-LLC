@@ -1,6 +1,6 @@
 # API 接口文档
 
-根据 Swagger UI (http://115.29.197.51:8080/swagger-ui/index.html#/) 整理的接口列表
+根据 Swagger UI (https:/localhost:8088/swagger-ui/index.html#/) 整理的接口列表
 
 ## 客户端认证接口
 

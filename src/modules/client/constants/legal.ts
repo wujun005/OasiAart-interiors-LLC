@@ -1,4 +1,4 @@
-export type LegalDocType = 'terms' | 'privacy';
+export type LegalDocType = 'terms' | 'privacy' | 'deletion';
 
 type LegalSection = {
   heading: string;
@@ -75,7 +75,7 @@ export const LEGAL_DOCS: Record<LegalLocale, Record<LegalDocType, LegalDoc>> = {
       title: 'Privacy Policy',
       lastUpdated: '____',
       intro:
-        'HOURX ("we", "us", or "our") respects your privacy and is committed to protecting your personal data.',
+        'HourX ("we", "us", or "our") respects your privacy and is committed to protecting your personal data.',
       sections: [
         {
           heading: '1. Information We Collect',
@@ -137,6 +137,39 @@ export const LEGAL_DOCS: Record<LegalLocale, Record<LegalDocType, LegalDoc>> = {
         },
       ],
     },
+    deletion: {
+      title: 'User Data Deletion Request',
+      lastUpdated: '____',
+      intro: 'HourX Portal Co. L.L.C S.O.C',
+      sections: [
+        {
+          heading: 'How to Request Data Deletion',
+          paragraphs: [
+            'Users can request deletion of their data by sending an email to: support@hourxportal.com',
+            'Please include the following information in your request:',
+          ],
+          bullets: [
+            'Your name',
+            'Phone number used on our platform',
+            'Description of your request',
+          ],
+        },
+        {
+          heading: 'Processing Time',
+          paragraphs: [
+            'We will process your data deletion request within 7 business days after receiving your request.',
+          ],
+        },
+        {
+          heading: 'Contact Information',
+          paragraphs: [
+            'HourX Portal Co. L.L.C S.O.C',
+            'Dubai, United Arab Emirates',
+            'Email: support@hourxportal.com',
+          ],
+        },
+      ],
+    },
   },
   zh: {
     terms: {
@@ -188,7 +221,7 @@ export const LEGAL_DOCS: Record<LegalLocale, Record<LegalDocType, LegalDoc>> = {
     privacy: {
       title: '隐私政策',
       lastUpdated: '____',
-      intro: 'HOURX（以下简称“我们”）高度重视用户的个人信息和隐私保护。',
+      intro: 'HourX（以下简称“我们”）高度重视用户的个人信息和隐私保护。',
       sections: [
         {
           heading: '一、信息收集范围',
@@ -242,6 +275,39 @@ export const LEGAL_DOCS: Record<LegalLocale, Record<LegalDocType, LegalDoc>> = {
         {
           heading: '八、联系方式',
           paragraphs: ['邮箱：support@hourxportal.com'],
+        },
+      ],
+    },
+    deletion: {
+      title: '用户数据删除申请',
+      lastUpdated: '____',
+      intro: 'HourX Portal Co. L.L.C S.O.C',
+      sections: [
+        {
+          heading: '如何申请数据删除',
+          paragraphs: [
+            '用户可通过发送邮件至 support@hourxportal.com 申请删除其数据。',
+            '请在申请中提供以下信息：',
+          ],
+          bullets: [
+            '您的姓名',
+            '在平台使用的手机号',
+            '删除申请说明',
+          ],
+        },
+        {
+          heading: '处理时效',
+          paragraphs: [
+            '我们将在收到申请后的 7 个工作日内完成数据删除处理。',
+          ],
+        },
+        {
+          heading: '联系方式',
+          paragraphs: [
+            'HourX Portal Co. L.L.C S.O.C',
+            '迪拜，阿联酋',
+            '邮箱：support@hourxportal.com',
+          ],
         },
       ],
     },

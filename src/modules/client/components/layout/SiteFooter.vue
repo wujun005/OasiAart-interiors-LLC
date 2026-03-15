@@ -6,9 +6,17 @@
           <h3 class="site-footer__title">HourX Dubai</h3>
           <p class="site-footer__text">{{ t('client.footer.tagline') }}</p>
           <div class="site-footer__social">
-            <span class="site-footer__social-item">f</span>
-            <span class="site-footer__social-item">in</span>
-            <span class="site-footer__social-item">ig</span>
+            <a
+              class="site-footer__social-item"
+              href="https://www.facebook.com/profile.php?id=61583039242229"
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label="Facebook"
+            >
+              f
+            </a>
+            <span class="site-footer__social-item" aria-label="Telegram">tg</span>
+            <span class="site-footer__social-item" aria-label="LinkedIn">in</span>
           </div>
         </div>
 
@@ -18,6 +26,11 @@
           <RouterLink :to="{ path: '/', hash: '#services' }">{{ t('client.footer.services') }}</RouterLink>
           <RouterLink :to="{ name: 'order-list' }">{{ t('client.header.nav.orders') }}</RouterLink>
           <RouterLink :to="{ name: 'join-us' }">{{ t('client.footer.about') }}</RouterLink>
+          <RouterLink :to="{ name: 'legal-terms' }">{{ t('client.footer.terms') }}</RouterLink>
+          <RouterLink :to="{ name: 'legal-privacy' }">{{ t('client.footer.privacy') }}</RouterLink>
+          <RouterLink :to="{ name: 'legal-data-deletion' }">{{
+            t('client.footer.dataDeletion')
+          }}</RouterLink>
         </div>
 
         <div class="site-footer__col">
@@ -29,17 +42,24 @@
 
         <div class="site-footer__col">
           <h4 class="site-footer__col-title">{{ t('client.footer.contactUs') }}</h4>
-          <p>Info@hourxportal.com</p>
-          <p>+971 54 993 6391</p>
-          <p>{{ t('client.footer.address') }}</p>
+          <p>{{ t('client.footer.contactEmail') }}</p>
+          <p>{{ t('client.footer.contactWhatsapp') }}</p>
+          <p>{{ t('client.footer.contactLocation') }}</p>
         </div>
       </div>
 
       <div class="site-footer__bottom">
         <p>{{ t('client.footer.copyright', { year }) }}</p>
         <div class="site-footer__links">
-          <a href="#">{{ t('client.footer.terms') }}</a>
-          <a href="#">{{ t('client.footer.privacy') }}</a>
+          <RouterLink :to="{ name: 'legal-terms' }">{{
+            t('client.footer.terms')
+          }}</RouterLink>
+          <RouterLink :to="{ name: 'legal-privacy' }">{{
+            t('client.footer.privacy')
+          }}</RouterLink>
+          <RouterLink :to="{ name: 'legal-data-deletion' }">{{
+            t('client.footer.dataDeletion')
+          }}</RouterLink>
         </div>
       </div>
     </div>
@@ -101,6 +121,7 @@ const { t } = useI18n({ useScope: 'global' });
   justify-content: center;
   font-size: 12px;
   color: #fff;
+  text-decoration: none;
 }
 
 .site-footer__col {
