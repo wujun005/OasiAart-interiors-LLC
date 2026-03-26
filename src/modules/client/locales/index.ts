@@ -39,7 +39,7 @@ const clientExtraMessages = {
         contactWhatsapp: 'Whats app: +971502100284',
         contactLocation: 'Location: Dubai, United Arab Emirates',
         address: 'Downtown Dubai, UAE',
-        copyright: '© {year} HourX Dubai. All Rights Reserved.',
+        copyright: '© {year} HourX Portal Co LLC. All Rights Reserved.',
         terms: 'Terms & Conditions',
         privacy: 'Privacy Policy',
         dataDeletion: 'Data Deletion Request',
@@ -330,7 +330,9 @@ const clientExtraMessages = {
         },
         message: {
           loginRequired: 'Please log in first.',
-          updateSuccess: 'Password reset form submitted.',
+          accountMissing: 'Unable to identify the current account. Please log in again.',
+          updateSuccess: 'Password changed successfully.',
+          updateFailed: 'Failed to change password.',
         },
       },
       login: {
@@ -462,7 +464,7 @@ const clientExtraMessages = {
         contactWhatsapp: 'Whats app：+971502100284',
         contactLocation: '地址：迪拜，阿拉伯联合酋长国',
         address: '迪拜市中心，阿联酋',
-        copyright: '© {year} HourX Dubai. All Rights Reserved.',
+        copyright: '© {year} HourX Portal Co LLC. All Rights Reserved.',
         terms: '条款与条件',
         privacy: '隐私政策',
         dataDeletion: '数据删除说明',
@@ -741,7 +743,9 @@ const clientExtraMessages = {
         },
         message: {
           loginRequired: '请先登录',
-          updateSuccess: '重置密码表单已提交',
+          accountMissing: '无法识别当前账号，请重新登录',
+          updateSuccess: '密码修改成功',
+          updateFailed: '密码修改失败',
         },
       },
       login: {

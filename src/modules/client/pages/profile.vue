@@ -50,9 +50,13 @@ import { onMounted, reactive, ref } from 'vue';
 import { ElMessage } from 'element-plus';
 import { useI18n } from 'vue-i18n';
 import { useRouter } from 'vue-router';
+import { changePasswordByOld } from '@/modules/client/api/login';
+import { useAuth } from '@/modules/client/composables/useAuth';
+import { getStoredAuthSnapshot } from '@/utils/auth-state';
 
 const { t } = useI18n({ useScope: 'global' });
 const router = useRouter();
+const { clearAuth } = useAuth();
 
 const form = reactive({
   currentPassword: '',
@@ -88,22 +92,37 @@ const validateForm = () => {
 
 const submitResetPassword = async () => {
   if (!validateForm()) return;
+  const account =
+    localStorage.getItem('account')?.trim()
+    || localStorage.getItem('username')?.trim()
+    || '';
+  if (!account) {
+    ElMessage.warning(t('client.profile.message.accountMissing'));
+    router.replace('/login');
+    return;
+  }
   submitting.value = true;
   try {
-    // 当前项目尚未接入 C 端重置密码接口，这里先保留页面能力和前端校验。
-    await new Promise((resolve) => setTimeout(resolve, 300));
+    await changePasswordByOld({
+      account,
+      oldPassword: form.currentPassword.trim(),
+      newPassword: form.newPassword.trim(),
+    });
     ElMessage.success(t('client.profile.message.updateSuccess'));
     form.currentPassword = '';
     form.newPassword = '';
     form.confirmPassword = '';
+    clearAuth();
+    await router.replace('/login');
+  } catch (error: any) {
+    ElMessage.error(error?.message || t('client.profile.message.updateFailed'));
   } finally {
     submitting.value = false;
   }
 };
 
 onMounted(() => {
-  const token = localStorage.getItem('token');
-  if (!token) {
+  if (!getStoredAuthSnapshot().isLoggedIn) {
     ElMessage.warning(t('client.profile.message.loginRequired'));
     router.replace('/login');
   }

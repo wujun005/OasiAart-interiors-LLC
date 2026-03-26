@@ -281,14 +281,23 @@ const featuredCards = computed<OfferCard[]>(() => {
   }
   const mapped = records
     .map((item, index) => {
-      const fallback = defaultOfferCards.value[index % defaultOfferCards.value.length];
+      const fallback =
+        defaultOfferCards.value.length > 0
+          ? defaultOfferCards.value[index % defaultOfferCards.value.length]
+          : null;
       return {
         id: String(item.id ?? `offer-${index + 1}`),
         spuId: String(item.id ?? ''),
-        title: pickI18nValue(item.nameI18n, fallback.title),
-        desc: pickI18nValue(item.descI18n, fallback.desc),
+        title: pickI18nValue(
+          item.nameI18n,
+          fallback?.title || t('client.home.defaults.unnamedService'),
+        ),
+        desc: pickI18nValue(item.descI18n, fallback?.desc || ''),
         price: formatPriceText(item.minPrice),
-        image: item.imageUrls?.[0] || fallback.image,
+        image:
+          item.imageUrls?.[0] ||
+          fallback?.image ||
+          defaultOfferImages[index % defaultOfferImages.length],
       };
     })
     .filter((item) => item.title);

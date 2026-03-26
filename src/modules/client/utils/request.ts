@@ -8,10 +8,10 @@ import { getClientLocale } from '@/modules/client/locales';
 const http = createHttpClient({
   baseURL: import.meta.env.VITE_CLIENT_API_BASE_URL || '/client-api',
 });
-
 http.interceptors.request.use((config) => {
   config.headers = config.headers ?? {};
   config.headers.language = getClientLocale();
+  console.log('import.meta.env.VITE_CLIENT_API_BASE_URL', import.meta.env.VITE_CLIENT_API_BASE_URL)
   return config;
 });
 

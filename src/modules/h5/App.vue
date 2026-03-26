@@ -8,20 +8,25 @@
 </template>
 
 <script setup lang="ts">
-import { useI18n } from 'vue-i18n'
-import { watch } from 'vue'
+import { useI18n } from 'vue-i18n';
+import { watch } from 'vue';
+import { setClientLocale } from '@/modules/client/locales';
 
-const { locale } = useI18n()
+const { locale } = useI18n();
 
 watch(
   () => locale.value,
-  (val) => localStorage.setItem('h5-locale', val),
-  { immediate: true }
-)
+  (val) => {
+    const targetLocale = val === 'zh' ? 'zh' : 'en';
+    localStorage.setItem('h5-locale', targetLocale);
+    setClientLocale(targetLocale);
+  },
+  { immediate: true },
+);
 
 const toggleLocale = () => {
-  locale.value = locale.value === 'zh' ? 'en' : 'zh'
-}
+  locale.value = locale.value === 'zh' ? 'en' : 'zh';
+};
 </script>
 
 <style scoped>

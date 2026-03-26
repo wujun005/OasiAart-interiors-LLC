@@ -129,6 +129,16 @@
             </el-tag>
           </template>
         </el-table-column>
+        <el-table-column
+          prop="paymentIntentId"
+          :label="t('admin.orders.table.paymentIntentId')"
+          min-width="220"
+          show-overflow-tooltip
+        >
+          <template #default="{ row }">
+            {{ row.paymentIntentId || '-' }}
+          </template>
+        </el-table-column>
         <el-table-column prop="amountText" :label="t('admin.orders.table.amount')" min-width="120" />
         <el-table-column :label="t('admin.orders.table.createdAt')" min-width="170">
           <template #default="{ row }">
@@ -229,6 +239,7 @@ type OrderRow = {
   paymentStatusCode: number | null;
   orderStatusText: string;
   paymentStatusText: string;
+  paymentIntentId: string;
   amountText: string;
   createdAt: string;
 };
@@ -593,6 +604,13 @@ const parseOrderRow = (item: any): OrderRow => {
         ? String(rawPaymentStatus ?? '').trim() || '-'
         : getPaymentStatusText(paymentStatusCode),
     ),
+    paymentIntentId: String(
+      order.paymentIntentId ??
+        item.paymentIntentId ??
+        order.paymentIntentld ??
+        item.paymentIntentld ??
+        '',
+    ).trim(),
     amountText: parseAmountText(item),
     createdAt: String(order.orderTime ?? item.orderTime ?? order.createTime ?? item.createTime ?? '').trim(),
   };

@@ -9,6 +9,14 @@ const zh = {
   home: {
     navTitle: 'OasiAart 移动端',
     login: '登录',
+    hero: {
+      eyebrow: '专业管理的上门服务平台',
+      title: '一次预约 · 上门搞定一切',
+      desc: '高效 · 可靠 · 省心',
+      tag1: '专业',
+      tag2: '快速',
+      tag3: '可靠',
+    },
     notice: '家庭保洁、商户维护、深度清洁与家电保养均可在线预约，今日下单最快当日上门。',
     shortcutsTitle: '快捷入口',
     popularTitle: '热门服务',
@@ -65,6 +73,7 @@ const zh = {
   services: {
     navTitle: '服务项目',
     back: '返回',
+    bookNow: '预定',
     schemes: '精选方案',
     tabs: [
       {
@@ -109,6 +118,20 @@ const zh = {
       submitted: '已提交，顾问会尽快联系您',
     },
   },
+  serviceList: {
+    bookNow: '预定',
+  },
+  productDetail: {
+    bookingOptions: '预约选项',
+    reviewCount: '({count}条评价)',
+    soldCount: '已售 {count}+',
+  },
+  orderConfirm: {
+    methodTitle: 'Stripe',
+    methodDesc: 'Apple Pay、Google Pay、Link 与银行卡会在 Stripe 中按设备自动展示。',
+    paymentNote: '安全支付由 Stripe 提供。',
+    totalLabel: '支付总额 (含税)',
+  },
   auth: {
     navTitle: '账户登录',
     back: '返回',
@@ -127,6 +150,19 @@ const zh = {
       needAll: '请填写完整信息',
       success: '登录成功',
       sent: '验证码已发送',
+    },
+  },
+  profile: {
+    defaultName: '尊敬的用户',
+    defaultAccount: '欢迎使用 HourX',
+    logoutSuccess: '退出登录成功',
+    menu: {
+      account: '用户信息管理',
+      support: '在线客服',
+    },
+    joinUs: {
+      title: '加入我们',
+      desc: '我们正在寻找在迪拜本地从事维修服务、拥有自有团队的合作伙伴。',
     },
   },
 }

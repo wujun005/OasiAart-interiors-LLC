@@ -30,6 +30,12 @@ export interface SendCodePayload {
   phoneOrEmail?: string;
 }
 
+export interface ChangePasswordByOldPayload {
+  account: string;
+  oldPassword: string;
+  newPassword: string;
+}
+
 // 发送注册验证码 /api/client/auth/sendRegisterCode
 export function register(payload: SendCodePayload) {
   return http.post('/api/client/auth/sendRegisterCode', payload);
@@ -60,6 +66,10 @@ export function loginByVerifyCode(payload: VerifyCodeLoginPayload) {
   return http.post('/api/client/auth/loginByVerifyCode', payload);
 }
 
+export function changePasswordByOld(payload: ChangePasswordByOldPayload) {
+  return http.post('/api/client/auth/changePasswordByOld', payload);
+}
+
 export default {
   register,
   sendRegisterCode,
@@ -68,4 +78,5 @@ export default {
   login,
   loginByPassword,
   loginByVerifyCode,
+  changePasswordByOld,
 };

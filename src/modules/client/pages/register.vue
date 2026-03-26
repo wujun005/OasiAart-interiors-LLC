@@ -362,7 +362,7 @@ const validateForm = () => {
   return true;
 };
 
-const saveClientToken = (raw: any) => {
+const saveClientToken = (raw: any, account?: string) => {
   const payload = raw?.data ?? raw ?? {};
   const token = payload?.token || payload?.accessToken;
   if (!token) {
@@ -382,6 +382,10 @@ const saveClientToken = (raw: any) => {
   if (payload?.username) {
     localStorage.setItem('username', String(payload.username));
   }
+  const resolvedAccount = account?.trim() || payload?.username || '';
+  if (resolvedAccount) {
+    localStorage.setItem('account', String(resolvedAccount));
+  }
   return true;
 };
 
@@ -398,7 +402,7 @@ const submitRegister = async () => {
       verifyCode: form.smsCode.trim(),
     };
     const result = await registerByEmailPhone(payload);
-    if (!saveClientToken(result)) {
+    if (!saveClientToken(result, form.email.trim() || buildFullPhone())) {
       throw new Error(t('client.login.register.failed'));
     }
     ElMessage.success(t('client.login.register.success'));

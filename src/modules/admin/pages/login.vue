@@ -64,7 +64,7 @@ import {
 
 const { t, locale } = useI18n({ useScope: 'global' });
 const currentLocale = ref<AdminLocale>(locale.value === 'en' ? 'en' : 'zh');
-const assetLogo = new URL('@/assets/images/client/logo.png', import.meta.url).href;
+const assetLogo = '/assets/images/client/hourx.svg';
 const assetFeature1 = new URL('@/assets/images/client/icon.png', import.meta.url).href;
 const assetFeature2 = new URL('@/assets/images/client/Icon (1).png', import.meta.url).href;
 const assetFeature3 = new URL('@/assets/images/client/Icon (2).png', import.meta.url).href;

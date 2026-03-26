@@ -9,6 +9,14 @@ const en = {
   home: {
     navTitle: 'OasiAart Mobile',
     login: 'Login',
+    hero: {
+      eyebrow: 'Professionally managed on-demand home services',
+      title: 'One booking · Everything handled at your door',
+      desc: 'Efficient · Reliable · Worry-free',
+      tag1: 'Professional',
+      tag2: 'Fast',
+      tag3: 'Reliable',
+    },
     notice:
       'Home cleaning, commercial maintenance, deep cleaning and appliance care can all be booked online. Same-day service available.',
     shortcutsTitle: 'Quick Links',
@@ -66,6 +74,7 @@ const en = {
   services: {
     navTitle: 'Services',
     back: 'Back',
+    bookNow: 'Book',
     schemes: 'Featured Plans',
     tabs: [
       {
@@ -110,6 +119,20 @@ const en = {
       submitted: 'Submitted, our agent will contact you shortly',
     },
   },
+  serviceList: {
+    bookNow: 'Book',
+  },
+  productDetail: {
+    bookingOptions: 'Booking Options',
+    reviewCount: '({count} reviews)',
+    soldCount: '{count}+ sold',
+  },
+  orderConfirm: {
+    methodTitle: 'Stripe',
+    methodDesc: 'Apple Pay, Google Pay, Link, and cards are shown by Stripe based on the current device.',
+    paymentNote: 'Secure checkout is powered by Stripe.',
+    totalLabel: 'Total (incl. tax)',
+  },
   auth: {
     navTitle: 'Login',
     back: 'Back',
@@ -128,6 +151,19 @@ const en = {
       needAll: 'Please complete all fields',
       success: 'Login success',
       sent: 'Code sent',
+    },
+  },
+  profile: {
+    defaultName: 'Dear User',
+    defaultAccount: 'Welcome to HourX',
+    logoutSuccess: 'Logged out successfully',
+    menu: {
+      account: 'Account Management',
+      support: 'Online Support',
+    },
+    joinUs: {
+      title: 'Join Us',
+      desc: 'We are looking for Dubai-based repair service partners who operate with their own teams.',
     },
   },
 }

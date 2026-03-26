@@ -3,7 +3,7 @@
     <div class="site-footer__inner">
       <div class="site-footer__main">
         <div class="site-footer__brand">
-          <h3 class="site-footer__title">HourX Dubai</h3>
+          <h3 class="site-footer__title">HourX Portal Co LLC</h3>
           <p class="site-footer__text">{{ t('client.footer.tagline') }}</p>
           <div class="site-footer__social">
             <a

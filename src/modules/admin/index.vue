@@ -35,6 +35,7 @@
               <el-option value="en" :label="t('admin.common.langEn')" />
             </el-select>
             <el-button size="small" @click="refresh">{{ t('admin.common.refresh') }}</el-button>
+            <el-button size="small" @click="handleLogout">{{ t('admin.common.logout') }}</el-button>
           </div>
         </el-header>
         <el-main class="content">
@@ -47,6 +48,8 @@
 
 <script setup lang="ts">
 import { computed, ref, type Component } from 'vue';
+import axios from 'axios';
+import { ElMessage } from 'element-plus';
 import { useRoute, useRouter } from 'vue-router';
 import { useI18n } from 'vue-i18n';
 import {
@@ -66,6 +69,7 @@ import PermissionMenuItem from '@/modules/admin/components/PermissionMenuItem.vu
 import {
   adminMenuState,
   loadAdminMenuPermissions,
+  resetAdminMenuPermissions,
   resolveAllowedAdminPath,
   type AdminMenuPermissionItem,
 } from '@/modules/admin/utils/menuPermission';
@@ -120,6 +124,18 @@ const handleLocaleChange = (lang: AdminLocale) => {
 
 const refresh = () => {
   router.replace({ path: route.fullPath, query: { ...route.query, t: Date.now() } });
+};
+
+const handleLogout = async () => {
+  localStorage.removeItem('token');
+  localStorage.removeItem('expiresAt');
+  localStorage.removeItem('userId');
+  localStorage.removeItem('username');
+  localStorage.removeItem('userType');
+  delete axios.defaults.headers.common.Authorization;
+  resetAdminMenuPermissions();
+  ElMessage.success(t('admin.common.logoutSuccess'));
+  await router.replace('/admin/login');
 };
 
 const iconMap: Record<string, Component> = {

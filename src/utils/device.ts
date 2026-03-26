@@ -23,6 +23,6 @@ export function isMobileDevice(): boolean {
  */
 export function getPaymentRedirectPath(type: 'success' | 'failure'): string {
   const isMobile = isMobileDevice();
-  const basePath = isMobile ? '/h5' : '';
+  const basePath = isMobile ? '/h5/#' : '';
   return `${basePath}/payment/${type}`;
 }

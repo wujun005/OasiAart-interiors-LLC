@@ -769,13 +769,17 @@ const subCategoryOptions = ref<
 >([]);
 const { locale, t } = useI18n({ useScope: 'global' });
 const getDefaultI18nLang = () => ADMIN_LANG_EN;
+const getNextAvailableLang = (langs: string[]) => {
+  const used = new Set(langs.filter(Boolean));
+  return [ADMIN_LANG_EN, ADMIN_LANG_ZH].find((lang) => !used.has(lang)) || getDefaultI18nLang();
+};
 const createEmptyProductI18n = (lang = ADMIN_LANG_EN): ProductI18n => ({
   langCode: lang,
   name: '',
   details: '',
 });
-const createEmptyLangValue = (value = '') => ({
-  lang: ADMIN_LANG_EN,
+const createEmptyLangValue = (lang = ADMIN_LANG_EN, value = '') => ({
+  lang,
   value,
 });
 
@@ -925,10 +929,7 @@ const defaultProduct = (): ProductEntity => ({
   specIds: [],
 });
 
-const defaultI18nList = (): ProductI18n[] => [
-  createEmptyProductI18n(ADMIN_LANG_EN),
-  createEmptyProductI18n(ADMIN_LANG_ZH),
-];
+const defaultI18nList = (): ProductI18n[] => [createEmptyProductI18n(ADMIN_LANG_EN)];
 
 const form = reactive<{
   product: ProductEntity;
@@ -950,9 +951,7 @@ const form = reactive<{
   bookingNoticeI18nList: [createEmptyLangValue()],
   productImages: [],
   specGroups: [{ specTypeId: null, specIds: [] }],
-  addonGroups: [
-    { categoryId: addonCategoryOptions.value[0]?.value ?? null, addonIds: [] },
-  ],
+  addonGroups: [],
 });
 
 const filteredSubCategoryOptions = computed(() =>
@@ -1185,12 +1184,7 @@ const resetForm = () => {
       specIds: [],
     },
   ];
-  form.addonGroups = [
-    {
-      categoryId: addonCategoryOptions.value[0]?.value ?? null,
-      addonIds: [],
-    },
-  ];
+  form.addonGroups = [];
   uploadList.value = [];
   uploadCount.value = 0;
   ensureCurrencyOption(form.product.currency);
@@ -1489,13 +1483,6 @@ const fetchAddonCategories = async () => {
       const label = pickName(nameI18n, attach.typeName || '');
       return { value: id, label };
     });
-    if (
-      form.addonGroups.length &&
-      !form.addonGroups[0].categoryId &&
-      addonCategoryOptions.value.length
-    ) {
-      form.addonGroups[0].categoryId = addonCategoryOptions.value[0].value;
-    }
   } catch (error: any) {
     ElMessage.error(error?.message || t('admin.product.message.fetchAddonCategoryFailed'));
   }
@@ -1653,7 +1640,11 @@ const handleExportI18n = async () => {
 };
 
 const addLang = () => {
-  form.productI18nList.push(createEmptyProductI18n());
+  form.productI18nList.push(
+    createEmptyProductI18n(
+      getNextAvailableLang(form.productI18nList.map((item) => item.langCode)),
+    ),
+  );
 };
 
 const removeLang = (idx: number) => {
@@ -1661,7 +1652,11 @@ const removeLang = (idx: number) => {
 };
 
 const addDescLang = () => {
-  form.descI18nList.push(createEmptyLangValue());
+  form.descI18nList.push(
+    createEmptyLangValue(
+      getNextAvailableLang(form.descI18nList.map((item) => item.lang)),
+    ),
+  );
 };
 
 const removeDescLang = (idx: number) => {
@@ -1789,12 +1784,7 @@ const openEdit = async (row: ProductRow) => {
           categoryId: g.attachTypeId ?? null,
           addonIds: Array.isArray(g.attachValueIds) ? g.attachValueIds : [],
         }))
-      : [
-          {
-            categoryId: addonCategoryOptions.value[0]?.value ?? null,
-            addonIds: [],
-          },
-        ];
+      : [];
     form.addonGroups = mappedAddonGroups;
 
     const i18nList =

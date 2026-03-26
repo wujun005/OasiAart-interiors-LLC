@@ -5,6 +5,8 @@ const en = {
   admin: {
     common: {
       refresh: 'Refresh',
+      logout: 'Log Out',
+      logoutSuccess: 'Logged out',
       language: 'Language',
       langZh: 'Chinese',
       langEn: 'English',
@@ -32,22 +34,126 @@ const en = {
       noMenuPermission: 'No menu permission',
     },
     home: {
-      title: 'Dashboard',
-      subtitle: 'Quick view of core metrics',
-      metric: 'Metric',
-      value: 'Value',
-      trend: 'Trend',
-      todayOrders: {
-        metric: "Today's Orders",
-        trend: '+12% vs yesterday',
+      title: 'Admin Management System',
+      subtitle: 'Admin overview',
+      hero: {
+        eyebrow: 'HourX Control Center',
+        title: 'Manage services, orders, and system status in one view',
+        desc: 'Put frequent actions, key operational links, and today’s priorities on a single landing page so the team can move without jumping across menus.',
+        primaryAction: 'Open Order Management',
+        secondaryAction: 'Open Services',
+        status: {
+          permissionTitle: 'Permissions synced',
+          permissionDesc: 'Menu access and route control are loaded correctly',
+          localeTitle: 'Localization enabled',
+          localeDesc: 'Admin requests now carry the current language header automatically',
+          paymentTitle: 'Payment flow online',
+          paymentDesc: 'Stripe payment fields and channel identifiers are visible in admin views',
+        },
       },
-      activeUsers: {
-        metric: 'Active Users',
-        trend: '+5% vs yesterday',
+      stats: {
+        orders: {
+          label: "Today's Orders",
+          hint: 'Stable growth compared with yesterday',
+        },
+        services: {
+          label: 'Active Services',
+          hint: 'Services and add-ons can be maintained directly here',
+        },
+        users: {
+          label: 'Active Users',
+          hint: 'Users who visited or placed orders in the last 24 hours',
+        },
+        health: {
+          label: 'System Health',
+          hint: 'Core modules are stable with no blocking issues detected',
+        },
       },
-      refundRate: {
-        metric: 'Refund Rate',
-        trend: '-0.3% vs yesterday',
+      quickEntry: {
+        title: 'Quick Entry',
+        subtitle: 'Start from the modules used most often',
+        orders: {
+          title: 'Order Management',
+          desc: 'Review payment status, fulfillment status, remarks, and payment channel identifiers.',
+          cta: 'Open orders',
+        },
+        products: {
+          title: 'Services',
+          desc: 'Maintain service names, content, add-ons, and multilingual copy from one place.',
+          cta: 'Manage services',
+        },
+        users: {
+          title: 'Users',
+          desc: 'Check user profiles, login activity, and related business information quickly.',
+          cta: 'View users',
+        },
+        basic: {
+          title: 'System Configuration',
+          desc: 'Manage categories, service types, pricing rules, and add-on configuration.',
+          cta: 'Open settings',
+        },
+      },
+      focus: {
+        title: 'Today Focus',
+        subtitle: 'Recommended priorities for the admin team',
+        items: {
+          payment: {
+            title: 'Follow up unpaid and edge-case cancelled orders',
+            desc: 'Review failed, unpaid, and near-cancelled orders first to reduce avoidable drop-off.',
+          },
+          delivery: {
+            title: 'Keep fulfillment progress and remarks in sync',
+            desc: 'Capture delivery updates, customer notes, and handling results inside order remarks in time.',
+          },
+          content: {
+            title: 'Audit multilingual service content',
+            desc: 'Double-check service names, add-on names, and descriptions to avoid mixed-language output on the client side.',
+          },
+          pricing: {
+            title: 'Review pricing rules and add-on configuration',
+            desc: 'Confirm sorting, pricing logic, add-on amounts, and display behavior all match the API response.',
+          },
+        },
+      },
+      radar: {
+        title: 'Operations Radar',
+        subtitle: 'A compact view of the core business flow',
+        items: {
+          booking: 'Booking conversion',
+          fulfillment: 'Fulfillment flow',
+          localization: 'Localization coverage',
+          security: 'Access and login status',
+        },
+      },
+      system: {
+        title: 'System Status',
+        subtitle: 'Current admin configuration and runtime checks',
+        items: {
+          api: {
+            title: 'API communication healthy',
+            desc: 'Admin and client requests are available, and business errors expose server message directly.',
+          },
+          menu: {
+            title: 'Menu permissions loaded',
+            desc: 'Admin navigation is generated from permission data, and unauthorized routes are redirected automatically.',
+          },
+          i18n: {
+            title: 'Language header enabled',
+            desc: 'Both admin and client requests now send the active locale so the backend can return localized content.',
+          },
+          payment: {
+            title: 'Payment fields visible',
+            desc: 'Order list now shows payment status, payment channel ID, and amount fields clearly.',
+          },
+          pricing: {
+            title: 'Pricing modules maintainable',
+            desc: 'Categories, service types, pricing models, and pricing values are separated for cleaner maintenance.',
+          },
+          addons: {
+            title: 'Add-on view completed',
+            desc: 'Add-ons are displayed separately in the order list instead of being mixed into service details.',
+          },
+        },
       },
     },
     login: {
@@ -110,6 +216,7 @@ const en = {
         userId: 'User ID',
         payStatus: 'Payment Status',
         orderStatus: 'Order Status',
+        paymentIntentId: 'Payment Channel ID',
         amount: 'Amount',
         createdAt: 'Order Time',
         adminRemark: 'Order Remark',

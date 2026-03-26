@@ -4,7 +4,7 @@
       <a class="site-header__brand" href="/">
         <img
           class="site-header__logo"
-          src="@/assets/images/client/logo.png"
+          :src="logoUrl"
           alt="HourX Logo"
         />
         <!-- <span class="site-header__brand-text">HourX</span> -->
@@ -82,12 +82,14 @@ import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRouter } from 'vue-router';
 import { setClientLocale, type ClientLocale } from '@/modules/client/locales';
+import { clearStoredAuthState, getStoredAuthSnapshot } from '@/utils/auth-state';
 const langIconUrl =
   'https://www.figma.com/api/mcp/asset/d385ba89-56b8-4fb2-98a8-85f7659b0f53';
 const { t, locale } = useI18n({ useScope: 'global' });
 const router = useRouter();
 const hasToken = ref(false);
 const userName = ref('');
+const logoUrl = '/assets/images/client/hourx.svg';
 
 const currentLocale = computed<ClientLocale>({
   get: () => (locale.value === 'zh' ? 'zh' : 'en'),
@@ -111,8 +113,15 @@ const userLabel = computed(() => {
 
 const syncAuthState = () => {
   if (typeof window === 'undefined') return;
-  hasToken.value = Boolean(localStorage.getItem('token'));
-  userName.value = localStorage.getItem('username') || '';
+  const snapshot = getStoredAuthSnapshot();
+  if (snapshot.isExpired) {
+    clearStoredAuthState();
+    hasToken.value = false;
+    userName.value = '';
+    return;
+  }
+  hasToken.value = snapshot.isLoggedIn;
+  userName.value = snapshot.userInfo.username || '';
 };
 
 const handleLocaleCommand = (value: string | number | object) => {
@@ -126,11 +135,7 @@ const handleUserCommand = (command: string | number | object) => {
     return;
   }
   if (command === 'logout') {
-    localStorage.removeItem('token');
-    localStorage.removeItem('tokenType');
-    localStorage.removeItem('expiresAt');
-    localStorage.removeItem('userId');
-    localStorage.removeItem('username');
+    clearStoredAuthState();
     syncAuthState();
     router.push('/login');
   }

@@ -5,6 +5,8 @@ const zh = {
   admin: {
     common: {
       refresh: '刷新',
+      logout: '退出登录',
+      logoutSuccess: '已退出登录',
       language: '语言',
       langZh: '中文',
       langEn: 'English',
@@ -32,22 +34,126 @@ const zh = {
       noMenuPermission: '暂无菜单权限',
     },
     home: {
-      title: '概览',
-      subtitle: '快速查看核心指标',
-      metric: '指标',
-      value: '数值',
-      trend: '趋势',
-      todayOrders: {
-        metric: '今日订单',
-        trend: '较昨日 +12%',
+      title: '后台管理系统',
+      subtitle: '后台总览',
+      hero: {
+        eyebrow: 'HourX 管理中枢',
+        title: '统一查看服务、订单与系统状态',
+        desc: '把高频操作、关键链路和今日重点任务集中在一个首页里，减少在菜单之间来回切换的成本。',
+        primaryAction: '进入订单管理',
+        secondaryAction: '查看服务管理',
+        status: {
+          permissionTitle: '权限状态正常',
+          permissionDesc: '菜单权限与访问控制已同步完成',
+          localeTitle: '国际化已启用',
+          localeDesc: '后台请求会随当前语言自动携带 language 头',
+          paymentTitle: '支付链路在线',
+          paymentDesc: 'Stripe 支付参数与订单通道字段已接入后台视图',
+        },
       },
-      activeUsers: {
-        metric: '活跃用户',
-        trend: '较昨日 +5%',
+      stats: {
+        orders: {
+          label: '今日订单',
+          hint: '相比昨日保持稳定增长',
+        },
+        services: {
+          label: '在售服务',
+          hint: '服务与附加项配置可直接维护',
+        },
+        users: {
+          label: '活跃用户',
+          hint: '最近 24 小时访问与下单用户',
+        },
+        health: {
+          label: '系统健康度',
+          hint: '核心模块运行稳定，未发现阻塞项',
+        },
       },
-      refundRate: {
-        metric: '退款率',
-        trend: '较昨日 -0.3%',
+      quickEntry: {
+        title: '快捷入口',
+        subtitle: '从最常用的后台模块开始处理业务',
+        orders: {
+          title: '订单管理',
+          desc: '查看支付状态、履约状态、备注与支付通道信息。',
+          cta: '立即进入',
+        },
+        products: {
+          title: '服务管理',
+          desc: '统一维护服务名称、内容、附加项和多语言文案。',
+          cta: '前往服务',
+        },
+        users: {
+          title: '用户管理',
+          desc: '快速查看用户资料、登录情况与业务关联信息。',
+          cta: '查看用户',
+        },
+        basic: {
+          title: '基础配置',
+          desc: '管理分类、子类、计价方式、附加项等基础数据。',
+          cta: '维护配置',
+        },
+      },
+      focus: {
+        title: '今日重点',
+        subtitle: '建议优先处理的后台任务',
+        items: {
+          payment: {
+            title: '跟进未支付与取消边缘订单',
+            desc: '优先检查支付失败、待支付和取消前的订单，尽量减少转化流失。',
+          },
+          delivery: {
+            title: '同步履约进度与订单备注',
+            desc: '把履约中的问题、客户说明和处理结果及时沉淀到订单备注中。',
+          },
+          content: {
+            title: '检查多语言服务文案',
+            desc: '重点核对服务名称、附加项名称和说明内容，避免前台展示混用语言。',
+          },
+          pricing: {
+            title: '复核计价方式与附加项配置',
+            desc: '确认排序、计价规则、附加项金额和展示逻辑与接口返回保持一致。',
+          },
+        },
+      },
+      radar: {
+        title: '运营概览',
+        subtitle: '把关键链路状态压缩到一屏查看',
+        items: {
+          booking: '预订转化',
+          fulfillment: '履约流转',
+          localization: '国际化完整度',
+          security: '权限与登录状态',
+        },
+      },
+      system: {
+        title: '系统状态',
+        subtitle: '当前后台配置与运行检查',
+        items: {
+          api: {
+            title: '接口通信正常',
+            desc: '管理端与客户端请求链路可用，统一响应错误已直出 message。',
+          },
+          menu: {
+            title: '菜单权限已加载',
+            desc: '后台入口根据用户权限动态生成，未授权路径会自动重定向。',
+          },
+          i18n: {
+            title: '语言头已接入',
+            desc: 'admin 与 client 请求会携带当前语言，便于后端按语言返回内容。',
+          },
+          payment: {
+            title: '支付字段已落地',
+            desc: '订单列表支持查看支付状态、支付通道 ID 与金额字段。',
+          },
+          pricing: {
+            title: '计价配置可维护',
+            desc: '分类、子类、计价方式和计价值模块已拆分，方便独立调整。',
+          },
+          addons: {
+            title: '附加项视图已完善',
+            desc: '订单列表可单独查看附加项，避免与规格描述混在同一列。',
+          },
+        },
       },
     },
     login: {
@@ -110,6 +216,7 @@ const zh = {
         userId: '用户ID',
         payStatus: '支付状态',
         orderStatus: '订单状态',
+        paymentIntentId: '支付通道ID',
         amount: '金额',
         createdAt: '下单时间',
         adminRemark: '订单备注',

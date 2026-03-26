@@ -163,7 +163,7 @@ import {
 } from '@/modules/client/api/login';
 import { setClientLocale, type ClientLocale } from '@/modules/client/locales';
 
-const assetLogo = new URL('@/assets/images/client/logo.png', import.meta.url).href;
+const assetLogo = '/assets/images/client/hourx.svg';
 const assetFeature1 = new URL('@/assets/images/client/icon.png', import.meta.url).href;
 const assetFeature2 = new URL('@/assets/images/client/Icon (1).png', import.meta.url).href;
 const assetFeature3 = new URL('@/assets/images/client/Icon (2).png', import.meta.url).href;
@@ -246,7 +246,7 @@ const toggleLoginMode = () => {
   form.code = '';
 };
 
-const saveClientToken = (raw: any) => {
+const saveClientToken = (raw: any, account?: string) => {
   const payload = raw?.data ?? raw ?? {};
   const token = payload?.token || payload?.accessToken;
   if (!token) {
@@ -265,6 +265,10 @@ const saveClientToken = (raw: any) => {
   }
   if (payload?.username) {
     localStorage.setItem('username', String(payload.username));
+  }
+  const resolvedAccount = account?.trim() || payload?.username || '';
+  if (resolvedAccount) {
+    localStorage.setItem('account', String(resolvedAccount));
   }
   return true;
 };
@@ -345,7 +349,7 @@ const submitLogin = async () => {
         phoneOrEmail: accountValue,
         password: form.password,
       });
-      if (!saveClientToken(result)) {
+      if (!saveClientToken(result, accountValue)) {
         throw new Error(t('client.login.password.failed'));
       }
       ElMessage.success(t('client.login.password.success'));
@@ -360,7 +364,7 @@ const submitLogin = async () => {
       code: codeValue,
       verifyCode: codeValue,
     });
-    if (!saveClientToken(result)) {
+    if (!saveClientToken(result, accountValue)) {
       throw new Error(t('client.login.password.codeLoginFailed'));
     }
     ElMessage.success(t('client.login.password.codeLoginSuccess'));

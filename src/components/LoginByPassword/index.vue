@@ -13,12 +13,6 @@
     <el-form-item>
       <div class="btn" @click="loginByPassword">{{ t('admin.login.submit') }}</div>
     </el-form-item>
-
-    <el-form-item>
-      <div class="register" @click="goRegister">
-        {{ t('admin.login.noAccount') }}<span class="register-text">{{ t('admin.login.registerNow') }}</span>
-      </div>
-    </el-form-item>
   </el-form>
 </template>
 
@@ -35,7 +29,6 @@ const form = ref({
 });
 
 const emit = defineEmits<{
-  (e: 'go-register'): void;
   (e: 'go-reset-password'): void;
   (e: 'login'): void;
 }>();
@@ -48,10 +41,6 @@ const loginByPassword = () => {
   if (!password) return ElMessage.warning(t('admin.login.passwordRequired'));
 
   emit('login', { account, password });
-};
-
-const goRegister = () => {
-  emit('go-register');
 };
 
 const goResetPassword = () => {
@@ -78,23 +67,6 @@ const goResetPassword = () => {
     line-height: 56px;
     cursor: pointer;
   }
-
-  .register {
-    color: #00000080;
-    font-size: 18px;
-    font-face: PingFangSC;
-    font-weight: 400;
-    line-height: 0;
-    letter-spacing: 0;
-    text-align: right;
-    width: 100%;
-    cursor: pointer;
-    margin-top: 15px;
-    .register-text {
-      color: #000000;
-    }
-  }
-
   .forgot-password {
     min-width: 90px;
     height: 25px;
