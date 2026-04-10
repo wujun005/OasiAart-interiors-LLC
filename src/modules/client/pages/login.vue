@@ -397,8 +397,8 @@ onBeforeUnmount(() => {
 }
 
 .auth-page__left {
-  width: min(367px, 34vw);
-  min-width: 300px;
+  width: min(500px, 45vw);
+  min-width: 400px;
   padding: 48px;
   box-sizing: border-box;
   position: relative;
@@ -461,7 +461,7 @@ onBeforeUnmount(() => {
 
 .auth-page__headline {
   margin: 0;
-  font-size: 30px;
+  font-size: 18px;
   line-height: 1.25;
   font-weight: 800;
   color: #fff;
@@ -469,7 +469,7 @@ onBeforeUnmount(() => {
 
 .auth-page__slogan {
   margin: 64px 0 0;
-  font-size: 28px;
+  font-size: 18px;
   line-height: 1.4;
   font-weight: 700;
   color: #fff;
@@ -722,15 +722,15 @@ onBeforeUnmount(() => {
   }
 
   .auth-page__headline {
-    font-size: 30px;
+    font-size: 22px;
   }
 
   .auth-page__slogan {
-    font-size: 26px;
+    font-size: 18px;
   }
 
   .auth-feature-card__item strong {
-    font-size: 26px;
+    font-size: 18px;
   }
 
   .auth-feature-card__item span {
@@ -767,12 +767,12 @@ onBeforeUnmount(() => {
   }
 
   .auth-page__headline {
-    font-size: 30px;
+    font-size: 22px;
   }
 
   .auth-page__slogan {
     margin-top: 24px;
-    font-size: 22px;
+    font-size: 18px;
   }
 
   .auth-feature-card {
