@@ -41,10 +41,14 @@
                 {{ t('client.productDetail.badge') }}
               </span>
               <div class="product-gallery__dots">
-                <span
+                <button
                   v-for="(image, index) in galleryImages"
                   :key="`dot-${index}`"
+                  type="button"
+                  class="product-gallery__dot"
                   :class="{ 'product-gallery__dot--active': index === selectedImageIndex }"
+                  :aria-label="`${displayTitle} image ${index + 1}`"
+                  @click="selectedImageIndex = index"
                 />
               </div>
             </div>
@@ -1242,17 +1246,28 @@ const goOrderConfirm = async () => {
   gap: 8px;
 }
 
-.product-gallery__dots span {
+.product-gallery__dot {
   width: 8px;
   height: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.72);
   border-radius: 50%;
+  padding: 0;
   background: rgba(255, 255, 255, 0.6);
+  cursor: pointer;
+  transition:
+    width 0.2s ease,
+    background 0.2s ease,
+    border-color 0.2s ease,
+    box-shadow 0.2s ease;
 }
 
 .product-gallery__dot--active {
   width: 10px;
   height: 10px;
-  background: #3972f5;
+  border-color: #fff;
+  border-radius: 999px;
+  background: #fff;
+  box-shadow: 0 4px 10px rgba(15, 23, 42, 0.24);
 }
 
 .product-card {
