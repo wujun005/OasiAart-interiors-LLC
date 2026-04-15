@@ -47,15 +47,15 @@
 
     <nav class="h5-profile-tabbar">
       <button class="h5-profile-tabbar__item" type="button" @click="router.push({ name: 'h5-home' })">
-        <img :src="tabHomeIconUrl" alt="" />
+        <van-icon name="home-o" />
         <span>{{ t('client.header.nav.home') }}</span>
       </button>
       <button class="h5-profile-tabbar__item" type="button" @click="router.push({ name: 'h5-orders' })">
-        <img :src="tabOrdersIconUrl" alt="" />
+        <van-icon name="orders-o" />
         <span>{{ t('client.header.nav.orders') }}</span>
       </button>
       <button class="h5-profile-tabbar__item h5-profile-tabbar__item--active" type="button">
-        <img :src="tabProfileIconUrl" alt="" />
+        <van-icon name="contact-o" />
         <span>{{ t('client.header.profile') }}</span>
       </button>
     </nav>
@@ -69,15 +69,12 @@ import { useRoute, useRouter } from 'vue-router';
 import { showSuccessToast } from 'vant';
 import { useAuth } from '@/modules/h5/composables/useAuth';
 
-const avatarIconUrl = 'https://www.figma.com/api/mcp/asset/0e35d62d-3d61-4e75-8c53-a1ea0e4badcf';
-const userManageIconUrl = 'https://www.figma.com/api/mcp/asset/c58ec41a-9617-4239-bb92-9fad1c17d1db';
-const arrowIconUrl = 'https://www.figma.com/api/mcp/asset/54dd2ae2-8304-45f5-b65a-ad13dfa0bd13';
-const supportIconUrl = 'https://www.figma.com/api/mcp/asset/bd61f7c4-3be1-47a1-893f-8dfd12f5e6d6';
-const joinIconUrl = 'https://www.figma.com/api/mcp/asset/e44f3cf3-d82e-461b-96c1-6ddcbad8d2eb';
-const mailIconUrl = 'https://www.figma.com/api/mcp/asset/2be8db0c-618f-4f4e-917e-4aa220a82f7c';
-const tabHomeIconUrl = 'https://www.figma.com/api/mcp/asset/a6820c95-bfec-4f2e-9686-0f2b037666b5';
-const tabOrdersIconUrl = 'https://www.figma.com/api/mcp/asset/1c28c7f8-bec1-4d80-8c8c-630b5686a4c8';
-const tabProfileIconUrl = 'https://www.figma.com/api/mcp/asset/0e16bbe3-f8ee-49e2-9f32-575dcf39ba1e';
+const avatarIconUrl = new URL('@/assets/images/client/icon13.png', import.meta.url).href;;
+const userManageIconUrl = new URL('@/assets/images/client/icon14.png', import.meta.url).href;
+const arrowIconUrl = new URL('@/assets/images/client/icon17.png', import.meta.url).href;
+const supportIconUrl = new URL('@/assets/images/client/icon15.png', import.meta.url).href;
+const joinIconUrl = new URL('@/assets/images/client/icon16.png', import.meta.url).href;
+const mailIconUrl = new URL('@/assets/images/client/email.png', import.meta.url).href;
 const supportLink = 'https://wa.me/971502100284';
 const joinUsEmail = 'careers@hourxportal.com';
 
@@ -222,7 +219,7 @@ onMounted(() => {
   width: 64px;
   height: 64px;
   border-radius: 999px;
-  border: 1.8px solid rgba(255, 255, 255, 0.3);
+  // border: 1.8px solid rgba(255, 255, 255, 0.3);
   background: rgba(255, 255, 255, 0.2);
   display: flex;
   align-items: center;
@@ -230,8 +227,8 @@ onMounted(() => {
 }
 
 .h5-profile-hero__avatar img {
-  width: 32px;
-  height: 32px;
+  width:100%;
+  height: 100%;
 }
 
 .h5-profile-hero__text h1 {
@@ -371,23 +368,20 @@ onMounted(() => {
 
 .h5-profile-tabbar__item {
   width: 64px;
-  height: 48px;
   border: 0;
   background: transparent;
-  display: inline-flex;
+  display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   gap: 4px;
   color: #99a1af;
   font-size: 10px;
-  line-height: 1.5;
   font-weight: 500;
 }
 
-.h5-profile-tabbar__item img {
-  width: 24px;
-  height: 24px;
+.h5-profile-tabbar__item :deep(.van-icon) {
+  font-size: 24px;
 }
 
 .h5-profile-tabbar__item--active {

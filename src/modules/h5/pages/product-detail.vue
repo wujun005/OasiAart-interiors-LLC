@@ -10,7 +10,9 @@
 
     <main class="h5-detail-main">
       <section class="h5-detail-gallery">
-        <van-swipe class="h5-detail-gallery__swipe" :autoplay="3000" lazy-render @change="handleSwipeChange">
+        <van-swipe class="h5-detail-gallery__swipe" :autoplay="3000" lazy-render 
+        :show-indicators="false"
+        @change="handleSwipeChange">
           <van-swipe-item v-for="(image, index) in galleryImages" :key="`gallery-${index}`">
             <img :src="image" :alt="displayTitle" />
           </van-swipe-item>
@@ -429,7 +431,13 @@ const rebookAttachSelectionMap = computed(() => {
 const galleryImages = computed(() => {
   const raw = productDetail.value?.imageUrls;
   const fromApi = Array.isArray(raw)
-    ? raw.filter((item): item is string => typeof item === 'string' && item.trim().length > 0)
+    ? Array.from(
+      new Set(
+        raw
+          .filter((item): item is string => typeof item === 'string' && item.trim().length > 0)
+          .map((item) => item.trim()),
+      ),
+    )
     : [];
   return fromApi.length ? fromApi : fallbackGallery;
 });

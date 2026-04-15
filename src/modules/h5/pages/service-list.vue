@@ -428,11 +428,12 @@ const goProductDetail = (spuId: string) => {
   display: flex;
   align-items: center;
   justify-content: center;
+  overflow: hidden;
 }
 
 .h5-service-card__icon img {
-  width: 24px;
-  height: 24px;
+  width: auto;
+  height: 100%;
   object-fit: contain;
 }
 

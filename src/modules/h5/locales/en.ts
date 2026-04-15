@@ -12,7 +12,7 @@ const en = {
     hero: {
       eyebrow: 'Professionally managed on-demand home services',
       title: 'One booking · Everything handled at your door',
-      desc: 'Efficient · Reliable · Worry-free',
+      desc: '',
       tag1: 'Professional',
       tag2: 'Fast',
       tag3: 'Reliable',

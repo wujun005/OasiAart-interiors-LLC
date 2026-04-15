@@ -462,6 +462,7 @@ onMounted(() => {
   width: 24px;
   height: 24px;
   object-fit: contain;
+  padding: 3px;
 }
 
 .h5-topbar__actions {
@@ -776,8 +777,11 @@ onMounted(() => {
 }
 
 .h5-booking-step__icon img {
-  width: 28px;
-  height: 28px;
+  display: block;
+  width: auto;
+  height: auto;
+  max-width: 28px;
+  max-height: 28px;
   object-fit: contain;
 }
 
