@@ -434,6 +434,7 @@ onMounted(() => {
   --primary-dark: #2f63de;
   --text-main: rgba(15, 23, 42, 0.9);
   --text-sub: rgba(15, 23, 42, 0.5);
+  --hero-aspect-ratio: 1311 / 600;
   background: #fff;
   color: var(--text-main);
   font-family: 'Inter', 'Noto Sans SC', 'PingFang SC', sans-serif;
@@ -445,14 +446,16 @@ onMounted(() => {
 }
 
 .hero-section {
-  background: var(--primary);
-  min-height: 600px;
+  width: 100%;
+  aspect-ratio: var(--hero-aspect-ratio);
+  background: url('../../../assets//images/client/kv.png') no-repeat center / 100% 100%;
 }
 
 .hero-section__inner {
   display: flex;
   align-items: center;
-  min-height: 600px;
+  min-height: 100%;
+  height: 100%;
 }
 
 .hero-section__content {
@@ -963,14 +966,6 @@ onMounted(() => {
 }
 
 @media (max-width: 1300px) {
-  .hero-section {
-    min-height: 440px;
-  }
-
-  .hero-section__inner {
-    min-height: 440px;
-  }
-
   .hero-section__cta {
     width: 150px;
     height: 60px;
@@ -1001,12 +996,16 @@ onMounted(() => {
   }
 
   .hero-section {
+    width: 100%;
+    aspect-ratio: auto;
     min-height: auto;
     padding: 48px 0 56px;
+    background-size: cover;
   }
 
   .hero-section__inner {
     min-height: auto;
+    height: auto;
   }
 
   .hero-section__eyebrow {

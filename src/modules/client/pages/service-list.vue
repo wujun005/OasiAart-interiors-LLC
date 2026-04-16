@@ -463,15 +463,17 @@ const goProductDetail = (spuId: string) => {
   height: 80px;
   border-radius: 50%;
   background: #eff6ff;
+  overflow: hidden;
   display: flex;
   align-items: center;
   justify-content: center;
 }
 
 .service-card__icon img {
-  width: 48px;
-  height: 48px;
-  object-fit: contain;
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: cover;
 }
 
 .service-card h3 {
