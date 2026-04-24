@@ -9,9 +9,9 @@
           </h1>
           <p>{{ pageCopy.heroDesc }}</p>
         </div>
-        <div class="join-hero__art">
+        <!-- <div class="join-hero__art">
           <img :src="heroArtUrl" alt="" />
-        </div>
+        </div>  -->
       </div>
     </section>
 
@@ -79,7 +79,6 @@ const { locale } = useI18n({ useScope: 'global' });
 
 // const cityImageUrl = 'https://www.figma.com/api/mcp/asset/8c23ea27-c49c-4a55-9ad4-3ce082640fa3';
 const cityImageUrl = new URL('@/assets/images/client/Container.png', import.meta.url).href;
-const heroArtUrl = new URL('@/assets/images/client/icon-banner.png', import.meta.url).href;
 const valueIconShieldUrl = new URL('@/assets/images/client/icon2.png', import.meta.url).href;;
 const valueIconClockUrl = new URL('@/assets/images/client/icon3.png', import.meta.url).href;
 const valueIconPinUrl = new URL('@/assets/images/client/icon4.png', import.meta.url).href;
@@ -168,6 +167,7 @@ const valueItems = computed<JoinValue[]>(() =>
 
 <style scoped lang="scss">
 .join-page {
+  --join-hero-aspect-ratio: 2858 / 1200;
   background: #ffffff;
 }
 
@@ -179,36 +179,14 @@ const valueItems = computed<JoinValue[]>(() =>
 .join-hero {
   position: relative;
   overflow: hidden;
-  background: #3972f5;
-}
-
-.join-hero::before,
-.join-hero::after {
-  content: '';
-  position: absolute;
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.18);
-  filter: blur(50px);
-  pointer-events: none;
-}
-
-.join-hero::before {
-  width: 280px;
-  height: 280px;
-  top: -110px;
-  right: 8%;
-}
-
-.join-hero::after {
-  width: 220px;
-  height: 220px;
-  left: -60px;
-  bottom: 40px;
-  opacity: 0.32;
+  width: 100%;
+  aspect-ratio: var(--join-hero-aspect-ratio);
+  background: #12B0FF url('../../../assets/images/client/kv_joinus@2x.png') no-repeat center / 100% 100%;
 }
 
 .join-hero__inner {
-  min-height: 550px;
+  min-height: 100%;
+  height: 100%;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -266,7 +244,7 @@ const valueItems = computed<JoinValue[]>(() =>
   padding: 0 16px;
   border-radius: 999px;
   background: #eff6ff;
-  color: #3972f5;
+  color: #12B0FF;
   display: inline-flex;
   align-items: center;
   font-size: 14px;
@@ -401,7 +379,7 @@ const valueItems = computed<JoinValue[]>(() =>
   height: 40px;
   border-radius: 10px;
   background: #fff;
-  color: #3972f5;
+  color: #12B0FF;
   text-decoration: none;
   display: inline-flex;
   align-items: center;
@@ -418,10 +396,11 @@ const valueItems = computed<JoinValue[]>(() =>
 
 @media (max-width: 1024px) {
   .join-hero__inner {
-    padding: 72px 0;
-    min-height: auto;
-    flex-direction: column;
-    align-items: flex-start;
+    padding: 0;
+    min-height: 100%;
+    height: 100%;
+    flex-direction: row;
+    align-items: center;
   }
 
   .join-hero__content h1 {

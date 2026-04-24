@@ -173,7 +173,7 @@ const handleLocaleChange = (lang: AdminLocale) => {
   box-sizing: border-box;
   position: relative;
   overflow: hidden;
-  background: linear-gradient(180deg, #6faad0 0%, #3972f5 58%, #6597f0 100%);
+  background: linear-gradient(180deg, #6faad0 0%, #12B0FF 58%, #6597f0 100%);
 }
 
 .auth-page-left::before,

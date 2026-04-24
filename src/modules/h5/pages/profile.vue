@@ -180,7 +180,7 @@ onMounted(() => {
   display: flex;
   align-items: center;
   gap: 16px;
-  background: #3972f5;
+  background: #12B0FF;
   position: relative;
   overflow: hidden;
 }
@@ -328,7 +328,7 @@ onMounted(() => {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  color: #3972f5;
+  color: #12B0FF;
   font-size: 13px;
   font-weight: 700;
 }
@@ -385,6 +385,6 @@ onMounted(() => {
 }
 
 .h5-profile-tabbar__item--active {
-  color: #3972f5;
+  color: #12B0FF;
 }
 </style>

@@ -329,7 +329,7 @@ const goProductDetail = (spuId: string) => {
   border: 0;
   background: transparent;
   padding: 0;
-  color: #3972f5;
+  color: #12B0FF;
   font-size: inherit;
   line-height: 1;
   font-weight: 700;
@@ -374,7 +374,7 @@ const goProductDetail = (spuId: string) => {
 .service-hero__mask {
   position: absolute;
   inset: 0;
-  background: linear-gradient(90deg, #3972f5 0%, rgba(57, 114, 245, 0.8) 50%, rgba(0, 0, 0, 0) 100%);
+  background: linear-gradient(90deg, #12B0FF 0%, rgba(57, 114, 245, 0.8) 50%, rgba(0, 0, 0, 0) 100%);
 }
 
 .service-hero__content {
@@ -505,8 +505,8 @@ const goProductDetail = (spuId: string) => {
   width: 180px;
   height: 52px;
   border-radius: 10px;
-  border: 2px solid #3972f5;
-  background: #3972f5;
+  border: 2px solid #12B0FF;
+  background: #12B0FF;
   color: #fff;
   font-size: 16px;
   font-weight: 700;

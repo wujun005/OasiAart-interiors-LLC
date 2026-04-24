@@ -201,7 +201,7 @@ onMounted(() => {
 }
 
 .form-item > input:focus {
-  border-color: #3972f5;
+  border-color: #12B0FF;
   box-shadow: 0 0 0 2px rgba(57, 114, 245, 0.15);
 }
 
@@ -211,7 +211,7 @@ onMounted(() => {
   height: 50px;
   border: 0;
   border-radius: 12px;
-  background: #3972f5;
+  background: #12B0FF;
   color: #fff;
   font-size: 16px;
   font-weight: 700;

@@ -1137,7 +1137,7 @@ const goOrderConfirm = async () => {
   border: 0;
   background: transparent;
   padding: 0;
-  color: #3972f5;
+  color: #12B0FF;
   font-size: inherit;
   line-height: 1;
   font-weight: 700;
@@ -1203,7 +1203,7 @@ const goOrderConfirm = async () => {
 }
 
 .product-gallery__thumb--active {
-  border-color: #3972f5;
+  border-color: #12B0FF;
   box-shadow: 0 0 0 2px rgba(57, 114, 245, 0.2);
 }
 
@@ -1228,7 +1228,7 @@ const goOrderConfirm = async () => {
   left: 16px;
   height: 24px;
   border-radius: 999px;
-  background: #3972f5;
+  background: #12B0FF;
   color: #fff;
   display: inline-flex;
   align-items: center;
@@ -1301,7 +1301,7 @@ const goOrderConfirm = async () => {
 
 .product-card__head p {
   margin: 0;
-  color: #3972f5;
+  color: #12B0FF;
   font-size: 26px;
   line-height: 1.2;
   font-weight: 900;
@@ -1522,8 +1522,8 @@ const goOrderConfirm = async () => {
 }
 
 .booking-option--active {
-  border-color: #3972f5;
-  color: #3972f5;
+  border-color: #12B0FF;
+  color: #12B0FF;
   background: #fff;
 }
 
@@ -1634,7 +1634,7 @@ const goOrderConfirm = async () => {
 }
 
 .booking-summary__row--total strong {
-  color: #3972f5;
+  color: #12B0FF;
   font-size: 24px;
   font-weight: 900;
 }
@@ -1644,8 +1644,8 @@ const goOrderConfirm = async () => {
   width: 100%;
   height: 48px;
   border-radius: 10px;
-  border: 2px solid #3972f5;
-  background: #3972f5;
+  border: 2px solid #12B0FF;
+  background: #12B0FF;
   color: #fff;
   font-size: 16px;
   font-weight: 700;

@@ -50,11 +50,18 @@
           @command="handleUserCommand"
         >
           <button class="site-header__user-btn" type="button">
-            <img
+            <span class="site-header__user-icon-wrap">
+              <img
+              class="site-header__user-icon-wrap"
+              src="@/assets/images/client/icon14.png"
+              alt=""
+            />
+            </span>
+            <!-- <img
               class="site-header__user-icon-wrap"
               src="@/assets/images/client/header.png"
               alt=""
-            />
+            /> -->
             <span class="site-header__user-name">{{ userLabel }}</span>
             <img src="@/assets/images/client/arrow.png" alt="" />
           </button>
@@ -219,7 +226,7 @@ onBeforeUnmount(() => {
 }
 
 .site-header__link:hover {
-  color: #3972f5;
+  color: #12B0FF;
   background: rgba(57, 114, 245, 0.08);
 }
 
@@ -287,7 +294,7 @@ onBeforeUnmount(() => {
   height: 40px;
   padding: 0 16px;
   border-radius: 999px;
-  background: #3972f5;
+  background: #12B0FF;
   color: #fff;
   text-decoration: none;
   display: inline-flex;

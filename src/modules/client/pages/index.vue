@@ -114,7 +114,7 @@
               <article v-for="item in reasons" :key="item.title" class="about-reason">
                 <div class="about-reason__icon-wrap">
                   <img :src="item.icon" :alt="item.title" />
-                  <span v-if="item.highlight" />
+                  <!-- <span v-if="item.highlight" /> -->
                 </div>
                 <h4 style="text-align: center;">{{ item.title }}</h4>
                 <p>{{ item.desc }}</p>
@@ -174,7 +174,7 @@ type Reason = {
 };
 
 const supportAgentUrl = new URL('@/assets/images/client/kefu.jpeg', import.meta.url).href;
-const aboutImageUrl = new URL('@/assets/images/client/fengmian.png', import.meta.url).href;;
+const aboutImageUrl = new URL('@/assets/images/client/why_select.png', import.meta.url).href;;
 
 const defaultServiceIcons = [
   'https://www.figma.com/api/mcp/asset/eb5c30c7-689f-4ed5-bbbd-d173eed0127f',
@@ -200,7 +200,7 @@ const bookingStepIcons = [
 
 const reasonIcons = [
   new URL('@/assets/images/client/Icon7.svg', import.meta.url).href,
-  new URL('@/assets/images/client/Icon8.svg', import.meta.url).href,
+  new URL('@/assets/images/client/Icon_quick.png', import.meta.url).href,
   new URL('@/assets/images/client/Icon9.svg', import.meta.url).href,
 ];
 
@@ -430,7 +430,7 @@ onMounted(() => {
 
 <style scoped lang="scss">
 .home-page {
-  --primary: #3972f5;
+  --primary: #12B0FF;
   --primary-dark: #2f63de;
   --text-main: rgba(15, 23, 42, 0.9);
   --text-sub: rgba(15, 23, 42, 0.5);

@@ -230,7 +230,7 @@ onMounted(() => {
   min-height: 50px;
   border: 0;
   border-radius: 16px;
-  background: #3972f5;
+  background: #12B0FF;
   color: #fff;
   font-size: 15px;
   font-weight: 700;

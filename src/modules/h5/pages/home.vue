@@ -20,7 +20,7 @@
       <section class="h5-hero">
         <p class="h5-hero__eyebrow">{{ t('h5.home.hero.eyebrow') }}</p>
         <h1 class="h5-hero__title">{{ t('h5.home.hero.title') }}</h1>
-        <p class="h5-hero__desc">{{ t('h5.home.hero.desc') }}</p>
+        <p class="h5-hero__desc"></p>
         <div class="h5-hero__tags">
           <span v-for="tag in heroTags" :key="tag">
             <van-icon name="passed" />
@@ -102,10 +102,14 @@
               rel="noopener noreferrer"
               aria-label="Facebook"
             >
-              f
+              <img :src="facebookIconUrl" alt="" />
             </a>
-            <span class="h5-footer__social-item" aria-label="Telegram">tg</span>
-            <span class="h5-footer__social-item" aria-label="LinkedIn">in</span>
+            <span class="h5-footer__social-item" aria-label="Instagram">
+              <img :src="instagramIconUrl" alt="" />
+            </span>
+            <span class="h5-footer__social-item" aria-label="WeChat">
+              <img :src="wechatIconUrl" alt="" />
+            </span>
           </div>
         </div>
 
@@ -187,6 +191,9 @@ type BookingStep = {
 
 const logoUrl = '/assets/images/client/hourx.svg';
 const languageIconUrl = new URL('@/assets/images/client/language-Icon.png', import.meta.url).href;
+const facebookIconUrl = new URL('@/assets/images/client/icon_Facebook.png', import.meta.url).href;
+const instagramIconUrl = new URL('@/assets/images/client/icon_ins.png', import.meta.url).href;
+const wechatIconUrl = new URL('@/assets/images/client/icon_WeChat.png', import.meta.url).href;
 const bookingStepIcons = [
   new URL('@/assets/images/client/Icon6.svg', import.meta.url).href,
   new URL('@/assets/images/client/Icon5.svg', import.meta.url).href,
@@ -451,7 +458,7 @@ onMounted(() => {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  color: #3972f5;
+  color: #12B0FF;
   font-size: 22px;
   font-weight: 900;
   text-decoration: none;
@@ -496,7 +503,7 @@ onMounted(() => {
 }
 
 .h5-pill--primary {
-  background: #3972f5;
+  background: #12B0FF;
   color: #fff;
 }
 
@@ -509,7 +516,7 @@ onMounted(() => {
 }
 
 .h5-hero {
-  background: linear-gradient(180deg, #3972f5 0%, #4f80f7 100%);
+  background: linear-gradient(180deg, #12B0FF 0%, #4f80f7 100%);
   padding: 26px 24px 24px;
   color: #fff;
   text-align: center;
@@ -537,6 +544,7 @@ onMounted(() => {
   line-height: 1.45;
   font-weight: 700;
   opacity: 0.96;
+  margin-top: 20px;
 }
 
 .h5-hero__tags {
@@ -729,7 +737,7 @@ onMounted(() => {
 
 .h5-offer-card__price {
   margin: auto 0 0;
-  color: #3972f5;
+  color: #12B0FF;
   text-align: center;
   font-size: 14px;
   font-weight: 800;
@@ -741,14 +749,14 @@ onMounted(() => {
   height: 34px;
   border: 0;
   border-radius: 10px;
-  background: #3972f5;
+  background: #12B0FF;
   color: #fff;
   font-size: 12px;
   font-weight: 800;
 }
 
 .h5-booking-section {
-  background: linear-gradient(180deg, #3972f5 0%, #4a7ef8 100%);
+  background: linear-gradient(180deg, #12B0FF 0%, #4a7ef8 100%);
   padding: 28px 16px 32px;
 }
 
@@ -849,6 +857,13 @@ onMounted(() => {
   font-size: 12px;
 }
 
+.h5-footer__social-item img {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: contain;
+}
+
 .h5-footer__tagline {
   margin: 16px 0 0;
   font-size: 12px;
@@ -919,7 +934,7 @@ onMounted(() => {
 }
 
 .h5-tabbar__item--active {
-  color: #3972f5;
+  color: #12B0FF;
 }
 
 .h5-tabbar__item :deep(.van-icon) {

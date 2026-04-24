@@ -3,7 +3,10 @@
     <div class="site-footer__inner">
       <div class="site-footer__main">
         <div class="site-footer__brand">
-          <h3 class="site-footer__title">HourX Portal Co LLC</h3>
+          <h3 class="site-footer__title">
+            <img class="site-footer__logo" :src="logoUrl" alt="HourX Logo" />
+            <span>HourX Portal Co LLC</span>
+          </h3>
           <p class="site-footer__text">{{ t('client.footer.tagline') }}</p>
           <div class="site-footer__social">
             <a
@@ -13,10 +16,14 @@
               rel="noopener noreferrer"
               aria-label="Facebook"
             >
-              f
+              <img :src="facebookIconUrl" alt="" />
             </a>
-            <span class="site-footer__social-item" aria-label="Telegram">tg</span>
-            <span class="site-footer__social-item" aria-label="LinkedIn">in</span>
+            <span class="site-footer__social-item" aria-label="Instagram">
+              <img :src="instagramIconUrl" alt="" />
+            </span>
+            <span class="site-footer__social-item" aria-label="WeChat">
+              <img :src="wechatIconUrl" alt="" />
+            </span>
           </div>
         </div>
 
@@ -70,6 +77,10 @@
 import { useI18n } from 'vue-i18n';
 
 const year = new Date().getFullYear();
+const logoUrl = '/assets/images/client/hourx.svg';
+const facebookIconUrl = new URL('@/assets/images/client/icon_Facebook.png', import.meta.url).href;
+const instagramIconUrl = new URL('@/assets/images/client/icon_ins.png', import.meta.url).href;
+const wechatIconUrl = new URL('@/assets/images/client/icon_WeChat.png', import.meta.url).href;
 const { t } = useI18n({ useScope: 'global' });
 </script>
 
@@ -95,8 +106,21 @@ const { t } = useI18n({ useScope: 'global' });
 .site-footer__title {
   margin: 0 0 14px;
   color: #fff;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
   font-size: 18px;
   font-weight: 700;
+}
+
+.site-footer__logo {
+  width: 34px;
+  height: 34px;
+  padding: 3px;
+  object-fit: contain;
+  border-radius: 8px;
+  background: #fff;
+  flex-shrink: 0;
 }
 
 .site-footer__text {
@@ -122,6 +146,13 @@ const { t } = useI18n({ useScope: 'global' });
   font-size: 12px;
   color: #fff;
   text-decoration: none;
+}
+
+.site-footer__social-item img {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: contain;
 }
 
 .site-footer__col {

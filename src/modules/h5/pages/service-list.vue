@@ -333,7 +333,7 @@ const goProductDetail = (spuId: string) => {
 .h5-service-hero {
   padding: 30px 20px 20px;
   border-radius: 16px;
-  background: linear-gradient(180deg, #3972f5 0%, #4a7ef8 100%);
+  background: linear-gradient(180deg, #12B0FF 0%, #4a7ef8 100%);
   box-shadow: 0 18px 40px rgba(57, 114, 245, 0.22);
 }
 
@@ -447,7 +447,7 @@ const goProductDetail = (spuId: string) => {
 
 .h5-service-card__content p {
   margin: 4px 0 0;
-  color: #3972f5;
+  color: #12B0FF;
   font-size: 12px;
   font-weight: 700;
 }
@@ -457,7 +457,7 @@ const goProductDetail = (spuId: string) => {
   height: 32px;
   border: 0;
   border-radius: 999px;
-  background: #3972f5;
+  background: #12B0FF;
   color: #fff;
   font-size: 12px;
   font-weight: 800;

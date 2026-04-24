@@ -1278,7 +1278,7 @@ onMounted(() => {
   display: inline-flex;
   align-items: center;
   gap: 12px;
-  color: #3972f5;
+  color: #12B0FF;
   font-size: 20px;
   font-weight: 800;
   line-height: 1;
@@ -1333,7 +1333,7 @@ onMounted(() => {
   height: 24px;
   border-radius: 999px;
   background: #eff6ff;
-  color: #3972f5;
+  color: #12B0FF;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -1488,7 +1488,7 @@ onMounted(() => {
 }
 
 .payment-policy span {
-  color: #3972f5;
+  color: #12B0FF;
   font-size: 12px;
   font-weight: 600;
 }
@@ -1565,7 +1565,7 @@ onMounted(() => {
 }
 
 .order-summary-card__total span {
-  color: #3972f5;
+  color: #12B0FF;
   font-size: 22px;
   font-weight: 900;
 }
@@ -1575,8 +1575,8 @@ onMounted(() => {
   width: 100%;
   height: 54px;
   border-radius: 12px;
-  border: 2px solid #3972f5;
-  background: #3972f5;
+  border: 2px solid #12B0FF;
+  background: #12B0FF;
   color: #fff;
   font-size: 18px;
   font-weight: 700;
@@ -1650,8 +1650,8 @@ onMounted(() => {
 }
 
 .stripe-dialog-btn--primary {
-  border-color: #3972f5;
-  background: #3972f5;
+  border-color: #12B0FF;
+  background: #12B0FF;
   color: #fff;
 }
 

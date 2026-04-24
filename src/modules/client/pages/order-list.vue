@@ -596,7 +596,7 @@ onBeforeUnmount(() => {
 }
 
 .order-status-tab--active {
-  background: #3972f5;
+  background: #12B0FF;
   color: #fff;
 }
 
@@ -652,7 +652,7 @@ onBeforeUnmount(() => {
   height: 24px;
   border-radius: 999px;
   background: #eff6ff;
-  color: #3972f5;
+  color: #12B0FF;
   display: inline-flex;
   align-items: center;
   padding: 0 12px;
@@ -682,7 +682,7 @@ onBeforeUnmount(() => {
 }
 
 .order-card__title-row strong {
-  color: #3972f5;
+  color: #12B0FF;
   font-size: 18px;
   line-height: 1.2;
   font-weight: 900;
@@ -757,7 +757,7 @@ onBeforeUnmount(() => {
 }
 
 .order-card__btn--primary {
-  background: #3972f5;
+  background: #12B0FF;
   color: #fff;
 }
 

@@ -1277,7 +1277,7 @@ onMounted(() => {
   width: 4px;
   height: 16px;
   border-radius: 999px;
-  background: #3972f5;
+  background: #12B0FF;
   flex-shrink: 0;
 }
 
@@ -1524,7 +1524,7 @@ onMounted(() => {
 .h5-order-footer__summary strong {
   display: block;
   margin-top: 2px;
-  color: #3972f5;
+  color: #12B0FF;
   font-size: 16px;
   line-height: 1;
   font-weight: 900;
@@ -1541,7 +1541,7 @@ onMounted(() => {
   height: 40px;
   border: 0;
   border-radius: 4px;
-  background: #3972f5;
+  background: #12B0FF;
   color: #fff;
   font-size: 14px;
   font-weight: 900;
@@ -1622,7 +1622,7 @@ onMounted(() => {
   height: 44px;
   border: 0;
   border-radius: 8px;
-  background: #3972f5;
+  background: #12B0FF;
   color: #fff;
   font-size: 14px;
   font-weight: 800;

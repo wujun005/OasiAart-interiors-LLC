@@ -403,7 +403,7 @@ onBeforeUnmount(() => {
   box-sizing: border-box;
   position: relative;
   overflow: hidden;
-  background: linear-gradient(180deg, #6faad0 0%, #3972f5 58%, #6597f0 100%);
+  background: linear-gradient(180deg, #6faad0 0%, #12B0FF 58%, #6597f0 100%);
 }
 
 .auth-page__left::before,
@@ -653,7 +653,7 @@ onBeforeUnmount(() => {
   border: 0;
   border-radius: 10px;
   background: #eff6ff;
-  color: #3972f5;
+  color: #12B0FF;
   font-size: 14px;
   font-weight: 700;
   cursor: pointer;
@@ -674,7 +674,7 @@ onBeforeUnmount(() => {
   border: 0;
   padding: 0;
   background: transparent;
-  color: #3972f5;
+  color: #12B0FF;
   font-size: 16px;
   font-weight: 700;
   text-decoration: underline;
@@ -691,7 +691,7 @@ onBeforeUnmount(() => {
   height: 60px;
   border: 0;
   border-radius: 14px;
-  background: #3972f5;
+  background: #12B0FF;
   color: #fff;
   font-size: 18px;
   font-weight: 700;

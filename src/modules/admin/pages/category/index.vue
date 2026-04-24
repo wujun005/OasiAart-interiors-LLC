@@ -679,7 +679,7 @@ const removeBannerTags = (idx: number) => {
 .preview-services-grid__icon span {
   font-size: 28px;
   font-weight: 700;
-  color: #3972f5;
+  color: #12B0FF;
 }
 .preview-services-grid__item p {
   margin: 0;

@@ -953,7 +953,7 @@ const goOrderConfirm = async () => {
   height: 20px;
   padding: 0 8px;
   border-radius: 4px;
-  background: #3972f5;
+  background: #12B0FF;
   color: #fff;
   display: inline-flex;
   align-items: center;
@@ -979,7 +979,7 @@ const goOrderConfirm = async () => {
 
 .h5-detail-gallery__dot--active {
   width: 10px;
-  background: #3972f5 !important;
+  background: #12B0FF !important;
 }
 
 .h5-detail-card {
@@ -1010,7 +1010,7 @@ const goOrderConfirm = async () => {
 }
 
 .h5-detail-card__title-row strong {
-  color: #3972f5;
+  color: #12B0FF;
   font-size: 18px;
   line-height: 1.2;
   font-weight: 900;
@@ -1083,7 +1083,7 @@ const goOrderConfirm = async () => {
   width: 4px;
   height: 16px;
   border-radius: 999px;
-  background: #3972f5;
+  background: #12B0FF;
 }
 
 .h5-detail-card__heading--compact {
@@ -1122,9 +1122,9 @@ const goOrderConfirm = async () => {
 }
 
 .h5-booking-option--active {
-  border-color: #3972f5;
+  border-color: #12B0FF;
   background: #eff6ff;
-  color: #3972f5;
+  color: #12B0FF;
 }
 
 .h5-attach-list {
@@ -1269,7 +1269,7 @@ const goOrderConfirm = async () => {
   height: 28px;
   border-radius: 999px;
   background: #eff6ff;
-  color: #3972f5;
+  color: #12B0FF;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -1334,7 +1334,7 @@ const goOrderConfirm = async () => {
 }
 
 .h5-detail-bottom__summary strong {
-  color: #3972f5;
+  color: #12B0FF;
   font-size: 16px;
   margin-left: 5px;
   line-height: 1;
@@ -1346,7 +1346,7 @@ const goOrderConfirm = async () => {
   height: 41px;
   border: 0;
   border-radius: 6px;
-  background: #3972f5;
+  background: #12B0FF;
   color: #fff;
   font-size: 14px;
   font-weight: 900;

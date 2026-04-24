@@ -534,7 +534,7 @@ onBeforeUnmount(() => {
 }
 
 .h5-orders-tab--active {
-  background: #3972f5;
+  background: #12B0FF;
   color: #fff;
 }
 
@@ -603,7 +603,7 @@ onBeforeUnmount(() => {
 
 .h5-order-card__badge--progress {
   background: #eff6ff;
-  color: #3972f5;
+  color: #12B0FF;
 }
 
 .h5-order-card__badge--done {
@@ -647,7 +647,7 @@ onBeforeUnmount(() => {
 
 .h5-order-card__title-row strong {
   white-space: nowrap;
-  color: #3972f5;
+  color: #12B0FF;
   font-size: 14px;
   line-height: 1.5;
   font-weight: 900;
@@ -696,7 +696,7 @@ onBeforeUnmount(() => {
 
 .h5-order-card__btn--primary {
   border: 0;
-  background: #3972f5;
+  background: #12B0FF;
   color: #fff;
 }
 
@@ -734,7 +734,7 @@ onBeforeUnmount(() => {
 }
 
 .h5-orders-tabbar__item--active {
-  color: #3972f5;
+  color: #12B0FF;
 }
 
 .h5-review-sheet {
@@ -793,7 +793,7 @@ onBeforeUnmount(() => {
   height: 42px;
   border: 0;
   border-radius: 8px;
-  background: #3972f5;
+  background: #12B0FF;
   color: #fff;
   font-size: 14px;
   font-weight: 800;
