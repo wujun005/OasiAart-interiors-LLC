@@ -22,12 +22,9 @@
       </div>
     </section>
 
-    <div class="contact-card">
-      <div class="contact-card__agent">
-        <img :src="supportAgentUrl" :alt="t('client.home.alt.supportAgent')" />
-        <span class="contact-card__status" />
-      </div>
-      <button type="button">{{ t('client.home.contactCard.button') }}</button>
+    <div class="contact-card" @click="openWhatsApp">
+      <img :src="kefuImageUrl" :alt="t('client.home.contactCard.button')" />
+      <span class="contact-card__text">{{ t('client.home.contactCard.button') }}</span>
     </div>
 
     <section id="services" class="services-section">
@@ -173,8 +170,8 @@ type Reason = {
   highlight?: boolean;
 };
 
-const supportAgentUrl = new URL('@/assets/images/client/kefu.jpeg', import.meta.url).href;
-const aboutImageUrl = new URL('@/assets/images/client/why_select.png', import.meta.url).href;;
+const kefuImageUrl = new URL('@/assets/images/client/kefu.png', import.meta.url).href;
+const aboutImageUrl = new URL('@/assets/images/client/why_select.png', import.meta.url).href;
 
 const defaultServiceIcons = [
   'https://www.figma.com/api/mcp/asset/eb5c30c7-689f-4ed5-bbbd-d173eed0127f',
@@ -413,6 +410,10 @@ const goProductDetail = (spuId: string) => {
   });
 };
 
+const openWhatsApp = () => {
+  window.open('https://wa.me/971502100284', '_blank');
+};
+
 const loadExclusiveCards = async () => {
   try {
     serviceCardRecords.value = await exclusiveSpus();
@@ -530,53 +531,25 @@ onMounted(() => {
   bottom: 120px;
   width: 144px;
   height: 96px;
-  background: var(--primary);
-  border-radius: 14px;
-  box-shadow: 0 25px 50px rgba(0, 0, 0, 0.25);
   z-index: 60;
+  cursor: pointer;
 }
 
-.contact-card__agent {
-  position: absolute;
-  width: 56px;
-  height: 56px;
-  left: 44px;
-  top: -28px;
-  border-radius: 50%;
-  overflow: hidden;
-  box-shadow: 0 0 0 4px rgba(255, 255, 255, 0.8), 0 4px 12px rgba(0, 0, 0, 0.2);
-}
-
-.contact-card__agent img {
+.contact-card img {
   width: 100%;
   height: 100%;
-  object-fit: cover;
+  object-fit: contain;
 }
 
-.contact-card__status {
+.contact-card__text {
   position: absolute;
-  right: 4px;
-  bottom: 4px;
-  width: 12px;
-  height: 12px;
-  border-radius: 50%;
-  border: 2px solid #fff;
-  background: #00c950;
-}
-
-.contact-card button {
-  position: absolute;
-  left: 19px;
-  top: 44px;
-  width: 106px;
-  height: 32px;
-  border: none;
-  border-radius: 999px;
-  background: #fff;
-  color: var(--primary);
-  font-size: 14px;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  color: #fff;
+  font-size: 12px;
   font-weight: 700;
-  cursor: pointer;
+  white-space: nowrap;
 }
 
 .services-section {
@@ -1082,15 +1055,7 @@ onMounted(() => {
     height: 88px;
     right: 12px;
     bottom: 90px;
-  }
-
-  .contact-card__agent {
-    left: 36px;
-  }
-
-  .contact-card button {
-    left: 10px;
-    width: 108px;
+    cursor: pointer;
   }
 }
 

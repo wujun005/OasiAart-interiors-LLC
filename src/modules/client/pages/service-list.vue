@@ -31,16 +31,16 @@
 
         <section class="service-grid">
           <article v-for="item in serviceCards" :key="item.key" class="service-card">
-            <div class="service-card__content">
-              <div class="service-card__icon">
-                <img :src="item.icon" :alt="item.title" />
-              </div>
-              <h3>{{ item.title }}</h3>
-              <p>{{ t('client.serviceList.card.priceFrom', { price: item.price }) }}</p>
+            <div class="service-card__media">
+              <img :src="item.icon" :alt="item.title" />
             </div>
-            <button class="service-card__btn" type="button" @click="goProductDetail(item.spuId)">
-              {{ t('client.serviceList.card.bookNow') }}
-            </button>
+            <div class="service-card__body">
+              <h3>{{ item.title }}</h3>
+              <p class="service-card__price">{{ t('client.serviceList.card.priceFrom', { price: item.price }) }}</p>
+              <button type="button" @click="goProductDetail(item.spuId)">
+                {{ t('client.serviceList.card.bookNow') }}
+              </button>
+            </div>
           </article>
         </section>
       </div>
@@ -432,80 +432,59 @@ const goProductDetail = (spuId: string) => {
   margin-top: 32px;
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 24px;
+  gap: 32px;
 }
 
 .service-card {
-  min-height: 343px;
-  border-radius: 14px;
-  border: 1px solid #f8fafc;
-  border-top-width: 4px;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  border: 1px solid #f3f4f6;
   background: #fff;
-  box-shadow:
-    0 1px 3px rgba(0, 0, 0, 0.1),
-    0 1px 2px rgba(0, 0, 0, 0.1);
-  padding: 36px 16px 33px;
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.service-card__content {
-  width: 100%;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-}
-
-.service-card__icon {
-  width: 80px;
-  height: 80px;
-  border-radius: 50%;
-  background: #eff6ff;
+  border-radius: 16px;
   overflow: hidden;
-  display: flex;
-  align-items: center;
-  justify-content: center;
 }
 
-.service-card__icon img {
+.service-card__media {
+  position: relative;
+  height: 224px;
+}
+
+.service-card__media img {
   width: 100%;
   height: 100%;
-  display: block;
   object-fit: cover;
 }
 
-.service-card h3 {
-  margin: 24px 0 0;
-  text-align: center;
-  color: rgba(15, 23, 42, 0.9);
+.service-card__body {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  padding: 24px;
+}
+
+.service-card__body h3 {
+  margin: 0;
   font-size: 20px;
-  line-height: 1.2;
+  line-height: 28px;
   font-weight: 800;
-  min-height: 72px;
 }
 
-.service-card p {
-  margin: 24px 0 0;
-  width: 100%;
-  height: 36px;
-  border-radius: 999px;
-  background: #f8fafc;
-  color: rgba(15, 23, 42, 0.5);
-  font-size: 14px;
+.service-card__price {
+  margin: auto 0 0;
+  color: #12B0FF;
+  text-align: center;
+  font-size: 16px;
+  line-height: 24px;
   font-weight: 700;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
 }
 
-.service-card__btn {
-  margin-top: 18px;
-  width: 180px;
-  height: 52px;
+.service-card__body button {
+  margin-top: 12px;
+  width: 100%;
+  height: 48px;
+  border: none;
   border-radius: 10px;
-  border: 2px solid #12B0FF;
   background: #12B0FF;
   color: #fff;
   font-size: 16px;
@@ -526,7 +505,7 @@ const goProductDetail = (spuId: string) => {
     font-size: 18px;
   }
 
-  .service-card h3 {
+  .service-card__body h3 {
     font-size: 24px;
   }
 }
@@ -542,10 +521,6 @@ const goProductDetail = (spuId: string) => {
 
   .service-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .service-card {
-    min-height: 320px;
   }
 }
 
@@ -574,10 +549,10 @@ const goProductDetail = (spuId: string) => {
 
   .service-grid {
     grid-template-columns: 1fr;
+    gap: 20px;
   }
 
-  .service-card h3 {
-    min-height: 0;
+  .service-card__body h3 {
     font-size: 22px;
   }
 }
