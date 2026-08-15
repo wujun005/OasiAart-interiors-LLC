@@ -1,0 +1,1 @@
+import{c as t}from"./request-Pdnlhkrp.js";import{getClientLocale as r}from"./index-Ds1fZ8oT.js";const a=t({baseURL:"/client-api"});a.interceptors.request.use(e=>(e.headers=e.headers??{},e.headers.language=r(),console.log("import.meta.env.VITE_CLIENT_API_BASE_URL","/client-api"),e));export{a as h};

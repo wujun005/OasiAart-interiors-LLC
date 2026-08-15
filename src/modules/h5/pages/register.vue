@@ -152,7 +152,7 @@ const localeButtonText = computed(() =>
 const countryCodeOptions = computed(() =>
   H5_COUNTRY_CODE_OPTIONS.map((item) => ({
     value: item.value,
-    label: locale.value === 'zh' ? item.labelZh : item.labelEn,
+    label: item.value,
   })),
 );
 const codeBtnText = computed(() => {
