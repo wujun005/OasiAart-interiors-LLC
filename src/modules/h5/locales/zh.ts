@@ -155,14 +155,64 @@ const zh = {
   profile: {
     defaultName: '尊敬的用户',
     defaultAccount: '欢迎使用 HourX',
+    notProvided: '暂未提供',
+    logOut: '退出登录',
     logoutSuccess: '退出登录成功',
-    menu: {
-      account: '用户信息管理',
-      support: '在线客服',
+    accountMenu: {
+      open: '打开账户菜单',
+      myProfile: '我的资料',
+      help: '帮助',
     },
-    joinUs: {
-      title: '加入我们',
-      desc: '我们正在寻找在迪拜本地从事维修服务、拥有自有团队的合作伙伴。',
+    menu: {
+      personal: '个人信息',
+      addresses: '常用地址',
+      payments: '支付方式',
+      notifications: '通知设置',
+      support: '帮助与支持',
+      language: '语言',
+    },
+    personal: {
+      name: '姓名',
+      phone: '手机',
+      email: '邮箱',
+      password: '密码',
+      changePassword: '修改',
+    },
+    addresses: {
+      loading: '正在加载常用地址…',
+      unnamed: '已保存的服务地址',
+      empty: '暂未保存常用地址。',
+      loadFailed: '常用地址加载失败。',
+      retry: '重试',
+    },
+    payments: {
+      empty: '暂未保存支付方式。',
+      note: '可用支付方式将在结账时通过安全支付页面展示。',
+    },
+    notifications: {
+      bookingTitle: '预约动态',
+      bookingDesc: '接收服务预约相关的状态更新。',
+      offersTitle: '优惠与资讯',
+      offersDesc: '接收 HourX 偶尔发送的资讯与优惠。',
+    },
+    support: {
+      description: '如有预约、服务或账户问题，请联系 HourX。',
+      whatsapp: '通过 WhatsApp 联系',
+      faqTitle: '常见问题',
+      bookingQuestion: '如何预约服务？',
+      bookingAnswer: '选择服务、查看详情，然后在线提交预约信息。',
+      ordersQuestion: '在哪里查看预约？',
+      ordersAnswer: '从底部导航进入订单，即可查看预约状态。',
+    },
+    partner: {
+      title: '成为服务合作伙伴',
+      desc: '如果您是在迪拜运营、拥有专业自有团队的服务公司，欢迎与 HourX 合作，共同拓展业务。',
+    },
+    logoutConfirm: {
+      title: '退出登录？',
+      message: '确定要退出当前 HourX 账户吗？',
+      confirm: '退出登录',
+      cancel: '取消',
     },
   },
 }

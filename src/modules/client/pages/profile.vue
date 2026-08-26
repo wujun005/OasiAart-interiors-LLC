@@ -201,8 +201,8 @@ onMounted(() => {
 }
 
 .form-item > input:focus {
-  border-color: #12B0FF;
-  box-shadow: 0 0 0 2px rgba(57, 114, 245, 0.15);
+  border-color: var(--hourx-brand);
+  box-shadow: 0 0 0 2px rgba(5, 21, 43, 0.15);
 }
 
 .submit-btn {
@@ -211,7 +211,7 @@ onMounted(() => {
   height: 50px;
   border: 0;
   border-radius: 12px;
-  background: #12B0FF;
+  background: var(--hourx-brand);
   color: #fff;
   font-size: 16px;
   font-weight: 700;

@@ -2,13 +2,13 @@ const en = {
   common: {
     back: 'Back',
     submit: 'Submit',
-    login: 'Login',
+    login: 'Sign in',
     reserve: 'Book',
     keepPxTip: 'Keep px',
   },
   home: {
     navTitle: 'OasiAart Mobile',
-    login: 'Login',
+    login: 'Sign in',
     hero: {
       eyebrow: 'Professionally managed on-demand home services',
       title: 'One booking · Everything handled at your door',
@@ -134,7 +134,7 @@ const en = {
     totalLabel: 'Total (incl. tax)',
   },
   auth: {
-    navTitle: 'Login',
+    navTitle: 'Sign in',
     back: 'Back',
     welcome: 'Welcome back',
     desc: 'See bookings and membership perks on mobile',
@@ -156,14 +156,64 @@ const en = {
   profile: {
     defaultName: 'Dear User',
     defaultAccount: 'Welcome to HourX',
+    notProvided: 'Not provided',
+    logOut: 'Log out',
     logoutSuccess: 'Logged out successfully',
-    menu: {
-      account: 'Account Management',
-      support: 'Online Support',
+    accountMenu: {
+      open: 'Open account menu',
+      myProfile: 'My Profile',
+      help: 'Help',
     },
-    joinUs: {
-      title: 'Join Us',
-      desc: 'We are looking for Dubai-based repair service partners who operate with their own teams.',
+    menu: {
+      personal: 'Personal Information',
+      addresses: 'Saved Addresses',
+      payments: 'Payment Methods',
+      notifications: 'Notification Settings',
+      support: 'Help & Support',
+      language: 'Language',
+    },
+    personal: {
+      name: 'Name',
+      phone: 'Phone',
+      email: 'Email',
+      password: 'Password',
+      changePassword: 'Change',
+    },
+    addresses: {
+      loading: 'Loading your saved address…',
+      unnamed: 'Saved service address',
+      empty: 'No saved addresses yet.',
+      loadFailed: 'Unable to load your saved address.',
+      retry: 'Retry',
+    },
+    payments: {
+      empty: 'No saved payment methods yet.',
+      note: 'Available payment options are shown securely during checkout.',
+    },
+    notifications: {
+      bookingTitle: 'Booking updates',
+      bookingDesc: 'Receive updates about your service bookings.',
+      offersTitle: 'Offers and news',
+      offersDesc: 'Receive occasional HourX updates and offers.',
+    },
+    support: {
+      description: 'Contact HourX about bookings, services, or account questions.',
+      whatsapp: 'Chat on WhatsApp',
+      faqTitle: 'Frequently asked questions',
+      bookingQuestion: 'How do I book a service?',
+      bookingAnswer: 'Choose a service, review its details, and submit your booking online.',
+      ordersQuestion: 'Where can I check my booking?',
+      ordersAnswer: 'Open Orders from the bottom navigation to view your booking status.',
+    },
+    partner: {
+      title: 'Become a Service Partner',
+      desc: 'Are you a Dubai-based service company with your own professional team? Partner with HourX and grow your business.',
+    },
+    logoutConfirm: {
+      title: 'Log out?',
+      message: 'Are you sure you want to log out of your HourX account?',
+      confirm: 'Log out',
+      cancel: 'Cancel',
     },
   },
 }

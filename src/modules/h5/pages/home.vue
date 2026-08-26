@@ -10,30 +10,97 @@
           <img class="h5-pill__icon" :src="languageIconUrl" alt="" />
           <span>{{ localeLabel }}</span>
         </button>
-        <button class="h5-pill h5-pill--primary" type="button" @click="goAuthEntry">
+        <button
+          v-if="!isLoggedIn"
+          class="h5-pill h5-pill--primary"
+          type="button"
+          @click="goAuthEntry"
+        >
           {{ authButtonLabel }}
         </button>
+        <div v-else class="h5-account">
+          <button
+            class="h5-account__trigger"
+            type="button"
+            :aria-label="t('h5.profile.accountMenu.open')"
+            :aria-expanded="accountMenuOpen"
+            @click.stop="accountMenuOpen = !accountMenuOpen"
+          >
+            <img :src="avatarIconUrl" alt="" />
+          </button>
+          <div
+            v-if="accountMenuOpen"
+            class="h5-account__menu"
+            role="menu"
+            @click.stop
+          >
+            <button type="button" role="menuitem" @click="openAccountSection()">
+              <van-icon name="contact-o" />
+              <span>{{ t('h5.profile.accountMenu.myProfile') }}</span>
+            </button>
+            <button type="button" role="menuitem" @click="openAccountSection('addresses')">
+              <van-icon name="location-o" />
+              <span>{{ t('h5.profile.menu.addresses') }}</span>
+            </button>
+            <button type="button" role="menuitem" @click="openAccountSection('payments')">
+              <van-icon name="balance-o" />
+              <span>{{ t('h5.profile.menu.payments') }}</span>
+            </button>
+            <button type="button" role="menuitem" @click="openSupport">
+              <van-icon name="service-o" />
+              <span>{{ t('h5.profile.accountMenu.help') }}</span>
+            </button>
+            <button
+              class="h5-account__logout"
+              type="button"
+              role="menuitem"
+              @click="handleHeaderLogout"
+            >
+              <van-icon name="close" />
+              <span>{{ t('h5.profile.logOut') }}</span>
+            </button>
+          </div>
+        </div>
       </div>
     </header>
 
+    <div
+      v-if="accountMenuOpen"
+      class="h5-account__scrim"
+      aria-hidden="true"
+      @click="accountMenuOpen = false"
+    ></div>
+
     <main class="h5-home-main">
-      <section class="h5-hero">
-        <p class="h5-hero__eyebrow">{{ t('h5.home.hero.eyebrow') }}</p>
-        <h1 class="h5-hero__title">{{ t('h5.home.hero.title') }}</h1>
-        <p class="h5-hero__desc"></p>
-        <div class="h5-hero__tags">
-          <span v-for="tag in heroTags" :key="tag">
-            <van-icon name="passed" />
-            {{ tag }}
-          </span>
+      <section class="h5-hero" aria-labelledby="h5-home-hero-title">
+        <img class="h5-hero__image" :src="homeBannerUrl" alt="HourX home services" />
+        <div class="h5-hero__overlay">
+          <div class="h5-hero__content">
+            <h1 id="h5-home-hero-title">{{ t('client.home.hero.headline') }}</h1>
+            <p>{{ t('client.home.hero.description') }}</p>
+            <ul class="h5-hero__trust" aria-label="HourX booking information">
+              <li><span aria-hidden="true">✓</span>{{ t('client.home.hero.trustPlatform') }}</li>
+              <li><span aria-hidden="true">✓</span>{{ t('client.home.hero.trustBooking') }}</li>
+            </ul>
+          </div>
+          <div class="h5-hero__actions" aria-label="Banner actions">
+            <button class="h5-hero__action h5-hero__action--primary" type="button" @click="scrollToServices">
+              {{ t('client.home.hero.cta') }}
+            </button>
+            <button class="h5-hero__action h5-hero__action--whatsapp" type="button" @click="openWhatsApp">
+              <img :src="whatsappIconUrl" alt="" />
+              <span>{{ t('client.home.hero.whatsappCta') }}</span>
+            </button>
+          </div>
         </div>
       </section>
 
-      <section class="h5-section">
-        <div class="h5-section__header">
-          <h2>{{ t('client.home.sections.servicesTitle') }}</h2>
-          <p>{{ t('client.home.sections.servicesSubtitle') }}</p>
-        </div>
+      <section id="services" class="h5-section">
+        <header class="h5-home-intro">
+          <p class="h5-home-intro__eyebrow">{{ t('client.home.sections.servicesTitle') }}</p>
+          <h2>{{ t('client.home.sections.serviceSelectorTitle') }}</h2>
+          <p class="h5-home-intro__description">{{ t('client.home.sections.serviceSelectorSubtitle') }}</p>
+        </header>
         <div class="h5-service-grid">
           <button
             v-for="item in mobileServiceTiles"
@@ -88,12 +155,48 @@
         </div>
       </section>
 
+      <section id="why-hourx" class="h5-trust-section">
+        <div class="h5-section__header">
+          <h2>{{ t('client.home.sections.aboutTitle') }}</h2>
+          <p>{{ t('client.home.sections.aboutSubtitle') }}</p>
+        </div>
+        <div class="h5-trust-grid">
+          <article v-for="item in trustReasons" :key="item.title" class="h5-trust-card">
+            <span class="h5-trust-card__icon">
+              <img :src="item.icon" alt="" />
+            </span>
+            <div>
+              <h3>{{ item.title }}</h3>
+              <p>{{ item.desc }}</p>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <section class="h5-final-cta">
+        <h2>{{ t('client.home.sections.finalCtaTitle') }}</h2>
+        <p>{{ t('client.home.sections.finalCtaSubtitle') }}</p>
+        <div class="h5-final-cta__actions">
+          <button class="h5-final-cta__button h5-final-cta__button--primary" type="button" @click="scrollToServices">
+            {{ t('client.home.sections.finalCtaBrowse') }}
+          </button>
+          <button class="h5-final-cta__button h5-final-cta__button--whatsapp" type="button" @click="openWhatsApp">
+            <img :src="whatsappIconUrl" alt="" />
+            <span>WhatsApp</span>
+          </button>
+        </div>
+      </section>
+
       <footer class="h5-footer">
         <div class="h5-footer__brand-row">
-          <div class="h5-footer__brand">
+          <a
+            class="h5-footer__brand"
+            href="/h5/#/"
+            aria-label="Back to homepage"
+            @click.prevent="goHome"
+          >
             <img class="h5-footer__logo" :src="logoUrl" alt="HourX" />
-            <strong>HourX</strong>
-          </div>
+          </a>
           <div class="h5-footer__social">
             <a
               class="h5-footer__social-item"
@@ -104,12 +207,33 @@
             >
               <img :src="facebookIconUrl" alt="" />
             </a>
-            <span class="h5-footer__social-item" aria-label="Instagram">
+            <a
+              class="h5-footer__social-item"
+              href="https://www.linkedin.com/company/hourx-home/"
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label="LinkedIn"
+            >
+              <img :src="linkedinIconUrl" alt="" />
+            </a>
+            <a
+              class="h5-footer__social-item"
+              href="https://www.instagram.com/hourx_2026?igsh=bGoyNnR3amZwejZ4"
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label="Instagram"
+            >
               <img :src="instagramIconUrl" alt="" />
-            </span>
-            <span class="h5-footer__social-item" aria-label="WeChat">
-              <img :src="wechatIconUrl" alt="" />
-            </span>
+            </a>
+            <a
+              class="h5-footer__social-item"
+              href="https://wa.me/971502100284"
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label="WhatsApp"
+            >
+              <img :src="whatsappIconUrl" alt="" />
+            </a>
           </div>
         </div>
 
@@ -118,15 +242,51 @@
         <div class="h5-footer__columns">
           <section class="h5-footer__section">
             <h4>{{ t('client.footer.contactUs') }}</h4>
-            <p>{{ t('client.footer.contactWhatsapp') }}</p>
-            <p>{{ t('client.footer.contactEmail') }}</p>
-            <p>{{ t('client.footer.contactLocation') }}</p>
+            <a class="h5-footer__contact-row" href="mailto:support@hourxportal.com">
+              <img :src="emailIconUrl" alt="" />
+              <span>{{ t('client.footer.contactEmail') }}</span>
+            </a>
+            <a class="h5-footer__contact-row" href="tel:+971502100284">
+              <img :src="phoneIconUrl" alt="" />
+              <span>{{ t('client.footer.contactPhone') }}</span>
+            </a>
+            <a
+              class="h5-footer__contact-row"
+              href="https://wa.me/971502100284"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              <img :src="whatsappIconUrl" alt="" />
+              <span>{{ t('client.footer.whatsapp') }}</span>
+            </a>
+            <p class="h5-footer__contact-row">
+              <img :src="locationIconUrl" alt="" />
+              <span>{{ t('client.footer.contactLocation') }}</span>
+            </p>
           </section>
           <section class="h5-footer__section">
-            <h4>{{ t('client.footer.services') }}</h4>
-            <p>{{ t('client.home.contactCard.button') }}</p>
-            <p>{{ t('client.header.nav.joinUs') }}</p>
+            <h4>{{ t('client.footer.quickLinks') }}</h4>
+            <a href="/h5/#/" @click.prevent="goHome">{{ t('client.header.nav.home') }}</a>
+            <a href="#services" @click.prevent="scrollToServices">{{ t('client.footer.services') }}</a>
+            <a href="/h5/#/orders" @click.prevent="router.push({ name: 'h5-orders' })">
+              {{ t('client.header.nav.orders') }}
+            </a>
+            <a href="/join-us">{{ t('client.header.nav.joinUs') }}</a>
+            <a href="/faq">{{ t('client.footer.faq') }}</a>
           </section>
+        </div>
+
+        <div class="h5-footer__bottom">
+          <div class="h5-footer__legal-links">
+            <a href="/terms">{{ t('client.footer.terms') }}</a>
+            <a href="/privacy">{{ t('client.footer.privacy') }}</a>
+            <a href="/data-deletion">{{ t('client.footer.dataDeletion') }}</a>
+          </div>
+          <div class="h5-footer__payments" role="group" :aria-label="t('client.footer.paymentsLabel')">
+            <img :src="visaIconUrl" alt="Visa" />
+            <img :src="mastercardIconUrl" alt="Mastercard" />
+            <img :src="applePayIconUrl" alt="Apple Pay" />
+          </div>
         </div>
 
         <p class="h5-footer__copyright">
@@ -156,6 +316,7 @@
 import { computed, onMounted, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRouter } from 'vue-router';
+import { showConfirmDialog, showSuccessToast } from 'vant';
 import {
   exclusiveSpus,
   level1Categories,
@@ -189,15 +350,35 @@ type BookingStep = {
   icon: string;
 };
 
-const logoUrl = '/assets/images/client/hourx.svg';
+type TrustReason = {
+  title: string;
+  desc: string;
+  icon: string;
+};
+
+const logoUrl = '/assets/images/client/hourx-mark.svg';
 const languageIconUrl = new URL('@/assets/images/client/language-Icon.png', import.meta.url).href;
-const facebookIconUrl = new URL('@/assets/images/client/icon_Facebook.png', import.meta.url).href;
-const instagramIconUrl = new URL('@/assets/images/client/icon_ins.png', import.meta.url).href;
-const wechatIconUrl = new URL('@/assets/images/client/icon_WeChat.png', import.meta.url).href;
+const avatarIconUrl = new URL('@/assets/images/client/icon13.png', import.meta.url).href;
+const facebookIconUrl = new URL('@/assets/images/client/icon_facebook.svg', import.meta.url).href;
+const linkedinIconUrl = new URL('@/assets/images/client/icon_linkedin.svg', import.meta.url).href;
+const instagramIconUrl = new URL('@/assets/images/client/icon_instagram.svg', import.meta.url).href;
+const whatsappIconUrl = new URL('@/assets/images/client/icon_whatsapp.svg', import.meta.url).href;
+const emailIconUrl = new URL('@/assets/images/client/icon_email.svg', import.meta.url).href;
+const phoneIconUrl = new URL('@/assets/images/client/icon_phone.svg', import.meta.url).href;
+const locationIconUrl = new URL('@/assets/images/client/icon_location.svg', import.meta.url).href;
+const visaIconUrl = new URL('@/assets/images/client/payment_visa.svg', import.meta.url).href;
+const mastercardIconUrl = new URL('@/assets/images/client/payment_mastercard.svg', import.meta.url).href;
+const applePayIconUrl = new URL('@/assets/images/client/payment_apple_pay.svg', import.meta.url).href;
+const homeBannerUrl = new URL('@/assets/images/client/home-banner.png', import.meta.url).href;
 const bookingStepIcons = [
   new URL('@/assets/images/client/Icon6.svg', import.meta.url).href,
   new URL('@/assets/images/client/Icon5.svg', import.meta.url).href,
   new URL('@/assets/images/client/Icon4.svg', import.meta.url).href,
+];
+const trustReasonIcons = [
+  new URL('@/assets/images/client/Icon7.svg', import.meta.url).href,
+  new URL('@/assets/images/client/Icon_quick.png', import.meta.url).href,
+  new URL('@/assets/images/client/Icon9.svg', import.meta.url).href,
 ];
 
 const defaultOfferImages = [
@@ -222,9 +403,10 @@ const serviceFallbackIcons = [
 
 const { t, locale } = useI18n({ useScope: 'global' });
 const router = useRouter();
-const { isLoggedIn, checkLoginStatus } = useAuth();
+const { isLoggedIn, clearAuth, checkLoginStatus } = useAuth();
 const serviceMenuRecords = ref<Level1CategoryRecord[]>([]);
 const serviceCardRecords = ref<ExclusiveSpuRecord[]>([]);
+const accountMenuOpen = ref(false);
 const year = new Date().getFullYear();
 
 const getPreferredLangs = () =>
@@ -261,12 +443,6 @@ const localeLabel = computed(() =>
 const authButtonLabel = computed(() =>
   isLoggedIn.value ? t('client.header.profile') : t('client.header.auth'),
 );
-
-const heroTags = computed(() => [
-  t('h5.home.hero.tag1'),
-  t('h5.home.hero.tag2'),
-  t('h5.home.hero.tag3'),
-]);
 
 const formatPriceText = (minPrice?: number | string): string => {
   if (minPrice === undefined || minPrice === null || minPrice === '') {
@@ -336,6 +512,24 @@ const bookingSteps = computed<BookingStep[]>(() => [
   },
 ]);
 
+const trustReasons = computed<TrustReason[]>(() => [
+  {
+    title: t('client.home.defaults.reason1Title'),
+    desc: t('client.home.defaults.reason1Desc'),
+    icon: trustReasonIcons[0],
+  },
+  {
+    title: t('client.home.defaults.reason2Title'),
+    desc: t('client.home.defaults.reason2Desc'),
+    icon: trustReasonIcons[1],
+  },
+  {
+    title: t('client.home.defaults.reason3Title'),
+    desc: t('client.home.defaults.reason3Desc'),
+    icon: trustReasonIcons[2],
+  },
+]);
+
 const navigateToClient = (path: string, query?: Record<string, string>) => {
   syncLocales(locale.value);
   const url = new URL(path, window.location.origin);
@@ -350,7 +544,7 @@ const navigateToClient = (path: string, query?: Record<string, string>) => {
 };
 
 const goHome = () => {
-  window.scrollTo({ top: 0, behavior: 'smooth' });
+  window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
 };
 
 const goToClientPath = (path: string) => {
@@ -359,6 +553,35 @@ const goToClientPath = (path: string) => {
 
 const goAuthEntry = () => {
   router.push({ name: isLoggedIn.value ? 'h5-profile' : 'h5-login' });
+};
+
+const openAccountSection = (section?: 'addresses' | 'payments' | 'support') => {
+  accountMenuOpen.value = false;
+  router.push({
+    name: 'h5-profile',
+    query: section ? { section } : undefined,
+  });
+};
+
+const openSupport = () => {
+  openAccountSection('support');
+};
+
+const handleHeaderLogout = async () => {
+  try {
+    await showConfirmDialog({
+      title: t('h5.profile.logoutConfirm.title'),
+      message: t('h5.profile.logoutConfirm.message'),
+      confirmButtonText: t('h5.profile.logoutConfirm.confirm'),
+      cancelButtonText: t('h5.profile.logoutConfirm.cancel'),
+    });
+  } catch {
+    return;
+  }
+  accountMenuOpen.value = false;
+  clearAuth();
+  showSuccessToast(t('h5.profile.logoutSuccess'));
+  await router.replace({ name: 'h5-home' });
 };
 
 const openServiceList = (item: ServiceTile) => {
@@ -399,6 +622,19 @@ const goProductDetail = (spuId: string) => {
     name: 'h5-product-detail',
     params: { spuId },
   });
+};
+
+const scrollToServices = () => {
+  const servicesSection = document.getElementById('services');
+  if (!servicesSection) {
+    return;
+  }
+  const targetTop = servicesSection.getBoundingClientRect().top + window.scrollY - 56;
+  window.scrollTo({ top: Math.max(targetTop, 0), behavior: 'smooth' });
+};
+
+const openWhatsApp = () => {
+  window.open('https://wa.me/971502100284', '_blank', 'noopener,noreferrer');
 };
 
 const toggleLocale = () => {
@@ -442,13 +678,13 @@ onMounted(() => {
 .h5-topbar {
   position: sticky;
   top: 0;
-  z-index: 20;
+  z-index: 40;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  height: 56px;
-  padding: 0 16px;
+  height: 64px;
+  padding: 0 14px;
   background: rgba(255, 255, 255, 0.94);
   border-bottom: 1px solid #f1f5f9;
   backdrop-filter: blur(12px);
@@ -458,21 +694,26 @@ onMounted(() => {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  color: #12B0FF;
+  color: var(--hourx-brand);
   font-size: 22px;
   font-weight: 900;
   text-decoration: none;
 }
 
-.h5-topbar__logo,
-.h5-footer__logo {
-  width: 24px;
-  height: 24px;
+.h5-topbar__logo {
+  width: 84px;
+  height: 52px;
   object-fit: contain;
-  padding: 3px;
+}
+
+.h5-footer__logo {
+  width: 72px;
+  height: 42px;
+  object-fit: contain;
 }
 
 .h5-topbar__actions {
+  position: relative;
   display: flex;
   align-items: center;
   gap: 8px;
@@ -503,8 +744,89 @@ onMounted(() => {
 }
 
 .h5-pill--primary {
-  background: #12B0FF;
+  background: var(--hourx-brand);
   color: #fff;
+}
+
+.h5-account {
+  position: relative;
+}
+
+.h5-account__trigger {
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  border: 2px solid #E5EAF1;
+  border-radius: 999px;
+  background: var(--hourx-brand-soft);
+  overflow: hidden;
+  display: grid;
+  place-items: center;
+}
+
+.h5-account__trigger img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.h5-account__menu {
+  position: absolute;
+  top: 42px;
+  right: 0;
+  z-index: 2;
+  width: 218px;
+  padding: 6px;
+  border: 1px solid #e5eaf1;
+  border-radius: 14px;
+  background: #fff;
+  box-shadow: 0 18px 48px rgba(15, 23, 42, 0.18);
+}
+
+.h5-account__menu button {
+  width: 100%;
+  min-height: 42px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 9px;
+  background: transparent;
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  color: #243244;
+  font-size: 13px;
+  font-weight: 650;
+  text-align: left;
+}
+
+.h5-account__menu button:active {
+  background: var(--hourx-brand-soft);
+}
+
+.h5-account__menu :deep(.van-icon) {
+  width: 20px;
+  color: #607086;
+  font-size: 18px;
+  text-align: center;
+}
+
+.h5-account__menu .h5-account__logout {
+  margin-top: 4px;
+  border-top: 1px solid #edf1f5;
+  border-radius: 0 0 9px 9px;
+  color: #dc4040;
+}
+
+.h5-account__menu .h5-account__logout :deep(.van-icon) {
+  color: #dc4040;
+}
+
+.h5-account__scrim {
+  position: fixed;
+  inset: 56px 0 0;
+  z-index: 30;
+  background: rgba(15, 23, 42, 0.08);
 }
 
 .h5-home-main {
@@ -516,64 +838,175 @@ onMounted(() => {
 }
 
 .h5-hero {
-  background: linear-gradient(180deg, #12B0FF 0%, #4f80f7 100%);
-  padding: 26px 24px 24px;
-  color: #fff;
-  text-align: center;
+  position: relative;
+  height: 418px;
+  overflow: hidden;
+  line-height: 0;
+  background: var(--hourx-brand-soft);
 }
 
-.h5-hero__eyebrow {
-  margin: 0;
-  font-size: 13px;
-  line-height: 1.45;
-  font-weight: 700;
-  opacity: 0.9;
+.h5-hero__image {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: 62% center;
 }
 
-.h5-hero__title {
-  margin: 8px 0 0;
-  font-size: 14px;
-  line-height: 1.22;
-  font-weight: 900;
-  letter-spacing: -0.03em;
-}
-
-.h5-hero__desc {
-  margin: 10px 0 0;
-  font-size: 13px;
-  line-height: 1.45;
-  font-weight: 700;
-  opacity: 0.96;
-  margin-top: 20px;
-}
-
-.h5-hero__tags {
-  margin-top: 14px;
+.h5-hero__overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  padding: 32px 18px 18px;
   display: flex;
-  justify-content: center;
-  flex-wrap: wrap;
-  gap: 8px;
+  flex-direction: column;
+  justify-content: space-between;
+  background: linear-gradient(
+    90deg,
+    var(--hourx-brand) 0%,
+    var(--hourx-brand) 68%,
+    rgba(6, 29, 52, 0.92) 84%,
+    rgba(6, 29, 52, 0.7) 100%
+  );
 }
 
-.h5-hero__tags span {
-  height: 26px;
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.16);
-  padding: 0 11px;
+.h5-hero__content {
+  max-width: 330px;
+  color: #fff;
+  line-height: normal;
+}
+
+.h5-hero__content h1 {
+  max-width: 325px;
+  margin: 0;
+  color: #fff;
+  font-size: 31px;
+  line-height: 1.08;
+  font-weight: 900;
+  letter-spacing: -0.035em;
+}
+
+.h5-hero__content > p {
+  max-width: 310px;
+  margin: 14px 0 0;
+  color: rgba(255, 255, 255, 0.82);
+  font-size: 14px;
+  line-height: 1.55;
+  font-weight: 500;
+}
+
+.h5-hero__trust {
+  margin: 18px 0 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 16px;
+  list-style: none;
+}
+
+.h5-hero__trust li {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
-  font-size: 12px;
-  font-weight: 700;
+  gap: 7px;
+  color: #fff;
+  font-size: 11px;
+  line-height: 1.3;
+  font-weight: 750;
+}
+
+.h5-hero__trust li > span {
+  width: 21px;
+  height: 21px;
+  border: 1px solid rgba(255, 255, 255, 0.74);
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+}
+
+.h5-hero__actions {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 8px;
+  line-height: normal;
+}
+
+.h5-hero__action {
+  height: 46px;
+  padding: 0 12px;
+  border: 1px solid transparent;
+  border-radius: 11px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  color: #fff;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 800;
+  letter-spacing: 0.01em;
+  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.16);
+}
+
+.h5-hero__action:active {
+  transform: translateY(1px);
+}
+
+.h5-hero__action--primary {
+  background: linear-gradient(135deg, var(--hourx-brand) 0%, var(--hourx-brand-hover) 100%);
+}
+
+.h5-hero__action--whatsapp {
+  background: rgba(255, 255, 255, 0.96);
+  border-color: rgba(255, 255, 255, 0.96);
+  color: var(--hourx-brand);
+}
+
+.h5-hero__action--whatsapp img {
+  width: 20px;
+  height: 20px;
 }
 
 .h5-section {
-  padding: 28px 16px 30px;
+  padding: 34px 20px 36px;
 }
 
 .h5-section--muted {
   background: #f8fafc;
   border-top: 1px solid #f1f5f9;
+}
+
+.h5-home-intro {
+  text-align: left;
+}
+
+.h5-home-intro__eyebrow {
+  margin: 0;
+  color: var(--hourx-brand);
+  font-size: 11px;
+  line-height: 1.4;
+  font-weight: 850;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+}
+
+.h5-home-intro h2 {
+  margin: 10px 0 0;
+  color: var(--hourx-brand);
+  font-size: 26px;
+  line-height: 1.16;
+  font-weight: 850;
+  letter-spacing: -0.02em;
+}
+
+.h5-home-intro__description {
+  max-width: 360px;
+  margin: 12px 0 0;
+  color: rgba(15, 23, 42, 0.56);
+  font-size: 13px;
+  line-height: 1.6;
+  font-weight: 500;
 }
 
 .h5-section__header {
@@ -585,7 +1018,7 @@ onMounted(() => {
   font-size: 18px;
   line-height: 1.2;
   font-weight: 900;
-  color: #0f172b;
+  color: var(--hourx-brand);
 }
 
 .h5-section__header p {
@@ -607,46 +1040,70 @@ onMounted(() => {
 }
 
 .h5-service-grid {
-  margin-top: 22px;
+  margin-top: 24px;
   display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
-  gap: 14px 10px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
 }
 
 .h5-service-tile {
-  border: 0;
-  background: transparent;
-  padding: 0;
+  min-width: 0;
+  min-height: 138px;
+  border: 1px solid #dce7f3;
+  border-radius: 18px;
+  background:
+    radial-gradient(circle at 88% 8%, rgba(5, 21, 43, 0.11), transparent 42%),
+    var(--hourx-brand-soft);
+  padding: 18px 10px 16px;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 8px;
+  justify-content: center;
+  gap: 13px;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.92),
+    0 8px 20px rgba(31, 80, 122, 0.055);
+  transition:
+    transform 0.18s ease,
+    border-color 0.18s ease,
+    box-shadow 0.18s ease;
+}
+
+.h5-service-tile:active {
+  transform: scale(0.975);
+  border-color: rgba(5, 21, 43, 0.5);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.92);
 }
 
 .h5-service-tile__icon {
-  width: 52px;
-  height: 52px;
-  border-radius: 14px;
-  background: #eff6ff;
+  width: 62px;
+  height: 62px;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.68);
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.75);
+  box-shadow: 0 6px 16px rgba(18, 118, 185, 0.06);
 }
 
 .h5-service-tile__icon img {
-  width: 26px;
-  height: 26px;
+  width: 38px;
+  height: 38px;
   object-fit: contain;
 }
 
 .h5-service-tile__label {
-  min-height: 32px;
+  min-height: 40px;
+  max-width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   color: #0f172a;
-  font-size: 11px;
-  line-height: 1.4;
-  font-weight: 700;
+  font-size: 14px;
+  line-height: 1.35;
+  font-weight: 800;
   text-align: center;
+  overflow-wrap: anywhere;
 }
 
 .h5-service-tile--placeholder {
@@ -655,6 +1112,54 @@ onMounted(() => {
 
 .h5-service-tile--placeholder .h5-service-tile__icon {
   background: #f3f4f6;
+}
+
+@media (max-width: 360px) {
+  .h5-hero {
+    height: 400px;
+  }
+
+  .h5-hero__overlay {
+    padding: 26px 14px 14px;
+  }
+
+  .h5-hero__content h1 {
+    font-size: 28px;
+  }
+
+  .h5-hero__content > p {
+    font-size: 13px;
+  }
+
+  .h5-section {
+    padding-right: 14px;
+    padding-left: 14px;
+  }
+
+  .h5-service-grid {
+    gap: 10px;
+  }
+
+  .h5-service-tile {
+    min-height: 126px;
+    padding: 14px 8px 12px;
+    gap: 10px;
+  }
+
+  .h5-service-tile__icon {
+    width: 54px;
+    height: 54px;
+  }
+
+  .h5-service-tile__icon img {
+    width: 34px;
+    height: 34px;
+  }
+
+  .h5-service-tile__label {
+    min-height: 36px;
+    font-size: 13px;
+  }
 }
 
 .h5-offer-rail {
@@ -737,7 +1242,7 @@ onMounted(() => {
 
 .h5-offer-card__price {
   margin: auto 0 0;
-  color: #12B0FF;
+  color: var(--hourx-brand);
   text-align: center;
   font-size: 14px;
   font-weight: 800;
@@ -749,14 +1254,14 @@ onMounted(() => {
   height: 34px;
   border: 0;
   border-radius: 10px;
-  background: #12B0FF;
+  background: var(--hourx-brand);
   color: #fff;
   font-size: 12px;
   font-weight: 800;
 }
 
 .h5-booking-section {
-  background: linear-gradient(180deg, #12B0FF 0%, #4a7ef8 100%);
+  background: linear-gradient(180deg, var(--hourx-brand) 0%, var(--hourx-brand-hover) 100%);
   padding: 28px 16px 32px;
 }
 
@@ -807,11 +1312,128 @@ onMounted(() => {
   line-height: 1.45;
 }
 
+.h5-trust-section {
+  padding: 30px 16px 32px;
+  background: #f8fafc;
+}
+
+.h5-trust-grid {
+  margin-top: 20px;
+  display: grid;
+  gap: 12px;
+}
+
+.h5-trust-card {
+  padding: 16px;
+  border: 1px solid #e5edf5;
+  border-radius: 16px;
+  display: grid;
+  grid-template-columns: 46px minmax(0, 1fr);
+  align-items: start;
+  gap: 13px;
+  background: #fff;
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.04);
+}
+
+.h5-trust-card__icon {
+  width: 46px;
+  height: 46px;
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(145deg, var(--hourx-brand-soft) 0%, var(--hourx-brand-soft) 100%);
+}
+
+.h5-trust-card__icon img {
+  width: 25px;
+  height: 25px;
+  object-fit: contain;
+}
+
+.h5-trust-card h3 {
+  margin: 1px 0 0;
+  color: var(--hourx-brand);
+  font-size: 14px;
+  line-height: 1.4;
+  font-weight: 850;
+}
+
+.h5-trust-card p {
+  margin: 5px 0 0;
+  color: rgba(15, 23, 42, 0.58);
+  font-size: 12px;
+  line-height: 1.55;
+  font-weight: 500;
+}
+
+.h5-final-cta {
+  margin: 24px 16px 28px;
+  padding: 24px 18px;
+  border-radius: 20px;
+  text-align: center;
+  color: #fff;
+  background: linear-gradient(145deg, var(--hourx-brand) 0%, var(--hourx-brand-hover) 66%, var(--hourx-brand) 135%);
+  box-shadow: 0 14px 30px rgba(15, 41, 74, 0.16);
+}
+
+.h5-final-cta h2 {
+  margin: 0;
+  font-size: 20px;
+  line-height: 1.3;
+  font-weight: 850;
+}
+
+.h5-final-cta p {
+  margin: 8px auto 0;
+  max-width: 300px;
+  color: rgba(255, 255, 255, 0.72);
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.h5-final-cta__actions {
+  margin-top: 18px;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.h5-final-cta__button {
+  height: 40px;
+  padding: 0 10px;
+  border: 1px solid transparent;
+  border-radius: 11px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.h5-final-cta__button--primary {
+  background: #fff;
+  color: var(--hourx-brand);
+}
+
+.h5-final-cta__button--whatsapp {
+  border-color: rgba(255, 255, 255, 0.26);
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+}
+
+.h5-final-cta__button--whatsapp img {
+  width: 19px;
+  height: 19px;
+}
+
 .h5-footer {
-  background: #0f172b;
+  background: var(--hourx-brand);
   border-top: 1px solid #1d293d;
   color: rgba(255, 255, 255, 0.6);
-  padding: 24px 24px 18px;
+  padding: 24px 24px calc(76px + env(safe-area-inset-bottom));
 }
 
 .h5-footer__brand-row {
@@ -829,6 +1451,7 @@ onMounted(() => {
   font-size: 20px;
   font-weight: 800;
   line-height: 1.4;
+  text-decoration: none;
 }
 
 .h5-footer__logo {
@@ -848,13 +1471,17 @@ onMounted(() => {
   width: 32px;
   height: 32px;
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.1);
   color: #fff;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   text-decoration: none;
   font-size: 12px;
+  transition: transform 0.2s ease;
+}
+
+.h5-footer__social-item:active {
+  transform: scale(0.94);
 }
 
 .h5-footer__social-item img {
@@ -874,7 +1501,7 @@ onMounted(() => {
 .h5-footer__columns {
   margin-top: 24px;
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: minmax(0, 1fr);
   gap: 24px;
 }
 
@@ -886,18 +1513,68 @@ onMounted(() => {
   line-height: 20px;
 }
 
-.h5-footer__section p {
+.h5-footer__section p,
+.h5-footer__section a {
   margin: 0 0 12px;
   font-size: 12px;
   line-height: 16px;
   font-weight: 500;
   word-break: break-word;
+  color: inherit;
+  text-decoration: none;
+  display: block;
+}
+
+.h5-footer__section .h5-footer__contact-row {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.h5-footer__section a.h5-footer__contact-row span {
+  white-space: nowrap;
+}
+
+.h5-footer__contact-row img {
+  width: 22px;
+  height: 22px;
+  flex: 0 0 22px;
+}
+
+.h5-footer__bottom {
+  margin-top: 12px;
+  padding-top: 16px;
+  border-top: 1px solid #1d293d;
+}
+
+.h5-footer__legal-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 14px;
+}
+
+.h5-footer__legal-links a {
+  color: rgba(255, 255, 255, 0.66);
+  font-size: 11px;
+  line-height: 16px;
+  text-decoration: none;
+}
+
+.h5-footer__payments {
+  margin-top: 16px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.h5-footer__payments img {
+  width: 48px;
+  height: 27px;
+  display: block;
 }
 
 .h5-footer__copyright {
-  margin: 24px 0 0;
-  padding-top: 16px;
-  border-top: 1px solid #1d293d;
+  margin: 18px 0 0;
   text-align: center;
   font-size: 10px;
   line-height: 15px;
@@ -934,7 +1611,7 @@ onMounted(() => {
 }
 
 .h5-tabbar__item--active {
-  color: #12B0FF;
+  color: var(--hourx-brand);
 }
 
 .h5-tabbar__item :deep(.van-icon) {

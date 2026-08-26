@@ -94,14 +94,109 @@
         <div class="h5-order-card__heading">
           <span />
           <h2>{{ t('client.orderConfirm.sections.address') }}</h2>
+          <span v-if="isLocating" class="h5-location-status">
+            {{ t('client.orderConfirm.location.locating') }}
+          </span>
+        </div>
+        <div class="h5-address-book">
+          <div class="h5-address-book__bar">
+            <strong>{{ t('client.orderConfirm.addressBook.title') }}</strong>
+            <button type="button" @click="openAddAddressPopup">
+              <van-icon name="plus" />
+              {{ t('client.orderConfirm.addressBook.add') }}
+            </button>
+          </div>
+          <p v-if="addressListLoading" class="h5-address-book__state">
+            {{ t('client.orderConfirm.addressBook.loading') }}
+          </p>
+          <div v-else-if="addressList.length" class="h5-address-picker">
+            <div
+              class="h5-address-picker__list"
+              role="radiogroup"
+              :aria-label="t('client.orderConfirm.addressBook.title')"
+            >
+              <article
+                v-for="item in addressList"
+                :key="item.id"
+                class="h5-address-card"
+                :class="{ 'is-selected': selectedAddressId === item.id }"
+              >
+                <button
+                  class="h5-address-card__select"
+                  type="button"
+                  role="radio"
+                  :aria-checked="selectedAddressId === item.id"
+                  @click="selectSavedAddress(item)"
+                >
+                  <span class="h5-address-card__topline">
+                    <span class="h5-address-picker__tags">
+                      <em>{{ addressCategoryLabel(item.category) }}</em>
+                      <em v-if="item.isDefault" class="h5-address-picker__default">
+                        {{ t('client.orderConfirm.addressBook.defaultTag') }}
+                      </em>
+                      <em v-if="selectedAddressId === item.id" class="h5-address-picker__selected">
+                        {{ t('client.orderConfirm.addressBook.selectedTag') }}
+                      </em>
+                    </span>
+                    <i class="h5-address-card__radio" aria-hidden="true" />
+                  </span>
+                  <strong>{{ item.firstName }} {{ item.lastName }}</strong>
+                  <span>{{ formatAddressPhone(item) }}</span>
+                  <span class="h5-address-card__address">{{ formatAddressLine(item) }}</span>
+                  <small v-if="item.additionalNotes">{{ item.additionalNotes }}</small>
+                </button>
+                <button
+                  class="h5-address-card__edit"
+                  type="button"
+                  @click="openEditAddressPopup(item)"
+                >
+                  {{ t('client.orderConfirm.addressBook.edit') }}
+                </button>
+              </article>
+            </div>
+            <button class="h5-address-picker__manual" type="button" @click="selectManualAddress">
+              <van-icon name="plus" />
+              {{ t('client.orderConfirm.addressBook.manualOption') }}
+            </button>
+            <p class="h5-address-picker__hint">
+              {{ t('client.orderConfirm.addressBook.editHint') }}
+            </p>
+          </div>
+          <p v-else class="h5-address-book__state">
+            {{ t('client.orderConfirm.addressBook.empty') }}
+          </p>
+        </div>
+        <div class="h5-address-category">
+          <span>{{ t('client.orderConfirm.addressBook.categoryLabel') }}</span>
+          <div>
+            <button
+              v-for="item in addressCategoryOptions"
+              :key="item.value"
+              type="button"
+              :class="{ 'is-active': form.category === item.value }"
+              @click="form.category = item.value"
+            >
+              {{ item.label }}
+            </button>
+          </div>
         </div>
         <div class="h5-order-stack">
           <label class="h5-order-field">
             <div class="h5-order-input">
-              <van-icon name="location-o" />
+              <van-icon name="guide-o" />
               <input
-                v-model="form.address"
+                v-model="form.district"
                 type="text"
+                :placeholder="t('client.orderConfirm.placeholders.district')"
+              />
+            </div>
+          </label>
+          <label class="h5-order-field">
+            <div class="h5-order-input h5-order-input--textarea">
+              <van-icon name="location-o" />
+              <textarea
+                v-model="form.address"
+                rows="3"
                 :placeholder="t('client.orderConfirm.placeholders.address')"
               />
             </div>
@@ -115,6 +210,15 @@
               />
             </div>
           </label>
+          <p v-if="locationLookupUsed" class="h5-location-attribution">
+            <a
+              href="https://www.openstreetmap.org/copyright"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              {{ t('client.orderConfirm.location.attribution') }}
+            </a>
+          </p>
         </div>
       </section>
 
@@ -134,7 +238,6 @@
                 :min="minServiceDate"
               />
             </div>
-            <small class="h5-order-field__hint">{{ t('client.orderConfirm.fields.serviceDateHint') }}</small>
           </label>
           <label class="h5-order-field">
             <div class="h5-order-input">
@@ -153,6 +256,10 @@
             </div>
           </label>
         </div>
+        <p class="h5-order-lead-time">
+          <van-icon name="info-o" />
+          <span>{{ t('client.orderConfirm.fields.serviceLeadTimeHint', { minutes: bookingLeadMinutes }) }}</span>
+        </p>
       </section>
 
       <section class="h5-order-card h5-order-card--payment">
@@ -194,6 +301,85 @@
         <span>{{ t('client.orderConfirm.summary.ssl') }}</span>
       </p>
     </footer>
+
+    <van-popup
+      v-model:show="addAddressPopupVisible"
+      round
+      position="bottom"
+      :close-on-click-overlay="!addressAdding"
+      :style="{ maxHeight: '90vh' }"
+    >
+      <div class="h5-add-address-sheet">
+        <div class="h5-add-address-sheet__header">
+          <h3>{{ editingAddressId ? t('client.orderConfirm.addressBook.editTitle') : t('client.orderConfirm.addressBook.addTitle') }}</h3>
+          <button type="button" :disabled="addressAdding" @click="addAddressPopupVisible = false">
+            <van-icon name="cross" />
+          </button>
+        </div>
+        <div class="h5-add-address-sheet__categories">
+          <button
+            v-for="item in addressCategoryOptions"
+            :key="item.value"
+            type="button"
+            :class="{ 'is-active': addAddressForm.category === item.value }"
+            @click="addAddressForm.category = item.value"
+          >
+            {{ item.label }}
+          </button>
+        </div>
+        <div class="h5-add-address-sheet__grid">
+          <label class="h5-add-address-field">
+            <span>{{ t('client.orderConfirm.fields.firstName') }} *</span>
+            <input v-model="addAddressForm.firstName" type="text" :placeholder="t('client.orderConfirm.placeholders.firstName')" />
+          </label>
+          <label class="h5-add-address-field">
+            <span>{{ t('client.orderConfirm.fields.lastName') }} *</span>
+            <input v-model="addAddressForm.lastName" type="text" :placeholder="t('client.orderConfirm.placeholders.lastName')" />
+          </label>
+        </div>
+        <label class="h5-add-address-field">
+          <span>{{ t('client.orderConfirm.fields.phone') }} *</span>
+          <div class="h5-add-address-field__phone">
+            <select v-model="addAddressForm.phoneCountryCode">
+              <option v-for="item in countryCodeOptions" :key="item.value" :value="item.value">
+                {{ item.label }}
+              </option>
+            </select>
+            <input v-model="addAddressForm.phone" type="tel" :placeholder="t('client.login.register.phoneNumberPlaceholder')" />
+          </div>
+        </label>
+        <label class="h5-add-address-field">
+          <span>{{ t('client.orderConfirm.fields.email') }}</span>
+          <input v-model="addAddressForm.email" type="email" :placeholder="t('client.orderConfirm.placeholders.email')" />
+        </label>
+        <label class="h5-add-address-field">
+          <span>{{ t('client.orderConfirm.fields.district') }}</span>
+          <input v-model="addAddressForm.district" type="text" :placeholder="t('client.orderConfirm.placeholders.district')" />
+        </label>
+        <label class="h5-add-address-field">
+          <span>{{ t('client.orderConfirm.fields.address') }} *</span>
+          <textarea v-model="addAddressForm.address" rows="2" :placeholder="t('client.orderConfirm.placeholders.address')" />
+        </label>
+        <label class="h5-add-address-field">
+          <span>{{ t('client.orderConfirm.fields.remark') }}</span>
+          <textarea v-model="addAddressForm.additionalNotes" rows="2" :placeholder="t('client.orderConfirm.placeholders.remark')" />
+        </label>
+        <button
+          class="h5-add-address-sheet__submit"
+          type="button"
+          :disabled="addressAdding"
+          @click="submitAddressEditor"
+        >
+          {{
+            addressAdding
+              ? t('client.orderConfirm.addressBook.saving')
+              : editingAddressId
+                ? t('client.orderConfirm.addressBook.saveChanges')
+                : t('client.orderConfirm.addressBook.save')
+          }}
+        </button>
+      </div>
+    </van-popup>
 
     <van-popup
       v-model:show="stripePopupVisible"
@@ -243,13 +429,23 @@ import { useI18n } from 'vue-i18n';
 import { useRoute, useRouter } from 'vue-router';
 import { showFailToast, showSuccessToast } from 'vant';
 import {
+  addClientAddress,
+  getClientAddressList,
+  updateClientAddress,
   saveContactAddress,
   getLatestAddress,
+  type AddressCategory,
+  type ClientAddressRecord,
   type LatestAddressRecord,
   getAvailableSelectTime,
   createPay,
 } from '@/modules/client/api';
 import { setClientLocale } from '@/modules/client/locales';
+import {
+  locateCurrentAddress,
+  LocationLookupError,
+  type LocationLookupErrorCode,
+} from '@/modules/client/utils/geolocation';
 
 type I18nText = Record<string, string>;
 
@@ -298,8 +494,15 @@ const COUNTRY_CODE_ENTRIES = [
   { value: '+91', labelEn: 'India +91', labelZh: '印度 +91' },
   { value: '+86', labelEn: 'China +86', labelZh: '中国 +86' },
 ];
-const ORDER_PAYMENT_METHOD = 'STRIPE';
+const ORDER_PAYMENT_METHOD = 'stripe';
 const CREATE_PAY_METHOD = 'stripe';
+const PAYMENT_STATUS_SYNC_DELAY_MS = 2000;
+const DEFAULT_BOOKING_LEAD_MINUTES = 60;
+const configuredBookingLeadMinutes = Number(import.meta.env.VITE_BOOKING_LEAD_MINUTES);
+const bookingLeadMinutes = Number.isFinite(configuredBookingLeadMinutes) && configuredBookingLeadMinutes >= 0
+  ? configuredBookingLeadMinutes
+  : DEFAULT_BOOKING_LEAD_MINUTES;
+const DUBAI_UTC_OFFSET = '+04:00';
 const STRIPE_SCRIPT_ID = 'hourx-stripe-js';
 const stripePublishableKey =
   typeof import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY === 'string'
@@ -312,8 +515,10 @@ const form = reactive({
   countryCode: DEFAULT_COUNTRY_CODE,
   phone: '',
   email: '',
+  district: '',
   address: '',
   remark: '',
+  category: 'others' as AddressCategory,
   serviceDate: '',
   timeRange: '',
 });
@@ -324,6 +529,26 @@ const lastLoadedServiceDate = ref('');
 const pendingTimeText = ref('');
 const agreedPolicy = ref(true);
 const isSubmitting = ref(false);
+const isLocating = ref(false);
+const locationLookupUsed = ref(false);
+const addressList = ref<ClientAddressRecord[]>([]);
+const addressListLoading = ref(false);
+const selectedAddressId = ref<number | null>(null);
+const addAddressPopupVisible = ref(false);
+const addressAdding = ref(false);
+const editingAddressId = ref<number | null>(null);
+let isApplyingSavedAddress = false;
+const addAddressForm = reactive({
+  firstName: '',
+  lastName: '',
+  phoneCountryCode: DEFAULT_COUNTRY_CODE,
+  phone: '',
+  email: '',
+  district: '',
+  address: '',
+  additionalNotes: '',
+  category: 'home' as AddressCategory,
+});
 const serviceDateInputRef = ref<HTMLInputElement | null>(null);
 
 const stripePopupVisible = ref(false);
@@ -340,18 +565,235 @@ const stripePaymentElement = ref<StripeElementInstance | null>(null);
 
 const getStripeLocale = () => (locale.value.startsWith('zh') ? 'zh' : 'en');
 
-const getDateText = (date: Date): string => {
-  const yyyy = date.getFullYear();
-  const mm = `${date.getMonth() + 1}`.padStart(2, '0');
-  const dd = `${date.getDate()}`.padStart(2, '0');
-  return `${yyyy}-${mm}-${dd}`;
-};
-
 const normalizeText = (value: unknown): string =>
   typeof value === 'string' ? value.trim() : '';
 
 const normalizePhoneNumber = (value: unknown): string =>
   typeof value === 'string' ? value.replace(/[^\d]/g, '') : '';
+
+const normalizeAddressCategory = (value: unknown): AddressCategory => {
+  if (value === 'home' || value === 'office' || value === 'others') {
+    return value;
+  }
+  return 'others';
+};
+
+const addressCategoryOptions = computed(() => [
+  { value: 'home' as AddressCategory, label: t('client.orderConfirm.addressBook.categories.home') },
+  { value: 'office' as AddressCategory, label: t('client.orderConfirm.addressBook.categories.office') },
+  { value: 'others' as AddressCategory, label: t('client.orderConfirm.addressBook.categories.others') },
+]);
+
+const addressCategoryLabel = (category: unknown) => {
+  const normalized = normalizeAddressCategory(category);
+  return t(`client.orderConfirm.addressBook.categories.${normalized}`);
+};
+
+const formatAddressPhone = (item: ClientAddressRecord) =>
+  [normalizeText(item.phoneCountryCode), normalizeText(item.phone)].filter(Boolean).join(' ');
+
+const formatAddressLine = (item: ClientAddressRecord) =>
+  [normalizeText(item.district), normalizeText(item.address)].filter(Boolean).join(', ');
+
+const normalizeAddressRecord = (item: ClientAddressRecord): ClientAddressRecord | null => {
+  const id = Number(item?.id);
+  if (!Number.isFinite(id) || id <= 0) return null;
+  return {
+    ...item,
+    id,
+    firstName: normalizeText(item.firstName),
+    lastName: normalizeText(item.lastName),
+    phoneCountryCode: normalizeText(item.phoneCountryCode) || DEFAULT_COUNTRY_CODE,
+    phone: normalizeText(item.phone),
+    email: normalizeText(item.email),
+    district: normalizeText(item.district),
+    address: normalizeText(item.address),
+    additionalNotes: normalizeText(item.additionalNotes),
+    category: normalizeAddressCategory(item.category),
+    isDefault: item.isDefault === true,
+  };
+};
+
+const selectSavedAddress = (item: ClientAddressRecord) => {
+  isApplyingSavedAddress = true;
+  selectedAddressId.value = item.id;
+  form.firstName = normalizeText(item.firstName);
+  form.lastName = normalizeText(item.lastName);
+  form.countryCode = normalizeText(item.phoneCountryCode) || DEFAULT_COUNTRY_CODE;
+  form.phone = normalizeText(item.phone);
+  form.email = normalizeText(item.email);
+  form.district = normalizeText(item.district);
+  form.address = normalizeText(item.address);
+  form.remark = normalizeText(item.additionalNotes);
+  form.category = normalizeAddressCategory(item.category);
+  locationLookupUsed.value = false;
+  isApplyingSavedAddress = false;
+};
+
+const selectManualAddress = () => {
+  isApplyingSavedAddress = true;
+  selectedAddressId.value = null;
+  form.district = '';
+  form.address = '';
+  form.remark = '';
+  form.category = 'others';
+  locationLookupUsed.value = false;
+  isApplyingSavedAddress = false;
+};
+
+const loadAddressBook = async (preferredId?: number | null) => {
+  addressListLoading.value = true;
+  try {
+    const records = await getClientAddressList();
+    addressList.value = records
+      .map(normalizeAddressRecord)
+      .filter((item): item is ClientAddressRecord => item !== null);
+    const preferred =
+      addressList.value.find((item) => preferredId && item.id === preferredId) ||
+      addressList.value.find((item) => item.isDefault) ||
+      addressList.value[0];
+    if (preferred) {
+      selectSavedAddress(preferred);
+    } else {
+      selectedAddressId.value = null;
+    }
+  } catch (error) {
+    console.error('load address list failed:', error);
+    addressList.value = [];
+    showFailToast(t('client.orderConfirm.addressBook.listFailed'));
+  } finally {
+    addressListLoading.value = false;
+  }
+};
+
+const openAddAddressPopup = () => {
+  editingAddressId.value = null;
+  Object.assign(addAddressForm, {
+    firstName: form.firstName,
+    lastName: form.lastName,
+    phoneCountryCode: form.countryCode || DEFAULT_COUNTRY_CODE,
+    phone: form.phone,
+    email: form.email,
+    district: selectedAddressId.value ? '' : form.district,
+    address: selectedAddressId.value ? '' : form.address,
+    additionalNotes: '',
+    category: 'home' as AddressCategory,
+  });
+  addAddressPopupVisible.value = true;
+};
+
+const openEditAddressPopup = (item: ClientAddressRecord) => {
+  editingAddressId.value = item.id;
+  Object.assign(addAddressForm, {
+    firstName: normalizeText(item.firstName),
+    lastName: normalizeText(item.lastName),
+    phoneCountryCode: normalizeText(item.phoneCountryCode) || DEFAULT_COUNTRY_CODE,
+    phone: normalizeText(item.phone),
+    email: normalizeText(item.email),
+    district: normalizeText(item.district),
+    address: normalizeText(item.address),
+    additionalNotes: normalizeText(item.additionalNotes),
+    category: normalizeAddressCategory(item.category),
+  });
+  addAddressPopupVisible.value = true;
+};
+
+const isValidEmail = (value: string) => !value || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
+
+const getAddAddressValidationMessage = () => {
+  const requiredFields = [
+    [addAddressForm.firstName, t('client.orderConfirm.fields.firstName')],
+    [addAddressForm.lastName, t('client.orderConfirm.fields.lastName')],
+    [addAddressForm.phone, t('client.orderConfirm.fields.phone')],
+    [addAddressForm.address, t('client.orderConfirm.fields.address')],
+  ];
+  const missing = requiredFields.find(([value]) => !normalizeText(value));
+  if (missing) {
+    return t('client.orderConfirm.validation.requiredField', { field: missing[1] });
+  }
+  if (!isValidEmail(normalizeText(addAddressForm.email))) {
+    return t('client.orderConfirm.addressBook.invalidEmail');
+  }
+  return '';
+};
+
+const submitAddressEditor = async () => {
+  const validationMessage = getAddAddressValidationMessage();
+  if (validationMessage) {
+    showFailToast(validationMessage);
+    return;
+  }
+  addressAdding.value = true;
+  try {
+    const payload = {
+      firstName: normalizeText(addAddressForm.firstName),
+      lastName: normalizeText(addAddressForm.lastName),
+      phoneCountryCode: normalizeText(addAddressForm.phoneCountryCode) || DEFAULT_COUNTRY_CODE,
+      phone: normalizeText(addAddressForm.phone),
+      email: normalizeText(addAddressForm.email) || undefined,
+      district: normalizeText(addAddressForm.district) || undefined,
+      address: normalizeText(addAddressForm.address),
+      additionalNotes: normalizeText(addAddressForm.additionalNotes) || undefined,
+      category: normalizeAddressCategory(addAddressForm.category),
+    };
+    if (editingAddressId.value) {
+      await updateClientAddress({ id: editingAddressId.value, ...payload });
+      await loadAddressBook(editingAddressId.value);
+      addAddressPopupVisible.value = false;
+      showSuccessToast(t('client.orderConfirm.addressBook.editSuccess'));
+      return;
+    }
+
+    const added = await addClientAddress(payload);
+    const addedId = Number(typeof added === 'number' ? added : added?.id);
+    await loadAddressBook(Number.isFinite(addedId) ? addedId : null);
+    if (!Number.isFinite(addedId)) {
+      const matched = [...addressList.value].reverse().find(
+        (item) =>
+          item.address === normalizeText(addAddressForm.address) &&
+          item.phone === normalizeText(addAddressForm.phone),
+      );
+      if (matched) selectSavedAddress(matched);
+    }
+    addAddressPopupVisible.value = false;
+    showSuccessToast(t('client.orderConfirm.addressBook.addSuccess'));
+  } catch (error: any) {
+    showFailToast(
+      error?.message || t(
+        editingAddressId.value
+          ? 'client.orderConfirm.addressBook.editFailed'
+          : 'client.orderConfirm.addressBook.addFailed',
+      ),
+    );
+  } finally {
+    addressAdding.value = false;
+  }
+};
+
+const locationErrorKeyMap: Record<LocationLookupErrorCode, string> = {
+  UNSUPPORTED: 'unsupported',
+  PERMISSION_DENIED: 'permissionDenied',
+  UNAVAILABLE: 'unavailable',
+  TIMEOUT: 'timeout',
+  LOOKUP_FAILED: 'lookupFailed',
+};
+
+const handleUseCurrentLocation = async () => {
+  if (isLocating.value) return;
+  isLocating.value = true;
+  try {
+    const result = await locateCurrentAddress(locale.value);
+    form.district = result.district;
+    form.address = result.address;
+    locationLookupUsed.value = true;
+    showSuccessToast(t('client.orderConfirm.location.success'));
+  } catch (error) {
+    const code = error instanceof LocationLookupError ? error.code : 'LOOKUP_FAILED';
+    showFailToast(t(`client.orderConfirm.location.errors.${locationErrorKeyMap[code]}`));
+  } finally {
+    isLocating.value = false;
+  }
+};
 
 const countryCodeOptions = computed(() =>
   COUNTRY_CODE_ENTRIES.map((item) => ({
@@ -359,8 +801,6 @@ const countryCodeOptions = computed(() =>
     label: locale.value === 'zh' ? item.labelZh : item.labelEn,
   })),
 );
-
-const buildFullPhone = (): string => `${form.countryCode}${normalizePhoneNumber(form.phone)}`;
 
 const splitPhoneNumber = (value: unknown): { countryCode: string; phone: string } => {
   const text = normalizeText(value);
@@ -404,7 +844,19 @@ const normalizeTimeRangeValue = (value: unknown): string => {
   return String(value).trim();
 };
 
-const minServiceDate = computed(() => getDateText(new Date()));
+const getDubaiDateText = (timestamp: number): string => {
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Dubai',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(new Date(timestamp));
+  const partMap = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+  return `${partMap.year}-${partMap.month}-${partMap.day}`;
+};
+
+const bookingThreshold = () => Date.now() + bookingLeadMinutes * 60 * 1000;
+const minServiceDate = computed(() => getDubaiDateText(bookingThreshold()));
 
 const extractServiceStartTime = (value: string): string => {
   const text = normalizeText(value);
@@ -420,11 +872,11 @@ const isFutureServiceSlot = (dateText: string, timeText: string): boolean => {
   if (!dateText || !startTime) {
     return false;
   }
-  const parsed = new Date(`${dateText}T${startTime}:00`);
-  if (Number.isNaN(parsed.getTime())) {
+  const slotTimestamp = Date.parse(`${dateText}T${startTime}:00${DUBAI_UTC_OFFSET}`);
+  if (Number.isNaN(slotTimestamp)) {
     return false;
   }
-  return parsed.getTime() > Date.now();
+  return slotTimestamp >= bookingThreshold();
 };
 
 const getQueryText = (key: string) => {
@@ -458,7 +910,7 @@ const selectableTimeOptions = computed(() => {
     return [] as Array<{ time: string; available: boolean; timeRange: string }>;
   }
 
-  const today = getDateText(new Date());
+  const today = getDubaiDateText(Date.now());
   if (selectedDate < today) {
     return [];
   }
@@ -582,6 +1034,26 @@ watch(
       }
     }
   },
+);
+
+watch(
+  () => [
+    form.firstName,
+    form.lastName,
+    form.countryCode,
+    form.phone,
+    form.email,
+    form.district,
+    form.address,
+    form.remark,
+    form.category,
+  ],
+  () => {
+    if (!isApplyingSavedAddress && selectedAddressId.value !== null) {
+      selectedAddressId.value = null;
+    }
+  },
+  { flush: 'sync' },
 );
 
 watch(
@@ -841,6 +1313,9 @@ const openStripePopup = async (clientSecret: string) => {
 const handleStripeSuccess = async () => {
   stripePopupVisible.value = false;
   showSuccessToast(t('client.orderConfirm.validation.orderSuccess'));
+  await new Promise<void>((resolve) => {
+    window.setTimeout(resolve, PAYMENT_STATUS_SYNC_DELAY_MS);
+  });
   await router.push({ name: 'h5-orders' });
 };
 
@@ -1004,6 +1479,9 @@ const fillFormByLatestAddress = (payload: LatestAddressRecord | null) => {
   const email = normalizeText(payload.email);
   if (email) form.email = email;
 
+  const district = normalizeText(payload.district);
+  if (district) form.district = district;
+
   const serviceAddress = normalizeText(payload.serviceAddress);
   if (serviceAddress) form.address = serviceAddress;
 
@@ -1043,11 +1521,11 @@ const buildServiceDateTime = (): string | undefined => {
     return undefined;
   }
   const timeValue = time || '00:00';
-  const parsed = new Date(`${date}T${timeValue}:00`);
-  if (Number.isNaN(parsed.getTime())) {
+  const slotTimestamp = Date.parse(`${date}T${timeValue}:00${DUBAI_UTC_OFFSET}`);
+  if (Number.isNaN(slotTimestamp)) {
     return undefined;
   }
-  if (parsed.getTime() <= Date.now()) {
+  if (slotTimestamp < bookingThreshold()) {
     return undefined;
   }
   return `${date} ${timeValue}`;
@@ -1107,10 +1585,8 @@ const getValidationMessage = (): string => {
       field: t('client.orderConfirm.fields.phone'),
     });
   }
-  if (!normalizeText(form.email)) {
-    return t('client.orderConfirm.validation.requiredField', {
-      field: t('client.orderConfirm.fields.email'),
-    });
+  if (!isValidEmail(normalizeText(form.email))) {
+    return t('client.orderConfirm.addressBook.invalidEmail');
   }
   if (!normalizeText(form.address)) {
     return t('client.orderConfirm.validation.requiredField', {
@@ -1177,12 +1653,16 @@ const handleConfirm = async () => {
 
   const payload = {
     orderId: orderId.value,
+    ...(selectedAddressId.value !== null ? { addressId: selectedAddressId.value } : {}),
     firstName: normalizeText(form.firstName),
     lastName: normalizeText(form.lastName),
-    phone: buildFullPhone(),
+    phoneCountryCode: normalizeText(form.countryCode) || DEFAULT_COUNTRY_CODE,
+    phone: normalizeText(form.phone),
     email: normalizeText(form.email),
+    district: normalizeText(form.district),
     serviceAddress: normalizeText(form.address),
     remark: normalizeText(form.remark),
+    category: normalizeAddressCategory(form.category),
     serviceTime: normalizeText(form.serviceDate),
     timeRange: Number(form.timeRange),
     paymentMethod: ORDER_PAYMENT_METHOD,
@@ -1200,8 +1680,12 @@ const handleConfirm = async () => {
   }
 };
 
-onMounted(() => {
-  void loadLatestAddress();
+onMounted(async () => {
+  await loadLatestAddress();
+  await loadAddressBook();
+  if (selectedAddressId.value === null) {
+    await handleUseCurrentLocation();
+  }
 });
 </script>
 
@@ -1228,8 +1712,8 @@ onMounted(() => {
 
 .h5-order-topbar__back,
 .h5-order-topbar__spacer {
-  width: 40px;
-  height: 40px;
+  width: 44px;
+  height: 44px;
 }
 
 .h5-order-topbar__back {
@@ -1277,7 +1761,7 @@ onMounted(() => {
   width: 4px;
   height: 16px;
   border-radius: 999px;
-  background: #12B0FF;
+  background: var(--hourx-brand);
   flex-shrink: 0;
 }
 
@@ -1286,6 +1770,13 @@ onMounted(() => {
   color: #1d293d;
   font-size: 15px;
   font-weight: 900;
+}
+
+.h5-location-status {
+  margin-left: auto;
+  color: var(--hourx-brand);
+  font-size: 10px;
+  font-weight: 700;
 }
 
 .h5-order-summary__item {
@@ -1370,6 +1861,287 @@ onMounted(() => {
   line-height: 1.4;
 }
 
+.h5-location-attribution {
+  margin: -4px 0 0;
+  color: #90a1b9;
+  font-size: 10px;
+  line-height: 1.4;
+}
+
+.h5-location-attribution a {
+  color: inherit;
+}
+
+.h5-order-lead-time {
+  margin: 10px 0 0;
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  color: #62748e;
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.h5-order-lead-time :deep(.van-icon) {
+  margin-top: 1px;
+  color: var(--hourx-brand);
+  flex: 0 0 auto;
+}
+
+.h5-address-book {
+  margin-top: 16px;
+  padding: 13px;
+  border: 1px solid #e1e7ef;
+  border-radius: 12px;
+  background: #f8fafc;
+}
+
+.h5-address-book__bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.h5-address-book__bar strong {
+  color: #05152b;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.h5-address-book__bar button {
+  min-height: 32px;
+  border: 1px solid #05152b;
+  border-radius: 8px;
+  background: #fff;
+  color: #05152b;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 0 10px;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.h5-address-book__state {
+  margin: 13px 0 0;
+  color: #77869b;
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.h5-address-picker {
+  margin-top: 12px;
+}
+
+.h5-address-picker__list {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  max-height: min(54vh, 440px);
+  overflow-y: auto;
+  padding: 2px;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+}
+
+.h5-address-card {
+  position: relative;
+  flex: 0 0 auto;
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid #d9e1eb;
+  border-radius: 11px;
+  background: #fff;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease;
+}
+
+.h5-address-card.is-selected {
+  border-color: #05152b;
+  background: #fbfdff;
+  box-shadow: 0 0 0 2px rgba(5, 21, 43, 0.08);
+}
+
+.h5-address-card__select {
+  width: 100%;
+  min-height: 138px;
+  border: 0;
+  background: transparent;
+  color: #05152b;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 5px;
+  padding: 11px 48px 41px 12px;
+  text-align: left;
+  font: inherit;
+}
+
+.h5-address-card__select:focus-visible {
+  outline: 2px solid #05152b;
+  outline-offset: -3px;
+}
+
+.h5-address-card__topline {
+  width: 100%;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.h5-address-card__select > strong {
+  color: #05152b;
+  font-size: 13px;
+  line-height: 1.35;
+}
+
+.h5-address-card__select > span:not(.h5-address-card__topline),
+.h5-address-card__select > small {
+  max-width: 100%;
+  color: #68788d;
+  font-size: 11px;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+.h5-address-card__select > small {
+  color: #90a1b9;
+}
+
+.h5-address-card__address {
+  color: #364153 !important;
+}
+
+.h5-address-card__radio {
+  position: relative;
+  width: 17px;
+  height: 17px;
+  flex: 0 0 17px;
+  border: 2px solid #aeb9c8;
+  border-radius: 50%;
+  box-sizing: border-box;
+}
+
+.h5-address-card.is-selected .h5-address-card__radio {
+  border-color: #05152b;
+}
+
+.h5-address-card.is-selected .h5-address-card__radio::after {
+  position: absolute;
+  inset: 3px;
+  border-radius: 50%;
+  background: #05152b;
+  content: '';
+}
+
+.h5-address-card__edit {
+  position: absolute;
+  right: 11px;
+  bottom: 8px;
+  min-width: 38px;
+  min-height: 32px;
+  border: 0;
+  background: transparent;
+  color: #05152b;
+  padding: 4px 0;
+  font-size: 10px;
+  font-weight: 800;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.h5-address-picker__tags {
+  min-width: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.h5-address-picker__tags em {
+  border-radius: 999px;
+  background: rgba(5, 21, 43, 0.08);
+  color: #05152b;
+  padding: 3px 7px;
+  font-size: 9px;
+  line-height: 1.2;
+  font-style: normal;
+  font-weight: 800;
+}
+
+.h5-address-picker__tags .h5-address-picker__default {
+  background: rgba(5, 21, 43, 0.14);
+}
+
+.h5-address-picker__tags .h5-address-picker__selected {
+  background: #05152b;
+  color: #fff;
+}
+
+.h5-address-picker__manual {
+  width: 100%;
+  min-height: 42px;
+  margin-top: 9px;
+  border: 1px dashed #aeb9c8;
+  border-radius: 9px;
+  background: #fff;
+  color: #05152b;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  padding: 7px 10px;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.h5-address-picker__hint {
+  margin: 8px 1px 0;
+  color: #8090a5;
+  font-size: 10px;
+  line-height: 1.4;
+}
+
+.h5-address-category {
+  margin-top: 15px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.h5-address-category > span {
+  color: #05152b;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.h5-address-category > div,
+.h5-add-address-sheet__categories {
+  display: flex;
+  gap: 8px;
+}
+
+.h5-address-category button,
+.h5-add-address-sheet__categories button {
+  min-width: 76px;
+  height: 34px;
+  border: 1px solid #d6dee8;
+  border-radius: 999px;
+  background: #fff;
+  color: #607086;
+  padding: 0 13px;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.h5-address-category button.is-active,
+.h5-add-address-sheet__categories button.is-active {
+  border-color: #05152b;
+  background: #05152b;
+  color: #fff;
+}
+
 .h5-order-input {
   min-height: 41px;
   border: 1px solid #e2e8f0;
@@ -1388,7 +2160,8 @@ onMounted(() => {
 }
 
 .h5-order-input input,
-.h5-order-input select {
+.h5-order-input select,
+.h5-order-input textarea {
   width: 100%;
   min-width: 0;
   border: 0;
@@ -1399,8 +2172,22 @@ onMounted(() => {
   font-weight: 500;
 }
 
-.h5-order-input input::placeholder {
+.h5-order-input input::placeholder,
+.h5-order-input textarea::placeholder {
   color: #90a1b9;
+}
+
+.h5-order-input--textarea {
+  min-height: 78px;
+  align-items: flex-start;
+  padding-top: 11px;
+  padding-bottom: 11px;
+}
+
+.h5-order-input--textarea textarea {
+  min-height: 54px;
+  resize: vertical;
+  line-height: 1.45;
 }
 
 .h5-order-input--phone select {
@@ -1524,7 +2311,7 @@ onMounted(() => {
 .h5-order-footer__summary strong {
   display: block;
   margin-top: 2px;
-  color: #12B0FF;
+  color: var(--hourx-brand);
   font-size: 16px;
   line-height: 1;
   font-weight: 900;
@@ -1541,7 +2328,7 @@ onMounted(() => {
   height: 40px;
   border: 0;
   border-radius: 4px;
-  background: #12B0FF;
+  background: var(--hourx-brand);
   color: #fff;
   font-size: 14px;
   font-weight: 900;
@@ -1560,6 +2347,130 @@ onMounted(() => {
   gap: 4px;
   color: #90a1b9;
   font-size: 10px;
+}
+
+.h5-add-address-sheet {
+  max-height: 90vh;
+  overflow-y: auto;
+  padding: 20px 18px calc(22px + env(safe-area-inset-bottom));
+}
+
+.h5-add-address-sheet__header {
+  position: sticky;
+  top: -20px;
+  z-index: 2;
+  margin: -20px -18px 0;
+  padding: 20px 18px 14px;
+  background: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.h5-add-address-sheet__header h3 {
+  margin: 0;
+  color: #05152b;
+  font-size: 18px;
+  font-weight: 900;
+}
+
+.h5-add-address-sheet__header button {
+  width: 36px;
+  height: 36px;
+  border: 0;
+  border-radius: 999px;
+  background: #f1f4f8;
+  color: #526176;
+  font-size: 18px;
+}
+
+.h5-add-address-sheet__categories {
+  margin: 3px 0 18px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.h5-add-address-sheet__categories::-webkit-scrollbar {
+  display: none;
+}
+
+.h5-add-address-sheet__grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.h5-add-address-field {
+  margin-top: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.h5-add-address-sheet__grid .h5-add-address-field {
+  margin-top: 0;
+}
+
+.h5-add-address-field > span {
+  color: #05152b;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.h5-add-address-field > input,
+.h5-add-address-field > textarea,
+.h5-add-address-field__phone > input,
+.h5-add-address-field__phone > select {
+  width: 100%;
+  min-width: 0;
+  border: 1px solid #dce3ec;
+  border-radius: 9px;
+  outline: 0;
+  background: #f8fafc;
+  color: #27364b;
+  padding: 0 12px;
+  font-size: 13px;
+  box-sizing: border-box;
+}
+
+.h5-add-address-field > input,
+.h5-add-address-field__phone > input,
+.h5-add-address-field__phone > select {
+  height: 44px;
+}
+
+.h5-add-address-field > textarea {
+  min-height: 70px;
+  padding-top: 11px;
+  padding-bottom: 11px;
+  resize: vertical;
+  line-height: 1.45;
+}
+
+.h5-add-address-field__phone {
+  display: grid;
+  grid-template-columns: 128px minmax(0, 1fr);
+  gap: 8px;
+}
+
+.h5-add-address-sheet__submit {
+  position: sticky;
+  bottom: -22px;
+  margin-top: 20px;
+  width: 100%;
+  height: 48px;
+  border: 0;
+  border-radius: 12px;
+  background: #05152b;
+  color: #fff;
+  font-size: 15px;
+  font-weight: 900;
+  box-shadow: 0 -8px 18px rgba(255, 255, 255, 0.92);
+}
+
+.h5-add-address-sheet__submit:disabled {
+  opacity: 0.65;
 }
 
 .h5-stripe-sheet {
@@ -1622,7 +2533,7 @@ onMounted(() => {
   height: 44px;
   border: 0;
   border-radius: 8px;
-  background: #12B0FF;
+  background: var(--hourx-brand);
   color: #fff;
   font-size: 14px;
   font-weight: 800;
@@ -1638,6 +2549,11 @@ onMounted(() => {
   }
 
   .h5-order-footer {
+    grid-template-columns: 1fr;
+  }
+
+  .h5-add-address-sheet__grid,
+  .h5-add-address-field__phone {
     grid-template-columns: 1fr;
   }
 }

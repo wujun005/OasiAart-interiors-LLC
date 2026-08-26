@@ -40,17 +40,34 @@
             </div>
           </label>
 
-          <label v-if="!isCodeLogin" class="h5-login-field">
+          <label v-if="!isCodeLogin" class="h5-login-field h5-login-field--password">
             <span>{{ t('client.login.password.passwordLabel') }}</span>
             <div class="h5-login-input">
-              <van-icon name="shield-o" />
+              <van-icon name="lock" />
               <input
                 v-model="form.password"
-                type="password"
+                :type="passwordInputType"
                 autocomplete="current-password"
                 :placeholder="t('client.login.password.passwordPlaceholder')"
               />
+              <button
+                class="h5-password-toggle"
+                type="button"
+                :aria-label="
+                  showPassword
+                    ? t('client.login.password.hidePassword')
+                    : t('client.login.password.showPassword')
+                "
+                @click="showPassword = !showPassword"
+              >
+                <van-icon :name="showPassword ? 'closed-eye' : 'eye-o'" />
+              </button>
             </div>
+            <span class="h5-login-forgot">
+              <button type="button" @click="toggleLoginMode">
+                {{ t('client.login.password.forgotPassword') }}
+              </button>
+            </span>
           </label>
 
           <label v-else class="h5-login-field">
@@ -69,22 +86,29 @@
               <button
                 class="h5-login-code-btn"
                 type="button"
-                :disabled="sendingCode || codeCooldown > 0"
+                :disabled="!isCodeDestinationValid || sendingCode || codeCooldown > 0"
                 @click="requestLoginCode"
               >
                 {{ codeBtnText }}
               </button>
             </div>
+            <small v-if="codeSentHint" class="h5-login-code-hint">{{ codeSentHint }}</small>
           </label>
-
-          <div class="h5-login-helper">
-            <button type="button" @click="toggleLoginMode">
-              {{ isCodeLogin ? t('client.login.password.usePasswordLogin') : t('client.login.password.forgotByCode') }}
-            </button>
-          </div>
 
           <button class="h5-login-submit" type="submit" :disabled="submitting">
             {{ submitting ? t('client.login.password.submitting') : t('client.login.password.submit') }}
+          </button>
+
+          <div class="h5-login-divider" aria-hidden="true">
+            <span>{{ t('client.login.password.separator') }}</span>
+          </div>
+
+          <button class="h5-login-secondary" type="button" @click="toggleLoginMode">
+            {{
+              isCodeLogin
+                ? t('client.login.password.usePasswordLogin')
+                : t('client.login.password.useCodeLogin')
+            }}
           </button>
         </form>
 
@@ -125,10 +149,19 @@ const form = reactive({
 const loginMode = ref<LoginMode>('password');
 const sendingCode = ref(false);
 const codeCooldown = ref(0);
+const codeSentDestination = ref('');
 const submitting = ref(false);
+const showPassword = ref(false);
 let codeTimer: number | null = null;
 
 const isCodeLogin = computed(() => loginMode.value === 'code');
+const isCodeDestinationValid = computed(() => {
+  const value = form.account.trim();
+  if (!value) return false;
+  if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) return true;
+  return /^\+?[\d\s()-]{7,}$/.test(value) && value.replace(/\D/g, '').length >= 7;
+});
+const passwordInputType = computed(() => (showPassword.value ? 'text' : 'password'));
 const localeButtonText = computed(() =>
   locale.value === 'zh' ? t('client.header.languageZh') : t('client.header.languageEn'),
 );
@@ -140,6 +173,22 @@ const codeBtnText = computed(() => {
     return t('client.login.password.sendingCode');
   }
   return t('client.login.password.getCode');
+});
+const maskCodeDestination = (value: string) => {
+  if (value.includes('@')) {
+    const [name = '', domain = ''] = value.split('@');
+    return `${name.slice(0, 2)}${name.length > 2 ? '***' : ''}@${domain}`;
+  }
+  const digits = value.replace(/\D/g, '');
+  if (digits.length <= 6) return value;
+  return `${value.trim().startsWith('+') ? '+' : ''}${digits.slice(0, 3)}****${digits.slice(-4)}`;
+};
+const codeSentHint = computed(() => {
+  const current = form.account.trim();
+  if (!codeSentDestination.value || current !== codeSentDestination.value) return '';
+  return t('client.login.password.codeSentTo', {
+    destination: maskCodeDestination(codeSentDestination.value),
+  });
 });
 
 const toggleLocale = () => {
@@ -164,6 +213,7 @@ const toggleLoginMode = () => {
   loginMode.value = isCodeLogin.value ? 'password' : 'code';
   if (isCodeLogin.value) {
     form.password = '';
+    showPassword.value = false;
     return;
   }
   form.code = '';
@@ -192,13 +242,14 @@ const startCodeCountdown = () => {
 
 const requestLoginCode = async () => {
   const accountValue = form.account.trim();
-  if (!accountValue) {
-    showFailToast(t('client.login.password.accountRequired'));
+  if (!isCodeDestinationValid.value) {
+    showFailToast(t('client.login.password.accountInvalid'));
     return;
   }
   sendingCode.value = true;
   try {
     await sendCode({ phoneOrEmail: accountValue });
+    codeSentDestination.value = accountValue;
     showSuccessToast(t('client.login.password.codeSent'));
     startCodeCountdown();
   } catch (error: any) {
@@ -303,7 +354,7 @@ onBeforeUnmount(() => {
 
 .h5-login-topbar {
   max-width: 393px;
-  height: 72px;
+  height: 54px;
   margin: 0 auto;
   padding: 0 12px 0 12px;
   display: flex;
@@ -323,8 +374,8 @@ onBeforeUnmount(() => {
 }
 
 .h5-login-topbar__back {
-  width: 40px;
-  height: 40px;
+  width: 44px;
+  height: 44px;
   justify-content: center;
   color: #45556c;
   font-size: 20px;
@@ -355,7 +406,7 @@ onBeforeUnmount(() => {
 }
 
 .h5-login-panel {
-  padding-top: 16px;
+  padding-top: 18px;
 }
 
 .h5-login-panel__header h1 {
@@ -376,11 +427,11 @@ onBeforeUnmount(() => {
 }
 
 .h5-login-panel__header p button,
-.h5-login-helper button {
+.h5-login-forgot button {
   border: 0;
   background: transparent;
   padding: 0;
-  color: #12B0FF;
+  color: var(--hourx-brand);
   font-weight: 700;
   cursor: pointer;
 }
@@ -413,7 +464,7 @@ onBeforeUnmount(() => {
 .h5-login-input {
   min-height: 49px;
   border-radius: 10px;
-  border: 1px solid #e2e8f0;
+  border: 1px solid #cbd5e1;
   background: #f8fafc;
   padding: 0 16px;
   display: flex;
@@ -428,7 +479,8 @@ onBeforeUnmount(() => {
 }
 
 .h5-login-input input {
-  width: 100%;
+  flex: 1;
+  min-width: 0;
   border: 0;
   outline: 0;
   background: transparent;
@@ -439,12 +491,12 @@ onBeforeUnmount(() => {
 }
 
 .h5-login-input input::placeholder {
-  color: #90a1b9;
+  color: #64748b;
 }
 
 .h5-login-input:focus-within {
-  border-color: rgba(57, 114, 245, 0.32);
-  box-shadow: 0 0 0 3px rgba(57, 114, 245, 0.06);
+  border-color: rgba(5, 21, 43, 0.32);
+  box-shadow: 0 0 0 3px rgba(5, 21, 43, 0.06);
   background: #fff;
 }
 
@@ -462,8 +514,8 @@ onBeforeUnmount(() => {
   min-height: 49px;
   border: 0;
   border-radius: 10px;
-  background: #eef4ff;
-  color: #12B0FF;
+  background: var(--hourx-brand-soft);
+  color: var(--hourx-brand);
   font-size: 13px;
   font-weight: 700;
   padding: 0 8px;
@@ -473,32 +525,88 @@ onBeforeUnmount(() => {
 .h5-login-code-btn:disabled,
 .h5-login-submit:disabled {
   opacity: 0.6;
+  cursor: not-allowed;
 }
 
-.h5-login-helper {
-  margin-top: -2px;
+.h5-login-code-hint {
+  color: #62748e;
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.h5-login-field > .h5-login-forgot {
   display: flex;
   justify-content: flex-end;
 }
 
-.h5-login-helper button {
+.h5-login-forgot button {
   font-size: 14px;
   line-height: 21px;
 }
 
+.h5-password-toggle {
+  width: 28px;
+  height: 28px;
+  border: 0;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 28px;
+  background: transparent;
+  color: #62748e;
+  cursor: pointer;
+}
+
+.h5-password-toggle :deep(.van-icon) {
+  color: currentColor;
+  font-size: 19px;
+}
+
 .h5-login-submit {
-  margin-top: 20px;
+  margin-top: 0;
   width: 100%;
   min-height: 52px;
   border: 0;
   border-radius: 10px;
-  background: #12B0FF;
+  background: var(--hourx-brand);
   color: #fff;
   font-size: 18px;
   line-height: 28px;
   font-weight: 700;
   letter-spacing: -0.02em;
   cursor: pointer;
+}
+
+.h5-login-secondary {
+  width: 100%;
+  min-height: 50px;
+  border: 1px solid rgba(5, 21, 43, 0.34);
+  border-radius: 10px;
+  background: #fff;
+  color: var(--hourx-brand);
+  font-size: 15px;
+  line-height: 22px;
+  font-weight: 750;
+  cursor: pointer;
+}
+
+.h5-login-divider {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 11px;
+  color: #94a3b8;
+  font-size: 11px;
+  line-height: 1;
+  font-weight: 650;
+}
+
+.h5-login-divider::before,
+.h5-login-divider::after {
+  content: '';
+  height: 1px;
+  background: #e2e8f0;
 }
 
 .h5-login-agreement {

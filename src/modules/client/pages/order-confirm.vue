@@ -76,7 +76,6 @@
                   <input
                     v-model="form.email"
                     type="email"
-                    required
                     :placeholder="t('client.orderConfirm.placeholders.email')"
                   />
                 </div>
@@ -88,8 +87,104 @@
             <header class="order-section-title">
               <span class="order-section-title__index">2</span>
               <h2>{{ t('client.orderConfirm.sections.address') }}</h2>
+              <span v-if="isLocating" class="order-location-status">
+                {{ t('client.orderConfirm.location.locating') }}
+              </span>
             </header>
+            <div class="order-address-book">
+              <div class="order-address-book__bar">
+                <strong>{{ t('client.orderConfirm.addressBook.title') }}</strong>
+                <button type="button" @click="openAddAddressDialog">
+                  <span aria-hidden="true">+</span>
+                  {{ t('client.orderConfirm.addressBook.add') }}
+                </button>
+              </div>
+              <p v-if="addressListLoading" class="order-address-book__state">
+                {{ t('client.orderConfirm.addressBook.loading') }}
+              </p>
+              <div v-else-if="addressList.length" class="order-address-picker">
+                <div
+                  class="order-address-picker__list"
+                  role="radiogroup"
+                  :aria-label="t('client.orderConfirm.addressBook.title')"
+                >
+                  <article
+                    v-for="item in addressList"
+                    :key="item.id"
+                    class="order-address-card"
+                    :class="{ 'is-selected': selectedAddressId === item.id }"
+                  >
+                    <button
+                      class="order-address-card__select"
+                      type="button"
+                      role="radio"
+                      :aria-checked="selectedAddressId === item.id"
+                      @click="selectSavedAddress(item)"
+                    >
+                      <span class="order-address-card__topline">
+                        <span class="order-address-picker__tags">
+                          <em>{{ addressCategoryLabel(item.category) }}</em>
+                          <em v-if="item.isDefault" class="order-address-picker__default">
+                            {{ t('client.orderConfirm.addressBook.defaultTag') }}
+                          </em>
+                          <em v-if="selectedAddressId === item.id" class="order-address-picker__selected">
+                            {{ t('client.orderConfirm.addressBook.selectedTag') }}
+                          </em>
+                        </span>
+                        <i class="order-address-card__radio" aria-hidden="true" />
+                      </span>
+                      <strong>{{ item.firstName }} {{ item.lastName }}</strong>
+                      <span>{{ formatAddressPhone(item) }}</span>
+                      <span class="order-address-card__address">{{ formatAddressLine(item) }}</span>
+                      <small v-if="item.additionalNotes">{{ item.additionalNotes }}</small>
+                    </button>
+                    <button
+                      class="order-address-card__edit"
+                      type="button"
+                      @click="openEditAddressDialog(item)"
+                    >
+                      {{ t('client.orderConfirm.addressBook.edit') }}
+                    </button>
+                  </article>
+                </div>
+                <button class="order-address-picker__manual" type="button" @click="selectManualAddress">
+                  <span aria-hidden="true">+</span>
+                  {{ t('client.orderConfirm.addressBook.manualOption') }}
+                </button>
+                <p class="order-address-picker__hint">
+                  {{ t('client.orderConfirm.addressBook.editHint') }}
+                </p>
+              </div>
+              <p v-else class="order-address-book__state">
+                {{ t('client.orderConfirm.addressBook.empty') }}
+              </p>
+            </div>
             <div class="order-fields-stack">
+              <div class="order-address-category">
+                <span>{{ t('client.orderConfirm.addressBook.categoryLabel') }}</span>
+                <div>
+                  <button
+                    v-for="item in addressCategoryOptions"
+                    :key="item.value"
+                    type="button"
+                    :class="{ 'is-active': form.category === item.value }"
+                    @click="form.category = item.value"
+                  >
+                    {{ item.label }}
+                  </button>
+                </div>
+              </div>
+              <label class="order-field">
+                <span>{{ t('client.orderConfirm.fields.district') }}</span>
+                <div class="order-input-wrap">
+                  <i aria-hidden="true">A</i>
+                  <input
+                    v-model="form.district"
+                    type="text"
+                    :placeholder="t('client.orderConfirm.placeholders.district')"
+                  />
+                </div>
+              </label>
               <label class="order-field">
                 <span>{{ t('client.orderConfirm.fields.address') }}</span>
                 <div class="order-input-wrap">
@@ -112,6 +207,15 @@
                   />
                 </div>
               </label>
+              <p v-if="locationLookupUsed" class="order-location-attribution">
+                <a
+                  href="https://www.openstreetmap.org/copyright"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  {{ t('client.orderConfirm.location.attribution') }}
+                </a>
+              </p>
             </div>
           </section>
 
@@ -226,6 +330,81 @@
     </section>
 
     <el-dialog
+      v-model="addAddressDialogVisible"
+      :title="editingAddressId ? t('client.orderConfirm.addressBook.editTitle') : t('client.orderConfirm.addressBook.addTitle')"
+      width="min(680px, calc(100% - 32px))"
+      :close-on-click-modal="!addressAdding"
+      :show-close="!addressAdding"
+    >
+      <el-form label-position="top" class="order-add-address-form">
+        <el-form-item :label="t('client.orderConfirm.addressBook.categoryLabel')">
+          <div class="order-add-address-form__categories">
+            <button
+              v-for="item in addressCategoryOptions"
+              :key="item.value"
+              type="button"
+              :class="{ 'is-active': addAddressForm.category === item.value }"
+              @click="addAddressForm.category = item.value"
+            >
+              {{ item.label }}
+            </button>
+          </div>
+        </el-form-item>
+        <div class="order-add-address-form__grid">
+          <el-form-item :label="t('client.orderConfirm.fields.firstName')" required>
+            <el-input v-model="addAddressForm.firstName" :placeholder="t('client.orderConfirm.placeholders.firstName')" />
+          </el-form-item>
+          <el-form-item :label="t('client.orderConfirm.fields.lastName')" required>
+            <el-input v-model="addAddressForm.lastName" :placeholder="t('client.orderConfirm.placeholders.lastName')" />
+          </el-form-item>
+          <el-form-item :label="t('client.orderConfirm.fields.phone')" required>
+            <div class="order-add-address-form__phone">
+              <el-select v-model="addAddressForm.phoneCountryCode">
+                <el-option
+                  v-for="item in countryCodeOptions"
+                  :key="item.value"
+                  :label="item.label"
+                  :value="item.value"
+                />
+              </el-select>
+              <el-input v-model="addAddressForm.phone" :placeholder="t('client.login.register.phoneNumberPlaceholder')" />
+            </div>
+          </el-form-item>
+          <el-form-item :label="t('client.orderConfirm.fields.email')">
+            <el-input v-model="addAddressForm.email" type="email" :placeholder="t('client.orderConfirm.placeholders.email')" />
+          </el-form-item>
+          <el-form-item :label="t('client.orderConfirm.fields.district')">
+            <el-input v-model="addAddressForm.district" :placeholder="t('client.orderConfirm.placeholders.district')" />
+          </el-form-item>
+          <el-form-item class="order-add-address-form__wide" :label="t('client.orderConfirm.fields.address')" required>
+            <el-input v-model="addAddressForm.address" :placeholder="t('client.orderConfirm.placeholders.address')" />
+          </el-form-item>
+          <el-form-item class="order-add-address-form__wide" :label="t('client.orderConfirm.fields.remark')">
+            <el-input
+              v-model="addAddressForm.additionalNotes"
+              type="textarea"
+              :rows="3"
+              :placeholder="t('client.orderConfirm.placeholders.remark')"
+            />
+          </el-form-item>
+        </div>
+      </el-form>
+      <template #footer>
+        <el-button :disabled="addressAdding" @click="addAddressDialogVisible = false">
+          {{ t('client.orderConfirm.addressBook.cancel') }}
+        </el-button>
+        <el-button
+          class="order-add-address-form__submit"
+          type="primary"
+          :loading="addressAdding"
+          @click="submitAddressEditor"
+        >
+          {{ editingAddressId ? t('client.orderConfirm.addressBook.saveChanges') : t('client.orderConfirm.addressBook.save') }}
+        </el-button>
+      </template>
+    </el-dialog>
+
+    <el-dialog
       v-model="stripeDialogVisible"
       :title="locale === 'zh' ? 'Stripe 支付' : 'Stripe Payment'"
       width="560px"
@@ -284,12 +463,22 @@ import { computed, nextTick, onMounted, reactive, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRoute, useRouter } from 'vue-router';
 import {
+  addClientAddress,
+  getClientAddressList,
+  updateClientAddress,
   saveContactAddress,
   getLatestAddress,
+  type AddressCategory,
+  type ClientAddressRecord,
   type LatestAddressRecord,
   getAvailableSelectTime,
   createPay,
 } from '@/modules/client/api';
+import {
+  locateCurrentAddress,
+  LocationLookupError,
+  type LocationLookupErrorCode,
+} from '@/modules/client/utils/geolocation';
 
 type I18nText = Record<string, string>;
 
@@ -319,8 +508,10 @@ const form = reactive({
   countryCode: DEFAULT_COUNTRY_CODE,
   phone: '',
   email: '',
+  district: '',
   address: '',
   remark: '',
+  category: 'others' as AddressCategory,
   serviceDate: '',
   timeRange: '',
 });
@@ -332,9 +523,30 @@ const pendingTimeText = ref('');
 
 const agreedPolicy = ref(true);
 const isSubmitting = ref(false);
+const isLocating = ref(false);
+const locationLookupUsed = ref(false);
+const addressList = ref<ClientAddressRecord[]>([]);
+const addressListLoading = ref(false);
+const selectedAddressId = ref<number | null>(null);
+const addAddressDialogVisible = ref(false);
+const addressAdding = ref(false);
+const editingAddressId = ref<number | null>(null);
+let isApplyingSavedAddress = false;
+const addAddressForm = reactive({
+  firstName: '',
+  lastName: '',
+  phoneCountryCode: DEFAULT_COUNTRY_CODE,
+  phone: '',
+  email: '',
+  district: '',
+  address: '',
+  additionalNotes: '',
+  category: 'home' as AddressCategory,
+});
 const serviceDateInputRef = ref<HTMLInputElement | null>(null);
-const ORDER_PAYMENT_METHOD = 'STRIPE';
+const ORDER_PAYMENT_METHOD = 'stripe';
 const CREATE_PAY_METHOD = 'stripe';
+const PAYMENT_STATUS_SYNC_DELAY_MS = 2000;
 const STRIPE_SCRIPT_ID = 'hourx-stripe-js';
 const stripePublishableKey =
   typeof import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY === 'string'
@@ -393,14 +605,236 @@ const normalizeText = (value: unknown): string =>
 const normalizePhoneNumber = (value: unknown): string =>
   typeof value === 'string' ? value.replace(/[^\d]/g, '') : '';
 
+const normalizeAddressCategory = (value: unknown): AddressCategory => {
+  if (value === 'home' || value === 'office' || value === 'others') {
+    return value;
+  }
+  return 'others';
+};
+
+const addressCategoryOptions = computed(() => [
+  { value: 'home' as AddressCategory, label: t('client.orderConfirm.addressBook.categories.home') },
+  { value: 'office' as AddressCategory, label: t('client.orderConfirm.addressBook.categories.office') },
+  { value: 'others' as AddressCategory, label: t('client.orderConfirm.addressBook.categories.others') },
+]);
+
+const addressCategoryLabel = (category: unknown) => {
+  const normalized = normalizeAddressCategory(category);
+  return t(`client.orderConfirm.addressBook.categories.${normalized}`);
+};
+
+const formatAddressPhone = (item: ClientAddressRecord) =>
+  [normalizeText(item.phoneCountryCode), normalizeText(item.phone)].filter(Boolean).join(' ');
+
+const formatAddressLine = (item: ClientAddressRecord) =>
+  [normalizeText(item.district), normalizeText(item.address)].filter(Boolean).join(', ');
+
+const normalizeAddressRecord = (item: ClientAddressRecord): ClientAddressRecord | null => {
+  const id = Number(item?.id);
+  if (!Number.isFinite(id) || id <= 0) return null;
+  return {
+    ...item,
+    id,
+    firstName: normalizeText(item.firstName),
+    lastName: normalizeText(item.lastName),
+    phoneCountryCode: normalizeText(item.phoneCountryCode) || DEFAULT_COUNTRY_CODE,
+    phone: normalizeText(item.phone),
+    email: normalizeText(item.email),
+    district: normalizeText(item.district),
+    address: normalizeText(item.address),
+    additionalNotes: normalizeText(item.additionalNotes),
+    category: normalizeAddressCategory(item.category),
+    isDefault: item.isDefault === true,
+  };
+};
+
+const selectSavedAddress = (item: ClientAddressRecord) => {
+  isApplyingSavedAddress = true;
+  selectedAddressId.value = item.id;
+  form.firstName = normalizeText(item.firstName);
+  form.lastName = normalizeText(item.lastName);
+  form.countryCode = normalizeText(item.phoneCountryCode) || DEFAULT_COUNTRY_CODE;
+  form.phone = normalizeText(item.phone);
+  form.email = normalizeText(item.email);
+  form.district = normalizeText(item.district);
+  form.address = normalizeText(item.address);
+  form.remark = normalizeText(item.additionalNotes);
+  form.category = normalizeAddressCategory(item.category);
+  locationLookupUsed.value = false;
+  isApplyingSavedAddress = false;
+};
+
+const selectManualAddress = () => {
+  isApplyingSavedAddress = true;
+  selectedAddressId.value = null;
+  form.district = '';
+  form.address = '';
+  form.remark = '';
+  form.category = 'others';
+  locationLookupUsed.value = false;
+  isApplyingSavedAddress = false;
+};
+
+const loadAddressBook = async (preferredId?: number | null) => {
+  addressListLoading.value = true;
+  try {
+    const records = await getClientAddressList();
+    addressList.value = records
+      .map(normalizeAddressRecord)
+      .filter((item): item is ClientAddressRecord => item !== null);
+    const preferred =
+      addressList.value.find((item) => preferredId && item.id === preferredId) ||
+      addressList.value.find((item) => item.isDefault) ||
+      addressList.value[0];
+    if (preferred) {
+      selectSavedAddress(preferred);
+    } else {
+      selectedAddressId.value = null;
+    }
+  } catch (error) {
+    console.error('load address list failed:', error);
+    addressList.value = [];
+    ElMessage.warning(t('client.orderConfirm.addressBook.listFailed'));
+  } finally {
+    addressListLoading.value = false;
+  }
+};
+
+const openAddAddressDialog = () => {
+  editingAddressId.value = null;
+  Object.assign(addAddressForm, {
+    firstName: form.firstName,
+    lastName: form.lastName,
+    phoneCountryCode: form.countryCode || DEFAULT_COUNTRY_CODE,
+    phone: form.phone,
+    email: form.email,
+    district: selectedAddressId.value ? '' : form.district,
+    address: selectedAddressId.value ? '' : form.address,
+    additionalNotes: '',
+    category: 'home' as AddressCategory,
+  });
+  addAddressDialogVisible.value = true;
+};
+
+const openEditAddressDialog = (item: ClientAddressRecord) => {
+  editingAddressId.value = item.id;
+  Object.assign(addAddressForm, {
+    firstName: normalizeText(item.firstName),
+    lastName: normalizeText(item.lastName),
+    phoneCountryCode: normalizeText(item.phoneCountryCode) || DEFAULT_COUNTRY_CODE,
+    phone: normalizeText(item.phone),
+    email: normalizeText(item.email),
+    district: normalizeText(item.district),
+    address: normalizeText(item.address),
+    additionalNotes: normalizeText(item.additionalNotes),
+    category: normalizeAddressCategory(item.category),
+  });
+  addAddressDialogVisible.value = true;
+};
+
+const isValidEmail = (value: string) => !value || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
+
+const getAddAddressValidationMessage = () => {
+  const requiredFields = [
+    [addAddressForm.firstName, t('client.orderConfirm.fields.firstName')],
+    [addAddressForm.lastName, t('client.orderConfirm.fields.lastName')],
+    [addAddressForm.phone, t('client.orderConfirm.fields.phone')],
+    [addAddressForm.address, t('client.orderConfirm.fields.address')],
+  ];
+  const missing = requiredFields.find(([value]) => !normalizeText(value));
+  if (missing) {
+    return t('client.orderConfirm.validation.requiredField', { field: missing[1] });
+  }
+  if (!isValidEmail(normalizeText(addAddressForm.email))) {
+    return t('client.orderConfirm.addressBook.invalidEmail');
+  }
+  return '';
+};
+
+const submitAddressEditor = async () => {
+  const validationMessage = getAddAddressValidationMessage();
+  if (validationMessage) {
+    ElMessage.warning(validationMessage);
+    return;
+  }
+  addressAdding.value = true;
+  try {
+    const payload = {
+      firstName: normalizeText(addAddressForm.firstName),
+      lastName: normalizeText(addAddressForm.lastName),
+      phoneCountryCode: normalizeText(addAddressForm.phoneCountryCode) || DEFAULT_COUNTRY_CODE,
+      phone: normalizeText(addAddressForm.phone),
+      email: normalizeText(addAddressForm.email) || undefined,
+      district: normalizeText(addAddressForm.district) || undefined,
+      address: normalizeText(addAddressForm.address),
+      additionalNotes: normalizeText(addAddressForm.additionalNotes) || undefined,
+      category: normalizeAddressCategory(addAddressForm.category),
+    };
+    if (editingAddressId.value) {
+      await updateClientAddress({ id: editingAddressId.value, ...payload });
+      await loadAddressBook(editingAddressId.value);
+      addAddressDialogVisible.value = false;
+      ElMessage.success(t('client.orderConfirm.addressBook.editSuccess'));
+      return;
+    }
+
+    const added = await addClientAddress(payload);
+    const addedId = Number(typeof added === 'number' ? added : added?.id);
+    await loadAddressBook(Number.isFinite(addedId) ? addedId : null);
+    if (!Number.isFinite(addedId)) {
+      const matched = [...addressList.value].reverse().find(
+        (item) =>
+          item.address === normalizeText(addAddressForm.address) &&
+          item.phone === normalizeText(addAddressForm.phone),
+      );
+      if (matched) selectSavedAddress(matched);
+    }
+    addAddressDialogVisible.value = false;
+    ElMessage.success(t('client.orderConfirm.addressBook.addSuccess'));
+  } catch (error: any) {
+    ElMessage.error(
+      error?.message || t(
+        editingAddressId.value
+          ? 'client.orderConfirm.addressBook.editFailed'
+          : 'client.orderConfirm.addressBook.addFailed',
+      ),
+    );
+  } finally {
+    addressAdding.value = false;
+  }
+};
+
+const locationErrorKeyMap: Record<LocationLookupErrorCode, string> = {
+  UNSUPPORTED: 'unsupported',
+  PERMISSION_DENIED: 'permissionDenied',
+  UNAVAILABLE: 'unavailable',
+  TIMEOUT: 'timeout',
+  LOOKUP_FAILED: 'lookupFailed',
+};
+
+const handleUseCurrentLocation = async () => {
+  if (isLocating.value) return;
+  isLocating.value = true;
+  try {
+    const result = await locateCurrentAddress(locale.value);
+    form.district = result.district;
+    form.address = result.address;
+    locationLookupUsed.value = true;
+    ElMessage.success(t('client.orderConfirm.location.success'));
+  } catch (error) {
+    const code = error instanceof LocationLookupError ? error.code : 'LOOKUP_FAILED';
+    ElMessage.error(t(`client.orderConfirm.location.errors.${locationErrorKeyMap[code]}`));
+  } finally {
+    isLocating.value = false;
+  }
+};
+
 const countryCodeOptions = computed(() =>
   COUNTRY_CODE_ENTRIES.map((item) => ({
     value: item.value,
     label: locale.value === 'zh' ? item.labelZh : item.labelEn,
   })),
 );
-
-const buildFullPhone = (): string => `${form.countryCode}${normalizePhoneNumber(form.phone)}`;
 
 const splitPhoneNumber = (value: unknown): { countryCode: string; phone: string } => {
   const text = normalizeText(value);
@@ -601,6 +1035,26 @@ watch(
       }
     }
   },
+);
+
+watch(
+  () => [
+    form.firstName,
+    form.lastName,
+    form.countryCode,
+    form.phone,
+    form.email,
+    form.district,
+    form.address,
+    form.remark,
+    form.category,
+  ],
+  () => {
+    if (!isApplyingSavedAddress && selectedAddressId.value !== null) {
+      selectedAddressId.value = null;
+    }
+  },
+  { flush: 'sync' },
 );
 
 watch(
@@ -876,6 +1330,9 @@ const openStripeDialog = async (clientSecret: string) => {
 const handleStripeSuccess = async () => {
   stripeDialogVisible.value = false;
   ElMessage.success(t('client.orderConfirm.validation.orderSuccess'));
+  await new Promise<void>((resolve) => {
+    window.setTimeout(resolve, PAYMENT_STATUS_SYNC_DELAY_MS);
+  });
   await router.push({ name: 'order-list' });
 };
 
@@ -1045,6 +1502,9 @@ const fillFormByLatestAddress = (payload: LatestAddressRecord | null) => {
   const email = normalizeText(payload.email);
   if (email) form.email = email;
 
+  const district = normalizeText(payload.district);
+  if (district) form.district = district;
+
   const serviceAddress = normalizeText(payload.serviceAddress);
   if (serviceAddress) form.address = serviceAddress;
 
@@ -1149,10 +1609,8 @@ const getValidationMessage = (): string => {
       field: t('client.orderConfirm.fields.phone'),
     });
   }
-  if (!normalizeText(form.email)) {
-    return t('client.orderConfirm.validation.requiredField', {
-      field: t('client.orderConfirm.fields.email'),
-    });
+  if (!isValidEmail(normalizeText(form.email))) {
+    return t('client.orderConfirm.addressBook.invalidEmail');
   }
   if (!normalizeText(form.address)) {
     return t('client.orderConfirm.validation.requiredField', {
@@ -1217,12 +1675,16 @@ const handleConfirm = async () => {
 
   const payload = {
     orderId: orderId.value,
+    ...(selectedAddressId.value !== null ? { addressId: selectedAddressId.value } : {}),
     firstName: normalizeText(form.firstName),
     lastName: normalizeText(form.lastName),
-    phone: buildFullPhone(),
+    phoneCountryCode: normalizeText(form.countryCode) || DEFAULT_COUNTRY_CODE,
+    phone: normalizeText(form.phone),
     email: normalizeText(form.email),
+    district: normalizeText(form.district),
     serviceAddress: normalizeText(form.address),
     remark: normalizeText(form.remark),
+    category: normalizeAddressCategory(form.category),
     serviceTime: normalizeText(form.serviceDate),
     timeRange: Number(form.timeRange),
     paymentMethod: ORDER_PAYMENT_METHOD,
@@ -1241,8 +1703,12 @@ const handleConfirm = async () => {
   }
 };
 
-onMounted(() => {
-  void loadLatestAddress();
+onMounted(async () => {
+  await loadLatestAddress();
+  await loadAddressBook();
+  if (selectedAddressId.value === null) {
+    await handleUseCurrentLocation();
+  }
 });
 </script>
 
@@ -1278,7 +1744,7 @@ onMounted(() => {
   display: inline-flex;
   align-items: center;
   gap: 12px;
-  color: #12B0FF;
+  color: var(--hourx-brand);
   font-size: 20px;
   font-weight: 800;
   line-height: 1;
@@ -1332,8 +1798,8 @@ onMounted(() => {
   width: 24px;
   height: 24px;
   border-radius: 999px;
-  background: #eff6ff;
-  color: #12B0FF;
+  background: var(--hourx-brand-soft);
+  color: var(--hourx-brand);
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -1347,6 +1813,13 @@ onMounted(() => {
   font-size: 22px;
   line-height: 1.2;
   font-weight: 900;
+}
+
+.order-location-status {
+  margin-left: auto;
+  color: var(--hourx-brand);
+  font-size: 12px;
+  font-weight: 700;
 }
 
 .order-fields-grid {
@@ -1379,6 +1852,17 @@ onMounted(() => {
   color: rgba(15, 23, 42, 0.55);
   font-size: 12px;
   line-height: 1.4;
+}
+
+.order-location-attribution {
+  margin: -6px 0 0;
+  color: rgba(15, 23, 42, 0.5);
+  font-size: 11px;
+  line-height: 1.4;
+}
+
+.order-location-attribution a {
+  color: inherit;
 }
 
 .order-input-wrap {
@@ -1432,6 +1916,303 @@ onMounted(() => {
   flex: 1;
 }
 
+.order-address-book {
+  margin-top: 18px;
+  padding: 16px;
+  border: 1px solid #e4e9f0;
+  border-radius: 14px;
+  background: #f8fafc;
+}
+
+.order-address-book__bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.order-address-book__bar strong {
+  color: #05152b;
+  font-size: 15px;
+  font-weight: 800;
+}
+
+.order-address-book__bar button {
+  min-height: 36px;
+  border: 1px solid #05152b;
+  border-radius: 9px;
+  background: #fff;
+  color: #05152b;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 12px;
+  font-size: 13px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.order-address-book__bar button span {
+  font-size: 20px;
+  line-height: 1;
+}
+
+.order-address-book__state {
+  margin: 16px 0 0;
+  color: rgba(5, 21, 43, 0.56);
+  font-size: 14px;
+}
+
+.order-address-picker {
+  margin-top: 14px;
+}
+
+.order-address-picker__list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.order-address-card {
+  position: relative;
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid #d9e1eb;
+  border-radius: 12px;
+  background: #fff;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease;
+}
+
+.order-address-card:hover {
+  border-color: rgba(5, 21, 43, 0.55);
+}
+
+.order-address-card.is-selected {
+  border-color: #05152b;
+  background: #fbfdff;
+  box-shadow: 0 0 0 2px rgba(5, 21, 43, 0.09);
+}
+
+.order-address-card__select {
+  width: 100%;
+  min-height: 164px;
+  border: 0;
+  background: transparent;
+  color: rgba(5, 21, 43, 0.64);
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  padding: 14px 14px 45px;
+  text-align: left;
+  font: inherit;
+  cursor: pointer;
+}
+
+.order-address-card__select:focus-visible {
+  outline: 2px solid #05152b;
+  outline-offset: -3px;
+}
+
+.order-address-card__topline {
+  width: 100%;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.order-address-card__select > strong {
+  color: #05152b;
+  font-size: 15px;
+  line-height: 1.35;
+}
+
+.order-address-card__select > span:not(.order-address-card__topline),
+.order-address-card__select > small {
+  max-width: 100%;
+  font-size: 12px;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+.order-address-card__select > small {
+  color: rgba(5, 21, 43, 0.45);
+}
+
+.order-address-card__address {
+  color: rgba(5, 21, 43, 0.8);
+}
+
+.order-address-card__radio {
+  position: relative;
+  width: 18px;
+  height: 18px;
+  flex: 0 0 18px;
+  border: 2px solid #aeb9c8;
+  border-radius: 50%;
+  box-sizing: border-box;
+}
+
+.order-address-card.is-selected .order-address-card__radio {
+  border-color: #05152b;
+}
+
+.order-address-card.is-selected .order-address-card__radio::after {
+  position: absolute;
+  inset: 3px;
+  border-radius: 50%;
+  background: #05152b;
+  content: '';
+}
+
+.order-address-card__edit {
+  position: absolute;
+  right: 14px;
+  bottom: 11px;
+  min-height: 30px;
+  border: 0;
+  background: transparent;
+  color: #05152b;
+  padding: 3px 0;
+  font-size: 12px;
+  font-weight: 800;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+
+.order-address-picker__tags {
+  min-width: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.order-address-picker__tags em {
+  border-radius: 999px;
+  background: rgba(5, 21, 43, 0.08);
+  color: #05152b;
+  padding: 3px 8px;
+  font-size: 11px;
+  line-height: 1.2;
+  font-style: normal;
+  font-weight: 800;
+}
+
+.order-address-picker__tags .order-address-picker__default {
+  background: rgba(5, 21, 43, 0.14);
+}
+
+.order-address-picker__tags .order-address-picker__selected {
+  background: #05152b;
+  color: #fff;
+}
+
+.order-address-picker__manual {
+  width: 100%;
+  min-height: 44px;
+  margin-top: 12px;
+  border: 1px dashed #aeb9c8;
+  border-radius: 10px;
+  background: #fff;
+  color: #05152b;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 8px 14px;
+  font-size: 13px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.order-address-picker__manual:hover,
+.order-address-picker__manual:focus-visible {
+  border-color: #05152b;
+  outline: none;
+}
+
+.order-address-picker__manual span {
+  font-size: 20px;
+  line-height: 1;
+}
+
+.order-address-picker__hint {
+  margin: 9px 2px 0;
+  color: rgba(5, 21, 43, 0.5);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.order-address-category {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+}
+
+.order-address-category > span {
+  color: #05152b;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.order-address-category > div,
+.order-add-address-form__categories {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.order-address-category button,
+.order-add-address-form__categories button {
+  min-width: 92px;
+  height: 38px;
+  border: 1px solid #d1d9e4;
+  border-radius: 999px;
+  background: #fff;
+  color: rgba(5, 21, 43, 0.64);
+  padding: 0 18px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.order-address-category button.is-active,
+.order-add-address-form__categories button.is-active {
+  border-color: #05152b;
+  background: #05152b;
+  color: #fff;
+}
+
+.order-add-address-form__grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0 16px;
+}
+
+.order-add-address-form__wide {
+  grid-column: 1 / -1;
+}
+
+.order-add-address-form__phone {
+  width: 100%;
+  display: grid;
+  grid-template-columns: 158px minmax(0, 1fr);
+  gap: 8px;
+}
+
+:deep(.order-add-address-form__submit.el-button--primary) {
+  border-color: #05152b;
+  background: #05152b;
+}
+
+:deep(.order-add-address-form__submit.el-button--primary:hover),
+:deep(.order-add-address-form__submit.el-button--primary:focus) {
+  border-color: #142b49;
+  background: #142b49;
+}
+
 .payment-methods {
   margin-top: 18px;
   display: grid;
@@ -1467,16 +2248,16 @@ onMounted(() => {
 }
 
 .payment-method--active {
-  border-color: #2b7fff;
-  background: #eff6ff;
-  color: #2b7fff;
+  border-color: var(--hourx-brand);
+  background: var(--hourx-brand-soft);
+  color: var(--hourx-brand);
 }
 
 .payment-policy {
   margin-top: 12px;
   min-height: 32px;
   border-radius: 8px;
-  background: #eff6ff;
+  background: var(--hourx-brand-soft);
   display: flex;
   align-items: center;
   gap: 8px;
@@ -1488,7 +2269,7 @@ onMounted(() => {
 }
 
 .payment-policy span {
-  color: #12B0FF;
+  color: var(--hourx-brand);
   font-size: 12px;
   font-weight: 600;
 }
@@ -1565,7 +2346,7 @@ onMounted(() => {
 }
 
 .order-summary-card__total span {
-  color: #12B0FF;
+  color: var(--hourx-brand);
   font-size: 22px;
   font-weight: 900;
 }
@@ -1575,8 +2356,8 @@ onMounted(() => {
   width: 100%;
   height: 54px;
   border-radius: 12px;
-  border: 2px solid #12B0FF;
-  background: #12B0FF;
+  border: 2px solid var(--hourx-brand);
+  background: var(--hourx-brand);
   color: #fff;
   font-size: 18px;
   font-weight: 700;
@@ -1650,8 +2431,8 @@ onMounted(() => {
 }
 
 .stripe-dialog-btn--primary {
-  border-color: #12B0FF;
-  background: #12B0FF;
+  border-color: var(--hourx-brand);
+  background: var(--hourx-brand);
   color: #fff;
 }
 
@@ -1676,6 +2457,10 @@ onMounted(() => {
   }
 
   .order-fields-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .order-address-picker__list {
     grid-template-columns: 1fr;
   }
 
@@ -1704,12 +2489,41 @@ onMounted(() => {
     font-size: 22px;
   }
 
+  .order-section-title {
+    flex-wrap: wrap;
+  }
+
+  .order-location-status {
+    width: 100%;
+    margin: 2px 0 0 36px;
+  }
+
   .order-phone-row {
     gap: 8px;
   }
 
   .order-input-wrap--dial {
     width: 138px;
+  }
+
+  .order-address-book {
+    padding: 14px;
+  }
+
+  .order-address-book__bar {
+    align-items: flex-start;
+  }
+
+  .order-add-address-form__grid {
+    grid-template-columns: 1fr;
+  }
+
+  .order-add-address-form__wide {
+    grid-column: auto;
+  }
+
+  .order-add-address-form__phone {
+    grid-template-columns: 136px minmax(0, 1fr);
   }
 }
 
@@ -1720,6 +2534,10 @@ onMounted(() => {
 
   .order-input-wrap--dial {
     width: 100%;
+  }
+
+  .order-add-address-form__phone {
+    grid-template-columns: 1fr;
   }
 }
 </style>

@@ -48,5 +48,12 @@ export const saveClientToken = (raw: any, account?: string, extra?: { email?: st
   if (extra?.phone) {
     localStorage.setItem('phone', extra.phone);
   }
+  if (!extra?.email && !extra?.phone && resolvedAccount) {
+    if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(resolvedAccount)) {
+      localStorage.setItem('email', resolvedAccount);
+    } else if (/^\+?[\d\s()-]+$/.test(resolvedAccount) && resolvedAccount.replace(/\D/g, '').length >= 7) {
+      localStorage.setItem('phone', resolvedAccount);
+    }
+  }
   return true;
 };

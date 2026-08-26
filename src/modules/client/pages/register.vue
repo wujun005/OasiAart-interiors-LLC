@@ -201,7 +201,7 @@ import {
 } from '@/modules/client/api/login';
 import { setClientLocale, type ClientLocale } from '@/modules/client/locales';
 
-const assetLogo = 'https://www.figma.com/api/mcp/asset/d235cecd-85f7-44e5-b4f9-f5febd8109d6';
+const assetLogo = '/assets/images/client/hourx-mark.svg';
 const assetFeature1 = new URL('@/assets/images/client/Icon.png', import.meta.url).href;
 const assetFeature2 = new URL('@/assets/images/client/Icon (1).png', import.meta.url).href;
 const assetFeature3 = new URL('@/assets/images/client/Icon (2).png', import.meta.url).href;
@@ -436,7 +436,7 @@ onBeforeUnmount(() => {
   box-sizing: border-box;
   position: relative;
   overflow: hidden;
-  background: linear-gradient(180deg, #6faad0 0%, #12B0FF 58%, #6597f0 100%);
+  background: linear-gradient(180deg, var(--hourx-brand-hover) 0%, var(--hourx-brand) 58%, var(--hourx-brand-hover) 100%);
 }
 
 .register-page__left::before,
@@ -625,7 +625,7 @@ onBeforeUnmount(() => {
   border: 0;
   padding: 0;
   background: transparent;
-  color: #12B0FF;
+  color: var(--hourx-brand);
   font-size: 20px;
   font-weight: 700;
   text-decoration: underline;
@@ -738,8 +738,8 @@ onBeforeUnmount(() => {
   width: 102px;
   border: 0;
   border-radius: 10px;
-  background: #eff6ff;
-  color: #12B0FF;
+  background: var(--hourx-brand-soft);
+  color: var(--hourx-brand);
   font-size: 14px;
   font-weight: 700;
   cursor: pointer;
@@ -756,7 +756,7 @@ onBeforeUnmount(() => {
   margin-top: 20px;
   border: 0;
   border-radius: 14px;
-  background: #12B0FF;
+  background: var(--hourx-brand);
   color: #fff;
   font-size: 18px;
   font-weight: 700;

@@ -6,6 +6,7 @@ const routes: RouteRecordRaw[] = [
     path: '/',
     name: 'h5-home',
     component: () => import('../pages/home.vue'),
+    meta: { title: 'On-Demand Home Services in Dubai | HourX Home' },
   },
   {
     path: '/login',
@@ -79,7 +80,7 @@ router.beforeEach((to) => {
 
 router.afterEach((to) => {
   if (to.meta?.title) {
-    document.title = `移动端-${to.meta.title}`;
+    document.title = String(to.meta.title);
   }
 });
 

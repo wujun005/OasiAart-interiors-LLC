@@ -379,7 +379,7 @@ onBeforeUnmount(() => {
   border: 0;
   background: transparent;
   padding: 0;
-  color: #12B0FF;
+  color: var(--hourx-brand);
   font-weight: 700;
   cursor: pointer;
 }
@@ -476,8 +476,8 @@ onBeforeUnmount(() => {
 
 .h5-register-input:focus-within,
 .h5-register-select:focus-within {
-  border-color: rgba(57, 114, 245, 0.32);
-  box-shadow: 0 0 0 3px rgba(57, 114, 245, 0.06);
+  border-color: rgba(5, 21, 43, 0.32);
+  box-shadow: 0 0 0 3px rgba(5, 21, 43, 0.06);
   background: #fff;
 }
 
@@ -489,8 +489,8 @@ onBeforeUnmount(() => {
   min-height: 49px;
   border: 0;
   border-radius: 10px;
-  background: #eef4ff;
-  color: #12B0FF;
+  background: var(--hourx-brand-soft);
+  color: var(--hourx-brand);
   font-size: 13px;
   font-weight: 700;
   padding: 0 8px;
@@ -508,7 +508,7 @@ onBeforeUnmount(() => {
   min-height: 52px;
   border: 0;
   border-radius: 10px;
-  background: #12B0FF;
+  background: var(--hourx-brand);
   color: #fff;
   font-size: 18px;
   line-height: 28px;

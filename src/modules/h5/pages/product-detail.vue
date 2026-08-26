@@ -172,6 +172,7 @@ import { useRoute, useRouter } from 'vue-router';
 import { showFailToast } from 'vant';
 import { createOrder, getProductDetail, getProductSku } from '@/modules/client/api';
 import { setClientLocale } from '@/modules/client/locales';
+import { clearStoredAuthState, getStoredAuthSnapshot } from '@/utils/auth-state';
 
 type I18nText = Record<string, string>;
 type I18nTextArray = Record<string, string[]>;
@@ -833,6 +834,17 @@ const handleBack = () => {
 
 const goOrderConfirm = async () => {
   if (isCreatingOrder.value) return;
+  const authSnapshot = getStoredAuthSnapshot();
+  if (authSnapshot.isExpired) {
+    clearStoredAuthState();
+  }
+  if (!authSnapshot.isLoggedIn) {
+    await router.push({
+      name: 'h5-login',
+      query: { redirect: route.fullPath },
+    });
+    return;
+  }
   const payload = skuRequestPayload.value;
   if (!payload) {
     showFailToast(t('client.productDetail.booking.createOrderInvalid'));
@@ -953,7 +965,7 @@ const goOrderConfirm = async () => {
   height: 20px;
   padding: 0 8px;
   border-radius: 4px;
-  background: #12B0FF;
+  background: var(--hourx-brand);
   color: #fff;
   display: inline-flex;
   align-items: center;
@@ -979,7 +991,7 @@ const goOrderConfirm = async () => {
 
 .h5-detail-gallery__dot--active {
   width: 10px;
-  background: #12B0FF !important;
+  background: var(--hourx-brand) !important;
 }
 
 .h5-detail-card {
@@ -1010,7 +1022,7 @@ const goOrderConfirm = async () => {
 }
 
 .h5-detail-card__title-row strong {
-  color: #12B0FF;
+  color: var(--hourx-brand);
   font-size: 18px;
   line-height: 1.2;
   font-weight: 900;
@@ -1083,7 +1095,7 @@ const goOrderConfirm = async () => {
   width: 4px;
   height: 16px;
   border-radius: 999px;
-  background: #12B0FF;
+  background: var(--hourx-brand);
 }
 
 .h5-detail-card__heading--compact {
@@ -1122,9 +1134,9 @@ const goOrderConfirm = async () => {
 }
 
 .h5-booking-option--active {
-  border-color: #12B0FF;
-  background: #eff6ff;
-  color: #12B0FF;
+  border-color: var(--hourx-brand);
+  background: var(--hourx-brand-soft);
+  color: var(--hourx-brand);
 }
 
 .h5-attach-list {
@@ -1268,8 +1280,8 @@ const goOrderConfirm = async () => {
   width: 28px;
   height: 28px;
   border-radius: 999px;
-  background: #eff6ff;
-  color: #12B0FF;
+  background: var(--hourx-brand-soft);
+  color: var(--hourx-brand);
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -1334,7 +1346,7 @@ const goOrderConfirm = async () => {
 }
 
 .h5-detail-bottom__summary strong {
-  color: #12B0FF;
+  color: var(--hourx-brand);
   font-size: 16px;
   margin-left: 5px;
   line-height: 1;
@@ -1346,7 +1358,7 @@ const goOrderConfirm = async () => {
   height: 41px;
   border: 0;
   border-radius: 6px;
-  background: #12B0FF;
+  background: var(--hourx-brand);
   color: #fff;
   font-size: 14px;
   font-weight: 900;

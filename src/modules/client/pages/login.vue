@@ -84,17 +84,51 @@
             </div>
           </label>
 
-          <label v-if="!isCodeLogin" class="form-item">
+          <label v-if="!isCodeLogin" class="form-item form-item--password">
             <span>{{ t('client.login.password.passwordLabel') }}</span>
             <div class="form-item__control">
-              <img :src="assetPassword" alt="" />
+              <svg class="form-item__leading-icon" viewBox="0 0 24 24" aria-hidden="true">
+                <rect x="5" y="10" width="14" height="10" rx="2" />
+                <path d="M8 10V7a4 4 0 0 1 8 0v3" />
+              </svg>
               <input
                 v-model="form.password"
-                type="password"
+                :type="passwordInputType"
                 autocomplete="current-password"
                 :placeholder="t('client.login.password.passwordPlaceholder')"
               />
+              <button
+                class="password-toggle"
+                type="button"
+                :aria-label="
+                  showPassword
+                    ? t('client.login.password.hidePassword')
+                    : t('client.login.password.showPassword')
+                "
+                @click="showPassword = !showPassword"
+              >
+                <svg v-if="showPassword" viewBox="0 0 24 24" aria-hidden="true">
+                  <path
+                    d="M3 3L21 21M10.58 10.59A2 2 0 0 0 13.41 13.42M9.88 4.24A10.94 10.94 0 0 1 12 4C17 4 21 8 22 12A11.77 11.77 0 0 1 18.76 16.24M6.61 6.61C4.62 8.05 3.29 9.87 2 12C3 16 7 20 12 20C13.85 20 15.55 19.42 17.01 18.42"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  />
+                </svg>
+                <svg v-else viewBox="0 0 24 24" aria-hidden="true">
+                  <path
+                    d="M2 12C3 8 7 4 12 4S21 8 22 12C21 16 17 20 12 20S3 16 2 12Z"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  />
+                  <circle cx="12" cy="12" r="3" />
+                </svg>
+              </button>
             </div>
+            <span class="form-item__forgot">
+              <button type="button" @click="toggleLoginMode">
+                {{ t('client.login.password.forgotPassword') }}
+              </button>
+            </span>
           </label>
 
           <label v-else class="form-item">
@@ -121,18 +155,20 @@
             </div>
           </label>
 
-          <div class="auth-form__helper">
-            <button type="button" class="link-btn link-btn--helper" @click="toggleLoginMode">
-              {{
-                isCodeLogin
-                  ? t('client.login.password.usePasswordLogin')
-                  : t('client.login.password.useCodeLogin')
-              }}
-            </button>
-          </div>
-
           <button class="submit-btn" type="submit" :disabled="submitting">
             {{ submitting ? t('client.login.password.submitting') : t('client.login.password.submit') }}
+          </button>
+
+          <div class="login-divider" aria-hidden="true">
+            <span>{{ t('client.login.password.separator') }}</span>
+          </div>
+
+          <button class="secondary-login-btn" type="button" @click="toggleLoginMode">
+            {{
+              isCodeLogin
+                ? t('client.login.password.usePasswordLogin')
+                : t('client.login.password.useCodeLogin')
+            }}
           </button>
         </form>
 
@@ -155,7 +191,7 @@
 import { computed, onBeforeUnmount, reactive, ref } from 'vue';
 import { ElMessage } from 'element-plus';
 import { useI18n } from 'vue-i18n';
-import { useRouter } from 'vue-router';
+import { useRoute, useRouter } from 'vue-router';
 import {
   login as loginByPassword,
   loginByVerifyCode,
@@ -163,16 +199,16 @@ import {
 } from '@/modules/client/api/login';
 import { setClientLocale, type ClientLocale } from '@/modules/client/locales';
 
-const assetLogo = '/assets/images/client/hourx.svg';
+const assetLogo = '/assets/images/client/hourx-mark.svg';
 const assetFeature1 = new URL('@/assets/images/client/icon.png', import.meta.url).href;
 const assetFeature2 = new URL('@/assets/images/client/Icon (1).png', import.meta.url).href;
 const assetFeature3 = new URL('@/assets/images/client/Icon (2).png', import.meta.url).href;
 const assetAccount = new URL('@/assets/images/client/Icon (3).png', import.meta.url).href;
-const assetPassword = new URL('@/assets/images/client/Icon (4).png', import.meta.url).href;
 const assetCode = new URL('@/assets/images/client/Icon (5).png', import.meta.url).href;
 const assetLocale = new URL('@/assets/images/client/Icon (8).png', import.meta.url).href;
 
 const { t, locale } = useI18n({ useScope: 'global' });
+const route = useRoute();
 const router = useRouter();
 
 type LoginMode = 'password' | 'code';
@@ -186,12 +222,14 @@ const loginMode = ref<LoginMode>('password');
 const sendingCode = ref(false);
 const codeCooldown = ref(0);
 const submitting = ref(false);
+const showPassword = ref(false);
 let codeTimer: number | null = null;
 
 const localeLabel = computed(() =>
   locale.value === 'zh' ? t('client.header.languageZh') : t('client.header.languageEn'),
 );
 const isCodeLogin = computed(() => loginMode.value === 'code');
+const passwordInputType = computed(() => (showPassword.value ? 'text' : 'password'));
 const codeBtnText = computed(() => {
   if (codeCooldown.value > 0) {
     return t('client.login.password.resendIn', { seconds: codeCooldown.value });
@@ -241,6 +279,7 @@ const toggleLoginMode = () => {
   loginMode.value = nextMode;
   if (nextMode === 'code') {
     form.password = '';
+    showPassword.value = false;
     return;
   }
   form.code = '';
@@ -295,6 +334,15 @@ const validateCodeLogin = () => {
     return false;
   }
   return true;
+};
+
+const resolveAfterLogin = async () => {
+  const redirect = typeof route.query.redirect === 'string' ? route.query.redirect.trim() : '';
+  if (redirect.startsWith('/')) {
+    await router.push(redirect);
+    return;
+  }
+  await router.push('/');
 };
 
 const startCodeCountdown = () => {
@@ -353,7 +401,7 @@ const submitLogin = async () => {
         throw new Error(t('client.login.password.failed'));
       }
       ElMessage.success(t('client.login.password.success'));
-      router.push('/');
+      await resolveAfterLogin();
       return;
     }
 
@@ -368,7 +416,7 @@ const submitLogin = async () => {
       throw new Error(t('client.login.password.codeLoginFailed'));
     }
     ElMessage.success(t('client.login.password.codeLoginSuccess'));
-    router.push('/');
+    await resolveAfterLogin();
   } catch (error: any) {
     ElMessage.error(
       error?.message
@@ -403,7 +451,7 @@ onBeforeUnmount(() => {
   box-sizing: border-box;
   position: relative;
   overflow: hidden;
-  background: linear-gradient(180deg, #6faad0 0%, #12B0FF 58%, #6597f0 100%);
+  background: linear-gradient(180deg, var(--hourx-brand-hover) 0%, var(--hourx-brand) 58%, var(--hourx-brand-hover) 100%);
 }
 
 .auth-page__left::before,
@@ -610,7 +658,7 @@ onBeforeUnmount(() => {
 .form-item__control {
   width: 100%;
   height: 50px;
-  border: 1px solid #e2e8f0;
+  border: 1px solid #cbd5e1;
   border-radius: 10px;
   background: #f8fafc;
   display: flex;
@@ -626,8 +674,20 @@ onBeforeUnmount(() => {
   flex-shrink: 0;
 }
 
+.form-item__leading-icon {
+  width: 18px;
+  height: 18px;
+  flex: 0 0 18px;
+  fill: none;
+  stroke: #9bb0cf;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
 .form-item__control input {
-  width: 100%;
+  flex: 1;
+  min-width: 0;
   border: 0;
   outline: 0;
   background: transparent;
@@ -636,7 +696,7 @@ onBeforeUnmount(() => {
 }
 
 .form-item__control input::placeholder {
-  color: rgba(10, 10, 10, 0.5);
+  color: #64748b;
 }
 
 .code-row {
@@ -652,8 +712,8 @@ onBeforeUnmount(() => {
   width: 102px;
   border: 0;
   border-radius: 10px;
-  background: #eff6ff;
-  color: #12B0FF;
+  background: var(--hourx-brand-soft);
+  color: var(--hourx-brand);
   font-size: 14px;
   font-weight: 700;
   cursor: pointer;
@@ -664,38 +724,100 @@ onBeforeUnmount(() => {
   cursor: not-allowed;
 }
 
-.auth-form__helper {
+.form-item > .form-item__forgot {
   display: flex;
   justify-content: flex-end;
-  margin-bottom: 18px;
+  margin-top: 8px;
+  margin-bottom: 0;
+}
+
+.form-item__forgot button {
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: var(--hourx-brand);
+  font: inherit;
+  font-size: 14px;
+  line-height: 20px;
+  font-weight: 700;
+  cursor: pointer;
 }
 
 .link-btn {
   border: 0;
   padding: 0;
   background: transparent;
-  color: #12B0FF;
+  color: var(--hourx-brand);
   font-size: 16px;
   font-weight: 700;
   text-decoration: underline;
   cursor: pointer;
 }
 
-.link-btn--helper {
-  font-size: 14px;
-  text-decoration: none;
+.password-toggle {
+  width: 26px;
+  height: 26px;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: rgba(15, 23, 42, 0.58);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 26px;
+  cursor: pointer;
+}
+
+.password-toggle svg {
+  width: 18px;
+  height: 18px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
 }
 
 .submit-btn {
+  margin-top: 24px;
   width: 100%;
   height: 60px;
   border: 0;
   border-radius: 14px;
-  background: #12B0FF;
+  background: var(--hourx-brand);
   color: #fff;
   font-size: 18px;
   font-weight: 700;
   cursor: pointer;
+}
+
+.secondary-login-btn {
+  width: 100%;
+  height: 54px;
+  margin-top: 0;
+  border: 1px solid rgba(5, 21, 43, 0.34);
+  border-radius: 14px;
+  background: #fff;
+  color: var(--hourx-brand);
+  font-size: 16px;
+  font-weight: 750;
+  cursor: pointer;
+}
+
+.login-divider {
+  margin: 18px 0;
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 12px;
+  color: #94a3b8;
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.login-divider::before,
+.login-divider::after {
+  content: '';
+  height: 1px;
+  background: #e2e8f0;
 }
 
 .submit-btn:disabled {
@@ -742,9 +864,6 @@ onBeforeUnmount(() => {
     font-size: 16px;
   }
 
-  .link-btn--helper {
-    font-size: 13px;
-  }
 }
 
 @media (max-width: 1024px) {

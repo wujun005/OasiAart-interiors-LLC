@@ -241,6 +241,7 @@ import { computed, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRoute, useRouter } from 'vue-router';
 import { getProductDetail, getProductSku, createOrder } from '@/modules/client/api';
+import { clearStoredAuthState, getStoredAuthSnapshot } from '@/utils/auth-state';
 
 type I18nText = Record<string, string>;
 type I18nTextArray = Record<string, string[]>;
@@ -1062,6 +1063,18 @@ const goOrderConfirm = async () => {
     return;
   }
 
+  const authSnapshot = getStoredAuthSnapshot();
+  if (authSnapshot.isExpired) {
+    clearStoredAuthState();
+  }
+  if (!authSnapshot.isLoggedIn) {
+    await router.push({
+      name: 'login',
+      query: { redirect: route.fullPath },
+    });
+    return;
+  }
+
   const payload = skuRequestPayload.value;
   if (!payload) {
     ElMessage.warning(t('client.productDetail.booking.createOrderInvalid'));
@@ -1137,7 +1150,7 @@ const goOrderConfirm = async () => {
   border: 0;
   background: transparent;
   padding: 0;
-  color: #12B0FF;
+  color: var(--hourx-brand);
   font-size: inherit;
   line-height: 1;
   font-weight: 700;
@@ -1203,8 +1216,8 @@ const goOrderConfirm = async () => {
 }
 
 .product-gallery__thumb--active {
-  border-color: #12B0FF;
-  box-shadow: 0 0 0 2px rgba(57, 114, 245, 0.2);
+  border-color: var(--hourx-brand);
+  box-shadow: 0 0 0 2px rgba(5, 21, 43, 0.2);
 }
 
 .product-gallery__hero {
@@ -1228,7 +1241,7 @@ const goOrderConfirm = async () => {
   left: 16px;
   height: 24px;
   border-radius: 999px;
-  background: #12B0FF;
+  background: var(--hourx-brand);
   color: #fff;
   display: inline-flex;
   align-items: center;
@@ -1301,7 +1314,7 @@ const goOrderConfirm = async () => {
 
 .product-card__head p {
   margin: 0;
-  color: #12B0FF;
+  color: var(--hourx-brand);
   font-size: 26px;
   line-height: 1.2;
   font-weight: 900;
@@ -1522,8 +1535,8 @@ const goOrderConfirm = async () => {
 }
 
 .booking-option--active {
-  border-color: #12B0FF;
-  color: #12B0FF;
+  border-color: var(--hourx-brand);
+  color: var(--hourx-brand);
   background: #fff;
 }
 
@@ -1634,7 +1647,7 @@ const goOrderConfirm = async () => {
 }
 
 .booking-summary__row--total strong {
-  color: #12B0FF;
+  color: var(--hourx-brand);
   font-size: 24px;
   font-weight: 900;
 }
@@ -1644,8 +1657,8 @@ const goOrderConfirm = async () => {
   width: 100%;
   height: 48px;
   border-radius: 10px;
-  border: 2px solid #12B0FF;
-  background: #12B0FF;
+  border: 2px solid var(--hourx-brand);
+  background: var(--hourx-brand);
   color: #fff;
   font-size: 16px;
   font-weight: 700;

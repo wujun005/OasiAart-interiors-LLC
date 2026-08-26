@@ -159,6 +159,7 @@ const resolveMenuIcon = (item: AdminMenuPermissionItem) => {
   if (path.startsWith('/admin/products')) return Goods;
   if (path.startsWith('/admin/orders')) return Document;
   if (path.startsWith('/admin/users')) return User;
+  if (path.startsWith('/admin/basic/suppliers')) return User;
   if (path.startsWith('/admin/basic/spec-types')) return Ticket;
   if (path.startsWith('/admin/basic/specs')) return Tickets;
   if (path.startsWith('/admin/basic')) return FolderOpened;
@@ -178,6 +179,7 @@ const menuLabelKeyByPath: Record<string, string> = {
   '/admin/basic/specs': 'admin.layout.spec',
   '/admin/basic/addon-categories': 'admin.layout.addonCategory',
   '/admin/basic/addons': 'admin.layout.addon',
+  '/admin/basic/suppliers': 'admin.layout.supplier',
 };
 
 const resolveMenuLabel = (item: AdminMenuPermissionItem) => {

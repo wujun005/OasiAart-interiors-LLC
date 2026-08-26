@@ -29,8 +29,8 @@
       },
       "user": {
         "notLoggedIn": "Not Logged In",
-        "logout": "Logout",
-        "logoutSuccess": "Logout successful"
+        "logout": "Log out",
+        "logoutSuccess": "Logged out successfully"
       }
     },
     "hero": {
@@ -230,7 +230,7 @@
         "retry": "Retry"
       },
       "messages": {
-        "loginRequired": "Please login before making payment",
+        "loginRequired": "Please sign in before making payment",
         "fillShippingInfo": "Please fill in complete shipping information",
         "missingServiceId": "Missing service ID",
         "invalidPaymentLink": "Invalid payment link",

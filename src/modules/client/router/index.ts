@@ -1,5 +1,6 @@
 import { createRouter, createWebHistory, RouteRecordRaw } from 'vue-router';
 import ProfilePage from '@/modules/client/pages/profile.vue';
+import { clearStoredAuthState, getStoredAuthSnapshot } from '@/utils/auth-state';
 
 const routes: RouteRecordRaw[] = [
   // C端：/index 开头
@@ -32,16 +33,23 @@ const routes: RouteRecordRaw[] = [
     path: '/orders/confirm',
     name: 'order-confirm',
     component: () => import('@/modules/client/pages/order-confirm.vue'),
+    meta: { requiresAuth: true },
   },
   {
     path: '/orders',
     name: 'order-list',
     component: () => import('@/modules/client/pages/order-list.vue'),
+    meta: { requiresAuth: true },
   },
   {
     path: '/join-us',
     name: 'join-us',
     component: () => import('@/modules/client/pages/join-us.vue'),
+  },
+  {
+    path: '/faq',
+    name: 'faq',
+    component: () => import('@/modules/client/pages/faq.vue'),
   },
   {
     path: '/terms',
@@ -78,4 +86,24 @@ export const router = createRouter({
     return { top: 0, left: 0 };
   },
 });
+
+router.beforeEach((to) => {
+  if (!to.meta?.requiresAuth) {
+    return true;
+  }
+
+  const snapshot = getStoredAuthSnapshot();
+  if (snapshot.isExpired) {
+    clearStoredAuthState();
+  }
+  if (snapshot.isLoggedIn) {
+    return true;
+  }
+
+  return {
+    name: 'login',
+    query: { redirect: to.fullPath },
+  };
+});
+
 export default router;

@@ -7,41 +7,180 @@
         </div>
         <div class="h5-profile-hero__text">
           <h1>{{ displayName }}</h1>
-          <p>{{ displayAccount }}</p>
+          <p v-if="displayPhone" class="h5-profile-hero__phone">{{ displayPhone }}</p>
+          <p v-if="displayEmail" class="h5-profile-hero__email" :title="displayEmail">
+            {{ displayEmail }}
+          </p>
+          <p v-if="!displayPhone && !displayEmail" class="h5-profile-hero__fallback">
+            {{ t('h5.profile.defaultAccount') }}
+          </p>
         </div>
       </section>
 
-      <section class="h5-profile-card">
-        <button class="h5-profile-row" type="button" @click="goSecurity">
-          <div class="h5-profile-row__left">
-            <img :src="userManageIconUrl" alt="" />
-            <span>{{ t('h5.profile.menu.account') }}</span>
+      <section class="h5-profile-card h5-profile-card--menu">
+        <div class="h5-profile-item" :class="{ 'h5-profile-item--open': activeSection === 'personal' }">
+          <button class="h5-profile-row" type="button" @click="toggleSection('personal')">
+            <span class="h5-profile-row__left">
+              <van-icon name="contact-o" />
+              <span>{{ t('h5.profile.menu.personal') }}</span>
+            </span>
+            <van-icon class="h5-profile-row__arrow" name="arrow" />
+          </button>
+          <div v-if="activeSection === 'personal'" class="h5-profile-panel">
+            <dl class="h5-profile-details">
+              <div>
+                <dt>{{ t('h5.profile.personal.name') }}</dt>
+                <dd>{{ profileName || t('h5.profile.notProvided') }}</dd>
+              </div>
+              <div>
+                <dt>{{ t('h5.profile.personal.phone') }}</dt>
+                <dd>{{ displayPhone || t('h5.profile.notProvided') }}</dd>
+              </div>
+              <div>
+                <dt>{{ t('h5.profile.personal.email') }}</dt>
+                <dd class="h5-profile-details__email" :title="displayEmail">
+                  {{ displayEmail || t('h5.profile.notProvided') }}
+                </dd>
+              </div>
+            </dl>
+            <button class="h5-profile-inline-link" type="button" @click="goSecurity">
+              <span>
+                <strong>{{ t('h5.profile.personal.password') }}</strong>
+                <small>••••••••</small>
+              </span>
+              <span class="h5-profile-inline-link__action">
+                {{ t('h5.profile.personal.changePassword') }}
+                <van-icon name="arrow" />
+              </span>
+            </button>
           </div>
-          <img class="h5-profile-row__arrow" :src="arrowIconUrl" alt="" />
-        </button>
-        <button class="h5-profile-row" type="button" @click="openSupport">
-          <div class="h5-profile-row__left">
-            <img :src="supportIconUrl" alt="" />
-            <span>{{ t('h5.profile.menu.support') }}</span>
+        </div>
+
+        <div class="h5-profile-item" :class="{ 'h5-profile-item--open': activeSection === 'addresses' }">
+          <button class="h5-profile-row" type="button" @click="toggleSection('addresses')">
+            <span class="h5-profile-row__left">
+              <van-icon name="location-o" />
+              <span>{{ t('h5.profile.menu.addresses') }}</span>
+            </span>
+            <van-icon class="h5-profile-row__arrow" name="arrow" />
+          </button>
+          <div v-if="activeSection === 'addresses'" class="h5-profile-panel">
+            <p v-if="addressLoading" class="h5-profile-empty">{{ t('h5.profile.addresses.loading') }}</p>
+            <div v-else-if="latestAddress" class="h5-profile-address">
+              <strong>{{ latestAddress.serviceAddress || t('h5.profile.addresses.unnamed') }}</strong>
+              <span v-if="addressContact">{{ addressContact }}</span>
+            </div>
+            <div v-else-if="addressLoadFailed" class="h5-profile-empty h5-profile-empty--error">
+              <span>{{ t('h5.profile.addresses.loadFailed') }}</span>
+              <button type="button" @click="loadLatestAddress(true)">
+                {{ t('h5.profile.addresses.retry') }}
+              </button>
+            </div>
+            <p v-else class="h5-profile-empty">{{ t('h5.profile.addresses.empty') }}</p>
           </div>
-          <img class="h5-profile-row__arrow" :src="arrowIconUrl" alt="" />
-        </button>
+        </div>
+
+        <div class="h5-profile-item" :class="{ 'h5-profile-item--open': activeSection === 'payments' }">
+          <button class="h5-profile-row" type="button" @click="toggleSection('payments')">
+            <span class="h5-profile-row__left">
+              <van-icon name="balance-o" />
+              <span>{{ t('h5.profile.menu.payments') }}</span>
+            </span>
+            <van-icon class="h5-profile-row__arrow" name="arrow" />
+          </button>
+          <div v-if="activeSection === 'payments'" class="h5-profile-panel">
+            <p class="h5-profile-empty">{{ t('h5.profile.payments.empty') }}</p>
+            <p class="h5-profile-panel__note">{{ t('h5.profile.payments.note') }}</p>
+          </div>
+        </div>
+
+        <div class="h5-profile-item" :class="{ 'h5-profile-item--open': activeSection === 'notifications' }">
+          <button class="h5-profile-row" type="button" @click="toggleSection('notifications')">
+            <span class="h5-profile-row__left">
+              <van-icon name="bell" />
+              <span>{{ t('h5.profile.menu.notifications') }}</span>
+            </span>
+            <van-icon class="h5-profile-row__arrow" name="arrow" />
+          </button>
+          <div v-if="activeSection === 'notifications'" class="h5-profile-panel h5-profile-panel--settings">
+            <label class="h5-profile-setting">
+              <span>
+                <strong>{{ t('h5.profile.notifications.bookingTitle') }}</strong>
+                <small>{{ t('h5.profile.notifications.bookingDesc') }}</small>
+              </span>
+              <van-switch v-model="bookingNotifications" size="20px" active-color="var(--hourx-brand)" />
+            </label>
+            <label class="h5-profile-setting">
+              <span>
+                <strong>{{ t('h5.profile.notifications.offersTitle') }}</strong>
+                <small>{{ t('h5.profile.notifications.offersDesc') }}</small>
+              </span>
+              <van-switch v-model="offerNotifications" size="20px" active-color="var(--hourx-brand)" />
+            </label>
+          </div>
+        </div>
+
+        <div class="h5-profile-item" :class="{ 'h5-profile-item--open': activeSection === 'support' }">
+          <button class="h5-profile-row" type="button" @click="toggleSection('support')">
+            <span class="h5-profile-row__left">
+              <van-icon name="service-o" />
+              <span>{{ t('h5.profile.menu.support') }}</span>
+            </span>
+            <van-icon class="h5-profile-row__arrow" name="arrow" />
+          </button>
+          <div v-if="activeSection === 'support'" class="h5-profile-panel h5-profile-panel--support">
+            <p>{{ t('h5.profile.support.description') }}</p>
+            <div class="h5-profile-faq">
+              <strong>{{ t('h5.profile.support.faqTitle') }}</strong>
+              <dl>
+                <div>
+                  <dt>{{ t('h5.profile.support.bookingQuestion') }}</dt>
+                  <dd>{{ t('h5.profile.support.bookingAnswer') }}</dd>
+                </div>
+                <div>
+                  <dt>{{ t('h5.profile.support.ordersQuestion') }}</dt>
+                  <dd>{{ t('h5.profile.support.ordersAnswer') }}</dd>
+                </div>
+              </dl>
+            </div>
+            <div class="h5-profile-support-actions">
+              <a :href="supportLink" target="_blank" rel="noopener noreferrer">
+                <van-icon name="chat-o" />
+                <span>{{ t('h5.profile.support.whatsapp') }}</span>
+              </a>
+              <a :href="`mailto:${supportEmail}`">
+                <van-icon name="envelop-o" />
+                <span>{{ supportEmail }}</span>
+              </a>
+            </div>
+          </div>
+        </div>
+
+        <div class="h5-profile-item">
+          <button class="h5-profile-row" type="button" @click="toggleLocale">
+            <span class="h5-profile-row__left">
+              <van-icon name="exchange" />
+              <span>{{ t('h5.profile.menu.language') }}</span>
+            </span>
+            <span class="h5-profile-row__value">{{ localeLabel }}</span>
+          </button>
+        </div>
       </section>
 
-      <section class="h5-profile-card h5-profile-card--join">
+      <section class="h5-profile-card h5-profile-card--partner">
         <div class="h5-profile-card__title">
           <img :src="joinIconUrl" alt="" />
-          <span>{{ t('h5.profile.joinUs.title') }}</span>
+          <span>{{ t('h5.profile.partner.title') }}</span>
         </div>
-        <p class="h5-profile-card__desc">{{ t('h5.profile.joinUs.desc') }}</p>
-        <button class="h5-profile-mail" type="button" @click="openJoinMail">
+        <p class="h5-profile-card__desc">{{ t('h5.profile.partner.desc') }}</p>
+        <button class="h5-profile-mail" type="button" @click="openPartnerMail">
           <img :src="mailIconUrl" alt="" />
-          <span>{{ joinUsEmail }}</span>
+          <span>{{ partnerEmail }}</span>
         </button>
       </section>
 
       <button class="h5-profile-logout" type="button" @click="handleLogout">
-        {{ t('client.header.logout') }}
+        {{ t('h5.profile.logOut') }}
       </button>
     </main>
 
@@ -63,101 +202,158 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted } from 'vue';
+import { computed, onMounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRoute, useRouter } from 'vue-router';
-import { showSuccessToast } from 'vant';
+import { showConfirmDialog, showSuccessToast } from 'vant';
+import { getLatestAddress, type LatestAddressRecord } from '@/modules/client/api';
+import { setClientLocale } from '@/modules/client/locales';
 import { useAuth } from '@/modules/h5/composables/useAuth';
 
-const avatarIconUrl = new URL('@/assets/images/client/icon13.png', import.meta.url).href;;
-const userManageIconUrl = new URL('@/assets/images/client/icon14.png', import.meta.url).href;
-const arrowIconUrl = new URL('@/assets/images/client/icon17.png', import.meta.url).href;
-const supportIconUrl = new URL('@/assets/images/client/icon15.png', import.meta.url).href;
+type ProfileSection = 'personal' | 'addresses' | 'payments' | 'notifications' | 'support';
+
+const avatarIconUrl = new URL('@/assets/images/client/icon13.png', import.meta.url).href;
 const joinIconUrl = new URL('@/assets/images/client/icon16.png', import.meta.url).href;
 const mailIconUrl = new URL('@/assets/images/client/email.png', import.meta.url).href;
 const supportLink = 'https://wa.me/971502100284';
-const joinUsEmail = 'careers@hourxportal.com';
+const supportEmail = 'support@hourxportal.com';
+const partnerEmail = 'partners@hourxportal.com';
+const bookingNotificationKey = 'hourx-h5-booking-notifications';
+const offerNotificationKey = 'hourx-h5-offer-notifications';
 
-const { t } = useI18n({ useScope: 'global' });
+const { t, locale } = useI18n({ useScope: 'global' });
 const router = useRouter();
 const route = useRoute();
 const { isLoggedIn, userInfo, clearAuth, checkLoginStatus } = useAuth();
+const activeSection = ref<ProfileSection | ''>('');
+const latestAddress = ref<LatestAddressRecord | null>(null);
+const addressLoading = ref(false);
+const addressLoaded = ref(false);
+const addressLoadFailed = ref(false);
+const bookingNotifications = ref(true);
+const offerNotifications = ref(false);
 
 const maskPhone = (value?: string) => {
   const text = String(value || '').trim();
-  if (!text) {
-    return '';
-  }
+  if (!text) return '';
   const digits = text.replace(/[^\d+]/g, '');
-  if (digits.length <= 7) {
-    return text;
-  }
+  if (digits.length <= 7) return text;
   return digits.replace(/(\+?\d{3})\d+(\d{4})$/, '$1****$2');
 };
 
-const maskEmail = (value?: string) => {
+const isEmailAccount = (value?: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(value || '').trim());
+const isPhoneAccount = (value?: string) => {
   const text = String(value || '').trim();
-  if (!text.includes('@')) {
-    return text;
-  }
-  const [name, domain] = text.split('@');
-  if (name.length <= 2) {
-    return `${name[0] || ''}***@${domain}`;
-  }
-  return `${name.slice(0, 2)}***@${domain}`;
+  return /^\+?[\d\s()-]+$/.test(text) && text.replace(/\D/g, '').length >= 7;
 };
 
-const displayName = computed(() => {
+const profileName = computed(() => {
   const username = String(userInfo.value.username || '').trim();
-  if (username) {
-    return username;
-  }
-  return t('h5.profile.defaultName');
+  return username && !isEmailAccount(username) && !isPhoneAccount(username)
+    ? username
+    : '';
 });
-
-const displayAccount = computed(() => {
-  const phone = maskPhone(userInfo.value.phone);
-  if (phone) {
-    return phone;
-  }
-  const email = maskEmail(userInfo.value.email);
-  if (email) {
-    return email;
-  }
-  return t('h5.profile.defaultAccount');
+const displayName = computed(() => profileName.value || t('h5.profile.defaultName'));
+const displayPhone = computed(() => {
+  const storedPhone = String(userInfo.value.phone || '').trim();
+  const username = String(userInfo.value.username || '').trim();
+  return maskPhone(storedPhone || (isPhoneAccount(username) ? username : ''));
+});
+const displayEmail = computed(() => {
+  const storedEmail = String(userInfo.value.email || '').trim();
+  const username = String(userInfo.value.username || '').trim();
+  return storedEmail || (isEmailAccount(username) ? username : '');
+});
+const localeLabel = computed(() =>
+  locale.value === 'zh' ? t('client.header.languageZh') : t('client.header.languageEn'),
+);
+const addressContact = computed(() => {
+  if (!latestAddress.value) return '';
+  const name = [latestAddress.value.firstName, latestAddress.value.lastName]
+    .map((item) => String(item || '').trim())
+    .filter(Boolean)
+    .join(' ');
+  return [name, maskPhone(latestAddress.value.phone)].filter(Boolean).join(' · ');
 });
 
 const ensureLogin = async () => {
   checkLoginStatus();
-  if (isLoggedIn.value) {
-    return;
-  }
+  if (isLoggedIn.value) return true;
   await router.replace({
     name: 'h5-login',
     query: { redirect: route.fullPath },
   });
+  return false;
 };
 
-const goSecurity = () => {
-  router.push({ name: 'h5-profile-security' });
+const loadLatestAddress = async (force = false) => {
+  if ((addressLoaded.value && !force) || addressLoading.value) return;
+  addressLoading.value = true;
+  addressLoadFailed.value = false;
+  try {
+    latestAddress.value = await getLatestAddress();
+    addressLoaded.value = true;
+  } catch (error) {
+    console.error('load latest address failed:', error);
+    latestAddress.value = null;
+    addressLoadFailed.value = true;
+  } finally {
+    addressLoading.value = false;
+  }
 };
 
-const openSupport = () => {
-  window.open(supportLink, '_blank', 'noopener,noreferrer');
+const toggleSection = (section: ProfileSection) => {
+  activeSection.value = activeSection.value === section ? '' : section;
+  if (activeSection.value === 'addresses') void loadLatestAddress();
 };
 
-const openJoinMail = () => {
-  window.location.href = `mailto:${joinUsEmail}`;
+const goSecurity = () => router.push({ name: 'h5-profile-security' });
+const openPartnerMail = () => {
+  window.location.href = `mailto:${partnerEmail}`;
+};
+const toggleLocale = () => {
+  const target = locale.value === 'zh' ? 'en' : 'zh';
+  locale.value = target;
+  localStorage.setItem('h5-locale', target);
+  setClientLocale(target);
 };
 
 const handleLogout = async () => {
+  try {
+    await showConfirmDialog({
+      title: t('h5.profile.logoutConfirm.title'),
+      message: t('h5.profile.logoutConfirm.message'),
+      confirmButtonText: t('h5.profile.logoutConfirm.confirm'),
+      cancelButtonText: t('h5.profile.logoutConfirm.cancel'),
+    });
+  } catch {
+    return;
+  }
   clearAuth();
   showSuccessToast(t('h5.profile.logoutSuccess'));
-  await router.replace({ name: 'h5-login' });
+  await router.replace({ name: 'h5-home' });
 };
 
-onMounted(() => {
-  void ensureLogin();
+watch(
+  () => route.query.section,
+  (value) => {
+    const section = Array.isArray(value) ? value[0] : value;
+    if (section === 'personal' || section === 'addresses' || section === 'payments' || section === 'notifications' || section === 'support') {
+      activeSection.value = section;
+    }
+  },
+  { immediate: true },
+);
+
+watch(bookingNotifications, (value) => localStorage.setItem(bookingNotificationKey, String(value)));
+watch(offerNotifications, (value) => localStorage.setItem(offerNotificationKey, String(value)));
+
+onMounted(async () => {
+  const loggedIn = await ensureLogin();
+  if (!loggedIn) return;
+  bookingNotifications.value = localStorage.getItem(bookingNotificationKey) !== 'false';
+  offerNotifications.value = localStorage.getItem(offerNotificationKey) === 'true';
+  if (activeSection.value === 'addresses') void loadLatestAddress();
 });
 </script>
 
@@ -172,15 +368,16 @@ onMounted(() => {
   max-width: 393px;
   margin: 0 auto;
   min-height: calc(100vh - 56px);
+  padding-bottom: 20px;
 }
 
 .h5-profile-hero {
-  height: 164px;
-  padding: 60px 24px 0;
+  height: 124px;
+  padding: 22px 20px;
   display: flex;
   align-items: center;
-  gap: 16px;
-  background: #12B0FF;
+  gap: 14px;
+  background: var(--hourx-brand);
   position: relative;
   overflow: hidden;
 }
@@ -190,23 +387,23 @@ onMounted(() => {
   content: '';
   position: absolute;
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.11);
 }
 
 .h5-profile-hero::before {
-  width: 256px;
-  height: 256px;
-  right: -96px;
-  top: -96px;
-  filter: blur(64px);
+  width: 210px;
+  height: 210px;
+  right: -78px;
+  top: -102px;
+  filter: blur(52px);
 }
 
 .h5-profile-hero::after {
-  width: 192px;
-  height: 192px;
-  left: -48px;
-  top: 20px;
-  filter: blur(40px);
+  width: 150px;
+  height: 150px;
+  left: -44px;
+  top: 30px;
+  filter: blur(38px);
 }
 
 .h5-profile-hero__avatar,
@@ -216,120 +413,382 @@ onMounted(() => {
 }
 
 .h5-profile-hero__avatar {
-  width: 64px;
-  height: 64px;
+  width: 58px;
+  height: 58px;
+  border: 2px solid rgba(255, 255, 255, 0.38);
   border-radius: 999px;
-  // border: 1.8px solid rgba(255, 255, 255, 0.3);
   background: rgba(255, 255, 255, 0.2);
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  overflow: hidden;
+  flex: 0 0 auto;
 }
 
 .h5-profile-hero__avatar img {
-  width:100%;
+  display: block;
+  width: 100%;
   height: 100%;
+  object-fit: cover;
+}
+
+.h5-profile-hero__text {
+  min-width: 0;
+  max-width: calc(100% - 72px);
 }
 
 .h5-profile-hero__text h1 {
   margin: 0;
   color: #fff;
-  font-size: 20px;
-  line-height: 1.4;
-  font-weight: 900;
+  font-size: 19px;
+  line-height: 1.35;
+  font-weight: 850;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .h5-profile-hero__text p {
-  margin: 4px 0 0;
-  color: #dbeafe;
-  font-size: 13px;
-  line-height: 1.5;
+  margin: 2px 0 0;
+  color: rgba(255, 255, 255, 0.82);
+  line-height: 1.35;
   font-weight: 500;
+}
+
+.h5-profile-hero__phone {
+  font-size: 12px;
+}
+
+.h5-profile-hero__email,
+.h5-profile-hero__fallback {
+  max-width: 100%;
+  font-size: 11px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .h5-profile-card {
   margin: 12px 16px 0;
-  border: 1px solid #f3f4f6;
+  border: 1px solid #edf1f5;
   border-radius: 14px;
   background: #fff;
   overflow: hidden;
+  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.025);
 }
 
-.h5-profile-card--join {
-  padding: 16px;
+.h5-profile-item + .h5-profile-item {
+  border-top: 1px solid #f1f4f7;
 }
 
 .h5-profile-row {
   width: 100%;
-  min-height: 47px;
+  min-height: 50px;
   border: 0;
   background: transparent;
   padding: 0 16px;
   display: flex;
   align-items: center;
   justify-content: space-between;
-}
-
-.h5-profile-row + .h5-profile-row {
-  border-top: 1px solid #f9fafb;
+  text-align: left;
 }
 
 .h5-profile-row__left {
+  min-width: 0;
   display: inline-flex;
   align-items: center;
   gap: 12px;
   color: rgba(15, 23, 42, 0.9);
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 700;
 }
 
-.h5-profile-row__left img,
-.h5-profile-row__arrow,
-.h5-profile-card__title img,
-.h5-profile-mail img,
-.h5-profile-tabbar__item img {
-  display: block;
-}
-
-.h5-profile-row__left img,
-.h5-profile-card__title img {
+.h5-profile-row__left :deep(.van-icon) {
   width: 20px;
-  height: 20px;
+  color: var(--hourx-brand);
+  font-size: 19px;
+  text-align: center;
 }
 
 .h5-profile-row__arrow {
-  width: 18px;
-  height: 18px;
+  color: #a9b2bf;
+  font-size: 14px;
+  transition: transform 0.2s ease;
+}
+
+.h5-profile-item--open .h5-profile-row__arrow {
+  transform: rotate(90deg);
+}
+
+.h5-profile-row__value {
+  color: #7a8797;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.h5-profile-panel {
+  padding: 2px 16px 14px 48px;
+  background: #fbfdff;
+}
+
+.h5-profile-details {
+  margin: 0;
+}
+
+.h5-profile-details > div {
+  min-height: 38px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  border-bottom: 1px solid #eef2f6;
+}
+
+.h5-profile-details dt {
+  color: #7a8797;
+  font-size: 12px;
+}
+
+.h5-profile-details dd {
+  min-width: 0;
+  max-width: 62%;
+  margin: 0;
+  color: #273548;
+  font-size: 12px;
+  font-weight: 650;
+  text-align: right;
+}
+
+.h5-profile-details__email {
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+
+.h5-profile-inline-link {
+  width: 100%;
+  min-height: 46px;
+  padding: 8px 0 0;
+  border: 0;
+  background: transparent;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  text-align: left;
+}
+
+.h5-profile-inline-link > span:first-child {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.h5-profile-inline-link strong {
+  color: #273548;
+  font-size: 12px;
+}
+
+.h5-profile-inline-link small {
+  color: #9aa5b3;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+}
+
+.h5-profile-inline-link__action {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--hourx-brand);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.h5-profile-empty,
+.h5-profile-panel__note {
+  margin: 10px 0 0;
+  color: #7a8797;
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.h5-profile-panel__note {
+  margin-top: 4px;
+  color: #a0a9b5;
+  font-size: 11px;
+}
+
+.h5-profile-empty--error {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.h5-profile-empty--error button {
+  border: 0;
+  background: transparent;
+  color: var(--hourx-brand);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.h5-profile-address {
+  margin-top: 8px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: var(--hourx-brand-soft);
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.h5-profile-address strong {
+  color: #273548;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.h5-profile-address span {
+  color: #7a8797;
+  font-size: 11px;
+}
+
+.h5-profile-panel--settings {
+  padding-top: 2px;
+}
+
+.h5-profile-panel--support > p {
+  margin: 8px 0 0;
+  color: #7a8797;
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.h5-profile-support-actions {
+  margin-top: 10px;
+  display: grid;
+  gap: 8px;
+}
+
+.h5-profile-faq {
+  margin-top: 12px;
+  padding: 11px;
+  border-radius: 9px;
+  background: #f8fafc;
+}
+
+.h5-profile-faq > strong {
+  color: #273548;
+  font-size: 11px;
+}
+
+.h5-profile-faq dl {
+  margin: 8px 0 0;
+}
+
+.h5-profile-faq dl > div + div {
+  margin-top: 9px;
+  padding-top: 9px;
+  border-top: 1px solid #e7edf3;
+}
+
+.h5-profile-faq dt {
+  color: #334155;
+  font-size: 11px;
+  font-weight: 750;
+}
+
+.h5-profile-faq dd {
+  margin: 3px 0 0;
+  color: #718096;
+  font-size: 10px;
+  line-height: 1.45;
+}
+
+.h5-profile-support-actions a {
+  min-height: 38px;
+  padding: 0 11px;
+  border: 1px solid #dcebf5;
+  border-radius: 9px;
+  background: var(--hourx-brand-soft);
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  color: var(--hourx-brand);
+  font-size: 11px;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.h5-profile-support-actions :deep(.van-icon) {
+  font-size: 17px;
+}
+
+.h5-profile-setting {
+  min-height: 56px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.h5-profile-setting + .h5-profile-setting {
+  border-top: 1px solid #eef2f6;
+}
+
+.h5-profile-setting > span {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.h5-profile-setting strong {
+  color: #273548;
+  font-size: 12px;
+}
+
+.h5-profile-setting small {
+  color: #8c98a8;
+  font-size: 10px;
+  line-height: 1.4;
+}
+
+.h5-profile-card--partner {
+  padding: 16px;
 }
 
 .h5-profile-card__title {
   display: inline-flex;
   align-items: center;
-  gap: 12px;
+  gap: 11px;
   color: rgba(15, 23, 42, 0.9);
-  font-size: 15px;
-  font-weight: 700;
+  font-size: 14px;
+  font-weight: 750;
+}
+
+.h5-profile-card__title img {
+  width: 20px;
+  height: 20px;
 }
 
 .h5-profile-card__desc {
-  margin: 16px 0 0;
+  margin: 12px 0 0;
   color: rgba(15, 23, 42, 0.6);
-  font-size: 13px;
-  line-height: 1.625;
+  font-size: 12px;
+  line-height: 1.6;
 }
 
 .h5-profile-mail {
+  max-width: 100%;
   margin-top: 12px;
-  min-height: 33px;
+  min-height: 34px;
   border: 0;
   border-radius: 8px;
-  background: #eff6ff;
+  background: var(--hourx-brand-soft);
   padding: 0 12px;
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  color: #12B0FF;
-  font-size: 13px;
+  color: var(--hourx-brand);
+  font-size: 12px;
   font-weight: 700;
 }
 
@@ -339,15 +798,16 @@ onMounted(() => {
 }
 
 .h5-profile-logout {
-  width: calc(100% - 32px);
-  margin: 16px 16px 0;
-  min-height: 48px;
-  border: 1px solid #f3f4f6;
-  border-radius: 14px;
-  background: #fff;
-  color: #fb2c36;
-  font-size: 15px;
-  font-weight: 700;
+  display: block;
+  margin: 18px auto 0;
+  padding: 7px 12px;
+  border: 0;
+  background: transparent;
+  color: #dc4040;
+  font-size: 13px;
+  font-weight: 650;
+  text-decoration: underline;
+  text-underline-offset: 3px;
 }
 
 .h5-profile-tabbar {
@@ -368,6 +828,7 @@ onMounted(() => {
 
 .h5-profile-tabbar__item {
   width: 64px;
+  min-height: 44px;
   border: 0;
   background: transparent;
   display: flex;
@@ -385,6 +846,6 @@ onMounted(() => {
 }
 
 .h5-profile-tabbar__item--active {
-  color: #12B0FF;
+  color: var(--hourx-brand);
 }
 </style>

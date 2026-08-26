@@ -666,7 +666,7 @@ const removeBannerTags = (idx: number) => {
   width: 112px;
   height: 112px;
   border-radius: 24px;
-  background: rgba(57, 114, 245, 0.05);
+  background: rgba(5, 21, 43, 0.05);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -679,7 +679,7 @@ const removeBannerTags = (idx: number) => {
 .preview-services-grid__icon span {
   font-size: 28px;
   font-weight: 700;
-  color: #12B0FF;
+  color: var(--hourx-brand);
 }
 .preview-services-grid__item p {
   margin: 0;

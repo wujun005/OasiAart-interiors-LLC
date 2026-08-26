@@ -76,6 +76,15 @@
 
                 <div class="order-card__actions">
                   <button
+                    v-if="item.canRefund"
+                    type="button"
+                    class="order-card__btn order-card__btn--danger"
+                    :disabled="isRefundSubmitting"
+                    @click="openRefund(item)"
+                  >
+                    {{ t('client.orderList.refund') }}
+                  </button>
+                  <button
                     v-if="!item.reviewed"
                     type="button"
                     class="order-card__btn order-card__btn--ghost"
@@ -140,6 +149,59 @@
         </div>
       </template>
     </el-dialog>
+
+    <el-dialog
+      v-model="refundDialogVisible"
+      :title="t('client.orderList.refundDialog.title')"
+      class="order-refund-dialog"
+      width="min(520px, calc(100vw - 32px))"
+      :close-on-click-modal="false"
+      :show-close="!isRefundSubmitting"
+    >
+      <div class="order-refund-form">
+        <label class="order-refund-form__field">
+          <span>{{ t('client.orderList.refundDialog.orderNo') }}</span>
+          <input :value="refundForm.orderNo" disabled />
+        </label>
+        <label class="order-refund-form__field">
+          <span>{{ t('client.orderList.refundDialog.reasonLabel') }}</span>
+          <textarea
+            v-model.trim="refundForm.reason"
+            :placeholder="t('client.orderList.refundDialog.reasonPlaceholder')"
+            :disabled="isRefundSubmitting"
+          />
+        </label>
+        <label class="order-refund-form__field">
+          <span>{{ t('client.orderList.refundDialog.amountLabel') }}</span>
+          <strong class="order-refund-form__amount">{{ refundForm.amountText }}</strong>
+          <small>{{ t('client.orderList.refundDialog.amountHint') }}</small>
+        </label>
+      </div>
+      <template #footer>
+        <div class="order-review-form__footer">
+          <button
+            class="order-card__btn order-card__btn--ghost"
+            type="button"
+            :disabled="isRefundSubmitting"
+            @click="refundDialogVisible = false"
+          >
+            {{ t('client.orderList.refundDialog.cancel') }}
+          </button>
+          <button
+            class="order-card__btn order-card__btn--danger"
+            type="button"
+            :disabled="isRefundSubmitting"
+            @click="submitRefund"
+          >
+            {{
+              isRefundSubmitting
+                ? t('client.orderList.refundDialog.submitting')
+                : t('client.orderList.refundDialog.submit')
+            }}
+          </button>
+        </div>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -148,7 +210,12 @@ import { ElMessage } from 'element-plus';
 import { computed, onBeforeUnmount, reactive, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRouter } from 'vue-router';
-import { getOrderList, type OrderListRecord, review } from '@/modules/client/api';
+import {
+  getOrderList,
+  requestOrderRefund,
+  type OrderListRecord,
+  review,
+} from '@/modules/client/api';
 
 type I18nMap = Record<string, string>;
 
@@ -175,13 +242,14 @@ type OrderCardView = {
   image: string;
   reviewed: boolean;
   showActions: boolean;
+  canRefund: boolean;
   specSelections: RebookSpecSelection[];
   attachSelections: RebookAttachSelection[];
 };
 
 const searchIconUrl = new URL('@/assets/images/client/Icon (13).png', import.meta.url).href;
 const filterIconUrl = new URL('@/assets/images/client/Icon (14).png', import.meta.url).href;
-const orderNoIconUrl = new URL('@/assets/images/client/Icon (9).png', import.meta.url).href;
+const orderNoIconUrl = new URL('@/assets/images/client/Icon （9）.png', import.meta.url).href;
 const dateIconUrl =  new URL('@/assets/images/client/Icon (10).png', import.meta.url).href;
 const timeIconUrl = new URL('@/assets/images/client/Icon (11).png', import.meta.url).href;
 const addressIconUrl = new URL('@/assets/images/client/Icon (12).png', import.meta.url).href;
@@ -208,10 +276,17 @@ const orderRecords = ref<OrderListRecord[]>([]);
 const isLoading = ref(false);
 const reviewDialogVisible = ref(false);
 const isReviewSubmitting = ref(false);
+const refundDialogVisible = ref(false);
+const isRefundSubmitting = ref(false);
 const reviewForm = reactive({
   orderNo: '',
   rating: 5,
   content: '',
+});
+const refundForm = reactive({
+  orderNo: '',
+  reason: '',
+  amountText: '',
 });
 
 let searchTimer: ReturnType<typeof setTimeout> | null = null;
@@ -271,6 +346,34 @@ const parseDateTime = (raw?: string) => {
 
 const normalizeStatusText = (record: OrderListRecord) =>
   pickI18nValue(record.statusNameI18n, record.statusName || t('client.orderList.statusUnknown'));
+
+const getRawOrderStatus = (record: OrderListRecord): number | null => {
+  const explicitStatus = Number(record.orderStatus);
+  if (Number.isFinite(explicitStatus)) return explicitStatus;
+  const statusText = normalizeStatusText(record).toLowerCase();
+  if (statusText.includes('退款中') || statusText.includes('refunding')) return 9;
+  if (statusText.includes('已退款') || statusText.includes('refunded')) return 10;
+  if (statusText.includes('已取消') || statusText.includes('cancel')) return 8;
+  if (statusText.includes('已完成') || statusText.includes('completed')) return 7;
+  if (statusText.includes('服务中') || statusText.includes('in progress')) return 6;
+  if (statusText.includes('上门中') || statusText.includes('on the way')) return 5;
+  if (statusText.includes('已派单') || statusText.includes('assigned')) return 4;
+  if (statusText.includes('待派单') || statusText.includes('awaiting assignment')) return 3;
+  if (statusText.includes('已确认') || statusText.includes('confirmed')) return 2;
+  if (statusText.includes('待支付') || statusText.includes('pending payment')) return 1;
+  if (statusText.includes('已创建') || statusText.includes('created')) return 0;
+  return null;
+};
+
+const getRawPaymentStatus = (record: OrderListRecord): number | null => {
+  const numericStatus = Number(record.paymentStatus);
+  if (Number.isFinite(numericStatus)) return numericStatus;
+  const statusText = String(record.paymentStatus ?? '').trim().toLowerCase();
+  if (statusText === 'paid' || statusText === '已支付') return 1;
+  if (statusText.includes('refunding') || statusText.includes('退款中')) return 4;
+  if (statusText.includes('refunded') || statusText.includes('已退款')) return 5;
+  return null;
+};
 
 const getStatusCode = (record: OrderListRecord): 0 | 1 | 2 | 3 => {
   const code = Number(record.status);
@@ -348,6 +451,9 @@ const orderCards = computed<OrderCardView[]>(() =>
             }))
             .filter((selection) => selection.attachValueId && selection.quantity > 0)
         : [];
+      const orderStatus = getRawOrderStatus(item);
+      const paymentStatus = getRawPaymentStatus(item);
+      const inferredPaid = paymentStatus === null && orderStatus !== null && orderStatus >= 2 && orderStatus <= 7;
       return {
         orderNo: String(item.orderNo || `order-${index + 1}`),
         spuId: String(item.spuId ?? ''),
@@ -361,6 +467,8 @@ const orderCards = computed<OrderCardView[]>(() =>
         image: item.spuImage || fallbackImages[index % fallbackImages.length],
         reviewed: item.reviewed === true,
         showActions: isCompletedStatus(statusCode),
+        canRefund:
+          (paymentStatus === 1 || inferredPaid) && orderStatus !== 9 && orderStatus !== 10,
         specSelections,
         attachSelections,
       };
@@ -453,6 +561,36 @@ const submitReview = async () => {
     ElMessage.error(error?.message || t('client.orderList.reviewDialog.submitFailed'));
   } finally {
     isReviewSubmitting.value = false;
+  }
+};
+
+const openRefund = (item: OrderCardView) => {
+  refundForm.orderNo = item.orderNo;
+  refundForm.reason = '';
+  refundForm.amountText = item.amountText;
+  refundDialogVisible.value = true;
+};
+
+const submitRefund = async () => {
+  if (isRefundSubmitting.value) return;
+  const refundReason = refundForm.reason.trim();
+  if (!refundReason) {
+    ElMessage.warning(t('client.orderList.refundDialog.reasonRequired'));
+    return;
+  }
+  isRefundSubmitting.value = true;
+  try {
+    await requestOrderRefund({
+      orderNo: refundForm.orderNo,
+      refundReason,
+    });
+    ElMessage.success(t('client.orderList.refundDialog.submitSuccess'));
+    refundDialogVisible.value = false;
+    await loadOrders();
+  } catch (error: any) {
+    ElMessage.error(error?.message || t('client.orderList.refundDialog.submitFailed'));
+  } finally {
+    isRefundSubmitting.value = false;
   }
 };
 
@@ -596,7 +734,7 @@ onBeforeUnmount(() => {
 }
 
 .order-status-tab--active {
-  background: #12B0FF;
+  background: var(--hourx-brand);
   color: #fff;
 }
 
@@ -651,8 +789,8 @@ onBeforeUnmount(() => {
   top: 8px;
   height: 24px;
   border-radius: 999px;
-  background: #eff6ff;
-  color: #12B0FF;
+  background: var(--hourx-brand-soft);
+  color: var(--hourx-brand);
   display: inline-flex;
   align-items: center;
   padding: 0 12px;
@@ -682,7 +820,7 @@ onBeforeUnmount(() => {
 }
 
 .order-card__title-row strong {
-  color: #12B0FF;
+  color: var(--hourx-brand);
   font-size: 18px;
   line-height: 1.2;
   font-weight: 900;
@@ -757,8 +895,19 @@ onBeforeUnmount(() => {
 }
 
 .order-card__btn--primary {
-  background: #12B0FF;
+  background: var(--hourx-brand);
   color: #fff;
+}
+
+.order-card__btn--danger {
+  border-color: #dc2626;
+  background: #dc2626;
+  color: #fff;
+}
+
+.order-card__btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.65;
 }
 
 .order-review-form {
@@ -800,6 +949,79 @@ onBeforeUnmount(() => {
   gap: 8px;
 }
 
+.order-refund-form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+}
+
+.order-refund-form__field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+
+.order-refund-form__field > span {
+  color: rgba(15, 23, 42, 0.8);
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.order-refund-form__field input,
+.order-refund-form__field textarea {
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+  border: 1px solid #d1d5dc;
+  border-radius: 10px;
+  padding: 10px 12px;
+  outline: 0;
+  color: rgba(15, 23, 42, 0.85);
+  font-size: 14px;
+}
+
+.order-refund-form__field input:disabled {
+  background: #f8fafc;
+  color: rgba(15, 23, 42, 0.55);
+}
+
+.order-refund-form__field textarea {
+  min-height: 110px;
+  resize: vertical;
+}
+
+.order-refund-form__amount {
+  display: flex;
+  min-height: 42px;
+  align-items: center;
+  padding: 0 12px;
+  border-radius: 10px;
+  background: #f8fafc;
+  color: rgba(15, 23, 42, 0.85);
+  font-size: 15px;
+  box-sizing: border-box;
+  width: 100%;
+}
+
+:global(.order-refund-dialog) {
+  max-height: calc(100dvh - 32px);
+  display: flex;
+  flex-direction: column;
+}
+
+:global(.order-refund-dialog .el-dialog__body) {
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.order-refund-form__field small {
+  color: rgba(15, 23, 42, 0.5);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
 @media (max-width: 1024px) {
   .order-card {
     grid-template-columns: 140px minmax(0, 1fr);
@@ -819,6 +1041,21 @@ onBeforeUnmount(() => {
 }
 
 @media (max-width: 768px) {
+  :global(.order-refund-dialog) {
+    margin: 16px auto;
+  }
+
+  :global(.order-refund-dialog .el-dialog__header),
+  :global(.order-refund-dialog .el-dialog__body),
+  :global(.order-refund-dialog .el-dialog__footer) {
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+
+  .order-refund-form__field textarea {
+    min-height: 96px;
+  }
+
   .order-list-body {
     padding: 28px 0 56px;
   }

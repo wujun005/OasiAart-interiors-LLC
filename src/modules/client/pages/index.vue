@@ -1,51 +1,81 @@
 <template>
   <div id="home" class="home-page">
-    <section class="hero-section">
-      <div class="home-container hero-section__inner">
+    <section class="hero-section" aria-labelledby="home-hero-title">
+      <img class="hero-section__image" :src="homeBannerUrl" alt="HourX home services" />
+      <div class="hero-section__overlay">
         <div class="hero-section__content">
-          <p class="hero-section__eyebrow">{{ t('client.home.hero.eyebrow') }}</p>
-          <h1 class="hero-section__title">
-            {{ t('client.home.hero.titleLine1') }}
-            {{ t('client.home.hero.titleLine2') }}
-          </h1>
-          <p class="hero-section__desc">{{ t('client.home.hero.desc') }}</p>
-          <button class="hero-section__cta" type="button" @click="scrollToOffers">
-            {{ t('client.home.hero.cta') }}
-          </button>
-          <div class="hero-section__tags">
-            <span v-for="tag in heroTags" :key="tag">
-              <img src="@/assets/images/client/Icon1.png" alt="" />
-              {{ tag }}
-            </span>
+          <h1 id="home-hero-title">{{ t('client.home.hero.headline') }}</h1>
+          <p>{{ t('client.home.hero.description') }}</p>
+          <ul class="hero-section__trust" aria-label="HourX booking information">
+            <li><span aria-hidden="true">✓</span>{{ t('client.home.hero.trustPlatform') }}</li>
+            <li><span aria-hidden="true">✓</span>{{ t('client.home.hero.trustBooking') }}</li>
+          </ul>
+          <div class="hero-section__actions" aria-label="Banner actions">
+            <button
+              class="hero-section__action hero-section__action--primary"
+              type="button"
+              @click="scrollToServices"
+            >
+              {{ t('client.home.hero.cta') }}
+            </button>
+            <button
+              class="hero-section__action hero-section__action--whatsapp"
+              type="button"
+              @click="openWhatsApp"
+            >
+              <img :src="whatsappIconUrl" alt="" />
+              <span>{{ t('client.home.hero.whatsappCta') }}</span>
+            </button>
           </div>
         </div>
       </div>
     </section>
 
-    <div class="contact-card" @click="openWhatsApp">
+    <button
+      class="contact-card"
+      type="button"
+      :aria-label="t('client.home.contactCard.button')"
+      @click="openWhatsApp"
+    >
       <img :src="kefuImageUrl" :alt="t('client.home.contactCard.button')" />
       <span class="contact-card__text">{{ t('client.home.contactCard.button') }}</span>
-    </div>
+    </button>
 
     <section id="services" class="services-section">
       <div class="home-container">
-        <h2 class="section-title">{{ t('client.home.sections.servicesTitle') }}</h2>
-        <p class="section-subtitle section-subtitle--line">
-          {{ t('client.home.sections.servicesSubtitle') }}
-        </p>
+        <header class="home-intro">
+          <p class="home-intro__eyebrow">{{ t('client.home.sections.servicesTitle') }}</p>
+          <h2>{{ t('client.home.sections.serviceSelectorTitle') }}</h2>
+          <p class="home-intro__description">{{ t('client.home.sections.serviceSelectorSubtitle') }}</p>
+        </header>
         <div class="services-grid">
-          <article
-            v-for="item in serviceTiles"
+          <button
+            v-for="(item, index) in serviceTiles"
             :key="item.id"
             class="services-grid__item"
             :class="{ 'services-grid__item--placeholder': item.placeholder }"
+            type="button"
+            :disabled="item.placeholder"
+            :aria-label="item.title"
             @click="openServiceList(item)"
           >
             <div class="services-grid__icon">
               <img v-if="item.icon" :src="item.icon" :alt="item.title" />
             </div>
-            <p>{{ item.title }}</p>
-          </article>
+            <div class="services-grid__content">
+              <span class="services-grid__meta">
+                {{ String(index + 1).padStart(2, '0') }} · {{ t('client.home.sections.servicesTitle') }}
+              </span>
+              <p>{{ item.title }}</p>
+              <span v-if="item.description" class="services-grid__description">
+                {{ item.description }}
+              </span>
+              <span class="services-grid__link">
+                {{ t('client.home.serviceTile.action') }}
+                <span aria-hidden="true">→</span>
+              </span>
+            </div>
+          </button>
         </div>
       </div>
     </section>
@@ -94,33 +124,40 @@
       </div>
     </section>
 
-    <section id="join-us" class="about-section">
+    <section id="join-us" class="trust-section">
       <div class="home-container">
         <h2 class="section-title">{{ t('client.home.sections.aboutTitle') }}</h2>
         <p class="section-subtitle section-subtitle--line">
           {{ t('client.home.sections.aboutSubtitle') }}
         </p>
 
-        <div class="about-content">
-          <div class="about-content__left">
-            <h3>{{ t('client.home.aboutIntro.title') }}</h3>
-            <ul>
-              <li v-for="line in aboutBulletList" :key="line">{{ line }}</li>
-            </ul>
-            <div class="about-reasons">
-              <article v-for="item in reasons" :key="item.title" class="about-reason">
-                <div class="about-reason__icon-wrap">
-                  <img :src="item.icon" :alt="item.title" />
-                  <!-- <span v-if="item.highlight" /> -->
-                </div>
-                <h4 style="text-align: center;">{{ item.title }}</h4>
-                <p>{{ item.desc }}</p>
-              </article>
+        <div class="trust-grid">
+          <article v-for="item in reasons" :key="item.title" class="trust-card">
+            <div class="trust-card__icon">
+              <img :src="item.icon" alt="" />
             </div>
-          </div>
+            <h3>{{ item.title }}</h3>
+            <p>{{ item.desc }}</p>
+          </article>
+        </div>
+      </div>
+    </section>
 
-          <div class="about-content__image">
-            <img :src="aboutImageUrl" :alt="t('client.home.alt.about')" />
+    <section class="final-cta-section">
+      <div class="home-container">
+        <div class="final-cta">
+          <div class="final-cta__copy">
+            <h2>{{ t('client.home.sections.finalCtaTitle') }}</h2>
+            <p>{{ t('client.home.sections.finalCtaSubtitle') }}</p>
+          </div>
+          <div class="final-cta__actions">
+            <button class="final-cta__button final-cta__button--primary" type="button" @click="scrollToServices">
+              {{ t('client.home.sections.finalCtaBrowse') }}
+            </button>
+            <button class="final-cta__button final-cta__button--whatsapp" type="button" @click="openWhatsApp">
+              <img :src="whatsappIconUrl" alt="" />
+              <span>WhatsApp</span>
+            </button>
           </div>
         </div>
       </div>
@@ -143,6 +180,7 @@ type ServiceTile = {
   id: string;
   categoryId: string;
   title: string;
+  description: string;
   icon: string;
   placeholder: boolean;
   source?: Level1CategoryRecord;
@@ -167,11 +205,11 @@ type Reason = {
   title: string;
   desc: string;
   icon: string;
-  highlight?: boolean;
 };
 
 const kefuImageUrl = new URL('@/assets/images/client/kefu.png', import.meta.url).href;
-const aboutImageUrl = new URL('@/assets/images/client/why_select.png', import.meta.url).href;
+const homeBannerUrl = new URL('@/assets/images/client/home-banner.png', import.meta.url).href;
+const whatsappIconUrl = new URL('@/assets/images/client/icon_whatsapp.svg', import.meta.url).href;
 
 const defaultServiceIcons = [
   'https://www.figma.com/api/mcp/asset/eb5c30c7-689f-4ed5-bbbd-d173eed0127f',
@@ -245,6 +283,7 @@ const serviceTiles = computed<ServiceTile[]>(() => {
         item.nameI18n,
         item.category?.categoryName?.trim() || t('client.home.defaults.unnamedService'),
       ),
+      description: pickI18nValue(item.bannerDescI18n, ''),
       icon: item.imageUrls?.[0] || defaultServiceIcons[index % defaultServiceIcons.length],
       placeholder: false,
       source: item,
@@ -301,12 +340,6 @@ const featuredCards = computed<OfferCard[]>(() => {
   return (mapped.length ? mapped : defaultOfferCards.value).slice(0, 4);
 });
 
-const heroTags = computed(() => [
-  t('client.home.hero.tag1'),
-  t('client.home.hero.tag2'),
-  t('client.home.hero.tag3'),
-]);
-
 const bookingSteps = computed<BookingStep[]>(() => [
   {
     icon: bookingStepIcons[0],
@@ -325,13 +358,6 @@ const bookingSteps = computed<BookingStep[]>(() => [
   },
 ]);
 
-const aboutBulletList = computed(() => [
-  t('client.home.aboutIntro.bullet1'),
-  t('client.home.aboutIntro.bullet2'),
-  // t('client.home.aboutIntro.bullet3'),
-  // t('client.home.aboutIntro.bullet4'),
-]);
-
 const reasons = computed<Reason[]>(() => [
   {
     title: t('client.home.defaults.reason1Title'),
@@ -347,7 +373,6 @@ const reasons = computed<Reason[]>(() => [
     title: t('client.home.defaults.reason3Title'),
     desc: t('client.home.defaults.reason3Desc'),
     icon: reasonIcons[2],
-    highlight: true,
   },
 ]);
 
@@ -390,16 +415,6 @@ const openServiceList = (item: ServiceTile) => {
   });
 };
 
-const scrollToOffers = () => {
-  const offersSection = document.getElementById('orders');
-  if (offersSection) {
-    const targetTop = offersSection.getBoundingClientRect().top + window.scrollY - 96;
-    window.scrollTo({ top: Math.max(targetTop, 0), behavior: 'smooth' });
-    return;
-  }
-  router.push({ path: '/', hash: '#orders' });
-};
-
 const goProductDetail = (spuId: string) => {
   if (!spuId) {
     return;
@@ -410,8 +425,17 @@ const goProductDetail = (spuId: string) => {
   });
 };
 
+const scrollToServices = () => {
+  const servicesSection = document.getElementById('services');
+  if (!servicesSection) {
+    return;
+  }
+  const targetTop = servicesSection.getBoundingClientRect().top + window.scrollY - 96;
+  window.scrollTo({ top: Math.max(targetTop, 0), behavior: 'smooth' });
+};
+
 const openWhatsApp = () => {
-  window.open('https://wa.me/971502100284', '_blank');
+  window.open('https://wa.me/971502100284', '_blank', 'noopener,noreferrer');
 };
 
 const loadExclusiveCards = async () => {
@@ -431,11 +455,10 @@ onMounted(() => {
 
 <style scoped lang="scss">
 .home-page {
-  --primary: #12B0FF;
-  --primary-dark: #2f63de;
+  --primary: var(--hourx-brand);
+  --primary-dark: var(--hourx-brand-hover);
   --text-main: rgba(15, 23, 42, 0.9);
   --text-sub: rgba(15, 23, 42, 0.5);
-  --hero-aspect-ratio: 1311 / 600;
   background: #fff;
   color: var(--text-main);
   font-family: 'Inter', 'Noto Sans SC', 'PingFang SC', sans-serif;
@@ -447,90 +470,161 @@ onMounted(() => {
 }
 
 .hero-section {
+  position: relative;
   width: 100%;
-  aspect-ratio: var(--hero-aspect-ratio);
-  background: url('../../../assets//images/client/kv.png') no-repeat center / 100% 100%;
+  height: clamp(500px, 43vw, 660px);
+  overflow: hidden;
+  line-height: 0;
+  background: var(--hourx-brand-soft);
 }
 
-.hero-section__inner {
+.hero-section__overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
   display: flex;
   align-items: center;
-  min-height: 100%;
-  height: 100%;
+  background: linear-gradient(
+    90deg,
+    var(--hourx-brand) 0%,
+    var(--hourx-brand) 60%,
+    rgba(7, 33, 59, 0.82) 76%,
+    rgba(7, 33, 59, 0.28) 100%
+  );
 }
 
 .hero-section__content {
-  // width: min(672px, 100%);
+  width: min(620px, calc(100% - 72px));
+  margin-left: max(36px, calc((100vw - 1280px) / 2));
+  color: #fff;
+  line-height: normal;
 }
 
-.hero-section__eyebrow {
+.hero-section__content h1 {
+  max-width: 600px;
   margin: 0;
-  font-size: 26px;
-  line-height: 40px;
-  font-weight: 800;
-  color: #fff;
+  font-size: clamp(42px, 4.2vw, 66px);
+  line-height: 1.05;
+  font-weight: 900;
+  letter-spacing: -0.035em;
 }
 
-.hero-section__title {
-  margin: 16px 0 0;
-  font-size: 26px;
-  line-height: 45px;
-  font-weight: 800;
-  color: #fff;
+.hero-section__content > p {
+  max-width: 570px;
+  margin: 22px 0 0;
+  color: rgba(255, 255, 255, 0.82);
+  font-size: 19px;
+  line-height: 1.6;
+  font-weight: 500;
 }
 
-.hero-section__desc {
-  margin: 16px 0 0;
-  font-size: 26px;
-  line-height: 40px;
-  font-weight: 800;
-  color: #fff;
-}
-
-.hero-section__cta {
-  margin-top: 56px;
-  width: 178px;
-  height: 70px;
-  border: none;
-  border-radius: 10px;
-  background: #fff;
-  color: var(--primary);
-  font-size: 20px;
-  font-weight: 700;
-  cursor: pointer;
-}
-
-.hero-section__tags {
-  margin-top: 32px;
+.hero-section__trust {
+  margin: 24px 0 0;
+  padding: 0;
   display: flex;
-  gap: 16px;
   flex-wrap: wrap;
+  gap: 14px 28px;
+  list-style: none;
 }
 
-.hero-section__tags span {
-  height: 28px;
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.2);
-  color: #fff;
-  padding: 0 12px;
+.hero-section__trust li {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
-  font-size: 14px;
-  font-weight: 700;
+  gap: 9px;
+  color: #fff;
+  font-size: 15px;
+  font-weight: 750;
 }
 
-.hero-section__tags span img {
-  width: 16px;
-  height: 16px;
+.hero-section__trust li > span {
+  width: 24px;
+  height: 24px;
+  border: 1px solid rgba(255, 255, 255, 0.72);
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+}
+
+.hero-section__image {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center 48%;
+}
+
+.hero-section__actions {
+  margin-top: 28px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  line-height: normal;
+}
+
+.hero-section__action {
+  min-width: 152px;
+  height: 54px;
+  padding: 0 28px;
+  border: 1px solid transparent;
+  border-radius: 14px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  color: #fff;
+  font: inherit;
+  font-size: 16px;
+  font-weight: 800;
+  letter-spacing: 0.01em;
+  cursor: pointer;
+  transition: transform 180ms ease, box-shadow 180ms ease, background 180ms ease;
+}
+
+.hero-section__action:hover {
+  transform: translateY(-2px);
+}
+
+.hero-section__action:focus-visible {
+  outline: 3px solid rgba(5, 21, 43, 0.36);
+  outline-offset: 3px;
+}
+
+.hero-section__action--primary {
+  background: linear-gradient(135deg, var(--hourx-brand) 0%, var(--hourx-brand-hover) 100%);
+  box-shadow: 0 12px 28px rgba(5, 21, 43, 0.32);
+}
+
+.hero-section__action--primary:hover {
+  box-shadow: 0 16px 32px rgba(5, 21, 43, 0.42);
+}
+
+.hero-section__action--whatsapp {
+  background: #fff;
+  border-color: rgba(255, 255, 255, 0.9);
+  color: var(--hourx-brand);
+  box-shadow: 0 12px 28px rgba(10, 24, 50, 0.2);
+}
+
+.hero-section__action--whatsapp:hover {
+  background: var(--hourx-brand-soft);
+}
+
+.hero-section__action--whatsapp img {
+  width: 24px;
+  height: 24px;
 }
 
 .contact-card {
   position: fixed;
-  right: 24px;
-  bottom: 120px;
-  width: 144px;
-  height: 96px;
+  right: 32px;
+  bottom: 32px;
+  width: 160px;
+  height: 112px;
+  padding: 8px;
+  border: 0;
+  background: transparent;
   z-index: 60;
   cursor: pointer;
 }
@@ -554,6 +648,40 @@ onMounted(() => {
 
 .services-section {
   padding: 80px 0 96px;
+}
+
+.home-intro {
+  max-width: 880px;
+  margin: 0 auto;
+  text-align: center;
+}
+
+.home-intro__eyebrow {
+  margin: 0;
+  color: var(--primary);
+  font-size: 15px;
+  line-height: 1.4;
+  font-weight: 850;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.home-intro h2 {
+  margin: 12px 0 0;
+  color: var(--hourx-brand);
+  font-size: clamp(34px, 3.4vw, 48px);
+  line-height: 1.15;
+  font-weight: 850;
+  letter-spacing: -0.025em;
+}
+
+.home-intro__description {
+  max-width: 720px;
+  margin: 18px auto 0;
+  color: rgba(15, 23, 42, 0.56);
+  font-size: 17px;
+  line-height: 1.65;
+  font-weight: 500;
 }
 
 .section-title {
@@ -594,58 +722,128 @@ onMounted(() => {
 }
 
 .services-grid {
-  margin-top: 88px;
+  margin-top: 56px;
   display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
-  row-gap: 80px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 24px;
 }
 
 .services-grid__item {
-  display: flex;
-  flex-direction: column;
+  position: relative;
+  min-height: 176px;
+  padding: 26px 28px;
+  border: 1px solid #e5edf6;
+  border-radius: 22px;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 100% 0%, rgba(5, 21, 43, 0.1), transparent 42%),
+    #fff;
+  display: grid;
+  grid-template-columns: 104px minmax(0, 1fr);
   align-items: center;
-  gap: 16px;
+  gap: 24px;
+  color: inherit;
+  font: inherit;
+  text-align: left;
   cursor: pointer;
-  transition: transform 0.2s ease;
+  box-shadow: 0 12px 30px rgba(15, 23, 42, 0.055);
+  transition:
+    transform 0.22s ease,
+    border-color 0.22s ease,
+    box-shadow 0.22s ease;
 }
 
 .services-grid__item:hover {
-  transform: translateY(-4px);
+  transform: translateY(-5px);
+  border-color: rgba(5, 21, 43, 0.46);
+  box-shadow: 0 20px 42px rgba(15, 88, 140, 0.13);
 }
 
 .services-grid__icon {
-  width: 112px;
-  height: 112px;
-  border-radius: 24px;
-  background: rgba(57, 114, 245, 0.05);
+  width: 104px;
+  height: 104px;
+  border: 1px solid rgba(5, 21, 43, 0.12);
+  border-radius: 26px;
+  background: linear-gradient(145deg, var(--hourx-brand-soft) 0%, var(--hourx-brand-soft) 100%);
   display: flex;
   align-items: center;
   justify-content: center;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.85);
 }
 
 .services-grid__icon img {
-  width: 56px;
-  height: 56px;
+  width: 58px;
+  height: 58px;
   object-fit: contain;
+  filter: var(--hourx-brand-filter);
+}
+
+.services-grid__content {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.services-grid__meta {
+  color: var(--hourx-brand);
+  font-size: 11px;
+  line-height: 1.3;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
 }
 
 .services-grid__item p {
-  margin: 0;
-  min-height: 28px;
-  text-align: center;
+  margin: 8px 0 0;
   color: var(--text-main);
-  font-size: 20px;
-  line-height: 1.4;
+  font-size: 23px;
+  line-height: 1.28;
+  font-weight: 850;
+  letter-spacing: -0.015em;
+}
+
+.services-grid__description {
+  max-width: 100%;
+  margin-top: 7px;
+  color: rgba(15, 23, 42, 0.55);
+  font-size: 13px;
+  line-height: 1.5;
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.services-grid__link {
+  margin-top: 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--hourx-brand);
+  font-size: 13px;
+  line-height: 1.3;
   font-weight: 800;
 }
 
+.services-grid__link span {
+  font-size: 17px;
+  line-height: 1;
+  transition: transform 0.2s ease;
+}
+
+.services-grid__item:hover .services-grid__link span {
+  transform: translateX(4px);
+}
+
 .services-grid__item--placeholder .services-grid__icon {
-  background: rgba(57, 114, 245, 0.05);
+  background: rgba(5, 21, 43, 0.05);
 }
 
 .services-grid__item--placeholder {
   cursor: default;
   transform: none;
+  opacity: 0.62;
 }
 
 .services-grid__item--placeholder:hover {
@@ -758,7 +956,7 @@ onMounted(() => {
 }
 
 .section-subtitle--light {
-  color: #dbeafe;
+  color: #E5EAF1;
 }
 
 .booking-steps {
@@ -821,146 +1019,137 @@ onMounted(() => {
   font-weight: 500;
 }
 
-.about-section {
-  padding: 112px 0 108px;
+.trust-section {
+  padding: 104px 0 108px;
+  background: #f8fafc;
 }
 
-.about-content {
-  margin-top: 64px;
+.trust-grid {
+  margin-top: 52px;
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 64px;
-  align-items: start;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 24px;
 }
 
-.about-content__left h3 {
-  margin: 0;
-  font-size: 30px;
-  line-height: 1.2;
-  font-weight: 800;
-}
-
-.about-content__left ul {
-  margin: 36px 0 0;
-  padding: 0 0 0 22px;
-  list-style: disc;
-}
-
-.about-content__left li {
-  color: rgba(15, 23, 42, 0.5);
-  font-size: 20px;
-  line-height: 1.4;
-  font-weight: 500;
-  margin-top: 12px;
-}
-
-.about-reasons {
-  margin-top: 56px;
-  display: flex;
-  gap: 22px;
-}
-
-.about-reason {
-  width: 140px;
-  height: 205px;
-  border-radius: 14px;
-  border: 1px solid #f3f4f6;
+.trust-card {
+  min-height: 220px;
+  padding: 32px;
+  border: 1px solid #e7edf5;
+  border-radius: 20px;
   background: #fff;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  box-sizing: border-box;
-  padding: 25px 10px 14px;
+  box-shadow: 0 14px 34px rgba(15, 23, 42, 0.05);
 }
 
-.about-reason__icon-wrap {
-  width: 48px;
-  height: 48px;
-  border-radius: 50%;
-  background: #faf5e4;
+.trust-card__icon {
+  width: 60px;
+  height: 60px;
+  border-radius: 18px;
   display: flex;
   align-items: center;
   justify-content: center;
-  position: relative;
+  background: linear-gradient(145deg, var(--hourx-brand-soft) 0%, var(--hourx-brand-soft) 100%);
 }
 
-.about-reason__icon-wrap img {
-  width: 28px;
-  height: 28px;
+.trust-card__icon img {
+  width: 32px;
+  height: 32px;
+  object-fit: contain;
+  filter: var(--hourx-brand-filter);
 }
 
-.about-reason__icon-wrap span {
-  position: absolute;
-  right: -2px;
-  bottom: -2px;
-  width: 12px;
-  height: 12px;
-  border-radius: 50%;
-  border: 2px solid #fff;
-  background: #fb2c36;
-}
-
-.about-reason h4 {
-  margin: 16px 0 0;
-  font-size: 20px;
-  line-height: 1.4;
+.trust-card h3 {
+  margin: 24px 0 0;
+  color: var(--hourx-brand);
+  font-size: 21px;
+  line-height: 1.35;
   font-weight: 800;
-  min-height: calc(1.4em * 2);
-  text-align: center;
-  display: -webkit-box;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
-  overflow: hidden;
 }
 
-.about-reason p {
-  margin: 10px 0 0;
-  color: var(--text-sub);
-  font-size: 13px;
+.trust-card p {
+  margin: 12px 0 0;
+  color: rgba(15, 23, 42, 0.58);
+  font-size: 15px;
+  line-height: 1.65;
+  font-weight: 500;
+}
+
+.final-cta-section {
+  padding: 72px 0 80px;
+}
+
+.final-cta {
+  padding: 46px 52px;
+  border-radius: 26px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 36px;
+  background: linear-gradient(135deg, var(--hourx-brand) 0%, var(--hourx-brand-hover) 58%, var(--hourx-brand) 145%);
+  box-shadow: 0 22px 48px rgba(15, 41, 74, 0.18);
+}
+
+.final-cta__copy h2 {
+  margin: 0;
+  color: #fff;
+  font-size: 30px;
   line-height: 1.25;
-  text-align: center;
-  min-height: calc(1.25em * 2);
-  display: -webkit-box;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
-  overflow: hidden;
+  font-weight: 850;
 }
 
-.about-content__image {
-  height: 500px;
-  border-radius: 16px;
-  overflow: hidden;
+.final-cta__copy p {
+  margin: 10px 0 0;
+  color: rgba(255, 255, 255, 0.72);
+  font-size: 16px;
+  line-height: 1.6;
 }
 
-.about-content__image img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
+.final-cta__actions {
+  display: flex;
+  flex: 0 0 auto;
+  gap: 12px;
+}
+
+.final-cta__button {
+  height: 50px;
+  padding: 0 22px;
+  border: 1px solid transparent;
+  border-radius: 13px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.final-cta__button--primary {
+  background: #fff;
+  color: var(--hourx-brand);
+}
+
+.final-cta__button--whatsapp {
+  border-color: rgba(255, 255, 255, 0.28);
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+}
+
+.final-cta__button--whatsapp img {
+  width: 22px;
+  height: 22px;
 }
 
 @media (max-width: 1300px) {
-  .hero-section__cta {
-    width: 150px;
-    height: 60px;
-    font-size: 18px;
-  }
-
   .services-grid {
-    margin-top: 54px;
-    row-gap: 48px;
+    margin-top: 48px;
+    gap: 20px;
   }
 
   .offers-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  .about-content {
-    gap: 28px;
-  }
-
-  .about-content__left li {
-    font-size: 16px;
-  }
 }
 
 @media (max-width: 960px) {
@@ -970,32 +1159,28 @@ onMounted(() => {
 
   .hero-section {
     width: 100%;
-    aspect-ratio: auto;
-    min-height: auto;
-    padding: 48px 0 56px;
-    background-size: cover;
+    height: clamp(410px, 51vw, 500px);
   }
 
-  .hero-section__inner {
-    min-height: auto;
-    height: auto;
+  .hero-section__actions {
+    margin-top: 22px;
   }
 
-  .hero-section__eyebrow {
-    font-size: 24px;
+  .hero-section__content {
+    width: min(560px, calc(100% - 48px));
+    margin-left: 24px;
   }
 
-  .hero-section__title,
-  .hero-section__desc {
-    font-size: 32px;
+  .hero-section__content h1 {
+    font-size: clamp(38px, 6vw, 52px);
   }
 
-  .hero-section__desc {
-    margin-top: 8px;
-  }
-
-  .hero-section__cta {
-    margin-top: 24px;
+  .hero-section__action {
+    min-width: 136px;
+    height: 48px;
+    padding: 0 22px;
+    border-radius: 12px;
+    font-size: 15px;
   }
 
   .section-title {
@@ -1020,6 +1205,28 @@ onMounted(() => {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
+  .services-grid__item {
+    min-height: 156px;
+    padding: 20px;
+    grid-template-columns: 84px minmax(0, 1fr);
+    gap: 18px;
+  }
+
+  .services-grid__icon {
+    width: 84px;
+    height: 84px;
+    border-radius: 22px;
+  }
+
+  .services-grid__icon img {
+    width: 48px;
+    height: 48px;
+  }
+
+  .services-grid__item p {
+    font-size: 19px;
+  }
+
   .booking-steps {
     grid-template-columns: 1fr;
     gap: 30px;
@@ -1037,36 +1244,60 @@ onMounted(() => {
     font-size: 24px;
   }
 
-  .about-content {
+  .trust-grid {
     grid-template-columns: 1fr;
+    gap: 16px;
   }
 
-  .about-content__image {
-    height: 360px;
-    order: -1;
+  .trust-card {
+    min-height: 0;
+    padding: 24px;
   }
 
-  .about-reasons {
-    flex-wrap: wrap;
+  .final-cta {
+    padding: 36px;
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .final-cta__actions {
+    width: 100%;
   }
 
   .contact-card {
-    width: 128px;
-    height: 88px;
-    right: 12px;
-    bottom: 90px;
+    width: 136px;
+    height: 96px;
+    padding: 6px;
+    right: 16px;
+    bottom: 16px;
     cursor: pointer;
   }
 }
 
 @media (max-width: 640px) {
-  .hero-section__tags {
-    gap: 8px;
+  .contact-card {
+    display: none;
+  }
+
+  .home-intro h2 {
+    font-size: 30px;
+  }
+
+  .home-intro__description {
+    font-size: 15px;
   }
 
   .services-grid {
     grid-template-columns: 1fr;
-    row-gap: 24px;
+    gap: 16px;
+  }
+
+  .services-grid__item {
+    min-height: 144px;
+  }
+
+  .services-grid__description {
+    -webkit-line-clamp: 1;
   }
 
   .offers-grid {
@@ -1074,8 +1305,30 @@ onMounted(() => {
     gap: 20px;
   }
 
-  .about-content__left h3 {
-    font-size: 26px;
+  .trust-section {
+    padding: 72px 0;
+  }
+
+  .final-cta-section {
+    padding: 48px 0 56px;
+  }
+
+  .final-cta {
+    padding: 28px 22px;
+    border-radius: 20px;
+  }
+
+  .final-cta__copy h2 {
+    font-size: 24px;
+  }
+
+  .final-cta__actions {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+
+  .final-cta__button {
+    width: 100%;
   }
 }
 </style>

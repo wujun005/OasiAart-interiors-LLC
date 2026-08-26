@@ -2,26 +2,26 @@
   <header class="site-header">
     <div class="site-header__inner">
       <a class="site-header__brand" href="/">
-        <img
-          class="site-header__logo"
-          :src="logoUrl"
-          alt="HourX Logo"
-        />
+        <img class="site-header__logo" :src="logoUrl" alt="HourX Logo" />
         <!-- <span class="site-header__brand-text">HourX</span> -->
       </a>
 
       <nav class="site-header__nav">
-        <RouterLink class="site-header__link" :to="{ path: '/', hash: '#home' }">{{
-          t('client.header.nav.home')
-        }}</RouterLink>
-        <RouterLink class="site-header__link" :to="{ path: '/', hash: '#services' }">{{
-          t('client.header.nav.services')
-        }}</RouterLink>
+        <RouterLink
+          class="site-header__link"
+          :to="{ path: '/', hash: '#home' }"
+          >{{ t("client.header.nav.home") }}</RouterLink
+        >
+        <RouterLink
+          class="site-header__link"
+          :to="{ path: '/', hash: '#services' }"
+          >{{ t("client.header.nav.services") }}</RouterLink
+        >
         <RouterLink class="site-header__link" :to="{ name: 'order-list' }">{{
-          t('client.header.nav.orders')
+          t("client.header.nav.orders")
         }}</RouterLink>
         <RouterLink class="site-header__link" :to="{ name: 'join-us' }">{{
-          t('client.header.nav.joinUs')
+          t("client.header.nav.joinUs")
         }}</RouterLink>
       </nav>
 
@@ -35,10 +35,10 @@
           <template #dropdown>
             <el-dropdown-menu>
               <el-dropdown-item command="en">{{
-                t('client.header.languageEn')
+                t("client.header.languageEn")
               }}</el-dropdown-item>
               <el-dropdown-item command="zh">{{
-                t('client.header.languageZh')
+                t("client.header.languageZh")
               }}</el-dropdown-item>
             </el-dropdown-menu>
           </template>
@@ -52,10 +52,10 @@
           <button class="site-header__user-btn" type="button">
             <span class="site-header__user-icon-wrap">
               <img
-              class="site-header__user-icon-wrap"
-              src="@/assets/images/client/icon14.png"
-              alt=""
-            />
+                class="site-header__user-icon-wrap"
+                src="@/assets/images/client/icon14.png"
+                alt=""
+              />
             </span>
             <!-- <img
               class="site-header__user-icon-wrap"
@@ -68,16 +68,16 @@
           <template #dropdown>
             <el-dropdown-menu>
               <el-dropdown-item command="profile">{{
-                t('client.header.profile')
+                t("client.header.profile")
               }}</el-dropdown-item>
               <el-dropdown-item command="logout">{{
-                t('client.header.logout')
+                t("client.header.logout")
               }}</el-dropdown-item>
             </el-dropdown-menu>
           </template>
         </el-dropdown>
         <RouterLink v-else class="site-header__login-btn" to="/login">
-          {{ t('client.header.auth') }}
+          {{ t("client.header.auth") }}
         </RouterLink>
       </div>
     </div>
@@ -85,77 +85,91 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
-import { useI18n } from 'vue-i18n';
-import { useRouter } from 'vue-router';
-import { setClientLocale, type ClientLocale } from '@/modules/client/locales';
-import { clearStoredAuthState, getStoredAuthSnapshot } from '@/utils/auth-state';
+import { computed, onBeforeUnmount, onMounted, ref } from "vue"
+import { ElMessageBox } from "element-plus"
+import { useI18n } from "vue-i18n"
+import { useRouter } from "vue-router"
+import { setClientLocale, type ClientLocale } from "@/modules/client/locales"
+import { clearStoredAuthState, getStoredAuthSnapshot } from "@/utils/auth-state"
 const langIconUrl =
-  'https://www.figma.com/api/mcp/asset/d385ba89-56b8-4fb2-98a8-85f7659b0f53';
-const { t, locale } = useI18n({ useScope: 'global' });
-const router = useRouter();
-const hasToken = ref(false);
-const userName = ref('');
-const logoUrl = '/assets/images/client/hourx.svg';
+  "https://www.figma.com/api/mcp/asset/d385ba89-56b8-4fb2-98a8-85f7659b0f53"
+const { t, locale } = useI18n({ useScope: "global" })
+const router = useRouter()
+const hasToken = ref(false)
+const userName = ref("")
+const logoUrl = "/assets/images/client/hourx-mark.svg"
 
 const currentLocale = computed<ClientLocale>({
-  get: () => (locale.value === 'zh' ? 'zh' : 'en'),
+  get: () => (locale.value === "zh" ? "zh" : "en"),
   set: (value) => {
-    locale.value = setClientLocale(value);
+    locale.value = setClientLocale(value)
   },
-});
+})
 
 const localeLabel = computed(() =>
-  currentLocale.value === 'zh'
-    ? t('client.header.languageZh')
-    : t('client.header.languageEn'),
-);
+  currentLocale.value === "zh"
+    ? t("client.header.languageZh")
+    : t("client.header.languageEn"),
+)
 
-const isLoggedIn = computed(() => hasToken.value);
+const isLoggedIn = computed(() => hasToken.value)
 
 const userLabel = computed(() => {
-  const trimmed = userName.value.trim();
-  return trimmed || t('client.header.user');
-});
+  const trimmed = userName.value.trim()
+  return trimmed || t("client.header.user")
+})
 
 const syncAuthState = () => {
-  if (typeof window === 'undefined') return;
-  const snapshot = getStoredAuthSnapshot();
+  if (typeof window === "undefined") return
+  const snapshot = getStoredAuthSnapshot()
   if (snapshot.isExpired) {
-    clearStoredAuthState();
-    hasToken.value = false;
-    userName.value = '';
-    return;
+    clearStoredAuthState()
+    hasToken.value = false
+    userName.value = ""
+    return
   }
-  hasToken.value = snapshot.isLoggedIn;
-  userName.value = snapshot.userInfo.username || '';
-};
+  hasToken.value = snapshot.isLoggedIn
+  userName.value = snapshot.userInfo.username || ""
+}
 
 const handleLocaleCommand = (value: string | number | object) => {
-  const target = value === 'zh' ? 'zh' : 'en';
-  currentLocale.value = target;
-};
+  const target = value === "zh" ? "zh" : "en"
+  currentLocale.value = target
+}
 
-const handleUserCommand = (command: string | number | object) => {
-  if (command === 'profile') {
-    router.push({ name: 'profile' });
-    return;
+const handleUserCommand = async (command: string | number | object) => {
+  if (command === "profile") {
+    router.push({ name: "profile" })
+    return
   }
-  if (command === 'logout') {
-    clearStoredAuthState();
-    syncAuthState();
-    router.push('/login');
+  if (command === "logout") {
+    try {
+      await ElMessageBox.confirm(
+        t("client.header.logoutConfirmMessage"),
+        t("client.header.logoutConfirmTitle"),
+        {
+          confirmButtonText: t("client.header.logout"),
+          cancelButtonText: t("client.header.logoutCancel"),
+          type: "warning",
+        },
+      )
+    } catch {
+      return
+    }
+    clearStoredAuthState()
+    syncAuthState()
+    router.push("/")
   }
-};
+}
 
 onMounted(() => {
-  syncAuthState();
-  window.addEventListener('storage', syncAuthState);
-});
+  syncAuthState()
+  window.addEventListener("storage", syncAuthState)
+})
 
 onBeforeUnmount(() => {
-  window.removeEventListener('storage', syncAuthState);
-});
+  window.removeEventListener("storage", syncAuthState)
+})
 </script>
 
 <style scoped lang="scss">
@@ -190,8 +204,8 @@ onBeforeUnmount(() => {
 }
 
 .site-header__logo {
-  width: 84px;
-  height: 80px;
+  width: 94px;
+  height: 90px;
   object-fit: contain;
 }
 
@@ -226,8 +240,8 @@ onBeforeUnmount(() => {
 }
 
 .site-header__link:hover {
-  color: #12B0FF;
-  background: rgba(57, 114, 245, 0.08);
+  color: var(--hourx-brand);
+  background: rgba(5, 21, 43, 0.08);
 }
 
 .site-header__actions {
@@ -256,7 +270,7 @@ onBeforeUnmount(() => {
 
 .site-header__locale-btn:hover,
 .site-header__user-btn:hover {
-  background: rgba(57, 114, 245, 0.08);
+  background: rgba(5, 21, 43, 0.08);
 }
 
 .site-header__locale-btn img:first-child {
@@ -279,7 +293,7 @@ onBeforeUnmount(() => {
   width: 32px;
   height: 32px;
   border-radius: 999px;
-  background: #dbeafe;
+  background: #E5EAF1;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -294,7 +308,7 @@ onBeforeUnmount(() => {
   height: 40px;
   padding: 0 16px;
   border-radius: 999px;
-  background: #12B0FF;
+  background: var(--hourx-brand);
   color: #fff;
   text-decoration: none;
   display: inline-flex;
@@ -310,8 +324,8 @@ onBeforeUnmount(() => {
   }
 
   .site-header__logo {
-    width: 58px;
-    height: 56px;
+    width: 88px;
+    height: 60px;
   }
 
   .site-header__brand-text {

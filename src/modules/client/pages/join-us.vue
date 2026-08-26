@@ -84,7 +84,7 @@ const valueIconClockUrl = new URL('@/assets/images/client/icon3.png', import.met
 const valueIconPinUrl = new URL('@/assets/images/client/icon4.png', import.meta.url).href;
 const joinEmailIconUrl = new URL('@/assets/images/client/email.png', import.meta.url).href;
 
-const joinEmail = 'careers@hourxportal.com';
+const joinEmail = 'partners@hourxportal.com';
 const isZh = computed(() => locale.value.startsWith('zh'));
 
 const pageCopy = computed(() =>
@@ -100,11 +100,11 @@ const pageCopy = computed(() =>
         'HourX是一家专注迪拜市场的本地化上门服务平台。通过统一平台预约与专业团队管理，为您提供高效、可靠的居家服务。',
       valuesTitle: '关于HourX',
       valuesDesc: '所有服务人员均经过严格筛选与认证，确保每一次上门服务都专业、安心、值得信赖。',
-      joinTitleLine1: '加入 HourX',
-      joinTitleLine2: '服务合作伙伴和专业人员',
+      joinTitleLine1: '成为 HourX',
+      joinTitleLine2: '服务合作伙伴',
       joinDesc:
-        'HourX正在寻找位于迪拜的服务合作伙伴和专业技师，加入我们不断发展的按需上门服务网络。如果您拥有经验丰富的团队，并具备良好的服务意识，我们欢迎您与HourX一起发展业务，共同成长。',
-      joinContactLabel: '申请加入HourX',
+        '如果您是在迪拜运营、拥有专业自有团队的服务公司，欢迎与 HourX 合作，共同拓展业务。',
+      joinContactLabel: '联系 HourX：',
     }
     : {
       badge: 'About HourX',
@@ -118,11 +118,11 @@ const pageCopy = computed(() =>
       valuesTitle: 'About HourX',
       valuesDesc:
         'All professionals are carefully vetted and verified to ensure every service is safe, professional, and trustworthy.',
-      joinTitleLine1: 'Join HourX',
-      joinTitleLine2: 'Service Partners & Professionals',
+      joinTitleLine1: 'Become a',
+      joinTitleLine2: 'Service Partner',
       joinDesc:
-        'HourX is looking for Dubai-based service partners and skilled professionals to join our growing on-demand home service network. If you have an experienced team and a strong service mindset, we welcome you to grow your business with HourX.',
-      joinContactLabel: 'Apply to Join HourX:',
+        'Are you a Dubai-based service company with your own professional team? Partner with HourX and grow your business.',
+      joinContactLabel: 'Contact HourX:',
     },
 );
 
@@ -181,7 +181,7 @@ const valueItems = computed<JoinValue[]>(() =>
   overflow: hidden;
   width: 100%;
   aspect-ratio: var(--join-hero-aspect-ratio);
-  background: #12B0FF url('../../../assets/images/client/kv_joinus@2x.png') no-repeat center / 100% 100%;
+  background: var(--hourx-brand) url('../../../assets/images/client/kv_joinus@2x.png') no-repeat center / 100% 100%;
 }
 
 .join-hero__inner {
@@ -209,7 +209,7 @@ const valueItems = computed<JoinValue[]>(() =>
 
 .join-hero__content p {
   margin: 24px 0 0;
-  color: #dbeafe;
+  color: #E5EAF1;
   font-size: 20px;
   line-height: 1.6;
   font-weight: 500;
@@ -243,8 +243,8 @@ const valueItems = computed<JoinValue[]>(() =>
   height: 32px;
   padding: 0 16px;
   border-radius: 999px;
-  background: #eff6ff;
-  color: #12B0FF;
+  background: var(--hourx-brand-soft);
+  color: var(--hourx-brand);
   display: inline-flex;
   align-items: center;
   font-size: 14px;
@@ -297,7 +297,7 @@ const valueItems = computed<JoinValue[]>(() =>
   width: 48px;
   height: 48px;
   border-radius: 14px;
-  background: #eff6ff;
+  background: var(--hourx-brand-soft);
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -340,7 +340,7 @@ const valueItems = computed<JoinValue[]>(() =>
 .join-partner {
   margin-top: 96px;
   border-radius: 24px;
-  background: #eff6ff;
+  background: var(--hourx-brand-soft);
   padding: 56px 64px;
 }
 
@@ -379,7 +379,7 @@ const valueItems = computed<JoinValue[]>(() =>
   height: 40px;
   border-radius: 10px;
   background: #fff;
-  color: #12B0FF;
+  color: var(--hourx-brand);
   text-decoration: none;
   display: inline-flex;
   align-items: center;

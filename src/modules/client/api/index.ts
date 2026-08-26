@@ -27,6 +27,8 @@ export interface OrderListRecord {
   spuName?: string;
   spuNameI18n?: Record<string, string>;
   status?: number | string;
+  orderStatus?: number | string;
+  paymentStatus?: number | string;
   orderNo?: string;
   firstName?: string;
   lastName?: string;
@@ -62,6 +64,7 @@ export interface LatestAddressRecord {
   lastName?: string;
   phone?: string;
   email?: string;
+  district?: string;
   serviceAddress?: string;
   remark?: string;
   serviceTime?: string;
@@ -69,6 +72,40 @@ export interface LatestAddressRecord {
   serviceDateTime?: string;
   paymentMethod?: string;
 }
+
+export type AddressCategory = 'home' | 'office' | 'others';
+
+export interface ClientAddressRecord {
+  id: number;
+  firstName: string;
+  lastName: string;
+  phoneCountryCode?: string;
+  phone: string;
+  email?: string;
+  district?: string;
+  address: string;
+  additionalNotes?: string;
+  category: AddressCategory;
+  isDefault?: boolean;
+  createTime?: string;
+  modifyTime?: string;
+}
+
+export type AddClientAddressPayload = {
+  firstName: string;
+  lastName: string;
+  phoneCountryCode?: string;
+  phone: string;
+  email?: string;
+  district?: string;
+  address: string;
+  additionalNotes?: string;
+  category?: AddressCategory;
+};
+
+export type UpdateClientAddressPayload = AddClientAddressPayload & {
+  id: number;
+};
 
 type ApiSuccessEnvelope<T> = {
   success?: boolean;
@@ -262,6 +299,16 @@ export async function getOrderList(params?: any) {
   return getDataList<OrderListRecord>(payload);
 }
 
+export type ClientRefundRequest = {
+  orderNo: string;
+  refundReason: string;
+};
+
+// /client/order/refund 发起退款申请
+export function requestOrderRefund(params: ClientRefundRequest) {
+  return http.post('/client/order/refund', params);
+}
+
 // /client/order/place 创建订单
 export async function createOrder(params: any) {
   const payload = await http.post('/client/order/place', params);
@@ -284,6 +331,33 @@ export async function getLatestAddress(params?: any) {
     }
   }
   return null;
+}
+
+// /client/address/list 地址列表
+export async function getClientAddressList() {
+  const payload = await http.get('/client/address/list');
+  return getDataList<ClientAddressRecord>(payload);
+}
+
+// /client/address/add 新增地址
+export async function addClientAddress(params: AddClientAddressPayload) {
+  const payload = await http.post('/client/address/add', params);
+  if (typeof payload === 'number') {
+    return payload;
+  }
+  if (payload && typeof payload === 'object' && 'data' in payload) {
+    const data = (payload as { data?: unknown }).data;
+    if (typeof data === 'number') {
+      return data;
+    }
+    return data && typeof data === 'object' ? (data as ClientAddressRecord) : null;
+  }
+  return payload && typeof payload === 'object' ? (payload as ClientAddressRecord) : null;
+}
+
+// /client/address/update 编辑地址
+export async function updateClientAddress(params: UpdateClientAddressPayload) {
+  return http.post('/client/address/update', params);
 }
 
 // /client/order/saveContactAddress 保存联系地址
@@ -313,4 +387,5 @@ export default {
   level1Categories,
   exclusiveSpus,
   getOrderList,
+  requestOrderRefund,
 };

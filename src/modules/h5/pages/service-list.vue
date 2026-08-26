@@ -333,8 +333,8 @@ const goProductDetail = (spuId: string) => {
 .h5-service-hero {
   padding: 30px 20px 20px;
   border-radius: 16px;
-  background: linear-gradient(180deg, #12B0FF 0%, #4a7ef8 100%);
-  box-shadow: 0 18px 40px rgba(57, 114, 245, 0.22);
+  background: linear-gradient(180deg, var(--hourx-brand) 0%, var(--hourx-brand-hover) 100%);
+  box-shadow: 0 18px 40px rgba(5, 21, 43, 0.22);
 }
 
 .h5-service-hero h2 {
@@ -347,7 +347,7 @@ const goProductDetail = (spuId: string) => {
 
 .h5-service-hero p {
   margin: 12px 0 0;
-  color: #dbeafe;
+  color: #E5EAF1;
   font-size: 12px;
   line-height: 1.6;
   font-weight: 500;
@@ -424,7 +424,7 @@ const goProductDetail = (spuId: string) => {
   width: 48px;
   height: 48px;
   border-radius: 10px;
-  background: #eff6ff;
+  background: var(--hourx-brand-soft);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -447,7 +447,7 @@ const goProductDetail = (spuId: string) => {
 
 .h5-service-card__content p {
   margin: 4px 0 0;
-  color: #12B0FF;
+  color: var(--hourx-brand);
   font-size: 12px;
   font-weight: 700;
 }
@@ -457,7 +457,7 @@ const goProductDetail = (spuId: string) => {
   height: 32px;
   border: 0;
   border-radius: 999px;
-  background: #12B0FF;
+  background: var(--hourx-brand);
   color: #fff;
   font-size: 12px;
   font-weight: 800;

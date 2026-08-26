@@ -41,6 +41,8 @@ type AdminMenuPermissionState = {
 
 const ROOT_PATH = '/admin';
 const LOGIN_PATH = '/admin/login';
+const BASIC_PATH = '/admin/basic';
+const SUPPLIER_PATH = '/admin/basic/suppliers';
 
 export const adminMenuState = reactive<AdminMenuPermissionState>({
   loaded: false,
@@ -205,6 +207,26 @@ const hydrateMenuState = (list: RawMenuItem[]) => {
   });
 
   const prunedRoots = pruneMenus(roots);
+  const flatBeforeLocalMenus = flattenMenus(prunedRoots, []);
+  const hasSupplierMenu = flatBeforeLocalMenus.some(
+    (item) => item.path === SUPPLIER_PATH,
+  );
+  const basicMenu =
+    flatBeforeLocalMenus.find((item) => item.path === BASIC_PATH) ??
+    flatBeforeLocalMenus.find((item) =>
+      item.children.some((child) => child.path.startsWith(`${BASIC_PATH}/`)),
+    );
+  if (basicMenu && !hasSupplierMenu) {
+    basicMenu.children.push({
+      id: 'local-basic-suppliers',
+      name: 'Supplier Management',
+      path: SUPPLIER_PATH,
+      icon: 'user',
+      parentId: basicMenu.id,
+      sortOrder: Math.max(0, ...basicMenu.children.map((item) => Number(item.sortOrder || 0))) + 1,
+      children: [],
+    });
+  }
   sortMenus(prunedRoots);
 
   const flat = flattenMenus(prunedRoots, []);

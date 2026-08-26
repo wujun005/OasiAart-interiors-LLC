@@ -20,6 +20,7 @@ watch(
     const targetLocale = val === 'zh' ? 'zh' : 'en';
     localStorage.setItem('h5-locale', targetLocale);
     setClientLocale(targetLocale);
+    document.documentElement.lang = targetLocale === 'zh' ? 'zh-CN' : 'en';
   },
   { immediate: true },
 );
