@@ -21,6 +21,13 @@
               :placeholder="t('client.profile.form.currentPasswordPlaceholder')"
             />
           </label>
+          <button
+            class="h5-profile-security-forgot"
+            type="button"
+            @click="forgotPasswordVisible = true"
+          >
+            {{ t('client.login.password.forgotPassword') }}
+          </button>
 
           <label class="h5-profile-security-field">
             <span>{{ t('client.profile.form.newPassword') }}</span>
@@ -48,17 +55,26 @@
         </form>
       </section>
     </main>
+    <ForgotPasswordDialog
+      v-model="forgotPasswordVisible"
+      :initial-account="forgotPasswordAccount"
+      @success="handleForgotPasswordSuccess"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
-import { onMounted, reactive, ref } from 'vue';
+import { computed, onMounted, reactive, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRoute, useRouter } from 'vue-router';
 import { showFailToast, showSuccessToast } from 'vant';
 import { changePasswordByOld } from '@/modules/client/api/login';
 import { useAuth } from '@/modules/h5/composables/useAuth';
-import { getStoredAuthSnapshot } from '@/utils/auth-state';
+import {
+  getClientAuthStorageValue,
+  getStoredAuthSnapshot,
+} from '@/utils/auth-state';
+import ForgotPasswordDialog from '@/modules/client/components/ForgotPasswordDialog.vue';
 
 const { t } = useI18n({ useScope: 'global' });
 const router = useRouter();
@@ -72,6 +88,15 @@ const form = reactive({
 });
 
 const submitting = ref(false);
+const forgotPasswordVisible = ref(false);
+const forgotPasswordAccount = computed(() => {
+  const snapshot = getStoredAuthSnapshot();
+  return getClientAuthStorageValue('account')
+    || getClientAuthStorageValue('username')
+    || snapshot.userInfo.email
+    || snapshot.userInfo.phone
+    || '';
+});
 
 const validateForm = () => {
   if (!form.currentPassword.trim()) {
@@ -109,7 +134,7 @@ const ensureLogin = async () => {
 
 const submitResetPassword = async () => {
   if (!validateForm()) return;
-  const account = localStorage.getItem('account')?.trim() || localStorage.getItem('username')?.trim() || '';
+  const account = getClientAuthStorageValue('account') || getClientAuthStorageValue('username');
   if (!account) {
     showFailToast(t('client.profile.message.accountMissing'));
     await router.replace({ name: 'h5-login' });
@@ -130,6 +155,12 @@ const submitResetPassword = async () => {
   } finally {
     submitting.value = false;
   }
+};
+
+const handleForgotPasswordSuccess = async () => {
+  showSuccessToast(t('client.profile.message.updateSuccess'));
+  clearAuth();
+  await router.replace({ name: 'h5-login' });
 };
 
 onMounted(() => {
@@ -238,5 +269,16 @@ onMounted(() => {
 
 .h5-profile-security-submit:disabled {
   opacity: 0.7;
+}
+
+.h5-profile-security-forgot {
+  align-self: flex-end;
+  margin-top: -7px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--hourx-brand);
+  font-size: 12px;
+  font-weight: 800;
 }
 </style>

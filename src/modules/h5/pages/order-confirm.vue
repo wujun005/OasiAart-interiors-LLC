@@ -4,245 +4,183 @@
       <button class="h5-order-topbar__back" type="button" @click="goBack">
         <van-icon name="arrow-left" />
       </button>
-      <h1>{{ t('client.orderConfirm.pageTitle') }}</h1>
+      <h1>{{ t("client.orderConfirm.pageTitle") }}</h1>
       <span class="h5-order-topbar__spacer" />
     </header>
 
     <main class="h5-order-main">
-      <section class="h5-order-card h5-order-card--summary">
+      <section class="h5-order-card h5-order-card--address">
         <div class="h5-order-card__heading">
-          <span />
-          <h2>{{ t('client.orderConfirm.summary.title') }}</h2>
-        </div>
-        <div class="h5-order-summary__item">
-          <div>
-            <strong>{{ summaryTitle }}</strong>
-            <p>{{ summaryMeta }}</p>
-          </div>
-          <em>{{ formatAed(subtotal) }}</em>
-        </div>
-        <div class="h5-order-summary__prices">
-          <div>
-            <span>{{ t('client.orderConfirm.summary.subtotal') }}</span>
-            <span>{{ formatAed(subtotal) }}</span>
-          </div>
-          <div>
-            <span>{{ t('client.orderConfirm.summary.vat') }}</span>
-            <span>{{ formatAed(tax) }}</span>
-          </div>
-        </div>
-      </section>
-
-      <section class="h5-order-card">
-        <div class="h5-order-card__heading">
-          <span />
-          <h2>{{ t('client.orderConfirm.sections.contact') }}</h2>
-        </div>
-        <div class="h5-order-grid h5-order-grid--two">
-          <label class="h5-order-field">
-            <div class="h5-order-input">
-              <van-icon name="contact-o" />
-              <input
-                v-model="form.firstName"
-                type="text"
-                :placeholder="t('client.orderConfirm.placeholders.firstName')"
-              />
-            </div>
-          </label>
-          <label class="h5-order-field">
-            <div class="h5-order-input">
-              <van-icon name="contact-o" />
-              <input
-                v-model="form.lastName"
-                type="text"
-                :placeholder="t('client.orderConfirm.placeholders.lastName')"
-              />
-            </div>
-          </label>
-        </div>
-        <div class="h5-order-stack">
-          <label class="h5-order-field">
-            <div class="h5-order-input h5-order-input--phone">
-              <van-icon name="phone-o" />
-              <select v-model="form.countryCode" autocomplete="tel-country-code">
-                <option v-for="item in countryCodeOptions" :key="item.value" :value="item.value">
-                  {{ item.value }}
-                </option>
-              </select>
-              <input
-                v-model="form.phone"
-                type="text"
-                autocomplete="tel-national"
-                :placeholder="t('client.login.register.phoneNumberPlaceholder')"
-              />
-            </div>
-          </label>
-          <label class="h5-order-field">
-            <div class="h5-order-input">
-              <van-icon name="envelop-o" />
-              <input
-                v-model="form.email"
-                type="email"
-                :placeholder="t('client.orderConfirm.placeholders.email')"
-              />
-            </div>
-          </label>
-        </div>
-      </section>
-
-      <section class="h5-order-card">
-        <div class="h5-order-card__heading">
-          <span />
-          <h2>{{ t('client.orderConfirm.sections.address') }}</h2>
-          <span v-if="isLocating" class="h5-location-status">
-            {{ t('client.orderConfirm.location.locating') }}
+          <span class="h5-order-card__heading-icon" aria-hidden="true">
+            <van-icon name="location-o" />
           </span>
+          <h2>{{ locale === 'zh' ? '联系信息与服务地址' : 'Contact & Service Address' }}</h2>
         </div>
         <div class="h5-address-book">
           <div class="h5-address-book__bar">
-            <strong>{{ t('client.orderConfirm.addressBook.title') }}</strong>
-            <button type="button" @click="openAddAddressPopup">
-              <van-icon name="plus" />
-              {{ t('client.orderConfirm.addressBook.add') }}
-            </button>
+            <strong>{{ locale === 'zh' ? '服务地址' : 'Service Address' }}</strong>
           </div>
           <p v-if="addressListLoading" class="h5-address-book__state">
-            {{ t('client.orderConfirm.addressBook.loading') }}
+            {{ t("client.orderConfirm.addressBook.loading") }}
           </p>
-          <div v-else-if="addressList.length" class="h5-address-picker">
+          <div v-else-if="addressListError" class="h5-address-book__state h5-address-book__state--error" role="alert">
+            <span>{{ locale === 'zh' ? '地址加载失败，请重试。' : 'Unable to load addresses. Please try again.' }}</span>
+            <button type="button" @click="loadAddressBook(selectedAddressId)">{{ locale === 'zh' ? '重试' : 'Retry' }}</button>
+          </div>
+          <div
+            v-else-if="addressList.length && selectedAddress"
+            class="h5-address-picker"
+            :class="{ 'is-expanded': addressPickerExpanded }"
+          >
+            <button
+              class="h5-address-picker__trigger"
+              type="button"
+              :aria-expanded="addressPickerExpanded"
+              @click="addressPickerExpanded = !addressPickerExpanded"
+            >
+              <span
+                class="h5-address-picker__category-icon"
+                :class="`h5-address-picker__category-icon--${normalizeAddressCategory(selectedAddress.category)}`"
+                aria-hidden="true"
+              >
+                <AddressCategoryIcon :category="normalizeAddressCategory(selectedAddress.category)" />
+              </span>
+              <span class="h5-address-picker__summary">
+                <strong>{{ addressCategoryLabel(selectedAddress.category) }}</strong>
+                <span class="h5-address-picker__contact">
+                  {{ getAddressFullName(selectedAddress) }}
+                  <template v-if="formatAddressPhone(selectedAddress)">
+                    · {{ formatAddressPhone(selectedAddress) }}
+                  </template>
+                </span>
+                <small>{{ formatAddressLine(selectedAddress) }}</small>
+              </span>
+              <van-icon class="h5-address-picker__arrow" name="arrow" aria-hidden="true" />
+            </button>
             <div
+              v-if="addressPickerExpanded"
               class="h5-address-picker__list"
               role="radiogroup"
               :aria-label="t('client.orderConfirm.addressBook.title')"
             >
-              <article
+              <button
                 v-for="item in addressList"
                 :key="item.id"
-                class="h5-address-card"
+                class="h5-address-picker__option"
                 :class="{ 'is-selected': selectedAddressId === item.id }"
+                type="button"
+                role="radio"
+                :aria-checked="selectedAddressId === item.id"
+                @click="selectSavedAddress(item)"
               >
-                <button
-                  class="h5-address-card__select"
-                  type="button"
-                  role="radio"
-                  :aria-checked="selectedAddressId === item.id"
-                  @click="selectSavedAddress(item)"
+                <span
+                  class="h5-address-picker__category-icon"
+                  :class="`h5-address-picker__category-icon--${normalizeAddressCategory(item.category)}`"
+                  aria-hidden="true"
                 >
-                  <span class="h5-address-card__topline">
-                    <span class="h5-address-picker__tags">
-                      <em>{{ addressCategoryLabel(item.category) }}</em>
-                      <em v-if="item.isDefault" class="h5-address-picker__default">
-                        {{ t('client.orderConfirm.addressBook.defaultTag') }}
-                      </em>
-                      <em v-if="selectedAddressId === item.id" class="h5-address-picker__selected">
-                        {{ t('client.orderConfirm.addressBook.selectedTag') }}
-                      </em>
-                    </span>
-                    <i class="h5-address-card__radio" aria-hidden="true" />
+                  <AddressCategoryIcon :category="normalizeAddressCategory(item.category)" />
+                </span>
+                <span class="h5-address-picker__summary">
+                  <strong>{{ addressCategoryLabel(item.category) }}</strong>
+                  <span class="h5-address-picker__contact">
+                    {{ getAddressFullName(item) }}
+                    <template v-if="formatAddressPhone(item)">
+                      · {{ formatAddressPhone(item) }}
+                    </template>
                   </span>
-                  <strong>{{ item.firstName }} {{ item.lastName }}</strong>
-                  <span>{{ formatAddressPhone(item) }}</span>
-                  <span class="h5-address-card__address">{{ formatAddressLine(item) }}</span>
-                  <small v-if="item.additionalNotes">{{ item.additionalNotes }}</small>
-                </button>
-                <button
-                  class="h5-address-card__edit"
-                  type="button"
-                  @click="openEditAddressPopup(item)"
-                >
-                  {{ t('client.orderConfirm.addressBook.edit') }}
-                </button>
-              </article>
+                  <small>{{ formatAddressLine(item) }}</small>
+                </span>
+                <span
+                  v-if="selectedAddressId === item.id"
+                  class="h5-address-picker__check"
+                  aria-hidden="true"
+                >✓</span>
+              </button>
+              <button
+                class="h5-address-picker__manage"
+                type="button"
+                @click="goManageAddresses"
+              >
+                {{ locale === 'zh' ? '在个人中心管理地址 →' : 'Manage addresses in profile →' }}
+              </button>
             </div>
-            <button class="h5-address-picker__manual" type="button" @click="selectManualAddress">
-              <van-icon name="plus" />
-              {{ t('client.orderConfirm.addressBook.manualOption') }}
-            </button>
-            <p class="h5-address-picker__hint">
-              {{ t('client.orderConfirm.addressBook.editHint') }}
-            </p>
           </div>
-          <p v-else class="h5-address-book__state">
-            {{ t('client.orderConfirm.addressBook.empty') }}
-          </p>
-        </div>
-        <div class="h5-address-category">
-          <span>{{ t('client.orderConfirm.addressBook.categoryLabel') }}</span>
-          <div>
-            <button
-              v-for="item in addressCategoryOptions"
-              :key="item.value"
-              type="button"
-              :class="{ 'is-active': form.category === item.value }"
-              @click="form.category = item.value"
-            >
-              {{ item.label }}
+          <div v-else class="h5-address-book__state h5-address-book__state--empty">
+            <van-icon name="location-o" aria-hidden="true" />
+            <div>
+              <strong>{{ locale === 'zh' ? '还没有服务地址' : 'No service address yet' }}</strong>
+              <span>{{ locale === 'zh' ? '添加地址后即可继续预约。' : 'Add an address to continue your booking.' }}</span>
+            </div>
+            <button type="button" @click="goManageAddresses">
+              {{ locale === 'zh' ? '去添加' : 'Add' }}
             </button>
           </div>
-        </div>
-        <div class="h5-order-stack">
-          <label class="h5-order-field">
-            <div class="h5-order-input">
-              <van-icon name="guide-o" />
-              <input
-                v-model="form.district"
-                type="text"
-                :placeholder="t('client.orderConfirm.placeholders.district')"
-              />
-            </div>
-          </label>
-          <label class="h5-order-field">
-            <div class="h5-order-input h5-order-input--textarea">
-              <van-icon name="location-o" />
-              <textarea
-                v-model="form.address"
-                rows="3"
-                :placeholder="t('client.orderConfirm.placeholders.address')"
-              />
-            </div>
-          </label>
-          <label class="h5-order-field">
-            <div class="h5-order-input">
-              <input
-                v-model="form.remark"
-                type="text"
-                :placeholder="t('client.orderConfirm.placeholders.remark')"
-              />
-            </div>
-          </label>
-          <p v-if="locationLookupUsed" class="h5-location-attribution">
-            <a
-              href="https://www.openstreetmap.org/copyright"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              {{ t('client.orderConfirm.location.attribution') }}
-            </a>
-          </p>
         </div>
       </section>
 
-      <section class="h5-order-card">
+      <section class="h5-order-card h5-order-card--summary">
         <div class="h5-order-card__heading">
-          <span />
-          <h2>{{ t('client.orderConfirm.sections.time') }}</h2>
+          <span class="h5-order-card__heading-icon" aria-hidden="true">
+            <van-icon name="bag-o" />
+          </span>
+          <h2>{{ t("client.orderConfirm.summary.title") }}</h2>
+        </div>
+        <div class="h5-order-summary__item">
+          <div class="h5-order-summary__visual" aria-hidden="true">
+            <img v-if="summaryImageUrl" :src="summaryImageUrl" alt="" />
+            <van-icon v-else name="wap-home-o" />
+          </div>
+          <div class="h5-order-summary__content">
+            <strong>{{ summaryTitle }}</strong>
+            <p>{{ summaryMeta }}</p>
+            <em>{{ formatAed(total) }}</em>
+          </div>
+        </div>
+        <div class="h5-order-summary__prices">
+          <div class="h5-order-summary__total">
+            <strong>{{ t("h5.orderConfirm.totalLabel") }}</strong>
+            <strong>{{ formatAed(total) }}</strong>
+          </div>
+        </div>
+      </section>
+
+      <section class="h5-order-card h5-order-card--time">
+        <div class="h5-order-card__heading">
+          <span class="h5-order-card__heading-icon" aria-hidden="true">
+            <van-icon name="clock-o" />
+          </span>
+          <h2>{{ t("client.orderConfirm.sections.time") }}</h2>
         </div>
         <div class="h5-order-grid h5-order-grid--two">
           <label class="h5-order-field">
+            <span class="h5-order-field__label">
+              {{ t("client.orderConfirm.fields.serviceDate") }}
+            </span>
             <div class="h5-order-input" @click="openServiceDatePicker">
               <van-icon name="calendar-o" />
               <input
-                ref="serviceDateInputRef"
-                v-model="form.serviceDate"
-                type="date"
-                :min="minServiceDate"
+                :value="form.serviceDate"
+                type="text"
+                readonly
+                :placeholder="t('client.orderConfirm.placeholders.serviceDate')"
+                :aria-label="t('client.orderConfirm.fields.serviceDate')"
+                :title="t('client.orderConfirm.fields.serviceDateHint')"
               />
             </div>
+            <small v-if="form.serviceDate" class="h5-order-field__hint">
+              {{ localizedServiceDate }}
+            </small>
           </label>
           <label class="h5-order-field">
+            <span class="h5-order-field__label">
+              {{ locale === "zh" ? "服务时段" : "Time slot" }}
+            </span>
             <div class="h5-order-input">
               <van-icon name="clock-o" />
-              <select v-model="form.timeRange" @mousedown="handleServiceTimeOpen">
+              <select
+                v-model="form.timeRange"
+                @mousedown="handleServiceTimeOpen"
+              >
                 <option value="" disabled>{{ serviceTimePlaceholder }}</option>
                 <option
                   v-for="item in selectableTimeOptions"
@@ -258,47 +196,93 @@
         </div>
         <p class="h5-order-lead-time">
           <van-icon name="info-o" />
-          <span>{{ t('client.orderConfirm.fields.serviceLeadTimeHint', { minutes: bookingLeadMinutes }) }}</span>
+          <span>{{
+            t("client.orderConfirm.fields.serviceLeadTimeHint", {
+              minutes: bookingLeadMinutes,
+            })
+          }}</span>
         </p>
+      </section>
+
+      <section class="h5-order-card h5-order-card--note">
+        <div class="h5-order-card__heading">
+          <span class="h5-order-card__heading-icon" aria-hidden="true">
+            <van-icon name="notes-o" />
+          </span>
+          <h2>{{ t("client.orderConfirm.sections.note") }}</h2>
+        </div>
+        <label class="h5-order-field h5-order-booking-note">
+          <span>{{ t("client.orderConfirm.fields.bookingNote") }}</span>
+          <div class="h5-order-input h5-order-input--textarea">
+            <van-icon name="notes-o" />
+            <textarea
+              v-model.trim="form.remark"
+              rows="3"
+              maxlength="500"
+              :placeholder="t('client.orderConfirm.placeholders.bookingNote')"
+            />
+          </div>
+        </label>
       </section>
 
       <section class="h5-order-card h5-order-card--payment">
         <div class="h5-order-card__heading">
-          <span />
-          <h2>{{ t('client.orderConfirm.sections.payment') }}</h2>
+          <span class="h5-order-card__heading-icon" aria-hidden="true">
+            <van-icon name="debit-pay" />
+          </span>
+          <h2>{{ t("client.orderConfirm.sections.payment") }}</h2>
         </div>
         <div class="h5-payment-method">
-          <div class="h5-payment-method__icon">S</div>
+          <div class="h5-payment-method__icon" aria-hidden="true">
+            <van-icon name="lock" />
+          </div>
           <div class="h5-payment-method__content">
-            <strong>{{ t('h5.orderConfirm.methodTitle') }}</strong>
-            <span>{{ t('h5.orderConfirm.methodDesc') }}</span>
+            <strong>{{ t("h5.orderConfirm.methodTitle") }}</strong>
+            <span>{{ t("h5.orderConfirm.methodDesc") }}</span>
+            <b>Apple Pay · Google Pay · Link · Cards</b>
           </div>
         </div>
         <div class="h5-payment-note">
           <van-icon name="shield-o" />
-          <span>{{ t('h5.orderConfirm.paymentNote') }}</span>
+          <span>{{ t("h5.orderConfirm.paymentNote") }}</span>
         </div>
-        <label class="h5-payment-policy">
-          <input v-model="agreedPolicy" type="checkbox" />
-          <span>{{ t('client.orderConfirm.payment.policy') }}</span>
-        </label>
+        <div class="h5-payment-policy">
+          <span>{{ t("client.orderConfirm.payment.policy") }}</span>
+          <span class="h5-payment-policy__links">
+            <button type="button" @click="openLegal('terms')">
+              {{ locale === "zh" ? "条款" : "Terms" }}
+            </button>
+            <button type="button" @click="openLegal('privacy')">
+              {{ locale === "zh" ? "隐私政策" : "Privacy" }}
+            </button>
+          </span>
+        </div>
       </section>
     </main>
 
     <footer class="h5-order-footer">
       <div class="h5-order-footer__summary">
-        <span>{{ t('h5.orderConfirm.totalLabel') }}</span>
-        <strong>
-          {{ total.toFixed(2) }}
-          <small>AED</small>
-        </strong>
+        <span>{{ t("h5.orderConfirm.totalLabel") }}</span>
+        <strong>{{ formatAed(total) }}</strong>
       </div>
-      <button class="h5-order-footer__submit" type="button" :disabled="isSubmitting" @click="handleConfirm">
-        {{ t('client.orderConfirm.summary.confirmPay') }}
+      <button
+        class="h5-order-footer__submit"
+        type="button"
+        :disabled="isSubmitting"
+        @click="handleConfirm"
+      >
+        <span>{{
+            isCartMode
+              ? locale === "zh"
+                ? "加入购物车"
+                : "Add to Cart"
+              : t("client.orderConfirm.summary.confirmPay")
+        }}</span>
+        <van-icon :name="isCartMode ? 'shopping-cart-o' : 'shield-o'" />
       </button>
       <p class="h5-order-footer__ssl">
         <van-icon name="shield-o" />
-        <span>{{ t('client.orderConfirm.summary.ssl') }}</span>
+        <span>{{ t("client.orderConfirm.summary.ssl") }}</span>
       </p>
     </footer>
 
@@ -311,8 +295,18 @@
     >
       <div class="h5-add-address-sheet">
         <div class="h5-add-address-sheet__header">
-          <h3>{{ editingAddressId ? t('client.orderConfirm.addressBook.editTitle') : t('client.orderConfirm.addressBook.addTitle') }}</h3>
-          <button type="button" :disabled="addressAdding" @click="addAddressPopupVisible = false">
+          <h3>
+            {{
+              editingAddressId
+                ? t("client.orderConfirm.addressBook.editTitle")
+                : t("client.orderConfirm.addressBook.addTitle")
+            }}
+          </h3>
+          <button
+            type="button"
+            :disabled="addressAdding"
+            @click="addAddressPopupVisible = false"
+          >
             <van-icon name="cross" />
           </button>
         </div>
@@ -324,45 +318,132 @@
             :class="{ 'is-active': addAddressForm.category === item.value }"
             @click="addAddressForm.category = item.value"
           >
-            {{ item.label }}
+            <AddressCategoryIcon :category="item.value" />
+            <span>{{ item.label }}</span>
           </button>
         </div>
-        <div class="h5-add-address-sheet__grid">
-          <label class="h5-add-address-field">
-            <span>{{ t('client.orderConfirm.fields.firstName') }} *</span>
-            <input v-model="addAddressForm.firstName" type="text" :placeholder="t('client.orderConfirm.placeholders.firstName')" />
-          </label>
-          <label class="h5-add-address-field">
-            <span>{{ t('client.orderConfirm.fields.lastName') }} *</span>
-            <input v-model="addAddressForm.lastName" type="text" :placeholder="t('client.orderConfirm.placeholders.lastName')" />
-          </label>
+        <div
+          v-if="!editingAddressId"
+          class="h5-add-address-sheet__location"
+        >
+          <button
+            type="button"
+            :disabled="addressEditorLocating"
+            @click="fillAddressEditorWithCurrentLocation"
+          >
+            <van-icon name="aim" />
+            {{
+              addressEditorLocating
+                ? t("client.orderConfirm.location.locating")
+                : t("client.orderConfirm.location.useCurrent")
+            }}
+          </button>
+          <p>
+            {{
+              locale === "zh"
+                ? "当前位置将自动填写区域和街道，请补充其余地址信息。"
+                : "Current location will auto-fill the area and street. Please enter the remaining details."
+            }}
+          </p>
+        </div>
+        <div class="h5-add-address-sheet__section">
+          <van-icon name="location-o" />
+          <div>
+            <strong>{{ locale === 'zh' ? '地址详情' : 'Address Details' }}</strong>
+            <small>{{ locale === 'zh' ? '请输入您的迪拜地址' : 'Enter your Dubai address.' }}</small>
+          </div>
         </div>
         <label class="h5-add-address-field">
-          <span>{{ t('client.orderConfirm.fields.phone') }} *</span>
+          <span>{{ t("client.orderConfirm.fields.areaCommunity") }} *</span>
+          <input
+            v-model="addAddressForm.community"
+            type="text"
+            maxlength="128"
+            :placeholder="t('client.orderConfirm.placeholders.areaCommunity')"
+          />
+        </label>
+        <label class="h5-add-address-field">
+          <span>{{ t("client.orderConfirm.fields.street") }} *</span>
+          <input
+            v-model="addAddressForm.address"
+            type="text"
+            maxlength="128"
+            :placeholder="t('client.orderConfirm.placeholders.street')"
+          />
+          <span
+            v-if="addressEditorLocating"
+            class="h5-add-address-field__locating"
+          >
+            {{ t("client.orderConfirm.location.locating") }}
+          </span>
+        </label>
+        <label class="h5-add-address-field">
+          <span>{{ t("client.orderConfirm.fields.buildingVilla") }} *</span>
+          <input
+            v-model="addAddressForm.building"
+            type="text"
+            maxlength="128"
+            :placeholder="t('client.orderConfirm.placeholders.buildingVilla')"
+          />
+        </label>
+        <label class="h5-add-address-field">
+          <span>{{ t("client.orderConfirm.fields.apartmentUnitFloor") }} *</span>
+          <input
+            v-model="addAddressForm.roomNo"
+            type="text"
+            maxlength="128"
+            :placeholder="t('client.orderConfirm.placeholders.apartmentUnitFloor')"
+          />
+        </label>
+
+        <div class="h5-add-address-sheet__section">
+          <van-icon name="contact-o" />
+          <div>
+            <strong>{{ locale === 'zh' ? '联系人信息' : 'Contact Details' }}</strong>
+            <small>{{ locale === 'zh' ? '我们应该联系谁？' : 'Who should we deliver to?' }}</small>
+          </div>
+        </div>
+        <label class="h5-add-address-field">
+          <span>{{ t("client.orderConfirm.fields.fullName") }} *</span>
+          <input
+            v-model="addAddressForm.fullName"
+            type="text"
+            autocomplete="name"
+            :placeholder="t('client.orderConfirm.placeholders.fullName')"
+          />
+        </label>
+        <label class="h5-add-address-field">
+          <span>{{ t("client.orderConfirm.fields.phone") }} *</span>
           <div class="h5-add-address-field__phone">
             <select v-model="addAddressForm.phoneCountryCode">
-              <option v-for="item in countryCodeOptions" :key="item.value" :value="item.value">
+              <option
+                v-for="item in countryCodeOptions"
+                :key="item.value"
+                :value="item.value"
+              >
                 {{ item.label }}
               </option>
             </select>
-            <input v-model="addAddressForm.phone" type="tel" :placeholder="t('client.login.register.phoneNumberPlaceholder')" />
+            <input
+              v-model="addAddressForm.phone"
+              type="tel"
+              :placeholder="t('client.login.register.phoneNumberPlaceholder')"
+            />
           </div>
         </label>
+        <div class="h5-add-address-sheet__section">
+          <van-icon name="records-o" />
+          <div>
+            <strong>{{ t('client.orderConfirm.fields.remark') }}</strong>
+          </div>
+        </div>
         <label class="h5-add-address-field">
-          <span>{{ t('client.orderConfirm.fields.email') }}</span>
-          <input v-model="addAddressForm.email" type="email" :placeholder="t('client.orderConfirm.placeholders.email')" />
-        </label>
-        <label class="h5-add-address-field">
-          <span>{{ t('client.orderConfirm.fields.district') }}</span>
-          <input v-model="addAddressForm.district" type="text" :placeholder="t('client.orderConfirm.placeholders.district')" />
-        </label>
-        <label class="h5-add-address-field">
-          <span>{{ t('client.orderConfirm.fields.address') }} *</span>
-          <textarea v-model="addAddressForm.address" rows="2" :placeholder="t('client.orderConfirm.placeholders.address')" />
-        </label>
-        <label class="h5-add-address-field">
-          <span>{{ t('client.orderConfirm.fields.remark') }}</span>
-          <textarea v-model="addAddressForm.additionalNotes" rows="2" :placeholder="t('client.orderConfirm.placeholders.remark')" />
+          <textarea
+            v-model="addAddressForm.additionalNotes"
+            rows="2"
+            :aria-label="t('client.orderConfirm.fields.remark')"
+            :placeholder="t('client.orderConfirm.placeholders.remark')"
+          />
         </label>
         <button
           class="h5-add-address-sheet__submit"
@@ -372,14 +453,32 @@
         >
           {{
             addressAdding
-              ? t('client.orderConfirm.addressBook.saving')
+              ? t("client.orderConfirm.addressBook.saving")
               : editingAddressId
-                ? t('client.orderConfirm.addressBook.saveChanges')
-                : t('client.orderConfirm.addressBook.save')
+                ? t("client.orderConfirm.addressBook.saveChanges")
+                : t("client.orderConfirm.addressBook.save")
           }}
         </button>
       </div>
     </van-popup>
+
+    <van-calendar
+      v-model:show="serviceDateCalendarVisible"
+      :title="t('client.orderConfirm.fields.serviceDate')"
+      :min-date="serviceDateMinDate"
+      :default-date="serviceDateDefaultDate"
+      :show-confirm="false"
+      @confirm="handleServiceDateConfirm"
+    />
+
+    <BookingPolicyConfirm
+      v-model="policyPopupVisible"
+      :agreed="agreedPolicy"
+      :submitting="isSubmitting"
+      @update:agreed="agreedPolicy = $event"
+      @read-policy="openLegal('terms')"
+      @continue="confirmPolicyAndContinue"
+    />
 
     <van-popup
       v-model:show="stripePopupVisible"
@@ -391,45 +490,68 @@
     >
       <div class="h5-stripe-sheet">
         <div class="h5-stripe-sheet__header">
-          <h3>{{ locale === 'zh' ? 'Stripe 支付' : 'Stripe Payment' }}</h3>
-          <button type="button" :disabled="stripeSubmitting" @click="stripePopupVisible = false">
+          <h3>{{ locale === "zh" ? "Stripe 支付" : "Stripe Payment" }}</h3>
+          <button
+            type="button"
+            :disabled="stripeSubmitting"
+            @click="stripePopupVisible = false"
+          >
             <van-icon name="cross" />
           </button>
         </div>
         <p class="h5-stripe-sheet__tip">
           {{
-            locale === 'zh'
-              ? '钱包方式会按当前设备自动展示，也可以直接填写银行卡完成支付'
-              : 'Wallet options depend on your device, or you can pay directly by card.'
+            locale === "zh"
+              ? "钱包方式会按当前设备自动展示，也可以直接填写银行卡完成支付"
+              : "Wallet options depend on your device, or you can pay directly by card."
           }}
         </p>
         <div
           class="h5-stripe-sheet__express"
-          :class="{ 'h5-stripe-sheet__express--hidden': !stripeExpressVisible && !stripeInitializing }"
+          :class="{
+            'h5-stripe-sheet__express--hidden':
+              !stripeExpressVisible && !stripeInitializing,
+          }"
         >
-          <div ref="stripeExpressContainerRef" class="h5-stripe-sheet__express-inner"></div>
+          <div
+            ref="stripeExpressContainerRef"
+            class="h5-stripe-sheet__express-inner"
+          ></div>
         </div>
-        <div ref="stripeElementContainerRef" class="h5-stripe-sheet__element"></div>
+        <div
+          ref="stripeElementContainerRef"
+          class="h5-stripe-sheet__element"
+        ></div>
         <button
           class="h5-stripe-sheet__submit"
           type="button"
           :disabled="stripeSubmitting || stripeInitializing"
           @click="handleStripeConfirm"
         >
-          {{ stripeSubmitting ? (locale === 'zh' ? '支付中...' : 'Paying...') : (locale === 'zh' ? '立即支付' : 'Pay Now') }}
+          {{
+            stripeSubmitting
+              ? locale === "zh"
+                ? "支付中..."
+                : "Paying..."
+              : locale === "zh"
+                ? "立即支付"
+                : "Pay Now"
+          }}
         </button>
       </div>
     </van-popup>
+    <AgreementDialog v-model="legalDialogVisible" :doc-type="legalDocType" />
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed, nextTick, onMounted, reactive, ref, watch } from 'vue';
-import { useI18n } from 'vue-i18n';
-import { useRoute, useRouter } from 'vue-router';
-import { showFailToast, showSuccessToast } from 'vant';
+import { computed, nextTick, onMounted, reactive, ref, watch } from "vue"
+import { useI18n } from "vue-i18n"
+import { useRoute, useRouter } from "vue-router"
+import { showConfirmDialog, showFailToast, showSuccessToast } from "vant"
 import {
   addClientAddress,
+  deleteClientAddress,
   getClientAddressList,
   updateClientAddress,
   saveContactAddress,
@@ -439,602 +561,804 @@ import {
   type LatestAddressRecord,
   getAvailableSelectTime,
   createPay,
-} from '@/modules/client/api';
-import { setClientLocale } from '@/modules/client/locales';
+  type CartSkuDetail,
+} from "@/modules/client/api"
+import { useCart } from "@/modules/client/composables/useCart"
+import { setClientLocale } from "@/modules/client/locales"
+import AgreementDialog from "@/modules/client/components/agreement-dialog.vue"
+import BookingPolicyConfirm from "@/modules/client/components/booking-policy-confirm.vue"
+import AddressCategoryIcon from "@/modules/client/components/address-category-icon.vue"
+import type { LegalDocType } from "@/modules/client/constants/legal"
 import {
   locateCurrentAddress,
   LocationLookupError,
   type LocationLookupErrorCode,
-} from '@/modules/client/utils/geolocation';
+} from "@/modules/client/utils/geolocation"
+import {
+  formatContactName,
+  splitContactName,
+} from "@/modules/client/utils/order-localization"
 
-type I18nText = Record<string, string>;
+type I18nText = Record<string, string>
 
 type AvailableTimeRecord = {
-  time?: string;
-  avaiable?: boolean;
-  available?: boolean;
-  timeRange?: number | string;
-};
+  time?: string
+  avaiable?: boolean
+  available?: boolean
+  timeRange?: number | string
+}
 
 type StripeElementInstance = {
-  mount: (domElement: HTMLElement | string) => void;
-  destroy: () => void;
-  on?: (eventName: string, handler: (event?: any) => void | Promise<void>) => void;
-};
+  mount: (domElement: HTMLElement | string) => void
+  destroy: () => void
+  on?: (
+    eventName: string,
+    handler: (event?: any) => void | Promise<void>,
+  ) => void
+}
 
 type StripeElementsInstance = {
-  create: (type: string, options?: Record<string, unknown>) => StripeElementInstance;
-};
+  create: (
+    type: string,
+    options?: Record<string, unknown>,
+  ) => StripeElementInstance
+}
 
 type StripeConfirmResult = {
-  error?: { message?: string };
-  paymentIntent?: { status?: string };
-};
+  error?: { message?: string }
+  paymentIntent?: { status?: string }
+}
 
 type StripeInstance = {
-  elements: (options: Record<string, unknown>) => StripeElementsInstance;
-  confirmPayment: (options: Record<string, unknown>) => Promise<StripeConfirmResult>;
-};
+  elements: (options: Record<string, unknown>) => StripeElementsInstance
+  confirmPayment: (
+    options: Record<string, unknown>,
+  ) => Promise<StripeConfirmResult>
+}
 
 type StripeFactory = (
   publishableKey: string,
   options?: { locale?: string },
-) => StripeInstance | null;
+) => StripeInstance | null
 
-const route = useRoute();
-const router = useRouter();
-const { t, locale } = useI18n({ useScope: 'global' });
+const route = useRoute()
+const router = useRouter()
+const { t, locale } = useI18n({ useScope: "global" })
+const { addItem, clearCart } = useCart()
 
-const DEFAULT_COUNTRY_CODE = '+971';
+const DEFAULT_COUNTRY_CODE = "+971"
 const COUNTRY_CODE_ENTRIES = [
-  { value: '+971', labelEn: 'UAE +971', labelZh: '阿联酋 +971' },
-  { value: '+966', labelEn: 'Saudi Arabia +966', labelZh: '沙特阿拉伯 +966' },
-  { value: '+1', labelEn: 'United States +1', labelZh: '美国 +1' },
-  { value: '+44', labelEn: 'United Kingdom +44', labelZh: '英国 +44' },
-  { value: '+91', labelEn: 'India +91', labelZh: '印度 +91' },
-  { value: '+86', labelEn: 'China +86', labelZh: '中国 +86' },
-];
-const ORDER_PAYMENT_METHOD = 'stripe';
-const CREATE_PAY_METHOD = 'stripe';
-const PAYMENT_STATUS_SYNC_DELAY_MS = 2000;
-const DEFAULT_BOOKING_LEAD_MINUTES = 60;
-const configuredBookingLeadMinutes = Number(import.meta.env.VITE_BOOKING_LEAD_MINUTES);
-const bookingLeadMinutes = Number.isFinite(configuredBookingLeadMinutes) && configuredBookingLeadMinutes >= 0
-  ? configuredBookingLeadMinutes
-  : DEFAULT_BOOKING_LEAD_MINUTES;
-const DUBAI_UTC_OFFSET = '+04:00';
-const STRIPE_SCRIPT_ID = 'hourx-stripe-js';
+  { value: "+971", labelEn: "UAE +971", labelZh: "阿联酋 +971" },
+  { value: "+966", labelEn: "Saudi Arabia +966", labelZh: "沙特阿拉伯 +966" },
+  { value: "+1", labelEn: "United States +1", labelZh: "美国 +1" },
+  { value: "+44", labelEn: "United Kingdom +44", labelZh: "英国 +44" },
+  { value: "+91", labelEn: "India +91", labelZh: "印度 +91" },
+  { value: "+86", labelEn: "China +86", labelZh: "中国 +86" },
+]
+const ORDER_PAYMENT_METHOD = "stripe"
+const CREATE_PAY_METHOD = "stripe"
+const PAYMENT_STATUS_SYNC_DELAY_MS = 2000
+const DEFAULT_BOOKING_LEAD_MINUTES = 60
+const configuredBookingLeadMinutes = Number(
+  import.meta.env.VITE_BOOKING_LEAD_MINUTES,
+)
+const bookingLeadMinutes =
+  Number.isFinite(configuredBookingLeadMinutes) &&
+  configuredBookingLeadMinutes >= 0
+    ? configuredBookingLeadMinutes
+    : DEFAULT_BOOKING_LEAD_MINUTES
+const DUBAI_UTC_OFFSET = "+04:00"
+const STRIPE_SCRIPT_ID = "hourx-stripe-js"
 const stripePublishableKey =
-  typeof import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY === 'string'
+  typeof import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY === "string"
     ? import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY.trim()
-    : '';
+    : ""
 
 const form = reactive({
-  firstName: '',
-  lastName: '',
+  firstName: "",
+  lastName: "",
   countryCode: DEFAULT_COUNTRY_CODE,
-  phone: '',
-  email: '',
-  district: '',
-  address: '',
-  remark: '',
-  category: 'others' as AddressCategory,
-  serviceDate: '',
-  timeRange: '',
-});
+  phone: "",
+  district: "",
+  address: "",
+  building: "",
+  roomNo: "",
+  community: "",
+  remark: "",
+  category: "others" as AddressCategory,
+  serviceDate: "",
+  timeRange: "",
+})
 
-const availableTimeRecords = ref<AvailableTimeRecord[]>([]);
-const isTimeOptionsLoading = ref(false);
-const lastLoadedServiceDate = ref('');
-const pendingTimeText = ref('');
-const agreedPolicy = ref(true);
-const isSubmitting = ref(false);
-const isLocating = ref(false);
-const locationLookupUsed = ref(false);
-const addressList = ref<ClientAddressRecord[]>([]);
-const addressListLoading = ref(false);
-const selectedAddressId = ref<number | null>(null);
-const addAddressPopupVisible = ref(false);
-const addressAdding = ref(false);
-const editingAddressId = ref<number | null>(null);
-let isApplyingSavedAddress = false;
+const availableTimeRecords = ref<AvailableTimeRecord[]>([])
+const isTimeOptionsLoading = ref(false)
+const lastLoadedServiceDate = ref("")
+const pendingTimeText = ref("")
+const agreedPolicy = ref(false)
+const policyPopupVisible = ref(false)
+const isSubmitting = ref(false)
+const isLocating = ref(false)
+const locationLookupUsed = ref(false)
+const addressList = ref<ClientAddressRecord[]>([])
+const addressListLoading = ref(false)
+const addressListError = ref(false)
+const selectedAddressId = ref<number | null>(null)
+const addressPickerExpanded = ref(false)
+const addAddressPopupVisible = ref(false)
+const addressAdding = ref(false)
+const addressDeletingId = ref<number | null>(null)
+const addressEditorLocating = ref(false)
+const editingAddressId = ref<number | null>(null)
+let isApplyingSavedAddress = false
 const addAddressForm = reactive({
-  firstName: '',
-  lastName: '',
+  fullName: "",
   phoneCountryCode: DEFAULT_COUNTRY_CODE,
-  phone: '',
-  email: '',
-  district: '',
-  address: '',
-  additionalNotes: '',
-  category: 'home' as AddressCategory,
-});
-const serviceDateInputRef = ref<HTMLInputElement | null>(null);
+  phone: "",
+  district: "",
+  address: "",
+  building: "",
+  roomNo: "",
+  community: "",
+  additionalNotes: "",
+  category: "home" as AddressCategory,
+})
+const serviceDateCalendarVisible = ref(false)
 
-const stripePopupVisible = ref(false);
-const stripeInitializing = ref(false);
-const stripeSubmitting = ref(false);
-const stripeClientSecret = ref('');
-const stripeExpressVisible = ref(true);
-const stripeExpressContainerRef = ref<HTMLElement | null>(null);
-const stripeElementContainerRef = ref<HTMLElement | null>(null);
-const stripeInstance = ref<StripeInstance | null>(null);
-const stripeElements = ref<StripeElementsInstance | null>(null);
-const stripeExpressElement = ref<StripeElementInstance | null>(null);
-const stripePaymentElement = ref<StripeElementInstance | null>(null);
+const stripePopupVisible = ref(false)
+const stripeInitializing = ref(false)
+const stripeSubmitting = ref(false)
+const stripeClientSecret = ref("")
+const legalDialogVisible = ref(false)
+const legalDocType = ref<LegalDocType>("terms")
+const stripeExpressVisible = ref(true)
+const stripeExpressContainerRef = ref<HTMLElement | null>(null)
+const stripeElementContainerRef = ref<HTMLElement | null>(null)
+const stripeInstance = ref<StripeInstance | null>(null)
+const stripeElements = ref<StripeElementsInstance | null>(null)
+const stripeExpressElement = ref<StripeElementInstance | null>(null)
+const stripePaymentElement = ref<StripeElementInstance | null>(null)
 
-const getStripeLocale = () => (locale.value.startsWith('zh') ? 'zh' : 'en');
+const getStripeLocale = () => (locale.value.startsWith("zh") ? "zh" : "en")
+
+const openLegal = (docType: LegalDocType) => {
+  legalDocType.value = docType
+  legalDialogVisible.value = true
+}
 
 const normalizeText = (value: unknown): string =>
-  typeof value === 'string' ? value.trim() : '';
+  typeof value === "string" ? value.trim() : ""
 
 const normalizePhoneNumber = (value: unknown): string =>
-  typeof value === 'string' ? value.replace(/[^\d]/g, '') : '';
+  typeof value === "string" ? value.replace(/[^\d]/g, "") : ""
 
 const normalizeAddressCategory = (value: unknown): AddressCategory => {
-  if (value === 'home' || value === 'office' || value === 'others') {
-    return value;
+  if (value === "home" || value === "office" || value === "others") {
+    return value
   }
-  return 'others';
-};
+  return "others"
+}
 
 const addressCategoryOptions = computed(() => [
-  { value: 'home' as AddressCategory, label: t('client.orderConfirm.addressBook.categories.home') },
-  { value: 'office' as AddressCategory, label: t('client.orderConfirm.addressBook.categories.office') },
-  { value: 'others' as AddressCategory, label: t('client.orderConfirm.addressBook.categories.others') },
-]);
+  {
+    value: "home" as AddressCategory,
+    label: t("client.orderConfirm.addressBook.categories.home"),
+  },
+  {
+    value: "office" as AddressCategory,
+    label: t("client.orderConfirm.addressBook.categories.office"),
+  },
+  {
+    value: "others" as AddressCategory,
+    label: t("client.orderConfirm.addressBook.categories.others"),
+  },
+])
 
 const addressCategoryLabel = (category: unknown) => {
-  const normalized = normalizeAddressCategory(category);
-  return t(`client.orderConfirm.addressBook.categories.${normalized}`);
-};
+  const normalized = normalizeAddressCategory(category)
+  return t(`client.orderConfirm.addressBook.categories.${normalized}`)
+}
+
+const selectedAddress = computed(() =>
+  addressList.value.find((item) => item.id === selectedAddressId.value) || null,
+)
 
 const formatAddressPhone = (item: ClientAddressRecord) =>
-  [normalizeText(item.phoneCountryCode), normalizeText(item.phone)].filter(Boolean).join(' ');
+  [normalizeText(item.phoneCountryCode), normalizeText(item.phone)]
+    .filter(Boolean)
+    .join(" ")
 
 const formatAddressLine = (item: ClientAddressRecord) =>
-  [normalizeText(item.district), normalizeText(item.address)].filter(Boolean).join(', ');
+  [
+    normalizeText(item.community) || normalizeText(item.district),
+    normalizeText(item.address),
+    normalizeText(item.building),
+    normalizeText(item.roomNo),
+  ]
+    .filter(Boolean)
+    .join(", ")
 
-const normalizeAddressRecord = (item: ClientAddressRecord): ClientAddressRecord | null => {
-  const id = Number(item?.id);
-  if (!Number.isFinite(id) || id <= 0) return null;
+const getAddressFullName = (item: ClientAddressRecord) =>
+  normalizeText(item.fullName)
+
+const normalizeAddressRecord = (
+  item: ClientAddressRecord,
+): ClientAddressRecord | null => {
+  const id = Number(item?.id)
+  if (!Number.isFinite(id) || id <= 0) return null
   return {
     ...item,
     id,
-    firstName: normalizeText(item.firstName),
-    lastName: normalizeText(item.lastName),
-    phoneCountryCode: normalizeText(item.phoneCountryCode) || DEFAULT_COUNTRY_CODE,
+    fullName: normalizeText(item.fullName),
+    phoneCountryCode:
+      normalizeText(item.phoneCountryCode) || DEFAULT_COUNTRY_CODE,
     phone: normalizeText(item.phone),
-    email: normalizeText(item.email),
     district: normalizeText(item.district),
     address: normalizeText(item.address),
+    building: normalizeText(item.building),
+    roomNo: normalizeText(item.roomNo),
+    community: normalizeText(item.community),
     additionalNotes: normalizeText(item.additionalNotes),
     category: normalizeAddressCategory(item.category),
     isDefault: item.isDefault === true,
-  };
-};
+  }
+}
 
 const selectSavedAddress = (item: ClientAddressRecord) => {
-  isApplyingSavedAddress = true;
-  selectedAddressId.value = item.id;
-  form.firstName = normalizeText(item.firstName);
-  form.lastName = normalizeText(item.lastName);
-  form.countryCode = normalizeText(item.phoneCountryCode) || DEFAULT_COUNTRY_CODE;
-  form.phone = normalizeText(item.phone);
-  form.email = normalizeText(item.email);
-  form.district = normalizeText(item.district);
-  form.address = normalizeText(item.address);
-  form.remark = normalizeText(item.additionalNotes);
-  form.category = normalizeAddressCategory(item.category);
-  locationLookupUsed.value = false;
-  isApplyingSavedAddress = false;
-};
+  const fallbackName = splitContactName(getAddressFullName(item))
+  isApplyingSavedAddress = true
+  selectedAddressId.value = item.id
+  form.firstName = fallbackName.firstName
+  form.lastName = fallbackName.lastName
+  form.countryCode =
+    normalizeText(item.phoneCountryCode) || DEFAULT_COUNTRY_CODE
+  form.phone = normalizeText(item.phone)
+  form.district = normalizeText(item.district)
+  form.address = normalizeText(item.address)
+  form.building = normalizeText(item.building)
+  form.roomNo = normalizeText(item.roomNo)
+  form.community = normalizeText(item.community)
+  form.category = normalizeAddressCategory(item.category)
+  locationLookupUsed.value = false
+  addressPickerExpanded.value = false
+  isApplyingSavedAddress = false
+}
 
 const selectManualAddress = () => {
-  isApplyingSavedAddress = true;
-  selectedAddressId.value = null;
-  form.district = '';
-  form.address = '';
-  form.remark = '';
-  form.category = 'others';
-  locationLookupUsed.value = false;
-  isApplyingSavedAddress = false;
-};
+  isApplyingSavedAddress = true
+  selectedAddressId.value = null
+  form.district = ""
+  form.address = ""
+  form.building = ""
+  form.roomNo = ""
+  form.community = ""
+  form.category = "others"
+  locationLookupUsed.value = false
+  isApplyingSavedAddress = false
+}
 
 const loadAddressBook = async (preferredId?: number | null) => {
-  addressListLoading.value = true;
+  addressListLoading.value = true
+  addressListError.value = false
   try {
-    const records = await getClientAddressList();
+    const records = await getClientAddressList()
     addressList.value = records
       .map(normalizeAddressRecord)
-      .filter((item): item is ClientAddressRecord => item !== null);
+      .filter((item): item is ClientAddressRecord => item !== null)
     const preferred =
-      addressList.value.find((item) => preferredId && item.id === preferredId) ||
+      addressList.value.find(
+        (item) => preferredId && item.id === preferredId,
+      ) ||
       addressList.value.find((item) => item.isDefault) ||
-      addressList.value[0];
+      addressList.value[0]
     if (preferred) {
-      selectSavedAddress(preferred);
+      selectSavedAddress(preferred)
     } else {
-      selectedAddressId.value = null;
+      selectedAddressId.value = null
     }
   } catch (error) {
-    console.error('load address list failed:', error);
-    addressList.value = [];
-    showFailToast(t('client.orderConfirm.addressBook.listFailed'));
+    console.error("load address list failed:", error)
+    addressList.value = []
+    selectedAddressId.value = null
+    addressListError.value = true
+    showFailToast(t("client.orderConfirm.addressBook.listFailed"))
   } finally {
-    addressListLoading.value = false;
+    addressListLoading.value = false
   }
-};
+}
 
 const openAddAddressPopup = () => {
-  editingAddressId.value = null;
+  editingAddressId.value = null
   Object.assign(addAddressForm, {
-    firstName: form.firstName,
-    lastName: form.lastName,
+    fullName: formatContactName(form.firstName, form.lastName),
     phoneCountryCode: form.countryCode || DEFAULT_COUNTRY_CODE,
     phone: form.phone,
-    email: form.email,
-    district: selectedAddressId.value ? '' : form.district,
-    address: selectedAddressId.value ? '' : form.address,
-    additionalNotes: '',
-    category: 'home' as AddressCategory,
-  });
-  addAddressPopupVisible.value = true;
-};
+    district: "",
+    address: "",
+    building: "",
+    roomNo: "",
+    community: "",
+    additionalNotes: "",
+    category: "home" as AddressCategory,
+  })
+  addAddressPopupVisible.value = true
+  if (!normalizeText(addAddressForm.community)) {
+    void fillAddressEditorWithCurrentLocation()
+  }
+}
+
+const fillAddressEditorWithCurrentLocation = async () => {
+  if (addressEditorLocating.value) return
+  addressEditorLocating.value = true
+  try {
+    const result = await locateCurrentAddress(locale.value)
+    if (!addAddressPopupVisible.value || editingAddressId.value) return
+    if (!normalizeText(addAddressForm.community)) {
+      const area = result.district || result.address
+      addAddressForm.community = area
+      addAddressForm.district = area
+      addAddressForm.address = result.street || result.address
+    }
+  } catch (error) {
+    const code =
+      error instanceof LocationLookupError ? error.code : "LOOKUP_FAILED"
+    console.warn("auto locate for address editor failed:", code)
+  } finally {
+    addressEditorLocating.value = false
+  }
+}
 
 const openEditAddressPopup = (item: ClientAddressRecord) => {
-  editingAddressId.value = item.id;
+  editingAddressId.value = item.id
   Object.assign(addAddressForm, {
-    firstName: normalizeText(item.firstName),
-    lastName: normalizeText(item.lastName),
-    phoneCountryCode: normalizeText(item.phoneCountryCode) || DEFAULT_COUNTRY_CODE,
+    fullName: getAddressFullName(item),
+    phoneCountryCode:
+      normalizeText(item.phoneCountryCode) || DEFAULT_COUNTRY_CODE,
     phone: normalizeText(item.phone),
-    email: normalizeText(item.email),
     district: normalizeText(item.district),
     address: normalizeText(item.address),
+    building: normalizeText(item.building),
+    roomNo: normalizeText(item.roomNo),
+    community: normalizeText(item.community) || normalizeText(item.district),
     additionalNotes: normalizeText(item.additionalNotes),
     category: normalizeAddressCategory(item.category),
-  });
-  addAddressPopupVisible.value = true;
-};
+  })
+  addAddressPopupVisible.value = true
+}
 
-const isValidEmail = (value: string) => !value || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
+const deleteSavedAddress = async (item: ClientAddressRecord) => {
+  if (addressDeletingId.value !== null) return
+  try {
+    await showConfirmDialog({
+      title: t("client.orderConfirm.addressBook.deleteConfirmTitle"),
+      message: t("client.orderConfirm.addressBook.deleteConfirmMessage"),
+      confirmButtonText: t("client.orderConfirm.addressBook.delete"),
+      cancelButtonText: t("client.orderConfirm.addressBook.cancel"),
+    })
+  } catch {
+    return
+  }
+
+  addressDeletingId.value = item.id
+  try {
+    await deleteClientAddress(item.id)
+    if (selectedAddressId.value === item.id) {
+      selectManualAddress()
+    }
+    await loadAddressBook()
+    showSuccessToast(t("client.orderConfirm.addressBook.deleteSuccess"))
+  } catch (error: any) {
+    showFailToast(
+      error?.message || t("client.orderConfirm.addressBook.deleteFailed"),
+    )
+  } finally {
+    addressDeletingId.value = null
+  }
+}
 
 const getAddAddressValidationMessage = () => {
   const requiredFields = [
-    [addAddressForm.firstName, t('client.orderConfirm.fields.firstName')],
-    [addAddressForm.lastName, t('client.orderConfirm.fields.lastName')],
-    [addAddressForm.phone, t('client.orderConfirm.fields.phone')],
-    [addAddressForm.address, t('client.orderConfirm.fields.address')],
-  ];
-  const missing = requiredFields.find(([value]) => !normalizeText(value));
+    [addAddressForm.fullName, t("client.orderConfirm.fields.fullName")],
+    [addAddressForm.phone, t("client.orderConfirm.fields.phone")],
+    [addAddressForm.community, t("client.orderConfirm.fields.areaCommunity")],
+    [addAddressForm.address, t("client.orderConfirm.fields.street")],
+    [addAddressForm.building, t("client.orderConfirm.fields.buildingVilla")],
+    [addAddressForm.roomNo, t("client.orderConfirm.fields.apartmentUnitFloor")],
+  ]
+  const missing = requiredFields.find(([value]) => !normalizeText(value))
   if (missing) {
-    return t('client.orderConfirm.validation.requiredField', { field: missing[1] });
+    return t("client.orderConfirm.validation.requiredField", {
+      field: missing[1],
+    })
   }
-  if (!isValidEmail(normalizeText(addAddressForm.email))) {
-    return t('client.orderConfirm.addressBook.invalidEmail');
-  }
-  return '';
-};
+  return ""
+}
 
 const submitAddressEditor = async () => {
-  const validationMessage = getAddAddressValidationMessage();
+  const validationMessage = getAddAddressValidationMessage()
   if (validationMessage) {
-    showFailToast(validationMessage);
-    return;
+    showFailToast(validationMessage)
+    return
   }
-  addressAdding.value = true;
+  addressAdding.value = true
   try {
     const payload = {
-      firstName: normalizeText(addAddressForm.firstName),
-      lastName: normalizeText(addAddressForm.lastName),
-      phoneCountryCode: normalizeText(addAddressForm.phoneCountryCode) || DEFAULT_COUNTRY_CODE,
+      fullName: normalizeText(addAddressForm.fullName),
+      phoneCountryCode:
+        normalizeText(addAddressForm.phoneCountryCode) || DEFAULT_COUNTRY_CODE,
       phone: normalizeText(addAddressForm.phone),
-      email: normalizeText(addAddressForm.email) || undefined,
-      district: normalizeText(addAddressForm.district) || undefined,
+      district: normalizeText(addAddressForm.community) || undefined,
       address: normalizeText(addAddressForm.address),
-      additionalNotes: normalizeText(addAddressForm.additionalNotes) || undefined,
+      building: normalizeText(addAddressForm.building),
+      roomNo: normalizeText(addAddressForm.roomNo),
+      community: normalizeText(addAddressForm.community) || undefined,
+      additionalNotes:
+        normalizeText(addAddressForm.additionalNotes) || undefined,
       category: normalizeAddressCategory(addAddressForm.category),
-    };
+    }
     if (editingAddressId.value) {
-      await updateClientAddress({ id: editingAddressId.value, ...payload });
-      await loadAddressBook(editingAddressId.value);
-      addAddressPopupVisible.value = false;
-      showSuccessToast(t('client.orderConfirm.addressBook.editSuccess'));
-      return;
+      await updateClientAddress({ id: editingAddressId.value, ...payload })
+      await loadAddressBook(editingAddressId.value)
+      addAddressPopupVisible.value = false
+      showSuccessToast(t("client.orderConfirm.addressBook.editSuccess"))
+      return
     }
 
-    const added = await addClientAddress(payload);
-    const addedId = Number(typeof added === 'number' ? added : added?.id);
-    await loadAddressBook(Number.isFinite(addedId) ? addedId : null);
+    const added = await addClientAddress(payload)
+    const addedId = Number(typeof added === "number" ? added : added?.id)
+    await loadAddressBook(Number.isFinite(addedId) ? addedId : null)
     if (!Number.isFinite(addedId)) {
-      const matched = [...addressList.value].reverse().find(
-        (item) =>
-          item.address === normalizeText(addAddressForm.address) &&
-          item.phone === normalizeText(addAddressForm.phone),
-      );
-      if (matched) selectSavedAddress(matched);
+      const matched = [...addressList.value]
+        .reverse()
+        .find(
+          (item) =>
+            item.address === normalizeText(addAddressForm.address) &&
+            item.building === normalizeText(addAddressForm.building) &&
+            normalizeText(item.roomNo) === normalizeText(addAddressForm.roomNo) &&
+            normalizeText(item.community) === normalizeText(addAddressForm.community) &&
+            item.phone === normalizeText(addAddressForm.phone),
+        )
+      if (matched) selectSavedAddress(matched)
     }
-    addAddressPopupVisible.value = false;
-    showSuccessToast(t('client.orderConfirm.addressBook.addSuccess'));
+    addAddressPopupVisible.value = false
+    showSuccessToast(t("client.orderConfirm.addressBook.addSuccess"))
   } catch (error: any) {
     showFailToast(
-      error?.message || t(
-        editingAddressId.value
-          ? 'client.orderConfirm.addressBook.editFailed'
-          : 'client.orderConfirm.addressBook.addFailed',
-      ),
-    );
+      error?.message ||
+        t(
+          editingAddressId.value
+            ? "client.orderConfirm.addressBook.editFailed"
+            : "client.orderConfirm.addressBook.addFailed",
+        ),
+    )
   } finally {
-    addressAdding.value = false;
+    addressAdding.value = false
   }
-};
+}
 
 const locationErrorKeyMap: Record<LocationLookupErrorCode, string> = {
-  UNSUPPORTED: 'unsupported',
-  PERMISSION_DENIED: 'permissionDenied',
-  UNAVAILABLE: 'unavailable',
-  TIMEOUT: 'timeout',
-  LOOKUP_FAILED: 'lookupFailed',
-};
+  UNSUPPORTED: "unsupported",
+  PERMISSION_DENIED: "permissionDenied",
+  UNAVAILABLE: "unavailable",
+  TIMEOUT: "timeout",
+  LOOKUP_FAILED: "lookupFailed",
+}
 
 const handleUseCurrentLocation = async () => {
-  if (isLocating.value) return;
-  isLocating.value = true;
+  if (isLocating.value) return
+  isLocating.value = true
   try {
-    const result = await locateCurrentAddress(locale.value);
-    form.district = result.district;
-    form.address = result.address;
-    locationLookupUsed.value = true;
-    showSuccessToast(t('client.orderConfirm.location.success'));
+    const result = await locateCurrentAddress(locale.value)
+    form.district = result.district
+    form.address = ""
+    form.building = ""
+    form.roomNo = ""
+    form.community = ""
+    locationLookupUsed.value = true
+    showSuccessToast(t("client.orderConfirm.location.success"))
   } catch (error) {
-    const code = error instanceof LocationLookupError ? error.code : 'LOOKUP_FAILED';
-    showFailToast(t(`client.orderConfirm.location.errors.${locationErrorKeyMap[code]}`));
+    const code =
+      error instanceof LocationLookupError ? error.code : "LOOKUP_FAILED"
+    showFailToast(
+      t(`client.orderConfirm.location.errors.${locationErrorKeyMap[code]}`),
+    )
   } finally {
-    isLocating.value = false;
+    isLocating.value = false
   }
-};
+}
 
 const countryCodeOptions = computed(() =>
   COUNTRY_CODE_ENTRIES.map((item) => ({
     value: item.value,
-    label: locale.value === 'zh' ? item.labelZh : item.labelEn,
+    label: locale.value === "zh" ? item.labelZh : item.labelEn,
   })),
-);
+)
 
-const splitPhoneNumber = (value: unknown): { countryCode: string; phone: string } => {
-  const text = normalizeText(value);
+const splitPhoneNumber = (
+  value: unknown,
+): { countryCode: string; phone: string } => {
+  const text = normalizeText(value)
   if (!text) {
     return {
       countryCode: DEFAULT_COUNTRY_CODE,
-      phone: '',
-    };
+      phone: "",
+    }
   }
 
-  const normalized = text.startsWith('+')
-    ? `+${text.slice(1).replace(/[^\d]/g, '')}`
-    : normalizePhoneNumber(text);
+  const normalized = text.startsWith("+")
+    ? `+${text.slice(1).replace(/[^\d]/g, "")}`
+    : normalizePhoneNumber(text)
   const matchedCode = COUNTRY_CODE_ENTRIES.map((item) => item.value)
     .sort((left, right) => right.length - left.length)
     .find((code) => {
-      const codeDigits = normalizePhoneNumber(code);
-      return normalized.startsWith(code) || (!normalized.startsWith('+') && normalized.startsWith(codeDigits));
-    });
+      const codeDigits = normalizePhoneNumber(code)
+      return (
+        normalized.startsWith(code) ||
+        (!normalized.startsWith("+") && normalized.startsWith(codeDigits))
+      )
+    })
 
   if (!matchedCode) {
     return {
       countryCode: DEFAULT_COUNTRY_CODE,
-      phone: normalized.startsWith('+') ? normalizePhoneNumber(normalized) : normalized,
-    };
+      phone: normalized.startsWith("+")
+        ? normalizePhoneNumber(normalized)
+        : normalized,
+    }
   }
 
-  const matchedDigits = normalizePhoneNumber(matchedCode);
+  const matchedDigits = normalizePhoneNumber(matchedCode)
   return {
     countryCode: matchedCode,
     phone: normalized.startsWith(matchedCode)
       ? normalizePhoneNumber(normalized.slice(matchedCode.length))
       : normalizePhoneNumber(normalized.slice(matchedDigits.length)),
-  };
-};
+  }
+}
 
 const normalizeTimeRangeValue = (value: unknown): string => {
   if (value === null || value === undefined) {
-    return '';
+    return ""
   }
-  return String(value).trim();
-};
+  return String(value).trim()
+}
 
 const getDubaiDateText = (timestamp: number): string => {
-  const parts = new Intl.DateTimeFormat('en-CA', {
-    timeZone: 'Asia/Dubai',
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-  }).formatToParts(new Date(timestamp));
-  const partMap = Object.fromEntries(parts.map((part) => [part.type, part.value]));
-  return `${partMap.year}-${partMap.month}-${partMap.day}`;
-};
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Dubai",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(new Date(timestamp))
+  const partMap = Object.fromEntries(
+    parts.map((part) => [part.type, part.value]),
+  )
+  return `${partMap.year}-${partMap.month}-${partMap.day}`
+}
 
-const bookingThreshold = () => Date.now() + bookingLeadMinutes * 60 * 1000;
-const minServiceDate = computed(() => getDubaiDateText(bookingThreshold()));
+const bookingThreshold = () => Date.now() + bookingLeadMinutes * 60 * 1000
+const minServiceDate = computed(() => getDubaiDateText(bookingThreshold()))
+
+const serviceDateMinDate = computed(() => {
+  const parsed = new Date(`${minServiceDate.value}T00:00:00`)
+  return Number.isNaN(parsed.getTime()) ? new Date() : parsed
+})
+
+const serviceDateDefaultDate = computed(() => {
+  const parsed = new Date(`${form.serviceDate}T00:00:00`)
+  if (Number.isNaN(parsed.getTime())) {
+    return serviceDateMinDate.value
+  }
+  return parsed.getTime() < serviceDateMinDate.value.getTime()
+    ? serviceDateMinDate.value
+    : parsed
+})
+
+const localizedServiceDate = computed(() => {
+  const matched = /^(\d{4})-(\d{2})-(\d{2})$/.exec(form.serviceDate)
+  if (!matched) {
+    return t("client.orderConfirm.fields.serviceDateHint")
+  }
+
+  const [, year, month, day] = matched
+  if (locale.value.startsWith("zh")) {
+    return `${year}年${Number(month)}月${Number(day)}日`
+  }
+
+  return new Intl.DateTimeFormat("en-AE", {
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+    timeZone: "UTC",
+  }).format(new Date(Date.UTC(Number(year), Number(month) - 1, Number(day))))
+})
 
 const extractServiceStartTime = (value: string): string => {
-  const text = normalizeText(value);
+  const text = normalizeText(value)
   if (!text) {
-    return '';
+    return ""
   }
-  const [rangeStart = ''] = text.split('-');
-  return normalizeText(rangeStart);
-};
+  const [rangeStart = ""] = text.split("-")
+  return normalizeText(rangeStart)
+}
 
 const isFutureServiceSlot = (dateText: string, timeText: string): boolean => {
-  const startTime = extractServiceStartTime(timeText);
+  const startTime = extractServiceStartTime(timeText)
   if (!dateText || !startTime) {
-    return false;
+    return false
   }
-  const slotTimestamp = Date.parse(`${dateText}T${startTime}:00${DUBAI_UTC_OFFSET}`);
+  const slotTimestamp = Date.parse(
+    `${dateText}T${startTime}:00${DUBAI_UTC_OFFSET}`,
+  )
   if (Number.isNaN(slotTimestamp)) {
-    return false;
+    return false
   }
-  return slotTimestamp >= bookingThreshold();
-};
+  return slotTimestamp >= bookingThreshold()
+}
 
 const getQueryText = (key: string) => {
-  const raw = route.query[key];
+  const raw = route.query[key]
   if (Array.isArray(raw)) {
-    return typeof raw[0] === 'string' ? raw[0].trim() : '';
+    return typeof raw[0] === "string" ? raw[0].trim() : ""
   }
-  return typeof raw === 'string' ? raw.trim() : '';
-};
+  return typeof raw === "string" ? raw.trim() : ""
+}
 
-const parseQueryJson = <T>(key: string, fallback: T): T => {
-  const raw = getQueryText(key);
+const parseQueryJson = <T,>(key: string, fallback: T): T => {
+  const raw = getQueryText(key)
   if (!raw) {
-    return fallback;
+    return fallback
   }
   try {
-    return JSON.parse(raw) as T;
+    return JSON.parse(raw) as T
   } catch {
     try {
-      const decoded = decodeURIComponent(raw);
-      return JSON.parse(decoded) as T;
+      const decoded = decodeURIComponent(raw)
+      return JSON.parse(decoded) as T
     } catch {
-      return fallback;
+      return fallback
     }
   }
-};
+}
 
 const selectableTimeOptions = computed(() => {
-  const selectedDate = normalizeText(form.serviceDate);
+  const selectedDate = normalizeText(form.serviceDate)
   if (!selectedDate) {
-    return [] as Array<{ time: string; available: boolean; timeRange: string }>;
+    return [] as Array<{ time: string; available: boolean; timeRange: string }>
   }
 
-  const today = getDubaiDateText(Date.now());
+  const today = getDubaiDateText(Date.now())
   if (selectedDate < today) {
-    return [];
+    return []
   }
 
   return availableTimeRecords.value
     .map((item) => {
-      const timeRange = normalizeTimeRangeValue(item.timeRange);
-      const time = normalizeText(item.time);
+      const timeRange = normalizeTimeRangeValue(item.timeRange)
+      const time = normalizeText(item.time)
       if (!time || !timeRange) {
-        return null;
+        return null
       }
-      const apiAvailable = item.avaiable ?? item.available ?? false;
+      const apiAvailable = item.avaiable ?? item.available ?? false
       return {
         time,
         timeRange,
-        available: Boolean(apiAvailable) && isFutureServiceSlot(selectedDate, time),
-      };
+        available:
+          Boolean(apiAvailable) && isFutureServiceSlot(selectedDate, time),
+      }
     })
-    .filter((item): item is { time: string; available: boolean; timeRange: string } => Boolean(item));
-});
+    .filter(
+      (item): item is { time: string; available: boolean; timeRange: string } =>
+        Boolean(item),
+    )
+})
 
-const selectedTimeOption = computed(() =>
-  selectableTimeOptions.value.find((item) => item.timeRange === normalizeTimeRangeValue(form.timeRange)) ||
-  null,
-);
+const selectedTimeOption = computed(
+  () =>
+    selectableTimeOptions.value.find(
+      (item) => item.timeRange === normalizeTimeRangeValue(form.timeRange),
+    ) || null,
+)
 
 const applyPendingTimeText = () => {
   if (!pendingTimeText.value) {
-    return;
+    return
   }
   const matched = selectableTimeOptions.value.find((item) => {
-    const time = normalizeText(item.time);
-    return time === pendingTimeText.value || extractServiceStartTime(time) === pendingTimeText.value;
-  });
+    const time = normalizeText(item.time)
+    return (
+      time === pendingTimeText.value ||
+      extractServiceStartTime(time) === pendingTimeText.value
+    )
+  })
   if (matched) {
-    form.timeRange = matched.timeRange;
+    form.timeRange = matched.timeRange
   }
-  pendingTimeText.value = '';
-};
+  pendingTimeText.value = ""
+}
 
 const openServiceDatePicker = () => {
-  const input = serviceDateInputRef.value;
-  if (!input) return;
+  serviceDateCalendarVisible.value = true
+}
 
-  const pickerInput = input as HTMLInputElement & {
-    showPicker?: () => void;
-  };
-
-  if (typeof pickerInput.showPicker === 'function') {
-    pickerInput.showPicker();
-    return;
-  }
-
-  input.focus();
-  input.click();
-};
+const handleServiceDateConfirm = (date: Date) => {
+  const yyyy = date.getFullYear()
+  const mm = `${date.getMonth() + 1}`.padStart(2, "0")
+  const dd = `${date.getDate()}`.padStart(2, "0")
+  form.serviceDate = `${yyyy}-${mm}-${dd}`
+  serviceDateCalendarVisible.value = false
+}
 
 const serviceTimePlaceholder = computed(() => {
   if (!normalizeText(form.serviceDate)) {
-    return locale.value === 'zh' ? '请先选择日期' : 'Please select a date first';
+    return locale.value === "zh" ? "请先选择日期" : "Please select a date first"
   }
   if (isTimeOptionsLoading.value) {
-    return locale.value === 'zh' ? '时间加载中...' : 'Loading times...';
+    return locale.value === "zh" ? "时间加载中..." : "Loading times..."
   }
   if (!selectableTimeOptions.value.length) {
-    return locale.value === 'zh' ? '暂无可选时间' : 'No available times';
+    return locale.value === "zh" ? "暂无可选时间" : "No available times"
   }
-  return locale.value === 'zh' ? '请选择时间' : 'Please select time';
-});
+  return locale.value === "zh" ? "请选择时间" : "Please select time"
+})
 
 const fetchAvailableTimes = async (force = false) => {
-  const serviceDate = normalizeText(form.serviceDate);
-  const spuIdText = getQueryText('spuId');
+  const serviceDate = normalizeText(form.serviceDate)
+  const spuIdText = getQueryText("spuId")
   if (!serviceDate || !spuIdText) {
-    return;
+    return
   }
-  if (!force && lastLoadedServiceDate.value === serviceDate && availableTimeRecords.value.length) {
-    return;
+  if (
+    !force &&
+    lastLoadedServiceDate.value === serviceDate &&
+    availableTimeRecords.value.length
+  ) {
+    return
   }
 
-  isTimeOptionsLoading.value = true;
+  isTimeOptionsLoading.value = true
   try {
     const payload = await getAvailableSelectTime({
       spuId: Number.isFinite(Number(spuIdText)) ? Number(spuIdText) : spuIdText,
       serviceTime: serviceDate,
-    });
-    availableTimeRecords.value = Array.isArray(payload) ? payload : [];
-    lastLoadedServiceDate.value = serviceDate;
-    applyPendingTimeText();
+    })
+    availableTimeRecords.value = Array.isArray(payload) ? payload : []
+    lastLoadedServiceDate.value = serviceDate
+    applyPendingTimeText()
   } catch (error) {
-    console.error('load available select time failed:', error);
-    availableTimeRecords.value = [];
-    lastLoadedServiceDate.value = '';
+    console.error("load available select time failed:", error)
+    availableTimeRecords.value = []
+    lastLoadedServiceDate.value = ""
   } finally {
-    isTimeOptionsLoading.value = false;
+    isTimeOptionsLoading.value = false
   }
-};
+}
 
 const handleServiceTimeOpen = async () => {
   if (!normalizeText(form.serviceDate)) {
     showFailToast(
-      t('client.orderConfirm.validation.requiredField', {
-        field: t('client.orderConfirm.fields.serviceDate'),
+      t("client.orderConfirm.validation.requiredField", {
+        field: t("client.orderConfirm.fields.serviceDate"),
       }),
-    );
-    return;
+    )
+    return
   }
-  await fetchAvailableTimes();
-};
+  await fetchAvailableTimes()
+}
 
 watch(
   () => form.serviceDate,
   (value, oldValue) => {
     if (value !== oldValue) {
-      availableTimeRecords.value = [];
-      lastLoadedServiceDate.value = '';
-      pendingTimeText.value = '';
-      form.timeRange = '';
+      availableTimeRecords.value = []
+      lastLoadedServiceDate.value = ""
+      pendingTimeText.value = ""
+      form.timeRange = ""
       if (normalizeText(value)) {
-        void fetchAvailableTimes(true);
+        void fetchAvailableTimes(true)
       }
     }
   },
-);
+)
 
 watch(
   () => [
@@ -1042,672 +1366,767 @@ watch(
     form.lastName,
     form.countryCode,
     form.phone,
-    form.email,
     form.district,
     form.address,
-    form.remark,
+    form.building,
+    form.roomNo,
+    form.community,
     form.category,
   ],
   () => {
     if (!isApplyingSavedAddress && selectedAddressId.value !== null) {
-      selectedAddressId.value = null;
+      selectedAddressId.value = null
     }
   },
-  { flush: 'sync' },
-);
+  { flush: "sync" },
+)
 
 watch(
-  () => selectableTimeOptions.value.map((item) => `${item.timeRange}:${item.available}`).join('|'),
+  () =>
+    selectableTimeOptions.value
+      .map((item) => `${item.timeRange}:${item.available}`)
+      .join("|"),
   () => {
     if (isTimeOptionsLoading.value) {
-      return;
+      return
     }
-    applyPendingTimeText();
-    const currentValue = normalizeTimeRangeValue(form.timeRange);
+    applyPendingTimeText()
+    const currentValue = normalizeTimeRangeValue(form.timeRange)
     const currentExists = selectableTimeOptions.value.some(
       (item) => item.timeRange === currentValue && item.available,
-    );
+    )
     if (!currentExists) {
-      const firstAvailable = selectableTimeOptions.value.find((item) => item.available);
-      form.timeRange = firstAvailable?.timeRange || '';
+      const firstAvailable = selectableTimeOptions.value.find(
+        (item) => item.available,
+      )
+      form.timeRange = firstAvailable?.timeRange || ""
     }
   },
   { immediate: true },
-);
+)
 
 watch(
   () => stripePopupVisible.value,
   (visible) => {
     if (visible) {
-      return;
+      return
     }
-    stripeClientSecret.value = '';
-    destroyStripeElements();
+    stripeClientSecret.value = ""
+    destroyStripeElements()
   },
-);
+)
 
 watch(
   () => locale.value,
   async () => {
-    setClientLocale(locale.value === 'zh' ? 'zh' : 'en');
+    setClientLocale(locale.value === "zh" ? "zh" : "en")
     if (!stripePopupVisible.value || !stripeClientSecret.value) {
-      return;
+      return
     }
-    await initStripeElements();
+    await initStripeElements()
   },
   { immediate: true },
-);
+)
 
 const getPreferredLangs = () =>
-  locale.value === 'zh'
-    ? ['zh-CN', 'zh', 'en', 'en-US']
-    : ['en', 'en-US', 'zh-CN', 'zh'];
+  locale.value === "zh"
+    ? ["zh-CN", "zh", "en", "en-US"]
+    : ["en", "en-US", "zh-CN", "zh"]
 
-const pickI18nValue = (i18n?: I18nText, fallback = ''): string => {
-  const valueMap = i18n || {};
+const pickI18nValue = (i18n?: I18nText, fallback = ""): string => {
+  const valueMap = i18n || {}
   for (const lang of getPreferredLangs()) {
-    const value = valueMap[lang];
-    if (typeof value === 'string' && value.trim()) {
-      return value.trim();
+    const value = valueMap[lang]
+    if (typeof value === "string" && value.trim()) {
+      return value.trim()
     }
   }
   const firstValue = Object.values(valueMap).find(
-    (value) => typeof value === 'string' && value.trim(),
-  );
-  return typeof firstValue === 'string' ? firstValue.trim() : fallback;
-};
+    (value) => typeof value === "string" && value.trim(),
+  )
+  return typeof firstValue === "string" ? firstValue.trim() : fallback
+}
 
 const getQueryNumber = (key: string, fallback = 0) => {
-  const numeric = Number(getQueryText(key));
-  return Number.isFinite(numeric) ? numeric : fallback;
-};
+  const numeric = Number(getQueryText(key))
+  return Number.isFinite(numeric) ? numeric : fallback
+}
 
 const getQueryOrderId = (): number | null => {
-  const text = getQueryText('orderId');
+  const text = getQueryText("orderId")
   if (!text) {
-    return null;
+    return null
   }
-  const numeric = Number(text);
-  return Number.isFinite(numeric) ? numeric : null;
-};
+  const numeric = Number(text)
+  return Number.isFinite(numeric) ? numeric : null
+}
 
-const orderId = computed(() => getQueryOrderId());
+const orderId = computed(() => getQueryOrderId())
+const isCartMode = computed(() => getQueryText("mode") === "cart")
+const cartSkuDetail = computed(() =>
+  parseQueryJson<CartSkuDetail | null>("cartSkuDetail", null),
+)
 
 const summaryTitle = computed(() =>
   pickI18nValue(
-    parseQueryJson<I18nText>('titleI18n', {}),
-    getQueryText('title') || t('client.orderConfirm.summary.itemDefault'),
+    parseQueryJson<I18nText>("titleI18n", {}),
+    getQueryText("title") || t("client.orderConfirm.summary.itemDefault"),
   ),
-);
+)
 
 const summaryMeta = computed(() => {
-  const selectedSpecValueIds = parseQueryJson<string[]>('selectedSpecValueIds', []);
-  const specValueNameI18n = parseQueryJson<Record<string, I18nText>>('specValueNameI18n', {});
+  const selectedSpecValueIds = parseQueryJson<string[]>(
+    "selectedSpecValueIds",
+    [],
+  )
+  const specValueNameI18n = parseQueryJson<Record<string, I18nText>>(
+    "specValueNameI18n",
+    {},
+  )
   if (Array.isArray(selectedSpecValueIds) && selectedSpecValueIds.length) {
     const labels = selectedSpecValueIds
       .map((id) => pickI18nValue(specValueNameI18n[String(id)], String(id)))
-      .filter(Boolean);
+      .filter(Boolean)
     if (labels.length) {
-      return labels.join(' / ');
+      return labels.join(" / ")
     }
   }
-  return getQueryText('specSummary') || t('client.orderConfirm.summary.metaDefault');
-});
+  return (
+    getQueryText("specSummary") || t("client.orderConfirm.summary.metaDefault")
+  )
+})
 
-const subtotal = computed(() => getQueryNumber('subtotal', 0));
-const tax = computed(() => getQueryNumber('tax', 0));
-const total = computed(() => getQueryNumber('total', subtotal.value + tax.value));
+const summaryImageUrl = computed(() => {
+  const rawProductImageUrls = parseQueryJson<unknown>("imageUrls", [])
+  const productImageUrls = Array.isArray(rawProductImageUrls)
+    ? rawProductImageUrls
+    : []
+  const level1 = parseQueryJson<{ imageUrls?: unknown[] }>("level1", {})
+  const categoryImageUrls = Array.isArray(level1.imageUrls)
+    ? level1.imageUrls
+    : []
+  const imageUrl = [...productImageUrls, ...categoryImageUrls].find(
+    (item): item is string => typeof item === "string" && item.trim().length > 0,
+  )
+  return imageUrl?.trim() || ""
+})
 
-const formatAed = (value: number) => `${value.toFixed(2)} AED`;
+const subtotal = computed(() => getQueryNumber("subtotal", 0))
+const tax = computed(() => getQueryNumber("tax", 0))
+const total = computed(() =>
+  getQueryNumber("total", subtotal.value + tax.value),
+)
 
-const extractEnvelopeData = <T>(payload: unknown): T | null => {
+const formatAed = (value: number) => `AED ${value.toFixed(2)}`
+
+const extractEnvelopeData = <T,>(payload: unknown): T | null => {
   if (payload === null || payload === undefined) {
-    return null;
+    return null
   }
-  if (payload && typeof payload === 'object') {
-    const maybe = payload as Record<string, unknown>;
-    if ('data' in maybe) {
-      return (maybe.data ?? null) as T | null;
+  if (payload && typeof payload === "object") {
+    const maybe = payload as Record<string, unknown>
+    if ("data" in maybe) {
+      return (maybe.data ?? null) as T | null
     }
   }
-  return payload as T;
-};
+  return payload as T
+}
 
 const buildValidationUrl = (): string => {
-  if (typeof window === 'undefined') {
-    return '';
+  if (typeof window === "undefined") {
+    return ""
   }
-  return `${window.location.origin}${window.location.pathname}`;
-};
+  return `${window.location.origin}${window.location.pathname}`
+}
 
 const navigateToClient = (path: string, query?: Record<string, string>) => {
-  setClientLocale(locale.value === 'zh' ? 'zh' : 'en');
-  localStorage.setItem('h5-locale', locale.value === 'zh' ? 'zh' : 'en');
-  const url = new URL(path, window.location.origin);
+  setClientLocale(locale.value === "zh" ? "zh" : "en")
+  localStorage.setItem("h5-locale", locale.value === "zh" ? "zh" : "en")
+  const url = new URL(path, window.location.origin)
   if (query) {
     Object.entries(query).forEach(([key, value]) => {
       if (value) {
-        url.searchParams.set(key, value);
+        url.searchParams.set(key, value)
       }
-    });
+    })
   }
-  window.location.assign(`${url.pathname}${url.search}${url.hash}`);
-};
+  window.location.assign(`${url.pathname}${url.search}${url.hash}`)
+}
 
 const loadStripeJs = async () => {
-  if (typeof window === 'undefined') {
-    throw new Error('Stripe is only available in browser');
+  if (typeof window === "undefined") {
+    throw new Error("Stripe is only available in browser")
   }
 
-  if (typeof (window as any).Stripe === 'function') {
-    return;
+  if (typeof (window as any).Stripe === "function") {
+    return
   }
 
   await new Promise<void>((resolve, reject) => {
-    const existed = document.getElementById(STRIPE_SCRIPT_ID) as HTMLScriptElement | null;
+    const existed = document.getElementById(
+      STRIPE_SCRIPT_ID,
+    ) as HTMLScriptElement | null
     if (existed) {
-      existed.addEventListener('load', () => resolve(), { once: true });
-      existed.addEventListener('error', () => reject(new Error('Failed to load Stripe.js')), {
-        once: true,
-      });
-      return;
+      existed.addEventListener("load", () => resolve(), { once: true })
+      existed.addEventListener(
+        "error",
+        () => reject(new Error("Failed to load Stripe.js")),
+        {
+          once: true,
+        },
+      )
+      return
     }
 
-    const script = document.createElement('script');
-    script.id = STRIPE_SCRIPT_ID;
-    script.src = 'https://js.stripe.com/v3/';
-    script.async = true;
-    script.onload = () => resolve();
-    script.onerror = () => reject(new Error('Failed to load Stripe.js'));
-    document.head.appendChild(script);
-  });
-};
+    const script = document.createElement("script")
+    script.id = STRIPE_SCRIPT_ID
+    script.src = "https://js.stripe.com/v3/"
+    script.async = true
+    script.onload = () => resolve()
+    script.onerror = () => reject(new Error("Failed to load Stripe.js"))
+    document.head.appendChild(script)
+  })
+}
 
 const destroyStripeElements = () => {
   try {
-    stripeExpressElement.value?.destroy?.();
+    stripeExpressElement.value?.destroy?.()
   } catch {
     // ignore destroy errors
   }
   try {
-    stripePaymentElement.value?.destroy?.();
+    stripePaymentElement.value?.destroy?.()
   } catch {
     // ignore destroy errors
   }
-  stripeExpressElement.value = null;
-  stripePaymentElement.value = null;
-  stripeElements.value = null;
-  stripeExpressVisible.value = true;
-};
+  stripeExpressElement.value = null
+  stripePaymentElement.value = null
+  stripeElements.value = null
+  stripeExpressVisible.value = true
+}
 
 const initStripeElements = async () => {
   if (!stripeClientSecret.value) {
-    return;
+    return
   }
   if (!stripePublishableKey) {
     throw new Error(
-      locale.value === 'zh'
-        ? '缺少 Stripe 公钥，请配置 VITE_STRIPE_PUBLISHABLE_KEY'
-        : 'Missing Stripe publishable key, please set VITE_STRIPE_PUBLISHABLE_KEY.',
-    );
+      locale.value === "zh"
+        ? "缺少 Stripe 公钥，请配置 VITE_STRIPE_PUBLISHABLE_KEY"
+        : "Missing Stripe publishable key, please set VITE_STRIPE_PUBLISHABLE_KEY.",
+    )
   }
 
-  stripeInitializing.value = true;
+  stripeInitializing.value = true
   try {
-    await loadStripeJs();
-    const stripeFactory = (window as any).Stripe as StripeFactory | undefined;
-    if (typeof stripeFactory !== 'function') {
-      throw new Error('Stripe SDK is unavailable');
+    await loadStripeJs()
+    const stripeFactory = (window as any).Stripe as StripeFactory | undefined
+    if (typeof stripeFactory !== "function") {
+      throw new Error("Stripe SDK is unavailable")
     }
 
     stripeInstance.value = stripeFactory(stripePublishableKey, {
       locale: getStripeLocale(),
-    }) as StripeInstance;
+    }) as StripeInstance
     if (!stripeInstance.value) {
-      throw new Error('Stripe initialization failed');
+      throw new Error("Stripe initialization failed")
     }
 
-    await nextTick();
-    const expressContainer = stripeExpressContainerRef.value;
-    const container = stripeElementContainerRef.value;
+    await nextTick()
+    const expressContainer = stripeExpressContainerRef.value
+    const container = stripeElementContainerRef.value
     if (!container) {
-      throw new Error('Stripe container is missing');
+      throw new Error("Stripe container is missing")
     }
 
-    destroyStripeElements();
+    destroyStripeElements()
     const elements = stripeInstance.value.elements({
       clientSecret: stripeClientSecret.value,
-      appearance: { theme: 'stripe' },
-    });
+      appearance: { theme: "stripe" },
+    })
     if (expressContainer) {
-      const expressElement = elements.create('expressCheckout', {
+      const expressElement = elements.create("expressCheckout", {
         paymentMethods: {
-          applePay: 'always',
-          googlePay: 'always',
+          applePay: "always",
+          googlePay: "always",
         },
-      });
-      expressElement.on?.('ready', (event?: { availablePaymentMethods?: Record<string, unknown> | null }) => {
-        stripeExpressVisible.value = Boolean(event?.availablePaymentMethods);
-      });
-      expressElement.on?.('confirm', async () => {
-        await handleStripeExpressConfirm();
-      });
-      expressElement.mount(expressContainer);
-      stripeExpressElement.value = expressElement;
+      })
+      expressElement.on?.(
+        "ready",
+        (event?: {
+          availablePaymentMethods?: Record<string, unknown> | null
+        }) => {
+          stripeExpressVisible.value = Boolean(event?.availablePaymentMethods)
+        },
+      )
+      expressElement.on?.("confirm", async () => {
+        await handleStripeExpressConfirm()
+      })
+      expressElement.mount(expressContainer)
+      stripeExpressElement.value = expressElement
     }
-    const paymentElement = elements.create('payment');
-    paymentElement.mount(container);
-    stripeElements.value = elements;
-    stripePaymentElement.value = paymentElement;
+    const paymentElement = elements.create("payment")
+    paymentElement.mount(container)
+    stripeElements.value = elements
+    stripePaymentElement.value = paymentElement
   } finally {
-    stripeInitializing.value = false;
+    stripeInitializing.value = false
   }
-};
+}
 
 const openStripePopup = async (clientSecret: string) => {
-  stripeClientSecret.value = clientSecret;
-  stripePopupVisible.value = true;
-  await initStripeElements();
-};
+  stripeClientSecret.value = clientSecret
+  stripePopupVisible.value = true
+  await initStripeElements()
+}
 
 const handleStripeSuccess = async () => {
-  stripePopupVisible.value = false;
-  showSuccessToast(t('client.orderConfirm.validation.orderSuccess'));
+  stripePopupVisible.value = false
+  void clearCart().catch((error) => {
+    console.warn("Payment succeeded but clearing the cart failed:", error)
+  })
+  showSuccessToast(t("client.orderConfirm.validation.orderSuccess"))
   await new Promise<void>((resolve) => {
-    window.setTimeout(resolve, PAYMENT_STATUS_SYNC_DELAY_MS);
-  });
-  await router.push({ name: 'h5-orders' });
-};
+    window.setTimeout(resolve, PAYMENT_STATUS_SYNC_DELAY_MS)
+  })
+  await router.push({
+    name: "h5-booking-success",
+    query: {
+      orderId: String(route.query.orderId || ""),
+      service: summaryTitle.value,
+      scheduled:
+        `${form.serviceDate} ${selectedTimeOption.value?.time || ""}`.trim(),
+      amount: String(total.value),
+    },
+  })
+}
 
-const handleStripeConfirmResult = async (confirmResult: StripeConfirmResult) => {
-  const errorMessage = normalizeText(confirmResult.error?.message);
+const handleStripeConfirmResult = async (
+  confirmResult: StripeConfirmResult,
+) => {
+  const errorMessage = normalizeText(confirmResult.error?.message)
   if (errorMessage) {
-    throw new Error(errorMessage);
+    throw new Error(errorMessage)
   }
 
-  const status = normalizeText(confirmResult.paymentIntent?.status).toLowerCase();
-  if (status === 'succeeded' || status === 'processing' || status === 'requires_capture') {
-    await handleStripeSuccess();
-    return;
+  const status = normalizeText(
+    confirmResult.paymentIntent?.status,
+  ).toLowerCase()
+  if (
+    status === "succeeded" ||
+    status === "processing" ||
+    status === "requires_capture"
+  ) {
+    await handleStripeSuccess()
+    return
   }
 
   if (!status) {
-    return;
+    return
   }
 
   throw new Error(
-    locale.value === 'zh'
+    locale.value === "zh"
       ? `支付状态异常: ${status}`
       : `Unexpected payment status: ${status}`,
-  );
-};
+  )
+}
 
 const handleStripeExpressConfirm = async () => {
   if (stripeSubmitting.value || stripeInitializing.value) {
-    return;
+    return
   }
   if (!stripeInstance.value || !stripeElements.value) {
     showFailToast(
-      locale.value === 'zh'
-        ? 'Stripe 钱包支付组件尚未初始化'
-        : 'Stripe wallet checkout is not ready.',
-    );
-    return;
+      locale.value === "zh"
+        ? "Stripe 钱包支付组件尚未初始化"
+        : "Stripe wallet checkout is not ready.",
+    )
+    return
   }
 
-  stripeSubmitting.value = true;
+  stripeSubmitting.value = true
   try {
     const confirmResult = await stripeInstance.value.confirmPayment({
       elements: stripeElements.value,
       confirmParams: {
         return_url: `${window.location.origin}/orders`,
       },
-    });
-    await handleStripeConfirmResult(confirmResult);
+    })
+    await handleStripeConfirmResult(confirmResult)
   } catch (error: any) {
-    showFailToast(error?.message || 'Stripe wallet payment failed');
+    showFailToast(error?.message || "Stripe wallet payment failed")
   } finally {
-    stripeSubmitting.value = false;
+    stripeSubmitting.value = false
   }
-};
+}
 
 const handleStripeConfirm = async () => {
   if (stripeSubmitting.value || stripeInitializing.value) {
-    return;
+    return
   }
   if (!stripeInstance.value || !stripeElements.value) {
     showFailToast(
-      locale.value === 'zh'
-        ? 'Stripe 支付组件尚未初始化'
-        : 'Stripe payment component is not ready.',
-    );
-    return;
+      locale.value === "zh"
+        ? "Stripe 支付组件尚未初始化"
+        : "Stripe payment component is not ready.",
+    )
+    return
   }
 
-  stripeSubmitting.value = true;
+  stripeSubmitting.value = true
   try {
     const confirmResult = await stripeInstance.value.confirmPayment({
       elements: stripeElements.value,
-      redirect: 'if_required',
+      redirect: "if_required",
       confirmParams: {
         return_url: `${window.location.origin}/orders`,
       },
-    });
-    await handleStripeConfirmResult(confirmResult);
+    })
+    await handleStripeConfirmResult(confirmResult)
   } catch (error: any) {
-    showFailToast(error?.message || 'Stripe payment failed');
+    showFailToast(error?.message || "Stripe payment failed")
   } finally {
-    stripeSubmitting.value = false;
+    stripeSubmitting.value = false
   }
-};
+}
 
 const normalizeTimestamp = (value: unknown): number | null => {
-  if (typeof value === 'number' && Number.isFinite(value)) {
-    return Math.abs(value) < 1e12 ? value * 1000 : value;
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return Math.abs(value) < 1e12 ? value * 1000 : value
   }
-  if (typeof value === 'string') {
-    const text = value.trim();
-    if (!text) return null;
-    const numeric = Number(text);
+  if (typeof value === "string") {
+    const text = value.trim()
+    if (!text) return null
+    const numeric = Number(text)
     if (Number.isFinite(numeric)) {
-      return Math.abs(numeric) < 1e12 ? numeric * 1000 : numeric;
+      return Math.abs(numeric) < 1e12 ? numeric * 1000 : numeric
     }
   }
-  return null;
-};
+  return null
+}
 
-const parseServiceDateTime = (value: unknown): { date: string; time: string } => {
-  const timestamp = normalizeTimestamp(value);
+const parseServiceDateTime = (
+  value: unknown,
+): { date: string; time: string } => {
+  const timestamp = normalizeTimestamp(value)
   if (timestamp !== null) {
-    const parsedByTs = new Date(timestamp);
+    const parsedByTs = new Date(timestamp)
     if (!Number.isNaN(parsedByTs.getTime())) {
-      const yyyy = parsedByTs.getFullYear();
-      const mm = `${parsedByTs.getMonth() + 1}`.padStart(2, '0');
-      const dd = `${parsedByTs.getDate()}`.padStart(2, '0');
-      const hh = `${parsedByTs.getHours()}`.padStart(2, '0');
-      const mi = `${parsedByTs.getMinutes()}`.padStart(2, '0');
+      const yyyy = parsedByTs.getFullYear()
+      const mm = `${parsedByTs.getMonth() + 1}`.padStart(2, "0")
+      const dd = `${parsedByTs.getDate()}`.padStart(2, "0")
+      const hh = `${parsedByTs.getHours()}`.padStart(2, "0")
+      const mi = `${parsedByTs.getMinutes()}`.padStart(2, "0")
       return {
         date: `${yyyy}-${mm}-${dd}`,
         time: `${hh}:${mi}`,
-      };
+      }
     }
   }
 
-  const text = normalizeText(value);
-  if (!text) return { date: '', time: '' };
+  const text = normalizeText(value)
+  if (!text) return { date: "", time: "" }
 
-  const matched = text.match(/(\d{4}-\d{2}-\d{2})[ T](\d{2}:\d{2})/);
+  const matched = text.match(/(\d{4}-\d{2}-\d{2})[ T](\d{2}:\d{2})/)
   if (matched) {
-    return { date: matched[1], time: matched[2] };
+    return { date: matched[1] || "", time: matched[2] || "" }
   }
 
-  const parsed = new Date(text);
+  const parsed = new Date(text)
   if (!Number.isNaN(parsed.getTime())) {
-    const yyyy = parsed.getFullYear();
-    const mm = `${parsed.getMonth() + 1}`.padStart(2, '0');
-    const dd = `${parsed.getDate()}`.padStart(2, '0');
-    const hh = `${parsed.getHours()}`.padStart(2, '0');
-    const mi = `${parsed.getMinutes()}`.padStart(2, '0');
+    const yyyy = parsed.getFullYear()
+    const mm = `${parsed.getMonth() + 1}`.padStart(2, "0")
+    const dd = `${parsed.getDate()}`.padStart(2, "0")
+    const hh = `${parsed.getHours()}`.padStart(2, "0")
+    const mi = `${parsed.getMinutes()}`.padStart(2, "0")
     return {
       date: `${yyyy}-${mm}-${dd}`,
       time: `${hh}:${mi}`,
-    };
+    }
   }
 
-  const dateOnly = text.match(/(\d{4}-\d{2}-\d{2})/);
-  return { date: dateOnly?.[1] || '', time: '' };
-};
+  const dateOnly = text.match(/(\d{4}-\d{2}-\d{2})/)
+  return { date: dateOnly?.[1] || "", time: "" }
+}
 
 const fillFormByLatestAddress = (payload: LatestAddressRecord | null) => {
-  if (!payload || typeof payload !== 'object') {
-    return;
+  if (!payload || typeof payload !== "object") {
+    return
   }
 
-  const firstName = normalizeText(payload.firstName);
-  if (firstName) form.firstName = firstName;
-
-  const lastName = normalizeText(payload.lastName);
-  if (lastName) form.lastName = lastName;
-
-  const phone = normalizeText(payload.phone);
-  if (phone) {
-    const parsedPhone = splitPhoneNumber(phone);
-    form.countryCode = parsedPhone.countryCode;
-    form.phone = parsedPhone.phone;
-  }
-
-  const email = normalizeText(payload.email);
-  if (email) form.email = email;
-
-  const district = normalizeText(payload.district);
-  if (district) form.district = district;
-
-  const serviceAddress = normalizeText(payload.serviceAddress);
-  if (serviceAddress) form.address = serviceAddress;
-
-  const remark = normalizeText(payload.remark);
-  if (remark) form.remark = remark;
-
-  const dateTime = parseServiceDateTime(payload.serviceDateTime);
-  const serviceDate = normalizeText((payload as LatestAddressRecord & { serviceTime?: string }).serviceTime);
-  const timeRange = normalizeTimeRangeValue((payload as LatestAddressRecord & { timeRange?: number | string }).timeRange);
+  const dateTime = parseServiceDateTime(payload.serviceDateTime)
+  const serviceDate = normalizeText(
+    (payload as LatestAddressRecord & { serviceTime?: string }).serviceTime,
+  )
+  const timeRange = normalizeTimeRangeValue(
+    (payload as LatestAddressRecord & { timeRange?: number | string })
+      .timeRange,
+  )
 
   if (serviceDate) {
-    form.serviceDate = serviceDate;
+    form.serviceDate = serviceDate
   } else if (dateTime.date) {
-    form.serviceDate = dateTime.date;
+    form.serviceDate = dateTime.date
   }
 
   if (timeRange) {
-    form.timeRange = timeRange;
+    form.timeRange = timeRange
   } else if (dateTime.time) {
-    pendingTimeText.value = dateTime.time;
+    pendingTimeText.value = dateTime.time
   }
-};
+}
 
 const loadLatestAddress = async () => {
   try {
-    const payload = await getLatestAddress();
-    fillFormByLatestAddress(payload);
+    const payload = await getLatestAddress()
+    fillFormByLatestAddress(payload)
   } catch (error) {
-    console.error('load latest address failed:', error);
+    console.error("load latest address failed:", error)
   }
-};
+}
 
 const buildServiceDateTime = (): string | undefined => {
-  const date = normalizeText(form.serviceDate);
-  const time = extractServiceStartTime(selectedTimeOption.value?.time || '');
+  const date = normalizeText(form.serviceDate)
+  const time = extractServiceStartTime(selectedTimeOption.value?.time || "")
   if (!date) {
-    return undefined;
+    return undefined
   }
-  const timeValue = time || '00:00';
-  const slotTimestamp = Date.parse(`${date}T${timeValue}:00${DUBAI_UTC_OFFSET}`);
+  const timeValue = time || "00:00"
+  const slotTimestamp = Date.parse(`${date}T${timeValue}:00${DUBAI_UTC_OFFSET}`)
   if (Number.isNaN(slotTimestamp)) {
-    return undefined;
+    return undefined
   }
   if (slotTimestamp < bookingThreshold()) {
-    return undefined;
+    return undefined
   }
-  return `${date} ${timeValue}`;
-};
+  return `${date} ${timeValue}`
+}
 
 const startStripePayment = async (targetOrderId: number) => {
-  const validationUrl = buildValidationUrl();
+  const validationUrl = buildValidationUrl()
   const paymentResponse = await createPay({
     orderId: targetOrderId,
     paymentMethod: CREATE_PAY_METHOD,
     validationUrl,
-  });
-  const paymentData = extractEnvelopeData<Record<string, unknown>>(paymentResponse);
-  if (!paymentData || typeof paymentData !== 'object') {
-    throw new Error('Create payment response is empty');
+  })
+  const paymentData =
+    extractEnvelopeData<Record<string, unknown>>(paymentResponse)
+  if (!paymentData || typeof paymentData !== "object") {
+    throw new Error("Create payment response is empty")
   }
 
-  const clientSecret = normalizeText(paymentData.clientSecret);
+  const clientSecret = normalizeText(paymentData.clientSecret)
   if (clientSecret) {
-    await openStripePopup(clientSecret);
-    return;
+    await openStripePopup(clientSecret)
+    return
   }
 
   const approvalUrl = normalizeText(
     paymentData.approvalUrl ||
       paymentData.redirectUrl ||
       paymentData.checkoutUrl,
-  );
-  if (approvalUrl && typeof window !== 'undefined') {
-    window.location.href = approvalUrl;
-    return;
+  )
+  if (approvalUrl && typeof window !== "undefined") {
+    window.location.href = approvalUrl
+    return
   }
 
   throw new Error(
-    locale.value === 'zh'
-      ? '未获取到支付参数（clientSecret/跳转链接），请稍后重试'
-      : 'Missing Stripe payment params (clientSecret/redirect URL), please try again.',
-  );
-};
+    locale.value === "zh"
+      ? "未获取到支付参数（clientSecret/跳转链接），请稍后重试"
+      : "Missing Stripe payment params (clientSecret/redirect URL), please try again.",
+  )
+}
 
 const getValidationMessage = (): string => {
-  if (orderId.value === null) {
-    return t('client.orderConfirm.validation.orderIdMissing');
+  if (!isCartMode.value && orderId.value === null) {
+    return t("client.orderConfirm.validation.orderIdMissing")
   }
-  if (!normalizeText(form.firstName)) {
-    return t('client.orderConfirm.validation.requiredField', {
-      field: t('client.orderConfirm.fields.firstName'),
-    });
+  if (selectedAddressId.value === null) {
+    return locale.value === "zh"
+      ? "请先选择个人中心中保存的联系信息与服务地址"
+      : "Please select a saved contact and service address"
   }
-  if (!normalizeText(form.lastName)) {
-    return t('client.orderConfirm.validation.requiredField', {
-      field: t('client.orderConfirm.fields.lastName'),
-    });
+  if (!selectedAddress.value || !getAddressFullName(selectedAddress.value)) {
+    return t("client.orderConfirm.validation.requiredField", {
+      field: t("client.orderConfirm.fields.fullName"),
+    })
   }
   if (!normalizePhoneNumber(form.phone)) {
-    return t('client.orderConfirm.validation.requiredField', {
-      field: t('client.orderConfirm.fields.phone'),
-    });
-  }
-  if (!isValidEmail(normalizeText(form.email))) {
-    return t('client.orderConfirm.addressBook.invalidEmail');
+    return t("client.orderConfirm.validation.requiredField", {
+      field: t("client.orderConfirm.fields.phone"),
+    })
   }
   if (!normalizeText(form.address)) {
-    return t('client.orderConfirm.validation.requiredField', {
-      field: t('client.orderConfirm.fields.address'),
-    });
+    return t("client.orderConfirm.validation.requiredField", {
+      field: t("client.orderConfirm.fields.address"),
+    })
+  }
+  if (!normalizeText(form.building)) {
+    return t("client.orderConfirm.validation.requiredField", {
+      field: t("client.orderConfirm.fields.building"),
+    })
   }
   if (!normalizeText(form.serviceDate)) {
-    return t('client.orderConfirm.validation.requiredField', {
-      field: t('client.orderConfirm.fields.serviceDate'),
-    });
+    return t("client.orderConfirm.validation.requiredField", {
+      field: t("client.orderConfirm.fields.serviceDate"),
+    })
   }
   if (!normalizeTimeRangeValue(form.timeRange)) {
-    return t('client.orderConfirm.validation.requiredField', {
-      field: t('client.orderConfirm.fields.serviceTime'),
-    });
-  }
-  if (!agreedPolicy.value) {
-    return t('client.orderConfirm.validation.policy');
+    return t("client.orderConfirm.validation.requiredField", {
+      field: t("client.orderConfirm.fields.serviceTime"),
+    })
   }
   if (!buildServiceDateTime()) {
-    return t('client.orderConfirm.validation.futureTime');
+    return t("client.orderConfirm.validation.futureTime")
   }
-  return '';
-};
+  return ""
+}
 
 const goBack = () => {
-  const spuId = getQueryText('spuId');
+  const spuId = getQueryText("spuId")
   if (spuId) {
     router.push({
-      name: 'h5-product-detail',
+      name: "h5-product-detail",
       params: { spuId },
       query: {
-        breadcrumb: getQueryText('breadcrumb'),
-        name: getQueryText('name'),
-        categoryId: getQueryText('categoryId'),
-        level1: getQueryText('level1'),
+        breadcrumb: getQueryText("breadcrumb"),
+        name: getQueryText("name"),
+        categoryId: getQueryText("categoryId"),
+        level1: getQueryText("level1"),
       },
-    });
-    return;
+    })
+    return
   }
-  router.push({ name: 'h5-home' });
-};
+  router.push({ name: "h5-home" })
+}
 
-const handleConfirm = async () => {
+const goManageAddresses = () => {
+  void router.push({
+    name: "h5-profile",
+    query: { section: "addresses", returnTo: route.fullPath },
+  })
+}
+
+const submitBooking = async () => {
   if (isSubmitting.value) {
-    return;
+    return
   }
 
-  const validationMessage = getValidationMessage();
-  if (validationMessage) {
-    showFailToast(validationMessage);
-    return;
-  }
-
-  const serviceDateTime = buildServiceDateTime();
+  const serviceDateTime = buildServiceDateTime()
   if (!serviceDateTime) {
-    showFailToast(t('client.orderConfirm.validation.futureTime'));
-    return;
+    showFailToast(t("client.orderConfirm.validation.futureTime"))
+    return
   }
-  if (orderId.value === null) {
-    showFailToast(t('client.orderConfirm.validation.orderIdMissing'));
-    return;
+  if (!isCartMode.value && orderId.value === null) {
+    showFailToast(t("client.orderConfirm.validation.orderIdMissing"))
+    return
   }
 
-  const payload = {
-    orderId: orderId.value,
-    ...(selectedAddressId.value !== null ? { addressId: selectedAddressId.value } : {}),
-    firstName: normalizeText(form.firstName),
-    lastName: normalizeText(form.lastName),
+  const addressPayload = {
+    addressId: selectedAddressId.value as number,
     phoneCountryCode: normalizeText(form.countryCode) || DEFAULT_COUNTRY_CODE,
     phone: normalizeText(form.phone),
-    email: normalizeText(form.email),
     district: normalizeText(form.district),
     serviceAddress: normalizeText(form.address),
+    building: normalizeText(form.building),
+    roomNo: normalizeText(form.roomNo),
+    community: normalizeText(form.community),
     remark: normalizeText(form.remark),
     category: normalizeAddressCategory(form.category),
     serviceTime: normalizeText(form.serviceDate),
     timeRange: Number(form.timeRange),
     paymentMethod: ORDER_PAYMENT_METHOD,
-  };
-
-  isSubmitting.value = true;
-  try {
-    await saveContactAddress(payload);
-    await startStripePayment(orderId.value);
-  } catch (error: any) {
-    console.error('save contact address failed:', error);
-    showFailToast(error?.message || 'Payment request failed');
-  } finally {
-    isSubmitting.value = false;
   }
-};
+
+  isSubmitting.value = true
+  try {
+    if (isCartMode.value) {
+      if (!cartSkuDetail.value) {
+        throw new Error(
+          locale.value === "zh"
+            ? "购物车商品规格无效"
+            : "Invalid cart service configuration",
+        )
+      }
+      await addItem({
+        ...addressPayload,
+        firstName: normalizeText(form.firstName),
+        lastName: normalizeText(form.lastName),
+        skuDetail: cartSkuDetail.value,
+      })
+      policyPopupVisible.value = false
+      showSuccessToast(
+        locale.value === "zh" ? "已加入预订购物车" : "Added to booking cart",
+      )
+      await router.replace({ name: "h5-cart" })
+    } else {
+      await saveContactAddress({
+        ...addressPayload,
+        fullName: selectedAddress.value
+          ? getAddressFullName(selectedAddress.value)
+          : formatContactName(form.firstName, form.lastName),
+        orderId: orderId.value,
+      })
+      policyPopupVisible.value = false
+      await startStripePayment(orderId.value as number)
+    }
+  } catch (error: any) {
+    console.error("save contact address failed:", error)
+    showFailToast(error?.message || "Payment request failed")
+  } finally {
+    isSubmitting.value = false
+  }
+}
+
+const handleConfirm = () => {
+  const validationMessage = getValidationMessage()
+  if (validationMessage) {
+    showFailToast(validationMessage)
+    return
+  }
+  if (isCartMode.value) {
+    void submitBooking()
+    return
+  }
+  agreedPolicy.value = false
+  policyPopupVisible.value = true
+}
+
+const confirmPolicyAndContinue = async () => {
+  if (!agreedPolicy.value) {
+    showFailToast(t("client.orderConfirm.validation.policy"))
+    return
+  }
+  await submitBooking()
+}
 
 onMounted(async () => {
-  await loadLatestAddress();
-  await loadAddressBook();
-  if (selectedAddressId.value === null) {
-    await handleUseCurrentLocation();
-  }
-});
+  await loadLatestAddress()
+  await loadAddressBook()
+})
 </script>
 
 <style scoped lang="scss">
 .h5-order-page {
   min-height: 100vh;
-  background: #f8fafc;
-  padding-bottom: calc(104px + env(safe-area-inset-bottom));
+  background: #f3f5f7;
+  padding-bottom: calc(118px + env(safe-area-inset-bottom));
+  color: #172033;
 }
 
 .h5-order-topbar {
   position: sticky;
   top: 0;
   z-index: 20;
-  height: 56px;
-  padding: 0 16px;
+  height: 52px;
+  padding: 0 12px;
   display: grid;
   grid-template-columns: 40px 1fr 40px;
   align-items: center;
-  background: rgba(255, 255, 255, 0.94);
-  border-bottom: 1px solid #f3f4f6;
-  backdrop-filter: blur(12px);
+  background: rgba(243, 245, 247, 0.92);
+  backdrop-filter: blur(16px);
 }
 
 .h5-order-topbar__back,
@@ -1719,7 +2138,7 @@ onMounted(async () => {
 .h5-order-topbar__back {
   border: 0;
   background: transparent;
-  color: #1d293d;
+  color: #172033;
   display: inline-flex;
   align-items: center;
   justify-content: flex-start;
@@ -1729,26 +2148,33 @@ onMounted(async () => {
 .h5-order-topbar h1 {
   margin: 0;
   text-align: center;
-  color: #1d293d;
-  font-size: 16px;
-  font-weight: 700;
+  color: #172033;
+  font-size: 17px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
 }
 
 .h5-order-main {
+  width: 100%;
+  max-width: 560px;
+  margin: 0 auto;
+  padding: 4px 12px 18px;
+  box-sizing: border-box;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 12px;
 }
 
 .h5-order-card {
   background: #fff;
-  padding: 20px 16px;
-  border-top: 1px solid #f3f4f6;
-  border-bottom: 1px solid #f3f4f6;
+  padding: 16px;
+  border: 1px solid rgba(224, 229, 236, 0.72);
+  border-radius: 16px;
+  box-shadow: 0 3px 14px rgba(20, 30, 48, 0.045);
 }
 
 .h5-order-card--summary {
-  padding-top: 18px;
+  padding-top: 16px;
 }
 
 .h5-order-card__heading {
@@ -1757,19 +2183,27 @@ onMounted(async () => {
   gap: 8px;
 }
 
-.h5-order-card__heading span {
-  width: 4px;
-  height: 16px;
-  border-radius: 999px;
-  background: var(--hourx-brand);
+.h5-order-card__heading-icon {
+  width: 30px;
+  height: 30px;
+  border-radius: 10px;
+  background: #edf4fb;
+  color: var(--hourx-brand);
+  display: grid;
+  place-items: center;
   flex-shrink: 0;
+}
+
+.h5-order-card__heading-icon :deep(.van-icon) {
+  font-size: 17px;
 }
 
 .h5-order-card__heading h2 {
   margin: 0;
-  color: #1d293d;
+  color: #172033;
   font-size: 15px;
-  font-weight: 900;
+  font-weight: 800;
+  letter-spacing: -0.01em;
 }
 
 .h5-location-status {
@@ -1780,63 +2214,109 @@ onMounted(async () => {
 }
 
 .h5-order-summary__item {
-  margin-top: 16px;
-  padding-bottom: 12px;
-  border-bottom: 1px dashed #f3f4f6;
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
+  margin-top: 14px;
+  padding: 12px;
+  border-radius: 14px;
+  background: #f6f8fa;
+  display: grid;
+  grid-template-columns: 88px minmax(0, 1fr);
+  align-items: stretch;
   gap: 12px;
+}
+
+.h5-order-summary__visual {
+  width: 88px;
+  height: 88px;
+  overflow: hidden;
+  border-radius: 12px;
+  background: linear-gradient(145deg, #eaf3fc, #f8fbff);
+  color: var(--hourx-brand);
+  display: grid;
+  place-items: center;
+}
+
+.h5-order-summary__visual img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.h5-order-summary__visual :deep(.van-icon) {
+  font-size: 28px;
+}
+
+.h5-order-summary__content {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
 }
 
 .h5-order-summary__item strong {
   display: block;
-  color: #1d293d;
+  color: #172033;
   font-size: 14px;
-  line-height: 1.5;
-  font-weight: 700;
+  line-height: 1.4;
+  font-weight: 800;
 }
 
 .h5-order-summary__item p {
   margin: 4px 0 0;
-  color: #62748e;
+  color: #788598;
   font-size: 11px;
-  line-height: 1.5;
+  line-height: 1.4;
 }
 
 .h5-order-summary__item em {
-  color: #1d293d;
+  margin-top: auto;
+  color: #172033;
   font-size: 14px;
-  line-height: 1.5;
+  line-height: 1.3;
   font-style: normal;
-  font-weight: 900;
+  font-weight: 800;
   white-space: nowrap;
 }
 
 .h5-order-summary__prices {
-  margin-top: 12px;
+  margin-top: 14px;
+  padding-top: 13px;
+  border-top: 1px solid #edf0f3;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 10px;
 }
 
 .h5-order-summary__prices > div {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  color: #62748e;
-  font-size: 12px;
+  color: #687588;
+  font-size: 11px;
   font-weight: 500;
+}
+
+.h5-order-summary__prices > .h5-order-summary__total {
+  margin-top: 2px;
+  padding-top: 11px;
+  border-top: 1px dashed #dfe4ea;
+  color: #172033;
+  font-size: 13px;
+}
+
+.h5-order-summary__total strong:last-child {
+  color: var(--hourx-brand);
+  font-size: 15px;
+  font-weight: 900;
 }
 
 .h5-order-grid,
 .h5-order-stack {
-  margin-top: 16px;
+  margin-top: 14px;
 }
 
 .h5-order-grid {
   display: grid;
-  gap: 12px;
+  gap: 10px;
 }
 
 .h5-order-grid--two {
@@ -1855,10 +2335,27 @@ onMounted(async () => {
   gap: 6px;
 }
 
+.h5-order-field__label {
+  color: #46546a;
+  font-size: 11px;
+  line-height: 1.3;
+  font-weight: 700;
+}
+
 .h5-order-field__hint {
   color: #90a1b9;
   font-size: 11px;
   line-height: 1.4;
+}
+
+.h5-order-booking-note {
+  margin-top: 14px;
+}
+
+.h5-order-booking-note > span {
+  color: #314158;
+  font-size: 12px;
+  font-weight: 700;
 }
 
 .h5-location-attribution {
@@ -1873,12 +2370,15 @@ onMounted(async () => {
 }
 
 .h5-order-lead-time {
-  margin: 10px 0 0;
+  margin: 12px 0 0;
   display: flex;
   align-items: flex-start;
   gap: 6px;
-  color: #62748e;
-  font-size: 11px;
+  border-radius: 10px;
+  background: #f6f8fa;
+  padding: 9px 10px;
+  color: #687588;
+  font-size: 10px;
   line-height: 1.45;
 }
 
@@ -1889,18 +2389,11 @@ onMounted(async () => {
 }
 
 .h5-address-book {
-  margin-top: 16px;
-  padding: 13px;
-  border: 1px solid #e1e7ef;
-  border-radius: 12px;
-  background: #f8fafc;
+  margin-top: 14px;
 }
 
 .h5-address-book__bar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
+  display: none;
 }
 
 .h5-address-book__bar strong {
@@ -1925,25 +2418,231 @@ onMounted(async () => {
 }
 
 .h5-address-book__state {
-  margin: 13px 0 0;
+  margin: 0;
+  border-radius: 12px;
+  background: #f6f8fa;
+  padding: 14px;
   color: #77869b;
-  font-size: 11px;
+  font-size: 12px;
   line-height: 1.5;
 }
 
+.h5-address-book__state--error {
+  padding: 11px 12px;
+  border: 1px solid #fecaca;
+  border-radius: 10px;
+  background: #fff7f7;
+  color: #b91c1c;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.h5-address-book__state--error button {
+  min-height: 30px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 8px;
+  background: #1769c2;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.h5-address-book__state--empty {
+  min-height: 70px;
+  display: grid;
+  grid-template-columns: 38px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  padding: 12px;
+}
+
+.h5-address-book__state--empty > :deep(.van-icon) {
+  width: 38px;
+  height: 38px;
+  border-radius: 12px;
+  background: #edf4fb;
+  color: var(--hourx-brand);
+  display: grid;
+  place-items: center;
+  font-size: 18px;
+}
+
+.h5-address-book__state--empty div {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.h5-address-book__state--empty strong {
+  color: #172033;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.h5-address-book__state--empty span {
+  color: #7c899a;
+  font-size: 10px;
+  line-height: 1.4;
+}
+
+.h5-address-book__state--empty button {
+  min-width: 52px;
+  height: 32px;
+  border: 0;
+  border-radius: 999px;
+  background: #172b4d;
+  color: #fff;
+  padding: 0 12px;
+  font-size: 11px;
+  font-weight: 800;
+}
+
 .h5-address-picker {
-  margin-top: 12px;
+  position: relative;
+}
+
+.h5-address-picker__trigger,
+.h5-address-picker__option {
+  width: 100%;
+  min-width: 0;
+  border: 0;
+  background: #fff;
+  color: #05152b;
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr) 20px;
+  align-items: center;
+  gap: 12px;
+  padding: 13px;
+  text-align: left;
+  font: inherit;
+}
+
+.h5-address-picker__trigger {
+  min-height: 88px;
+  border: 1px solid #e2e7ed;
+  border-radius: 14px;
+  background: linear-gradient(135deg, #fbfdff 0%, #f5f8fb 100%);
+}
+
+.h5-address-picker.is-expanded .h5-address-picker__trigger {
+  border-color: var(--hourx-brand);
+  border-radius: 14px 14px 0 0;
+  box-shadow: 0 0 0 3px rgba(23, 105, 194, 0.08);
+}
+
+.h5-address-picker__category-icon {
+  width: 42px;
+  height: 42px;
+  border-radius: 13px;
+  display: grid;
+  place-items: center;
+  background: #edf5ff;
+  color: #1769c2;
+  font-size: 20px;
+}
+
+.h5-address-picker__category-icon--office {
+  background: #eef1f5;
+  color: #40516a;
+}
+
+.h5-address-picker__category-icon--others {
+  background: #f4f1ed;
+  color: #765f43;
+}
+
+.h5-address-picker__summary {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.h5-address-picker__summary strong {
+  color: #172033;
+  font-size: 13px;
+  line-height: 1.3;
+  font-weight: 800;
+}
+
+.h5-address-picker__contact {
+  color: #4d5b70;
+  font-size: 10px;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.h5-address-picker__summary small {
+  color: #788598;
+  font-size: 10px;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+.h5-address-picker__arrow {
+  justify-self: center;
+  color: #64748b;
+  font-size: 15px;
+  line-height: 1;
+  transition: transform 0.18s ease;
+}
+
+.h5-address-picker.is-expanded .h5-address-picker__arrow {
+  transform: rotate(90deg);
 }
 
 .h5-address-picker__list {
+  position: absolute;
+  top: calc(100% - 1px);
+  left: 0;
+  right: 0;
+  z-index: 30;
   display: flex;
   flex-direction: column;
-  gap: 9px;
-  max-height: min(54vh, 440px);
+  max-height: min(54vh, 360px);
   overflow-y: auto;
-  padding: 2px;
+  border: 1px solid var(--hourx-brand);
+  border-radius: 0 0 14px 14px;
+  background: #fff;
+  box-shadow: 0 16px 36px rgba(5, 21, 43, 0.18);
   overscroll-behavior: contain;
   scrollbar-width: thin;
+}
+
+.h5-address-picker__option {
+  min-height: 82px;
+  border-bottom: 1px solid #edf1f5;
+}
+
+.h5-address-picker__option.is-selected {
+  background: #edf5ff;
+}
+
+.h5-address-picker__check {
+  justify-self: center;
+  width: 18px;
+  height: 18px;
+  border: 0;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: var(--hourx-brand);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 900;
+}
+
+.h5-address-picker__manage {
+  min-height: 42px;
+  border: 0;
+  background: #fff;
+  color: #1769c2;
+  font-size: 11px;
+  font-weight: 800;
 }
 
 .h5-address-card {
@@ -1954,7 +2653,10 @@ onMounted(async () => {
   border: 1px solid #d9e1eb;
   border-radius: 11px;
   background: #fff;
-  transition: border-color 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease;
+  transition:
+    border-color 0.2s ease,
+    box-shadow 0.2s ease,
+    background-color 0.2s ease;
 }
 
 .h5-address-card.is-selected {
@@ -2033,23 +2735,41 @@ onMounted(async () => {
   inset: 3px;
   border-radius: 50%;
   background: #05152b;
-  content: '';
+  content: "";
 }
 
-.h5-address-card__edit {
+.h5-address-card__actions {
   position: absolute;
   right: 11px;
   bottom: 8px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.h5-address-card__edit,
+.h5-address-card__delete {
   min-width: 38px;
   min-height: 32px;
   border: 0;
   background: transparent;
-  color: #05152b;
   padding: 4px 0;
   font-size: 10px;
   font-weight: 800;
   text-decoration: underline;
   text-underline-offset: 2px;
+}
+
+.h5-address-card__edit {
+  color: #05152b;
+}
+
+.h5-address-card__delete {
+  color: #b42318;
+}
+
+.h5-address-card__delete:disabled {
+  opacity: 0.55;
 }
 
 .h5-address-picker__tags {
@@ -2142,15 +2862,53 @@ onMounted(async () => {
   color: #fff;
 }
 
+.h5-add-address-sheet__categories {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.h5-add-address-sheet__categories button {
+  min-width: 0;
+  height: 68px;
+  border-radius: 14px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 0 8px;
+}
+
+.h5-add-address-sheet__categories button :deep(.address-category-icon) {
+  font-size: 22px;
+}
+
+.h5-add-address-sheet__categories button.is-active {
+  border-color: var(--hourx-brand);
+  background: #edf4fb;
+  color: var(--hourx-brand);
+  box-shadow: inset 0 0 0 1px var(--hourx-brand);
+}
+
 .h5-order-input {
-  min-height: 41px;
-  border: 1px solid #e2e8f0;
-  border-radius: 8px;
-  background: #f8fafc;
+  min-height: 48px;
+  border: 1px solid transparent;
+  border-radius: 12px;
+  background: #f5f7f9;
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 0 12px;
+  padding: 0 13px;
+  transition:
+    border-color 0.18s ease,
+    background-color 0.18s ease,
+    box-shadow 0.18s ease;
+}
+
+.h5-order-input:focus-within {
+  border-color: rgba(23, 105, 194, 0.48);
+  background: #fff;
+  box-shadow: 0 0 0 3px rgba(23, 105, 194, 0.08);
 }
 
 .h5-order-input :deep(.van-icon) {
@@ -2167,8 +2925,8 @@ onMounted(async () => {
   border: 0;
   outline: 0;
   background: transparent;
-  color: #314158;
-  font-size: 13px;
+  color: #253147;
+  font-size: 12px;
   font-weight: 500;
 }
 
@@ -2185,7 +2943,7 @@ onMounted(async () => {
 }
 
 .h5-order-input--textarea textarea {
-  min-height: 54px;
+  min-height: 52px;
   resize: vertical;
   line-height: 1.45;
 }
@@ -2200,31 +2958,31 @@ onMounted(async () => {
 }
 
 .h5-order-card--payment {
-  padding-bottom: 16px;
+  padding-bottom: 15px;
 }
 
 .h5-payment-method {
-  margin-top: 16px;
-  min-height: 74px;
-  border-radius: 8px;
-  border: 1px solid #1d293d;
-  background: #f9fafb;
+  margin-top: 14px;
+  min-height: 76px;
+  border-radius: 14px;
+  border: 1.5px solid var(--hourx-brand);
+  background: linear-gradient(135deg, #fbfdff 0%, #f2f7fc 100%);
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 14px 16px;
+  padding: 13px;
 }
 
 .h5-payment-method__icon {
-  width: 28px;
-  height: 28px;
-  border-radius: 8px;
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   background: #1d293d;
   color: #fff;
-  font-size: 16px;
+  font-size: 18px;
   font-weight: 700;
   flex-shrink: 0;
 }
@@ -2236,8 +2994,14 @@ onMounted(async () => {
   gap: 4px;
 }
 
+.h5-payment-method__content b {
+  color: #172033;
+  font-size: 11px;
+  font-weight: 750;
+}
+
 .h5-payment-method strong {
-  color: #1d293d;
+  color: #172033;
   font-size: 13px;
   font-weight: 700;
 }
@@ -2249,11 +3013,11 @@ onMounted(async () => {
 }
 
 .h5-payment-note {
-  margin-top: 12px;
-  min-height: 44px;
-  border-radius: 8px;
-  border: 1px solid #e5e7eb;
-  background: #f9fafb;
+  margin-top: 10px;
+  min-height: 40px;
+  border-radius: 11px;
+  border: 0;
+  background: #f6f8fa;
   display: flex;
   align-items: center;
   gap: 8px;
@@ -2270,10 +3034,8 @@ onMounted(async () => {
 }
 
 .h5-payment-policy {
-  margin-top: 12px;
-  display: flex;
-  align-items: flex-start;
-  gap: 8px;
+  margin-top: 11px;
+  display: block;
 }
 
 .h5-payment-policy input {
@@ -2286,52 +3048,91 @@ onMounted(async () => {
   line-height: 1.5;
 }
 
+.h5-payment-policy > span:first-child {
+  display: block;
+}
+
+.h5-payment-policy .h5-payment-policy__links {
+  margin-top: 5px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.h5-payment-policy button {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: #1769c2;
+  font-size: 11px;
+  font-weight: 800;
+  white-space: nowrap;
+}
 .h5-order-footer {
   position: fixed;
-  left: 0;
-  right: 0;
+  left: 50%;
+  right: auto;
   bottom: 0;
   z-index: 24;
-  background: rgba(255, 255, 255, 0.98);
-  border-top: 1px solid #f3f4f6;
-  padding: 12px 16px calc(12px + env(safe-area-inset-bottom));
+  width: min(100%, 560px);
+  transform: translateX(-50%);
+  box-sizing: border-box;
+  background: rgba(255, 255, 255, 0.97);
+  border: 1px solid rgba(224, 229, 236, 0.8);
+  border-bottom: 0;
+  border-radius: 18px 18px 0 0;
+  box-shadow: 0 -8px 30px rgba(20, 30, 48, 0.1);
+  backdrop-filter: blur(18px);
+  padding: 10px 12px calc(9px + env(safe-area-inset-bottom));
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 120px;
-  gap: 10px 12px;
+  grid-template-columns: minmax(92px, 0.75fr) minmax(205px, 1.6fr);
+  gap: 4px 12px;
   align-items: center;
 }
 
 .h5-order-footer__summary span {
   display: block;
   color: #62748e;
-  font-size: 11px;
-  font-weight: 700;
+  font-size: 10px;
+  font-weight: 600;
 }
 
 .h5-order-footer__summary strong {
   display: block;
   margin-top: 2px;
   color: var(--hourx-brand);
-  font-size: 16px;
+  font-size: 20px;
   line-height: 1;
   font-weight: 900;
 }
 
 .h5-order-footer__summary small {
   margin-left: 4px;
-  font-size: 10px;
+  color: #64748b;
+  font-size: 9px;
   letter-spacing: 0.04em;
 }
 
 .h5-order-footer__submit {
   width: 100%;
-  height: 40px;
+  height: 48px;
   border: 0;
-  border-radius: 4px;
-  background: var(--hourx-brand);
+  border-radius: 999px;
+  background: linear-gradient(135deg, #0b2343 0%, var(--hourx-brand) 100%);
   color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 0 14px;
+  font-size: 13px;
+  font-weight: 800;
+  white-space: nowrap;
+  box-shadow: 0 7px 16px rgba(5, 21, 43, 0.18);
+}
+
+.h5-order-footer__submit :deep(.van-icon) {
   font-size: 14px;
-  font-weight: 900;
 }
 
 .h5-order-footer__submit:disabled {
@@ -2339,14 +3140,14 @@ onMounted(async () => {
 }
 
 .h5-order-footer__ssl {
-  grid-column: 1 / -1;
-  margin: -2px 0 0;
+  grid-column: 2;
+  margin: 1px 0 0;
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 4px;
   color: #90a1b9;
-  font-size: 10px;
+  font-size: 8px;
 }
 
 .h5-add-address-sheet {
@@ -2395,10 +3196,79 @@ onMounted(async () => {
   display: none;
 }
 
+.h5-add-address-sheet__location {
+  margin-bottom: 16px;
+  padding: 12px;
+  border: 1px solid #bdebd1;
+  border-radius: 12px;
+  background: #f0fbf5;
+  display: grid;
+  gap: 9px;
+}
+
+.h5-add-address-sheet__location button {
+  min-height: 42px;
+  border: 0;
+  border-radius: 9px;
+  background: #1769c2;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.h5-add-address-sheet__location button:disabled {
+  opacity: 0.65;
+}
+
+.h5-add-address-sheet__location p {
+  margin: 0;
+  color: #27704d;
+  font-size: 10px;
+  line-height: 1.45;
+}
+
 .h5-add-address-sheet__grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 10px;
+}
+
+.h5-add-address-sheet__section {
+  margin: 16px 0 10px;
+  padding-top: 14px;
+  border-top: 1px solid #edf1f5;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.h5-add-address-sheet__section :deep(.van-icon) {
+  width: 34px;
+  height: 34px;
+  flex: 0 0 auto;
+  border-radius: 11px;
+  display: grid;
+  place-items: center;
+  background: #edf5ff;
+  color: var(--hourx-brand);
+  font-size: 18px;
+}
+
+.h5-add-address-sheet__section div {
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+}
+
+.h5-add-address-sheet__section strong {
+  color: #17233a;
+  font-size: 13px;
+}
+
+.h5-add-address-sheet__section small {
+  color: #8a99aa;
+  font-size: 10px;
+  line-height: 1.35;
 }
 
 .h5-add-address-field {
@@ -2415,6 +3285,12 @@ onMounted(async () => {
 .h5-add-address-field > span {
   color: #05152b;
   font-size: 12px;
+  font-weight: 700;
+}
+
+.h5-add-address-field > span.h5-add-address-field__locating {
+  color: var(--hourx-brand);
+  font-size: 10px;
   font-weight: 700;
 }
 
@@ -2474,7 +3350,7 @@ onMounted(async () => {
 }
 
 .h5-stripe-sheet {
-  padding: 18px 16px calc(18px + env(safe-area-inset-bottom));
+  padding: 20px 18px calc(20px + env(safe-area-inset-bottom));
 }
 
 .h5-stripe-sheet__header {
@@ -2487,19 +3363,25 @@ onMounted(async () => {
 .h5-stripe-sheet__header h3 {
   margin: 0;
   color: #1d293d;
-  font-size: 16px;
-  font-weight: 800;
+  font-size: 18px;
+  font-weight: 900;
 }
 
 .h5-stripe-sheet__header button {
+  width: 34px;
+  height: 34px;
   border: 0;
-  background: transparent;
+  border-radius: 50%;
+  background: #f3f5f7;
   color: #62748e;
   font-size: 18px;
 }
 
 .h5-stripe-sheet__tip {
-  margin: 10px 0 0;
+  margin: 12px 0 0;
+  border-radius: 11px;
+  background: #f5f8fb;
+  padding: 10px 12px;
   color: #62748e;
   font-size: 12px;
   line-height: 1.5;
@@ -2522,21 +3404,22 @@ onMounted(async () => {
   margin-top: 12px;
   min-height: 62px;
   border: 1px solid #e5e7eb;
-  border-radius: 10px;
-  padding: 12px;
+  border-radius: 14px;
+  padding: 14px;
   background: #fff;
 }
 
 .h5-stripe-sheet__submit {
   margin-top: 14px;
   width: 100%;
-  height: 44px;
+  height: 50px;
   border: 0;
-  border-radius: 8px;
-  background: var(--hourx-brand);
+  border-radius: 999px;
+  background: linear-gradient(135deg, #0b2343 0%, var(--hourx-brand) 100%);
   color: #fff;
-  font-size: 14px;
-  font-weight: 800;
+  font-size: 15px;
+  font-weight: 900;
+  box-shadow: 0 8px 18px rgba(5, 21, 43, 0.18);
 }
 
 .h5-stripe-sheet__submit:disabled {
@@ -2548,13 +3431,23 @@ onMounted(async () => {
     grid-template-columns: 1fr;
   }
 
-  .h5-order-footer {
-    grid-template-columns: 1fr;
-  }
-
   .h5-add-address-sheet__grid,
   .h5-add-address-field__phone {
     grid-template-columns: 1fr;
+  }
+
+  .h5-order-footer {
+    grid-template-columns: minmax(76px, 0.65fr) minmax(184px, 1.55fr);
+    gap: 4px 8px;
+  }
+
+  .h5-order-footer__summary strong {
+    font-size: 18px;
+  }
+
+  .h5-order-footer__submit {
+    padding: 0 10px;
+    font-size: 11.5px;
   }
 }
 </style>

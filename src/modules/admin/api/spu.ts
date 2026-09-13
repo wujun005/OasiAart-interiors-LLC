@@ -5,6 +5,11 @@ export function page(payload: any) {
   return http.post('/api/productSpu/page', payload);
 }
 
+// 拖拽排序：ids 按当前页拖拽后的展示顺序传递
+export function sortProducts(ids: Array<number | string>) {
+  return http.post('/api/productSpu/sort', { ids });
+}
+
 // 新增或更新规格类型/api/productSpu/addOrUpdate
 export function addOrUpdate(payload: any) {
   return http.post('/api/productSpu/addOrUpdate', payload);

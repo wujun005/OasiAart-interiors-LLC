@@ -1,0 +1,1 @@
+import{h as p}from"./admin-BBTSAWWR.js";function a(t){return p.post("/api/supplier/page",t)}function r(t){return p.get(`/api/supplier/detail/${t}`)}function i(t){return p.post("/api/supplier/addOrUpdate",t)}function n(t){return p.post("/api/supplier/delete",t)}function s(t){return p.post("/api/supplier/changeStatus",t)}export{i as a,s as c,r as d,a as p,n as r};

@@ -25,6 +25,11 @@ const routes: RouteRecordRaw[] = [
     component: () => import('@/modules/client/pages/service-list.vue'),
   },
   {
+    path: '/services/search',
+    name: 'service-search',
+    component: () => import('@/modules/client/pages/service-list.vue'),
+  },
+  {
     path: '/services/detail/:spuId',
     name: 'product-detail',
     component: () => import('@/modules/client/pages/product-detail.vue'),
@@ -36,10 +41,27 @@ const routes: RouteRecordRaw[] = [
     meta: { requiresAuth: true },
   },
   {
+    path: '/orders/success',
+    name: 'booking-success',
+    component: () => import('@/modules/client/pages/booking-success.vue'),
+    meta: { requiresAuth: true },
+  },
+  {
     path: '/orders',
     name: 'order-list',
     component: () => import('@/modules/client/pages/order-list.vue'),
     meta: { requiresAuth: true },
+  },
+  {
+    path: '/orders/:orderNo',
+    name: 'order-detail',
+    component: () => import('@/modules/client/pages/order-detail.vue'),
+    meta: { requiresAuth: true },
+  },
+  {
+    path: '/cart',
+    name: 'cart',
+    component: () => import('@/modules/client/pages/cart.vue'),
   },
   {
     path: '/join-us',
@@ -70,6 +92,7 @@ const routes: RouteRecordRaw[] = [
     path: '/profile',
     name: 'profile',
     component: ProfilePage,
+    meta: { requiresAuth: true },
   },
 ];
 

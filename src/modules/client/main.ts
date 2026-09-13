@@ -1,3 +1,5 @@
+import { clearLegacyAuthState } from '@/utils/auth-state';
+
 const CLIENT_LOCALE_STORAGE_KEY = 'client-locale';
 const CLIENT_DEFAULT_LOCALE = 'en';
 
@@ -18,6 +20,7 @@ const getH5RedirectPath = () => {
     && path !== '/register'
     && path !== '/profile'
     && path !== '/services/daily-cleaning'
+    && path !== '/services/search'
     && path !== '/orders'
     && path !== '/orders/confirm'
     && !path.startsWith('/services/detail/')
@@ -46,7 +49,13 @@ const getH5RedirectPath = () => {
   if (path === '/orders') {
     return '/h5/#/orders';
   }
-  return path === '/services/daily-cleaning' ? '/h5/#/services/daily-cleaning' : '/h5/#/';
+  if (path === '/services/daily-cleaning') {
+    return '/h5/#/services/daily-cleaning';
+  }
+  if (path === '/services/search') {
+    return '/h5/#/services/search';
+  }
+  return '/h5/#/';
 };
 
 const redirectToH5IfNeeded = () => {
@@ -98,6 +107,8 @@ const bootstrapClientApp = async () => {
   app.use(i18n);
   app.mount('#app');
 };
+
+clearLegacyAuthState();
 
 if (!redirectToH5IfNeeded()) {
   void bootstrapClientApp();

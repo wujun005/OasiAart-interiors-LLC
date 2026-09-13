@@ -34,9 +34,19 @@ const routes: RouteRecordRaw[] = [
     component: () => import('../pages/service-list.vue'),
   },
   {
+    path: '/services/search',
+    name: 'h5-service-search',
+    component: () => import('../pages/service-list.vue'),
+  },
+  {
     path: '/services/detail/:spuId',
     name: 'h5-product-detail',
     component: () => import('../pages/product-detail.vue'),
+  },
+  {
+    path: '/cart',
+    name: 'h5-cart',
+    component: () => import('../pages/cart.vue'),
   },
   {
     path: '/orders/confirm',
@@ -45,9 +55,21 @@ const routes: RouteRecordRaw[] = [
     meta: { requiresAuth: true },
   },
   {
+    path: '/orders/success',
+    name: 'h5-booking-success',
+    component: () => import('../pages/booking-success.vue'),
+    meta: { requiresAuth: true },
+  },
+  {
     path: '/orders',
     name: 'h5-orders',
     component: () => import('../pages/order-list.vue'),
+    meta: { requiresAuth: true },
+  },
+  {
+    path: '/orders/:orderNo',
+    name: 'h5-order-detail',
+    component: () => import('../pages/order-detail.vue'),
     meta: { requiresAuth: true },
   },
 ];

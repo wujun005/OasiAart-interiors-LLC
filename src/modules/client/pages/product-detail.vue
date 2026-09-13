@@ -37,6 +37,28 @@
 
             <div class="product-gallery__hero">
               <img :src="heroImage" :alt="displayTitle" />
+              <button
+                v-if="galleryImages.length > 1"
+                class="product-gallery__arrow product-gallery__arrow--prev"
+                type="button"
+                :aria-label="t('client.productDetail.previousImage')"
+                @click="showPreviousImage"
+              >
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="m15 18-6-6 6-6" />
+                </svg>
+              </button>
+              <button
+                v-if="galleryImages.length > 1"
+                class="product-gallery__arrow product-gallery__arrow--next"
+                type="button"
+                :aria-label="t('client.productDetail.nextImage')"
+                @click="showNextImage"
+              >
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="m9 18 6-6-6-6" />
+                </svg>
+              </button>
               <span class="product-gallery__badge">
                 {{ t('client.productDetail.badge') }}
               </span>
@@ -57,7 +79,7 @@
           <section class="product-card">
             <div class="product-card__head">
               <h1>{{ displayTitle }}</h1>
-              <p>{{ formatAed(subtotalPrice) }}</p>
+              <p>{{ formatAed(totalPrice) }}</p>
             </div>
             <div v-if="selectedSpecSummary" class="product-card__meta">
               <span>{{ selectedSpecSummary }}</span>
@@ -66,19 +88,22 @@
             <div class="product-card__desc">
               <h2>{{ t('client.productDetail.serviceDescription') }}</h2>
               <p v-if="isLoading">{{ t('client.productDetail.loading') }}</p>
-              <p v-else-if="displayDesc">{{ displayDesc }}</p>
+              <div
+                v-else-if="serviceDescriptionHtml"
+                class="product-rich-text"
+                v-html="serviceDescriptionHtml"
+              />
               <p v-else class="product-card__empty">{{ t('client.productDetail.emptyDesc') }}</p>
             </div>
           </section>
 
           <section class="product-card">
             <h2>{{ t('client.productDetail.includesTitle') }}</h2>
-            <ul v-if="includesItems.length" class="product-check-list">
-              <li v-for="item in includesItems" :key="item">
-                <!-- <span class="product-check-list__icon">v</span> -->
-                <span>{{ item }}</span>
-              </li>
-            </ul>
+            <div
+              v-if="serviceContentHtml"
+              class="product-rich-text"
+              v-html="serviceContentHtml"
+            />
             <p v-else class="product-card__empty">{{ t('client.productDetail.emptyDesc') }}</p>
           </section>
 
@@ -86,7 +111,7 @@
             <h2>{{ t('client.productDetail.noticeTitle') }}</h2>
             <div
               v-if="bookingNoticeHtml"
-              class="product-notice-html"
+              class="product-rich-text"
               v-html="bookingNoticeHtml"
             />
             <p v-else class="product-card__empty">{{ t('client.productDetail.emptyDesc') }}</p>
@@ -121,7 +146,7 @@
                 </div>
               </article>
             </div>
-            <p v-else class="product-card__empty">{{ t('client.productDetail.emptyDesc') }}</p>
+            <p v-else class="product-card__empty">{{ t('client.productDetail.emptyReviews') }}</p>
           </section>
         </div>
 
@@ -202,32 +227,35 @@
             </p>
 
             <div class="booking-summary">
-              <div class="booking-summary__row booking-summary__row--attach">
-                <span>{{ t('client.productDetail.booking.attachTotal') }}</span>
-                <strong>{{ formatAed(attachTotalPrice) }}</strong>
-              </div>
-              <div class="booking-summary__row">
-                <span>{{ t('client.productDetail.booking.subtotal') }}</span>
-                <strong>{{ formatAed(subtotalPrice) }}</strong>
-              </div>
-              <div class="booking-summary__row booking-summary__row--tax">
-                <span>{{ t('client.productDetail.booking.vat') }}</span>
-                <strong>{{ formatAed(vatPrice) }}</strong>
-              </div>
               <div class="booking-summary__row booking-summary__row--total">
                 <span>{{ t('client.productDetail.booking.total') }}</span>
                 <strong>{{ formatAed(totalPrice) }}</strong>
               </div>
             </div>
 
-            <button
-              class="booking-submit"
-              type="button"
-              :disabled="isCreatingOrder"
-              @click="goOrderConfirm"
-            >
-              {{ t('client.productDetail.booking.bookNow') }}
-            </button>
+            <div class="booking-actions">
+              <button class="booking-add-cart" type="button" @click="handleAddToCart">
+                <svg
+                  class="booking-add-cart__icon"
+                  viewBox="0 0 24 24"
+                  aria-hidden="true"
+                >
+                  <path d="M3 4h2.2l1.7 9.1a2 2 0 0 0 2 1.6h7.8a2 2 0 0 0 1.9-1.4L20 8H7" />
+                  <circle cx="9.5" cy="19" r="1.3" />
+                  <circle cx="17" cy="19" r="1.3" />
+                  <path d="M14.5 3.5v5M12 6h5" />
+                </svg>
+                <span>{{ t('client.productDetail.booking.addToCart') }}</span>
+              </button>
+              <button
+                class="booking-submit"
+                type="button"
+                :disabled="isCreatingOrder"
+                @click="goOrderConfirm"
+              >
+                {{ t('client.productDetail.booking.bookNow') }}
+              </button>
+            </div>
           </section>
         </aside>
       </div>
@@ -241,10 +269,12 @@ import { computed, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRoute, useRouter } from 'vue-router';
 import { getProductDetail, getProductSku, createOrder } from '@/modules/client/api';
+import { formatCreatedAt } from '@/modules/client/utils/order-date-time';
+import { formatContactName } from '@/modules/client/utils/order-localization';
 import { clearStoredAuthState, getStoredAuthSnapshot } from '@/utils/auth-state';
 
 type I18nText = Record<string, string>;
-type I18nTextArray = Record<string, string[]>;
+type I18nTextArray = Record<string, string[] | string>;
 
 type ProductDetailRecord = {
   id?: number | string;
@@ -253,6 +283,7 @@ type ProductDetailRecord = {
   nameI18n?: I18nText;
   descI18n?: I18nText;
   serviceContentI18n?: I18nTextArray;
+  serviceContentTextI18n?: I18nText;
   bookingNoticeI18n?: I18nText;
   specBindings?: Array<{
     specTypeId?: number | string;
@@ -269,9 +300,23 @@ type ProductDetailRecord = {
   reviewList?: Array<{
     rating?: number | string;
     content?: string;
+    firstName?: string;
+    lastName?: string;
+    customerName?: string;
+    reviewerName?: string;
+    nickname?: string;
+    displayName?: string;
+    userName?: string;
+    name?: string;
     commenter?: string;
     avatarUrl?: string | null;
     commentTime?: string;
+    user?: {
+      firstName?: string;
+      lastName?: string;
+      name?: string;
+      nickname?: string;
+    };
   }>;
   minPrice?: number | string;
   price?: number | string;
@@ -381,6 +426,26 @@ const pickI18nList = (
   }
   return [];
 };
+
+const escapeHtml = (value: string) =>
+  value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+
+const normalizeRichTextHtml = (value: string) => {
+  const content = String(value || '').trim();
+  if (!content) return '';
+  if (/<\/?[a-z][^>]*>/i.test(content)) return content;
+  return `<p>${escapeHtml(content).replace(/\r?\n/g, '<br>')}</p>`;
+};
+
+const legacyListToHtml = (items: string[]) =>
+  items.length
+    ? `<ul>${items.map((item) => `<li>${escapeHtml(item)}</li>`).join('')}</ul>`
+    : '';
 
 const parseSpuId = (): string => {
   const fromParams = route.params.spuId;
@@ -545,6 +610,22 @@ const galleryImages = computed<string[]>(() => {
 
 const heroImage = computed(() => galleryImages.value[selectedImageIndex.value] || fallbackGallery[0]);
 
+const showPreviousImage = () => {
+  const imageCount = galleryImages.value.length;
+  if (imageCount <= 1) {
+    return;
+  }
+  selectedImageIndex.value = (selectedImageIndex.value - 1 + imageCount) % imageCount;
+};
+
+const showNextImage = () => {
+  const imageCount = galleryImages.value.length;
+  if (imageCount <= 1) {
+    return;
+  }
+  selectedImageIndex.value = (selectedImageIndex.value + 1) % imageCount;
+};
+
 const displayTitle = computed(() =>
   pickI18nValue(
     productDetail.value?.nameI18n,
@@ -563,6 +644,7 @@ const serviceListQuery = computed(() => {
   const query: Record<string, string> = {};
   const categoryId = getRouteQueryText('categoryId');
   const level1 = getRouteQueryText('level1');
+  const keyword = getRouteQueryText('keyword');
   const name = parentBreadcrumbTitle.value || getRouteQueryText('name');
   if (categoryId) {
     query.categoryId = categoryId;
@@ -573,11 +655,16 @@ const serviceListQuery = computed(() => {
   if (name) {
     query.name = name;
   }
+  if (keyword) {
+    query.keyword = keyword;
+  }
   return query;
 });
 
-const displayDesc = computed(() =>
-  pickI18nValue(productDetail.value?.descI18n, ''),
+const serviceDescriptionHtml = computed(() =>
+  normalizeRichTextHtml(
+    pickI18nValue(productDetail.value?.descI18n, ''),
+  ),
 );
 
 const basePrice = computed(() =>
@@ -662,7 +749,7 @@ const vatPrice = computed(() => {
   if (withTax !== null && withoutTax !== null) {
     return Math.max(0, withTax - withoutTax);
   }
-  return subtotalPrice.value * 0.05;
+  return 0;
 });
 
 const totalPrice = computed(() => {
@@ -670,15 +757,27 @@ const totalPrice = computed(() => {
   if (skuTotal !== null) {
     return skuTotal;
   }
-  return subtotalPrice.value + vatPrice.value;
+  return subtotalPrice.value;
 });
 
-const includesItems = computed(() =>
-  pickI18nList(productDetail.value?.serviceContentI18n),
-);
+const serviceContentHtml = computed(() => {
+  const detail = productDetail.value;
+  const richText = pickI18nValue(detail?.serviceContentTextI18n, '');
+  if (richText) return normalizeRichTextHtml(richText);
+
+  const mixedText = pickI18nValue(
+    detail?.serviceContentI18n as unknown as I18nText | undefined,
+    '',
+  );
+  if (mixedText) return normalizeRichTextHtml(mixedText);
+
+  return legacyListToHtml(pickI18nList(detail?.serviceContentI18n));
+});
 
 const bookingNoticeHtml = computed(() =>
-  pickI18nValue(productDetail.value?.bookingNoticeI18n, ''),
+  normalizeRichTextHtml(
+    pickI18nValue(productDetail.value?.bookingNoticeI18n, ''),
+  ),
 );
 
 const normalizeRating = (value: unknown): number => {
@@ -700,10 +799,24 @@ const reviewItems = computed(() => {
     ? productDetail.value?.reviewList || []
     : [];
   return source.map((item) => {
-    const commenter = String(item.commenter ?? '').trim() || t('client.productDetail.reviewUser');
+    const commenter = formatContactName(item.firstName, item.lastName)
+      || formatContactName(item.user?.firstName, item.user?.lastName)
+      || String(item.customerName ?? '').trim()
+      || String(item.reviewerName ?? '').trim()
+      || String(item.nickname ?? '').trim()
+      || String(item.displayName ?? '').trim()
+      || String(item.user?.name ?? '').trim()
+      || String(item.user?.nickname ?? '').trim()
+      || String(item.name ?? '').trim()
+      || String(item.userName ?? '').trim()
+      || String(item.commenter ?? '').trim()
+      || t('client.productDetail.reviewUser');
     const content = String(item.content ?? '').trim() || t('client.productDetail.reviewText');
     const avatarUrl = typeof item.avatarUrl === 'string' ? item.avatarUrl.trim() : '';
-    const commentTime = String(item.commentTime ?? '').trim();
+    const rawCommentTime = String(item.commentTime ?? '').trim();
+    const commentTime = rawCommentTime
+      ? formatCreatedAt(rawCommentTime, locale.value, rawCommentTime)
+      : '';
     const avatarText = commenter.slice(0, 1).toUpperCase();
     return {
       commenter,
@@ -1022,7 +1135,7 @@ watch(
   { immediate: true },
 );
 
-const formatAed = (value: number) => `${value.toFixed(2)} AED`;
+const formatAed = (value: number) => `AED ${value.toFixed(2)}`;
 
 const selectSpecValue = (typeId: string, valueId: string) => {
   selectedSpecValues.value = {
@@ -1047,13 +1160,44 @@ const decreaseAttachQty = (valueId: string) => {
   };
 };
 
+const handleAddToCart = async () => {
+  const payload = skuRequestPayload.value;
+  if (!payload) {
+    ElMessage.warning(t('client.productDetail.booking.createOrderInvalid'));
+    return;
+  }
+  const authSnapshot = getStoredAuthSnapshot();
+  if (authSnapshot.isExpired) clearStoredAuthState();
+  if (!authSnapshot.isLoggedIn) {
+    await router.push({ name: 'login', query: { redirect: route.fullPath } });
+    return;
+  }
+  await router.push({
+    name: 'order-confirm',
+    query: {
+      mode: 'cart',
+      cartSkuDetail: JSON.stringify(payload),
+      spuId: spuId.value,
+      skuId: skuPrice.value?.skuId ? String(skuPrice.value.skuId) : '',
+      title: displayTitle.value,
+      titleI18n: JSON.stringify(productDetail.value?.nameI18n || {}),
+      specSummary: selectedSpecSummary.value,
+      selectedSpecValueIds: JSON.stringify(selectedSpecValueIds.value.map((id) => String(id))),
+      subtotal: subtotalPrice.value.toFixed(2),
+      tax: vatPrice.value.toFixed(2),
+      total: totalPrice.value.toFixed(2),
+    },
+  });
+};
+
 const goServicesHome = () => {
   router.push({ path: '/', hash: '#services' });
 };
 
 const goServiceList = () => {
+  const path = getRouteQueryText('keyword') ? '/services/search' : '/services/daily-cleaning';
   router.push({
-    path: '/services/daily-cleaning',
+    path,
     query: Object.keys(serviceListQuery.value).length ? serviceListQuery.value : undefined,
   });
 };
@@ -1188,7 +1332,7 @@ const goOrderConfirm = async () => {
 
 .product-gallery {
   display: grid;
-  grid-template-columns: 80px minmax(0, 1fr);
+  grid-template-columns: 72px minmax(0, 1fr);
   gap: 16px;
 }
 
@@ -1199,8 +1343,8 @@ const goOrderConfirm = async () => {
 }
 
 .product-gallery__thumb {
-  width: 80px;
-  height: 80px;
+  width: 72px;
+  height: 72px;
   border-radius: 10px;
   border: 2px solid transparent;
   overflow: hidden;
@@ -1222,7 +1366,7 @@ const goOrderConfirm = async () => {
 
 .product-gallery__hero {
   position: relative;
-  aspect-ratio: 683 / 450;
+  aspect-ratio: 16 / 8.5;
   border-radius: 16px;
   overflow: hidden;
   background: #e5e7eb;
@@ -1233,6 +1377,64 @@ const goOrderConfirm = async () => {
   height: 100%;
   object-fit: cover;
   display: block;
+}
+
+.product-gallery__arrow {
+  position: absolute;
+  z-index: 2;
+  top: 50%;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 1px solid rgba(255, 255, 255, 0.58);
+  border-radius: 50%;
+  background: rgba(5, 21, 43, 0.7);
+  color: #fff;
+  box-shadow: 0 8px 20px rgba(5, 21, 43, 0.24);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transform: translateY(-50%);
+  transition:
+    background-color 180ms ease,
+    box-shadow 180ms ease,
+    transform 180ms ease;
+}
+
+.product-gallery__arrow--prev {
+  left: 16px;
+}
+
+.product-gallery__arrow--next {
+  right: 16px;
+}
+
+.product-gallery__arrow svg {
+  width: 24px;
+  height: 24px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.product-gallery__arrow:hover {
+  background: rgba(5, 21, 43, 0.9);
+  box-shadow: 0 10px 24px rgba(5, 21, 43, 0.32);
+  transform: translateY(-50%) scale(1.06);
+}
+
+.product-gallery__arrow:active {
+  transform: translateY(-50%) scale(0.96);
+}
+
+.product-gallery__arrow:focus-visible {
+  outline: 3px solid rgba(255, 255, 255, 0.85);
+  outline-offset: 2px;
 }
 
 .product-gallery__badge {
@@ -1381,24 +1583,84 @@ const goOrderConfirm = async () => {
   margin-top: 2px;
 }
 
-.product-notice-html {
+.product-rich-text {
   margin-top: 16px;
   color: rgba(15, 23, 42, 0.65);
   font-size: 13px;
   line-height: 1.7;
+  overflow-wrap: anywhere;
 }
 
-.product-notice-html :deep(ol) {
-  margin: 0;
+.product-rich-text :deep(*) {
+  box-sizing: border-box;
+}
+
+.product-rich-text :deep(h1),
+.product-rich-text :deep(h2),
+.product-rich-text :deep(h3),
+.product-rich-text :deep(h4) {
+  margin: 14px 0 8px;
+  color: rgba(15, 23, 42, 0.86);
+  line-height: 1.35;
+}
+
+.product-rich-text :deep(h1) {
+  font-size: 20px;
+}
+
+.product-rich-text :deep(h2) {
+  font-size: 18px;
+}
+
+.product-rich-text :deep(h3) {
+  font-size: 16px;
+}
+
+.product-rich-text :deep(h4) {
+  font-size: 14px;
+}
+
+.product-rich-text :deep(ul),
+.product-rich-text :deep(ol) {
+  margin: 8px 0;
   padding-left: 20px;
 }
 
-.product-notice-html :deep(li) {
+.product-rich-text :deep(li) {
   margin: 6px 0;
 }
 
-.product-notice-html :deep(p) {
+.product-rich-text :deep(p) {
   margin: 6px 0;
+}
+
+.product-rich-text :deep(a) {
+  color: var(--hourx-brand);
+  text-decoration: underline;
+}
+
+.product-rich-text :deep(blockquote) {
+  margin: 10px 0;
+  padding-left: 12px;
+  border-left: 3px solid rgba(23, 105, 194, 0.25);
+  color: rgba(15, 23, 42, 0.55);
+}
+
+.product-rich-text :deep(img) {
+  max-width: 100%;
+  height: auto;
+}
+
+.product-rich-text :deep(.ql-align-center) {
+  text-align: center;
+}
+
+.product-rich-text :deep(.ql-align-right) {
+  text-align: right;
+}
+
+.product-rich-text :deep(.ql-align-justify) {
+  text-align: justify;
 }
 
 .product-review-list {
@@ -1652,17 +1914,89 @@ const goOrderConfirm = async () => {
   font-weight: 900;
 }
 
+.booking-actions {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.08fr);
+  gap: 10px;
+  margin-top: 18px;
+}
+
+.booking-add-cart,
 .booking-submit {
-  margin-top: 16px;
+  position: relative;
   width: 100%;
-  height: 48px;
-  border-radius: 10px;
-  border: 2px solid var(--hourx-brand);
-  background: var(--hourx-brand);
-  color: #fff;
-  font-size: 16px;
-  font-weight: 700;
+  min-width: 0;
+  height: 52px;
+  border-radius: 14px;
+  font-size: 15px;
+  font-weight: 800;
+  line-height: 1;
+  letter-spacing: 0.01em;
   cursor: pointer;
+  transition:
+    transform 180ms ease,
+    border-color 180ms ease,
+    background-color 180ms ease,
+    box-shadow 180ms ease;
+}
+
+.booking-add-cart {
+  border: 1.5px solid rgba(5, 21, 43, 0.72);
+  background: linear-gradient(180deg, #f8fbff 0%, #edf5ff 100%);
+  color: var(--hourx-brand);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.7);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.booking-add-cart__icon {
+  width: 20px;
+  height: 20px;
+  flex: 0 0 auto;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.9;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.booking-submit {
+  border: 1.5px solid var(--hourx-brand);
+  background: linear-gradient(135deg, #0b2a4d 0%, var(--hourx-brand) 68%, #020c1a 100%);
+  color: #fff;
+  box-shadow: 0 10px 20px rgba(5, 21, 43, 0.2);
+}
+
+.booking-add-cart:hover {
+  border-color: var(--hourx-brand);
+  background: #e8f2ff;
+  box-shadow: 0 8px 18px rgba(5, 21, 43, 0.12);
+  transform: translateY(-1px);
+}
+
+.booking-submit:hover:not(:disabled) {
+  box-shadow: 0 13px 24px rgba(5, 21, 43, 0.28);
+  transform: translateY(-1px);
+}
+
+.booking-add-cart:active,
+.booking-submit:active:not(:disabled) {
+  transform: translateY(0);
+  box-shadow: none;
+}
+
+.booking-add-cart:focus-visible,
+.booking-submit:focus-visible {
+  outline: 3px solid rgba(37, 99, 235, 0.22);
+  outline-offset: 2px;
+}
+
+.booking-submit:disabled {
+  cursor: not-allowed;
+  opacity: 0.58;
+  box-shadow: none;
 }
 
 @media (max-width: 1180px) {
@@ -1693,6 +2027,19 @@ const goOrderConfirm = async () => {
   .product-gallery__thumb {
     width: 100%;
     height: 68px;
+  }
+
+  .product-gallery__arrow {
+    width: 40px;
+    height: 40px;
+  }
+
+  .product-gallery__arrow--prev {
+    left: 12px;
+  }
+
+  .product-gallery__arrow--next {
+    right: 12px;
   }
 
   .product-check-list {
@@ -1729,6 +2076,22 @@ const goOrderConfirm = async () => {
 
   .product-card__head p {
     font-size: 26px;
+  }
+
+  .booking-actions {
+    gap: 8px;
+  }
+
+  .booking-add-cart,
+  .booking-submit {
+    height: 50px;
+    border-radius: 12px;
+    font-size: 14px;
+  }
+
+  .booking-add-cart__icon {
+    width: 18px;
+    height: 18px;
   }
 }
 </style>

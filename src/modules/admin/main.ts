@@ -10,6 +10,11 @@ import {
   getAdminLocale,
 } from '@/modules/admin/locales';
 import { loadAdminMenuPermissions } from '@/modules/admin/utils/menuPermission';
+import {
+  clearAdminAuthState,
+  clearLegacyAuthState,
+  getAdminAuthSnapshot,
+} from '@/utils/auth-state';
 
 const locale = getAdminLocale();
 const i18n = createI18n({
@@ -22,7 +27,10 @@ const i18n = createI18n({
 document.documentElement.lang = locale;
 
 const bootstrap = async () => {
-  if (localStorage.getItem('token')) {
+  clearLegacyAuthState();
+  const auth = getAdminAuthSnapshot();
+  if (auth.isExpired) clearAdminAuthState();
+  if (auth.isLoggedIn) {
     try {
       await loadAdminMenuPermissions();
     } catch (error) {

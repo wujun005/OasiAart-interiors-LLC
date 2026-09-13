@@ -29,20 +29,37 @@
           </div>
         </article>
 
-        <section class="service-grid">
-          <article v-for="item in serviceCards" :key="item.key" class="service-card">
+        <div v-if="isServiceLoading" class="service-loading" role="status" aria-live="polite">
+          <span class="service-loading__spinner" aria-hidden="true" />
+          <p>{{ locale === 'zh' ? '正在查找服务…' : 'Searching for services…' }}</p>
+        </div>
+        <section v-else-if="serviceCards.length" class="service-grid">
+          <article
+            v-for="item in serviceCards"
+            :key="item.key"
+            class="service-card"
+            role="link"
+            tabindex="0"
+            :aria-label="item.title"
+            @click="goProductDetail(item.spuId)"
+            @keydown.enter="goProductDetail(item.spuId)"
+            @keydown.space.prevent="goProductDetail(item.spuId)"
+          >
             <div class="service-card__media">
               <img :src="item.icon" :alt="item.title" />
             </div>
             <div class="service-card__body">
               <h3>{{ item.title }}</h3>
               <p class="service-card__price">{{ t('client.serviceList.card.priceFrom', { price: item.price }) }}</p>
-              <button type="button" @click="goProductDetail(item.spuId)">
+              <button type="button" @click.stop="goProductDetail(item.spuId)">
                 {{ t('client.serviceList.card.bookNow') }}
               </button>
             </div>
           </article>
         </section>
+        <p v-else class="service-search__empty">
+          {{ t('client.home.sections.searchNoResults') }}
+        </p>
       </div>
     </section>
   </div>
@@ -55,6 +72,7 @@ import { type LocationQueryValue, useRoute, useRouter } from 'vue-router';
 import {
   level1Categories,
   onShelfSpus,
+  searchOnShelfSpus,
   type ExclusiveSpuRecord,
   type Level1CategoryRecord,
 } from '@/modules/client/api';
@@ -87,6 +105,8 @@ const router = useRouter();
 
 const selectedLevel1 = ref<Level1CategoryRecord | null>(null);
 const onShelfRecords = ref<ExclusiveSpuRecord[]>([]);
+const isServiceLoading = ref(false);
+let serviceRequestId = 0;
 
 const getPreferredLangs = () =>
   locale.value === 'zh'
@@ -167,6 +187,8 @@ const parseLevel1FromQuery = (): Level1CategoryRecord | null => {
 };
 
 const categoryId = computed(() => getQueryValue(route.query.categoryId));
+const searchKeyword = computed(() => getQueryValue(route.query.keyword));
+const isSearchMode = computed(() => route.name === 'service-search' || Boolean(searchKeyword.value));
 
 const defaultHeroTags = computed(() => [
   t('client.serviceList.hero.tagCertified'),
@@ -175,6 +197,9 @@ const defaultHeroTags = computed(() => [
 ]);
 
 const pageTitle = computed(() => {
+  if (isSearchMode.value) {
+    return locale.value === 'zh' ? '搜索结果' : 'Search Results';
+  }
   const fromQuery = getQueryValue(route.query.name);
   return pickI18nValue(
     selectedLevel1.value?.nameI18n,
@@ -186,9 +211,15 @@ const heroTitle = computed(() =>
   pickI18nValue(selectedLevel1.value?.bannerTitleI18n, pageTitle.value),
 );
 
-const heroDesc = computed(() =>
-  pickI18nValue(selectedLevel1.value?.bannerDescI18n, ''),
-);
+const heroDesc = computed(() => {
+  if (isSearchMode.value) {
+    if (!searchKeyword.value) return '';
+    return locale.value === 'zh'
+      ? `“${searchKeyword.value}”的相关服务`
+      : `Services matching “${searchKeyword.value}”`;
+  }
+  return pickI18nValue(selectedLevel1.value?.bannerDescI18n, '');
+});
 
 const heroTags = computed(() => {
   const labels = pickI18nTags(selectedLevel1.value?.bannerTagsI18n);
@@ -250,22 +281,48 @@ const loadLevel1Context = async () => {
 };
 
 const loadOnShelfRecords = async () => {
-  if (!categoryId.value) {
+  const requestId = ++serviceRequestId;
+  if (isSearchMode.value) {
+    if (!searchKeyword.value) {
+      onShelfRecords.value = [];
+      isServiceLoading.value = false;
+      return;
+    }
+    isServiceLoading.value = true;
     onShelfRecords.value = [];
+    try {
+      const records = await searchOnShelfSpus(searchKeyword.value);
+      if (requestId === serviceRequestId) onShelfRecords.value = records;
+    } catch (error) {
+      console.error('search on shelf products failed:', error);
+      if (requestId === serviceRequestId) onShelfRecords.value = [];
+    } finally {
+      if (requestId === serviceRequestId) isServiceLoading.value = false;
+    }
     return;
   }
+  if (!categoryId.value) {
+    onShelfRecords.value = [];
+    isServiceLoading.value = false;
+    return;
+  }
+  isServiceLoading.value = true;
+  onShelfRecords.value = [];
   try {
-    onShelfRecords.value = await onShelfSpus({
+    const records = await onShelfSpus({
       categoryId: categoryId.value,
     });
+    if (requestId === serviceRequestId) onShelfRecords.value = records;
   } catch (error) {
     console.error('load on shelf products failed:', error);
-    onShelfRecords.value = [];
+    if (requestId === serviceRequestId) onShelfRecords.value = [];
+  } finally {
+    if (requestId === serviceRequestId) isServiceLoading.value = false;
   }
 };
 
 watch(
-  () => [route.query.categoryId, route.query.level1],
+  () => [route.name, route.query.categoryId, route.query.level1, route.query.keyword],
   () => {
     void loadLevel1Context();
     void loadOnShelfRecords();
@@ -290,6 +347,7 @@ const goProductDetail = (spuId: string) => {
       name: pageTitle.value,
       categoryId: categoryId.value,
       level1: level1Raw,
+      keyword: searchKeyword.value,
     },
   });
 };
@@ -428,8 +486,51 @@ const goProductDetail = (spuId: string) => {
   height: 18px;
 }
 
+.service-loading__spinner {
+  display: inline-block;
+  border-radius: 50%;
+  border: 2px solid rgba(23, 105, 194, 0.2);
+  border-top-color: #1769c2;
+  animation: service-spin 700ms linear infinite;
+}
+
+.service-loading {
+  min-height: 230px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  color: #64748b;
+}
+
+.service-loading__spinner {
+  width: 38px;
+  height: 38px;
+  border-width: 3px;
+}
+
+.service-loading p {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+@keyframes service-spin {
+  to { transform: rotate(360deg); }
+}
+
+.service-search__empty {
+  margin: 22px 0 0;
+  padding: 28px;
+  border: 1px dashed #cbd8e6;
+  border-radius: 15px;
+  color: #64748b;
+  text-align: center;
+}
+
 .service-grid {
-  margin-top: 32px;
+  margin-top: 22px;
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 32px;
@@ -443,11 +544,28 @@ const goProductDetail = (spuId: string) => {
   background: #fff;
   border-radius: 16px;
   overflow: hidden;
+  cursor: pointer;
+  transition: transform 180ms ease, border-color 180ms ease, box-shadow 180ms ease;
+}
+
+.service-card:hover {
+  border-color: rgba(5, 21, 43, 0.18);
+  box-shadow: 0 18px 36px rgba(5, 21, 43, 0.11);
+  transform: translateY(-3px);
+}
+
+.service-card:active {
+  transform: translateY(-1px);
+}
+
+.service-card:focus-visible {
+  outline: 3px solid rgba(23, 105, 194, 0.22);
+  outline-offset: 3px;
 }
 
 .service-card__media {
   position: relative;
-  height: 224px;
+  height: 184px;
 }
 
 .service-card__media img {
@@ -461,17 +579,22 @@ const goProductDetail = (spuId: string) => {
   flex: 1;
   flex-direction: column;
   padding: 24px;
+  text-align: center;
 }
 
 .service-card__body h3 {
   margin: 0;
+  min-height: 56px;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
   font-size: 20px;
   line-height: 28px;
   font-weight: 800;
 }
 
 .service-card__price {
-  margin: auto 0 0;
+  margin: 8px 0 0;
   color: var(--hourx-brand);
   text-align: center;
   font-size: 16px;

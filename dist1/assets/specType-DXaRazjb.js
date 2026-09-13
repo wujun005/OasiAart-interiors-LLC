@@ -1,0 +1,1 @@
+import{h as p}from"./admin-DAIB3jpj.js";function a(e){return p.post("/api/specType/page",e)}function c(e){return p.post("/api/specType/addOrUpdateSpecType",e)}function r(e){return p.post("/api/specType/deleteSpecType",e)}export{c as a,r as d,a as g};

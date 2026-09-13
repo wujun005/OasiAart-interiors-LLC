@@ -198,6 +198,10 @@ import {
   sendCode,
 } from '@/modules/client/api/login';
 import { setClientLocale, type ClientLocale } from '@/modules/client/locales';
+import {
+  clearStoredAuthState,
+  setClientAuthStorageValue,
+} from '@/utils/auth-state';
 
 const assetLogo = '/assets/images/client/hourx-mark.svg';
 const assetFeature1 = new URL('@/assets/images/client/icon.png', import.meta.url).href;
@@ -291,23 +295,27 @@ const saveClientToken = (raw: any, account?: string) => {
   if (!token) {
     return false;
   }
-  localStorage.setItem('token', String(token));
+  clearStoredAuthState();
+  setClientAuthStorageValue('token', token);
   if (payload?.tokenType) {
-    localStorage.setItem('tokenType', String(payload.tokenType));
+    setClientAuthStorageValue('tokenType', payload.tokenType);
   }
   if (payload?.expiresIn !== undefined && payload?.expiresIn !== null) {
     const expiresAt = Date.now() + Number(payload.expiresIn);
-    localStorage.setItem('expiresAt', String(expiresAt));
+    setClientAuthStorageValue('expiresAt', expiresAt);
   }
   if (payload?.userId !== undefined && payload?.userId !== null) {
-    localStorage.setItem('userId', String(payload.userId));
+    setClientAuthStorageValue('userId', payload.userId);
   }
   if (payload?.username) {
-    localStorage.setItem('username', String(payload.username));
+    setClientAuthStorageValue('username', payload.username);
+  }
+  if (payload?.userType) {
+    setClientAuthStorageValue('userType', payload.userType);
   }
   const resolvedAccount = account?.trim() || payload?.username || '';
   if (resolvedAccount) {
-    localStorage.setItem('account', String(resolvedAccount));
+    setClientAuthStorageValue('account', resolvedAccount);
   }
   return true;
 };

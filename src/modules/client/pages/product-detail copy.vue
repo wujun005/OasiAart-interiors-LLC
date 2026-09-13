@@ -1021,7 +1021,7 @@ watch(
   { immediate: true },
 );
 
-const formatAed = (value: number) => `${value.toFixed(2)} AED`;
+const formatAed = (value: number) => `AED ${value.toFixed(2)}`;
 
 const selectSpecValue = (typeId: string, valueId: string) => {
   selectedSpecValues.value = {

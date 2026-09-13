@@ -1,6 +1,14 @@
 import axios, { AxiosError, type AxiosInstance } from 'axios';
 
 type TokenGetter = () => string | null | undefined;
+type AuthValueGetter = () => string | null | undefined;
+
+type HttpClientAuthOptions = {
+  getToken?: TokenGetter;
+  getExpiresAt?: AuthValueGetter;
+  clearAuth?: () => void;
+  loginPath?: string;
+};
 
 export interface ApiEnvelope<T = unknown> {
   code: number;
@@ -16,13 +24,7 @@ interface ApiSuccessEnvelope<T = unknown> {
   errorCode?: string | null;
 }
 
-let getToken: TokenGetter = () => {
-  try {
-    return localStorage.getItem('token');
-  } catch {
-    return null;
-  }
-};
+let getToken: TokenGetter = () => null;
 
 export function setTokenGetter(fn: TokenGetter) {
   getToken = fn;
@@ -65,8 +67,8 @@ function normalizeAxiosError(error: unknown): Error {
 }
 
 // 检查 token 是否过期
-function isTokenExpired(): boolean {
-  const expiresAt = localStorage.getItem('expiresAt');
+function isTokenExpired(getExpiresAt?: AuthValueGetter): boolean {
+  const expiresAt = getExpiresAt?.();
   if (expiresAt && Date.now() > parseInt(expiresAt)) {
     // 如果 token 过期
     return true;
@@ -78,6 +80,7 @@ function isTokenExpired(): boolean {
 export function createHttpClient(overrides?: {
   baseURL?: string;
   timeout?: number;
+  auth?: HttpClientAuthOptions;
 }): AxiosInstance {
   const instance = axios.create({
     baseURL: overrides?.baseURL ?? import.meta.env.VITE_API_BASE_URL ?? '/api',
@@ -86,15 +89,14 @@ export function createHttpClient(overrides?: {
 
   // 请求拦截器：每次请求前检查 token 是否过期，若过期则清理并跳转到登录
   instance.interceptors.request.use((config) => {
-    if (isTokenExpired()) {
-      // 清理 localStorage 中的 token 等信息
-      localStorage.clear();
+    if (isTokenExpired(overrides?.auth?.getExpiresAt)) {
+      overrides?.auth?.clearAuth?.();
       // 跳转到登录页
-      window.location.href = '/login'; // 假设你的登录页面路径是 `/login`
+      window.location.href = overrides?.auth?.loginPath || '/login';
       return Promise.reject('Token expired');
     }
 
-    const token = getToken?.();
+    const token = overrides?.auth?.getToken?.() ?? getToken?.();
     if (token) {
       config.headers = config.headers ?? {};
       if (!config.headers.Authorization) {
@@ -139,8 +141,8 @@ export function createHttpClient(overrides?: {
     (error) => {
       // 如果是 token 过期错误，直接清除 token 并跳转
       if (error === 'Token expired' || error?.message === 'Token expired') {
-        localStorage.clear();
-        window.location.href = '/login'; // 跳转到登录页
+        overrides?.auth?.clearAuth?.();
+        window.location.href = overrides?.auth?.loginPath || '/login';
       }
       return Promise.reject(normalizeAxiosError(error));
     }

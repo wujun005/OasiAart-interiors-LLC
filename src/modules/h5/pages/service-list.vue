@@ -1,11 +1,30 @@
 <template>
   <div class="h5-service-page">
     <header class="h5-service-topbar">
-      <button class="h5-service-topbar__back" type="button" @click="goBackToHome">
-        <van-icon name="arrow-left" />
-      </button>
-      <h1>{{ pageTitle }}</h1>
-      <span class="h5-service-topbar__spacer" />
+      <div class="h5-service-topbar__main">
+        <button class="h5-service-topbar__back" type="button" @click="goBackToHome">
+          <van-icon name="arrow-left" />
+        </button>
+        <h1>{{ pageTitle }}</h1>
+        <span class="h5-service-topbar__spacer" />
+      </div>
+      <form
+        class="h5-service-search"
+        role="search"
+        :aria-busy="isServiceLoading"
+        @submit.prevent="submitServiceSearch"
+      >
+        <input
+          v-model="serviceSearch"
+          type="search"
+          :placeholder="t('client.home.sections.searchPlaceholder')"
+          :aria-label="t('client.home.sections.searchPlaceholder')"
+        />
+        <button type="submit" :disabled="isServiceLoading" :aria-label="t('client.home.sections.searchPlaceholder')">
+          <span v-if="isServiceLoading" class="h5-service-search__button-spinner" aria-hidden="true" />
+          <van-icon v-else name="search" />
+        </button>
+      </form>
     </header>
 
     <main class="h5-service-main">
@@ -27,8 +46,22 @@
           <span />
         </div>
 
-        <div class="h5-service-list">
-          <article v-for="item in serviceCards" :key="item.key" class="h5-service-card">
+        <div v-if="isServiceLoading" class="h5-service-loading" role="status" aria-live="polite">
+          <span class="h5-service-loading__spinner" aria-hidden="true" />
+          <p>{{ locale === 'zh' ? '正在查找服务…' : 'Searching for services…' }}</p>
+        </div>
+        <div v-else-if="serviceCards.length" class="h5-service-list">
+          <article
+            v-for="item in serviceCards"
+            :key="item.key"
+            class="h5-service-card"
+            role="link"
+            tabindex="0"
+            :aria-label="item.title"
+            @click="goProductDetail(item.spuId)"
+            @keydown.enter="goProductDetail(item.spuId)"
+            @keydown.space.prevent="goProductDetail(item.spuId)"
+          >
             <div class="h5-service-card__icon">
               <img :src="item.icon" :alt="item.title" />
             </div>
@@ -36,11 +69,14 @@
               <h4>{{ item.title }}</h4>
               <p>{{ t('client.serviceList.card.priceFrom', { price: item.price }) }}</p>
             </div>
-            <button type="button" @click="goProductDetail(item.spuId)">
+            <button type="button" @click.stop="goProductDetail(item.spuId)">
               {{ t('h5.serviceList.bookNow') }}
             </button>
           </article>
         </div>
+        <p v-else class="h5-service-search__empty">
+          {{ t('client.home.sections.searchNoResults') }}
+        </p>
       </section>
     </main>
   </div>
@@ -53,6 +89,7 @@ import { useRoute, useRouter, type LocationQueryValue } from 'vue-router';
 import {
   level1Categories,
   onShelfSpus,
+  searchOnShelfSpus,
   type ExclusiveSpuRecord,
   type Level1CategoryRecord,
 } from '@/modules/client/api';
@@ -85,6 +122,9 @@ const router = useRouter();
 
 const selectedLevel1 = ref<Level1CategoryRecord | null>(null);
 const onShelfRecords = ref<ExclusiveSpuRecord[]>([]);
+const serviceSearch = ref('');
+const isServiceLoading = ref(false);
+let serviceRequestId = 0;
 
 const getPreferredLangs = () =>
   locale.value === 'zh'
@@ -153,6 +193,8 @@ const parseLevel1FromQuery = (): Level1CategoryRecord | null => {
 };
 
 const categoryId = computed(() => getQueryValue(route.query.categoryId));
+const searchKeyword = computed(() => getQueryValue(route.query.keyword));
+const isSearchMode = computed(() => route.name === 'h5-service-search' || Boolean(searchKeyword.value));
 
 const defaultHeroTags = computed(() => [
   t('client.serviceList.hero.tagCertified'),
@@ -161,6 +203,9 @@ const defaultHeroTags = computed(() => [
 ]);
 
 const pageTitle = computed(() => {
+  if (isSearchMode.value) {
+    return locale.value === 'zh' ? '搜索结果' : 'Search Results';
+  }
   const fromQuery = getQueryValue(route.query.name);
   return pickI18nValue(
     selectedLevel1.value?.nameI18n,
@@ -169,9 +214,19 @@ const pageTitle = computed(() => {
 });
 
 const heroTitle = computed(() => pickI18nValue(selectedLevel1.value?.bannerTitleI18n, pageTitle.value));
-const heroDesc = computed(() => pickI18nValue(selectedLevel1.value?.bannerDescI18n, ''));
+const heroDesc = computed(() => {
+  if (isSearchMode.value) {
+    if (!searchKeyword.value) return '';
+    return locale.value === 'zh'
+      ? `“${searchKeyword.value}”的相关服务`
+      : `Services matching “${searchKeyword.value}”`;
+  }
+  return pickI18nValue(selectedLevel1.value?.bannerDescI18n, '');
+});
 const serviceSectionTitle = computed(() =>
-  locale.value === 'zh' ? '选择服务类型' : 'Choose Service Type',
+  isSearchMode.value
+    ? (locale.value === 'zh' ? '搜索结果' : 'Search Results')
+    : (locale.value === 'zh' ? '选择服务类型' : 'Choose Service Type'),
 );
 
 const heroTags = computed(() => {
@@ -236,27 +291,60 @@ const loadLevel1Context = async () => {
 };
 
 const loadOnShelfRecords = async () => {
-  if (!categoryId.value) {
+  const requestId = ++serviceRequestId;
+  if (isSearchMode.value) {
+    if (!searchKeyword.value) {
+      onShelfRecords.value = [];
+      isServiceLoading.value = false;
+      return;
+    }
+    isServiceLoading.value = true;
     onShelfRecords.value = [];
+    try {
+      const records = await searchOnShelfSpus(searchKeyword.value);
+      if (requestId === serviceRequestId) onShelfRecords.value = records;
+    } catch (error) {
+      console.error('search on shelf products failed:', error);
+      if (requestId === serviceRequestId) onShelfRecords.value = [];
+    } finally {
+      if (requestId === serviceRequestId) isServiceLoading.value = false;
+    }
     return;
   }
+  if (!categoryId.value) {
+    onShelfRecords.value = [];
+    isServiceLoading.value = false;
+    return;
+  }
+  isServiceLoading.value = true;
+  onShelfRecords.value = [];
   try {
-    onShelfRecords.value = await onShelfSpus({ categoryId: categoryId.value });
+    const records = await onShelfSpus({ categoryId: categoryId.value });
+    if (requestId === serviceRequestId) onShelfRecords.value = records;
   } catch (error) {
     console.error('load on shelf products failed:', error);
-    onShelfRecords.value = [];
+    if (requestId === serviceRequestId) onShelfRecords.value = [];
+  } finally {
+    if (requestId === serviceRequestId) isServiceLoading.value = false;
   }
 };
 
 watch(
-  () => [route.query.categoryId, route.query.level1, locale.value],
+  () => [route.name, route.query.categoryId, route.query.level1, route.query.keyword, locale.value],
   () => {
     syncLocaleToClient();
+    serviceSearch.value = searchKeyword.value;
     void loadLevel1Context();
     void loadOnShelfRecords();
   },
   { immediate: true },
 );
+
+const submitServiceSearch = () => {
+  const keyword = serviceSearch.value.trim();
+  if (!keyword) return;
+  router.push({ name: 'h5-service-search', query: { keyword } });
+};
 
 const goBackToHome = () => {
   router.push({ name: 'h5-home' });
@@ -275,6 +363,7 @@ const goProductDetail = (spuId: string) => {
       name: pageTitle.value,
       categoryId: categoryId.value,
       level1: level1Raw,
+      keyword: searchKeyword.value,
     },
   });
 };
@@ -290,14 +379,17 @@ const goProductDetail = (spuId: string) => {
   position: sticky;
   top: 0;
   z-index: 20;
-  height: 56px;
-  padding: 0 16px;
-  display: grid;
-  grid-template-columns: 40px 1fr 40px;
-  align-items: center;
+  padding: 0 16px 12px;
   background: rgba(255, 255, 255, 0.96);
   border-bottom: 1px solid #f1f5f9;
   backdrop-filter: blur(12px);
+}
+
+.h5-service-topbar__main {
+  height: 56px;
+  display: grid;
+  grid-template-columns: 40px 1fr 40px;
+  align-items: center;
 }
 
 .h5-service-topbar__back,
@@ -404,9 +496,109 @@ const goProductDetail = (spuId: string) => {
 }
 
 .h5-service-list {
+  margin-top: 14px;
   display: flex;
   flex-direction: column;
   gap: 12px;
+}
+
+.h5-service-search {
+  height: 44px;
+  padding-left: 13px;
+  border: 1px solid #d7e2ee;
+  border-radius: 13px;
+  background: #fff;
+  display: flex;
+  align-items: center;
+  overflow: hidden;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.h5-service-search:focus-within {
+  border-color: #1769c2;
+  box-shadow: 0 0 0 3px rgba(23, 105, 194, 0.1);
+}
+
+.h5-service-search input {
+  min-width: 0;
+  flex: 1;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: #0f172a;
+  font: inherit;
+  font-size: 13px;
+}
+
+.h5-service-search input::-webkit-search-cancel-button { display: none; }
+
+.h5-service-search button {
+  align-self: stretch;
+  width: 44px;
+  flex: 0 0 44px;
+  padding: 0;
+  border: 0;
+  border-left: 1px solid #e5edf6;
+  background: #f4f7fa;
+  color: #526176;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+}
+
+.h5-service-search button:disabled {
+  opacity: 0.7;
+}
+
+.h5-service-search__button-spinner,
+.h5-service-loading__spinner {
+  display: inline-block;
+  border-radius: 50%;
+  border: 2px solid rgba(23, 105, 194, 0.2);
+  border-top-color: #1769c2;
+  animation: h5-service-spin 700ms linear infinite;
+}
+
+.h5-service-search__button-spinner {
+  width: 14px;
+  height: 14px;
+}
+
+.h5-service-loading {
+  min-height: 180px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  color: #64748b;
+}
+
+.h5-service-loading__spinner {
+  width: 32px;
+  height: 32px;
+  border-width: 3px;
+}
+
+.h5-service-loading p {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+@keyframes h5-service-spin {
+  to { transform: rotate(360deg); }
+}
+
+.h5-service-search__empty {
+  margin: 14px 0 0;
+  padding: 18px 10px;
+  border: 1px dashed #cbd8e6;
+  border-radius: 13px;
+  color: #64748b;
+  font-size: 12px;
+  text-align: center;
 }
 
 .h5-service-card {
@@ -418,6 +610,17 @@ const goProductDetail = (spuId: string) => {
   border-radius: 14px;
   background: #fff;
   box-shadow: 0 10px 30px rgba(15, 23, 42, 0.05);
+  cursor: pointer;
+  transition: transform 180ms ease, border-color 180ms ease, box-shadow 180ms ease;
+}
+
+.h5-service-card:active {
+  transform: scale(0.985);
+}
+
+.h5-service-card:focus-visible {
+  outline: 3px solid rgba(23, 105, 194, 0.22);
+  outline-offset: 2px;
 }
 
 .h5-service-card__icon {
@@ -443,6 +646,7 @@ const goProductDetail = (spuId: string) => {
   font-size: 15px;
   line-height: 1.4;
   font-weight: 800;
+  text-align: center;
 }
 
 .h5-service-card__content p {
@@ -450,6 +654,7 @@ const goProductDetail = (spuId: string) => {
   color: var(--hourx-brand);
   font-size: 12px;
   font-weight: 700;
+  text-align: center;
 }
 
 .h5-service-card button {

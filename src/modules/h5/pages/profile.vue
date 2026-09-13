@@ -27,7 +27,16 @@
             <van-icon class="h5-profile-row__arrow" name="arrow" />
           </button>
           <div v-if="activeSection === 'personal'" class="h5-profile-panel">
-            <dl class="h5-profile-details">
+            <button class="h5-profile-edit-toggle" type="button" @click="profileEditing ? cancelProfileEdit() : startProfileEdit()">
+              {{ profileEditing ? (locale === 'zh' ? '取消' : 'Cancel') : (locale === 'zh' ? '编辑个人信息' : 'Edit profile') }}
+            </button>
+            <form v-if="profileEditing" class="h5-profile-edit-form" @submit.prevent="saveProfile">
+              <label><span>{{ t('h5.profile.personal.name') }}</span><input v-model.trim="profileForm.name" type="text" autocomplete="name" /></label>
+              <label><span>{{ t('h5.profile.personal.phone') }}</span><input v-model.trim="profileForm.phone" type="tel" autocomplete="tel" /></label>
+              <label><span>{{ t('h5.profile.personal.email') }}</span><input v-model.trim="profileForm.email" type="email" autocomplete="email" /></label>
+              <button type="submit" :disabled="profileSubmitting">{{ profileSubmitting ? (locale === 'zh' ? '保存中…' : 'Saving…') : (locale === 'zh' ? '保存个人信息' : 'Save profile') }}</button>
+            </form>
+            <dl v-else class="h5-profile-details">
               <div>
                 <dt>{{ t('h5.profile.personal.name') }}</dt>
                 <dd>{{ profileName || t('h5.profile.notProvided') }}</dd>
@@ -65,18 +74,10 @@
             <van-icon class="h5-profile-row__arrow" name="arrow" />
           </button>
           <div v-if="activeSection === 'addresses'" class="h5-profile-panel">
-            <p v-if="addressLoading" class="h5-profile-empty">{{ t('h5.profile.addresses.loading') }}</p>
-            <div v-else-if="latestAddress" class="h5-profile-address">
-              <strong>{{ latestAddress.serviceAddress || t('h5.profile.addresses.unnamed') }}</strong>
-              <span v-if="addressContact">{{ addressContact }}</span>
-            </div>
-            <div v-else-if="addressLoadFailed" class="h5-profile-empty h5-profile-empty--error">
-              <span>{{ t('h5.profile.addresses.loadFailed') }}</span>
-              <button type="button" @click="loadLatestAddress(true)">
-                {{ t('h5.profile.addresses.retry') }}
-              </button>
-            </div>
-            <p v-else class="h5-profile-empty">{{ t('h5.profile.addresses.empty') }}</p>
+            <button v-if="checkoutReturnPath" class="h5-profile-return-checkout" type="button" @click="router.push(checkoutReturnPath)">
+              ← {{ locale === 'zh' ? '返回订单确认' : 'Back to checkout' }}
+            </button>
+            <SavedAddressManager />
           </div>
         </div>
 
@@ -189,6 +190,13 @@
         <van-icon name="home-o" />
         <span>{{ t('client.header.nav.home') }}</span>
       </button>
+      <button class="h5-profile-tabbar__item" type="button" @click="router.push({ name: 'h5-cart' })">
+        <span class="h5-profile-tabbar__cart-icon">
+          <van-icon name="cart-o" />
+          <b v-if="cartCount">{{ cartCount > 99 ? '99+' : cartCount }}</b>
+        </span>
+        <span>{{ t('client.header.nav.cart') }}</span>
+      </button>
       <button class="h5-profile-tabbar__item" type="button" @click="router.push({ name: 'h5-orders' })">
         <van-icon name="orders-o" />
         <span>{{ t('client.header.nav.orders') }}</span>
@@ -205,17 +213,19 @@
 import { computed, onMounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRoute, useRouter } from 'vue-router';
-import { showConfirmDialog, showSuccessToast } from 'vant';
-import { getLatestAddress, type LatestAddressRecord } from '@/modules/client/api';
+import { showConfirmDialog, showFailToast, showSuccessToast } from 'vant';
+import { getClientProfile, updateClientProfile, type ClientProfileRecord } from '@/modules/client/api';
 import { setClientLocale } from '@/modules/client/locales';
 import { useAuth } from '@/modules/h5/composables/useAuth';
+import { useCart } from '@/modules/client/composables/useCart';
+import SavedAddressManager from '@/modules/client/components/SavedAddressManager.vue';
 
 type ProfileSection = 'personal' | 'addresses' | 'payments' | 'notifications' | 'support';
 
 const avatarIconUrl = new URL('@/assets/images/client/icon13.png', import.meta.url).href;
 const joinIconUrl = new URL('@/assets/images/client/icon16.png', import.meta.url).href;
 const mailIconUrl = new URL('@/assets/images/client/email.png', import.meta.url).href;
-const supportLink = 'https://wa.me/971502100284';
+const supportLink = 'https://wa.me/971502100284/?text=Hi%2C+I%E2%80%99m+interested+in+HourX+services.+Could+you+please+help+me%3F';
 const supportEmail = 'support@hourxportal.com';
 const partnerEmail = 'partners@hourxportal.com';
 const bookingNotificationKey = 'hourx-h5-booking-notifications';
@@ -224,12 +234,13 @@ const offerNotificationKey = 'hourx-h5-offer-notifications';
 const { t, locale } = useI18n({ useScope: 'global' });
 const router = useRouter();
 const route = useRoute();
+const { cartCount } = useCart();
 const { isLoggedIn, userInfo, clearAuth, checkLoginStatus } = useAuth();
 const activeSection = ref<ProfileSection | ''>('');
-const latestAddress = ref<LatestAddressRecord | null>(null);
-const addressLoading = ref(false);
-const addressLoaded = ref(false);
-const addressLoadFailed = ref(false);
+const profileData = ref<ClientProfileRecord | null>(null);
+const profileEditing = ref(false);
+const profileSubmitting = ref(false);
+const profileForm = ref({ name: '', phone: '', email: '' });
 const bookingNotifications = ref(true);
 const offerNotifications = ref(false);
 
@@ -248,33 +259,57 @@ const isPhoneAccount = (value?: string) => {
 };
 
 const profileName = computed(() => {
-  const username = String(userInfo.value.username || '').trim();
+  const username = String(profileData.value?.name || userInfo.value.username || '').trim();
   return username && !isEmailAccount(username) && !isPhoneAccount(username)
     ? username
     : '';
 });
 const displayName = computed(() => profileName.value || t('h5.profile.defaultName'));
 const displayPhone = computed(() => {
-  const storedPhone = String(userInfo.value.phone || '').trim();
+  const storedPhone = String(profileData.value?.phone || userInfo.value.phone || '').trim();
   const username = String(userInfo.value.username || '').trim();
   return maskPhone(storedPhone || (isPhoneAccount(username) ? username : ''));
 });
 const displayEmail = computed(() => {
-  const storedEmail = String(userInfo.value.email || '').trim();
+  const storedEmail = String(profileData.value?.email || userInfo.value.email || '').trim();
   const username = String(userInfo.value.username || '').trim();
   return storedEmail || (isEmailAccount(username) ? username : '');
 });
 const localeLabel = computed(() =>
   locale.value === 'zh' ? t('client.header.languageZh') : t('client.header.languageEn'),
 );
-const addressContact = computed(() => {
-  if (!latestAddress.value) return '';
-  const name = [latestAddress.value.firstName, latestAddress.value.lastName]
-    .map((item) => String(item || '').trim())
-    .filter(Boolean)
-    .join(' ');
-  return [name, maskPhone(latestAddress.value.phone)].filter(Boolean).join(' · ');
+const checkoutReturnPath = computed(() => {
+  const value = Array.isArray(route.query.returnTo) ? route.query.returnTo[0] : route.query.returnTo;
+  return typeof value === 'string' && value.startsWith('/orders/confirm') ? value : '';
 });
+
+const loadProfile = async () => {
+  try { profileData.value = await getClientProfile(); } catch (error) { console.error('load profile failed:', error); }
+};
+const startProfileEdit = () => {
+  profileForm.value = {
+    name: profileData.value?.name || profileName.value,
+    phone: profileData.value?.phone || String(userInfo.value.phone || ''),
+    email: profileData.value?.email || displayEmail.value,
+  };
+  profileEditing.value = true;
+};
+const cancelProfileEdit = () => { profileEditing.value = false; };
+const saveProfile = async () => {
+  const payload = { ...profileForm.value };
+  if (!payload.name && !payload.phone && !payload.email) {
+    showFailToast(locale.value === 'zh' ? '请至少填写一项个人信息' : 'Please provide at least one profile field');
+    return;
+  }
+  profileSubmitting.value = true;
+  try {
+    profileData.value = await updateClientProfile(payload);
+    profileEditing.value = false;
+    showSuccessToast(locale.value === 'zh' ? '个人信息已更新' : 'Profile updated');
+  } catch (error: any) {
+    showFailToast(error?.message || (locale.value === 'zh' ? '个人信息更新失败' : 'Failed to update profile'));
+  } finally { profileSubmitting.value = false; }
+};
 
 const ensureLogin = async () => {
   checkLoginStatus();
@@ -286,25 +321,8 @@ const ensureLogin = async () => {
   return false;
 };
 
-const loadLatestAddress = async (force = false) => {
-  if ((addressLoaded.value && !force) || addressLoading.value) return;
-  addressLoading.value = true;
-  addressLoadFailed.value = false;
-  try {
-    latestAddress.value = await getLatestAddress();
-    addressLoaded.value = true;
-  } catch (error) {
-    console.error('load latest address failed:', error);
-    latestAddress.value = null;
-    addressLoadFailed.value = true;
-  } finally {
-    addressLoading.value = false;
-  }
-};
-
 const toggleSection = (section: ProfileSection) => {
   activeSection.value = activeSection.value === section ? '' : section;
-  if (activeSection.value === 'addresses') void loadLatestAddress();
 };
 
 const goSecurity = () => router.push({ name: 'h5-profile-security' });
@@ -353,7 +371,7 @@ onMounted(async () => {
   if (!loggedIn) return;
   bookingNotifications.value = localStorage.getItem(bookingNotificationKey) !== 'false';
   offerNotifications.value = localStorage.getItem(offerNotificationKey) === 'true';
-  if (activeSection.value === 'addresses') void loadLatestAddress();
+  await loadProfile();
 });
 </script>
 
@@ -362,6 +380,16 @@ onMounted(async () => {
   min-height: 100vh;
   background: #f8fafc;
   padding-bottom: calc(76px + env(safe-area-inset-bottom));
+}
+
+.h5-profile-return-checkout {
+  margin: 0 0 14px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: #1769c2;
+  font-size: 12px;
+  font-weight: 800;
 }
 
 .h5-profile-main {
@@ -845,7 +873,34 @@ onMounted(async () => {
   font-size: 24px;
 }
 
+.h5-profile-tabbar__cart-icon {
+  position: relative;
+  display: inline-flex;
+}
+
+.h5-profile-tabbar__cart-icon b {
+  position: absolute;
+  top: -8px;
+  right: -12px;
+  min-width: 17px;
+  height: 17px;
+  padding: 0 4px;
+  border: 2px solid #fff;
+  border-radius: 999px;
+  background: #ef4444;
+  color: #fff;
+  font-size: 8px;
+  font-weight: 900;
+  line-height: 13px;
+}
+
 .h5-profile-tabbar__item--active {
   color: var(--hourx-brand);
 }
+.h5-profile-edit-toggle { display: block; margin: 0 0 12px auto; border: 0; background: transparent; color: #1769c2; font-size: 12px; font-weight: 800; }
+.h5-profile-edit-form { display: grid; gap: 12px; margin-bottom: 16px; }
+.h5-profile-edit-form label { display: grid; gap: 6px; color: #64748b; font-size: 11px; font-weight: 700; }
+.h5-profile-edit-form input { width: 100%; height: 42px; box-sizing: border-box; border: 1px solid #dbe3ec; border-radius: 11px; background: #fff; padding: 0 12px; color: #05152b; font-size: 14px; }
+.h5-profile-edit-form > button { min-height: 44px; border: 0; border-radius: 12px; background: #05152b; color: #fff; font-weight: 800; }
+.h5-profile-edit-form > button:disabled { opacity: .55; }
 </style>

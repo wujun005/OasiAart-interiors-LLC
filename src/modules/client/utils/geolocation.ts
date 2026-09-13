@@ -18,6 +18,7 @@ export class LocationLookupError extends Error {
 export type LocatedAddress = {
   district: string;
   address: string;
+  street: string;
   latitude: number;
   longitude: number;
 };
@@ -30,6 +31,9 @@ type ReverseGeocodePayload = {
         district?: string;
         locality?: string;
         city?: string;
+        street?: string;
+        name?: string;
+        housenumber?: string;
       };
     };
   }>;
@@ -100,11 +104,15 @@ export const locateCurrentAddress = async (language: string): Promise<LocatedAdd
       throw new Error('Reverse geocoding returned an empty address');
     }
 
+    const streetName = String(geocoding?.street || geocoding?.name || '').trim();
+    const houseNumber = String(geocoding?.housenumber || '').trim();
+
     return {
       district: String(
         geocoding?.district || geocoding?.locality || geocoding?.city || '',
       ).trim(),
       address,
+      street: [houseNumber, streetName].filter(Boolean).join(' '),
       latitude,
       longitude,
     };

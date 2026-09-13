@@ -1,18 +1,7 @@
 <template>
   <div class="join-page">
     <section class="join-hero">
-      <div class="join-container join-hero__inner">
-        <div class="join-hero__content">
-          <h1>
-            {{ pageCopy.heroTitleLine1 }}
-            {{ pageCopy.heroTitleLine2 }}
-          </h1>
-          <p>{{ pageCopy.heroDesc }}</p>
-        </div>
-        <!-- <div class="join-hero__art">
-          <img :src="heroArtUrl" alt="" />
-        </div>  -->
-      </div>
+      <img :src="joinHeroImageUrl" alt="Reach more customers with HourX" />
     </section>
 
     <section class="join-main">
@@ -77,7 +66,7 @@ type JoinValue = {
 
 const { locale } = useI18n({ useScope: 'global' });
 
-// const cityImageUrl = 'https://www.figma.com/api/mcp/asset/8c23ea27-c49c-4a55-9ad4-3ce082640fa3';
+const joinHeroImageUrl = new URL('@/assets/images/client/OPTION 4 - APPROVED.png', import.meta.url).href;
 const cityImageUrl = new URL('@/assets/images/client/Container.png', import.meta.url).href;
 const valueIconShieldUrl = new URL('@/assets/images/client/icon2.png', import.meta.url).href;;
 const valueIconClockUrl = new URL('@/assets/images/client/icon3.png', import.meta.url).href;
@@ -167,7 +156,6 @@ const valueItems = computed<JoinValue[]>(() =>
 
 <style scoped lang="scss">
 .join-page {
-  --join-hero-aspect-ratio: 2858 / 1200;
   background: #ffffff;
 }
 
@@ -177,54 +165,13 @@ const valueItems = computed<JoinValue[]>(() =>
 }
 
 .join-hero {
-  position: relative;
-  overflow: hidden;
   width: 100%;
-  aspect-ratio: var(--join-hero-aspect-ratio);
-  background: var(--hourx-brand) url('../../../assets/images/client/kv_joinus@2x.png') no-repeat center / 100% 100%;
 }
 
-.join-hero__inner {
-  min-height: 100%;
-  height: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 48px;
-  // padding: 96px 0;
-}
-
-.join-hero__content {
-  // width: min(584px, 100%);
-}
-
-.join-hero__content h1 {
-  margin: 0;
-  color: #fff;
-  font-size: 40px;
-  line-height: 1;
-  font-weight: 900;
-  white-space: nowrap;
-}
-
-.join-hero__content p {
-  margin: 24px 0 0;
-  color: #E5EAF1;
-  font-size: 20px;
-  line-height: 1.6;
-  font-weight: 500;
-  max-width: 540px;
-}
-
-.join-hero__art {
-  width: min(448px, 42vw);
-  min-width: 320px;
-}
-
-.join-hero__art img {
+.join-hero > img {
+  display: block;
   width: 100%;
   height: auto;
-  display: block;
 }
 
 .join-main {
@@ -395,25 +342,6 @@ const valueItems = computed<JoinValue[]>(() =>
 }
 
 @media (max-width: 1024px) {
-  .join-hero__inner {
-    padding: 0;
-    min-height: 100%;
-    height: 100%;
-    flex-direction: row;
-    align-items: center;
-  }
-
-  .join-hero__content h1 {
-    font-size: 38px;
-    white-space: normal;
-  }
-
-  .join-hero__art {
-    width: min(420px, 100%);
-    min-width: 0;
-    margin-left: auto;
-  }
-
   .join-about {
     grid-template-columns: 1fr;
     gap: 40px;
@@ -440,15 +368,6 @@ const valueItems = computed<JoinValue[]>(() =>
 @media (max-width: 768px) {
   .join-container {
     width: min(1280px, calc(100% - 32px));
-  }
-
-  .join-hero__content h1 {
-    font-size: 38px;
-    line-height: 1.1;
-  }
-
-  .join-hero__content p {
-    font-size: 17px;
   }
 
   .join-main {

@@ -14,7 +14,46 @@
         <el-button @click="openPreview">{{ t('admin.category.actions.preview') }}</el-button>
       </div>
 
-      <el-table :data="displayList" border stripe row-key="id" v-loading="tableLoading">
+      <el-table
+        class="category-sort-table"
+        :data="displayList"
+        border
+        stripe
+        row-key="id"
+        v-loading="tableLoading || sortSubmitting"
+        :row-class-name="categoryRowClassName"
+        @dragover.prevent="handleCategoryDragOver"
+        @drop.prevent="handleCategoryDrop"
+      >
+        <el-table-column
+          v-if="canSortCategories"
+          :label="t('admin.category.table.sort')"
+          width="66"
+          align="center"
+          fixed="left"
+        >
+          <template #default="{ row }">
+            <button
+              class="category-sort-handle"
+              type="button"
+              :draggable="canSortCategories && !tableLoading && !sortSubmitting"
+              :disabled="!canSortCategories || tableLoading || sortSubmitting"
+              :title="t('admin.category.table.sortHint')"
+              :aria-label="`${t('admin.category.table.sort')}: ${row.displayName}`"
+              @dragstart.stop="handleCategoryDragStart(row, $event)"
+              @dragend.stop="resetCategoryDrag"
+            >
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <circle cx="8" cy="6" r="1.5" />
+                <circle cx="16" cy="6" r="1.5" />
+                <circle cx="8" cy="12" r="1.5" />
+                <circle cx="16" cy="12" r="1.5" />
+                <circle cx="8" cy="18" r="1.5" />
+                <circle cx="16" cy="18" r="1.5" />
+              </svg>
+            </button>
+          </template>
+        </el-table-column>
         <el-table-column :label="t('admin.category.table.name')" min-width="200">
           <template #default="{ row }">
             {{ row.displayName }}
@@ -205,7 +244,15 @@ import type { FormInstance, FormRules, UploadUserFile, UploadRequestOptions } fr
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { Plus } from '@element-plus/icons-vue';
 import { useI18n } from 'vue-i18n';
-import { getPage, add, update, del, changeStatus, upload } from '@/modules/admin/api/category';
+import {
+  getPage,
+  sortCategories,
+  add,
+  update,
+  del,
+  changeStatus,
+  upload,
+} from '@/modules/admin/api/category';
 import { ADMIN_LANG_EN, pickI18nText } from '@/modules/admin/utils/i18n';
 
 type Category = {
@@ -233,12 +280,22 @@ const query = reactive({
 });
 const total = ref(0);
 const tableLoading = ref(false);
+const sortSubmitting = ref(false);
+const draggedCategoryId = ref<number | null>(null);
+const dragOverCategoryId = ref<number | null>(null);
+const hasCategoryFilterConditions = computed(() => Boolean(query.nameKeyword.trim()));
+// 只有无搜索条件的列表才能排序，避免把筛选结果误当作完整顺序提交。
+const loadedCategoriesAreFiltered = ref(true);
+const canSortCategories = computed(
+  () => !hasCategoryFilterConditions.value && !loadedCategoriesAreFiltered.value,
+);
 
 const displayList = computed(() => list.value);
 
 const fetchList = async () => {
   tableLoading.value = true;
   try {
+    const requestHasFilters = hasCategoryFilterConditions.value;
     const res = await getPage({
       pageNum: query.pageNum,
       pageSize: query.pageSize,
@@ -263,6 +320,7 @@ const fetchList = async () => {
       createdAt: item.category?.createTime || item.createdAt || item.createTime || '',
     }));
     total.value = data.total ?? records.length;
+    loadedCategoriesAreFiltered.value = requestHasFilters;
   } catch (error: any) {
     ElMessage.error(error?.message || t('admin.category.message.fetchFailed'));
   } finally {
@@ -371,6 +429,97 @@ const onSizeChange = (size: number) => {
   query.pageSize = size;
   query.pageNum = 1;
   fetchList();
+};
+
+const categoryRowClassName = ({ row }: { row: Category }) =>
+  canSortCategories.value &&
+  row.id === dragOverCategoryId.value &&
+  row.id !== draggedCategoryId.value
+    ? 'category-sort-row--target'
+    : '';
+
+const getCategoryDropIndex = (event: DragEvent) => {
+  const target = event.target;
+  if (!(target instanceof Element)) return -1;
+  const row = target.closest('tbody tr');
+  const body = row?.parentElement;
+  if (!row || body?.tagName !== 'TBODY') return -1;
+  return Array.from(body.children).indexOf(row);
+};
+
+const handleCategoryDragStart = (row: Category, event: DragEvent) => {
+  if (!canSortCategories.value || tableLoading.value || sortSubmitting.value) {
+    event.preventDefault();
+    return;
+  }
+  draggedCategoryId.value = row.id;
+  dragOverCategoryId.value = row.id;
+  if (event.dataTransfer) {
+    event.dataTransfer.effectAllowed = 'move';
+    event.dataTransfer.setData('text/plain', String(row.id));
+  }
+};
+
+const handleCategoryDragOver = (event: DragEvent) => {
+  if (
+    !canSortCategories.value ||
+    draggedCategoryId.value === null ||
+    sortSubmitting.value
+  ) {
+    return;
+  }
+  const targetIndex = getCategoryDropIndex(event);
+  if (targetIndex < 0 || targetIndex >= list.value.length) return;
+  dragOverCategoryId.value = list.value[targetIndex]?.id ?? null;
+  if (event.dataTransfer) event.dataTransfer.dropEffect = 'move';
+};
+
+const resetCategoryDrag = () => {
+  draggedCategoryId.value = null;
+  dragOverCategoryId.value = null;
+};
+
+const handleCategoryDrop = async (event: DragEvent) => {
+  const draggedId = draggedCategoryId.value;
+  const targetIndex = getCategoryDropIndex(event);
+  if (
+    !canSortCategories.value ||
+    draggedId === null ||
+    targetIndex < 0 ||
+    targetIndex >= list.value.length ||
+    sortSubmitting.value
+  ) {
+    resetCategoryDrag();
+    return;
+  }
+
+  const sourceIndex = list.value.findIndex((item) => item.id === draggedId);
+  if (sourceIndex < 0 || sourceIndex === targetIndex) {
+    resetCategoryDrag();
+    return;
+  }
+
+  const previous = [...list.value];
+  const reordered = [...list.value];
+  const [moved] = reordered.splice(sourceIndex, 1);
+  if (!moved) {
+    resetCategoryDrag();
+    return;
+  }
+  reordered.splice(targetIndex, 0, moved);
+  list.value = reordered;
+  resetCategoryDrag();
+
+  sortSubmitting.value = true;
+  try {
+    await sortCategories(reordered.map((item) => item.id));
+    ElMessage.success(t('admin.category.message.sortSuccess'));
+  } catch (error: any) {
+    list.value = previous;
+    ElMessage.error(error?.message || t('admin.category.message.sortFailed'));
+  } finally {
+    sortSubmitting.value = false;
+  }
 };
 
 const openPreview = async () => {
@@ -600,6 +749,41 @@ const removeBannerTags = (idx: number) => {
   margin-top: 16px;
   display: flex;
   justify-content: flex-end;
+}
+.category-sort-handle {
+  width: 34px;
+  height: 34px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: #7b8797;
+  cursor: grab;
+  transition: color 0.2s, background-color 0.2s, transform 0.2s;
+}
+.category-sort-handle:hover {
+  background: #eef5ff;
+  color: #1769c2;
+}
+.category-sort-handle:active {
+  cursor: grabbing;
+  transform: scale(0.94);
+}
+.category-sort-handle:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+.category-sort-handle svg {
+  width: 22px;
+  height: 22px;
+  fill: currentColor;
+}
+:deep(.el-table__body tr.category-sort-row--target > td.el-table__cell) {
+  background: #eaf4ff !important;
+  box-shadow: inset 0 2px 0 #409eff;
 }
 .icon-thumb {
   width: 40px;

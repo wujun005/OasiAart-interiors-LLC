@@ -36,6 +36,18 @@ export interface ChangePasswordByOldPayload {
   newPassword: string;
 }
 
+export interface ResetPasswordByPhonePayload {
+  phone: string;
+  verifyCode: string;
+  newPassword: string;
+}
+
+export interface ResetPasswordByEmailPayload {
+  email: string;
+  verifyCode: string;
+  newPassword: string;
+}
+
 // 发送注册验证码 /api/client/auth/sendRegisterCode
 export function register(payload: SendCodePayload) {
   return http.post('/api/client/auth/sendRegisterCode', payload);
@@ -70,6 +82,14 @@ export function changePasswordByOld(payload: ChangePasswordByOldPayload) {
   return http.post('/api/client/auth/changePasswordByOld', payload);
 }
 
+export function resetPasswordByPhone(payload: ResetPasswordByPhonePayload) {
+  return http.post('/api/client/auth/reset-password', payload);
+}
+
+export function resetPasswordByEmail(payload: ResetPasswordByEmailPayload) {
+  return http.post('/api/client/auth/reset-password-by-email', payload);
+}
+
 export default {
   register,
   sendRegisterCode,
@@ -79,4 +99,6 @@ export default {
   loginByPassword,
   loginByVerifyCode,
   changePasswordByOld,
+  resetPasswordByPhone,
+  resetPasswordByEmail,
 };

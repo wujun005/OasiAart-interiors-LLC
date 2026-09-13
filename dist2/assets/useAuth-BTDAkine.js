@@ -1,0 +1,1 @@
+import{g as n,c}from"./auth-state-C3NRrIaP.js";import{h as u,c as r}from"./runtime-core.esm-bundler-CFEWv__L.js";const g=()=>{const e=u(!1),s=u({}),o=()=>{const t=n();if(t.isExpired){a();return}e.value=t.isLoggedIn,s.value=t.userInfo},a=()=>{c(),e.value=!1,s.value={}};return o(),{isLoggedIn:r(()=>e.value),userInfo:r(()=>s.value),checkLoginStatus:o,clearAuth:a}};export{g as u};

@@ -20,6 +20,11 @@ export function getPage(payload: any) {
   return http.post('/api/category/page', payload);
 }
 
+// 拖拽排序：ids 按当前页拖拽后的展示顺序传递
+export function sortCategories(ids: Array<number | string>) {
+  return http.post('/api/category/sort', { ids });
+}
+
 // 删除商品 /api/category/deleteCategory
 export function del(payload: any) {
   return http.post('/api/category/deleteCategory', payload);

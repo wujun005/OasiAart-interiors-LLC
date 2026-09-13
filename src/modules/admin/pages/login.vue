@@ -53,10 +53,13 @@ import LoginByPassword from '@/components/LoginByPassword/index.vue';
 import { login } from '@/modules/admin/api';
 import { ElMessage } from 'element-plus';
 import router from '@/modules/admin/router';
-import axios from 'axios';
 import { ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { ADMIN_LOCALE_STORAGE_KEY, type AdminLocale } from '@/modules/admin/locales';
+import {
+  clearAdminAuthState,
+  setAdminAuthStorageValue,
+} from '@/utils/auth-state';
 import {
   loadAdminMenuPermissions,
   resetAdminMenuPermissions,
@@ -131,17 +134,18 @@ const loginByPassword = async ({
       userType,
     } = data;
 
-    localStorage.setItem('token', token);
-    if (userId !== undefined) localStorage.setItem('userId', String(userId));
-    if (username) localStorage.setItem('username', username);
-    if (userType) localStorage.setItem('userType', userType);
+    clearAdminAuthState();
+    setAdminAuthStorageValue('token', token);
+    setAdminAuthStorageValue('tokenType', tokenType);
+    if (userId !== undefined) setAdminAuthStorageValue('userId', userId);
+    if (username) setAdminAuthStorageValue('username', username);
+    if (userType) setAdminAuthStorageValue('userType', userType);
 
     if (expiresIn) {
       const expiresAt = Date.now() + Number(expiresIn);
-      localStorage.setItem('expiresAt', String(expiresAt));
+      setAdminAuthStorageValue('expiresAt', expiresAt);
     }
 
-    axios.defaults.headers.common.Authorization = `${tokenType} ${token}`;
     resetAdminMenuPermissions();
     await loadAdminMenuPermissions(true);
     ElMessage.success(result?.message || t('admin.login.loginSuccess'));

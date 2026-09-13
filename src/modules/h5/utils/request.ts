@@ -1,4 +1,8 @@
 import axios from 'axios';
+import {
+  clearStoredAuthState,
+  getClientAuthStorageValue,
+} from '@/utils/auth-state';
 
 type ApiSuccessEnvelope<T = unknown> = {
   success: boolean;
@@ -33,7 +37,7 @@ const http = axios.create({
 http.interceptors.request.use(
   (config) => {
     // 从 localStorage 获取 token
-    const token = localStorage.getItem('token');
+    const token = getClientAuthStorageValue('token');
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
@@ -63,11 +67,7 @@ http.interceptors.response.use(
     if (error.response) {
       // 401 未授权，清除 token 并跳转到登录页
       if (error.response.status === 401) {
-        localStorage.removeItem('token');
-        localStorage.removeItem('expiresAt');
-        localStorage.removeItem('userId');
-        localStorage.removeItem('username');
-        localStorage.removeItem('userType');
+        clearStoredAuthState();
         // 可以在这里触发路由跳转，但为了避免循环依赖，由调用方处理
       }
       const status = error.response.status;

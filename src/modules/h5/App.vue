@@ -8,26 +8,34 @@
 </template>
 
 <script setup lang="ts">
-import { useI18n } from 'vue-i18n';
-import { watch } from 'vue';
-import { setClientLocale } from '@/modules/client/locales';
+import { useI18n } from "vue-i18n"
+import { watch } from "vue"
+import { Locale } from "vant"
+import vantEnUS from "vant/es/locale/lang/en-US"
+import vantZhCN from "vant/es/locale/lang/zh-CN"
+import { setClientLocale } from "@/modules/client/locales"
 
-const { locale } = useI18n();
+const { locale } = useI18n()
 
 watch(
   () => locale.value,
   (val) => {
-    const targetLocale = val === 'zh' ? 'zh' : 'en';
-    localStorage.setItem('h5-locale', targetLocale);
-    setClientLocale(targetLocale);
-    document.documentElement.lang = targetLocale === 'zh' ? 'zh-CN' : 'en';
+    const targetLocale = val === "zh" ? "zh" : "en"
+    localStorage.setItem("h5-locale", targetLocale)
+    setClientLocale(targetLocale)
+    document.documentElement.lang = targetLocale === "zh" ? "zh-CN" : "en"
+    if (targetLocale === "zh") {
+      Locale.use("zh-CN", vantZhCN)
+    } else {
+      Locale.use("en-US", vantEnUS)
+    }
   },
   { immediate: true },
-);
+)
 
 const toggleLocale = () => {
-  locale.value = locale.value === 'zh' ? 'en' : 'zh';
-};
+  locale.value = locale.value === "zh" ? "en" : "zh"
+}
 </script>
 
 <style scoped>

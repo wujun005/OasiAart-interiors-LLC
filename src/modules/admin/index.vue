@@ -65,6 +65,7 @@ import {
   Menu as MenuIcon,
 } from '@element-plus/icons-vue';
 import { ADMIN_LOCALE_STORAGE_KEY, type AdminLocale } from '@/modules/admin/locales';
+import { clearAdminAuthState } from '@/utils/auth-state';
 import PermissionMenuItem from '@/modules/admin/components/PermissionMenuItem.vue';
 import {
   adminMenuState,
@@ -127,11 +128,7 @@ const refresh = () => {
 };
 
 const handleLogout = async () => {
-  localStorage.removeItem('token');
-  localStorage.removeItem('expiresAt');
-  localStorage.removeItem('userId');
-  localStorage.removeItem('username');
-  localStorage.removeItem('userType');
+  clearAdminAuthState();
   delete axios.defaults.headers.common.Authorization;
   resetAdminMenuPermissions();
   ElMessage.success(t('admin.common.logoutSuccess'));

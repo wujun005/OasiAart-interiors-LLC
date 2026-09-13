@@ -2,6 +2,10 @@ import { useRouter } from 'vue-router';
 import { ElMessage } from 'element-plus';
 import axios from 'axios';
 import router from '../router';
+import {
+  clearStoredAuthState,
+  setClientAuthStorageValue,
+} from '@/utils/auth-state';
 
 export const loginSuccess = (response: any) => {
   console.log('========== loginSuccess 接收到的数据 ==========');
@@ -27,14 +31,15 @@ export const loginSuccess = (response: any) => {
   
   console.log('提取的数据:', { token, userId, username, userType, expiresIn });
 
-  localStorage.setItem('token', token);
-  localStorage.setItem('userId', userId.toString());
-  localStorage.setItem('username', username);
-  localStorage.setItem('userType', userType);
+  clearStoredAuthState();
+  setClientAuthStorageValue('token', token);
+  setClientAuthStorageValue('userId', userId);
+  setClientAuthStorageValue('username', username);
+  setClientAuthStorageValue('userType', userType);
 
   // 设置 token 的过期时间
   const expiresAt = Date.now() + expiresIn;
-  localStorage.setItem('expiresAt', expiresAt.toString());
+  setClientAuthStorageValue('expiresAt', expiresAt);
 
   // 2. 设置 Authorization Header 用于后续请求
   // 假设你用 axios 或 fetch 发起请求，设置请求的 header

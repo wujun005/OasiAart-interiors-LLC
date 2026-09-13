@@ -1,14 +1,27 @@
 <template>
   <div id="home" class="home-page">
     <section class="hero-section" aria-labelledby="home-hero-title">
-      <img class="hero-section__image" :src="homeBannerUrl" alt="HourX home services" />
+      <img
+        class="hero-section__image"
+        :src="homeBannerUrl"
+        alt="HourX home services"
+      />
       <div class="hero-section__overlay">
         <div class="hero-section__content">
-          <h1 id="home-hero-title">{{ t('client.home.hero.headline') }}</h1>
-          <p>{{ t('client.home.hero.description') }}</p>
-          <ul class="hero-section__trust" aria-label="HourX booking information">
-            <li><span aria-hidden="true">✓</span>{{ t('client.home.hero.trustPlatform') }}</li>
-            <li><span aria-hidden="true">✓</span>{{ t('client.home.hero.trustBooking') }}</li>
+          <h1 id="home-hero-title">{{ t("client.home.hero.headline") }}</h1>
+          <p>{{ t("client.home.hero.description") }}</p>
+          <ul
+            class="hero-section__trust"
+            aria-label="HourX booking information"
+          >
+            <li>
+              <span aria-hidden="true">✓</span
+              >{{ t("client.home.hero.trustPlatform") }}
+            </li>
+            <li>
+              <span aria-hidden="true">✓</span
+              >{{ t("client.home.hero.trustBooking") }}
+            </li>
           </ul>
           <div class="hero-section__actions" aria-label="Banner actions">
             <button
@@ -16,7 +29,7 @@
               type="button"
               @click="scrollToServices"
             >
-              {{ t('client.home.hero.cta') }}
+              {{ t("client.home.hero.cta") }}
             </button>
             <button
               class="hero-section__action hero-section__action--whatsapp"
@@ -24,7 +37,7 @@
               @click="openWhatsApp"
             >
               <img :src="whatsappIconUrl" alt="" />
-              <span>{{ t('client.home.hero.whatsappCta') }}</span>
+              <span>{{ t("client.home.hero.whatsappCta") }}</span>
             </button>
           </div>
         </div>
@@ -38,24 +51,28 @@
       @click="openWhatsApp"
     >
       <img :src="kefuImageUrl" :alt="t('client.home.contactCard.button')" />
-      <span class="contact-card__text">{{ t('client.home.contactCard.button') }}</span>
+      <span class="contact-card__text">{{
+        t("client.home.contactCard.button")
+      }}</span>
     </button>
 
     <section id="services" class="services-section">
       <div class="home-container">
         <header class="home-intro">
-          <p class="home-intro__eyebrow">{{ t('client.home.sections.servicesTitle') }}</p>
-          <h2>{{ t('client.home.sections.serviceSelectorTitle') }}</h2>
-          <p class="home-intro__description">{{ t('client.home.sections.serviceSelectorSubtitle') }}</p>
+          <p class="home-intro__eyebrow">
+            {{ t("client.home.sections.servicesTitle") }}
+          </p>
+          <h2>{{ t("client.home.sections.serviceSelectorTitle") }}</h2>
+          <p class="home-intro__description">
+            {{ t("client.home.sections.serviceSelectorSubtitle") }}
+          </p>
         </header>
         <div class="services-grid">
           <button
             v-for="(item, index) in serviceTiles"
             :key="item.id"
             class="services-grid__item"
-            :class="{ 'services-grid__item--placeholder': item.placeholder }"
             type="button"
-            :disabled="item.placeholder"
             :aria-label="item.title"
             @click="openServiceList(item)"
           >
@@ -64,14 +81,15 @@
             </div>
             <div class="services-grid__content">
               <span class="services-grid__meta">
-                {{ String(index + 1).padStart(2, '0') }} · {{ t('client.home.sections.servicesTitle') }}
+                {{ String(index + 1).padStart(2, "0") }} ·
+                {{ t("client.home.sections.servicesTitle") }}
               </span>
               <p>{{ item.title }}</p>
               <span v-if="item.description" class="services-grid__description">
                 {{ item.description }}
               </span>
               <span class="services-grid__link">
-                {{ t('client.home.serviceTile.action') }}
+                {{ t("client.home.serviceTile.action") }}
                 <span aria-hidden="true">→</span>
               </span>
             </div>
@@ -82,19 +100,27 @@
 
     <section id="orders" class="offers-section">
       <div class="home-container">
-        <h2 class="section-title">{{ t('client.home.sections.serviceCardsTitle') }}</h2>
+        <h2 class="section-title">
+          {{ t("client.home.sections.serviceCardsTitle") }}
+        </h2>
         <div class="offers-grid">
-          <article v-for="item in featuredCards" :key="item.id" class="offer-card">
+          <article
+            v-for="item in featuredCards"
+            :key="item.id"
+            class="offer-card"
+          >
             <div class="offer-card__media">
               <img :src="item.image" :alt="item.title" />
-              <span class="offer-card__badge">{{ t('client.home.serviceCard.badge') }}</span>
+              <span class="offer-card__badge">{{
+                t("client.home.serviceCard.badge")
+              }}</span>
             </div>
             <div class="offer-card__body">
               <h3>{{ item.title }}</h3>
               <p class="offer-card__desc">{{ item.desc }}</p>
               <p class="offer-card__price">{{ item.price }}</p>
               <button type="button" @click="goProductDetail(item.spuId)">
-                {{ t('client.home.serviceCard.button') }}
+                {{ t("client.home.serviceCard.button") }}
               </button>
             </div>
           </article>
@@ -105,15 +131,19 @@
     <section class="booking-section">
       <div class="home-container">
         <h2 class="section-title section-title--light">
-          {{ t('client.home.sections.bookingTitle') }}
+          {{ t("client.home.sections.bookingTitle") }}
         </h2>
         <p class="section-subtitle section-subtitle--light">
-          {{ t('client.home.sections.bookingSubtitle') }}
+          {{ t("client.home.sections.bookingSubtitle") }}
         </p>
 
         <div class="booking-steps">
           <div class="booking-steps__line" />
-          <article v-for="(item, index) in bookingSteps" :key="item.title" class="booking-step">
+          <article
+            v-for="(item, index) in bookingSteps"
+            :key="item.title"
+            class="booking-step"
+          >
             <div class="booking-step__icon">
               <img :src="item.icon" :alt="item.title" />
             </div>
@@ -126,9 +156,11 @@
 
     <section id="join-us" class="trust-section">
       <div class="home-container">
-        <h2 class="section-title">{{ t('client.home.sections.aboutTitle') }}</h2>
+        <h2 class="section-title">
+          {{ t("client.home.sections.aboutTitle") }}
+        </h2>
         <p class="section-subtitle section-subtitle--line">
-          {{ t('client.home.sections.aboutSubtitle') }}
+          {{ t("client.home.sections.aboutSubtitle") }}
         </p>
 
         <div class="trust-grid">
@@ -147,14 +179,22 @@
       <div class="home-container">
         <div class="final-cta">
           <div class="final-cta__copy">
-            <h2>{{ t('client.home.sections.finalCtaTitle') }}</h2>
-            <p>{{ t('client.home.sections.finalCtaSubtitle') }}</p>
+            <h2>{{ t("client.home.sections.finalCtaTitle") }}</h2>
+            <p>{{ t("client.home.sections.finalCtaSubtitle") }}</p>
           </div>
           <div class="final-cta__actions">
-            <button class="final-cta__button final-cta__button--primary" type="button" @click="scrollToServices">
-              {{ t('client.home.sections.finalCtaBrowse') }}
+            <button
+              class="final-cta__button final-cta__button--primary"
+              type="button"
+              @click="scrollToServices"
+            >
+              {{ t("client.home.sections.finalCtaBrowse") }}
             </button>
-            <button class="final-cta__button final-cta__button--whatsapp" type="button" @click="openWhatsApp">
+            <button
+              class="final-cta__button final-cta__button--whatsapp"
+              type="button"
+              @click="openWhatsApp"
+            >
               <img :src="whatsappIconUrl" alt="" />
               <span>WhatsApp</span>
             </button>
@@ -166,291 +206,306 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue';
-import { useI18n } from 'vue-i18n';
-import { useRouter } from 'vue-router';
+import { computed, onMounted, ref } from "vue"
+import { useI18n } from "vue-i18n"
+import { useRouter } from "vue-router"
 import {
   exclusiveSpus,
   level1Categories,
   type ExclusiveSpuRecord,
   type Level1CategoryRecord,
-} from '@/modules/client/api';
+} from "@/modules/client/api"
 
 type ServiceTile = {
-  id: string;
-  categoryId: string;
-  title: string;
-  description: string;
-  icon: string;
-  placeholder: boolean;
-  source?: Level1CategoryRecord;
-};
+  id: string
+  categoryId: string
+  title: string
+  description: string
+  icon: string
+  placeholder: boolean
+  source?: Level1CategoryRecord
+}
 
 type OfferCard = {
-  id: string;
-  spuId: string;
-  title: string;
-  desc: string;
-  price: string;
-  image: string;
-};
+  id: string
+  spuId: string
+  title: string
+  desc: string
+  price: string
+  image: string
+}
 
 type BookingStep = {
-  title: string;
-  desc: string;
-  icon: string;
-};
+  title: string
+  desc: string
+  icon: string
+}
 
 type Reason = {
-  title: string;
-  desc: string;
-  icon: string;
-};
+  title: string
+  desc: string
+  icon: string
+}
 
-const kefuImageUrl = new URL('@/assets/images/client/kefu.png', import.meta.url).href;
-const homeBannerUrl = new URL('@/assets/images/client/home-banner.png', import.meta.url).href;
-const whatsappIconUrl = new URL('@/assets/images/client/icon_whatsapp.svg', import.meta.url).href;
+const kefuImageUrl = new URL("@/assets/images/client/kefu.png", import.meta.url)
+  .href
+const homeBannerUrl = new URL(
+  "@/assets/images/client/home-banner.png",
+  import.meta.url,
+).href
+const whatsappIconUrl = new URL(
+  "@/assets/images/client/icon_whatsapp.svg",
+  import.meta.url,
+).href
 
 const defaultServiceIcons = [
-  'https://www.figma.com/api/mcp/asset/eb5c30c7-689f-4ed5-bbbd-d173eed0127f',
-  'https://www.figma.com/api/mcp/asset/09552e9b-ee1f-4389-9c80-8ad2058e2a6d',
-  'https://www.figma.com/api/mcp/asset/4fd2bf43-6d9b-4120-b782-12f955ead59c',
-  'https://www.figma.com/api/mcp/asset/1cb9d72b-e802-4cc7-84c8-34ca417a10c7',
-  'https://www.figma.com/api/mcp/asset/6a649f2a-a66f-4922-b744-d52b9db77848',
-];
+  "https://www.figma.com/api/mcp/asset/eb5c30c7-689f-4ed5-bbbd-d173eed0127f",
+  "https://www.figma.com/api/mcp/asset/09552e9b-ee1f-4389-9c80-8ad2058e2a6d",
+  "https://www.figma.com/api/mcp/asset/4fd2bf43-6d9b-4120-b782-12f955ead59c",
+  "https://www.figma.com/api/mcp/asset/1cb9d72b-e802-4cc7-84c8-34ca417a10c7",
+  "https://www.figma.com/api/mcp/asset/6a649f2a-a66f-4922-b744-d52b9db77848",
+]
 
 const defaultOfferImages = [
-  'https://www.figma.com/api/mcp/asset/be119407-be81-457f-acb8-6ae8c059b658',
-  'https://www.figma.com/api/mcp/asset/1385c0da-6357-456c-a792-85c4faa896fe',
-  'https://www.figma.com/api/mcp/asset/689f06ae-e279-491b-8afb-133a682a3d8b',
-  'https://www.figma.com/api/mcp/asset/82f87dae-0f7f-4a67-a055-5619d9dfb2ea',
-];
+  "https://www.figma.com/api/mcp/asset/be119407-be81-457f-acb8-6ae8c059b658",
+  "https://www.figma.com/api/mcp/asset/1385c0da-6357-456c-a792-85c4faa896fe",
+  "https://www.figma.com/api/mcp/asset/689f06ae-e279-491b-8afb-133a682a3d8b",
+  "https://www.figma.com/api/mcp/asset/82f87dae-0f7f-4a67-a055-5619d9dfb2ea",
+]
 
 const bookingStepIcons = [
-  new URL('@/assets/images/client/Icon6.svg', import.meta.url).href,
-  new URL('@/assets/images/client/Icon5.svg', import.meta.url).href,
-  new URL('@/assets/images/client/Icon4.svg', import.meta.url).href,
-  
-];
+  new URL("@/assets/images/client/Icon6.svg", import.meta.url).href,
+  new URL("@/assets/images/client/Icon5.svg", import.meta.url).href,
+  new URL("@/assets/images/client/Icon4.svg", import.meta.url).href,
+]
 
 const reasonIcons = [
-  new URL('@/assets/images/client/Icon7.svg', import.meta.url).href,
-  new URL('@/assets/images/client/Icon_quick.png', import.meta.url).href,
-  new URL('@/assets/images/client/Icon9.svg', import.meta.url).href,
-];
+  new URL("@/assets/images/client/Icon7.svg", import.meta.url).href,
+  new URL("@/assets/images/client/Icon_quick.png", import.meta.url).href,
+  new URL("@/assets/images/client/Icon9.svg", import.meta.url).href,
+]
 
-const { t, locale } = useI18n({ useScope: 'global' });
-const router = useRouter();
+const { t, locale } = useI18n({ useScope: "global" })
+const router = useRouter()
 
-const serviceMenuRecords = ref<Level1CategoryRecord[]>([]);
-const serviceCardRecords = ref<ExclusiveSpuRecord[]>([]);
+const serviceMenuRecords = ref<Level1CategoryRecord[]>([])
+const serviceCardRecords = ref<ExclusiveSpuRecord[]>([])
 
 const getPreferredLangs = () =>
-  locale.value === 'zh'
-    ? ['zh-CN', 'zh', 'en', 'en-US']
-    : ['en', 'en-US', 'zh-CN', 'zh'];
+  locale.value === "zh"
+    ? ["zh-CN", "zh", "en", "en-US"]
+    : ["en", "en-US", "zh-CN", "zh"]
 
-const pickI18nValue = (i18n?: Record<string, string>, fallback = ''): string => {
-  const valueMap = i18n || {};
-  const preferredLangs = getPreferredLangs();
+const pickI18nValue = (
+  i18n?: Record<string, string>,
+  fallback = "",
+): string => {
+  const valueMap = i18n || {}
+  const preferredLangs = getPreferredLangs()
   for (const lang of preferredLangs) {
-    const value = valueMap[lang];
-    if (typeof value === 'string' && value.trim()) {
-      return value.trim();
+    const value = valueMap[lang]
+    if (typeof value === "string" && value.trim()) {
+      return value.trim()
     }
   }
   const firstValue = Object.values(valueMap).find(
-    (value) => typeof value === 'string' && value.trim(),
-  );
-  if (typeof firstValue === 'string') {
-    return firstValue.trim();
+    (value) => typeof value === "string" && value.trim(),
+  )
+  if (typeof firstValue === "string") {
+    return firstValue.trim()
   }
-  return fallback;
-};
+  return fallback
+}
 
 const serviceTiles = computed<ServiceTile[]>(() => {
-  const records = serviceMenuRecords.value || [];
+  const records = serviceMenuRecords.value || []
   const filtered = records.filter((item) => {
-    const status = item.category?.status;
-    return status === undefined || status === null || String(status) === '1';
-  });
-  const source = filtered.length ? filtered : records;
+    const status = item.category?.status
+    return status === undefined || status === null || String(status) === "1"
+  })
+  const source = filtered.length ? filtered : records
   const mapped = source
     .map((item, index) => ({
-      id: String(item.category?.categoryId || item.category?.id || `service-${index + 1}`),
-      categoryId: String(item.category?.categoryId || item.category?.id || ''),
+      id: String(
+        item.category?.categoryId ||
+          item.category?.id ||
+          `service-${index + 1}`,
+      ),
+      categoryId: String(item.category?.categoryId || item.category?.id || ""),
       title: pickI18nValue(
         item.nameI18n,
-        item.category?.categoryName?.trim() || t('client.home.defaults.unnamedService'),
+        item.category?.categoryName?.trim() ||
+          t("client.home.defaults.unnamedService"),
       ),
-      description: pickI18nValue(item.bannerDescI18n, ''),
-      icon: item.imageUrls?.[0] || defaultServiceIcons[index % defaultServiceIcons.length],
+      description: pickI18nValue(item.bannerDescI18n, ""),
+      icon:
+        item.imageUrls?.[0] ||
+        defaultServiceIcons[index % defaultServiceIcons.length],
       placeholder: false,
       source: item,
     }))
-    .filter((item) => item.title);
+    .filter((item) => item.title)
 
-  return mapped.slice(0, 10);
-});
+  return mapped.slice(0, 10)
+})
 
-const defaultOfferCards = computed<OfferCard[]>(() => [
- 
-]);
+const defaultOfferCards = computed<OfferCard[]>(() => [])
 
 const formatPriceText = (minPrice?: number | string): string => {
-  if (minPrice === undefined || minPrice === null || minPrice === '') {
-    return t('client.home.serviceCard.priceConsult');
+  if (minPrice === undefined || minPrice === null || minPrice === "") {
+    return t("client.home.serviceCard.priceConsult")
   }
-  const value = Number(minPrice);
+  const value = Number(minPrice)
   if (!Number.isFinite(value)) {
-    return t('client.home.serviceCard.priceConsult');
+    return t("client.home.serviceCard.priceConsult")
   }
-  return t('client.home.serviceCard.priceFrom', {
+  return t("client.home.serviceCard.priceFrom", {
     price: Number.isInteger(value) ? value : value.toFixed(2),
-  });
-};
+  })
+}
 
 const featuredCards = computed<OfferCard[]>(() => {
-  const records = serviceCardRecords.value || [];
+  const records = serviceCardRecords.value || []
   if (!records.length) {
-    return defaultOfferCards.value;
+    return defaultOfferCards.value
   }
   const mapped = records
     .map((item, index) => {
       const fallback =
         defaultOfferCards.value.length > 0
           ? defaultOfferCards.value[index % defaultOfferCards.value.length]
-          : null;
+          : null
       return {
         id: String(item.id ?? `offer-${index + 1}`),
-        spuId: String(item.id ?? ''),
+        spuId: String(item.id ?? ""),
         title: pickI18nValue(
           item.nameI18n,
-          fallback?.title || t('client.home.defaults.unnamedService'),
+          fallback?.title || t("client.home.defaults.unnamedService"),
         ),
-        desc: pickI18nValue(item.descI18n, fallback?.desc || ''),
+        desc: pickI18nValue(item.descI18n, fallback?.desc || ""),
         price: formatPriceText(item.minPrice),
         image:
           item.imageUrls?.[0] ||
           fallback?.image ||
           defaultOfferImages[index % defaultOfferImages.length],
-      };
+      }
     })
-    .filter((item) => item.title);
-  return (mapped.length ? mapped : defaultOfferCards.value).slice(0, 4);
-});
+    .filter((item) => item.title)
+  return (mapped.length ? mapped : defaultOfferCards.value).slice(0, 4)
+})
 
 const bookingSteps = computed<BookingStep[]>(() => [
   {
     icon: bookingStepIcons[0],
-    title: t('client.home.steps.step1Title'),
-    desc: t('client.home.steps.step1Desc'),
+    title: t("client.home.steps.step1Title"),
+    desc: t("client.home.steps.step1Desc"),
   },
   {
     icon: bookingStepIcons[1],
-    title: t('client.home.steps.step2Title'),
-    desc: t('client.home.steps.step2Desc'),
+    title: t("client.home.steps.step2Title"),
+    desc: t("client.home.steps.step2Desc"),
   },
   {
     icon: bookingStepIcons[2],
-    title: t('client.home.steps.step3Title'),
-    desc: t('client.home.steps.step3Desc'),
+    title: t("client.home.steps.step3Title"),
+    desc: t("client.home.steps.step3Desc"),
   },
-]);
+])
 
 const reasons = computed<Reason[]>(() => [
   {
-    title: t('client.home.defaults.reason1Title'),
-    desc: t('client.home.defaults.reason1Desc'),
+    title: t("client.home.defaults.reason1Title"),
+    desc: t("client.home.defaults.reason1Desc"),
     icon: reasonIcons[0],
   },
   {
-    title: t('client.home.defaults.reason2Title'),
-    desc: t('client.home.defaults.reason2Desc'),
+    title: t("client.home.defaults.reason2Title"),
+    desc: t("client.home.defaults.reason2Desc"),
     icon: reasonIcons[1],
   },
   {
-    title: t('client.home.defaults.reason3Title'),
-    desc: t('client.home.defaults.reason3Desc'),
+    title: t("client.home.defaults.reason3Title"),
+    desc: t("client.home.defaults.reason3Desc"),
     icon: reasonIcons[2],
   },
-]);
+])
 
 const loadServiceMenus = async () => {
   try {
-    serviceMenuRecords.value = await level1Categories();
+    serviceMenuRecords.value = await level1Categories()
   } catch (error) {
-    console.error('load level1 categories failed:', error);
-    serviceMenuRecords.value = [];
+    console.error("load level1 categories failed:", error)
+    serviceMenuRecords.value = []
   }
-};
+}
 
 const openServiceList = (item: ServiceTile) => {
   if (item.placeholder) {
-    return;
+    return
   }
   const level1Payload = item.source
     ? JSON.stringify({
-      category: item.source.category || {},
-      nameI18n: item.source.nameI18n || {},
-      imageUrls: item.source.imageUrls || [],
-      bannerTitleI18n: item.source.bannerTitleI18n || {},
-      bannerDescI18n: item.source.bannerDescI18n || {},
-      bannerTagsI18n: item.source.bannerTagsI18n || {},
-    })
-    : '';
+        category: item.source.category || {},
+        nameI18n: item.source.nameI18n || {},
+        imageUrls: item.source.imageUrls || [],
+        bannerTitleI18n: item.source.bannerTitleI18n || {},
+        bannerDescI18n: item.source.bannerDescI18n || {},
+        bannerTagsI18n: item.source.bannerTagsI18n || {},
+      })
+    : ""
   const query: Record<string, string> = {
     name: item.title,
-  };
+  }
   if (item.categoryId) {
-    query.categoryId = item.categoryId;
+    query.categoryId = item.categoryId
   }
   if (level1Payload) {
-    query.level1 = level1Payload;
+    query.level1 = level1Payload
   }
 
   router.push({
-    path: '/services/daily-cleaning',
+    path: "/services/daily-cleaning",
     query,
-  });
-};
+  })
+}
 
 const goProductDetail = (spuId: string) => {
   if (!spuId) {
-    return;
+    return
   }
   router.push({
-    name: 'product-detail',
+    name: "product-detail",
     params: { spuId },
-  });
-};
+  })
+}
 
 const scrollToServices = () => {
-  const servicesSection = document.getElementById('services');
+  const servicesSection = document.getElementById("services")
   if (!servicesSection) {
-    return;
+    return
   }
-  const targetTop = servicesSection.getBoundingClientRect().top + window.scrollY - 96;
-  window.scrollTo({ top: Math.max(targetTop, 0), behavior: 'smooth' });
-};
+  const targetTop =
+    servicesSection.getBoundingClientRect().top + window.scrollY - 96
+  window.scrollTo({ top: Math.max(targetTop, 0), behavior: "smooth" })
+}
 
 const openWhatsApp = () => {
-  window.open('https://wa.me/971502100284', '_blank', 'noopener,noreferrer');
-};
+  window.open("https://wa.me/971502100284/?text=Hi%2C+I%E2%80%99m+interested+in+HourX+services.+Could+you+please+help+me%3F", "_blank", "noopener,noreferrer")
+}
 
 const loadExclusiveCards = async () => {
   try {
-    serviceCardRecords.value = await exclusiveSpus();
+    serviceCardRecords.value = await exclusiveSpus()
   } catch (error) {
-    console.error('load exclusive spus failed:', error);
-    serviceCardRecords.value = [];
+    console.error("load exclusive spus failed:", error)
+    serviceCardRecords.value = []
   }
-};
+}
 
 onMounted(() => {
-  loadServiceMenus();
-  loadExclusiveCards();
-});
+  loadServiceMenus()
+  loadExclusiveCards()
+})
 </script>
 
 <style scoped lang="scss">
@@ -461,7 +516,7 @@ onMounted(() => {
   --text-sub: rgba(15, 23, 42, 0.5);
   background: #fff;
   color: var(--text-main);
-  font-family: 'Inter', 'Noto Sans SC', 'PingFang SC', sans-serif;
+  font-family: "Inter", "Noto Sans SC", "PingFang SC", sans-serif;
 }
 
 .home-container {
@@ -472,7 +527,7 @@ onMounted(() => {
 .hero-section {
   position: relative;
   width: 100%;
-  height: clamp(500px, 43vw, 660px);
+  height: clamp(420px, 36vw, 550px);
   overflow: hidden;
   line-height: 0;
   background: var(--hourx-brand-soft);
@@ -503,7 +558,7 @@ onMounted(() => {
 .hero-section__content h1 {
   max-width: 600px;
   margin: 0;
-  font-size: clamp(42px, 4.2vw, 66px);
+  font-size: clamp(38px, 3.2vw, 42px);
   line-height: 1.05;
   font-weight: 900;
   letter-spacing: -0.035em;
@@ -579,7 +634,10 @@ onMounted(() => {
   font-weight: 800;
   letter-spacing: 0.01em;
   cursor: pointer;
-  transition: transform 180ms ease, box-shadow 180ms ease, background 180ms ease;
+  transition:
+    transform 180ms ease,
+    box-shadow 180ms ease,
+    background 180ms ease;
 }
 
 .hero-section__action:hover {
@@ -592,23 +650,37 @@ onMounted(() => {
 }
 
 .hero-section__action--primary {
-  background: linear-gradient(135deg, var(--hourx-brand) 0%, var(--hourx-brand-hover) 100%);
-  box-shadow: 0 12px 28px rgba(5, 21, 43, 0.32);
+  min-width: 200px;
+  min-height: 62px;
+  border: none;
+  background: linear-gradient(135deg, #77f4dd 0%, #2ed8bd 100%);
+  color: #05152b;
+  font-size: 17px;
+  font-weight: 900;
+  box-shadow:
+    0 18px 40px rgba(4, 25, 48, 0.48),
+    0 0 0 6px rgba(119, 244, 221, 0.16);
 }
 
 .hero-section__action--primary:hover {
-  box-shadow: 0 16px 32px rgba(5, 21, 43, 0.42);
+  background: linear-gradient(135deg, #91f8e5 0%, #43e3c8 100%);
+  box-shadow:
+    0 22px 48px rgba(4, 25, 48, 0.56),
+    0 0 0 8px rgba(119, 244, 221, 0.22);
 }
 
 .hero-section__action--whatsapp {
-  background: #fff;
-  border-color: rgba(255, 255, 255, 0.9);
-  color: var(--hourx-brand);
-  box-shadow: 0 12px 28px rgba(10, 24, 50, 0.2);
+  background: transparent;
+  border-color: rgba(255, 255, 255, 0.3);
+  color: rgba(255, 255, 255, 0.72);
+  box-shadow: none;
+  font-weight: 600;
 }
 
 .hero-section__action--whatsapp:hover {
-  background: var(--hourx-brand-soft);
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.45);
+  color: rgba(255, 255, 255, 0.88);
 }
 
 .hero-section__action--whatsapp img {
@@ -712,7 +784,7 @@ onMounted(() => {
 
 .section-subtitle--line::before,
 .section-subtitle--line::after {
-  content: '';
+  content: "";
   height: 1px;
   background: linear-gradient(90deg, rgba(0, 0, 0, 0) 0%, #90a1b9 100%);
 }
@@ -722,7 +794,7 @@ onMounted(() => {
 }
 
 .services-grid {
-  margin-top: 56px;
+  margin-top: 28px;
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 24px;
@@ -730,8 +802,8 @@ onMounted(() => {
 
 .services-grid__item {
   position: relative;
-  min-height: 176px;
-  padding: 26px 28px;
+  min-height: 154px;
+  padding: 22px 24px;
   border: 1px solid #e5edf6;
   border-radius: 22px;
   overflow: hidden;
@@ -739,7 +811,7 @@ onMounted(() => {
     radial-gradient(circle at 100% 0%, rgba(5, 21, 43, 0.1), transparent 42%),
     #fff;
   display: grid;
-  grid-template-columns: 104px minmax(0, 1fr);
+  grid-template-columns: 88px minmax(0, 1fr);
   align-items: center;
   gap: 24px;
   color: inherit;
@@ -760,11 +832,15 @@ onMounted(() => {
 }
 
 .services-grid__icon {
-  width: 104px;
-  height: 104px;
+  width: 88px;
+  height: 88px;
   border: 1px solid rgba(5, 21, 43, 0.12);
   border-radius: 26px;
-  background: linear-gradient(145deg, var(--hourx-brand-soft) 0%, var(--hourx-brand-soft) 100%);
+  background: linear-gradient(
+    145deg,
+    var(--hourx-brand-soft) 0%,
+    var(--hourx-brand-soft) 100%
+  );
   display: flex;
   align-items: center;
   justify-content: center;
@@ -772,10 +848,21 @@ onMounted(() => {
 }
 
 .services-grid__icon img {
-  width: 58px;
-  height: 58px;
+  width: 48px;
+  height: 48px;
   object-fit: contain;
   filter: var(--hourx-brand-filter);
+}
+
+.services-grid__item--product .services-grid__icon {
+  overflow: hidden;
+}
+
+.services-grid__item--product .services-grid__icon img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  filter: none;
 }
 
 .services-grid__content {
@@ -874,7 +961,7 @@ onMounted(() => {
 
 .offer-card__media {
   position: relative;
-  height: 224px;
+  height: 184px;
 }
 
 .offer-card__media img {
@@ -956,7 +1043,7 @@ onMounted(() => {
 }
 
 .section-subtitle--light {
-  color: #E5EAF1;
+  color: #e5eaf1;
 }
 
 .booking-steps {
@@ -969,7 +1056,7 @@ onMounted(() => {
 .booking-steps__line {
   position: absolute;
   top: 44px;
-  left: 16%; 
+  left: 16%;
   width: 68%;
   height: 2px;
   // background: rgba(81, 162, 255, 0.3);
@@ -1047,7 +1134,11 @@ onMounted(() => {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(145deg, var(--hourx-brand-soft) 0%, var(--hourx-brand-soft) 100%);
+  background: linear-gradient(
+    145deg,
+    var(--hourx-brand-soft) 0%,
+    var(--hourx-brand-soft) 100%
+  );
 }
 
 .trust-card__icon img {
@@ -1084,7 +1175,12 @@ onMounted(() => {
   align-items: center;
   justify-content: space-between;
   gap: 36px;
-  background: linear-gradient(135deg, var(--hourx-brand) 0%, var(--hourx-brand-hover) 58%, var(--hourx-brand) 145%);
+  background: linear-gradient(
+    135deg,
+    var(--hourx-brand) 0%,
+    var(--hourx-brand-hover) 58%,
+    var(--hourx-brand) 145%
+  );
   box-shadow: 0 22px 48px rgba(15, 41, 74, 0.18);
 }
 
@@ -1149,7 +1245,6 @@ onMounted(() => {
   .offers-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
-
 }
 
 @media (max-width: 960px) {

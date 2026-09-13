@@ -5,7 +5,15 @@
         <van-icon name="arrow-left" />
       </button>
       <h1>{{ t('client.productDetail.pageTitle') }}</h1>
-      <span class="h5-detail-topbar__spacer" />
+      <button
+        class="h5-detail-topbar__cart"
+        type="button"
+        :aria-label="t('client.header.nav.cart')"
+        @click="router.push({ name: 'h5-cart' })"
+      >
+        <van-icon name="cart-o" />
+        <span v-if="cartCount">{{ cartCount > 99 ? '99+' : cartCount }}</span>
+      </button>
     </header>
 
     <main class="h5-detail-main">
@@ -30,7 +38,7 @@
       <section class="h5-detail-card h5-detail-card--summary">
         <div class="h5-detail-card__title-row">
           <h2>{{ displayTitle }}</h2>
-          <strong>{{ formatPriceBlock(subtotalPrice) }}</strong>
+          <strong>{{ formatPriceBlock(totalPrice) }}</strong>
         </div>
         <div class="h5-detail-card__meta-row">
           <div class="h5-detail-card__rating" v-if="averageRating > 0">
@@ -47,7 +55,11 @@
         <div class="h5-detail-card__section">
           <h3>{{ t('client.productDetail.serviceDescription') }}</h3>
           <p v-if="isLoading">{{ t('client.productDetail.loading') }}</p>
-          <p v-else-if="displayDesc">{{ displayDesc }}</p>
+          <div
+            v-else-if="serviceDescriptionHtml"
+            class="h5-detail-html"
+            v-html="serviceDescriptionHtml"
+          />
           <p v-else class="h5-detail-card__empty">{{ t('client.productDetail.emptyDesc') }}</p>
         </div>
       </section>
@@ -102,12 +114,7 @@
           <span />
           <h3>{{ t('client.productDetail.includesTitle') }}</h3>
         </div>
-        <ul v-if="includesItems.length" class="h5-detail-checklist">
-          <li v-for="item in includesItems" :key="item">
-            <van-icon name="passed" />
-            <span>{{ item }}</span>
-          </li>
-        </ul>
+        <div v-if="serviceContentHtml" class="h5-detail-html" v-html="serviceContentHtml" />
         <p v-else class="h5-detail-card__empty">{{ t('client.productDetail.emptyDesc') }}</p>
       </section>
 
@@ -132,35 +139,53 @@
             <span>{{ t('h5.productDetail.reviewCount', { count: reviewCount }) }}</span>
           </div>
         </div>
-        <article v-if="primaryReview" class="h5-review-card">
+        <div v-if="visibleReviewItems.length" class="h5-review-list">
+        <article v-for="item in visibleReviewItems" :key="`${item.commenter}-${item.commentTime}-${item.content}`" class="h5-review-card">
           <div class="h5-review-card__head">
             <div class="h5-review-card__user">
-              <span class="h5-review-card__avatar">{{ primaryReview.avatarText }}</span>
-              <strong>{{ primaryReview.commenter }}</strong>
+              <span class="h5-review-card__avatar">{{ item.avatarText }}</span>
+              <strong>{{ item.commenter }}</strong>
             </div>
-            <span class="h5-review-card__time" v-if="primaryReview.commentTime">{{ primaryReview.commentTime }}</span>
+            <span class="h5-review-card__time" v-if="item.commentTime">{{ item.commentTime }}</span>
           </div>
-          <van-rate :model-value="primaryReview.rating" readonly size="12" color="#fbbf24" />
-          <p>{{ primaryReview.content }}</p>
+          <van-rate :model-value="item.rating" readonly size="12" color="#fbbf24" />
+          <p>{{ item.content }}</p>
         </article>
-        <p v-else class="h5-detail-card__empty">{{ t('client.productDetail.emptyDesc') }}</p>
+        </div>
+        <p v-else class="h5-detail-card__empty">{{ t('client.productDetail.emptyReviews') }}</p>
+        <button
+          v-if="reviewItems.length > 3"
+          class="h5-review-list__toggle"
+          type="button"
+          :aria-expanded="reviewsExpanded"
+          @click="reviewsExpanded = !reviewsExpanded"
+        >
+          {{
+            reviewsExpanded
+              ? (locale.startsWith('zh') ? '收起评价' : 'Show fewer reviews')
+              : (locale.startsWith('zh') ? `查看全部 ${reviewItems.length} 条评价` : `View all ${reviewItems.length} reviews`)
+          }}
+          <van-icon :name="reviewsExpanded ? 'arrow-up' : 'arrow-down'" />
+        </button>
       </section>
     </main>
 
     <footer class="h5-detail-bottom">
       <div class="h5-detail-bottom__summary">
         <div>
-          <span>{{ t('client.productDetail.booking.vat') }}</span>
-          <small>{{ formatAed(vatPrice) }}</small>
-        </div>
-        <div>
           <span>{{ t('client.productDetail.booking.total') }}</span>
           <strong>{{ formatAed(totalPrice) }}</strong>
         </div>
       </div>
-      <button class="h5-detail-bottom__submit" type="button" :disabled="isCreatingOrder" @click="goOrderConfirm">
-        {{ isCreatingOrder ? t('client.profile.actions.submitting') : t('client.productDetail.booking.bookNow') }}
-      </button>
+      <div class="h5-detail-bottom__actions">
+        <button class="h5-detail-bottom__cart" type="button" @click="handleAddToCart">
+          <van-icon name="cart-o" />
+          <span>{{ t('client.productDetail.booking.addToCart') }}</span>
+        </button>
+        <button class="h5-detail-bottom__submit" type="button" :disabled="isCreatingOrder" @click="goOrderConfirm">
+          {{ isCreatingOrder ? t('client.profile.actions.submitting') : t('client.productDetail.booking.bookNow') }}
+        </button>
+      </div>
     </footer>
   </div>
 </template>
@@ -171,11 +196,14 @@ import { useI18n } from 'vue-i18n';
 import { useRoute, useRouter } from 'vue-router';
 import { showFailToast } from 'vant';
 import { createOrder, getProductDetail, getProductSku } from '@/modules/client/api';
+import { useCart } from '@/modules/client/composables/useCart';
 import { setClientLocale } from '@/modules/client/locales';
+import { formatCreatedAt } from '@/modules/client/utils/order-date-time';
+import { formatContactName } from '@/modules/client/utils/order-localization';
 import { clearStoredAuthState, getStoredAuthSnapshot } from '@/utils/auth-state';
 
 type I18nText = Record<string, string>;
-type I18nTextArray = Record<string, string[]>;
+type I18nTextArray = Record<string, string[] | string>;
 
 type ProductDetailRecord = {
   id?: number | string;
@@ -184,6 +212,7 @@ type ProductDetailRecord = {
   nameI18n?: I18nText;
   descI18n?: I18nText;
   serviceContentI18n?: I18nTextArray;
+  serviceContentTextI18n?: I18nText;
   bookingNoticeI18n?: I18nText;
   specBindings?: Array<{
     specTypeId?: number | string;
@@ -200,9 +229,23 @@ type ProductDetailRecord = {
   reviewList?: Array<{
     rating?: number | string;
     content?: string;
+    firstName?: string;
+    lastName?: string;
+    customerName?: string;
+    reviewerName?: string;
+    nickname?: string;
+    displayName?: string;
+    userName?: string;
+    name?: string;
     commenter?: string;
     avatarUrl?: string | null;
     commentTime?: string;
+    user?: {
+      firstName?: string;
+      lastName?: string;
+      name?: string;
+      nickname?: string;
+    };
   }>;
   minPrice?: number | string;
   price?: number | string;
@@ -262,6 +305,7 @@ const router = useRouter();
 const { t, locale } = useI18n({ useScope: 'global' });
 
 const isLoading = ref(false);
+const reviewsExpanded = ref(false);
 const isCreatingOrder = ref(false);
 const productDetail = ref<ProductDetailRecord | null>(null);
 const skuPrice = ref<ProductSkuRecord | null>(null);
@@ -269,6 +313,7 @@ const selectedImageIndex = ref(0);
 const selectedSpecValues = ref<Record<string, string>>({});
 const attachQuantities = ref<Record<string, number>>({});
 const skuRequestSeq = ref(0);
+const { cartCount } = useCart();
 
 const getPreferredLangs = () =>
   locale.value === 'zh'
@@ -305,6 +350,26 @@ const pickI18nList = (i18n?: I18nTextArray): string[] => {
     ? firstValue.map((item) => String(item ?? '').trim()).filter(Boolean)
     : [];
 };
+
+const escapeHtml = (value: string) =>
+  value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+
+const normalizeRichTextHtml = (value: string) => {
+  const content = String(value || '').trim();
+  if (!content) return '';
+  if (/<\/?[a-z][^>]*>/i.test(content)) return content;
+  return `<p>${escapeHtml(content).replace(/\r?\n/g, '<br>')}</p>`;
+};
+
+const legacyListToHtml = (items: string[]) =>
+  items.length
+    ? `<ul>${items.map((item) => `<li>${escapeHtml(item)}</li>`).join('')}</ul>`
+    : '';
 
 const getRouteQueryText = (key: string): string => {
   const raw = route.query[key];
@@ -444,18 +509,34 @@ const galleryImages = computed(() => {
 });
 
 const displayTitle = computed(() => pickI18nValue(productDetail.value?.nameI18n, t('client.productDetail.fallbackTitle')));
-const displayDesc = computed(() => pickI18nValue(productDetail.value?.descI18n, ''));
-const includesItems = computed(() => pickI18nList(productDetail.value?.serviceContentI18n));
-const bookingNoticeHtml = computed(() => pickI18nValue(productDetail.value?.bookingNoticeI18n, ''));
+const serviceDescriptionHtml = computed(() => normalizeRichTextHtml(
+  pickI18nValue(productDetail.value?.descI18n, ''),
+));
+const serviceContentHtml = computed(() => {
+  const detail = productDetail.value;
+  const richText = pickI18nValue(detail?.serviceContentTextI18n, '');
+  if (richText) return normalizeRichTextHtml(richText);
+  const mixedText = pickI18nValue(
+    detail?.serviceContentI18n as unknown as I18nText | undefined,
+    '',
+  );
+  if (mixedText) return normalizeRichTextHtml(mixedText);
+  return legacyListToHtml(pickI18nList(detail?.serviceContentI18n));
+});
+const bookingNoticeHtml = computed(() => normalizeRichTextHtml(
+  pickI18nValue(productDetail.value?.bookingNoticeI18n, ''),
+));
 
 const serviceListQuery = computed(() => {
   const query: Record<string, string> = {};
   const categoryId = getRouteQueryText('categoryId');
   const level1 = getRouteQueryText('level1');
+  const keyword = getRouteQueryText('keyword');
   const name = getRouteQueryText('breadcrumb') || getRouteQueryText('name');
   if (categoryId) query.categoryId = categoryId;
   if (level1) query.level1 = level1;
   if (name) query.name = name;
+  if (keyword) query.keyword = keyword;
   return query;
 });
 
@@ -580,6 +661,14 @@ const selectedSpecValueIds = computed(() =>
     .map((value) => normalizeIdForApi(value)),
 );
 
+const selectedSpecSummary = computed(() => bookingSpecGroups.value
+  .map((group) => {
+    const selectedId = selectedSpecValues.value[group.typeId];
+    return group.options.find((option) => option.id === selectedId)?.label || '';
+  })
+  .filter(Boolean)
+  .join(' / '));
+
 const attachItemsForSku = computed(() => {
   const payloadMap = new Map<string, { attachValueId: number | string; quantity: number }>();
   bookingAttachGroups.value.forEach((group) => {
@@ -630,10 +719,10 @@ const vatPrice = computed(() => {
   if (withTax !== null && withoutTax !== null) {
     return Math.max(0, withTax - withoutTax);
   }
-  return subtotalPrice.value * 0.05;
+  return 0;
 });
 
-const totalPrice = computed(() => resolveOptionalNumber(skuPrice.value?.totalPriceWithTax) ?? subtotalPrice.value + vatPrice.value);
+const totalPrice = computed(() => resolveOptionalNumber(skuPrice.value?.totalPriceWithTax) ?? subtotalPrice.value);
 
 const normalizeRating = (value: unknown): number => {
   const rating = Number(value);
@@ -644,9 +733,23 @@ const normalizeRating = (value: unknown): number => {
 const reviewItems = computed(() => {
   const source = Array.isArray(productDetail.value?.reviewList) ? productDetail.value?.reviewList || [] : [];
   return source.map((item) => {
-    const commenter = String(item.commenter ?? '').trim() || t('client.productDetail.reviewUser');
+    const commenter = formatContactName(item.firstName, item.lastName)
+      || formatContactName(item.user?.firstName, item.user?.lastName)
+      || String(item.customerName ?? '').trim()
+      || String(item.reviewerName ?? '').trim()
+      || String(item.nickname ?? '').trim()
+      || String(item.displayName ?? '').trim()
+      || String(item.user?.name ?? '').trim()
+      || String(item.user?.nickname ?? '').trim()
+      || String(item.name ?? '').trim()
+      || String(item.userName ?? '').trim()
+      || String(item.commenter ?? '').trim()
+      || t('client.productDetail.reviewUser');
     const content = String(item.content ?? '').trim() || t('client.productDetail.reviewText');
-    const commentTime = String(item.commentTime ?? '').trim();
+    const rawCommentTime = String(item.commentTime ?? '').trim();
+    const commentTime = rawCommentTime
+      ? formatCreatedAt(rawCommentTime, locale.value, rawCommentTime)
+      : '';
     return {
       commenter,
       content,
@@ -685,7 +788,9 @@ const soldCount = computed(() => {
   return count ?? 0;
 });
 
-const primaryReview = computed(() => reviewItems.value[0] || null);
+const visibleReviewItems = computed(() => (
+  reviewsExpanded.value ? reviewItems.value : reviewItems.value.slice(0, 3)
+));
 
 const loadProductDetail = async () => {
   if (!spuId.value) {
@@ -821,15 +926,53 @@ const decreaseAttachQty = (valueId: string) => {
   };
 };
 
-const formatAed = (value: number) => `${value.toFixed(2)} AED`;
-const formatPriceBlock = (value: number) => `${value.toFixed(2)} AED`;
+const formatAed = (value: number) => `AED ${value.toFixed(2)}`;
+const formatPriceBlock = (value: number) => `AED ${value.toFixed(2)}`;
 
 const handleBack = () => {
   if (Object.keys(serviceListQuery.value).length) {
-    router.push({ name: 'h5-service-list', query: serviceListQuery.value });
+    router.push({
+      name: getRouteQueryText('keyword') ? 'h5-service-search' : 'h5-service-list',
+      query: serviceListQuery.value,
+    });
     return;
   }
   router.push({ name: 'h5-home' });
+};
+
+const handleAddToCart = async () => {
+  const payload = skuRequestPayload.value;
+  if (!payload) {
+    showFailToast(t('client.productDetail.booking.createOrderInvalid'));
+    return;
+  }
+  const authSnapshot = getStoredAuthSnapshot();
+  if (authSnapshot.isExpired) clearStoredAuthState();
+  if (!authSnapshot.isLoggedIn) {
+    await router.push({ name: 'h5-login', query: { redirect: route.fullPath } });
+    return;
+  }
+  await router.push({
+    name: 'h5-order-confirm',
+    query: {
+      mode: 'cart',
+      cartSkuDetail: JSON.stringify(payload),
+      spuId: spuId.value,
+      skuId: skuPrice.value?.skuId ? String(skuPrice.value.skuId) : '',
+      title: displayTitle.value,
+      titleI18n: JSON.stringify(productDetail.value?.nameI18n || {}),
+      imageUrls: JSON.stringify(productDetail.value?.imageUrls?.slice(0, 1) || []),
+      specSummary: selectedSpecSummary.value,
+      selectedSpecValueIds: JSON.stringify(selectedSpecValueIds.value.map((id) => String(id))),
+      subtotal: subtotalPrice.value.toFixed(2),
+      tax: vatPrice.value.toFixed(2),
+      total: totalPrice.value.toFixed(2),
+      breadcrumb: getRouteQueryText('breadcrumb'),
+      name: getRouteQueryText('name'),
+      categoryId: getRouteQueryText('categoryId'),
+      level1: getRouteQueryText('level1'),
+    },
+  });
 };
 
 const goOrderConfirm = async () => {
@@ -866,6 +1009,7 @@ const goOrderConfirm = async () => {
         skuId: skuPrice.value?.skuId ? String(skuPrice.value.skuId) : '',
         title: displayTitle.value,
         titleI18n: JSON.stringify(productDetail.value?.nameI18n || {}),
+        imageUrls: JSON.stringify(productDetail.value?.imageUrls?.slice(0, 1) || []),
         specSummary: bookingSpecGroups.value
           .map((group) => {
             const selectedId = selectedSpecValues.value[group.typeId];
@@ -914,7 +1058,7 @@ const goOrderConfirm = async () => {
 }
 
 .h5-detail-topbar__back,
-.h5-detail-topbar__spacer {
+.h5-detail-topbar__cart {
   width: 40px;
   height: 40px;
 }
@@ -927,6 +1071,35 @@ const goOrderConfirm = async () => {
   align-items: center;
   justify-content: flex-start;
   font-size: 22px;
+}
+
+.h5-detail-topbar__cart {
+  position: relative;
+  padding: 0;
+  border: 0;
+  border-radius: 12px;
+  background: #f1f5f9;
+  color: #05152b;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 21px;
+}
+
+.h5-detail-topbar__cart span {
+  position: absolute;
+  top: -3px;
+  right: -5px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 4px;
+  border: 2px solid #fff;
+  border-radius: 999px;
+  background: #ef4444;
+  color: #fff;
+  font-size: 8px;
+  font-weight: 900;
+  line-height: 14px;
 }
 
 .h5-detail-topbar h1 {
@@ -948,12 +1121,12 @@ const goOrderConfirm = async () => {
 }
 
 .h5-detail-gallery__swipe {
-  height: 226px;
+  height: 192px;
 }
 
 .h5-detail-gallery__swipe img {
   width: 100%;
-  height: 226px;
+  height: 192px;
   object-fit: cover;
   display: block;
 }
@@ -1118,7 +1291,7 @@ const goOrderConfirm = async () => {
 
 .h5-booking-group__options {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(78px, 1fr));
   gap: 8px;
 }
 
@@ -1130,7 +1303,9 @@ const goOrderConfirm = async () => {
   color: #62748e;
   font-size: 12px;
   font-weight: 700;
-  padding: 0 10px;
+  padding: 7px 8px;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
 }
 
 .h5-booking-option--active {
@@ -1227,6 +1402,7 @@ const goOrderConfirm = async () => {
   color: #45556c;
   font-size: 12px;
   line-height: 1.7;
+  overflow-wrap: anywhere;
 }
 
 .h5-detail-html :deep(*) {
@@ -1242,8 +1418,62 @@ const goOrderConfirm = async () => {
 
 .h5-detail-html :deep(ul),
 .h5-detail-html :deep(ol) {
-  margin: 0;
+  margin: 8px 0;
   padding-left: 16px;
+}
+
+.h5-detail-html :deep(h1),
+.h5-detail-html :deep(h2),
+.h5-detail-html :deep(h3),
+.h5-detail-html :deep(h4) {
+  margin: 12px 0 7px;
+  color: #1d293d;
+  line-height: 1.35;
+}
+
+.h5-detail-html :deep(h1) {
+  font-size: 17px;
+}
+
+.h5-detail-html :deep(h2) {
+  font-size: 16px;
+}
+
+.h5-detail-html :deep(h3) {
+  font-size: 15px;
+}
+
+.h5-detail-html :deep(h4) {
+  font-size: 14px;
+}
+
+.h5-detail-html :deep(a) {
+  color: #1677c8;
+  text-decoration: underline;
+}
+
+.h5-detail-html :deep(blockquote) {
+  margin: 9px 0;
+  padding-left: 10px;
+  border-left: 3px solid rgba(22, 119, 200, 0.22);
+  color: #62748e;
+}
+
+.h5-detail-html :deep(img) {
+  max-width: 100%;
+  height: auto;
+}
+
+.h5-detail-html :deep(.ql-align-center) {
+  text-align: center;
+}
+
+.h5-detail-html :deep(.ql-align-right) {
+  text-align: right;
+}
+
+.h5-detail-html :deep(.ql-align-justify) {
+  text-align: justify;
 }
 
 .h5-detail-card__review-summary {
@@ -1259,8 +1489,18 @@ const goOrderConfirm = async () => {
   font-size: 14px;
 }
 
+.h5-review-list {
+  margin-top: 14px;
+}
+
 .h5-review-card {
-  margin-top: 16px;
+  padding: 14px 0;
+  border-top: 1px solid #eef2f6;
+}
+
+.h5-review-card:first-child {
+  padding-top: 0;
+  border-top: 0;
 }
 
 .h5-review-card__head {
@@ -1311,6 +1551,22 @@ const goOrderConfirm = async () => {
   line-height: 1.6;
 }
 
+.h5-review-list__toggle {
+  width: 100%;
+  min-height: 42px;
+  margin-top: 6px;
+  border: 1px solid #dce6f1;
+  border-radius: 12px;
+  background: #f8fbff;
+  color: var(--hourx-brand);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  font-size: 12px;
+  font-weight: 800;
+}
+
 .h5-detail-bottom {
   position: fixed;
   left: 50%;
@@ -1321,8 +1577,11 @@ const goOrderConfirm = async () => {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 16px;
-  padding: 12px 16px calc(12px + env(safe-area-inset-bottom));
+  gap: 8px;
+  padding-top: 10px;
+  padding-right: max(12px, env(safe-area-inset-right));
+  padding-bottom: calc(10px + env(safe-area-inset-bottom));
+  padding-left: max(12px, env(safe-area-inset-left));
   background: rgba(255, 255, 255, 0.98);
   border-top: 1px solid #f3f4f6;
   box-shadow: 0 -8px 24px rgba(15, 23, 42, 0.08);
@@ -1330,9 +1589,24 @@ const goOrderConfirm = async () => {
 
 .h5-detail-bottom__summary {
   min-width: 0;
+  flex: 1;
   display: flex;
   flex-direction: column;
   gap: 4px;
+}
+
+.h5-detail-bottom__summary > div {
+  min-width: 0;
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+  white-space: nowrap;
+}
+
+.h5-detail-bottom__summary > div:last-child {
+  align-items: flex-start;
+  flex-direction: column;
+  gap: 2px;
 }
 
 .h5-detail-bottom__summary span {
@@ -1346,25 +1620,81 @@ const goOrderConfirm = async () => {
 }
 
 .h5-detail-bottom__summary strong {
+  display: block;
+  max-width: 100%;
   color: var(--hourx-brand);
-  font-size: 16px;
-  margin-left: 5px;
+  font-size: clamp(14px, 4vw, 16px);
+  margin-left: 0;
   line-height: 1;
   font-weight: 900;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.h5-detail-bottom__actions {
+  min-width: 0;
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.h5-detail-bottom__cart {
+  width: clamp(64px, 20vw, 78px);
+  height: 48px;
+  padding: 0 6px;
+  border: 1.5px solid rgba(5, 21, 43, 0.72);
+  border-radius: 14px;
+  background: linear-gradient(180deg, #f8fbff, #edf5ff);
+  color: #05152b;
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  font-weight: 800;
+}
+
+.h5-detail-bottom__cart :deep(.van-icon) {
+  font-size: 18px;
+}
+
+.h5-detail-bottom__cart span {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 9px;
 }
 
 .h5-detail-bottom__submit {
-  width: 120px;
-  height: 41px;
+  width: clamp(92px, 26vw, 108px);
+  height: 48px;
   border: 0;
-  border-radius: 6px;
-  background: var(--hourx-brand);
+  border-radius: 14px;
+  background: linear-gradient(135deg, #153b65, var(--hourx-brand));
   color: #fff;
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 900;
+  box-shadow: 0 10px 20px rgba(5, 21, 43, 0.2);
 }
 
 .h5-detail-bottom__submit:disabled {
   opacity: 0.7;
+}
+
+@media (max-width: 350px) {
+  .h5-detail-bottom__summary span {
+    font-size: 9px;
+  }
+
+  .h5-detail-bottom__cart {
+    width: 64px;
+  }
+
+  .h5-detail-bottom__submit {
+    width: 92px;
+    font-size: 12px;
+  }
 }
 </style>

@@ -5,6 +5,10 @@ import {
   loadAdminMenuPermissions,
   resolveAllowedAdminPath,
 } from '@/modules/admin/utils/menuPermission';
+import {
+  clearAdminAuthState,
+  getAdminAuthSnapshot,
+} from '@/utils/auth-state';
 
 const routes: RouteRecordRaw[] = [
   // 管理端：/admin 开头
@@ -106,8 +110,9 @@ router.beforeEach(async (to) => {
   if (!to.path.startsWith('/admin')) return true;
   if (to.path === '/admin/login') return true;
 
-  const token = localStorage.getItem('token');
-  if (!token) {
+  const auth = getAdminAuthSnapshot();
+  if (auth.isExpired) clearAdminAuthState();
+  if (!auth.isLoggedIn) {
     return { path: '/admin/login', query: { redirect: to.fullPath } };
   }
 

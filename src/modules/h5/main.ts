@@ -8,6 +8,9 @@ import { createI18n } from 'vue-i18n';
 import { createPinia } from 'pinia';
 import messages, { defaultLocale } from './locales';
 import { getClientLocale, setClientLocale } from '@/modules/client/locales';
+import { clearLegacyAuthState } from '@/utils/auth-state';
+
+clearLegacyAuthState();
 
 const savedLocale = localStorage.getItem('h5-locale') || getClientLocale() || defaultLocale;
 const locale = savedLocale.startsWith('zh') ? 'zh' : 'en';

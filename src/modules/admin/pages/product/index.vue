@@ -87,12 +87,45 @@
       </div>
 
       <el-table
+        class="product-sort-table"
         :data="products"
         border
         stripe
-        v-loading="tableLoading"
+        v-loading="tableLoading || sortSubmitting"
         row-key="id"
+        :row-class-name="productRowClassName"
+        @dragover.prevent="handleProductDragOver"
+        @drop.prevent="handleProductDrop"
       >
+        <el-table-column
+          v-if="canSortProducts"
+          :label="t('admin.product.table.sort')"
+          width="66"
+          align="center"
+          fixed="left"
+        >
+          <template #default="{ row }">
+            <button
+              class="product-sort-handle"
+              type="button"
+              :draggable="canSortProducts && !tableLoading && !sortSubmitting"
+              :disabled="!canSortProducts || tableLoading || sortSubmitting"
+              :title="t('admin.product.table.sortHint')"
+              :aria-label="`${t('admin.product.table.sort')}: ${row.name}`"
+              @dragstart.stop="handleProductDragStart(row, $event)"
+              @dragend.stop="resetProductDrag"
+            >
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <circle cx="8" cy="6" r="1.5" />
+                <circle cx="16" cy="6" r="1.5" />
+                <circle cx="8" cy="12" r="1.5" />
+                <circle cx="16" cy="12" r="1.5" />
+                <circle cx="8" cy="18" r="1.5" />
+                <circle cx="16" cy="18" r="1.5" />
+              </svg>
+            </button>
+          </template>
+        </el-table-column>
         <el-table-column :label="t('admin.product.table.image')" width="120">
           <template #default="{ row }">
             <div class="thumbs">
@@ -486,13 +519,14 @@
                   :value="lang.value"
                 />
               </el-select>
-              <el-input
-                v-model="item.value"
-                type="textarea"
-                :rows="2"
-                :placeholder="t('admin.product.form.descPlaceholder')"
-                class="full-width"
-              />
+              <div class="quill-wrapper">
+                <QuillEditor
+                  v-model:content="item.value"
+                  content-type="html"
+                  theme="snow"
+                  :placeholder="t('admin.product.form.descPlaceholder')"
+                />
+              </div>
               <el-button
                 v-if="form.descI18nList.length > 1"
                 type="danger"
@@ -532,13 +566,14 @@
                   :value="lang.value"
                 />
               </el-select>
-              <el-input
-                v-model="item.value"
-                type="textarea"
-                :rows="2"
-                :placeholder="t('admin.product.form.serviceContentPlaceholder')"
-                class="full-width"
-              />
+              <div class="quill-wrapper">
+                <QuillEditor
+                  v-model:content="item.value"
+                  content-type="html"
+                  theme="snow"
+                  :placeholder="t('admin.product.form.serviceContentPlaceholder')"
+                />
+              </div>
               <el-button
                 v-if="form.serviceContentI18nList.length > 1"
                 type="danger"
@@ -603,17 +638,71 @@
         </div>
 
         <el-form-item :label="t('admin.product.form.images')" prop="productImages">
-          <el-upload
-            :http-request="handleUpload"
-            list-type="picture-card"
-            :file-list="uploadList"
-            multiple
-            :on-remove="onRemove"
-          >
-            <el-icon><Plus /></el-icon>
-          </el-upload>
-          <div v-if="uploading" class="uploading-tip">
-            {{ t('admin.product.message.uploadingTip') }}
+          <div class="product-image-manager">
+            <div class="product-image-grid">
+              <article
+                v-for="(file, idx) in uploadList"
+                :key="file.uid ?? `${file.url}-${idx}`"
+                class="product-image-card"
+                :class="{
+                  'is-dragging': draggedImageIndex === idx,
+                  'is-drag-over': dragOverImageIndex === idx && draggedImageIndex !== idx,
+                }"
+                :draggable="!uploading"
+                @dragstart="handleImageDragStart(idx, $event)"
+                @dragenter.prevent="handleImageDragEnter(idx)"
+                @dragover.prevent
+                @drop.prevent="handleImageDrop(idx)"
+                @dragend="resetImageDrag"
+              >
+                <img :src="file.url" :alt="file.name" draggable="false" />
+                <span v-if="idx === 0" class="product-image-card__cover">
+                  {{ t('admin.product.imageManager.cover') }}
+                </span>
+                <span class="product-image-card__order">{{ idx + 1 }}</span>
+                <div class="product-image-card__actions">
+                  <span
+                    class="product-image-card__drag"
+                    :title="t('admin.product.imageManager.drag')"
+                    aria-hidden="true"
+                  >⠿</span>
+                  <button
+                    type="button"
+                    :disabled="idx === 0 || uploading"
+                    :aria-label="t('admin.product.imageManager.moveBefore')"
+                    @click.stop="moveImage(idx, idx - 1)"
+                  >‹</button>
+                  <button
+                    type="button"
+                    :disabled="idx === uploadList.length - 1 || uploading"
+                    :aria-label="t('admin.product.imageManager.moveAfter')"
+                    @click.stop="moveImage(idx, idx + 1)"
+                  >›</button>
+                  <button
+                    class="is-remove"
+                    type="button"
+                    :disabled="uploading"
+                    :aria-label="t('admin.product.imageManager.remove')"
+                    @click.stop="removeImage(idx)"
+                  >×</button>
+                </div>
+              </article>
+              <el-upload
+                class="product-image-uploader"
+                :http-request="handleUpload"
+                list-type="picture-card"
+                :show-file-list="false"
+                multiple
+              >
+                <el-icon><Plus /></el-icon>
+              </el-upload>
+            </div>
+            <p v-if="uploadList.length > 1" class="product-image-manager__hint">
+              {{ t('admin.product.imageManager.hint') }}
+            </p>
+            <div v-if="uploading" class="uploading-tip">
+              {{ t('admin.product.message.uploadingTip') }}
+            </div>
           </div>
         </el-form-item>
       </el-form>
@@ -678,6 +767,7 @@ import '@vueup/vue-quill/dist/vue-quill.snow.css';
 import { upload, currencies } from '@/modules/admin/api/product';
 import {
   page,
+  sortProducts,
   addOrUpdate,
   deleteProduct,
   detial,
@@ -694,6 +784,7 @@ import { getSpecValuePage } from '@/modules/admin/api/spec';
 import { getPage as getAddonTypePage } from '@/modules/admin/api/addonType';
 import { getPage as getAddonPage } from '@/modules/admin/api/addon';
 import { ADMIN_LANG_EN, ADMIN_LANG_ZH, pickI18nText } from '@/modules/admin/utils/i18n';
+import { getAdminAuthStorageValue } from '@/utils/auth-state';
 
 type ProductEntity = {
   id?: number;
@@ -853,10 +944,28 @@ const query = reactive({
   status: '',
   exclusive: '',
 });
+const hasProductFilterConditions = computed(
+  () =>
+    Boolean(query.spuCode.trim()) ||
+    normalizeOptionalId(query.categoryId) !== null ||
+    Boolean(String(query.shelfStatus ?? '').trim()) ||
+    normalizeOptionalId(query.serviceSubCategoryId) !== null ||
+    Boolean(query.nameKeyword.trim()) ||
+    Boolean(String(query.status ?? '').trim()) ||
+    Boolean(String(query.exclusive ?? '').trim()),
+);
+// 默认先禁用，只有一次无筛选查询成功后，才能确认当前列表是全量顺序的一部分。
+const loadedProductsAreFiltered = ref(true);
+const canSortProducts = computed(
+  () => !hasProductFilterConditions.value && !loadedProductsAreFiltered.value,
+);
 const products = ref<ProductRow[]>([]);
 const total = ref(0);
 const tableLoading = ref(false);
 const exportLoading = ref(false);
+const sortSubmitting = ref(false);
+const draggedProductId = ref<number | null>(null);
+const dragOverProductId = ref<number | null>(null);
 
 const dialogVisible = ref(false);
 const isEdit = ref(false);
@@ -867,6 +976,8 @@ const priceDialogVisible = ref(false);
 const priceLoading = ref(false);
 const uploadList = ref<UploadUserFile[]>([]);
 const uploadCount = ref(0);
+const draggedImageIndex = ref<number | null>(null);
+const dragOverImageIndex = ref<number | null>(null);
 const currencyOptions = ref<{ label: string; value: string }[]>([]);
 const currencyLoading = ref(false);
 const uploading = computed(() => uploadCount.value > 0);
@@ -1069,7 +1180,9 @@ const rules: FormRules = {
     {
       validator: (_rule, value, callback) => {
         const list = value as { lang: string; value: string }[];
-        const invalid = list.find((item) => !item.lang || !item.value?.trim());
+        const invalid = list.find(
+          (item) => !item.lang?.trim() || isRichTextEmpty(item.value),
+        );
         if (invalid) return callback(new Error(t('admin.product.validation.descI18nIncomplete')));
         callback();
       },
@@ -1121,7 +1234,9 @@ const rules: FormRules = {
     {
       validator: (_rule, value, callback) => {
         const list = value as { lang: string; value: string }[];
-        const invalid = list.find((item) => !item.lang || !item.value?.trim());
+        const invalid = list.find(
+          (item) => !item.lang?.trim() || isRichTextEmpty(item.value),
+        );
         if (invalid) return callback(new Error(t('admin.product.validation.serviceContentIncomplete')));
         callback();
       },
@@ -1187,6 +1302,8 @@ const resetForm = () => {
   form.addonGroups = [];
   uploadList.value = [];
   uploadCount.value = 0;
+  draggedImageIndex.value = null;
+  dragOverImageIndex.value = null;
   ensureCurrencyOption(form.product.currency);
   normalizeSpecGroups(true);
   nextTick(() => formRef.value?.clearValidate());
@@ -1251,7 +1368,7 @@ const toRow = (item: any): ProductRow => {
       spu.status === 'ON' ||
       spu.status === 'on',
     currency: spu.currency ?? 'CNY',
-    sort: undefined,
+    sort: spu.sort ?? item.sort,
     createdAt: spu.createTime ?? spu.createdAt,
     updatedAt: spu.modifyTime ?? spu.updatedAt,
     langs: Array.isArray(i18nList)
@@ -1509,6 +1626,7 @@ const fetchAddons = async () => {
 const fetchProducts = async () => {
   tableLoading.value = true;
   try {
+    const requestHasFilters = hasProductFilterConditions.value;
     const payload: Record<string, unknown> = {
       pageNum: query.pageNum,
       pageSize: query.pageSize,
@@ -1542,10 +1660,96 @@ const fetchProducts = async () => {
     total.value = t;
     query.pageNum = pageNum;
     query.pageSize = pageSize;
+    loadedProductsAreFiltered.value = requestHasFilters;
   } catch (error: any) {
     ElMessage.error(error?.message || t('admin.product.message.fetchListFailed'));
   } finally {
     tableLoading.value = false;
+  }
+};
+
+const productRowClassName = ({ row }: { row: ProductRow }) =>
+  canSortProducts.value &&
+  row.id === dragOverProductId.value &&
+  row.id !== draggedProductId.value
+    ? 'product-sort-row--target'
+    : '';
+
+const getProductDropIndex = (event: DragEvent) => {
+  const target = event.target;
+  if (!(target instanceof Element)) return -1;
+  const row = target.closest('tbody tr');
+  const body = row?.parentElement;
+  if (!row || body?.tagName !== 'TBODY') return -1;
+  return Array.from(body.children).indexOf(row);
+};
+
+const handleProductDragStart = (row: ProductRow, event: DragEvent) => {
+  if (!canSortProducts.value || tableLoading.value || sortSubmitting.value) {
+    event.preventDefault();
+    return;
+  }
+  draggedProductId.value = row.id;
+  dragOverProductId.value = row.id;
+  if (event.dataTransfer) {
+    event.dataTransfer.effectAllowed = 'move';
+    event.dataTransfer.setData('text/plain', String(row.id));
+  }
+};
+
+const handleProductDragOver = (event: DragEvent) => {
+  if (!canSortProducts.value || draggedProductId.value === null || sortSubmitting.value) return;
+  const targetIndex = getProductDropIndex(event);
+  if (targetIndex < 0 || targetIndex >= products.value.length) return;
+  dragOverProductId.value = products.value[targetIndex]?.id ?? null;
+  if (event.dataTransfer) event.dataTransfer.dropEffect = 'move';
+};
+
+const resetProductDrag = () => {
+  draggedProductId.value = null;
+  dragOverProductId.value = null;
+};
+
+const handleProductDrop = async (event: DragEvent) => {
+  const draggedId = draggedProductId.value;
+  const targetIndex = getProductDropIndex(event);
+  if (
+    !canSortProducts.value ||
+    draggedId === null ||
+    targetIndex < 0 ||
+    targetIndex >= products.value.length ||
+    sortSubmitting.value
+  ) {
+    resetProductDrag();
+    return;
+  }
+
+  const sourceIndex = products.value.findIndex((item) => item.id === draggedId);
+  if (sourceIndex < 0 || sourceIndex === targetIndex) {
+    resetProductDrag();
+    return;
+  }
+
+  const previous = [...products.value];
+  const reordered = [...products.value];
+  const [moved] = reordered.splice(sourceIndex, 1);
+  if (!moved) {
+    resetProductDrag();
+    return;
+  }
+  reordered.splice(targetIndex, 0, moved);
+  products.value = reordered;
+  resetProductDrag();
+
+  sortSubmitting.value = true;
+  try {
+    await sortProducts(reordered.map((item) => item.id));
+    ElMessage.success(t('admin.product.message.sortSuccess'));
+  } catch (error: any) {
+    products.value = previous;
+    ElMessage.error(error?.message || t('admin.product.message.sortFailed'));
+  } finally {
+    sortSubmitting.value = false;
   }
 };
 
@@ -1604,7 +1808,7 @@ const getExportErrorMessage = async (response: Response) => {
 
 const handleExportI18n = async () => {
   if (typeof window === 'undefined') return;
-  const token = localStorage.getItem('token');
+  const token = getAdminAuthStorageValue('token');
   if (!token) {
     ElMessage.error(locale.value.startsWith('zh') ? '未登录，请重新登录' : 'Please sign in again.');
     return;
@@ -1692,12 +1896,82 @@ const removeBookingNoticeLang = (idx: number) => {
 };
 
 const setUploadList = (images: ProductImage[]) => {
-  uploadList.value = images
+  const normalizedImages = images
     .filter((img) => img.imageUrl)
+    .map((img, idx) => ({ ...img, sort: idx }));
+  form.productImages = normalizedImages;
+  uploadList.value = normalizedImages
     .map((img, idx) => ({
       name: `${img.id ?? idx}`,
       url: img.imageUrl,
+      uid: -(idx + 1),
     }));
+};
+
+const syncProductImagesToUploadOrder = () => {
+  const imagesByUrl = new Map<string, ProductImage[]>();
+  form.productImages.forEach((image) => {
+    const queue = imagesByUrl.get(image.imageUrl) || [];
+    queue.push(image);
+    imagesByUrl.set(image.imageUrl, queue);
+  });
+  form.productImages = uploadList.value
+    .map((file) => {
+      const url = String(file.url || '');
+      const image = imagesByUrl.get(url)?.shift();
+      return image ? { ...image, sort: 0 } : null;
+    })
+    .filter((image): image is ProductImage => Boolean(image))
+    .map((image, idx) => ({ ...image, sort: idx }));
+};
+
+const resetImageDrag = () => {
+  draggedImageIndex.value = null;
+  dragOverImageIndex.value = null;
+};
+
+const moveImage = (fromIndex: number, toIndex: number) => {
+  if (
+    uploading.value ||
+    fromIndex === toIndex ||
+    fromIndex < 0 ||
+    toIndex < 0 ||
+    fromIndex >= uploadList.value.length ||
+    toIndex >= uploadList.value.length
+  ) {
+    return;
+  }
+  const [file] = uploadList.value.splice(fromIndex, 1);
+  if (!file) return;
+  uploadList.value.splice(toIndex, 0, file);
+  syncProductImagesToUploadOrder();
+};
+
+const handleImageDragStart = (index: number, event: DragEvent) => {
+  if (uploading.value) {
+    event.preventDefault();
+    return;
+  }
+  draggedImageIndex.value = index;
+  dragOverImageIndex.value = index;
+  if (event.dataTransfer) {
+    event.dataTransfer.effectAllowed = 'move';
+    event.dataTransfer.setData('text/plain', String(index));
+  }
+};
+
+const handleImageDragEnter = (index: number) => {
+  if (draggedImageIndex.value !== null) {
+    dragOverImageIndex.value = index;
+  }
+};
+
+const handleImageDrop = (index: number) => {
+  const fromIndex = draggedImageIndex.value;
+  if (fromIndex !== null) {
+    moveImage(fromIndex, index);
+  }
+  resetImageDrag();
 };
 
 const openCreate = () => {
@@ -1841,7 +2115,7 @@ const handleUpload = async (options: UploadRequestOptions) => {
         : res?.data?.url || res?.url || '';
     if (!url) throw new Error(t('admin.product.message.uploadEmptyUrl'));
     form.productImages.push({ imageUrl: url, sort: form.productImages.length });
-    uploadList.value.push({ name: options.file.name, url });
+    uploadList.value.push({ name: options.file.name, url, uid: options.file.uid });
     options.onSuccess?.({ url } as any);
   } catch (error: any) {
     ElMessage.error(error?.message || t('admin.product.message.uploadFailed'));
@@ -1851,13 +2125,11 @@ const handleUpload = async (options: UploadRequestOptions) => {
   }
 };
 
-const onRemove = (file: UploadUserFile) => {
-  const url = file.url;
-  if (!url) return;
-  form.productImages = form.productImages.filter(
-    (item) => item.imageUrl !== url,
-  );
-  uploadList.value = uploadList.value.filter((item) => item.url !== url);
+const removeImage = (index: number) => {
+  if (uploading.value || index < 0 || index >= uploadList.value.length) return;
+  uploadList.value.splice(index, 1);
+  syncProductImagesToUploadOrder();
+  resetImageDrag();
 };
 
 const addSpecGroup = () => {
@@ -2233,6 +2505,41 @@ watch(
   justify-content: flex-end;
   margin-top: 16px;
 }
+.product-sort-handle {
+  width: 34px;
+  height: 34px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: #7b8797;
+  cursor: grab;
+  transition: color 0.2s, background-color 0.2s, transform 0.2s;
+}
+.product-sort-handle:hover {
+  background: #eef5ff;
+  color: #1769c2;
+}
+.product-sort-handle:active {
+  cursor: grabbing;
+  transform: scale(0.94);
+}
+.product-sort-handle:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+.product-sort-handle svg {
+  width: 22px;
+  height: 22px;
+  fill: currentColor;
+}
+:deep(.el-table__body tr.product-sort-row--target > td.el-table__cell) {
+  background: #eaf4ff !important;
+  box-shadow: inset 0 2px 0 #409eff;
+}
 .thumbs {
   display: flex;
   align-items: center;
@@ -2318,9 +2625,152 @@ watch(
   color: #f59b00;
   font-size: 12px;
 }
+.product-image-manager {
+  width: 100%;
+}
+.product-image-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  align-items: flex-start;
+}
+.product-image-card {
+  position: relative;
+  width: 148px;
+  height: 148px;
+  overflow: hidden;
+  border: 1px solid #d9e2ec;
+  border-radius: 12px;
+  background: #f5f7fa;
+  cursor: grab;
+  box-shadow: 0 4px 14px rgba(5, 21, 43, 0.07);
+  transition: border-color 0.2s, box-shadow 0.2s, opacity 0.2s, transform 0.2s;
+}
+.product-image-card:hover {
+  border-color: #409eff;
+  box-shadow: 0 8px 22px rgba(64, 158, 255, 0.18);
+}
+.product-image-card:active {
+  cursor: grabbing;
+}
+.product-image-card.is-dragging {
+  opacity: 0.45;
+  transform: scale(0.96);
+}
+.product-image-card.is-drag-over {
+  border-color: #1769c2;
+  box-shadow: 0 0 0 3px rgba(23, 105, 194, 0.18);
+}
+.product-image-card > img {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: cover;
+  user-select: none;
+}
+.product-image-card__cover,
+.product-image-card__order {
+  position: absolute;
+  top: 8px;
+  z-index: 1;
+  min-width: 24px;
+  height: 24px;
+  padding: 0 8px;
+  border-radius: 12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1;
+  box-shadow: 0 3px 10px rgba(5, 21, 43, 0.2);
+}
+.product-image-card__cover {
+  left: 8px;
+  background: #1769c2;
+}
+.product-image-card__order {
+  right: 8px;
+  padding: 0 7px;
+  background: rgba(5, 21, 43, 0.76);
+}
+.product-image-card__actions {
+  position: absolute;
+  inset: auto 0 0;
+  height: 40px;
+  padding: 5px 7px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 4px;
+  background: linear-gradient(transparent, rgba(5, 21, 43, 0.88));
+  opacity: 0;
+  transform: translateY(5px);
+  transition: opacity 0.2s, transform 0.2s;
+}
+.product-image-card:hover .product-image-card__actions,
+.product-image-card:focus-within .product-image-card__actions {
+  opacity: 1;
+  transform: translateY(0);
+}
+.product-image-card__actions button,
+.product-image-card__drag {
+  width: 28px;
+  height: 28px;
+  border: 0;
+  border-radius: 7px;
+  display: inline-grid;
+  place-items: center;
+  background: rgba(255, 255, 255, 0.92);
+  color: #26374a;
+  font-size: 20px;
+  line-height: 1;
+}
+.product-image-card__drag {
+  margin-right: auto;
+  color: #1769c2;
+  font-size: 18px;
+  cursor: grab;
+}
+.product-image-card__actions button {
+  cursor: pointer;
+}
+.product-image-card__actions button:hover:not(:disabled) {
+  background: #fff;
+  color: #1769c2;
+}
+.product-image-card__actions button.is-remove:hover:not(:disabled) {
+  color: #f56c6c;
+}
+.product-image-card__actions button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+.product-image-uploader :deep(.el-upload--picture-card) {
+  width: 148px;
+  height: 148px;
+  border-radius: 12px;
+  background: #f8fafc;
+}
+.product-image-manager__hint {
+  margin: 10px 0 0;
+  color: #7b8797;
+  font-size: 12px;
+  line-height: 1.5;
+}
 @media (max-width: 640px) {
   .i18n-row {
     grid-template-columns: 1fr;
+  }
+  .product-image-card,
+  .product-image-uploader :deep(.el-upload--picture-card) {
+    width: 112px;
+    height: 112px;
+  }
+  .product-image-card__actions {
+    opacity: 1;
+    transform: none;
   }
 }
 </style>

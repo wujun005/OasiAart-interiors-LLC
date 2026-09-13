@@ -1,0 +1,1 @@
+import{B as o}from"./BookingSuccessView-9VjUgMk2.js";import{d as e,a as r,o as t}from"./runtime-core.esm-bundler-CFEWv__L.js";import"./vue-i18n-B_tXdSg3.js";import"./vue-router-DmLb8cAM.js";import"./order-date-time-11ZNHWcj.js";import"./_plugin-vue_export-helper-DlAUqK2U.js";const f=e({__name:"booking-success",setup(s){return(c,p)=>(t(),r(o))}});export{f as default};

@@ -1,3 +1,8 @@
+import {
+  clearStoredAuthState,
+  setClientAuthStorageValue,
+} from '@/utils/auth-state';
+
 export const H5_COUNTRY_CODE_OPTIONS = [
   { value: '+971', labelEn: 'UAE +971', labelZh: '阿联酋 +971' },
   { value: '+966', labelEn: 'Saudi Arabia +966', labelZh: '沙特阿拉伯 +966' },
@@ -24,35 +29,39 @@ export const saveClientToken = (raw: any, account?: string, extra?: { email?: st
   if (!token) {
     return false;
   }
-  localStorage.setItem('token', String(token));
+  clearStoredAuthState();
+  setClientAuthStorageValue('token', token);
   if (payload?.tokenType) {
-    localStorage.setItem('tokenType', String(payload.tokenType));
+    setClientAuthStorageValue('tokenType', payload.tokenType);
   }
   if (payload?.expiresIn !== undefined && payload?.expiresIn !== null) {
     const expiresAt = Date.now() + Number(payload.expiresIn);
-    localStorage.setItem('expiresAt', String(expiresAt));
+    setClientAuthStorageValue('expiresAt', expiresAt);
   }
   if (payload?.userId !== undefined && payload?.userId !== null) {
-    localStorage.setItem('userId', String(payload.userId));
+    setClientAuthStorageValue('userId', payload.userId);
   }
   if (payload?.username) {
-    localStorage.setItem('username', String(payload.username));
+    setClientAuthStorageValue('username', payload.username);
+  }
+  if (payload?.userType) {
+    setClientAuthStorageValue('userType', payload.userType);
   }
   const resolvedAccount = account?.trim() || payload?.username || '';
   if (resolvedAccount) {
-    localStorage.setItem('account', String(resolvedAccount));
+    setClientAuthStorageValue('account', resolvedAccount);
   }
   if (extra?.email) {
-    localStorage.setItem('email', extra.email);
+    setClientAuthStorageValue('email', extra.email);
   }
   if (extra?.phone) {
-    localStorage.setItem('phone', extra.phone);
+    setClientAuthStorageValue('phone', extra.phone);
   }
   if (!extra?.email && !extra?.phone && resolvedAccount) {
     if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(resolvedAccount)) {
-      localStorage.setItem('email', resolvedAccount);
+      setClientAuthStorageValue('email', resolvedAccount);
     } else if (/^\+?[\d\s()-]+$/.test(resolvedAccount) && resolvedAccount.replace(/\D/g, '').length >= 7) {
-      localStorage.setItem('phone', resolvedAccount);
+      setClientAuthStorageValue('phone', resolvedAccount);
     }
   }
   return true;

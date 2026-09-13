@@ -1,5 +1,6 @@
 import { reactive } from 'vue';
 import { getCurrentUserRoles } from '@/modules/admin/api/user';
+import { getAdminAuthStorageValue } from '@/utils/auth-state';
 
 export type AdminMenuPermissionItem = {
   id: number | string;
@@ -258,7 +259,7 @@ export const resetAdminMenuPermissions = () => {
 };
 
 export const loadAdminMenuPermissions = async (force = false) => {
-  const token = localStorage.getItem('token') || '';
+  const token = getAdminAuthStorageValue('token');
   if (!token) {
     resetAdminMenuPermissions();
     adminMenuState.loaded = true;

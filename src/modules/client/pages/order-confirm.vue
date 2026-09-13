@@ -4,9 +4,11 @@
       <div class="order-confirm-container order-confirm-subheader__inner">
         <button class="order-confirm-back" type="button" @click="goBack">
           <span class="order-confirm-back__icon" aria-hidden="true">&lt;</span>
-          <span>{{ t('client.orderConfirm.pageTitle') }}</span>
+          <span>{{ t("client.orderConfirm.pageTitle") }}</span>
         </button>
-        <p class="order-confirm-secure">{{ t('client.orderConfirm.securePay') }}</p>
+        <p class="order-confirm-secure">
+          {{ t("client.orderConfirm.securePay") }}
+        </p>
       </div>
     </section>
 
@@ -16,233 +18,124 @@
           <section class="order-card">
             <header class="order-section-title">
               <span class="order-section-title__index">1</span>
-              <h2>{{ t('client.orderConfirm.sections.contact') }}</h2>
+              <h2>{{ locale === 'zh' ? '联系信息与服务地址' : 'Contact & Service Address' }}</h2>
             </header>
-            <div class="order-fields-grid">
-              <label class="order-field">
-                <span>{{ t('client.orderConfirm.fields.firstName') }}</span>
-                <div class="order-input-wrap">
-                  <i aria-hidden="true">U</i>
-                  <input
-                    v-model="form.firstName"
-                    type="text"
-                    required
-                    :placeholder="t('client.orderConfirm.placeholders.firstName')"
-                  />
+            <div class="order-address-book">
+              <div class="order-address-book__bar">
+                <strong>{{ locale === 'zh' ? '服务地址' : 'Service Address' }}</strong>
+              </div>
+              <p v-if="addressListLoading" class="order-address-book__state">
+                {{ t("client.orderConfirm.addressBook.loading") }}
+              </p>
+              <div v-else-if="addressListError" class="order-address-book__state order-address-book__state--error" role="alert">
+                <span>{{ locale === 'zh' ? '地址加载失败，请重试。' : 'Unable to load addresses. Please try again.' }}</span>
+                <button type="button" @click="loadAddressBook(selectedAddressId)">{{ locale === 'zh' ? '重试' : 'Retry' }}</button>
+              </div>
+              <div
+                v-else-if="addressList.length && selectedAddress"
+                class="order-address-picker"
+                :class="{ 'is-expanded': addressPickerExpanded }"
+              >
+                <button
+                  class="order-address-picker__trigger"
+                  type="button"
+                  :aria-expanded="addressPickerExpanded"
+                  @click="addressPickerExpanded = !addressPickerExpanded"
+                >
+                  <span class="order-address-picker__category-icon" aria-hidden="true">
+                    {{ addressCategoryIcon(selectedAddress.category) }}
+                  </span>
+                  <span class="order-address-picker__summary">
+                    <strong>{{ addressCategoryLabel(selectedAddress.category) }}</strong>
+                    <small>{{ formatAddressLine(selectedAddress) }}</small>
+                  </span>
+                  <span class="order-address-picker__arrow" aria-hidden="true">⌄</span>
+                </button>
+                <div
+                  v-if="addressPickerExpanded"
+                  class="order-address-picker__list"
+                  role="radiogroup"
+                  :aria-label="t('client.orderConfirm.addressBook.title')"
+                >
+                  <button
+                    v-for="item in addressList"
+                    :key="item.id"
+                    class="order-address-picker__option"
+                    :class="{ 'is-selected': selectedAddressId === item.id }"
+                    type="button"
+                    role="radio"
+                    :aria-checked="selectedAddressId === item.id"
+                    @click="selectSavedAddress(item)"
+                  >
+                    <span class="order-address-picker__category-icon" aria-hidden="true">
+                      {{ addressCategoryIcon(item.category) }}
+                    </span>
+                    <span class="order-address-picker__summary">
+                      <strong>{{ addressCategoryLabel(item.category) }}</strong>
+                      <small>{{ formatAddressLine(item) }}</small>
+                    </span>
+                    <span
+                      v-if="selectedAddressId === item.id"
+                      class="order-address-picker__check"
+                      aria-hidden="true"
+                    >✓</span>
+                  </button>
+                  <button
+                    class="order-address-picker__manage"
+                    type="button"
+                    @click="goManageAddresses"
+                  >
+                    {{ locale === 'zh' ? '在个人中心管理地址 →' : 'Manage addresses in profile →' }}
+                  </button>
                 </div>
-              </label>
-              <label class="order-field">
-                <span>{{ t('client.orderConfirm.fields.lastName') }}</span>
-                <div class="order-input-wrap">
-                  <i aria-hidden="true">U</i>
-                  <input
-                    v-model="form.lastName"
-                    type="text"
-                    required
-                    :placeholder="t('client.orderConfirm.placeholders.lastName')"
-                  />
+              </div>
+              <div v-else class="order-address-book__state order-address-book__state--empty">
+                <div>
+                  <strong>{{ locale === 'zh' ? '还没有服务地址' : 'No service address yet' }}</strong>
+                  <span>{{ locale === 'zh' ? '添加地址后即可继续预约。' : 'Add an address to continue your booking.' }}</span>
                 </div>
-              </label>
-              <label class="order-field">
-                <span>{{ t('client.orderConfirm.fields.phone') }}</span>
-                <div class="order-phone-row">
-                  <div class="order-input-wrap order-input-wrap--dial">
-                    <select v-model="form.countryCode" autocomplete="tel-country-code">
-                      <option
-                        v-for="item in countryCodeOptions"
-                        :key="item.value"
-                        :value="item.value"
-                      >
-                        {{ item.label }}
-                      </option>
-                    </select>
-                  </div>
-                  <div class="order-input-wrap order-input-wrap--phone">
-                    <i aria-hidden="true">P</i>
-                    <input
-                      v-model="form.phone"
-                      type="text"
-                      required
-                      autocomplete="tel-national"
-                      :placeholder="t('client.login.register.phoneNumberPlaceholder')"
-                    />
-                  </div>
-                </div>
-              </label>
-              <label class="order-field">
-                <span>{{ t('client.orderConfirm.fields.email') }}</span>
-                <div class="order-input-wrap">
-                  <i aria-hidden="true">@</i>
-                  <input
-                    v-model="form.email"
-                    type="email"
-                    :placeholder="t('client.orderConfirm.placeholders.email')"
-                  />
-                </div>
-              </label>
+                <button type="button" @click="goManageAddresses">
+                  {{ locale === 'zh' ? '添加地址' : 'Add address' }}
+                </button>
+              </div>
             </div>
           </section>
 
           <section class="order-card">
             <header class="order-section-title">
               <span class="order-section-title__index">2</span>
-              <h2>{{ t('client.orderConfirm.sections.address') }}</h2>
-              <span v-if="isLocating" class="order-location-status">
-                {{ t('client.orderConfirm.location.locating') }}
-              </span>
-            </header>
-            <div class="order-address-book">
-              <div class="order-address-book__bar">
-                <strong>{{ t('client.orderConfirm.addressBook.title') }}</strong>
-                <button type="button" @click="openAddAddressDialog">
-                  <span aria-hidden="true">+</span>
-                  {{ t('client.orderConfirm.addressBook.add') }}
-                </button>
-              </div>
-              <p v-if="addressListLoading" class="order-address-book__state">
-                {{ t('client.orderConfirm.addressBook.loading') }}
-              </p>
-              <div v-else-if="addressList.length" class="order-address-picker">
-                <div
-                  class="order-address-picker__list"
-                  role="radiogroup"
-                  :aria-label="t('client.orderConfirm.addressBook.title')"
-                >
-                  <article
-                    v-for="item in addressList"
-                    :key="item.id"
-                    class="order-address-card"
-                    :class="{ 'is-selected': selectedAddressId === item.id }"
-                  >
-                    <button
-                      class="order-address-card__select"
-                      type="button"
-                      role="radio"
-                      :aria-checked="selectedAddressId === item.id"
-                      @click="selectSavedAddress(item)"
-                    >
-                      <span class="order-address-card__topline">
-                        <span class="order-address-picker__tags">
-                          <em>{{ addressCategoryLabel(item.category) }}</em>
-                          <em v-if="item.isDefault" class="order-address-picker__default">
-                            {{ t('client.orderConfirm.addressBook.defaultTag') }}
-                          </em>
-                          <em v-if="selectedAddressId === item.id" class="order-address-picker__selected">
-                            {{ t('client.orderConfirm.addressBook.selectedTag') }}
-                          </em>
-                        </span>
-                        <i class="order-address-card__radio" aria-hidden="true" />
-                      </span>
-                      <strong>{{ item.firstName }} {{ item.lastName }}</strong>
-                      <span>{{ formatAddressPhone(item) }}</span>
-                      <span class="order-address-card__address">{{ formatAddressLine(item) }}</span>
-                      <small v-if="item.additionalNotes">{{ item.additionalNotes }}</small>
-                    </button>
-                    <button
-                      class="order-address-card__edit"
-                      type="button"
-                      @click="openEditAddressDialog(item)"
-                    >
-                      {{ t('client.orderConfirm.addressBook.edit') }}
-                    </button>
-                  </article>
-                </div>
-                <button class="order-address-picker__manual" type="button" @click="selectManualAddress">
-                  <span aria-hidden="true">+</span>
-                  {{ t('client.orderConfirm.addressBook.manualOption') }}
-                </button>
-                <p class="order-address-picker__hint">
-                  {{ t('client.orderConfirm.addressBook.editHint') }}
-                </p>
-              </div>
-              <p v-else class="order-address-book__state">
-                {{ t('client.orderConfirm.addressBook.empty') }}
-              </p>
-            </div>
-            <div class="order-fields-stack">
-              <div class="order-address-category">
-                <span>{{ t('client.orderConfirm.addressBook.categoryLabel') }}</span>
-                <div>
-                  <button
-                    v-for="item in addressCategoryOptions"
-                    :key="item.value"
-                    type="button"
-                    :class="{ 'is-active': form.category === item.value }"
-                    @click="form.category = item.value"
-                  >
-                    {{ item.label }}
-                  </button>
-                </div>
-              </div>
-              <label class="order-field">
-                <span>{{ t('client.orderConfirm.fields.district') }}</span>
-                <div class="order-input-wrap">
-                  <i aria-hidden="true">A</i>
-                  <input
-                    v-model="form.district"
-                    type="text"
-                    :placeholder="t('client.orderConfirm.placeholders.district')"
-                  />
-                </div>
-              </label>
-              <label class="order-field">
-                <span>{{ t('client.orderConfirm.fields.address') }}</span>
-                <div class="order-input-wrap">
-                  <i aria-hidden="true">L</i>
-                  <input
-                    v-model="form.address"
-                    type="text"
-                    required
-                    :placeholder="t('client.orderConfirm.placeholders.address')"
-                  />
-                </div>
-              </label>
-              <label class="order-field">
-                <span>{{ t('client.orderConfirm.fields.remark') }}</span>
-                <div class="order-input-wrap">
-                  <input
-                    v-model="form.remark"
-                    type="text"
-                    :placeholder="t('client.orderConfirm.placeholders.remark')"
-                  />
-                </div>
-              </label>
-              <p v-if="locationLookupUsed" class="order-location-attribution">
-                <a
-                  href="https://www.openstreetmap.org/copyright"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  {{ t('client.orderConfirm.location.attribution') }}
-                </a>
-              </p>
-            </div>
-          </section>
-
-          <section class="order-card">
-            <header class="order-section-title">
-              <span class="order-section-title__index">3</span>
-              <h2>{{ t('client.orderConfirm.sections.time') }}</h2>
+              <h2>{{ t("client.orderConfirm.sections.time") }}</h2>
             </header>
             <div class="order-fields-grid">
               <label class="order-field">
-                <span>{{ t('client.orderConfirm.fields.serviceDate') }}</span>
-                <div class="order-input-wrap" @click="openServiceDatePicker">
-                  <i aria-hidden="true">D</i>
-                  <input
-                    ref="serviceDateInputRef"
-                    v-model="form.serviceDate"
-                    type="date"
-                    required
-                    :min="minServiceDate"
-                  />
+                <span>{{ t("client.orderConfirm.fields.serviceDate") }}</span>
+                <div class="order-input-wrap order-input-wrap--date">
+                  <i aria-hidden="true" @click="openServiceDatePicker">D</i>
+                  <el-config-provider :locale="datePickerLocale">
+                    <el-date-picker
+                      ref="serviceDatePickerRef"
+                      v-model="form.serviceDate"
+                      class="order-date-picker"
+                      popper-class="order-date-picker-popper"
+                      type="date"
+                      format="YYYY-MM-DD"
+                      value-format="YYYY-MM-DD"
+                      :editable="false"
+                      :clearable="false"
+                      :disabled-date="isServiceDateDisabled"
+                      :placeholder="
+                        t('client.orderConfirm.placeholders.serviceDate')
+                      "
+                      :aria-label="t('client.orderConfirm.fields.serviceDate')"
+                    />
+                  </el-config-provider>
                 </div>
                 <small class="order-field__hint">
-                  {{ t('client.orderConfirm.fields.serviceDateHint') }}
+                  {{ localizedServiceDate }}
                 </small>
               </label>
               <label class="order-field">
-                <span>{{ t('client.orderConfirm.fields.serviceTime') }}</span>
+                <span>{{ t("client.orderConfirm.fields.serviceTime") }}</span>
                 <div class="order-input-wrap">
                   <i aria-hidden="true">T</i>
                   <select
@@ -250,7 +143,9 @@
                     required
                     @mousedown="handleServiceTimeOpen"
                   >
-                    <option value="" disabled>{{ serviceTimePlaceholder }}</option>
+                    <option value="" disabled>
+                      {{ serviceTimePlaceholder }}
+                    </option>
                     <option
                       v-for="item in selectableTimeOptions"
                       :key="item.timeRange"
@@ -267,50 +162,68 @@
 
           <section class="order-card">
             <header class="order-section-title">
+              <span class="order-section-title__index">3</span>
+              <h2>{{ t("client.orderConfirm.sections.note") }}</h2>
+            </header>
+            <label class="order-field order-booking-note">
+              <span>{{ t("client.orderConfirm.fields.bookingNote") }}</span>
+              <textarea
+                v-model.trim="form.remark"
+                rows="4"
+                maxlength="500"
+                :placeholder="t('client.orderConfirm.placeholders.bookingNote')"
+              />
+            </label>
+          </section>
+
+          <section class="order-card">
+            <header class="order-section-title">
               <span class="order-section-title__index">4</span>
-              <h2>{{ t('client.orderConfirm.sections.payment') }}</h2>
+              <h2>{{ t("client.orderConfirm.sections.payment") }}</h2>
             </header>
             <div class="payment-methods">
-              <div class="payment-method payment-method--active payment-method--static">
-                <strong>Stripe</strong>
-                <p>
-                  {{
-                    locale === 'zh'
-                      ? 'Apple Pay、Google Pay、Link 与银行卡会由 Stripe 根据当前设备和浏览器自动展示。'
-                      : 'Apple Pay, Google Pay, Link, and cards are shown automatically by Stripe based on the current device and browser.'
-                  }}
-                </p>
+              <div class="payment-method payment-method--static">
+                <span class="payment-method__icon" aria-hidden="true">▣</span>
+                <div>
+                  <strong>{{ locale === "zh" ? "安全支付" : "Secure payment" }}</strong>
+                  <small>{{ locale === "zh" ? "由 Stripe 提供" : "Powered by Stripe" }}</small>
+                  <p>Apple Pay · Google Pay · Link · Cards</p>
+                </div>
               </div>
             </div>
-            <label class="payment-policy">
-              <input v-model="agreedPolicy" type="checkbox" required />
-              <span>{{ t('client.orderConfirm.payment.policy') }}</span>
-            </label>
+            <p class="payment-method__note">
+              {{
+                locale === "zh"
+                  ? "可用的支付选项由 Stripe 安全提供，并可能因设备而异。"
+                  : "Available payment options are securely provided by Stripe and may vary by device."
+              }}
+            </p>
+            <div class="payment-policy">
+              <span>{{ t("client.orderConfirm.payment.policy") }}</span>
+              <button type="button" @click="openLegal('terms')">
+                {{ locale === "zh" ? "条款与条件" : "Terms & Conditions" }}
+              </button>
+              <button type="button" @click="openLegal('privacy')">
+                {{ locale === "zh" ? "隐私政策" : "Privacy Policy" }}
+              </button>
+            </div>
           </section>
         </div>
 
         <aside class="order-summary-side">
           <section class="order-summary-card">
-            <h2>{{ t('client.orderConfirm.summary.title') }}</h2>
+            <h2>{{ t("client.orderConfirm.summary.title") }}</h2>
             <div class="order-summary-card__item">
               <div>
                 <h3>{{ summaryTitle }}</h3>
                 <p>{{ summaryMeta }}</p>
               </div>
-              <strong>{{ formatAed(subtotal) }}</strong>
+              <strong>{{ formatAed(total) }}</strong>
             </div>
 
             <div class="order-summary-card__prices">
-              <div>
-                <span>{{ t('client.orderConfirm.summary.subtotal') }}</span>
-                <span>{{ formatAed(subtotal) }}</span>
-              </div>
-              <div>
-                <span>{{ t('client.orderConfirm.summary.vat') }}</span>
-                <span>{{ formatAed(tax) }}</span>
-              </div>
               <div class="order-summary-card__total">
-                <span>{{ t('client.orderConfirm.summary.total') }}</span>
+                <span>{{ t("client.orderConfirm.summary.total") }}</span>
                 <span>{{ formatAed(total) }}</span>
               </div>
             </div>
@@ -321,23 +234,48 @@
               :disabled="isSubmitting"
               @click="handleConfirm"
             >
-              {{ t('client.orderConfirm.summary.confirmPay') }}
+              {{
+                isCartMode
+                  ? locale === "zh"
+                    ? "加入预订购物车"
+                    : "Add to Booking Cart"
+                  : t("client.orderConfirm.summary.confirmPay")
+              }}
             </button>
-            <p class="order-summary-card__ssl">{{ t('client.orderConfirm.summary.ssl') }}</p>
+            <p class="order-summary-card__ssl">
+              {{ t("client.orderConfirm.summary.ssl") }}
+            </p>
           </section>
         </aside>
       </div>
     </section>
 
+    <BookingPolicyConfirm
+      v-model="policyDialogVisible"
+      :agreed="agreedPolicy"
+      :submitting="isSubmitting"
+      @update:agreed="agreedPolicy = $event"
+      @read-policy="openLegal('terms')"
+      @continue="confirmPolicyAndContinue"
+    />
+
+    <AgreementDialog v-model="legalDialogVisible" :doc-type="legalDocType" />
+
     <el-dialog
       v-model="addAddressDialogVisible"
-      :title="editingAddressId ? t('client.orderConfirm.addressBook.editTitle') : t('client.orderConfirm.addressBook.addTitle')"
+      :title="
+        editingAddressId
+          ? t('client.orderConfirm.addressBook.editTitle')
+          : t('client.orderConfirm.addressBook.addTitle')
+      "
       width="min(680px, calc(100% - 32px))"
       :close-on-click-modal="!addressAdding"
       :show-close="!addressAdding"
     >
       <el-form label-position="top" class="order-add-address-form">
-        <el-form-item :label="t('client.orderConfirm.addressBook.categoryLabel')">
+        <el-form-item
+          :label="t('client.orderConfirm.addressBook.categoryLabel')"
+        >
           <div class="order-add-address-form__categories">
             <button
               v-for="item in addressCategoryOptions"
@@ -350,14 +288,112 @@
             </button>
           </div>
         </el-form-item>
+        <div
+          v-if="!editingAddressId"
+          class="order-add-address-form__location"
+        >
+          <button
+            type="button"
+            :disabled="addressEditorLocating"
+            @click="fillAddressEditorWithCurrentLocation"
+          >
+            <span aria-hidden="true">⌾</span>
+            {{
+              addressEditorLocating
+                ? t("client.orderConfirm.location.locating")
+                : t("client.orderConfirm.location.useCurrent")
+            }}
+          </button>
+          <p>
+            {{
+              locale === "zh"
+                ? "当前位置将自动填写区域和街道，请补充其余地址信息。"
+                : "Current location will auto-fill the area and street. Please enter the remaining details."
+            }}
+          </p>
+        </div>
         <div class="order-add-address-form__grid">
-          <el-form-item :label="t('client.orderConfirm.fields.firstName')" required>
-            <el-input v-model="addAddressForm.firstName" :placeholder="t('client.orderConfirm.placeholders.firstName')" />
+          <div class="order-add-address-form__section order-add-address-form__wide">
+            <span aria-hidden="true">⌖</span>
+            <div>
+              <strong>{{ locale === 'zh' ? '地址详情' : 'Address Details' }}</strong>
+              <small>{{ locale === 'zh' ? '请输入您的迪拜地址' : 'Enter your Dubai address.' }}</small>
+            </div>
+          </div>
+          <el-form-item
+            class="order-add-address-form__wide"
+            :label="t('client.orderConfirm.fields.areaCommunity')"
+            required
+          >
+            <el-input
+              v-model="addAddressForm.community"
+              maxlength="128"
+              :placeholder="t('client.orderConfirm.placeholders.areaCommunity')"
+            />
           </el-form-item>
-          <el-form-item :label="t('client.orderConfirm.fields.lastName')" required>
-            <el-input v-model="addAddressForm.lastName" :placeholder="t('client.orderConfirm.placeholders.lastName')" />
+          <el-form-item
+            class="order-add-address-form__wide"
+            :label="t('client.orderConfirm.fields.street')"
+            required
+          >
+            <el-input
+              v-model="addAddressForm.address"
+              maxlength="128"
+              :placeholder="t('client.orderConfirm.placeholders.street')"
+            />
+            <span
+              v-if="addressEditorLocating"
+              class="order-add-address-form__locating"
+            >
+              {{ t("client.orderConfirm.location.locating") }}
+            </span>
           </el-form-item>
-          <el-form-item :label="t('client.orderConfirm.fields.phone')" required>
+          <el-form-item
+            class="order-add-address-form__wide"
+            :label="t('client.orderConfirm.fields.buildingVilla')"
+            required
+          >
+            <el-input
+              v-model="addAddressForm.building"
+              maxlength="128"
+              :placeholder="t('client.orderConfirm.placeholders.buildingVilla')"
+            />
+          </el-form-item>
+          <el-form-item
+            class="order-add-address-form__wide"
+            :label="t('client.orderConfirm.fields.apartmentUnitFloor')"
+            required
+          >
+            <el-input
+              v-model="addAddressForm.roomNo"
+              maxlength="128"
+              :placeholder="t('client.orderConfirm.placeholders.apartmentUnitFloor')"
+            />
+          </el-form-item>
+
+          <div class="order-add-address-form__section order-add-address-form__wide">
+            <span aria-hidden="true">♙</span>
+            <div>
+              <strong>{{ locale === 'zh' ? '联系人信息' : 'Contact Details' }}</strong>
+              <small>{{ locale === 'zh' ? '我们应该联系谁？' : 'Who should we deliver to?' }}</small>
+            </div>
+          </div>
+          <el-form-item
+            class="order-add-address-form__wide"
+            :label="t('client.orderConfirm.fields.fullName')"
+            required
+          >
+            <el-input
+              v-model="addAddressForm.fullName"
+              autocomplete="name"
+              :placeholder="t('client.orderConfirm.placeholders.fullName')"
+            />
+          </el-form-item>
+          <el-form-item
+            class="order-add-address-form__wide"
+            :label="t('client.orderConfirm.fields.phone')"
+            required
+          >
             <div class="order-add-address-form__phone">
               <el-select v-model="addAddressForm.phoneCountryCode">
                 <el-option
@@ -367,19 +403,21 @@
                   :value="item.value"
                 />
               </el-select>
-              <el-input v-model="addAddressForm.phone" :placeholder="t('client.login.register.phoneNumberPlaceholder')" />
+              <el-input
+                v-model="addAddressForm.phone"
+                :placeholder="t('client.login.register.phoneNumberPlaceholder')"
+              />
             </div>
           </el-form-item>
-          <el-form-item :label="t('client.orderConfirm.fields.email')">
-            <el-input v-model="addAddressForm.email" type="email" :placeholder="t('client.orderConfirm.placeholders.email')" />
-          </el-form-item>
-          <el-form-item :label="t('client.orderConfirm.fields.district')">
-            <el-input v-model="addAddressForm.district" :placeholder="t('client.orderConfirm.placeholders.district')" />
-          </el-form-item>
-          <el-form-item class="order-add-address-form__wide" :label="t('client.orderConfirm.fields.address')" required>
-            <el-input v-model="addAddressForm.address" :placeholder="t('client.orderConfirm.placeholders.address')" />
-          </el-form-item>
-          <el-form-item class="order-add-address-form__wide" :label="t('client.orderConfirm.fields.remark')">
+          <div class="order-add-address-form__section order-add-address-form__wide">
+            <span aria-hidden="true">✎</span>
+            <div>
+              <strong>{{ t('client.orderConfirm.fields.remark') }}</strong>
+            </div>
+          </div>
+          <el-form-item
+            class="order-add-address-form__wide"
+          >
             <el-input
               v-model="addAddressForm.additionalNotes"
               type="textarea"
@@ -390,8 +428,11 @@
         </div>
       </el-form>
       <template #footer>
-        <el-button :disabled="addressAdding" @click="addAddressDialogVisible = false">
-          {{ t('client.orderConfirm.addressBook.cancel') }}
+        <el-button
+          :disabled="addressAdding"
+          @click="addAddressDialogVisible = false"
+        >
+          {{ t("client.orderConfirm.addressBook.cancel") }}
         </el-button>
         <el-button
           class="order-add-address-form__submit"
@@ -399,7 +440,11 @@
           :loading="addressAdding"
           @click="submitAddressEditor"
         >
-          {{ editingAddressId ? t('client.orderConfirm.addressBook.saveChanges') : t('client.orderConfirm.addressBook.save') }}
+          {{
+            editingAddressId
+              ? t("client.orderConfirm.addressBook.saveChanges")
+              : t("client.orderConfirm.addressBook.save")
+          }}
         </el-button>
       </template>
     </el-dialog>
@@ -416,18 +461,27 @@
       <div class="stripe-dialog-body">
         <p class="stripe-dialog-tip">
           {{
-            locale === 'zh'
-              ? '可用的钱包方式会显示在上方；也可以直接填写银行卡信息完成支付'
-              : 'Available wallets appear above; you can also enter your card details below'
+            locale === "zh"
+              ? "可用的钱包方式会显示在上方；也可以直接填写银行卡信息完成支付"
+              : "Available wallets appear above; you can also enter your card details below"
           }}
         </p>
         <div
           class="stripe-express-wrap"
-          :class="{ 'stripe-express-wrap--hidden': !stripeExpressVisible && !stripeInitializing }"
+          :class="{
+            'stripe-express-wrap--hidden':
+              !stripeExpressVisible && !stripeInitializing,
+          }"
         >
-          <div ref="stripeExpressContainerRef" class="stripe-express-container"></div>
+          <div
+            ref="stripeExpressContainerRef"
+            class="stripe-express-container"
+          ></div>
         </div>
-        <div ref="stripeElementContainerRef" class="stripe-element-container"></div>
+        <div
+          ref="stripeElementContainerRef"
+          class="stripe-element-container"
+        ></div>
       </div>
       <template #footer>
         <div class="stripe-dialog-actions">
@@ -437,7 +491,7 @@
             :disabled="stripeSubmitting"
             @click="stripeDialogVisible = false"
           >
-            {{ locale === 'zh' ? '取消' : 'Cancel' }}
+            {{ locale === "zh" ? "取消" : "Cancel" }}
           </button>
           <button
             class="stripe-dialog-btn stripe-dialog-btn--primary"
@@ -447,8 +501,12 @@
           >
             {{
               stripeSubmitting
-                ? (locale === 'zh' ? '支付中...' : 'Paying...')
-                : (locale === 'zh' ? '立即支付' : 'Pay Now')
+                ? locale === "zh"
+                  ? "支付中..."
+                  : "Paying..."
+                : locale === "zh"
+                  ? "立即支付"
+                  : "Pay Now"
             }}
           </button>
         </div>
@@ -458,12 +516,15 @@
 </template>
 
 <script setup lang="ts">
-import { ElMessage } from 'element-plus';
-import { computed, nextTick, onMounted, reactive, ref, watch } from 'vue';
-import { useI18n } from 'vue-i18n';
-import { useRoute, useRouter } from 'vue-router';
+import { ElMessage, ElMessageBox } from "element-plus"
+import elLocaleEn from "element-plus/es/locale/lang/en"
+import elLocaleZhCn from "element-plus/es/locale/lang/zh-cn"
+import { computed, nextTick, onMounted, reactive, ref, watch } from "vue"
+import { useI18n } from "vue-i18n"
+import { useRoute, useRouter } from "vue-router"
 import {
   addClientAddress,
+  deleteClientAddress,
   getClientAddressList,
   updateClientAddress,
   saveContactAddress,
@@ -473,569 +534,767 @@ import {
   type LatestAddressRecord,
   getAvailableSelectTime,
   createPay,
-} from '@/modules/client/api';
+  type CartSkuDetail,
+} from "@/modules/client/api"
+import { useCart } from "@/modules/client/composables/useCart"
+import AgreementDialog from "@/modules/client/components/agreement-dialog.vue"
+import BookingPolicyConfirm from "@/modules/client/components/booking-policy-confirm.vue"
+import type { LegalDocType } from "@/modules/client/constants/legal"
 import {
   locateCurrentAddress,
   LocationLookupError,
   type LocationLookupErrorCode,
-} from '@/modules/client/utils/geolocation';
+} from "@/modules/client/utils/geolocation"
+import {
+  formatContactName,
+  splitContactName,
+} from "@/modules/client/utils/order-localization"
 
-type I18nText = Record<string, string>;
+type I18nText = Record<string, string>
 
 type AvailableTimeRecord = {
-  time?: string;
-  avaiable?: boolean;
-  available?: boolean;
-  timeRange?: number | string;
-};
+  time?: string
+  avaiable?: boolean
+  available?: boolean
+  timeRange?: number | string
+}
 
-const route = useRoute();
-const router = useRouter();
-const { t, locale } = useI18n({ useScope: 'global' });
-const DEFAULT_COUNTRY_CODE = '+971';
+const route = useRoute()
+const router = useRouter()
+const { t, locale } = useI18n({ useScope: "global" })
+const DEFAULT_COUNTRY_CODE = "+971"
 const COUNTRY_CODE_ENTRIES = [
-  { value: '+971', labelEn: 'UAE +971', labelZh: '阿联酋 +971' },
-  { value: '+966', labelEn: 'Saudi Arabia +966', labelZh: '沙特阿拉伯 +966' },
-  { value: '+1', labelEn: 'United States +1', labelZh: '美国 +1' },
-  { value: '+44', labelEn: 'United Kingdom +44', labelZh: '英国 +44' },
-  { value: '+91', labelEn: 'India +91', labelZh: '印度 +91' },
-  { value: '+86', labelEn: 'China +86', labelZh: '中国 +86' },
-];
+  { value: "+971", labelEn: "UAE +971", labelZh: "阿联酋 +971" },
+  { value: "+966", labelEn: "Saudi Arabia +966", labelZh: "沙特阿拉伯 +966" },
+  { value: "+1", labelEn: "United States +1", labelZh: "美国 +1" },
+  { value: "+44", labelEn: "United Kingdom +44", labelZh: "英国 +44" },
+  { value: "+91", labelEn: "India +91", labelZh: "印度 +91" },
+  { value: "+86", labelEn: "China +86", labelZh: "中国 +86" },
+]
 
 const form = reactive({
-  firstName: '',
-  lastName: '',
+  firstName: "",
+  lastName: "",
   countryCode: DEFAULT_COUNTRY_CODE,
-  phone: '',
-  email: '',
-  district: '',
-  address: '',
-  remark: '',
-  category: 'others' as AddressCategory,
-  serviceDate: '',
-  timeRange: '',
-});
+  phone: "",
+  district: "",
+  address: "",
+  building: "",
+  roomNo: "",
+  community: "",
+  remark: "",
+  category: "others" as AddressCategory,
+  serviceDate: "",
+  timeRange: "",
+})
 
-const availableTimeRecords = ref<AvailableTimeRecord[]>([]);
-const isTimeOptionsLoading = ref(false);
-const lastLoadedServiceDate = ref('');
-const pendingTimeText = ref('');
+const availableTimeRecords = ref<AvailableTimeRecord[]>([])
+const isTimeOptionsLoading = ref(false)
+const lastLoadedServiceDate = ref("")
+const pendingTimeText = ref("")
 
-const agreedPolicy = ref(true);
-const isSubmitting = ref(false);
-const isLocating = ref(false);
-const locationLookupUsed = ref(false);
-const addressList = ref<ClientAddressRecord[]>([]);
-const addressListLoading = ref(false);
-const selectedAddressId = ref<number | null>(null);
-const addAddressDialogVisible = ref(false);
-const addressAdding = ref(false);
-const editingAddressId = ref<number | null>(null);
-let isApplyingSavedAddress = false;
+const agreedPolicy = ref(false)
+const policyDialogVisible = ref(false)
+const legalDialogVisible = ref(false)
+const legalDocType = ref<LegalDocType>("terms")
+const isSubmitting = ref(false)
+const isLocating = ref(false)
+const locationLookupUsed = ref(false)
+const addressList = ref<ClientAddressRecord[]>([])
+const addressListLoading = ref(false)
+const addressListError = ref(false)
+const selectedAddressId = ref<number | null>(null)
+const addressPickerExpanded = ref(false)
+const addAddressDialogVisible = ref(false)
+const addressAdding = ref(false)
+const addressDeletingId = ref<number | null>(null)
+const addressEditorLocating = ref(false)
+const editingAddressId = ref<number | null>(null)
+let isApplyingSavedAddress = false
 const addAddressForm = reactive({
-  firstName: '',
-  lastName: '',
+  fullName: "",
   phoneCountryCode: DEFAULT_COUNTRY_CODE,
-  phone: '',
-  email: '',
-  district: '',
-  address: '',
-  additionalNotes: '',
-  category: 'home' as AddressCategory,
-});
-const serviceDateInputRef = ref<HTMLInputElement | null>(null);
-const ORDER_PAYMENT_METHOD = 'stripe';
-const CREATE_PAY_METHOD = 'stripe';
-const PAYMENT_STATUS_SYNC_DELAY_MS = 2000;
-const STRIPE_SCRIPT_ID = 'hourx-stripe-js';
+  phone: "",
+  district: "",
+  address: "",
+  building: "",
+  roomNo: "",
+  community: "",
+  additionalNotes: "",
+  category: "home" as AddressCategory,
+})
+const serviceDatePickerRef = ref<{
+  focus?: () => void
+  handleOpen?: () => void
+} | null>(null)
+const ORDER_PAYMENT_METHOD = "stripe"
+const CREATE_PAY_METHOD = "stripe"
+const PAYMENT_STATUS_SYNC_DELAY_MS = 2000
+const STRIPE_SCRIPT_ID = "hourx-stripe-js"
 const stripePublishableKey =
-  typeof import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY === 'string'
+  typeof import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY === "string"
     ? import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY.trim()
-    : '';
+    : ""
+const { addItem, clearCart } = useCart()
+
+const openLegal = (docType: LegalDocType) => {
+  legalDocType.value = docType
+  legalDialogVisible.value = true
+}
 
 type StripeElementInstance = {
-  mount: (domElement: HTMLElement | string) => void;
-  destroy: () => void;
-  on?: (eventName: string, handler: (event?: any) => void | Promise<void>) => void;
-};
+  mount: (domElement: HTMLElement | string) => void
+  destroy: () => void
+  on?: (
+    eventName: string,
+    handler: (event?: any) => void | Promise<void>,
+  ) => void
+}
 
 type StripeElementsInstance = {
-  create: (type: string, options?: Record<string, unknown>) => StripeElementInstance;
-};
+  create: (
+    type: string,
+    options?: Record<string, unknown>,
+  ) => StripeElementInstance
+}
 
 type StripeConfirmResult = {
-  error?: { message?: string };
-  paymentIntent?: { status?: string };
-};
+  error?: { message?: string }
+  paymentIntent?: { status?: string }
+}
 
 type StripeInstance = {
-  elements: (options: Record<string, unknown>) => StripeElementsInstance;
-  confirmPayment: (options: Record<string, unknown>) => Promise<StripeConfirmResult>;
-};
+  elements: (options: Record<string, unknown>) => StripeElementsInstance
+  confirmPayment: (
+    options: Record<string, unknown>,
+  ) => Promise<StripeConfirmResult>
+}
 
 type StripeFactory = (
   publishableKey: string,
   options?: { locale?: string },
-) => StripeInstance | null;
+) => StripeInstance | null
 
-const stripeDialogVisible = ref(false);
-const stripeInitializing = ref(false);
-const stripeSubmitting = ref(false);
-const stripeClientSecret = ref('');
-const stripeExpressVisible = ref(true);
-const stripeExpressContainerRef = ref<HTMLElement | null>(null);
-const stripeElementContainerRef = ref<HTMLElement | null>(null);
-const stripeInstance = ref<StripeInstance | null>(null);
-const stripeElements = ref<StripeElementsInstance | null>(null);
-const stripeExpressElement = ref<StripeElementInstance | null>(null);
-const stripePaymentElement = ref<StripeElementInstance | null>(null);
+const stripeDialogVisible = ref(false)
+const stripeInitializing = ref(false)
+const stripeSubmitting = ref(false)
+const stripeClientSecret = ref("")
+const stripeExpressVisible = ref(true)
+const stripeExpressContainerRef = ref<HTMLElement | null>(null)
+const stripeElementContainerRef = ref<HTMLElement | null>(null)
+const stripeInstance = ref<StripeInstance | null>(null)
+const stripeElements = ref<StripeElementsInstance | null>(null)
+const stripeExpressElement = ref<StripeElementInstance | null>(null)
+const stripePaymentElement = ref<StripeElementInstance | null>(null)
 
-const getStripeLocale = () => (locale.value.startsWith('zh') ? 'zh' : 'en');
+const getStripeLocale = () => (locale.value.startsWith("zh") ? "zh" : "en")
 
 const getDateText = (date: Date): string => {
-  const yyyy = date.getFullYear();
-  const mm = `${date.getMonth() + 1}`.padStart(2, '0');
-  const dd = `${date.getDate()}`.padStart(2, '0');
-  return `${yyyy}-${mm}-${dd}`;
-};
+  const yyyy = date.getFullYear()
+  const mm = `${date.getMonth() + 1}`.padStart(2, "0")
+  const dd = `${date.getDate()}`.padStart(2, "0")
+  return `${yyyy}-${mm}-${dd}`
+}
 
 const normalizeText = (value: unknown): string =>
-  typeof value === 'string' ? value.trim() : '';
+  typeof value === "string" ? value.trim() : ""
 
 const normalizePhoneNumber = (value: unknown): string =>
-  typeof value === 'string' ? value.replace(/[^\d]/g, '') : '';
+  typeof value === "string" ? value.replace(/[^\d]/g, "") : ""
 
 const normalizeAddressCategory = (value: unknown): AddressCategory => {
-  if (value === 'home' || value === 'office' || value === 'others') {
-    return value;
+  if (value === "home" || value === "office" || value === "others") {
+    return value
   }
-  return 'others';
-};
+  return "others"
+}
 
 const addressCategoryOptions = computed(() => [
-  { value: 'home' as AddressCategory, label: t('client.orderConfirm.addressBook.categories.home') },
-  { value: 'office' as AddressCategory, label: t('client.orderConfirm.addressBook.categories.office') },
-  { value: 'others' as AddressCategory, label: t('client.orderConfirm.addressBook.categories.others') },
-]);
+  {
+    value: "home" as AddressCategory,
+    label: t("client.orderConfirm.addressBook.categories.home"),
+  },
+  {
+    value: "office" as AddressCategory,
+    label: t("client.orderConfirm.addressBook.categories.office"),
+  },
+  {
+    value: "others" as AddressCategory,
+    label: t("client.orderConfirm.addressBook.categories.others"),
+  },
+])
 
 const addressCategoryLabel = (category: unknown) => {
-  const normalized = normalizeAddressCategory(category);
-  return t(`client.orderConfirm.addressBook.categories.${normalized}`);
-};
+  const normalized = normalizeAddressCategory(category)
+  return t(`client.orderConfirm.addressBook.categories.${normalized}`)
+}
+
+const addressCategoryIcon = (category: unknown) => {
+  const normalized = normalizeAddressCategory(category)
+  if (normalized === "home") return "⌂"
+  if (normalized === "office") return "▣"
+  return "●"
+}
+
+const selectedAddress = computed(() =>
+  addressList.value.find((item) => item.id === selectedAddressId.value) || null,
+)
 
 const formatAddressPhone = (item: ClientAddressRecord) =>
-  [normalizeText(item.phoneCountryCode), normalizeText(item.phone)].filter(Boolean).join(' ');
+  [normalizeText(item.phoneCountryCode), normalizeText(item.phone)]
+    .filter(Boolean)
+    .join(" ")
 
 const formatAddressLine = (item: ClientAddressRecord) =>
-  [normalizeText(item.district), normalizeText(item.address)].filter(Boolean).join(', ');
+  [
+    normalizeText(item.community) || normalizeText(item.district),
+    normalizeText(item.address),
+    normalizeText(item.building),
+    normalizeText(item.roomNo),
+  ]
+    .filter(Boolean)
+    .join(", ")
 
-const normalizeAddressRecord = (item: ClientAddressRecord): ClientAddressRecord | null => {
-  const id = Number(item?.id);
-  if (!Number.isFinite(id) || id <= 0) return null;
+const getAddressFullName = (item: ClientAddressRecord) =>
+  normalizeText(item.fullName)
+
+const normalizeAddressRecord = (
+  item: ClientAddressRecord,
+): ClientAddressRecord | null => {
+  const id = Number(item?.id)
+  if (!Number.isFinite(id) || id <= 0) return null
   return {
     ...item,
     id,
-    firstName: normalizeText(item.firstName),
-    lastName: normalizeText(item.lastName),
-    phoneCountryCode: normalizeText(item.phoneCountryCode) || DEFAULT_COUNTRY_CODE,
+    fullName: normalizeText(item.fullName),
+    phoneCountryCode:
+      normalizeText(item.phoneCountryCode) || DEFAULT_COUNTRY_CODE,
     phone: normalizeText(item.phone),
-    email: normalizeText(item.email),
     district: normalizeText(item.district),
     address: normalizeText(item.address),
+    building: normalizeText(item.building),
+    roomNo: normalizeText(item.roomNo),
+    community: normalizeText(item.community),
     additionalNotes: normalizeText(item.additionalNotes),
     category: normalizeAddressCategory(item.category),
     isDefault: item.isDefault === true,
-  };
-};
+  }
+}
 
 const selectSavedAddress = (item: ClientAddressRecord) => {
-  isApplyingSavedAddress = true;
-  selectedAddressId.value = item.id;
-  form.firstName = normalizeText(item.firstName);
-  form.lastName = normalizeText(item.lastName);
-  form.countryCode = normalizeText(item.phoneCountryCode) || DEFAULT_COUNTRY_CODE;
-  form.phone = normalizeText(item.phone);
-  form.email = normalizeText(item.email);
-  form.district = normalizeText(item.district);
-  form.address = normalizeText(item.address);
-  form.remark = normalizeText(item.additionalNotes);
-  form.category = normalizeAddressCategory(item.category);
-  locationLookupUsed.value = false;
-  isApplyingSavedAddress = false;
-};
+  const fallbackName = splitContactName(getAddressFullName(item))
+  isApplyingSavedAddress = true
+  selectedAddressId.value = item.id
+  form.firstName = fallbackName.firstName
+  form.lastName = fallbackName.lastName
+  form.countryCode =
+    normalizeText(item.phoneCountryCode) || DEFAULT_COUNTRY_CODE
+  form.phone = normalizeText(item.phone)
+  form.district = normalizeText(item.district)
+  form.address = normalizeText(item.address)
+  form.building = normalizeText(item.building)
+  form.roomNo = normalizeText(item.roomNo)
+  form.community = normalizeText(item.community)
+  form.category = normalizeAddressCategory(item.category)
+  locationLookupUsed.value = false
+  addressPickerExpanded.value = false
+  isApplyingSavedAddress = false
+}
 
 const selectManualAddress = () => {
-  isApplyingSavedAddress = true;
-  selectedAddressId.value = null;
-  form.district = '';
-  form.address = '';
-  form.remark = '';
-  form.category = 'others';
-  locationLookupUsed.value = false;
-  isApplyingSavedAddress = false;
-};
+  isApplyingSavedAddress = true
+  selectedAddressId.value = null
+  form.district = ""
+  form.address = ""
+  form.building = ""
+  form.roomNo = ""
+  form.community = ""
+  form.category = "others"
+  locationLookupUsed.value = false
+  isApplyingSavedAddress = false
+}
 
 const loadAddressBook = async (preferredId?: number | null) => {
-  addressListLoading.value = true;
+  addressListLoading.value = true
+  addressListError.value = false
   try {
-    const records = await getClientAddressList();
+    const records = await getClientAddressList()
     addressList.value = records
       .map(normalizeAddressRecord)
-      .filter((item): item is ClientAddressRecord => item !== null);
+      .filter((item): item is ClientAddressRecord => item !== null)
     const preferred =
-      addressList.value.find((item) => preferredId && item.id === preferredId) ||
+      addressList.value.find(
+        (item) => preferredId && item.id === preferredId,
+      ) ||
       addressList.value.find((item) => item.isDefault) ||
-      addressList.value[0];
+      addressList.value[0]
     if (preferred) {
-      selectSavedAddress(preferred);
+      selectSavedAddress(preferred)
     } else {
-      selectedAddressId.value = null;
+      selectedAddressId.value = null
     }
   } catch (error) {
-    console.error('load address list failed:', error);
-    addressList.value = [];
-    ElMessage.warning(t('client.orderConfirm.addressBook.listFailed'));
+    console.error("load address list failed:", error)
+    addressList.value = []
+    selectedAddressId.value = null
+    addressListError.value = true
+    ElMessage.warning(t("client.orderConfirm.addressBook.listFailed"))
   } finally {
-    addressListLoading.value = false;
+    addressListLoading.value = false
   }
-};
+}
 
 const openAddAddressDialog = () => {
-  editingAddressId.value = null;
+  editingAddressId.value = null
   Object.assign(addAddressForm, {
-    firstName: form.firstName,
-    lastName: form.lastName,
+    fullName: formatContactName(form.firstName, form.lastName),
     phoneCountryCode: form.countryCode || DEFAULT_COUNTRY_CODE,
     phone: form.phone,
-    email: form.email,
-    district: selectedAddressId.value ? '' : form.district,
-    address: selectedAddressId.value ? '' : form.address,
-    additionalNotes: '',
-    category: 'home' as AddressCategory,
-  });
-  addAddressDialogVisible.value = true;
-};
+    district: "",
+    address: "",
+    building: "",
+    roomNo: "",
+    community: "",
+    additionalNotes: "",
+    category: "home" as AddressCategory,
+  })
+  addAddressDialogVisible.value = true
+  if (!normalizeText(addAddressForm.community)) {
+    void fillAddressEditorWithCurrentLocation()
+  }
+}
+
+const fillAddressEditorWithCurrentLocation = async () => {
+  if (addressEditorLocating.value) return
+  addressEditorLocating.value = true
+  try {
+    const result = await locateCurrentAddress(locale.value)
+    if (!addAddressDialogVisible.value || editingAddressId.value) return
+    if (!normalizeText(addAddressForm.community)) {
+      const area = result.district || result.address
+      addAddressForm.community = area
+      addAddressForm.district = area
+      addAddressForm.address = result.street || result.address
+    }
+  } catch (error) {
+    const code =
+      error instanceof LocationLookupError ? error.code : "LOOKUP_FAILED"
+    console.warn("auto locate for address editor failed:", code)
+  } finally {
+    addressEditorLocating.value = false
+  }
+}
 
 const openEditAddressDialog = (item: ClientAddressRecord) => {
-  editingAddressId.value = item.id;
+  editingAddressId.value = item.id
   Object.assign(addAddressForm, {
-    firstName: normalizeText(item.firstName),
-    lastName: normalizeText(item.lastName),
-    phoneCountryCode: normalizeText(item.phoneCountryCode) || DEFAULT_COUNTRY_CODE,
+    fullName: getAddressFullName(item),
+    phoneCountryCode:
+      normalizeText(item.phoneCountryCode) || DEFAULT_COUNTRY_CODE,
     phone: normalizeText(item.phone),
-    email: normalizeText(item.email),
     district: normalizeText(item.district),
     address: normalizeText(item.address),
+    building: normalizeText(item.building),
+    roomNo: normalizeText(item.roomNo),
+    community: normalizeText(item.community) || normalizeText(item.district),
     additionalNotes: normalizeText(item.additionalNotes),
     category: normalizeAddressCategory(item.category),
-  });
-  addAddressDialogVisible.value = true;
-};
+  })
+  addAddressDialogVisible.value = true
+}
 
-const isValidEmail = (value: string) => !value || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
+const deleteSavedAddress = async (item: ClientAddressRecord) => {
+  if (addressDeletingId.value !== null) return
+  try {
+    await ElMessageBox.confirm(
+      t("client.orderConfirm.addressBook.deleteConfirmMessage"),
+      t("client.orderConfirm.addressBook.deleteConfirmTitle"),
+      {
+        type: "warning",
+        confirmButtonText: t("client.orderConfirm.addressBook.delete"),
+        cancelButtonText: t("client.orderConfirm.addressBook.cancel"),
+      },
+    )
+  } catch {
+    return
+  }
+
+  addressDeletingId.value = item.id
+  try {
+    await deleteClientAddress(item.id)
+    if (selectedAddressId.value === item.id) {
+      selectManualAddress()
+    }
+    await loadAddressBook()
+    ElMessage.success(t("client.orderConfirm.addressBook.deleteSuccess"))
+  } catch (error: any) {
+    ElMessage.error(
+      error?.message || t("client.orderConfirm.addressBook.deleteFailed"),
+    )
+  } finally {
+    addressDeletingId.value = null
+  }
+}
 
 const getAddAddressValidationMessage = () => {
   const requiredFields = [
-    [addAddressForm.firstName, t('client.orderConfirm.fields.firstName')],
-    [addAddressForm.lastName, t('client.orderConfirm.fields.lastName')],
-    [addAddressForm.phone, t('client.orderConfirm.fields.phone')],
-    [addAddressForm.address, t('client.orderConfirm.fields.address')],
-  ];
-  const missing = requiredFields.find(([value]) => !normalizeText(value));
+    [addAddressForm.fullName, t("client.orderConfirm.fields.fullName")],
+    [addAddressForm.phone, t("client.orderConfirm.fields.phone")],
+    [addAddressForm.community, t("client.orderConfirm.fields.areaCommunity")],
+    [addAddressForm.address, t("client.orderConfirm.fields.street")],
+    [addAddressForm.building, t("client.orderConfirm.fields.buildingVilla")],
+    [addAddressForm.roomNo, t("client.orderConfirm.fields.apartmentUnitFloor")],
+  ]
+  const missing = requiredFields.find(([value]) => !normalizeText(value))
   if (missing) {
-    return t('client.orderConfirm.validation.requiredField', { field: missing[1] });
+    return t("client.orderConfirm.validation.requiredField", {
+      field: missing[1],
+    })
   }
-  if (!isValidEmail(normalizeText(addAddressForm.email))) {
-    return t('client.orderConfirm.addressBook.invalidEmail');
-  }
-  return '';
-};
+  return ""
+}
 
 const submitAddressEditor = async () => {
-  const validationMessage = getAddAddressValidationMessage();
+  const validationMessage = getAddAddressValidationMessage()
   if (validationMessage) {
-    ElMessage.warning(validationMessage);
-    return;
+    ElMessage.warning(validationMessage)
+    return
   }
-  addressAdding.value = true;
+  addressAdding.value = true
   try {
     const payload = {
-      firstName: normalizeText(addAddressForm.firstName),
-      lastName: normalizeText(addAddressForm.lastName),
-      phoneCountryCode: normalizeText(addAddressForm.phoneCountryCode) || DEFAULT_COUNTRY_CODE,
+      fullName: normalizeText(addAddressForm.fullName),
+      phoneCountryCode:
+        normalizeText(addAddressForm.phoneCountryCode) || DEFAULT_COUNTRY_CODE,
       phone: normalizeText(addAddressForm.phone),
-      email: normalizeText(addAddressForm.email) || undefined,
-      district: normalizeText(addAddressForm.district) || undefined,
+      district: normalizeText(addAddressForm.community) || undefined,
       address: normalizeText(addAddressForm.address),
-      additionalNotes: normalizeText(addAddressForm.additionalNotes) || undefined,
+      building: normalizeText(addAddressForm.building),
+      roomNo: normalizeText(addAddressForm.roomNo),
+      community: normalizeText(addAddressForm.community) || undefined,
+      additionalNotes:
+        normalizeText(addAddressForm.additionalNotes) || undefined,
       category: normalizeAddressCategory(addAddressForm.category),
-    };
+    }
     if (editingAddressId.value) {
-      await updateClientAddress({ id: editingAddressId.value, ...payload });
-      await loadAddressBook(editingAddressId.value);
-      addAddressDialogVisible.value = false;
-      ElMessage.success(t('client.orderConfirm.addressBook.editSuccess'));
-      return;
+      await updateClientAddress({ id: editingAddressId.value, ...payload })
+      await loadAddressBook(editingAddressId.value)
+      addAddressDialogVisible.value = false
+      ElMessage.success(t("client.orderConfirm.addressBook.editSuccess"))
+      return
     }
 
-    const added = await addClientAddress(payload);
-    const addedId = Number(typeof added === 'number' ? added : added?.id);
-    await loadAddressBook(Number.isFinite(addedId) ? addedId : null);
+    const added = await addClientAddress(payload)
+    const addedId = Number(typeof added === "number" ? added : added?.id)
+    await loadAddressBook(Number.isFinite(addedId) ? addedId : null)
     if (!Number.isFinite(addedId)) {
-      const matched = [...addressList.value].reverse().find(
-        (item) =>
-          item.address === normalizeText(addAddressForm.address) &&
-          item.phone === normalizeText(addAddressForm.phone),
-      );
-      if (matched) selectSavedAddress(matched);
+      const matched = [...addressList.value]
+        .reverse()
+        .find(
+          (item) =>
+            item.address === normalizeText(addAddressForm.address) &&
+            item.building === normalizeText(addAddressForm.building) &&
+            normalizeText(item.roomNo) === normalizeText(addAddressForm.roomNo) &&
+            normalizeText(item.community) === normalizeText(addAddressForm.community) &&
+            item.phone === normalizeText(addAddressForm.phone),
+        )
+      if (matched) selectSavedAddress(matched)
     }
-    addAddressDialogVisible.value = false;
-    ElMessage.success(t('client.orderConfirm.addressBook.addSuccess'));
+    addAddressDialogVisible.value = false
+    ElMessage.success(t("client.orderConfirm.addressBook.addSuccess"))
   } catch (error: any) {
     ElMessage.error(
-      error?.message || t(
-        editingAddressId.value
-          ? 'client.orderConfirm.addressBook.editFailed'
-          : 'client.orderConfirm.addressBook.addFailed',
-      ),
-    );
+      error?.message ||
+        t(
+          editingAddressId.value
+            ? "client.orderConfirm.addressBook.editFailed"
+            : "client.orderConfirm.addressBook.addFailed",
+        ),
+    )
   } finally {
-    addressAdding.value = false;
+    addressAdding.value = false
   }
-};
+}
 
 const locationErrorKeyMap: Record<LocationLookupErrorCode, string> = {
-  UNSUPPORTED: 'unsupported',
-  PERMISSION_DENIED: 'permissionDenied',
-  UNAVAILABLE: 'unavailable',
-  TIMEOUT: 'timeout',
-  LOOKUP_FAILED: 'lookupFailed',
-};
+  UNSUPPORTED: "unsupported",
+  PERMISSION_DENIED: "permissionDenied",
+  UNAVAILABLE: "unavailable",
+  TIMEOUT: "timeout",
+  LOOKUP_FAILED: "lookupFailed",
+}
 
 const handleUseCurrentLocation = async () => {
-  if (isLocating.value) return;
-  isLocating.value = true;
+  if (isLocating.value) return
+  isLocating.value = true
   try {
-    const result = await locateCurrentAddress(locale.value);
-    form.district = result.district;
-    form.address = result.address;
-    locationLookupUsed.value = true;
-    ElMessage.success(t('client.orderConfirm.location.success'));
+    const result = await locateCurrentAddress(locale.value)
+    form.district = result.district
+    form.address = ""
+    form.building = ""
+    form.roomNo = ""
+    form.community = ""
+    locationLookupUsed.value = true
+    ElMessage.success(t("client.orderConfirm.location.success"))
   } catch (error) {
-    const code = error instanceof LocationLookupError ? error.code : 'LOOKUP_FAILED';
-    ElMessage.error(t(`client.orderConfirm.location.errors.${locationErrorKeyMap[code]}`));
+    const code =
+      error instanceof LocationLookupError ? error.code : "LOOKUP_FAILED"
+    ElMessage.error(
+      t(`client.orderConfirm.location.errors.${locationErrorKeyMap[code]}`),
+    )
   } finally {
-    isLocating.value = false;
+    isLocating.value = false
   }
-};
+}
 
 const countryCodeOptions = computed(() =>
   COUNTRY_CODE_ENTRIES.map((item) => ({
     value: item.value,
-    label: locale.value === 'zh' ? item.labelZh : item.labelEn,
+    label: locale.value === "zh" ? item.labelZh : item.labelEn,
   })),
-);
+)
 
-const splitPhoneNumber = (value: unknown): { countryCode: string; phone: string } => {
-  const text = normalizeText(value);
+const splitPhoneNumber = (
+  value: unknown,
+): { countryCode: string; phone: string } => {
+  const text = normalizeText(value)
   if (!text) {
     return {
       countryCode: DEFAULT_COUNTRY_CODE,
-      phone: '',
-    };
+      phone: "",
+    }
   }
 
-  const normalized = text.startsWith('+')
-    ? `+${text.slice(1).replace(/[^\d]/g, '')}`
-    : normalizePhoneNumber(text);
+  const normalized = text.startsWith("+")
+    ? `+${text.slice(1).replace(/[^\d]/g, "")}`
+    : normalizePhoneNumber(text)
   const matchedCode = COUNTRY_CODE_ENTRIES.map((item) => item.value)
     .sort((left, right) => right.length - left.length)
     .find((code) => {
-      const codeDigits = normalizePhoneNumber(code);
-      return normalized.startsWith(code) || (!normalized.startsWith('+') && normalized.startsWith(codeDigits));
-    });
+      const codeDigits = normalizePhoneNumber(code)
+      return (
+        normalized.startsWith(code) ||
+        (!normalized.startsWith("+") && normalized.startsWith(codeDigits))
+      )
+    })
 
   if (!matchedCode) {
     return {
       countryCode: DEFAULT_COUNTRY_CODE,
-      phone: normalized.startsWith('+') ? normalizePhoneNumber(normalized) : normalized,
-    };
+      phone: normalized.startsWith("+")
+        ? normalizePhoneNumber(normalized)
+        : normalized,
+    }
   }
 
-  const matchedDigits = normalizePhoneNumber(matchedCode);
+  const matchedDigits = normalizePhoneNumber(matchedCode)
   return {
     countryCode: matchedCode,
     phone: normalized.startsWith(matchedCode)
       ? normalizePhoneNumber(normalized.slice(matchedCode.length))
       : normalizePhoneNumber(normalized.slice(matchedDigits.length)),
-  };
-};
+  }
+}
 
 const normalizeTimeRangeValue = (value: unknown): string => {
   if (value === null || value === undefined) {
-    return '';
+    return ""
   }
-  const text = String(value).trim();
-  return text;
-};
+  const text = String(value).trim()
+  return text
+}
 
-const minServiceDate = computed(() => getDateText(new Date()));
+const minServiceDate = computed(() => getDateText(new Date()))
+
+const datePickerLocale = computed(() =>
+  locale.value.startsWith("zh") ? elLocaleZhCn : elLocaleEn,
+)
+
+const isServiceDateDisabled = (date: Date) =>
+  getDateText(date) < minServiceDate.value
+
+const localizedServiceDate = computed(() => {
+  const matched = /^(\d{4})-(\d{2})-(\d{2})$/.exec(form.serviceDate)
+  if (!matched) {
+    return t("client.orderConfirm.fields.serviceDateHint")
+  }
+
+  const [, year, month, day] = matched
+  if (locale.value.startsWith("zh")) {
+    return `${year}年${Number(month)}月${Number(day)}日`
+  }
+
+  return new Intl.DateTimeFormat("en-AE", {
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+    timeZone: "UTC",
+  }).format(new Date(Date.UTC(Number(year), Number(month) - 1, Number(day))))
+})
 
 const extractServiceStartTime = (value: string): string => {
-  const text = normalizeText(value);
+  const text = normalizeText(value)
   if (!text) {
-    return '';
+    return ""
   }
-  const [rangeStart = ''] = text.split('-');
-  return normalizeText(rangeStart);
-};
+  const [rangeStart = ""] = text.split("-")
+  return normalizeText(rangeStart)
+}
 
 const isFutureServiceSlot = (dateText: string, timeText: string): boolean => {
-  const startTime = extractServiceStartTime(timeText);
+  const startTime = extractServiceStartTime(timeText)
   if (!dateText || !startTime) {
-    return false;
+    return false
   }
-  const parsed = new Date(`${dateText}T${startTime}:00`);
+  const parsed = new Date(`${dateText}T${startTime}:00`)
   if (Number.isNaN(parsed.getTime())) {
-    return false;
+    return false
   }
-  return parsed.getTime() > Date.now();
-};
+  return parsed.getTime() > Date.now()
+}
 
 const selectableTimeOptions = computed(() => {
-  const selectedDate = normalizeText(form.serviceDate);
+  const selectedDate = normalizeText(form.serviceDate)
   if (!selectedDate) {
-    return [] as Array<{ time: string; available: boolean; timeRange: string }>;
+    return [] as Array<{ time: string; available: boolean; timeRange: string }>
   }
 
-  const today = getDateText(new Date());
+  const today = getDateText(new Date())
   if (selectedDate < today) {
-    return [];
+    return []
   }
 
   return availableTimeRecords.value
     .map((item) => {
-      const timeRange = normalizeTimeRangeValue(item.timeRange);
-      const time = normalizeText(item.time);
+      const timeRange = normalizeTimeRangeValue(item.timeRange)
+      const time = normalizeText(item.time)
       if (!time || !timeRange) {
-        return null;
+        return null
       }
-      const apiAvailable = item.avaiable ?? item.available ?? false;
+      const apiAvailable = item.avaiable ?? item.available ?? false
       return {
         time,
         timeRange,
-        available: Boolean(apiAvailable) && isFutureServiceSlot(selectedDate, time),
-      };
+        available:
+          Boolean(apiAvailable) && isFutureServiceSlot(selectedDate, time),
+      }
     })
-    .filter((item): item is { time: string; available: boolean; timeRange: string } => Boolean(item));
-});
+    .filter(
+      (item): item is { time: string; available: boolean; timeRange: string } =>
+        Boolean(item),
+    )
+})
 
-const selectedTimeOption = computed(() =>
-  selectableTimeOptions.value.find((item) => item.timeRange === normalizeTimeRangeValue(form.timeRange)) ||
-  null,
-);
+const selectedTimeOption = computed(
+  () =>
+    selectableTimeOptions.value.find(
+      (item) => item.timeRange === normalizeTimeRangeValue(form.timeRange),
+    ) || null,
+)
 
 const applyPendingTimeText = () => {
   if (!pendingTimeText.value) {
-    return;
+    return
   }
   const matched = selectableTimeOptions.value.find((item) => {
-    const time = normalizeText(item.time);
-    return time === pendingTimeText.value || extractServiceStartTime(time) === pendingTimeText.value;
-  });
+    const time = normalizeText(item.time)
+    return (
+      time === pendingTimeText.value ||
+      extractServiceStartTime(time) === pendingTimeText.value
+    )
+  })
   if (matched) {
-    form.timeRange = matched.timeRange;
+    form.timeRange = matched.timeRange
   }
-  pendingTimeText.value = '';
-};
+  pendingTimeText.value = ""
+}
 
 const openServiceDatePicker = () => {
-  const input = serviceDateInputRef.value;
-  if (!input) return;
+  const picker = serviceDatePickerRef.value
+  if (!picker) return
 
-  const pickerInput = input as HTMLInputElement & {
-    showPicker?: () => void;
-  };
-
-  if (typeof pickerInput.showPicker === 'function') {
-    pickerInput.showPicker();
-    return;
+  if (typeof picker.handleOpen === "function") {
+    picker.handleOpen()
+    return
   }
 
-  input.focus();
-  input.click();
-};
+  picker.focus?.()
+}
 
 const serviceTimePlaceholder = computed(() => {
   if (!normalizeText(form.serviceDate)) {
-    return locale.value === 'zh' ? '请先选择日期' : 'Please select a date first';
+    return locale.value === "zh" ? "请先选择日期" : "Please select a date first"
   }
   if (isTimeOptionsLoading.value) {
-    return locale.value === 'zh' ? '时间加载中...' : 'Loading times...';
+    return locale.value === "zh" ? "时间加载中..." : "Loading times..."
   }
   if (!selectableTimeOptions.value.length) {
-    return locale.value === 'zh' ? '暂无可选时间' : 'No available times';
+    return locale.value === "zh" ? "暂无可选时间" : "No available times"
   }
-  return locale.value === 'zh' ? '请选择时间' : 'Please select time';
-});
+  return locale.value === "zh" ? "请选择时间" : "Please select time"
+})
 
 const fetchAvailableTimes = async (force = false) => {
-  const serviceDate = normalizeText(form.serviceDate);
-  const spuIdText = getQueryText('spuId');
+  const serviceDate = normalizeText(form.serviceDate)
+  const spuIdText = getQueryText("spuId")
   if (!serviceDate) {
-    return;
+    return
   }
   if (!spuIdText) {
-    return;
+    return
   }
-  if (!force && lastLoadedServiceDate.value === serviceDate && availableTimeRecords.value.length) {
-    return;
+  if (
+    !force &&
+    lastLoadedServiceDate.value === serviceDate &&
+    availableTimeRecords.value.length
+  ) {
+    return
   }
 
-  isTimeOptionsLoading.value = true;
+  isTimeOptionsLoading.value = true
   try {
     const payload = await getAvailableSelectTime({
       spuId: Number.isFinite(Number(spuIdText)) ? Number(spuIdText) : spuIdText,
       serviceTime: serviceDate,
-    });
-    availableTimeRecords.value = Array.isArray(payload) ? payload : [];
-    lastLoadedServiceDate.value = serviceDate;
-    applyPendingTimeText();
+    })
+    availableTimeRecords.value = Array.isArray(payload) ? payload : []
+    lastLoadedServiceDate.value = serviceDate
+    applyPendingTimeText()
   } catch (error) {
-    console.error('load available select time failed:', error);
-    availableTimeRecords.value = [];
-    lastLoadedServiceDate.value = '';
+    console.error("load available select time failed:", error)
+    availableTimeRecords.value = []
+    lastLoadedServiceDate.value = ""
   } finally {
-    isTimeOptionsLoading.value = false;
+    isTimeOptionsLoading.value = false
   }
-};
+}
 
 const handleServiceTimeOpen = async () => {
   if (!normalizeText(form.serviceDate)) {
     ElMessage.warning(
-      t('client.orderConfirm.validation.requiredField', {
-        field: t('client.orderConfirm.fields.serviceDate'),
+      t("client.orderConfirm.validation.requiredField", {
+        field: t("client.orderConfirm.fields.serviceDate"),
       }),
-    );
-    return;
+    )
+    return
   }
-  await fetchAvailableTimes();
-};
+  await fetchAvailableTimes()
+}
 
 watch(
   () => form.serviceDate,
   (value, oldValue) => {
     if (value !== oldValue) {
-      availableTimeRecords.value = [];
-      lastLoadedServiceDate.value = '';
-      pendingTimeText.value = '';
-      form.timeRange = '';
+      availableTimeRecords.value = []
+      lastLoadedServiceDate.value = ""
+      pendingTimeText.value = ""
+      form.timeRange = ""
       if (normalizeText(value)) {
-        void fetchAvailableTimes(true);
+        void fetchAvailableTimes(true)
       }
     }
   },
-);
+)
 
 watch(
   () => [
@@ -1043,673 +1302,743 @@ watch(
     form.lastName,
     form.countryCode,
     form.phone,
-    form.email,
     form.district,
     form.address,
-    form.remark,
+    form.building,
+    form.roomNo,
+    form.community,
     form.category,
   ],
   () => {
     if (!isApplyingSavedAddress && selectedAddressId.value !== null) {
-      selectedAddressId.value = null;
+      selectedAddressId.value = null
     }
   },
-  { flush: 'sync' },
-);
+  { flush: "sync" },
+)
 
 watch(
   () =>
     selectableTimeOptions.value
       .map((item) => `${item.timeRange}:${item.available}`)
-      .join('|'),
+      .join("|"),
   () => {
     if (isTimeOptionsLoading.value) {
-      return;
+      return
     }
-    applyPendingTimeText();
-    const currentValue = normalizeTimeRangeValue(form.timeRange);
+    applyPendingTimeText()
+    const currentValue = normalizeTimeRangeValue(form.timeRange)
     const currentExists = selectableTimeOptions.value.some(
       (item) => item.timeRange === currentValue && item.available,
-    );
+    )
     if (!currentExists) {
-      const firstAvailable = selectableTimeOptions.value.find((item) => item.available);
-      form.timeRange = firstAvailable?.timeRange || '';
+      const firstAvailable = selectableTimeOptions.value.find(
+        (item) => item.available,
+      )
+      form.timeRange = firstAvailable?.timeRange || ""
     }
   },
   { immediate: true },
-);
+)
 
 watch(
   () => stripeDialogVisible.value,
   (visible) => {
     if (visible) {
-      return;
+      return
     }
-    stripeClientSecret.value = '';
-    destroyStripeElements();
+    stripeClientSecret.value = ""
+    destroyStripeElements()
   },
-);
+)
 
 watch(
   () => locale.value,
   async () => {
     if (!stripeDialogVisible.value || !stripeClientSecret.value) {
-      return;
+      return
     }
-    await initStripeElements();
+    await initStripeElements()
   },
-);
+)
 
 const getQueryText = (key: string) => {
-  const raw = route.query[key];
+  const raw = route.query[key]
   if (Array.isArray(raw)) {
-    return typeof raw[0] === 'string' ? raw[0].trim() : '';
+    return typeof raw[0] === "string" ? raw[0].trim() : ""
   }
-  return typeof raw === 'string' ? raw.trim() : '';
-};
+  return typeof raw === "string" ? raw.trim() : ""
+}
 
-const parseQueryJson = <T>(key: string, fallback: T): T => {
-  const raw = getQueryText(key);
+const parseQueryJson = <T,>(key: string, fallback: T): T => {
+  const raw = getQueryText(key)
   if (!raw) {
-    return fallback;
+    return fallback
   }
   try {
-    return JSON.parse(raw) as T;
+    return JSON.parse(raw) as T
   } catch {
     try {
-      const decoded = decodeURIComponent(raw);
-      return JSON.parse(decoded) as T;
+      const decoded = decodeURIComponent(raw)
+      return JSON.parse(decoded) as T
     } catch {
-      return fallback;
+      return fallback
     }
   }
-};
+}
 
 const getPreferredLangs = () =>
-  locale.value === 'zh'
-    ? ['zh-CN', 'zh', 'en', 'en-US']
-    : ['en', 'en-US', 'zh-CN', 'zh'];
+  locale.value === "zh"
+    ? ["zh-CN", "zh", "en", "en-US"]
+    : ["en", "en-US", "zh-CN", "zh"]
 
-const pickI18nValue = (i18n?: I18nText, fallback = ''): string => {
-  const valueMap = i18n || {};
-  const preferredLangs = getPreferredLangs();
+const pickI18nValue = (i18n?: I18nText, fallback = ""): string => {
+  const valueMap = i18n || {}
+  const preferredLangs = getPreferredLangs()
   for (const lang of preferredLangs) {
-    const value = valueMap[lang];
-    if (typeof value === 'string' && value.trim()) {
-      return value.trim();
+    const value = valueMap[lang]
+    if (typeof value === "string" && value.trim()) {
+      return value.trim()
     }
   }
   const firstValue = Object.values(valueMap).find(
-    (value) => typeof value === 'string' && value.trim(),
-  );
-  if (typeof firstValue === 'string') {
-    return firstValue.trim();
+    (value) => typeof value === "string" && value.trim(),
+  )
+  if (typeof firstValue === "string") {
+    return firstValue.trim()
   }
-  return fallback;
-};
+  return fallback
+}
 
 const getQueryNumber = (key: string, fallback = 0) => {
-  const numeric = Number(getQueryText(key));
-  return Number.isFinite(numeric) ? numeric : fallback;
-};
+  const numeric = Number(getQueryText(key))
+  return Number.isFinite(numeric) ? numeric : fallback
+}
 
 const getQueryOrderId = (): number | null => {
-  const text = getQueryText('orderId');
+  const text = getQueryText("orderId")
   if (!text) {
-    return null;
+    return null
   }
-  const numeric = Number(text);
-  return Number.isFinite(numeric) ? numeric : null;
-};
+  const numeric = Number(text)
+  return Number.isFinite(numeric) ? numeric : null
+}
 
-const orderId = computed(() => getQueryOrderId());
+const orderId = computed(() => getQueryOrderId())
+const isCartMode = computed(() => getQueryText("mode") === "cart")
+const cartSkuDetail = computed(() =>
+  parseQueryJson<CartSkuDetail | null>("cartSkuDetail", null),
+)
 
 const summaryTitle = computed(() =>
   pickI18nValue(
-    parseQueryJson<I18nText>('titleI18n', {}),
-    getQueryText('title') || t('client.orderConfirm.summary.itemDefault'),
+    parseQueryJson<I18nText>("titleI18n", {}),
+    getQueryText("title") || t("client.orderConfirm.summary.itemDefault"),
   ),
-);
+)
 
 const summaryMeta = computed(() => {
-  const selectedSpecValueIds = parseQueryJson<string[]>('selectedSpecValueIds', []);
-  const specValueNameI18n = parseQueryJson<Record<string, I18nText>>('specValueNameI18n', {});
+  const selectedSpecValueIds = parseQueryJson<string[]>(
+    "selectedSpecValueIds",
+    [],
+  )
+  const specValueNameI18n = parseQueryJson<Record<string, I18nText>>(
+    "specValueNameI18n",
+    {},
+  )
   if (Array.isArray(selectedSpecValueIds) && selectedSpecValueIds.length) {
     const labels = selectedSpecValueIds
       .map((id) => pickI18nValue(specValueNameI18n[String(id)], String(id)))
-      .filter(Boolean);
+      .filter(Boolean)
     if (labels.length) {
-      return labels.join(' / ');
+      return labels.join(" / ")
     }
   }
-  return getQueryText('specSummary') || t('client.orderConfirm.summary.metaDefault');
-});
+  return (
+    getQueryText("specSummary") || t("client.orderConfirm.summary.metaDefault")
+  )
+})
 
-const subtotal = computed(() => getQueryNumber('subtotal', 0));
-const tax = computed(() => getQueryNumber('tax', 0));
-const total = computed(() => getQueryNumber('total', subtotal.value + tax.value));
+const subtotal = computed(() => getQueryNumber("subtotal", 0))
+const tax = computed(() => getQueryNumber("tax", 0))
+const total = computed(() =>
+  getQueryNumber("total", subtotal.value + tax.value),
+)
 
-const formatAed = (value: number) => `${value.toFixed(2)} AED`;
+const formatAed = (value: number) => `AED ${value.toFixed(2)}`
 
-const extractEnvelopeData = <T>(payload: unknown): T | null => {
+const extractEnvelopeData = <T,>(payload: unknown): T | null => {
   if (payload === null || payload === undefined) {
-    return null;
+    return null
   }
-  if (payload && typeof payload === 'object') {
-    const maybe = payload as Record<string, unknown>;
-    if ('data' in maybe) {
-      return (maybe.data ?? null) as T | null;
+  if (payload && typeof payload === "object") {
+    const maybe = payload as Record<string, unknown>
+    if ("data" in maybe) {
+      return (maybe.data ?? null) as T | null
     }
   }
-  return payload as T;
-};
+  return payload as T
+}
 
 const buildValidationUrl = (): string => {
-  if (typeof window === 'undefined') {
-    return '';
+  if (typeof window === "undefined") {
+    return ""
   }
-  return `${window.location.origin}${window.location.pathname}`;
-};
+  return `${window.location.origin}${window.location.pathname}`
+}
 
 const loadStripeJs = async () => {
-  if (typeof window === 'undefined') {
-    throw new Error('Stripe is only available in browser');
+  if (typeof window === "undefined") {
+    throw new Error("Stripe is only available in browser")
   }
 
-  if (typeof (window as any).Stripe === 'function') {
-    return;
+  if (typeof (window as any).Stripe === "function") {
+    return
   }
 
   await new Promise<void>((resolve, reject) => {
-    const existed = document.getElementById(STRIPE_SCRIPT_ID) as HTMLScriptElement | null;
+    const existed = document.getElementById(
+      STRIPE_SCRIPT_ID,
+    ) as HTMLScriptElement | null
     if (existed) {
-      existed.addEventListener('load', () => resolve(), { once: true });
-      existed.addEventListener('error', () => reject(new Error('Failed to load Stripe.js')), {
-        once: true,
-      });
-      return;
+      existed.addEventListener("load", () => resolve(), { once: true })
+      existed.addEventListener(
+        "error",
+        () => reject(new Error("Failed to load Stripe.js")),
+        {
+          once: true,
+        },
+      )
+      return
     }
 
-    const script = document.createElement('script');
-    script.id = STRIPE_SCRIPT_ID;
-    script.src = 'https://js.stripe.com/v3/';
-    script.async = true;
-    script.onload = () => resolve();
-    script.onerror = () => reject(new Error('Failed to load Stripe.js'));
-    document.head.appendChild(script);
-  });
-};
+    const script = document.createElement("script")
+    script.id = STRIPE_SCRIPT_ID
+    script.src = "https://js.stripe.com/v3/"
+    script.async = true
+    script.onload = () => resolve()
+    script.onerror = () => reject(new Error("Failed to load Stripe.js"))
+    document.head.appendChild(script)
+  })
+}
 
 const destroyStripeElements = () => {
   try {
-    stripeExpressElement.value?.destroy?.();
+    stripeExpressElement.value?.destroy?.()
   } catch {
     // Ignore express checkout destroy errors during dialog close.
   }
   try {
-    stripePaymentElement.value?.destroy?.();
+    stripePaymentElement.value?.destroy?.()
   } catch {
     // Ignore stripe element destroy errors during dialog close.
   }
-  stripeExpressElement.value = null;
-  stripePaymentElement.value = null;
-  stripeElements.value = null;
-  stripeExpressVisible.value = true;
-};
+  stripeExpressElement.value = null
+  stripePaymentElement.value = null
+  stripeElements.value = null
+  stripeExpressVisible.value = true
+}
 
 const initStripeElements = async () => {
   if (!stripeClientSecret.value) {
-    return;
+    return
   }
   if (!stripePublishableKey) {
     throw new Error(
-      locale.value === 'zh'
-        ? '缺少 Stripe 公钥，请配置 VITE_STRIPE_PUBLISHABLE_KEY'
-        : 'Missing Stripe publishable key, please set VITE_STRIPE_PUBLISHABLE_KEY.',
-    );
+      locale.value === "zh"
+        ? "缺少 Stripe 公钥，请配置 VITE_STRIPE_PUBLISHABLE_KEY"
+        : "Missing Stripe publishable key, please set VITE_STRIPE_PUBLISHABLE_KEY.",
+    )
   }
 
-  stripeInitializing.value = true;
+  stripeInitializing.value = true
   try {
-    await loadStripeJs();
-    const stripeFactory = (window as any).Stripe as StripeFactory | undefined;
-    if (typeof stripeFactory !== 'function') {
-      throw new Error('Stripe SDK is unavailable');
+    await loadStripeJs()
+    const stripeFactory = (window as any).Stripe as StripeFactory | undefined
+    if (typeof stripeFactory !== "function") {
+      throw new Error("Stripe SDK is unavailable")
     }
 
     stripeInstance.value = stripeFactory(stripePublishableKey, {
       locale: getStripeLocale(),
-    }) as StripeInstance;
+    }) as StripeInstance
     if (!stripeInstance.value) {
-      throw new Error('Stripe initialization failed');
+      throw new Error("Stripe initialization failed")
     }
 
-    await nextTick();
-    const expressContainer = stripeExpressContainerRef.value;
-    const container = stripeElementContainerRef.value;
+    await nextTick()
+    const expressContainer = stripeExpressContainerRef.value
+    const container = stripeElementContainerRef.value
     if (!container) {
-      throw new Error('Stripe container is missing');
+      throw new Error("Stripe container is missing")
     }
 
-    destroyStripeElements();
+    destroyStripeElements()
     const elements = stripeInstance.value.elements({
       clientSecret: stripeClientSecret.value,
-      appearance: { theme: 'stripe' },
-    });
+      appearance: { theme: "stripe" },
+    })
     if (expressContainer) {
-      const expressElement = elements.create('expressCheckout', {
+      const expressElement = elements.create("expressCheckout", {
         paymentMethods: {
-          applePay: 'always',
-          googlePay: 'always',
+          applePay: "always",
+          googlePay: "always",
         },
-      });
-      expressElement.on?.('ready', (event?: { availablePaymentMethods?: Record<string, unknown> | null }) => {
-        stripeExpressVisible.value = Boolean(event?.availablePaymentMethods);
-      });
-      expressElement.on?.('confirm', async () => {
-        await handleStripeExpressConfirm();
-      });
-      expressElement.mount(expressContainer);
-      stripeExpressElement.value = expressElement;
+      })
+      expressElement.on?.(
+        "ready",
+        (event?: {
+          availablePaymentMethods?: Record<string, unknown> | null
+        }) => {
+          stripeExpressVisible.value = Boolean(event?.availablePaymentMethods)
+        },
+      )
+      expressElement.on?.("confirm", async () => {
+        await handleStripeExpressConfirm()
+      })
+      expressElement.mount(expressContainer)
+      stripeExpressElement.value = expressElement
     }
-    const paymentElement = elements.create('payment');
-    paymentElement.mount(container);
-    stripeElements.value = elements;
-    stripePaymentElement.value = paymentElement;
+    const paymentElement = elements.create("payment")
+    paymentElement.mount(container)
+    stripeElements.value = elements
+    stripePaymentElement.value = paymentElement
   } finally {
-    stripeInitializing.value = false;
+    stripeInitializing.value = false
   }
-};
+}
 
 const openStripeDialog = async (clientSecret: string) => {
-  stripeClientSecret.value = clientSecret;
-  stripeDialogVisible.value = true;
-  await initStripeElements();
-};
+  stripeClientSecret.value = clientSecret
+  stripeDialogVisible.value = true
+  await initStripeElements()
+}
 
 const handleStripeSuccess = async () => {
-  stripeDialogVisible.value = false;
-  ElMessage.success(t('client.orderConfirm.validation.orderSuccess'));
+  stripeDialogVisible.value = false
+  void clearCart().catch((error) => {
+    console.warn("Payment succeeded but clearing the cart failed:", error)
+  })
+  ElMessage.success(t("client.orderConfirm.validation.orderSuccess"))
   await new Promise<void>((resolve) => {
-    window.setTimeout(resolve, PAYMENT_STATUS_SYNC_DELAY_MS);
-  });
-  await router.push({ name: 'order-list' });
-};
+    window.setTimeout(resolve, PAYMENT_STATUS_SYNC_DELAY_MS)
+  })
+  await router.push({
+    name: "booking-success",
+    query: {
+      orderId: String(route.query.orderId || ""),
+      service: summaryTitle.value,
+      scheduled:
+        `${form.serviceDate} ${selectedTimeOption.value?.time || ""}`.trim(),
+      amount: String(total.value),
+    },
+  })
+}
 
-const handleStripeConfirmResult = async (confirmResult: StripeConfirmResult) => {
-  const errorMessage = normalizeText(confirmResult.error?.message);
+const handleStripeConfirmResult = async (
+  confirmResult: StripeConfirmResult,
+) => {
+  const errorMessage = normalizeText(confirmResult.error?.message)
   if (errorMessage) {
-    throw new Error(errorMessage);
+    throw new Error(errorMessage)
   }
 
-  const status = normalizeText(confirmResult.paymentIntent?.status).toLowerCase();
+  const status = normalizeText(
+    confirmResult.paymentIntent?.status,
+  ).toLowerCase()
   if (
-    status === 'succeeded' ||
-    status === 'processing' ||
-    status === 'requires_capture'
+    status === "succeeded" ||
+    status === "processing" ||
+    status === "requires_capture"
   ) {
-    await handleStripeSuccess();
-    return;
+    await handleStripeSuccess()
+    return
   }
 
   if (!status) {
-    return;
+    return
   }
 
   throw new Error(
-    locale.value === 'zh'
+    locale.value === "zh"
       ? `支付状态异常: ${status}`
       : `Unexpected payment status: ${status}`,
-  );
-};
+  )
+}
 
 const handleStripeExpressConfirm = async () => {
   if (stripeSubmitting.value || stripeInitializing.value) {
-    return;
+    return
   }
   if (!stripeInstance.value || !stripeElements.value) {
     ElMessage.error(
-      locale.value === 'zh'
-        ? 'Stripe 钱包支付组件尚未初始化'
-        : 'Stripe wallet checkout is not ready.',
-    );
-    return;
+      locale.value === "zh"
+        ? "Stripe 钱包支付组件尚未初始化"
+        : "Stripe wallet checkout is not ready.",
+    )
+    return
   }
 
-  stripeSubmitting.value = true;
+  stripeSubmitting.value = true
   try {
     const confirmResult = await stripeInstance.value.confirmPayment({
       elements: stripeElements.value,
       confirmParams: {
         return_url: `${window.location.origin}/orders`,
       },
-    });
-    await handleStripeConfirmResult(confirmResult);
+    })
+    await handleStripeConfirmResult(confirmResult)
   } catch (error: any) {
-    ElMessage.error(error?.message || 'Stripe wallet payment failed');
+    ElMessage.error(error?.message || "Stripe wallet payment failed")
   } finally {
-    stripeSubmitting.value = false;
+    stripeSubmitting.value = false
   }
-};
+}
 
 const handleStripeConfirm = async () => {
   if (stripeSubmitting.value || stripeInitializing.value) {
-    return;
+    return
   }
   if (!stripeInstance.value || !stripeElements.value) {
     ElMessage.error(
-      locale.value === 'zh'
-        ? 'Stripe 支付组件尚未初始化'
-        : 'Stripe payment component is not ready.',
-    );
-    return;
+      locale.value === "zh"
+        ? "Stripe 支付组件尚未初始化"
+        : "Stripe payment component is not ready.",
+    )
+    return
   }
 
-  stripeSubmitting.value = true;
+  stripeSubmitting.value = true
   try {
     const confirmResult = await stripeInstance.value.confirmPayment({
       elements: stripeElements.value,
-      redirect: 'if_required',
+      redirect: "if_required",
       confirmParams: {
         return_url: `${window.location.origin}/orders`,
       },
-    });
-    await handleStripeConfirmResult(confirmResult);
+    })
+    await handleStripeConfirmResult(confirmResult)
   } catch (error: any) {
-    ElMessage.error(error?.message || 'Stripe payment failed');
+    ElMessage.error(error?.message || "Stripe payment failed")
   } finally {
-    stripeSubmitting.value = false;
+    stripeSubmitting.value = false
   }
-};
+}
 
 const normalizeTimestamp = (value: unknown): number | null => {
-  if (typeof value === 'number' && Number.isFinite(value)) {
-    return Math.abs(value) < 1e12 ? value * 1000 : value;
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return Math.abs(value) < 1e12 ? value * 1000 : value
   }
-  if (typeof value === 'string') {
-    const text = value.trim();
-    if (!text) return null;
-    const numeric = Number(text);
+  if (typeof value === "string") {
+    const text = value.trim()
+    if (!text) return null
+    const numeric = Number(text)
     if (Number.isFinite(numeric)) {
-      return Math.abs(numeric) < 1e12 ? numeric * 1000 : numeric;
+      return Math.abs(numeric) < 1e12 ? numeric * 1000 : numeric
     }
   }
-  return null;
-};
+  return null
+}
 
 const parseServiceDateTime = (
   value: unknown,
 ): { date: string; time: string } => {
-  const timestamp = normalizeTimestamp(value);
+  const timestamp = normalizeTimestamp(value)
   if (timestamp !== null) {
-    const parsedByTs = new Date(timestamp);
+    const parsedByTs = new Date(timestamp)
     if (!Number.isNaN(parsedByTs.getTime())) {
-      const yyyy = parsedByTs.getFullYear();
-      const mm = `${parsedByTs.getMonth() + 1}`.padStart(2, '0');
-      const dd = `${parsedByTs.getDate()}`.padStart(2, '0');
-      const hh = `${parsedByTs.getHours()}`.padStart(2, '0');
-      const mi = `${parsedByTs.getMinutes()}`.padStart(2, '0');
+      const yyyy = parsedByTs.getFullYear()
+      const mm = `${parsedByTs.getMonth() + 1}`.padStart(2, "0")
+      const dd = `${parsedByTs.getDate()}`.padStart(2, "0")
+      const hh = `${parsedByTs.getHours()}`.padStart(2, "0")
+      const mi = `${parsedByTs.getMinutes()}`.padStart(2, "0")
       return {
         date: `${yyyy}-${mm}-${dd}`,
         time: `${hh}:${mi}`,
-      };
+      }
     }
   }
 
-  const text = normalizeText(value);
-  if (!text) return { date: '', time: '' };
+  const text = normalizeText(value)
+  if (!text) return { date: "", time: "" }
 
-  const matched = text.match(/(\d{4}-\d{2}-\d{2})[ T](\d{2}:\d{2})/);
+  const matched = text.match(/(\d{4}-\d{2}-\d{2})[ T](\d{2}:\d{2})/)
   if (matched) {
-    return { date: matched[1], time: matched[2] };
+    return { date: matched[1] || "", time: matched[2] || "" }
   }
 
-  const parsed = new Date(text);
+  const parsed = new Date(text)
   if (!Number.isNaN(parsed.getTime())) {
-    const yyyy = parsed.getFullYear();
-    const mm = `${parsed.getMonth() + 1}`.padStart(2, '0');
-    const dd = `${parsed.getDate()}`.padStart(2, '0');
-    const hh = `${parsed.getHours()}`.padStart(2, '0');
-    const mi = `${parsed.getMinutes()}`.padStart(2, '0');
+    const yyyy = parsed.getFullYear()
+    const mm = `${parsed.getMonth() + 1}`.padStart(2, "0")
+    const dd = `${parsed.getDate()}`.padStart(2, "0")
+    const hh = `${parsed.getHours()}`.padStart(2, "0")
+    const mi = `${parsed.getMinutes()}`.padStart(2, "0")
     return {
       date: `${yyyy}-${mm}-${dd}`,
       time: `${hh}:${mi}`,
-    };
+    }
   }
 
-  const dateOnly = text.match(/(\d{4}-\d{2}-\d{2})/);
-  return { date: dateOnly?.[1] || '', time: '' };
-};
+  const dateOnly = text.match(/(\d{4}-\d{2}-\d{2})/)
+  return { date: dateOnly?.[1] || "", time: "" }
+}
 
 const fillFormByLatestAddress = (payload: LatestAddressRecord | null) => {
-  if (!payload || typeof payload !== 'object') {
-    return;
+  if (!payload || typeof payload !== "object") {
+    return
   }
 
-  const firstName = normalizeText(payload.firstName);
-  if (firstName) form.firstName = firstName;
-
-  const lastName = normalizeText(payload.lastName);
-  if (lastName) form.lastName = lastName;
-
-  const phone = normalizeText(payload.phone);
-  if (phone) {
-    const parsedPhone = splitPhoneNumber(phone);
-    form.countryCode = parsedPhone.countryCode;
-    form.phone = parsedPhone.phone;
-  }
-
-  const email = normalizeText(payload.email);
-  if (email) form.email = email;
-
-  const district = normalizeText(payload.district);
-  if (district) form.district = district;
-
-  const serviceAddress = normalizeText(payload.serviceAddress);
-  if (serviceAddress) form.address = serviceAddress;
-
-  const remark = normalizeText(payload.remark);
-  if (remark) form.remark = remark;
-
-  const dateTime = parseServiceDateTime(payload.serviceDateTime);
-  const serviceDate = normalizeText((payload as LatestAddressRecord & { serviceTime?: string }).serviceTime);
-  const timeRange = normalizeTimeRangeValue((payload as LatestAddressRecord & { timeRange?: number | string }).timeRange);
+  const dateTime = parseServiceDateTime(payload.serviceDateTime)
+  const serviceDate = normalizeText(
+    (payload as LatestAddressRecord & { serviceTime?: string }).serviceTime,
+  )
+  const timeRange = normalizeTimeRangeValue(
+    (payload as LatestAddressRecord & { timeRange?: number | string })
+      .timeRange,
+  )
 
   if (serviceDate) {
-    form.serviceDate = serviceDate;
+    form.serviceDate = serviceDate
   } else if (dateTime.date) {
-    form.serviceDate = dateTime.date;
+    form.serviceDate = dateTime.date
   }
 
   if (timeRange) {
-    form.timeRange = timeRange;
+    form.timeRange = timeRange
   } else if (dateTime.time) {
-    pendingTimeText.value = dateTime.time;
+    pendingTimeText.value = dateTime.time
   }
-};
+}
 
 const loadLatestAddress = async () => {
   try {
-    const payload = await getLatestAddress();
-    fillFormByLatestAddress(payload);
+    const payload = await getLatestAddress()
+    fillFormByLatestAddress(payload)
   } catch (error) {
-    console.error('load latest address failed:', error);
+    console.error("load latest address failed:", error)
   }
-};
+}
 
 const buildServiceDateTime = (): string | undefined => {
-  const date = normalizeText(form.serviceDate);
-  const time = extractServiceStartTime(selectedTimeOption.value?.time || '');
+  const date = normalizeText(form.serviceDate)
+  const time = extractServiceStartTime(selectedTimeOption.value?.time || "")
   if (!date) {
-    return undefined;
+    return undefined
   }
-  const timeValue = time || '00:00';
-  const parsed = new Date(`${date}T${timeValue}:00`);
+  const timeValue = time || "00:00"
+  const parsed = new Date(`${date}T${timeValue}:00`)
   if (Number.isNaN(parsed.getTime())) {
-    return undefined;
+    return undefined
   }
   if (parsed.getTime() <= Date.now()) {
-    return undefined;
+    return undefined
   }
-  return `${date} ${timeValue}`;
-};
+  return `${date} ${timeValue}`
+}
 
 const startStripePayment = async (targetOrderId: number) => {
-  const validationUrl = buildValidationUrl();
+  const validationUrl = buildValidationUrl()
   const createPayload = {
     orderId: targetOrderId,
     paymentMethod: CREATE_PAY_METHOD,
     validationUrl,
-  };
-  const paymentResponse = await createPay(createPayload);
-  const paymentData = extractEnvelopeData<Record<string, unknown>>(paymentResponse);
-  if (!paymentData || typeof paymentData !== 'object') {
-    throw new Error('Create payment response is empty');
+  }
+  const paymentResponse = await createPay(createPayload)
+  const paymentData =
+    extractEnvelopeData<Record<string, unknown>>(paymentResponse)
+  if (!paymentData || typeof paymentData !== "object") {
+    throw new Error("Create payment response is empty")
   }
 
-  const clientSecret = normalizeText(paymentData.clientSecret);
+  const clientSecret = normalizeText(paymentData.clientSecret)
   if (clientSecret) {
-    await openStripeDialog(clientSecret);
-    return;
+    await openStripeDialog(clientSecret)
+    return
   }
 
   const approvalUrl = normalizeText(
     paymentData.approvalUrl ||
       paymentData.redirectUrl ||
       paymentData.checkoutUrl,
-  );
-  if (approvalUrl && typeof window !== 'undefined') {
-    window.location.href = approvalUrl;
-    return;
+  )
+  if (approvalUrl && typeof window !== "undefined") {
+    window.location.href = approvalUrl
+    return
   }
 
   throw new Error(
-    locale.value === 'zh'
-      ? '未获取到支付参数（clientSecret/跳转链接），请稍后重试'
-      : 'Missing Stripe payment params (clientSecret/redirect URL), please try again.',
-  );
-};
+    locale.value === "zh"
+      ? "未获取到支付参数（clientSecret/跳转链接），请稍后重试"
+      : "Missing Stripe payment params (clientSecret/redirect URL), please try again.",
+  )
+}
 
 const getValidationMessage = (): string => {
-  if (orderId.value === null) {
-    return t('client.orderConfirm.validation.orderIdMissing');
+  if (!isCartMode.value && orderId.value === null) {
+    return t("client.orderConfirm.validation.orderIdMissing")
   }
-  if (!normalizeText(form.firstName)) {
-    return t('client.orderConfirm.validation.requiredField', {
-      field: t('client.orderConfirm.fields.firstName'),
-    });
+  if (selectedAddressId.value === null) {
+    return locale.value === "zh"
+      ? "请先选择个人中心中保存的联系信息与服务地址"
+      : "Please select a saved contact and service address"
   }
-  if (!normalizeText(form.lastName)) {
-    return t('client.orderConfirm.validation.requiredField', {
-      field: t('client.orderConfirm.fields.lastName'),
-    });
+  if (!selectedAddress.value || !getAddressFullName(selectedAddress.value)) {
+    return t("client.orderConfirm.validation.requiredField", {
+      field: t("client.orderConfirm.fields.fullName"),
+    })
   }
   if (!normalizePhoneNumber(form.phone)) {
-    return t('client.orderConfirm.validation.requiredField', {
-      field: t('client.orderConfirm.fields.phone'),
-    });
-  }
-  if (!isValidEmail(normalizeText(form.email))) {
-    return t('client.orderConfirm.addressBook.invalidEmail');
+    return t("client.orderConfirm.validation.requiredField", {
+      field: t("client.orderConfirm.fields.phone"),
+    })
   }
   if (!normalizeText(form.address)) {
-    return t('client.orderConfirm.validation.requiredField', {
-      field: t('client.orderConfirm.fields.address'),
-    });
+    return t("client.orderConfirm.validation.requiredField", {
+      field: t("client.orderConfirm.fields.address"),
+    })
+  }
+  if (!normalizeText(form.building)) {
+    return t("client.orderConfirm.validation.requiredField", {
+      field: t("client.orderConfirm.fields.building"),
+    })
   }
   if (!normalizeText(form.serviceDate)) {
-    return t('client.orderConfirm.validation.requiredField', {
-      field: t('client.orderConfirm.fields.serviceDate'),
-    });
+    return t("client.orderConfirm.validation.requiredField", {
+      field: t("client.orderConfirm.fields.serviceDate"),
+    })
   }
   if (!normalizeTimeRangeValue(form.timeRange)) {
-    return t('client.orderConfirm.validation.requiredField', {
-      field: t('client.orderConfirm.fields.serviceTime'),
-    });
-  }
-  if (!agreedPolicy.value) {
-    return t('client.orderConfirm.validation.policy');
+    return t("client.orderConfirm.validation.requiredField", {
+      field: t("client.orderConfirm.fields.serviceTime"),
+    })
   }
   if (!buildServiceDateTime()) {
-    return t('client.orderConfirm.validation.futureTime');
+    return t("client.orderConfirm.validation.futureTime")
   }
-  return '';
-};
+  return ""
+}
 
 const goBack = () => {
-  if (typeof window !== 'undefined' && window.history.length > 1) {
-    router.back();
-    return;
+  if (typeof window !== "undefined" && window.history.length > 1) {
+    router.back()
+    return
   }
-  const spuId = getQueryText('spuId');
+  const spuId = getQueryText("spuId")
   if (spuId) {
     router.push({
-      name: 'product-detail',
+      name: "product-detail",
       params: { spuId },
-    });
-    return;
+    })
+    return
   }
-  router.push('/services/daily-cleaning');
-};
+  router.push("/services/daily-cleaning")
+}
 
-const handleConfirm = async () => {
+const goManageAddresses = () => {
+  void router.push({
+    name: "profile",
+    query: { section: "addresses", returnTo: route.fullPath },
+  })
+}
+
+const submitBooking = async () => {
   if (isSubmitting.value) {
-    return;
+    return
   }
 
-  const validationMessage = getValidationMessage();
-  if (validationMessage) {
-    ElMessage.warning(validationMessage);
-    return;
-  }
-
-  const serviceDateTime = buildServiceDateTime();
+  const serviceDateTime = buildServiceDateTime()
   if (!serviceDateTime) {
-    ElMessage.warning(t('client.orderConfirm.validation.futureTime'));
-    return;
+    ElMessage.warning(t("client.orderConfirm.validation.futureTime"))
+    return
   }
-  if (orderId.value === null) {
-    ElMessage.warning(t('client.orderConfirm.validation.orderIdMissing'));
-    return;
+  if (!isCartMode.value && orderId.value === null) {
+    ElMessage.warning(t("client.orderConfirm.validation.orderIdMissing"))
+    return
   }
 
-  const payload = {
-    orderId: orderId.value,
-    ...(selectedAddressId.value !== null ? { addressId: selectedAddressId.value } : {}),
-    firstName: normalizeText(form.firstName),
-    lastName: normalizeText(form.lastName),
+  const addressPayload = {
+    addressId: selectedAddressId.value as number,
     phoneCountryCode: normalizeText(form.countryCode) || DEFAULT_COUNTRY_CODE,
     phone: normalizeText(form.phone),
-    email: normalizeText(form.email),
     district: normalizeText(form.district),
     serviceAddress: normalizeText(form.address),
+    building: normalizeText(form.building),
+    roomNo: normalizeText(form.roomNo),
+    community: normalizeText(form.community),
     remark: normalizeText(form.remark),
     category: normalizeAddressCategory(form.category),
     serviceTime: normalizeText(form.serviceDate),
     timeRange: Number(form.timeRange),
     paymentMethod: ORDER_PAYMENT_METHOD,
-  };
-
-  isSubmitting.value = true;
-  try {
-    const result = await saveContactAddress(payload);
-    console.info('save contact address success:', result);
-    await startStripePayment(orderId.value);
-  } catch (error: any) {
-    console.error('save contact address failed:', error);
-    ElMessage.error(error?.message || 'Payment request failed');
-  } finally {
-    isSubmitting.value = false;
   }
-};
+
+  isSubmitting.value = true
+  try {
+    if (isCartMode.value) {
+      if (!cartSkuDetail.value)
+        throw new Error(
+          locale.value === "zh"
+            ? "购物车商品规格无效"
+            : "Invalid cart service configuration",
+        )
+      await addItem({
+        ...addressPayload,
+        firstName: normalizeText(form.firstName),
+        lastName: normalizeText(form.lastName),
+        skuDetail: cartSkuDetail.value,
+      })
+      policyDialogVisible.value = false
+      ElMessage.success(
+        locale.value === "zh" ? "已加入预订购物车" : "Added to booking cart",
+      )
+      await router.replace({ name: "cart" })
+    } else {
+      const result = await saveContactAddress({
+        ...addressPayload,
+        fullName: selectedAddress.value
+          ? getAddressFullName(selectedAddress.value)
+          : formatContactName(form.firstName, form.lastName),
+        orderId: orderId.value,
+      })
+      console.info("save contact address success:", result)
+      policyDialogVisible.value = false
+      await startStripePayment(orderId.value as number)
+    }
+  } catch (error: any) {
+    console.error("save contact address failed:", error)
+    ElMessage.error(error?.message || "Payment request failed")
+  } finally {
+    isSubmitting.value = false
+  }
+}
+
+const handleConfirm = () => {
+  const validationMessage = getValidationMessage()
+  if (validationMessage) {
+    ElMessage.warning(validationMessage)
+    return
+  }
+  if (isCartMode.value) {
+    void submitBooking()
+    return
+  }
+  agreedPolicy.value = false
+  policyDialogVisible.value = true
+}
+
+const confirmPolicyAndContinue = async () => {
+  if (!agreedPolicy.value) {
+    ElMessage.warning(t("client.orderConfirm.validation.policy"))
+    return
+  }
+  await submitBooking()
+}
 
 onMounted(async () => {
-  await loadLatestAddress();
-  await loadAddressBook();
-  if (selectedAddressId.value === null) {
-    await handleUseCurrentLocation();
-  }
-});
+  await loadLatestAddress()
+  await loadAddressBook()
+})
 </script>
 
 <style scoped lang="scss">
@@ -1854,6 +2183,31 @@ onMounted(async () => {
   line-height: 1.4;
 }
 
+.order-booking-note {
+  margin-top: 18px;
+}
+
+.order-booking-note textarea {
+  width: 100%;
+  min-height: 104px;
+  box-sizing: border-box;
+  padding: 12px 14px;
+  border: 1px solid #d1d5dc;
+  border-radius: 10px;
+  outline: 0;
+  resize: vertical;
+  color: rgba(15, 23, 42, 0.82);
+  background: #fff;
+  font: inherit;
+  font-size: 15px;
+  line-height: 1.5;
+}
+
+.order-booking-note textarea:focus {
+  border-color: var(--hourx-brand);
+  box-shadow: 0 0 0 3px rgb(23 105 194 / 12%);
+}
+
 .order-location-attribution {
   margin: -6px 0 0;
   color: rgba(15, 23, 42, 0.5);
@@ -1896,6 +2250,40 @@ onMounted(async () => {
 }
 
 .order-input-wrap input::placeholder {
+  color: rgba(15, 23, 42, 0.45);
+}
+
+.order-input-wrap--date .order-date-picker {
+  flex: 1;
+  width: 100%;
+  height: 100%;
+}
+
+.order-input-wrap--date i {
+  cursor: pointer;
+}
+
+.order-date-picker :deep(.el-input__wrapper) {
+  padding: 0;
+  height: 100%;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  cursor: pointer;
+}
+
+.order-date-picker :deep(.el-input__prefix) {
+  display: none;
+}
+
+.order-date-picker :deep(.el-input__inner) {
+  height: 100%;
+  color: rgba(15, 23, 42, 0.82);
+  font-size: 16px;
+  cursor: pointer;
+}
+
+.order-date-picker :deep(.el-input__inner::placeholder) {
   color: rgba(15, 23, 42, 0.45);
 }
 
@@ -1963,14 +2351,196 @@ onMounted(async () => {
   font-size: 14px;
 }
 
+.order-address-book__state--error {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 14px;
+  border: 1px solid #fecaca;
+  border-radius: 10px;
+  background: #fff7f7;
+  color: #b91c1c;
+}
+
+.order-address-book__state--error button {
+  min-height: 32px;
+  padding: 0 13px;
+  border: 0;
+  border-radius: 8px;
+  background: #1769c2;
+  color: #fff;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.order-address-book__state--empty {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 16px;
+  border: 1px dashed #cbd5e1;
+  border-radius: 10px;
+  background: #fff;
+}
+
+.order-address-book__state--empty div {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.order-address-book__state--empty strong {
+  color: #05152b;
+  font-size: 14px;
+}
+
+.order-address-book__state--empty span {
+  line-height: 1.5;
+}
+
+.order-address-book__state--empty button {
+  min-height: 36px;
+  flex: 0 0 auto;
+  padding: 0 16px;
+  border: 0;
+  border-radius: 9px;
+  background: #1769c2;
+  color: #fff;
+  font: inherit;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.order-address-book__state--empty button:hover {
+  background: #12569f;
+}
+
 .order-address-picker {
+  position: relative;
   margin-top: 14px;
 }
 
-.order-address-picker__list {
+.order-address-picker__trigger,
+.order-address-picker__option {
+  width: 100%;
+  min-width: 0;
+  border: 0;
+  background: #fff;
+  color: #05152b;
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: 36px minmax(0, 1fr) 24px;
+  align-items: center;
   gap: 12px;
+  padding: 13px 14px;
+  text-align: left;
+  font: inherit;
+  cursor: pointer;
+}
+
+.order-address-picker__trigger {
+  min-height: 70px;
+  border: 1px solid #d9e1eb;
+  border-radius: 12px;
+}
+
+.order-address-picker.is-expanded .order-address-picker__trigger {
+  border-color: #1769c2;
+  border-radius: 12px 12px 0 0;
+  box-shadow: 0 0 0 2px rgba(23, 105, 194, 0.08);
+}
+
+.order-address-picker__category-icon {
+  width: 34px;
+  height: 34px;
+  border-radius: 9px;
+  display: grid;
+  place-items: center;
+  background: #edf5ff;
+  color: #1769c2;
+  font-size: 18px;
+  font-weight: 900;
+}
+
+.order-address-picker__summary {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.order-address-picker__summary strong {
+  font-size: 14px;
+  line-height: 1.3;
+}
+
+.order-address-picker__summary small {
+  color: #64748b;
+  font-size: 12px;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+.order-address-picker__arrow {
+  justify-self: center;
+  color: #64748b;
+  font-size: 22px;
+  line-height: 1;
+  transition: transform 0.18s ease;
+}
+
+.order-address-picker.is-expanded .order-address-picker__arrow {
+  transform: rotate(180deg);
+}
+
+.order-address-picker__list {
+  position: absolute;
+  top: calc(100% - 1px);
+  left: 0;
+  right: 0;
+  z-index: 30;
+  max-height: min(48vh, 360px);
+  overflow-y: auto;
+  border: 1px solid #1769c2;
+  border-radius: 0 0 12px 12px;
+  display: flex;
+  flex-direction: column;
+  background: #fff;
+  box-shadow: 0 18px 40px rgba(5, 21, 43, 0.16);
+}
+
+.order-address-picker__option {
+  border-bottom: 1px solid #edf1f5;
+}
+
+.order-address-picker__option:hover,
+.order-address-picker__option.is-selected {
+  background: #edf5ff;
+}
+
+.order-address-picker__check {
+  justify-self: center;
+  width: 20px;
+  height: 20px;
+  border: 1px solid #1769c2;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  color: #1769c2;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.order-address-picker__manage {
+  min-height: 44px;
+  border: 0;
+  background: #fff;
+  color: #1769c2;
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
 }
 
 .order-address-card {
@@ -1980,7 +2550,10 @@ onMounted(async () => {
   border: 1px solid #d9e1eb;
   border-radius: 12px;
   background: #fff;
-  transition: border-color 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease;
+  transition:
+    border-color 0.2s ease,
+    box-shadow 0.2s ease,
+    background-color 0.2s ease;
 }
 
 .order-address-card:hover {
@@ -2063,23 +2636,42 @@ onMounted(async () => {
   inset: 3px;
   border-radius: 50%;
   background: #05152b;
-  content: '';
+  content: "";
 }
 
-.order-address-card__edit {
+.order-address-card__actions {
   position: absolute;
   right: 14px;
   bottom: 11px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.order-address-card__edit,
+.order-address-card__delete {
   min-height: 30px;
   border: 0;
   background: transparent;
-  color: #05152b;
   padding: 3px 0;
   font-size: 12px;
   font-weight: 800;
   text-decoration: underline;
   text-underline-offset: 3px;
   cursor: pointer;
+}
+
+.order-address-card__edit {
+  color: #05152b;
+}
+
+.order-address-card__delete {
+  color: #b42318;
+}
+
+.order-address-card__delete:disabled {
+  cursor: wait;
+  opacity: 0.55;
 }
 
 .order-address-picker__tags {
@@ -2185,14 +2777,97 @@ onMounted(async () => {
   color: #fff;
 }
 
+.order-add-address-form__location {
+  margin: 2px 0 18px;
+  padding: 12px 14px;
+  border: 1px solid #bdebd1;
+  border-radius: 12px;
+  background: #f0fbf5;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.order-add-address-form__location button {
+  min-height: 40px;
+  flex: 0 0 auto;
+  border: 0;
+  border-radius: 9px;
+  background: #1769c2;
+  color: #fff;
+  padding: 0 16px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.order-add-address-form__location button:disabled {
+  cursor: wait;
+  opacity: 0.65;
+}
+
+.order-add-address-form__location p {
+  margin: 0;
+  color: #27704d;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
 .order-add-address-form__grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 0 16px;
 }
 
+.order-add-address-form__section {
+  margin: 4px 0 16px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.order-add-address-form__section:not(:first-child) {
+  margin-top: 8px;
+  padding-top: 18px;
+  border-top: 1px solid #edf1f5;
+}
+
+.order-add-address-form__section > span {
+  width: 32px;
+  height: 32px;
+  flex: 0 0 auto;
+  border-radius: 10px;
+  display: grid;
+  place-items: center;
+  background: #edf5ff;
+  color: #1769c2;
+  font-size: 18px;
+  font-weight: 900;
+}
+
+.order-add-address-form__section div {
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+}
+
+.order-add-address-form__section strong {
+  color: #17233a;
+  font-size: 13px;
+}
+
+.order-add-address-form__section small {
+  color: #8a99aa;
+  font-size: 11px;
+}
+
 .order-add-address-form__wide {
   grid-column: 1 / -1;
+}
+
+.order-add-address-form__locating {
+  color: var(--hourx-brand);
+  font-size: 12px;
+  font-weight: 700;
 }
 
 .order-add-address-form__phone {
@@ -2216,7 +2891,7 @@ onMounted(async () => {
 .payment-methods {
   margin-top: 18px;
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: 1fr;
   gap: 10px;
 }
 
@@ -2233,10 +2908,34 @@ onMounted(async () => {
 .payment-method--static {
   padding: 16px 18px;
   cursor: default;
+  display: flex;
+  align-items: center;
+  gap: 14px;
 }
 
 .payment-method--static strong {
   display: block;
+  color: #172033;
+}
+
+.payment-method--static small {
+  display: block;
+  margin-top: 2px;
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.payment-method__icon {
+  width: 42px;
+  height: 42px;
+  flex: 0 0 42px;
+  border-radius: 12px;
+  display: grid;
+  place-items: center;
+  background: #05152b;
+  color: #fff;
+  font-size: 19px;
 }
 
 .payment-method--static p {
@@ -2247,10 +2946,11 @@ onMounted(async () => {
   font-weight: 500;
 }
 
-.payment-method--active {
-  border-color: var(--hourx-brand);
-  background: var(--hourx-brand-soft);
-  color: var(--hourx-brand);
+.payment-method__note {
+  margin: 10px 0 0;
+  color: #64748b;
+  font-size: 12px;
+  line-height: 1.5;
 }
 
 .payment-policy {
@@ -2273,7 +2973,15 @@ onMounted(async () => {
   font-size: 12px;
   font-weight: 600;
 }
-
+.payment-policy button {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: #1769c2;
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
+}
 .order-summary-side {
   position: sticky;
   top: 112px;
@@ -2512,6 +3220,11 @@ onMounted(async () => {
 
   .order-address-book__bar {
     align-items: flex-start;
+  }
+
+  .order-address-book__state--empty {
+    align-items: flex-start;
+    flex-direction: column;
   }
 
   .order-add-address-form__grid {
