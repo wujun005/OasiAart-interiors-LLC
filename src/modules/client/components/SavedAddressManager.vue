@@ -1,5 +1,5 @@
 <template>
-  <section class="address-manager">
+  <section v-if="!props.editorOnly" class="address-manager">
     <header class="address-manager__header">
       <div>
         <h3>{{ locale === 'zh' ? '联系信息与服务地址' : 'Contact & Service Addresses' }}</h3>
@@ -48,9 +48,10 @@
       <span>{{ locale === 'zh' ? '新增后即可在订单确认页直接选择。' : 'Add one to select it directly during checkout.' }}</span>
       <button type="button" @click="openCreate">{{ locale === 'zh' ? '新增地址' : 'Add Address' }}</button>
     </div>
+  </section>
 
-    <Teleport to="body">
-      <div v-if="editorVisible" class="address-editor" role="dialog" aria-modal="true" :aria-label="editorTitle" @click.self="closeEditor">
+  <Teleport to="body">
+    <div v-if="editorVisible" class="address-editor" role="dialog" aria-modal="true" :aria-label="editorTitle" @click.self="closeEditor">
         <form class="address-editor__panel" @submit.prevent="saveAddress">
           <header>
             <div>
@@ -66,6 +67,11 @@
               <span>{{ item.label }}</span>
             </button>
           </div>
+
+          <GoogleAddressPicker
+            :locale="String(locale)"
+            @select="applyGoogleAddress"
+          />
 
           <div v-if="!editingId" class="address-editor__location" :class="`is-${locationStatusType}`">
             <button type="button" :disabled="locating" @click="fillWithCurrentLocation(true)">
@@ -126,9 +132,8 @@
             </button>
           </footer>
         </form>
-      </div>
-    </Teleport>
-  </section>
+    </div>
+  </Teleport>
 </template>
 
 <script setup lang="ts">
@@ -148,6 +153,25 @@ import {
   type LocationLookupErrorCode,
 } from '@/modules/client/utils/geolocation';
 import AddressCategoryIcon from '@/modules/client/components/address-category-icon.vue';
+import GoogleAddressPicker from '@/modules/client/components/GoogleAddressPicker.vue';
+import type { GoogleAddressSelection } from '@/modules/client/utils/google-maps';
+
+type AddressEditorPrefill = {
+  fullName?: string;
+  phoneCountryCode?: string;
+  phone?: string;
+  category?: AddressCategory;
+};
+
+const props = withDefaults(defineProps<{
+  editorOnly?: boolean;
+}>(), {
+  editorOnly: false,
+});
+
+const emit = defineEmits<{
+  saved: [value: { id: number | null; record: ClientAddressRecord | null }];
+}>();
 
 const { t, locale } = useI18n({ useScope: 'global' });
 const countryCodes = ['+971', '+966', '+1', '+44', '+91', '+86'];
@@ -261,16 +285,36 @@ const fillWithCurrentLocation = async (overwrite = false) => {
   }
 };
 
-const openCreate = () => {
+const openCreate = (prefill: AddressEditorPrefill = {}) => {
   locationRequestId += 1;
   locating.value = false;
   editingId.value = null;
   resetForm();
+  form.fullName = normalize(prefill.fullName);
+  form.phoneCountryCode = normalize(prefill.phoneCountryCode) || '+971';
+  form.phone = normalize(prefill.phone);
+  form.category = normalizeCategory(prefill.category || 'home');
   formError.value = '';
   locationStatus.value = '';
   locationStatusType.value = 'info';
   editorVisible.value = true;
-  void fillWithCurrentLocation();
+};
+
+const applyGoogleAddress = (selection: GoogleAddressSelection) => {
+  const community = normalize(selection.community);
+  const street = normalize(selection.street) || normalize(selection.formattedAddress);
+  if (community) {
+    form.community = community;
+    form.district = community;
+  }
+  if (street) form.address = street;
+  if (normalize(selection.building) && !normalize(form.building)) {
+    form.building = normalize(selection.building);
+  }
+  locationStatusType.value = 'success';
+  locationStatus.value = locale.value === 'zh'
+    ? '已从 Google 地图填写区域和街道，请确认并补充楼栋、房间或楼层信息。'
+    : 'Area and street added from Google Maps. Confirm them and add the building, unit, or floor.';
 };
 const openEdit = (item: ClientAddressRecord) => {
   locationRequestId += 1;
@@ -325,14 +369,23 @@ const saveAddress = async () => {
       additionalNotes: normalize(form.additionalNotes) || undefined,
       category: form.category,
     };
-    if (editingId.value) await updateClientAddress({ id: editingId.value, ...payload });
-    else await addClientAddress(payload);
+    let savedId: number | null = editingId.value;
+    let savedRecord: ClientAddressRecord | null = null;
+    if (editingId.value) {
+      await updateClientAddress({ id: editingId.value, ...payload });
+    } else {
+      const added = await addClientAddress(payload);
+      savedId = Number(typeof added === 'number' ? added : added?.id);
+      if (!Number.isFinite(savedId)) savedId = null;
+      if (added && typeof added === 'object') savedRecord = added;
+    }
     editorVisible.value = false;
     messageType.value = 'success';
     message.value = editingId.value
       ? t('client.orderConfirm.addressBook.editSuccess')
       : t('client.orderConfirm.addressBook.addSuccess');
-    await loadAddresses();
+    if (!props.editorOnly) await loadAddresses();
+    emit('saved', { id: savedId, record: savedRecord });
   } catch (error: any) {
     formError.value = error?.message || (locale.value === 'zh' ? '地址保存失败，请重试。' : 'Failed to save address. Please try again.');
   } finally {
@@ -358,7 +411,11 @@ const removeAddress = async (item: ClientAddressRecord) => {
   }
 };
 
-onMounted(loadAddresses);
+defineExpose({ openCreate });
+
+onMounted(() => {
+  if (!props.editorOnly) void loadAddresses();
+});
 </script>
 
 <style scoped>

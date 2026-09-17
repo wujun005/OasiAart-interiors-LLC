@@ -304,6 +304,8 @@ type ProductDetailRecord = {
     lastName?: string;
     customerName?: string;
     reviewerName?: string;
+    fullName?: string;
+    customerFullName?: string;
     nickname?: string;
     displayName?: string;
     userName?: string;
@@ -802,14 +804,14 @@ const reviewItems = computed(() => {
     const commenter = formatContactName(item.firstName, item.lastName)
       || formatContactName(item.user?.firstName, item.user?.lastName)
       || String(item.customerName ?? '').trim()
+      || String(item.customerFullName ?? '').trim()
+      || String(item.fullName ?? '').trim()
       || String(item.reviewerName ?? '').trim()
       || String(item.nickname ?? '').trim()
       || String(item.displayName ?? '').trim()
       || String(item.user?.name ?? '').trim()
       || String(item.user?.nickname ?? '').trim()
       || String(item.name ?? '').trim()
-      || String(item.userName ?? '').trim()
-      || String(item.commenter ?? '').trim()
       || t('client.productDetail.reviewUser');
     const content = String(item.content ?? '').trim() || t('client.productDetail.reviewText');
     const avatarUrl = typeof item.avatarUrl === 'string' ? item.avatarUrl.trim() : '';
@@ -1274,7 +1276,7 @@ const goOrderConfirm = async () => {
 }
 
 .product-detail-container {
-  width: min(1280px, calc(100% - 48px));
+  width: min(1680px, calc(100% - clamp(32px, 4vw, 72px)));
   margin: 0 auto;
 }
 
@@ -1319,12 +1321,13 @@ const goOrderConfirm = async () => {
 
 .product-detail-layout {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 360px;
-  gap: 24px;
+  grid-template-columns: minmax(0, 1fr) clamp(360px, 24vw, 440px);
+  gap: clamp(24px, 2vw, 36px);
   align-items: start;
 }
 
 .product-main {
+  min-width: 0;
   display: flex;
   flex-direction: column;
   gap: 16px;
@@ -1340,9 +1343,15 @@ const goOrderConfirm = async () => {
   display: flex;
   flex-direction: column;
   gap: 10px;
+  max-height: 400px;
+  overflow-x: hidden;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(5, 21, 43, 0.32) transparent;
 }
 
 .product-gallery__thumb {
+  flex: 0 0 72px;
   width: 72px;
   height: 72px;
   border-radius: 10px;
@@ -1883,13 +1892,19 @@ const goOrderConfirm = async () => {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 16px;
   color: rgba(15, 23, 42, 0.56);
   font-size: 14px;
+}
+
+.booking-summary__row > span {
+  min-width: 0;
 }
 
 .booking-summary__row strong {
   color: rgba(15, 23, 42, 0.86);
   font-size: 14px;
+  white-space: nowrap;
 }
 
 .booking-summary__row--tax span {
@@ -1999,7 +2014,149 @@ const goOrderConfirm = async () => {
   box-shadow: none;
 }
 
+@media (min-width: 1440px) {
+  .product-detail-layout {
+    grid-template-columns: minmax(0, 1fr) clamp(400px, 24vw, 440px);
+  }
+
+  .product-detail-subheader,
+  .product-detail-back {
+    height: 72px;
+  }
+
+  .product-detail-back {
+    font-size: 18px;
+  }
+
+  .product-detail-body {
+    padding: 24px 0 64px;
+  }
+
+  .product-main {
+    gap: 20px;
+  }
+
+  .product-gallery {
+    grid-template-columns: 84px minmax(0, 1fr);
+    gap: 20px;
+  }
+
+  .product-gallery__thumbs {
+    max-height: 460px;
+  }
+
+  .product-gallery__thumb {
+    flex-basis: 84px;
+    width: 84px;
+    height: 84px;
+  }
+
+  .product-gallery__hero,
+  .product-card {
+    border-radius: 20px;
+  }
+
+  .product-gallery__arrow {
+    width: 50px;
+    height: 50px;
+  }
+
+  .product-card {
+    padding: 30px;
+  }
+
+  .product-card h2 {
+    font-size: 20px;
+  }
+
+  .product-card__head h1,
+  .product-card__head p {
+    font-size: 30px;
+  }
+
+  .product-card__desc p,
+  .product-rich-text {
+    font-size: 15px;
+  }
+
+  .booking-side {
+    top: 120px;
+  }
+
+  .booking-card {
+    padding: 24px;
+    border-radius: 18px;
+  }
+
+  .booking-card h2 {
+    font-size: 23px;
+  }
+
+  .booking-field > p,
+  .booking-attach-item__name {
+    font-size: 14px;
+  }
+
+  .booking-option {
+    height: 40px;
+    font-size: 13px;
+  }
+
+  .booking-option--step {
+    width: 40px;
+    min-width: 40px;
+    height: 40px;
+  }
+
+  .booking-summary__row {
+    font-size: 15px;
+  }
+
+  .booking-summary__row--total span {
+    font-size: 20px;
+  }
+
+  .booking-summary__row--total strong {
+    font-size: 28px;
+  }
+
+  .booking-add-cart,
+  .booking-submit {
+    height: 58px;
+    font-size: 16px;
+  }
+}
+
 @media (max-width: 1180px) {
+  .product-detail-layout {
+    grid-template-columns: minmax(0, 1fr) clamp(320px, 32vw, 360px);
+    gap: clamp(16px, 2vw, 24px);
+  }
+
+  .product-gallery {
+    grid-template-columns: clamp(52px, 6vw, 64px) minmax(0, 1fr);
+    gap: clamp(10px, 1.5vw, 14px);
+  }
+
+  .product-gallery__thumbs {
+    max-height: clamp(260px, 34vw, 360px);
+  }
+
+  .product-gallery__thumb {
+    flex-basis: auto;
+    width: 100%;
+    height: auto;
+    aspect-ratio: 1;
+  }
+
+  .booking-side {
+    position: sticky;
+    top: 96px;
+    min-width: 0;
+  }
+}
+
+@media (max-width: 820px) {
   .product-detail-layout {
     grid-template-columns: 1fr;
   }
@@ -2007,9 +2164,7 @@ const goOrderConfirm = async () => {
   .booking-side {
     position: static;
   }
-}
 
-@media (max-width: 820px) {
   .product-detail-container {
     width: calc(100% - 32px);
   }
@@ -2018,15 +2173,31 @@ const goOrderConfirm = async () => {
     grid-template-columns: 1fr;
   }
 
+  .product-gallery__hero {
+    height: clamp(220px, 52vw, 380px);
+    max-height: 50vh;
+    max-height: 50svh;
+    aspect-ratio: auto;
+  }
+
   .product-gallery__thumbs {
     order: 2;
     display: grid;
-    grid-template-columns: repeat(6, minmax(0, 1fr));
+    grid-template-columns: none;
+    grid-auto-flow: column;
+    grid-auto-columns: calc(20% - 8px);
+    max-height: none;
+    max-width: 100%;
+    overflow-x: auto;
+    overflow-y: hidden;
+    scroll-snap-type: x proximity;
   }
 
   .product-gallery__thumb {
+    flex-basis: auto;
     width: 100%;
     height: 68px;
+    scroll-snap-align: start;
   }
 
   .product-gallery__arrow {
@@ -2063,6 +2234,13 @@ const goOrderConfirm = async () => {
 
   .product-detail-back {
     font-size: 16px;
+  }
+
+  .product-gallery__hero {
+    height: clamp(180px, 52vw, 280px);
+    max-height: 42vh;
+    max-height: 42svh;
+    border-radius: 12px;
   }
 
   .product-card {

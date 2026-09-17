@@ -598,6 +598,28 @@ const formatPriceText = (minPrice?: number | string): string => {
   })
 }
 
+const cleanDescriptionText = (value: string): string => {
+  let text = String(value || "").trim()
+  if (!text) return ""
+  if (typeof DOMParser !== "undefined") {
+    for (let pass = 0; pass < 2; pass += 1) {
+      const readableHtml = text.replace(
+        /<br\s*\/?>|<\/(?:p|div|li|h[1-6])\s*>/gi,
+        " ",
+      )
+      const decoded = new DOMParser().parseFromString(readableHtml, "text/html")
+        .body.textContent
+      const next = String(decoded || "").trim()
+      if (!next || next === text) break
+      text = next
+    }
+  }
+  return text
+    .replace(/<\/?[a-z][^>]*>/gi, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+}
+
 const featuredCards = computed<OfferCard[]>(() => {
   const records = serviceCardRecords.value || []
   if (!records.length) {
@@ -608,7 +630,7 @@ const featuredCards = computed<OfferCard[]>(() => {
       id: String(item.id ?? `offer-${index + 1}`),
       spuId: String(item.id ?? ""),
       title: pickI18nValue(item.nameI18n, ""),
-      desc: pickI18nValue(item.descI18n, ""),
+      desc: cleanDescriptionText(pickI18nValue(item.descI18n, "")),
       price: formatPriceText(item.minPrice),
       image:
         item.imageUrls?.[0] ||

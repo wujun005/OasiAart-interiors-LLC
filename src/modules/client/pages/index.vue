@@ -317,6 +317,28 @@ const pickI18nValue = (
   return fallback
 }
 
+const cleanDescriptionText = (value: string): string => {
+  let text = String(value || "").trim()
+  if (!text) return ""
+  if (typeof DOMParser !== "undefined") {
+    for (let pass = 0; pass < 2; pass += 1) {
+      const readableHtml = text.replace(
+        /<br\s*\/?>|<\/(?:p|div|li|h[1-6])\s*>/gi,
+        " ",
+      )
+      const decoded = new DOMParser().parseFromString(readableHtml, "text/html")
+        .body.textContent
+      const next = String(decoded || "").trim()
+      if (!next || next === text) break
+      text = next
+    }
+  }
+  return text
+    .replace(/<\/?[a-z][^>]*>/gi, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+}
+
 const serviceTiles = computed<ServiceTile[]>(() => {
   const records = serviceMenuRecords.value || []
   const filtered = records.filter((item) => {
@@ -382,7 +404,9 @@ const featuredCards = computed<OfferCard[]>(() => {
           item.nameI18n,
           fallback?.title || t("client.home.defaults.unnamedService"),
         ),
-        desc: pickI18nValue(item.descI18n, fallback?.desc || ""),
+        desc: cleanDescriptionText(
+          pickI18nValue(item.descI18n, fallback?.desc || ""),
+        ),
         price: formatPriceText(item.minPrice),
         image:
           item.imageUrls?.[0] ||

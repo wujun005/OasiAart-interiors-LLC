@@ -13,7 +13,7 @@
               aria-label="Back to homepage"
             >
               <img class="site-footer__logo" :src="logoUrl" alt="HourX Logo" />
-              <span>HourX Portal Co LLC</span>
+              <span>HourX Home Service</span>
             </a>
           </h3>
           <p class="site-footer__text">{{ t("client.footer.tagline") }}</p>
@@ -215,9 +215,9 @@ const copySupportEmail = async () => {
 }
 
 .site-footer__inner {
-  max-width: 1200px;
+  max-width: 1680px;
   margin: 0 auto;
-  padding: 56px 24px 20px;
+  padding: 56px clamp(24px, 3vw, 48px) 20px;
 }
 
 .site-footer__main {
@@ -398,6 +398,27 @@ const copySupportEmail = async () => {
 .site-footer--support-space .site-footer__inner {
   padding-right: 200px;
   padding-bottom: 28px;
+}
+
+@media (min-width: 1440px) {
+  .site-footer__inner {
+    padding-top: 64px;
+    padding-bottom: 24px;
+  }
+
+  .site-footer__main {
+    gap: clamp(40px, 4vw, 72px);
+  }
+
+  .site-footer__title {
+    font-size: 20px;
+  }
+
+  .site-footer__text,
+  .site-footer__col a,
+  .site-footer__col p {
+    font-size: 15px;
+  }
 }
 
 @media (max-width: 1100px) {

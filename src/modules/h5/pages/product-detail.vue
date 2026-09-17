@@ -233,6 +233,8 @@ type ProductDetailRecord = {
     lastName?: string;
     customerName?: string;
     reviewerName?: string;
+    fullName?: string;
+    customerFullName?: string;
     nickname?: string;
     displayName?: string;
     userName?: string;
@@ -736,14 +738,14 @@ const reviewItems = computed(() => {
     const commenter = formatContactName(item.firstName, item.lastName)
       || formatContactName(item.user?.firstName, item.user?.lastName)
       || String(item.customerName ?? '').trim()
+      || String(item.customerFullName ?? '').trim()
+      || String(item.fullName ?? '').trim()
       || String(item.reviewerName ?? '').trim()
       || String(item.nickname ?? '').trim()
       || String(item.displayName ?? '').trim()
       || String(item.user?.name ?? '').trim()
       || String(item.user?.nickname ?? '').trim()
       || String(item.name ?? '').trim()
-      || String(item.userName ?? '').trim()
-      || String(item.commenter ?? '').trim()
       || t('client.productDetail.reviewUser');
     const content = String(item.content ?? '').trim() || t('client.productDetail.reviewText');
     const rawCommentTime = String(item.commentTime ?? '').trim();

@@ -124,7 +124,6 @@
                   class="order-card__selections"
                 >
                   <span v-if="item.specText">
-                    <b>{{ t("client.orderList.specifications") }}:</b>
                     {{ item.specText }}
                   </span>
                   <span v-if="item.addOnsText">

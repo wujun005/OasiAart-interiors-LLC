@@ -133,16 +133,30 @@
             <p>{{ t('h5.profile.support.description') }}</p>
             <div class="h5-profile-faq">
               <strong>{{ t('h5.profile.support.faqTitle') }}</strong>
-              <dl>
-                <div>
-                  <dt>{{ t('h5.profile.support.bookingQuestion') }}</dt>
-                  <dd>{{ t('h5.profile.support.bookingAnswer') }}</dd>
-                </div>
-                <div>
-                  <dt>{{ t('h5.profile.support.ordersQuestion') }}</dt>
-                  <dd>{{ t('h5.profile.support.ordersAnswer') }}</dd>
-                </div>
-              </dl>
+              <div class="h5-profile-faq__groups">
+                <section v-for="(group, groupIndex) in faqGroups" :key="group.title">
+                  <h4>{{ group.title }}</h4>
+                  <details
+                    v-for="(item, itemIndex) in group.items"
+                    :key="item.question"
+                    :open="groupIndex === 0 && itemIndex === 0"
+                  >
+                    <summary>{{ item.question }}</summary>
+                    <p>
+                      <template v-for="(part, partIndex) in item.answer" :key="partIndex">
+                        <RouterLink v-if="part.to" :to="part.to">{{ part.text }}</RouterLink>
+                        <a
+                          v-else-if="part.href"
+                          :href="part.href"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                        >{{ part.text }}</a>
+                        <template v-else>{{ part.text }}</template>
+                      </template>
+                    </p>
+                  </details>
+                </section>
+              </div>
             </div>
             <div class="h5-profile-support-actions">
               <a :href="supportLink" target="_blank" rel="noopener noreferrer">
@@ -219,6 +233,7 @@ import { setClientLocale } from '@/modules/client/locales';
 import { useAuth } from '@/modules/h5/composables/useAuth';
 import { useCart } from '@/modules/client/composables/useCart';
 import SavedAddressManager from '@/modules/client/components/SavedAddressManager.vue';
+import { getFaqGroups } from '@/modules/client/data/faq';
 
 type ProfileSection = 'personal' | 'addresses' | 'payments' | 'notifications' | 'support';
 
@@ -232,6 +247,7 @@ const bookingNotificationKey = 'hourx-h5-booking-notifications';
 const offerNotificationKey = 'hourx-h5-offer-notifications';
 
 const { t, locale } = useI18n({ useScope: 'global' });
+const faqGroups = computed(() => getFaqGroups(String(locale.value)));
 const router = useRouter();
 const route = useRoute();
 const { cartCount } = useCart();
@@ -707,27 +723,53 @@ onMounted(async () => {
   font-size: 11px;
 }
 
-.h5-profile-faq dl {
-  margin: 8px 0 0;
+.h5-profile-faq__groups {
+  max-height: 420px;
+  margin-top: 8px;
+  padding-right: 3px;
+  overflow-y: auto;
 }
 
-.h5-profile-faq dl > div + div {
-  margin-top: 9px;
-  padding-top: 9px;
-  border-top: 1px solid #e7edf3;
+.h5-profile-faq__groups section + section {
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid #dfe7ef;
 }
 
-.h5-profile-faq dt {
+.h5-profile-faq h4 {
+  margin: 0 0 4px;
+  color: #1769c2;
+  font-size: 10px;
+  font-weight: 800;
+}
+
+.h5-profile-faq details {
+  border-bottom: 1px solid #edf1f5;
+}
+
+.h5-profile-faq details:last-child {
+  border-bottom: 0;
+}
+
+.h5-profile-faq summary {
+  padding: 9px 16px 9px 0;
   color: #334155;
   font-size: 11px;
   font-weight: 750;
+  line-height: 1.45;
+  cursor: pointer;
 }
 
-.h5-profile-faq dd {
-  margin: 3px 0 0;
+.h5-profile-faq details p {
+  margin: 0 0 9px;
   color: #718096;
   font-size: 10px;
-  line-height: 1.45;
+  line-height: 1.55;
+}
+
+.h5-profile-faq details p a {
+  color: #1769c2;
+  font-weight: 700;
 }
 
 .h5-profile-support-actions a {

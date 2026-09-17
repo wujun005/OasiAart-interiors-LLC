@@ -43,7 +43,7 @@ const en = {
       {
         title: 'Deep Home Clean',
         desc: 'Kitchen/bathroom degrease, mattress mite removal, full disinfection',
-        duration: '2-3h · 2 staff',
+        duration: '2-3h · 2 persons',
         price: 'From AED 199',
         tags: ['Deep Clean', 'Mite Removal'],
         thumb: 'deep-cleaning.png',
@@ -51,7 +51,7 @@ const en = {
       {
         title: 'Routine Cleaning',
         desc: 'Living/bedroom upkeep plus basic organizing',
-        duration: '1.5-2h · 1 staff',
+        duration: '1.5-2h · 1 person',
         price: 'From AED 129',
         tags: ['Frequent', 'On-time'],
         thumb: 'daily-cleaning.png',
@@ -59,7 +59,7 @@ const en = {
       {
         title: 'Appliance Deep Wash',
         desc: 'Fridge, washer, AC deep clean and sanitize',
-        duration: '90 min · Specialist',
+        duration: '90 min · 1 person',
         price: 'From AED 159',
         tags: ['Pro Tools', 'Eco'],
         thumb: 'appliance-cleaning.png',
@@ -67,7 +67,7 @@ const en = {
     ],
     reviews: [
       { user: 'Ms. Chen · Baolong', comment: 'Done in two hours, tidy organizing. Will book again.', score: 4.5 },
-      { user: 'Mr. Li · Binjiang', comment: 'Range hood spotless, technician on time.', score: 5 },
+      { user: 'Mr. Li · Binjiang', comment: 'Range hood spotless, service person on time.', score: 5 },
       { user: 'Ms. Zhao · Jiangnan', comment: 'AC blows fresh now, tools were complete.', score: 4.5 },
     ],
   },

@@ -243,14 +243,30 @@
                   <a href="mailto:support@hourxportal.com">support@hourxportal.com</a>
                 </div>
                 <h3>{{ t("client.profile.support.faqTitle") }}</h3>
-                <details>
-                  <summary>{{ t("client.profile.support.bookingQuestion") }}</summary>
-                  <p>{{ t("client.profile.support.bookingAnswer") }}</p>
-                </details>
-                <details>
-                  <summary>{{ t("client.profile.support.ordersQuestion") }}</summary>
-                  <p>{{ t("client.profile.support.ordersAnswer") }}</p>
-                </details>
+                <div class="support-faq-groups">
+                  <section v-for="(group, groupIndex) in faqGroups" :key="group.title">
+                    <h4>{{ group.title }}</h4>
+                    <details
+                      v-for="(item, itemIndex) in group.items"
+                      :key="item.question"
+                      :open="groupIndex === 0 && itemIndex === 0"
+                    >
+                      <summary>{{ item.question }}</summary>
+                      <p>
+                        <template v-for="(part, partIndex) in item.answer" :key="partIndex">
+                          <RouterLink v-if="part.to" :to="part.to">{{ part.text }}</RouterLink>
+                          <a
+                            v-else-if="part.href"
+                            :href="part.href"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                          >{{ part.text }}</a>
+                          <template v-else>{{ part.text }}</template>
+                        </template>
+                      </p>
+                    </details>
+                  </section>
+                </div>
               </div>
             </article>
 
@@ -308,6 +324,7 @@ import {
 } from "@/utils/auth-state"
 import { useAuth } from "../composables/useAuth"
 import { setClientLocale } from "../locales"
+import { getFaqGroups } from "@/modules/client/data/faq"
 import SavedAddressManager from "@/modules/client/components/SavedAddressManager.vue"
 import ForgotPasswordDialog from "@/modules/client/components/ForgotPasswordDialog.vue"
 
@@ -317,6 +334,7 @@ const { t, locale } = useI18n()
 const router = useRouter()
 const route = useRoute()
 const { isLoggedIn, userInfo, checkLoginStatus, clearAuth } = useAuth()
+const faqGroups = computed(() => getFaqGroups(String(locale.value)))
 
 const form = reactive({
   currentPassword: "",
@@ -1021,6 +1039,27 @@ watch(
   font-size: 15px;
 }
 
+.support-faq-groups {
+  display: grid;
+  gap: 20px;
+}
+
+.support-faq-groups section {
+  min-width: 0;
+}
+
+.support-faq-groups section + section {
+  padding-top: 18px;
+  border-top: 1px solid #dce5ef;
+}
+
+.support-faq-groups h4 {
+  margin: 0;
+  color: #1769c2;
+  font-size: 13px;
+  font-weight: 800;
+}
+
 .support-panel details {
   padding: 12px 0;
   border-bottom: 1px solid #e8edf3;
@@ -1042,6 +1081,11 @@ watch(
   color: #718095;
   font-size: 13px;
   line-height: 1.6;
+}
+
+.support-panel details p a {
+  color: #1769c2;
+  font-weight: 700;
 }
 
 .language-options {

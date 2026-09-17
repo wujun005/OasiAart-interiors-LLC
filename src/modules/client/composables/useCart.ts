@@ -6,6 +6,7 @@ import {
   removeCartItems,
   type AddCartItemPayload,
   type ClientCartItemRecord,
+  type CartSkuDetail,
 } from '@/modules/client/api';
 import {
   formatOrderAddOns,
@@ -26,22 +27,46 @@ export interface CartItem {
   addOns?: string[];
   addOnsI18n?: CartLocalizedText[];
   selectedSpecValueIds?: string[];
+  specValueNameI18n?: Record<string, CartLocalizedText>;
+  skuDetail?: CartSkuDetail;
   unitPrice: number;
   detailPath?: string;
   selected: boolean;
+  addressId?: number | string;
   serviceAddress?: string;
   serviceTimeDisplay?: string;
   serviceDateTime?: string;
+  timeRange?: number | string;
   expiresAt?: string;
 }
 
 const TAX_RATE = 0.05;
+const CART_TIME_RANGES: Record<string, string> = {
+  '1': '09:00-11:00',
+  '2': '11:00-13:00',
+  '3': '13:00-15:00',
+  '4': '15:00-17:00',
+  '5': '17:00-19:00',
+  '6': '19:00-21:00',
+};
 const cartItems = ref<CartItem[]>([]);
 const cartLoading = ref(false);
 const cartError = ref('');
 let initialized = false;
 let loadingPromise: Promise<void> | null = null;
 let cartRevision = 0;
+
+const normalizeCartServiceDateTime = (record: ClientCartItemRecord) => {
+  const value = String(record.serviceDateTime || record.serviceTime || '').trim();
+  if (!/^\d{4}-\d{1,2}-\d{1,2}$/.test(value)) return value;
+
+  const rawTimeRange = String(record.timeRange ?? '').trim();
+  const timeRange = CART_TIME_RANGES[rawTimeRange]
+    || (/^\d{1,2}:\d{2}\s*[-~–—]\s*\d{1,2}:\d{2}$/.test(rawTimeRange)
+      ? rawTimeRange
+      : '');
+  return timeRange ? `${value} ${timeRange}` : value;
+};
 
 const normalizeRecord = (record: ClientCartItemRecord): CartItem => {
   const title = String(record.productName || '').trim() || 'Service';
@@ -53,6 +78,29 @@ const normalizeRecord = (record: ClientCartItemRecord): CartItem => {
   const englishAddOns = formatOrderAddOns(record.attachSelections, 'en');
   const chineseAddOns = formatOrderAddOns(record.attachSelections, 'zh');
   const fallbackSpec = String(record.specDesc || '').trim();
+  const specValueNameI18n = Object.fromEntries(
+    (record.specSelections || [])
+      .map((selection) => [
+        String(selection.specValueId ?? '').trim(),
+        selection.specValueNameI18n || {
+          en: String(selection.specValueName || '').trim(),
+          zh: String(selection.specValueName || '').trim(),
+        },
+      ] as const)
+      .filter(([id]) => Boolean(id)),
+  );
+  const skuDetail = record.spuId
+    ? {
+        spuId: record.spuId,
+        specValueIds: (record.specValueIds || []).map((item) => String(item)),
+        attachItems: (record.attachItems || [])
+          .filter((item) => item.attachValueId !== undefined && item.attachValueId !== null)
+          .map((item) => ({
+            attachValueId: item.attachValueId as number | string,
+            quantity: Math.max(1, Number(item.quantity) || 1),
+          })),
+      }
+    : undefined;
   return {
     id: String(record.cartItemId || ''),
     spuId: String(record.spuId ?? ''),
@@ -72,9 +120,12 @@ const normalizeRecord = (record: ClientCartItemRecord): CartItem => {
       ? [{ en: englishAddOns, zh: chineseAddOns }]
       : [],
     selectedSpecValueIds: (record.specValueIds || []).map((item) => String(item)),
+    specValueNameI18n,
+    skuDetail,
     unitPrice: Math.max(0, Number(record.amountWithTax) || 0),
     detailPath: record.spuId ? `/services/detail/${record.spuId}` : '/',
     selected: true,
+    addressId: record.addressId,
     serviceAddress: [
       record.serviceAddress,
       record.building,
@@ -85,7 +136,8 @@ const normalizeRecord = (record: ClientCartItemRecord): CartItem => {
       .filter(Boolean)
       .join(', '),
     serviceTimeDisplay: String(record.serviceTimeDisplay || '').trim(),
-    serviceDateTime: String(record.serviceDateTime || record.serviceTime || '').trim(),
+    serviceDateTime: normalizeCartServiceDateTime(record),
+    timeRange: record.timeRange,
     expiresAt: String(record.expiresAt || '').trim(),
   };
 };

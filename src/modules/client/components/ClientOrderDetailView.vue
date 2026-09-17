@@ -665,11 +665,11 @@ const naturalSpecText = computed(() =>
         return `${valueName} Apartment`
       }
       if (locale.value.startsWith("zh")) {
-        return valueName.replace(/(\d+)\s*(?:人|位)/g, "$1 位技师")
+        return valueName.replace(/(\d+)\s*(?:人|位|名技师)/g, "$1 人")
       }
       return valueName
         .replace(/^(\d+)\s+hours?$/i, (_, count) => `${count} hour${Number(count) === 1 ? "" : "s"}`)
-        .replace(/^(\d+)\s+(?:people|persons?)$/i, (_, count) => `${count} technician${Number(count) === 1 ? "" : "s"}`)
+        .replace(/^(\d+)\s+(?:technicians?|people|persons?)$/i, (_, count) => `${count} person${Number(count) === 1 ? "" : "s"}`)
     })
     .filter(Boolean)
     .join(locale.value.startsWith("zh") ? "，" : ", "),

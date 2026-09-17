@@ -272,13 +272,17 @@
         @click="handleConfirm"
       >
         <span>{{
-            isCartMode
+            isCartEditMode
               ? locale === "zh"
-                ? "加入购物车"
-                : "Add to Cart"
-              : t("client.orderConfirm.summary.confirmPay")
+                ? "确认结算"
+                : "Confirm Checkout"
+              : isCartMode
+                ? locale === "zh"
+                  ? "加入购物车"
+                  : "Add to Cart"
+                : t("client.orderConfirm.summary.confirmPay")
         }}</span>
-        <van-icon :name="isCartMode ? 'shopping-cart-o' : 'shield-o'" />
+        <van-icon :name="isCartMode && !isCartEditMode ? 'shopping-cart-o' : 'shield-o'" />
       </button>
       <p class="h5-order-footer__ssl">
         <van-icon name="shield-o" />
@@ -556,6 +560,7 @@ import {
   updateClientAddress,
   saveContactAddress,
   getLatestAddress,
+  getCartDetail,
   type AddressCategory,
   type ClientAddressRecord,
   type LatestAddressRecord,
@@ -624,7 +629,7 @@ type StripeFactory = (
 const route = useRoute()
 const router = useRouter()
 const { t, locale } = useI18n({ useScope: "global" })
-const { addItem, clearCart } = useCart()
+const { addItem, refreshCart, removeItems } = useCart()
 
 const DEFAULT_COUNTRY_CODE = "+971"
 const COUNTRY_CODE_ENTRIES = [
@@ -674,6 +679,7 @@ const availableTimeRecords = ref<AvailableTimeRecord[]>([])
 const isTimeOptionsLoading = ref(false)
 const lastLoadedServiceDate = ref("")
 const pendingTimeText = ref("")
+const pendingTimeRange = ref("")
 const agreedPolicy = ref(false)
 const policyPopupVisible = ref(false)
 const isSubmitting = ref(false)
@@ -1260,6 +1266,16 @@ const selectedTimeOption = computed(
 )
 
 const applyPendingTimeText = () => {
+  if (pendingTimeRange.value) {
+    const matched = selectableTimeOptions.value.find(
+      (item) => item.timeRange === pendingTimeRange.value,
+    )
+    if (matched) {
+      form.timeRange = matched.timeRange
+    }
+    pendingTimeRange.value = ""
+  }
+
   if (!pendingTimeText.value) {
     return
   }
@@ -1462,7 +1478,11 @@ const getQueryOrderId = (): number | null => {
 }
 
 const orderId = computed(() => getQueryOrderId())
-const isCartMode = computed(() => getQueryText("mode") === "cart")
+const isCartEditMode = computed(() => getQueryText("mode") === "cart-edit")
+const editingCartItemId = computed(() => getQueryText("cartItemId"))
+const isCartMode = computed(() =>
+  ["cart", "cart-edit"].includes(getQueryText("mode")),
+)
 const cartSkuDetail = computed(() =>
   parseQueryJson<CartSkuDetail | null>("cartSkuDetail", null),
 )
@@ -1682,13 +1702,15 @@ const openStripePopup = async (clientSecret: string) => {
 
 const handleStripeSuccess = async () => {
   stripePopupVisible.value = false
-  void clearCart().catch((error) => {
-    console.warn("Payment succeeded but clearing the cart failed:", error)
-  })
   showSuccessToast(t("client.orderConfirm.validation.orderSuccess"))
   await new Promise<void>((resolve) => {
     window.setTimeout(resolve, PAYMENT_STATUS_SYNC_DELAY_MS)
   })
+  try {
+    await refreshCart()
+  } catch (error) {
+    console.warn("Payment succeeded but refreshing the cart failed:", error)
+  }
   await router.push({
     name: "h5-booking-success",
     query: {
@@ -1871,6 +1893,7 @@ const fillFormByLatestAddress = (payload: LatestAddressRecord | null) => {
   }
 
   if (timeRange) {
+    pendingTimeRange.value = timeRange
     form.timeRange = timeRange
   } else if (dateTime.time) {
     pendingTimeText.value = dateTime.time
@@ -2056,11 +2079,23 @@ const submitBooking = async () => {
         lastName: normalizeText(form.lastName),
         skuDetail: cartSkuDetail.value,
       })
+      if (isCartEditMode.value && editingCartItemId.value) {
+        await removeItems([editingCartItemId.value])
+      }
       policyPopupVisible.value = false
       showSuccessToast(
-        locale.value === "zh" ? "已加入预订购物车" : "Added to booking cart",
+        isCartEditMode.value
+          ? locale.value === "zh"
+            ? "购物车预约已更新"
+            : "Cart booking updated"
+          : locale.value === "zh"
+            ? "已加入预订购物车"
+            : "Added to booking cart",
       )
-      await router.replace({ name: "h5-cart" })
+      await router.replace({
+        name: "h5-cart",
+        query: isCartEditMode.value ? { checkout: "1" } : undefined,
+      })
     } else {
       await saveContactAddress({
         ...addressPayload,
@@ -2103,8 +2138,26 @@ const confirmPolicyAndContinue = async () => {
 }
 
 onMounted(async () => {
-  await loadLatestAddress()
-  await loadAddressBook()
+  let preferredAddressId: number | null = null
+  if (isCartEditMode.value && editingCartItemId.value) {
+    try {
+      const cartItem = await getCartDetail(editingCartItemId.value)
+      fillFormByLatestAddress(cartItem)
+      form.remark = normalizeText(cartItem?.remark)
+      const addressId = Number(cartItem?.addressId)
+      preferredAddressId = Number.isFinite(addressId) ? addressId : null
+    } catch (error: any) {
+      showFailToast(
+        error?.message ||
+          (locale.value === "zh"
+            ? "购物车预约信息加载失败"
+            : "Unable to load the cart booking"),
+      )
+    }
+  } else {
+    await loadLatestAddress()
+  }
+  await loadAddressBook(preferredAddressId)
 })
 </script>
 

@@ -11,7 +11,7 @@
       <dl class="booking-success__summary">
         <div><dt>{{ locale.startsWith('zh') ? '订单编号' : 'Order ID' }}</dt><dd>{{ orderReference }}</dd></div>
         <div v-if="service"><dt>{{ locale.startsWith('zh') ? '服务' : 'Service' }}</dt><dd>{{ service }}</dd></div>
-        <div v-if="scheduled"><dt>{{ locale.startsWith('zh') ? '服务时间' : 'Scheduled time' }}</dt><dd>{{ scheduled }}</dd></div>
+        <div v-if="scheduled"><dt>{{ locale.startsWith('zh') ? '预约日期和时间' : 'Scheduled date and time' }}</dt><dd>{{ scheduled }}</dd></div>
         <div v-if="amount"><dt>{{ locale.startsWith('zh') ? '支付金额' : 'Amount paid' }}</dt><dd class="booking-success__amount">{{ amount }}</dd></div>
       </dl>
 

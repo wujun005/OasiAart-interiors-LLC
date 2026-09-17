@@ -52,12 +52,12 @@
               </div>
 
               <div class="cart-item__service">
-                <RouterLink class="cart-item__image" :to="item.detailPath || { path: '/', hash: '#services' }">
+                <RouterLink class="cart-item__image" :to="cartBookingRoute(item)">
                   <img :src="item.image || fallbackImage" :alt="itemTitle(item)" />
                 </RouterLink>
                 <div class="cart-item__content">
                   <span class="cart-item__category">{{ itemCategory(item) }}</span>
-                  <RouterLink class="cart-item__title" :to="item.detailPath || { path: '/', hash: '#services' }">
+                  <RouterLink class="cart-item__title" :to="cartBookingRoute(item)">
                     {{ itemTitle(item) }}
                   </RouterLink>
                   <p v-if="itemSpec(item)" class="cart-item__spec">{{ itemSpec(item) }}</p>
@@ -75,7 +75,7 @@
               </div>
 
               <div class="cart-item__actions">
-                <RouterLink :to="item.detailPath || { path: '/', hash: '#services' }">
+                <RouterLink :to="cartBookingRoute(item)">
                   {{ t('client.cart.edit') }}
                 </RouterLink>
                 <button type="button" @click="confirmRemove([item.id])">
@@ -132,7 +132,6 @@
       width="min(560px, calc(100vw - 28px))"
     >
       <div class="checkout-dialog__scroll">
-      <p class="checkout-dialog__intro">{{ t('client.cart.checkoutDialog.desc') }}</p>
       <div class="checkout-dialog__items">
         <div v-for="item in selectedItems" :key="item.id">
           <span>{{ itemTitle(item) }}</span>
@@ -200,6 +199,7 @@ const stripeClientSecret = ref('');
 const legalDialogVisible = ref(false);
 const legalDocType = ref<LegalDocType>('terms');
 const checkoutSummary = ref({ orderNo: '', orderId: '', service: '', scheduled: '', amount: '' });
+const checkedOutItemIds = ref<string[]>([]);
 const router = useRouter();
 const route = useRoute();
 const {
@@ -212,7 +212,6 @@ const {
   total,
   isLoading,
   refreshCart,
-  clearCart,
   setSelected,
   setAllSelected,
   removeItems,
@@ -243,10 +242,10 @@ const itemCategory = (item: CartItem) => pickLocalizedText(
 );
 
 const itemSpec = (item: CartItem) => pickLocalizedText(item.specSummaryI18n, item.specSummary || '');
-const itemSchedule = (item: CartItem) => item.serviceTimeDisplay || formatServiceSchedule(
+const itemSchedule = (item: CartItem) => formatServiceSchedule(
   item.serviceDateTime,
   locale.value,
-  '',
+  item.serviceTimeDisplay || '',
 );
 
 const itemAddOns = (item: CartItem) => {
@@ -257,6 +256,31 @@ const itemAddOns = (item: CartItem) => {
 };
 
 const formatAed = (value: number) => `AED ${Number(value || 0).toFixed(2)}`;
+
+const cartBookingRoute = (item: CartItem) => {
+  const subtotal = item.unitPrice / 1.05;
+  return {
+    name: 'order-confirm',
+    query: {
+      mode: 'cart-edit',
+      cartItemId: item.id,
+      cartSkuDetail: JSON.stringify(item.skuDetail || {
+        spuId: item.spuId,
+        specValueIds: item.selectedSpecValueIds || [],
+      }),
+      spuId: item.spuId,
+      skuId: item.skuId || '',
+      title: itemTitle(item),
+      titleI18n: JSON.stringify(item.titleI18n || {}),
+      specSummary: itemSpec(item),
+      selectedSpecValueIds: JSON.stringify(item.selectedSpecValueIds || []),
+      specValueNameI18n: JSON.stringify(item.specValueNameI18n || {}),
+      subtotal: subtotal.toFixed(2),
+      tax: (item.unitPrice - subtotal).toFixed(2),
+      total: item.unitPrice.toFixed(2),
+    },
+  };
+};
 
 const handleSelectAll = (value: string | number | boolean) => {
   setAllSelected(Boolean(value));
@@ -304,7 +328,8 @@ const confirmCheckout = async () => {
   if (!checkoutPolicyAgreed.value || isCheckingOut.value) return;
   isCheckingOut.value = true;
   try {
-    const result = await checkoutCart(selectedIds.value, 'STRIPE', window.location.href);
+    checkedOutItemIds.value = [...selectedIds.value];
+    const result = await checkoutCart(checkedOutItemIds.value, 'STRIPE', window.location.href);
     const payment = result?.payment;
     checkoutSummary.value = {
       orderNo: (result?.orderNos || []).join(', '),
@@ -326,6 +351,7 @@ const confirmCheckout = async () => {
     stripeClientSecret.value = clientSecret;
     stripeVisible.value = true;
   } catch (error: any) {
+    checkedOutItemIds.value = [];
     ElMessage.error(error?.message || (locale.value === 'zh' ? '购物车结算失败' : 'Cart checkout failed'));
   } finally {
     isCheckingOut.value = false;
@@ -335,14 +361,28 @@ const confirmCheckout = async () => {
 const handleStripeError = (message: string) => ElMessage.error(message);
 const handlePaymentSuccess = async () => {
   stripeVisible.value = false;
-  void clearCart().catch((error) => {
-    console.warn('Payment succeeded but clearing the cart failed:', error);
-  });
+  const completedIds = [...checkedOutItemIds.value];
+  checkedOutItemIds.value = [];
+  try {
+    if (completedIds.length) await removeItems(completedIds);
+    else await refreshCart();
+  } catch (error) {
+    console.warn('Payment succeeded but refreshing the cart failed:', error);
+    void refreshCart();
+  }
   ElMessage.success(locale.value === 'zh' ? '支付成功' : 'Payment successful');
   window.setTimeout(() => void router.push({ name: 'booking-success', query: checkoutSummary.value }), 2000);
 };
 
-onMounted(() => void refreshCart());
+onMounted(async () => {
+  await refreshCart();
+  if (route.query.checkout !== '1' || !selectedLineCount.value) return;
+
+  await openCheckout();
+  if (route.query.checkout === '1') {
+    await router.replace({ name: 'cart' });
+  }
+});
 </script>
 
 <style scoped lang="scss">

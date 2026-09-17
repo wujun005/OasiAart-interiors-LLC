@@ -44,7 +44,7 @@ const clientExtraMessages = {
         whatsapp: 'WhatsApp',
         contactLocation: 'Service Area: Dubai, UAE',
         address: 'Downtown Dubai, UAE',
-        copyright: '© {year} HourX Portal Co LLC. All Rights Reserved.',
+        copyright: '© {year} HourX Home Service. All Rights Reserved.',
         terms: 'Terms & Conditions',
         privacy: 'Privacy Policy',
         dataDeletion: 'Data Deletion Request',
@@ -246,7 +246,7 @@ const clientExtraMessages = {
             'If there is a quality issue, contact support within 24 hours for follow-up.',
         },
         reviewsTitle: 'Customer Reviews',
-        reviewUser: 'Ahmed Al-Farsi',
+        reviewUser: 'HourX Customer',
         reviewText:
           'Cleaners were professional and efficient. They prepared tools well and kept the process smooth.',
         booking: {
@@ -741,7 +741,7 @@ const clientExtraMessages = {
         whatsapp: 'WhatsApp',
         contactLocation: '服务区域：迪拜，阿联酋',
         address: '迪拜市中心，阿联酋',
-        copyright: '© {year} HourX Portal Co LLC. All Rights Reserved.',
+        copyright: '© {year} HourX Home Service. All Rights Reserved.',
         terms: '条款与条件',
         privacy: '隐私政策',
         dataDeletion: '数据删除说明',
@@ -868,7 +868,7 @@ const clientExtraMessages = {
           card3Desc: '包含滤网清洁、管道检查和系统调试，提升送风质量和效率。',
           card3Price: '限时优惠 · AED 100 起',
           card4Title: '居家按摩与美容',
-          card4Desc: '甄选认证技师，支持到家美容按摩服务，流程标准且隐私可靠。',
+          card4Desc: '甄选认证服务人员，支持到家美容按摩服务，流程标准且隐私可靠。',
           card4Price: '限时优惠 · AED 100 起',
           reason1Title: '迪拜本地平台',
           reason1Desc: 'HourX 是面向迪拜市场的居家服务预约平台。',
@@ -931,7 +931,7 @@ const clientExtraMessages = {
           item4Desc: '若对服务结果有疑问，请在服务结束后 24 小时内联系客服。',
         },
         reviewsTitle: '用户评价',
-        reviewUser: 'Ahmed Al-Farsi',
+        reviewUser: 'HourX 客户',
         reviewText:
           '清洁团队非常专业，准时到达，工具齐全。特别是厨房和卫生间清理得非常干净，体验很好。',
         booking: {

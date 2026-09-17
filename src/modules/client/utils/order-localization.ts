@@ -109,7 +109,7 @@ const normalizeEnglishValue = (value: string) => {
     .replace(/(\d+)\s*(?:小时|小時)/g, (_, count) =>
       `${count} Hour${Number(count) === 1 ? "" : "s"}`,
     )
-    .replace(/(\d+)\s*人/g, (_, count) =>
+    .replace(/(\d+)\s*(?:人|位|technicians?|people|persons?)/gi, (_, count) =>
       `${count} Person${Number(count) === 1 ? "" : "s"}`,
     )
 }
@@ -123,7 +123,7 @@ const normalizeChineseValue = (value: string) => {
     .replace(/(\d+)\s*bedrooms?/gi, "$1 居室")
     .replace(/(\d+)\s*units?/gi, "$1 台")
     .replace(/(\d+)\s*hours?/gi, "$1 小时")
-    .replace(/(\d+)\s*(?:people|persons?)/gi, "$1 人")
+    .replace(/(\d+)\s*(?:technicians?|people|persons?)/gi, "$1 人")
 }
 
 export const localizeOrderText = (

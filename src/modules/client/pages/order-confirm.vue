@@ -85,7 +85,7 @@
                     type="button"
                     @click="goManageAddresses"
                   >
-                    {{ locale === 'zh' ? '在个人中心管理地址 →' : 'Manage addresses in profile →' }}
+                    {{ locale === 'zh' ? '+ 添加新地址' : '+ Add another address' }}
                   </button>
                 </div>
               </div>
@@ -235,11 +235,15 @@
               @click="handleConfirm"
             >
               {{
-                isCartMode
+                isCartEditMode
                   ? locale === "zh"
-                    ? "加入预订购物车"
-                    : "Add to Booking Cart"
-                  : t("client.orderConfirm.summary.confirmPay")
+                    ? "确认结算"
+                    : "Confirm Checkout"
+                  : isCartMode
+                    ? locale === "zh"
+                      ? "加入预订购物车"
+                      : "Add to Booking Cart"
+                    : t("client.orderConfirm.summary.confirmPay")
               }}
             </button>
             <p class="order-summary-card__ssl">
@@ -261,193 +265,11 @@
 
     <AgreementDialog v-model="legalDialogVisible" :doc-type="legalDocType" />
 
-    <el-dialog
-      v-model="addAddressDialogVisible"
-      :title="
-        editingAddressId
-          ? t('client.orderConfirm.addressBook.editTitle')
-          : t('client.orderConfirm.addressBook.addTitle')
-      "
-      width="min(680px, calc(100% - 32px))"
-      :close-on-click-modal="!addressAdding"
-      :show-close="!addressAdding"
-    >
-      <el-form label-position="top" class="order-add-address-form">
-        <el-form-item
-          :label="t('client.orderConfirm.addressBook.categoryLabel')"
-        >
-          <div class="order-add-address-form__categories">
-            <button
-              v-for="item in addressCategoryOptions"
-              :key="item.value"
-              type="button"
-              :class="{ 'is-active': addAddressForm.category === item.value }"
-              @click="addAddressForm.category = item.value"
-            >
-              {{ item.label }}
-            </button>
-          </div>
-        </el-form-item>
-        <div
-          v-if="!editingAddressId"
-          class="order-add-address-form__location"
-        >
-          <button
-            type="button"
-            :disabled="addressEditorLocating"
-            @click="fillAddressEditorWithCurrentLocation"
-          >
-            <span aria-hidden="true">⌾</span>
-            {{
-              addressEditorLocating
-                ? t("client.orderConfirm.location.locating")
-                : t("client.orderConfirm.location.useCurrent")
-            }}
-          </button>
-          <p>
-            {{
-              locale === "zh"
-                ? "当前位置将自动填写区域和街道，请补充其余地址信息。"
-                : "Current location will auto-fill the area and street. Please enter the remaining details."
-            }}
-          </p>
-        </div>
-        <div class="order-add-address-form__grid">
-          <div class="order-add-address-form__section order-add-address-form__wide">
-            <span aria-hidden="true">⌖</span>
-            <div>
-              <strong>{{ locale === 'zh' ? '地址详情' : 'Address Details' }}</strong>
-              <small>{{ locale === 'zh' ? '请输入您的迪拜地址' : 'Enter your Dubai address.' }}</small>
-            </div>
-          </div>
-          <el-form-item
-            class="order-add-address-form__wide"
-            :label="t('client.orderConfirm.fields.areaCommunity')"
-            required
-          >
-            <el-input
-              v-model="addAddressForm.community"
-              maxlength="128"
-              :placeholder="t('client.orderConfirm.placeholders.areaCommunity')"
-            />
-          </el-form-item>
-          <el-form-item
-            class="order-add-address-form__wide"
-            :label="t('client.orderConfirm.fields.street')"
-            required
-          >
-            <el-input
-              v-model="addAddressForm.address"
-              maxlength="128"
-              :placeholder="t('client.orderConfirm.placeholders.street')"
-            />
-            <span
-              v-if="addressEditorLocating"
-              class="order-add-address-form__locating"
-            >
-              {{ t("client.orderConfirm.location.locating") }}
-            </span>
-          </el-form-item>
-          <el-form-item
-            class="order-add-address-form__wide"
-            :label="t('client.orderConfirm.fields.buildingVilla')"
-            required
-          >
-            <el-input
-              v-model="addAddressForm.building"
-              maxlength="128"
-              :placeholder="t('client.orderConfirm.placeholders.buildingVilla')"
-            />
-          </el-form-item>
-          <el-form-item
-            class="order-add-address-form__wide"
-            :label="t('client.orderConfirm.fields.apartmentUnitFloor')"
-            required
-          >
-            <el-input
-              v-model="addAddressForm.roomNo"
-              maxlength="128"
-              :placeholder="t('client.orderConfirm.placeholders.apartmentUnitFloor')"
-            />
-          </el-form-item>
-
-          <div class="order-add-address-form__section order-add-address-form__wide">
-            <span aria-hidden="true">♙</span>
-            <div>
-              <strong>{{ locale === 'zh' ? '联系人信息' : 'Contact Details' }}</strong>
-              <small>{{ locale === 'zh' ? '我们应该联系谁？' : 'Who should we deliver to?' }}</small>
-            </div>
-          </div>
-          <el-form-item
-            class="order-add-address-form__wide"
-            :label="t('client.orderConfirm.fields.fullName')"
-            required
-          >
-            <el-input
-              v-model="addAddressForm.fullName"
-              autocomplete="name"
-              :placeholder="t('client.orderConfirm.placeholders.fullName')"
-            />
-          </el-form-item>
-          <el-form-item
-            class="order-add-address-form__wide"
-            :label="t('client.orderConfirm.fields.phone')"
-            required
-          >
-            <div class="order-add-address-form__phone">
-              <el-select v-model="addAddressForm.phoneCountryCode">
-                <el-option
-                  v-for="item in countryCodeOptions"
-                  :key="item.value"
-                  :label="item.label"
-                  :value="item.value"
-                />
-              </el-select>
-              <el-input
-                v-model="addAddressForm.phone"
-                :placeholder="t('client.login.register.phoneNumberPlaceholder')"
-              />
-            </div>
-          </el-form-item>
-          <div class="order-add-address-form__section order-add-address-form__wide">
-            <span aria-hidden="true">✎</span>
-            <div>
-              <strong>{{ t('client.orderConfirm.fields.remark') }}</strong>
-            </div>
-          </div>
-          <el-form-item
-            class="order-add-address-form__wide"
-          >
-            <el-input
-              v-model="addAddressForm.additionalNotes"
-              type="textarea"
-              :rows="3"
-              :placeholder="t('client.orderConfirm.placeholders.remark')"
-            />
-          </el-form-item>
-        </div>
-      </el-form>
-      <template #footer>
-        <el-button
-          :disabled="addressAdding"
-          @click="addAddressDialogVisible = false"
-        >
-          {{ t("client.orderConfirm.addressBook.cancel") }}
-        </el-button>
-        <el-button
-          class="order-add-address-form__submit"
-          type="primary"
-          :loading="addressAdding"
-          @click="submitAddressEditor"
-        >
-          {{
-            editingAddressId
-              ? t("client.orderConfirm.addressBook.saveChanges")
-              : t("client.orderConfirm.addressBook.save")
-          }}
-        </el-button>
-      </template>
-    </el-dialog>
+    <SavedAddressManager
+      ref="checkoutAddressEditorRef"
+      :editor-only="true"
+      @saved="handleCheckoutAddressSaved"
+    />
 
     <el-dialog
       v-model="stripeDialogVisible"
@@ -516,19 +338,17 @@
 </template>
 
 <script setup lang="ts">
-import { ElMessage, ElMessageBox } from "element-plus"
+import { ElMessage } from "element-plus"
 import elLocaleEn from "element-plus/es/locale/lang/en"
 import elLocaleZhCn from "element-plus/es/locale/lang/zh-cn"
 import { computed, nextTick, onMounted, reactive, ref, watch } from "vue"
 import { useI18n } from "vue-i18n"
 import { useRoute, useRouter } from "vue-router"
 import {
-  addClientAddress,
-  deleteClientAddress,
   getClientAddressList,
-  updateClientAddress,
   saveContactAddress,
   getLatestAddress,
+  getCartDetail,
   type AddressCategory,
   type ClientAddressRecord,
   type LatestAddressRecord,
@@ -539,12 +359,8 @@ import {
 import { useCart } from "@/modules/client/composables/useCart"
 import AgreementDialog from "@/modules/client/components/agreement-dialog.vue"
 import BookingPolicyConfirm from "@/modules/client/components/booking-policy-confirm.vue"
+import SavedAddressManager from "@/modules/client/components/SavedAddressManager.vue"
 import type { LegalDocType } from "@/modules/client/constants/legal"
-import {
-  locateCurrentAddress,
-  LocationLookupError,
-  type LocationLookupErrorCode,
-} from "@/modules/client/utils/geolocation"
 import {
   formatContactName,
   splitContactName,
@@ -557,6 +373,15 @@ type AvailableTimeRecord = {
   avaiable?: boolean
   available?: boolean
   timeRange?: number | string
+}
+
+type CheckoutAddressEditorHandle = {
+  openCreate: (prefill?: {
+    fullName?: string
+    phoneCountryCode?: string
+    phone?: string
+    category?: AddressCategory
+  }) => void
 }
 
 const route = useRoute()
@@ -592,37 +417,20 @@ const availableTimeRecords = ref<AvailableTimeRecord[]>([])
 const isTimeOptionsLoading = ref(false)
 const lastLoadedServiceDate = ref("")
 const pendingTimeText = ref("")
+const pendingTimeRange = ref("")
 
 const agreedPolicy = ref(false)
 const policyDialogVisible = ref(false)
 const legalDialogVisible = ref(false)
 const legalDocType = ref<LegalDocType>("terms")
 const isSubmitting = ref(false)
-const isLocating = ref(false)
-const locationLookupUsed = ref(false)
 const addressList = ref<ClientAddressRecord[]>([])
 const addressListLoading = ref(false)
 const addressListError = ref(false)
 const selectedAddressId = ref<number | null>(null)
 const addressPickerExpanded = ref(false)
-const addAddressDialogVisible = ref(false)
-const addressAdding = ref(false)
-const addressDeletingId = ref<number | null>(null)
-const addressEditorLocating = ref(false)
-const editingAddressId = ref<number | null>(null)
+const checkoutAddressEditorRef = ref<CheckoutAddressEditorHandle | null>(null)
 let isApplyingSavedAddress = false
-const addAddressForm = reactive({
-  fullName: "",
-  phoneCountryCode: DEFAULT_COUNTRY_CODE,
-  phone: "",
-  district: "",
-  address: "",
-  building: "",
-  roomNo: "",
-  community: "",
-  additionalNotes: "",
-  category: "home" as AddressCategory,
-})
 const serviceDatePickerRef = ref<{
   focus?: () => void
   handleOpen?: () => void
@@ -635,7 +443,7 @@ const stripePublishableKey =
   typeof import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY === "string"
     ? import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY.trim()
     : ""
-const { addItem, clearCart } = useCart()
+const { addItem, refreshCart, removeItems } = useCart()
 
 const openLegal = (docType: LegalDocType) => {
   legalDocType.value = docType
@@ -709,21 +517,6 @@ const normalizeAddressCategory = (value: unknown): AddressCategory => {
   return "others"
 }
 
-const addressCategoryOptions = computed(() => [
-  {
-    value: "home" as AddressCategory,
-    label: t("client.orderConfirm.addressBook.categories.home"),
-  },
-  {
-    value: "office" as AddressCategory,
-    label: t("client.orderConfirm.addressBook.categories.office"),
-  },
-  {
-    value: "others" as AddressCategory,
-    label: t("client.orderConfirm.addressBook.categories.others"),
-  },
-])
-
 const addressCategoryLabel = (category: unknown) => {
   const normalized = normalizeAddressCategory(category)
   return t(`client.orderConfirm.addressBook.categories.${normalized}`)
@@ -739,11 +532,6 @@ const addressCategoryIcon = (category: unknown) => {
 const selectedAddress = computed(() =>
   addressList.value.find((item) => item.id === selectedAddressId.value) || null,
 )
-
-const formatAddressPhone = (item: ClientAddressRecord) =>
-  [normalizeText(item.phoneCountryCode), normalizeText(item.phone)]
-    .filter(Boolean)
-    .join(" ")
 
 const formatAddressLine = (item: ClientAddressRecord) =>
   [
@@ -796,21 +584,7 @@ const selectSavedAddress = (item: ClientAddressRecord) => {
   form.roomNo = normalizeText(item.roomNo)
   form.community = normalizeText(item.community)
   form.category = normalizeAddressCategory(item.category)
-  locationLookupUsed.value = false
   addressPickerExpanded.value = false
-  isApplyingSavedAddress = false
-}
-
-const selectManualAddress = () => {
-  isApplyingSavedAddress = true
-  selectedAddressId.value = null
-  form.district = ""
-  form.address = ""
-  form.building = ""
-  form.roomNo = ""
-  form.community = ""
-  form.category = "others"
-  locationLookupUsed.value = false
   isApplyingSavedAddress = false
 }
 
@@ -845,214 +619,25 @@ const loadAddressBook = async (preferredId?: number | null) => {
 }
 
 const openAddAddressDialog = () => {
-  editingAddressId.value = null
-  Object.assign(addAddressForm, {
+  checkoutAddressEditorRef.value?.openCreate({
     fullName: formatContactName(form.firstName, form.lastName),
     phoneCountryCode: form.countryCode || DEFAULT_COUNTRY_CODE,
     phone: form.phone,
-    district: "",
-    address: "",
-    building: "",
-    roomNo: "",
-    community: "",
-    additionalNotes: "",
     category: "home" as AddressCategory,
   })
-  addAddressDialogVisible.value = true
-  if (!normalizeText(addAddressForm.community)) {
-    void fillAddressEditorWithCurrentLocation()
-  }
 }
 
-const fillAddressEditorWithCurrentLocation = async () => {
-  if (addressEditorLocating.value) return
-  addressEditorLocating.value = true
-  try {
-    const result = await locateCurrentAddress(locale.value)
-    if (!addAddressDialogVisible.value || editingAddressId.value) return
-    if (!normalizeText(addAddressForm.community)) {
-      const area = result.district || result.address
-      addAddressForm.community = area
-      addAddressForm.district = area
-      addAddressForm.address = result.street || result.address
-    }
-  } catch (error) {
-    const code =
-      error instanceof LocationLookupError ? error.code : "LOOKUP_FAILED"
-    console.warn("auto locate for address editor failed:", code)
-  } finally {
-    addressEditorLocating.value = false
+const handleCheckoutAddressSaved = async (saved: {
+  id: number | null
+  record: ClientAddressRecord | null
+}) => {
+  await loadAddressBook(saved.id)
+  if (saved.id === null && saved.record) {
+    const matched = addressList.value.find((item) => item.id === saved.record?.id)
+    if (matched) selectSavedAddress(matched)
   }
+  addressPickerExpanded.value = false
 }
-
-const openEditAddressDialog = (item: ClientAddressRecord) => {
-  editingAddressId.value = item.id
-  Object.assign(addAddressForm, {
-    fullName: getAddressFullName(item),
-    phoneCountryCode:
-      normalizeText(item.phoneCountryCode) || DEFAULT_COUNTRY_CODE,
-    phone: normalizeText(item.phone),
-    district: normalizeText(item.district),
-    address: normalizeText(item.address),
-    building: normalizeText(item.building),
-    roomNo: normalizeText(item.roomNo),
-    community: normalizeText(item.community) || normalizeText(item.district),
-    additionalNotes: normalizeText(item.additionalNotes),
-    category: normalizeAddressCategory(item.category),
-  })
-  addAddressDialogVisible.value = true
-}
-
-const deleteSavedAddress = async (item: ClientAddressRecord) => {
-  if (addressDeletingId.value !== null) return
-  try {
-    await ElMessageBox.confirm(
-      t("client.orderConfirm.addressBook.deleteConfirmMessage"),
-      t("client.orderConfirm.addressBook.deleteConfirmTitle"),
-      {
-        type: "warning",
-        confirmButtonText: t("client.orderConfirm.addressBook.delete"),
-        cancelButtonText: t("client.orderConfirm.addressBook.cancel"),
-      },
-    )
-  } catch {
-    return
-  }
-
-  addressDeletingId.value = item.id
-  try {
-    await deleteClientAddress(item.id)
-    if (selectedAddressId.value === item.id) {
-      selectManualAddress()
-    }
-    await loadAddressBook()
-    ElMessage.success(t("client.orderConfirm.addressBook.deleteSuccess"))
-  } catch (error: any) {
-    ElMessage.error(
-      error?.message || t("client.orderConfirm.addressBook.deleteFailed"),
-    )
-  } finally {
-    addressDeletingId.value = null
-  }
-}
-
-const getAddAddressValidationMessage = () => {
-  const requiredFields = [
-    [addAddressForm.fullName, t("client.orderConfirm.fields.fullName")],
-    [addAddressForm.phone, t("client.orderConfirm.fields.phone")],
-    [addAddressForm.community, t("client.orderConfirm.fields.areaCommunity")],
-    [addAddressForm.address, t("client.orderConfirm.fields.street")],
-    [addAddressForm.building, t("client.orderConfirm.fields.buildingVilla")],
-    [addAddressForm.roomNo, t("client.orderConfirm.fields.apartmentUnitFloor")],
-  ]
-  const missing = requiredFields.find(([value]) => !normalizeText(value))
-  if (missing) {
-    return t("client.orderConfirm.validation.requiredField", {
-      field: missing[1],
-    })
-  }
-  return ""
-}
-
-const submitAddressEditor = async () => {
-  const validationMessage = getAddAddressValidationMessage()
-  if (validationMessage) {
-    ElMessage.warning(validationMessage)
-    return
-  }
-  addressAdding.value = true
-  try {
-    const payload = {
-      fullName: normalizeText(addAddressForm.fullName),
-      phoneCountryCode:
-        normalizeText(addAddressForm.phoneCountryCode) || DEFAULT_COUNTRY_CODE,
-      phone: normalizeText(addAddressForm.phone),
-      district: normalizeText(addAddressForm.community) || undefined,
-      address: normalizeText(addAddressForm.address),
-      building: normalizeText(addAddressForm.building),
-      roomNo: normalizeText(addAddressForm.roomNo),
-      community: normalizeText(addAddressForm.community) || undefined,
-      additionalNotes:
-        normalizeText(addAddressForm.additionalNotes) || undefined,
-      category: normalizeAddressCategory(addAddressForm.category),
-    }
-    if (editingAddressId.value) {
-      await updateClientAddress({ id: editingAddressId.value, ...payload })
-      await loadAddressBook(editingAddressId.value)
-      addAddressDialogVisible.value = false
-      ElMessage.success(t("client.orderConfirm.addressBook.editSuccess"))
-      return
-    }
-
-    const added = await addClientAddress(payload)
-    const addedId = Number(typeof added === "number" ? added : added?.id)
-    await loadAddressBook(Number.isFinite(addedId) ? addedId : null)
-    if (!Number.isFinite(addedId)) {
-      const matched = [...addressList.value]
-        .reverse()
-        .find(
-          (item) =>
-            item.address === normalizeText(addAddressForm.address) &&
-            item.building === normalizeText(addAddressForm.building) &&
-            normalizeText(item.roomNo) === normalizeText(addAddressForm.roomNo) &&
-            normalizeText(item.community) === normalizeText(addAddressForm.community) &&
-            item.phone === normalizeText(addAddressForm.phone),
-        )
-      if (matched) selectSavedAddress(matched)
-    }
-    addAddressDialogVisible.value = false
-    ElMessage.success(t("client.orderConfirm.addressBook.addSuccess"))
-  } catch (error: any) {
-    ElMessage.error(
-      error?.message ||
-        t(
-          editingAddressId.value
-            ? "client.orderConfirm.addressBook.editFailed"
-            : "client.orderConfirm.addressBook.addFailed",
-        ),
-    )
-  } finally {
-    addressAdding.value = false
-  }
-}
-
-const locationErrorKeyMap: Record<LocationLookupErrorCode, string> = {
-  UNSUPPORTED: "unsupported",
-  PERMISSION_DENIED: "permissionDenied",
-  UNAVAILABLE: "unavailable",
-  TIMEOUT: "timeout",
-  LOOKUP_FAILED: "lookupFailed",
-}
-
-const handleUseCurrentLocation = async () => {
-  if (isLocating.value) return
-  isLocating.value = true
-  try {
-    const result = await locateCurrentAddress(locale.value)
-    form.district = result.district
-    form.address = ""
-    form.building = ""
-    form.roomNo = ""
-    form.community = ""
-    locationLookupUsed.value = true
-    ElMessage.success(t("client.orderConfirm.location.success"))
-  } catch (error) {
-    const code =
-      error instanceof LocationLookupError ? error.code : "LOOKUP_FAILED"
-    ElMessage.error(
-      t(`client.orderConfirm.location.errors.${locationErrorKeyMap[code]}`),
-    )
-  } finally {
-    isLocating.value = false
-  }
-}
-
-const countryCodeOptions = computed(() =>
-  COUNTRY_CODE_ENTRIES.map((item) => ({
-    value: item.value,
-    label: locale.value === "zh" ? item.labelZh : item.labelEn,
-  })),
-)
 
 const splitPhoneNumber = (
   value: unknown,
@@ -1193,6 +778,16 @@ const selectedTimeOption = computed(
 )
 
 const applyPendingTimeText = () => {
+  if (pendingTimeRange.value) {
+    const matched = selectableTimeOptions.value.find(
+      (item) => item.timeRange === pendingTimeRange.value,
+    )
+    if (matched) {
+      form.timeRange = matched.timeRange
+    }
+    pendingTimeRange.value = ""
+  }
+
   if (!pendingTimeText.value) {
     return
   }
@@ -1425,7 +1020,11 @@ const getQueryOrderId = (): number | null => {
 }
 
 const orderId = computed(() => getQueryOrderId())
-const isCartMode = computed(() => getQueryText("mode") === "cart")
+const isCartEditMode = computed(() => getQueryText("mode") === "cart-edit")
+const editingCartItemId = computed(() => getQueryText("cartItemId"))
+const isCartMode = computed(() =>
+  ["cart", "cart-edit"].includes(getQueryText("mode")),
+)
 const cartSkuDetail = computed(() =>
   parseQueryJson<CartSkuDetail | null>("cartSkuDetail", null),
 )
@@ -1616,13 +1215,15 @@ const openStripeDialog = async (clientSecret: string) => {
 
 const handleStripeSuccess = async () => {
   stripeDialogVisible.value = false
-  void clearCart().catch((error) => {
-    console.warn("Payment succeeded but clearing the cart failed:", error)
-  })
   ElMessage.success(t("client.orderConfirm.validation.orderSuccess"))
   await new Promise<void>((resolve) => {
     window.setTimeout(resolve, PAYMENT_STATUS_SYNC_DELAY_MS)
   })
+  try {
+    await refreshCart()
+  } catch (error) {
+    console.warn("Payment succeeded but refreshing the cart failed:", error)
+  }
   await router.push({
     name: "booking-success",
     query: {
@@ -1805,6 +1406,7 @@ const fillFormByLatestAddress = (payload: LatestAddressRecord | null) => {
   }
 
   if (timeRange) {
+    pendingTimeRange.value = timeRange
     form.timeRange = timeRange
   } else if (dateTime.time) {
     pendingTimeText.value = dateTime.time
@@ -1936,10 +1538,7 @@ const goBack = () => {
 }
 
 const goManageAddresses = () => {
-  void router.push({
-    name: "profile",
-    query: { section: "addresses", returnTo: route.fullPath },
-  })
+  openAddAddressDialog()
 }
 
 const submitBooking = async () => {
@@ -1988,11 +1587,23 @@ const submitBooking = async () => {
         lastName: normalizeText(form.lastName),
         skuDetail: cartSkuDetail.value,
       })
+      if (isCartEditMode.value && editingCartItemId.value) {
+        await removeItems([editingCartItemId.value])
+      }
       policyDialogVisible.value = false
       ElMessage.success(
-        locale.value === "zh" ? "已加入预订购物车" : "Added to booking cart",
+        isCartEditMode.value
+          ? locale.value === "zh"
+            ? "购物车预约已更新"
+            : "Cart booking updated"
+          : locale.value === "zh"
+            ? "已加入预订购物车"
+            : "Added to booking cart",
       )
-      await router.replace({ name: "cart" })
+      await router.replace({
+        name: "cart",
+        query: isCartEditMode.value ? { checkout: "1" } : undefined,
+      })
     } else {
       const result = await saveContactAddress({
         ...addressPayload,
@@ -2036,8 +1647,26 @@ const confirmPolicyAndContinue = async () => {
 }
 
 onMounted(async () => {
-  await loadLatestAddress()
-  await loadAddressBook()
+  let preferredAddressId: number | null = null
+  if (isCartEditMode.value && editingCartItemId.value) {
+    try {
+      const cartItem = await getCartDetail(editingCartItemId.value)
+      fillFormByLatestAddress(cartItem)
+      form.remark = normalizeText(cartItem?.remark)
+      const addressId = Number(cartItem?.addressId)
+      preferredAddressId = Number.isFinite(addressId) ? addressId : null
+    } catch (error: any) {
+      ElMessage.warning(
+        error?.message ||
+          (locale.value === "zh"
+            ? "购物车预约信息加载失败"
+            : "Unable to load the cart booking"),
+      )
+    }
+  } else {
+    await loadLatestAddress()
+  }
+  await loadAddressBook(preferredAddressId)
 })
 </script>
 
@@ -2749,15 +2378,13 @@ onMounted(async () => {
   font-weight: 700;
 }
 
-.order-address-category > div,
-.order-add-address-form__categories {
+.order-address-category > div {
   display: flex;
   flex-wrap: wrap;
   gap: 10px;
 }
 
-.order-address-category button,
-.order-add-address-form__categories button {
+.order-address-category button {
   min-width: 92px;
   height: 38px;
   border: 1px solid #d1d9e4;
@@ -2770,122 +2397,10 @@ onMounted(async () => {
   cursor: pointer;
 }
 
-.order-address-category button.is-active,
-.order-add-address-form__categories button.is-active {
+.order-address-category button.is-active {
   border-color: #05152b;
   background: #05152b;
   color: #fff;
-}
-
-.order-add-address-form__location {
-  margin: 2px 0 18px;
-  padding: 12px 14px;
-  border: 1px solid #bdebd1;
-  border-radius: 12px;
-  background: #f0fbf5;
-  display: flex;
-  align-items: center;
-  gap: 16px;
-}
-
-.order-add-address-form__location button {
-  min-height: 40px;
-  flex: 0 0 auto;
-  border: 0;
-  border-radius: 9px;
-  background: #1769c2;
-  color: #fff;
-  padding: 0 16px;
-  font-weight: 800;
-  cursor: pointer;
-}
-
-.order-add-address-form__location button:disabled {
-  cursor: wait;
-  opacity: 0.65;
-}
-
-.order-add-address-form__location p {
-  margin: 0;
-  color: #27704d;
-  font-size: 12px;
-  line-height: 1.45;
-}
-
-.order-add-address-form__grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 0 16px;
-}
-
-.order-add-address-form__section {
-  margin: 4px 0 16px;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.order-add-address-form__section:not(:first-child) {
-  margin-top: 8px;
-  padding-top: 18px;
-  border-top: 1px solid #edf1f5;
-}
-
-.order-add-address-form__section > span {
-  width: 32px;
-  height: 32px;
-  flex: 0 0 auto;
-  border-radius: 10px;
-  display: grid;
-  place-items: center;
-  background: #edf5ff;
-  color: #1769c2;
-  font-size: 18px;
-  font-weight: 900;
-}
-
-.order-add-address-form__section div {
-  min-width: 0;
-  display: grid;
-  gap: 2px;
-}
-
-.order-add-address-form__section strong {
-  color: #17233a;
-  font-size: 13px;
-}
-
-.order-add-address-form__section small {
-  color: #8a99aa;
-  font-size: 11px;
-}
-
-.order-add-address-form__wide {
-  grid-column: 1 / -1;
-}
-
-.order-add-address-form__locating {
-  color: var(--hourx-brand);
-  font-size: 12px;
-  font-weight: 700;
-}
-
-.order-add-address-form__phone {
-  width: 100%;
-  display: grid;
-  grid-template-columns: 158px minmax(0, 1fr);
-  gap: 8px;
-}
-
-:deep(.order-add-address-form__submit.el-button--primary) {
-  border-color: #05152b;
-  background: #05152b;
-}
-
-:deep(.order-add-address-form__submit.el-button--primary:hover),
-:deep(.order-add-address-form__submit.el-button--primary:focus) {
-  border-color: #142b49;
-  background: #142b49;
 }
 
 .payment-methods {
@@ -3227,17 +2742,6 @@ onMounted(async () => {
     flex-direction: column;
   }
 
-  .order-add-address-form__grid {
-    grid-template-columns: 1fr;
-  }
-
-  .order-add-address-form__wide {
-    grid-column: auto;
-  }
-
-  .order-add-address-form__phone {
-    grid-template-columns: 136px minmax(0, 1fr);
-  }
 }
 
 @media (max-width: 480px) {
@@ -3249,8 +2753,5 @@ onMounted(async () => {
     width: 100%;
   }
 
-  .order-add-address-form__phone {
-    grid-template-columns: 1fr;
-  }
 }
 </style>

@@ -42,7 +42,7 @@ const zh = {
       {
         title: '家庭深度保洁',
         desc: '厨卫除垢 · 床品除螨 · 全屋消杀',
-        duration: '2-3 小时 · 2人团队',
+        duration: '2-3 小时 · 2 人',
         price: 'AED 199 起',
         tags: ['深度清洁', '除螨消杀'],
         thumb: 'deep-cleaning.png',
@@ -50,7 +50,7 @@ const zh = {
       {
         title: '日常维护保洁',
         desc: '客厅卧室日常清洁 · 收纳整理',
-        duration: '1.5-2 小时 · 1人上门',
+        duration: '1.5-2 小时 · 1 人',
         price: 'AED 129 起',
         tags: ['高频维护', '及时到店'],
         thumb: 'daily-cleaning.png',
@@ -58,7 +58,7 @@ const zh = {
       {
         title: '家电专项清洗',
         desc: '冰箱、洗衣机、空调深层清洗杀菌',
-        duration: '90 分钟 · 专项技师',
+        duration: '90 分钟 · 1 人',
         price: 'AED 159 起',
         tags: ['专人专机', '环保耗材'],
         thumb: 'appliance-cleaning.png',
@@ -66,7 +66,7 @@ const zh = {
     ],
     reviews: [
       { user: '陈女士 · 宝龙城', comment: '两小时搞定全屋，收纳很整齐，下次还会约。', score: 4.5 },
-      { user: '李先生 · 滨江', comment: '油烟机清洗得很干净，师傅很准时。', score: 5 },
+      { user: '李先生 · 滨江', comment: '油烟机清洗得很干净，服务人员很准时。', score: 5 },
       { user: '赵女士 · 江南', comment: '空调清洗完风很清新，工具齐全。', score: 4.5 },
     ],
   },
