@@ -2,80 +2,64 @@
   <div class="page">
     <el-card>
       <div class="toolbar">
-        <el-input
-          v-model="query.spuCode"
-          :placeholder="t('admin.product.filters.spuCodePlaceholder')"
-          clearable
-          @keyup.enter="handleSearch"
-        />
-        <el-select
-          v-model="query.categoryId"
-          :placeholder="t('admin.product.filters.categoryPlaceholder')"
-          clearable
-          filterable
-        >
-          <el-option
-            v-for="item in categoryOptions"
-            :key="item.value"
-            :label="item.label"
-            :value="item.value"
+        <div class="toolbar-fields">
+          <el-select
+            v-model="query.categoryId"
+            :placeholder="t('admin.product.filters.categoryPlaceholder')"
+            clearable
+            filterable
+          >
+            <el-option
+              v-for="item in categoryOptions"
+              :key="item.value"
+              :label="item.label"
+              :value="item.value"
+            />
+          </el-select>
+          <el-select
+            v-model="query.serviceSubCategoryId"
+            :placeholder="t('admin.product.filters.serviceSubCategoryPlaceholder')"
+            clearable
+            filterable
+          >
+            <el-option
+              v-for="item in searchSubCategoryOptions"
+              :key="item.value"
+              :label="item.label"
+              :value="item.value"
+            />
+          </el-select>
+          <el-select
+            v-model="query.shelfStatus"
+            :placeholder="t('admin.product.filters.shelfStatusPlaceholder')"
+            clearable
+          >
+            <el-option
+              v-for="item in shelfStatusOptions"
+              :key="item.value"
+              :label="item.label"
+              :value="item.value"
+            />
+          </el-select>
+          <el-input
+            v-model="query.nameKeyword"
+            :placeholder="t('admin.product.filters.nameKeywordPlaceholder')"
+            clearable
+            @keyup.enter="handleSearch"
           />
-        </el-select>
-        <el-select
-          v-model="query.serviceSubCategoryId"
-          :placeholder="t('admin.product.filters.serviceSubCategoryPlaceholder')"
-          clearable
-          filterable
-        >
-          <el-option
-            v-for="item in searchSubCategoryOptions"
-            :key="item.value"
-            :label="item.label"
-            :value="item.value"
-          />
-        </el-select>
-        <el-select
-          v-model="query.shelfStatus"
-          :placeholder="t('admin.product.filters.shelfStatusPlaceholder')"
-          clearable
-        >
-          <el-option
-            v-for="item in shelfStatusOptions"
-            :key="item.value"
-            :label="item.label"
-            :value="item.value"
-          />
-        </el-select>
-        <el-input
-          v-model="query.nameKeyword"
-          :placeholder="t('admin.product.filters.nameKeywordPlaceholder')"
-          clearable
-          @keyup.enter="handleSearch"
-        />
-        <el-select
-          v-model="query.status"
-          :placeholder="t('admin.product.filters.statusPlaceholder')"
-          clearable
-        >
-          <el-option
-            v-for="item in statusOptions"
-            :key="item.value"
-            :label="item.label"
-            :value="item.value"
-          />
-        </el-select>
-        <el-select
-          v-model="query.exclusive"
-          :placeholder="t('admin.product.filters.exclusivePlaceholder')"
-          clearable
-        >
-          <el-option
-            v-for="item in exclusiveOptions"
-            :key="item.value"
-            :label="item.label"
-            :value="item.value"
-          />
-        </el-select>
+          <el-select
+            v-model="query.exclusive"
+            :placeholder="t('admin.product.filters.exclusivePlaceholder')"
+            clearable
+          >
+            <el-option
+              v-for="item in exclusiveOptions"
+              :key="item.value"
+              :label="item.label"
+              :value="item.value"
+            />
+          </el-select>
+        </div>
         <div class="toolbar-actions">
           <el-button type="primary" @click="handleSearch">{{ t('admin.product.actions.search') }}</el-button>
           <el-button @click="reset">{{ t('admin.product.actions.reset') }}</el-button>
@@ -90,7 +74,6 @@
         class="product-sort-table"
         :data="products"
         border
-        stripe
         v-loading="tableLoading || sortSubmitting"
         row-key="id"
         :row-class-name="productRowClassName"
@@ -98,11 +81,9 @@
         @drop.prevent="handleProductDrop"
       >
         <el-table-column
-          v-if="canSortProducts"
           :label="t('admin.product.table.sort')"
-          width="66"
+          width="48"
           align="center"
-          fixed="left"
         >
           <template #default="{ row }">
             <button
@@ -126,110 +107,129 @@
             </button>
           </template>
         </el-table-column>
-        <el-table-column :label="t('admin.product.table.image')" width="120">
+        <el-table-column :label="t('admin.product.table.image')" width="76">
           <template #default="{ row }">
             <div class="thumbs">
               <img
-                v-for="(img, idx) in row.images.slice(0, 2)"
+                v-for="(img, idx) in row.images.slice(0, 1)"
                 :key="idx"
                 :src="img"
                 alt=""
               />
-              <span v-if="row.images.length > 2" class="more"
-                >+{{ row.images.length - 2 }}</span
+              <span v-if="row.images.length > 1" class="more"
+                >+{{ row.images.length - 1 }}</span
               >
             </div>
           </template>
         </el-table-column>
-        <el-table-column prop="name" :label="t('admin.product.table.name')" min-width="160" />
-        <el-table-column prop="categoryName" :label="t('admin.product.table.category')" min-width="140" />
+        <el-table-column
+          prop="name"
+          :label="t('admin.product.table.name')"
+          min-width="130"
+          show-overflow-tooltip
+        />
+        <el-table-column
+          prop="categoryName"
+          :label="t('admin.product.table.category')"
+          min-width="125"
+          show-overflow-tooltip
+        />
         <el-table-column
           prop="subCategoryName"
           :label="t('admin.product.table.subcategory')"
-          min-width="140"
+          min-width="120"
+          show-overflow-tooltip
         />
-        <el-table-column prop="specNames" :label="t('admin.product.table.specs')" min-width="300">
+        <el-table-column prop="specNames" :label="t('admin.product.table.specs')" min-width="155">
           <template #default="{ row }">
-            <el-tag
-              v-for="name in row.specNames"
-              :key="name"
-              size="small"
-              class="lang"
+            <el-tooltip
+              :content="row.specNames.join(t('admin.product.text.separator')) || '-'"
+              placement="top"
+              :show-after="250"
             >
-              {{ name }}
-            </el-tag>
+              <span class="pricing-rules-chip">
+                {{ row.specNames.join(t('admin.product.text.separator')) || '-' }}
+              </span>
+            </el-tooltip>
           </template>
         </el-table-column>
-        <el-table-column :label="t('admin.product.table.saleStatus')" width="100">
+        <el-table-column :label="t('admin.product.table.saleStatus')" width="92">
           <template #default="{ row }">
-            <el-tag :type="row.isOnSale ? 'success' : 'info'">
-              {{ row.isOnSale ? t('admin.product.sale.on') : t('admin.product.sale.off') }}
-            </el-tag>
-          </template>
-        </el-table-column>
-        <!-- <el-table-column prop="currency" label="币种" width="100" /> -->
-        <el-table-column :label="t('admin.product.table.languages')" min-width="120">
-          <template #default="{ row }">
-            <el-tag
-              v-for="lang in row.langs"
-              :key="lang"
-              size="small"
-              class="lang"
-            >
-              {{ lang }}
-            </el-tag>
-          </template>
-        </el-table-column>
-        <el-table-column :label="t('admin.product.table.createdAt')" min-width="200">
-          <template #default="{ row }">{{
-            formatDate(row.createdAt)
-          }}</template>
-        </el-table-column>
-        <el-table-column :label="t('admin.product.table.updatedAt')" min-width="200">
-          <template #default="{ row }">{{
-            formatDate(row.updatedAt)
-          }}</template>
-        </el-table-column>
-        <el-table-column :label="t('admin.product.table.actions')" width="320" fixed="right">
-          <template #default="{ row }">
-            <el-button link type="primary" size="small" @click="openEdit(row)">
-              {{ t('admin.product.actions.edit') }}
-            </el-button>
             <el-button
+              class="sale-status-button"
+              :class="row.isOnSale ? 'is-on' : 'is-off'"
               link
-              type="primary"
               size="small"
-              :disabled="!row.previewUrl"
-              @click="openPreview(row)"
+              @click="toggleSale(row)"
             >
-              {{ t('admin.product.actions.preview') }}
+              {{ row.isOnSale ? t('admin.product.sale.on') : t('admin.product.sale.off') }}
             </el-button>
+          </template>
+        </el-table-column>
+        <el-table-column :label="t('admin.product.table.price')" width="58">
+          <template #default="{ row }">
             <el-button
               link
               type="primary"
               size="small"
               @click="openPriceDialog(row)"
             >
-              {{ t('admin.product.actions.maintainPrice') }}
+              {{ t('admin.product.table.price') }}
             </el-button>
-            <el-button
-              link
-              :type="row.isOnSale ? 'warning' : 'success'"
-              size="small"
-              @click="toggleSale(row)"
+          </template>
+        </el-table-column>
+        <el-table-column :label="t('admin.product.table.createdUpdated')" width="132">
+          <template #default="{ row }">
+            <el-tooltip
+              :content="`${t('admin.product.table.createdAt')}: ${formatDate(row.createdAt) || '-'}`"
+              placement="top"
+              :show-after="250"
             >
-              {{ row.isOnSale ? t('admin.product.actions.takeOff') : t('admin.product.actions.putOn') }}
-            </el-button>
+              <div class="product-date-line">
+                {{ t('admin.product.table.createdAt') }}: {{ formatDate(row.createdAt) || '-' }}
+              </div>
+            </el-tooltip>
+            <el-tooltip
+              :content="`${t('admin.product.table.updatedAt')}: ${formatDate(row.updatedAt) || '-'}`"
+              placement="top"
+              :show-after="250"
+            >
+              <div class="product-date-line">
+                {{ t('admin.product.table.updatedAt') }}: {{ formatDate(row.updatedAt) || '-' }}
+              </div>
+            </el-tooltip>
+          </template>
+        </el-table-column>
+        <el-table-column :label="t('admin.product.table.actions')" width="70">
+          <template #default="{ row }">
+            <div class="table-actions">
+              <el-button link type="primary" size="small" @click="openEdit(row)">
+                {{ t('admin.product.actions.edit') }}
+              </el-button>
+              <el-button
+                link
+                type="primary"
+                size="small"
+                :disabled="!row.previewUrl"
+                @click="openPreview(row)"
+              >
+                {{ t('admin.product.actions.preview') }}
+              </el-button>
+              <el-button link type="danger" size="small" @click="remove(row)">
+                {{ t('admin.product.actions.delete') }}
+              </el-button>
+            </div>
+          </template>
+        </el-table-column>
+        <el-table-column :label="t('admin.product.table.limitedOffer')" width="78">
+          <template #default="{ row }">
             <el-button
               link
-              type="primary"
+              :type="row.exclusive ? 'danger' : 'primary'"
               size="small"
               @click="toggleRecommend(row)"
             >
-              {{ row?.exclusive ? t('admin.product.actions.unrecommend') : t('admin.product.actions.recommend') }}
-            </el-button>
-            <el-button link type="danger" size="small" @click="remove(row)">
-              {{ t('admin.product.actions.delete') }}
+              {{ row.exclusive ? t('admin.product.actions.removeLimited') : t('admin.product.actions.addLimited') }}
             </el-button>
           </template>
         </el-table-column>
@@ -252,7 +252,7 @@
       v-model="dialogVisible"
       :title="isEdit ? t('admin.product.dialog.editTitle') : t('admin.product.dialog.createTitle')"
       :close-on-click-modal="false"
-      width="880px"
+      width="min(760px, calc(100vw - 32px))"
     >
       <el-form
         ref="formRef"
@@ -719,7 +719,7 @@
       </template>
     </el-dialog>
 
-    <el-dialog v-model="priceDialogVisible" :title="t('admin.product.dialog.priceTitle')" :close-on-click-modal="false" width="1020px">
+    <el-dialog v-model="priceDialogVisible" :title="t('admin.product.dialog.priceTitle')" :close-on-click-modal="false" width="min(720px, calc(100vw - 32px))">
       <el-table :data="priceRows" border stripe class="price-table">
         <el-table-column
           v-for="col in priceColumns"
@@ -1133,11 +1133,6 @@ const langOptions = computed(() => [
 const shelfStatusOptions = computed(() => [
   { label: t('admin.product.sale.on'), value: '1' },
   { label: t('admin.product.sale.off'), value: '0' },
-]);
-
-const statusOptions = computed(() => [
-  { label: t('admin.common.enabled'), value: '1' },
-  { label: t('admin.common.disabled'), value: '0' },
 ]);
 
 const exclusiveOptions = computed(() => [
@@ -2481,29 +2476,39 @@ watch(
 
 <style scoped>
 .page {
-  padding: 20px;
+  --el-font-size-base: 12px;
+  --el-component-size: 30px;
+  padding: 12px;
+  font-size: 12px;
+}
+.page > :deep(.el-card) {
+  --el-card-padding: 12px;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
 }
 .toolbar {
   display: flex;
-  justify-content: flex-start;
+  flex-direction: column;
+  align-items: stretch;
+  margin-bottom: 12px;
+  gap: 8px;
+}
+.toolbar-fields,
+.toolbar-actions {
+  display: flex;
   align-items: center;
   flex-wrap: wrap;
-  margin-bottom: 16px;
-  gap: 12px;
+  gap: 8px;
 }
 .toolbar :deep(.el-input),
 .toolbar :deep(.el-select) {
-  width: 180px;
-}
-.toolbar-actions {
-  display: flex;
-  gap: 12px;
-  flex-wrap: wrap;
+  width: 160px;
 }
 .pager {
   display: flex;
   justify-content: flex-end;
-  margin-top: 16px;
+  margin-top: 12px;
 }
 .product-sort-handle {
   width: 34px;
@@ -2546,14 +2551,76 @@ watch(
   gap: 6px;
 }
 .thumbs img {
-  width: 40px;
-  height: 40px;
+  width: 34px;
+  height: 34px;
   object-fit: cover;
   border-radius: 4px;
 }
 .more {
-  font-size: 12px;
+  font-size: 11px;
   color: #666;
+}
+.pricing-rules-chip {
+  display: block;
+  max-width: 100%;
+  overflow: hidden;
+  padding: 3px 7px;
+  border-radius: 4px;
+  background: #eaf2ff;
+  color: #2f7ee0;
+  font-size: 11px;
+  line-height: 1.35;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.sale-status-button {
+  height: 24px;
+  padding: 0 7px !important;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  font-weight: 600;
+}
+.sale-status-button.is-on {
+  border-color: #c9ecd4;
+  background: #e4f7ea;
+  color: #1a8a3e;
+}
+.sale-status-button.is-off {
+  border-color: #f7d3d1;
+  background: #fdeceb;
+  color: #e5484d;
+}
+.product-date-line {
+  color: #606266;
+  font-size: 11px;
+  line-height: 1.55;
+  white-space: nowrap;
+}
+.table-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+.table-actions :deep(.el-button + .el-button) {
+  margin-left: 0;
+}
+.product-sort-table :deep(.el-table__cell) {
+  padding: 7px 0;
+  font-size: 12px;
+}
+.product-sort-table :deep(.el-table__header .cell),
+.product-sort-table :deep(.el-table__body .cell) {
+  padding-right: 6px;
+  padding-left: 6px;
+  line-height: 1.35;
+}
+.product-sort-table :deep(.el-table__header .cell) {
+  white-space: nowrap;
+}
+.product-sort-table :deep(.el-button.is-link) {
+  height: 22px;
+  padding: 0 2px;
+  font-size: 11.5px;
 }
 .lang {
   margin-right: 4px;

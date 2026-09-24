@@ -42,8 +42,63 @@ type AdminMenuPermissionState = {
 
 const ROOT_PATH = '/admin';
 const LOGIN_PATH = '/admin/login';
-const BASIC_PATH = '/admin/basic';
-const SUPPLIER_PATH = '/admin/basic/suppliers';
+const SUPPLIER_MANAGEMENT_PATH = '/admin/supplier-management';
+
+const createSupplierManagementMenu = (): AdminMenuPermissionItem => ({
+  id: 'local-supplier-management',
+  name: 'Supplier Management',
+  path: SUPPLIER_MANAGEMENT_PATH,
+  icon: 'office-building',
+  parentId: 0,
+  sortOrder: 40,
+  children: [
+    {
+      id: 'local-supplier-profile',
+      name: 'Supplier Information',
+      path: `${SUPPLIER_MANAGEMENT_PATH}/profile`,
+      icon: 'document',
+      parentId: 'local-supplier-management',
+      sortOrder: 1,
+      children: [],
+    },
+    {
+      id: 'local-supplier-staff',
+      name: 'Supplier Staff',
+      path: `${SUPPLIER_MANAGEMENT_PATH}/staff`,
+      icon: 'user-filled',
+      parentId: 'local-supplier-management',
+      sortOrder: 2,
+      children: [],
+    },
+    {
+      id: 'local-supplier-schedule',
+      name: 'Supplier Schedule',
+      path: `${SUPPLIER_MANAGEMENT_PATH}/schedule`,
+      icon: 'calendar',
+      parentId: 'local-supplier-management',
+      sortOrder: 3,
+      children: [],
+    },
+    {
+      id: 'local-supplier-orders',
+      name: 'Supplier Orders',
+      path: `${SUPPLIER_MANAGEMENT_PATH}/orders`,
+      icon: 'list',
+      parentId: 'local-supplier-management',
+      sortOrder: 4,
+      children: [],
+    },
+    {
+      id: 'local-supplier-pricing',
+      name: 'Services & Pricing',
+      path: `${SUPPLIER_MANAGEMENT_PATH}/pricing`,
+      icon: 'price-tag',
+      parentId: 'local-supplier-management',
+      sortOrder: 5,
+      children: [],
+    },
+  ],
+});
 
 export const adminMenuState = reactive<AdminMenuPermissionState>({
   loaded: false,
@@ -209,24 +264,11 @@ const hydrateMenuState = (list: RawMenuItem[]) => {
 
   const prunedRoots = pruneMenus(roots);
   const flatBeforeLocalMenus = flattenMenus(prunedRoots, []);
-  const hasSupplierMenu = flatBeforeLocalMenus.some(
-    (item) => item.path === SUPPLIER_PATH,
+  const hasSupplierManagementMenu = flatBeforeLocalMenus.some(
+    (item) => item.path === SUPPLIER_MANAGEMENT_PATH,
   );
-  const basicMenu =
-    flatBeforeLocalMenus.find((item) => item.path === BASIC_PATH) ??
-    flatBeforeLocalMenus.find((item) =>
-      item.children.some((child) => child.path.startsWith(`${BASIC_PATH}/`)),
-    );
-  if (basicMenu && !hasSupplierMenu) {
-    basicMenu.children.push({
-      id: 'local-basic-suppliers',
-      name: 'Supplier Management',
-      path: SUPPLIER_PATH,
-      icon: 'user',
-      parentId: basicMenu.id,
-      sortOrder: Math.max(0, ...basicMenu.children.map((item) => Number(item.sortOrder || 0))) + 1,
-      children: [],
-    });
+  if (!hasSupplierManagementMenu) {
+    prunedRoots.push(createSupplierManagementMenu());
   }
   sortMenus(prunedRoots);
 
@@ -262,6 +304,13 @@ export const loadAdminMenuPermissions = async (force = false) => {
   const token = getAdminAuthStorageValue('token');
   if (!token) {
     resetAdminMenuPermissions();
+    const isSupplierDemoPreview =
+      import.meta.env.DEV &&
+      typeof window !== 'undefined' &&
+      new URLSearchParams(window.location.search).get('preview') === 'supplier';
+    if (isSupplierDemoPreview) {
+      hydrateMenuState([]);
+    }
     adminMenuState.loaded = true;
     return adminMenuState;
   }

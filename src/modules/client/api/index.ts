@@ -20,11 +20,14 @@ export interface ExclusiveSpuRecord {
   nameI18n?: Record<string, string>;
   descI18n?: Record<string, string>;
   minPrice?: number | string;
+  minNotIncTaxPrice?: number | string | null;
 }
 
 export interface OrderListRecord {
   orderId?: number | string;
   orderAmount?: number | string;
+  refundHandlingFee?: number | string | null;
+  refundedAmount?: number | string | null;
   spuName?: string;
   spuNameI18n?: Record<string, string>;
   descI18n?: Record<string, string>;
@@ -141,6 +144,8 @@ export type AddCartItemPayload = {
   building?: string;
   roomNo?: string;
   community?: string;
+  latitude?: number;
+  longitude?: number;
   remark?: string;
   category?: AddressCategory;
   serviceTime: string;
@@ -170,6 +175,8 @@ export interface ClientCartItemRecord {
   building?: string;
   roomNo?: string;
   community?: string;
+  latitude?: number | string;
+  longitude?: number | string;
   remark?: string;
   category?: AddressCategory;
   serviceTime?: string;
@@ -214,6 +221,13 @@ export interface OrderRefundCheckResult {
   canReschedule?: boolean;
   cannotRescheduleReason?: Record<string, string>;
   canCancelWithoutRefund?: boolean;
+  orderAmount?: number | string;
+  handlingFee?: number | string;
+  refundAmount?: number | string;
+}
+
+export interface OrderRefundAmountRecord {
+  orderNo?: string;
   orderAmount?: number | string;
   handlingFee?: number | string;
   refundAmount?: number | string;
@@ -265,6 +279,8 @@ export interface ClientAddressRecord {
   building?: string;
   roomNo?: string;
   community?: string;
+  latitude?: number;
+  longitude?: number;
   additionalNotes?: string;
   category: AddressCategory;
   isDefault?: boolean;
@@ -282,6 +298,8 @@ export type AddClientAddressPayload = {
   building?: string;
   roomNo?: string;
   community?: string;
+  latitude?: number;
+  longitude?: number;
   additionalNotes?: string;
   category?: AddressCategory;
 };
@@ -438,11 +456,55 @@ export type CreatePayResponse = {
   currency?: string;
   amount?: string | number;
   clientSecret?: string;
+  customerSessionClientSecret?: string;
   paymentIntentId?: string;
 };
 
 export function createPay(payload: CreatePayRequest) {
   return http.post('/client/payment/create', payload);
+}
+
+export interface StripeSetupIntentRecord {
+  setupIntentId?: string;
+  clientSecret?: string;
+}
+
+export interface SavedPaymentMethodRecord {
+  paymentMethodId: string;
+  brand?: string;
+  last4?: string;
+  expMonth?: number;
+  expYear?: number;
+  isDefault?: boolean;
+  allowRedisplay?: 'always' | 'limited' | 'unspecified';
+}
+
+// Stripe SetupIntent：安全采集并保存支付方式，银行卡号不会经过 HourX 服务端。
+export async function createStripeSetupIntent() {
+  return getEnvelopeData<StripeSetupIntentRecord>(
+    await http.post('/client/payment/setup-intent'),
+  );
+}
+
+export async function getSavedPaymentMethods() {
+  return getDataList<SavedPaymentMethodRecord>(
+    await http.get('/client/payment/methods'),
+  );
+}
+
+export function deleteSavedPaymentMethod(paymentMethodId: string) {
+  return http.delete(`/client/payment/methods/${encodeURIComponent(paymentMethodId)}`);
+}
+
+export function setDefaultSavedPaymentMethod(paymentMethodId: string) {
+  return http.put(`/client/payment/methods/${encodeURIComponent(paymentMethodId)}/default`);
+}
+
+// 仅在用户主动确认后调用，不随列卡或设置默认卡自动授权。
+export function enableSavedPaymentMethodRedisplay(paymentMethodId: string, consent: boolean) {
+  return http.put(`/client/payment/methods/${encodeURIComponent(paymentMethodId)}/redisplay-consent`, {
+    consent,
+  });
 }
 
 // /client/payment/apple-pay/merchant-session. apple pay 商户验证
@@ -645,6 +707,13 @@ export function requestOrderRefund(params: ClientRefundRequest) {
 
 export async function checkOrderRefund(orderNo: string) {
   return getEnvelopeData<OrderRefundCheckResult>(await http.get('/client/order/refund-check', {
+    params: { orderNo },
+  }));
+}
+
+// /client/order/refund-amount 取消预订时展示手续费及实际到账金额
+export async function getOrderRefundAmount(orderNo: string) {
+  return getEnvelopeData<OrderRefundAmountRecord>(await http.get('/client/order/refund-amount', {
     params: { orderNo },
   }));
 }

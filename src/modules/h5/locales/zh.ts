@@ -130,7 +130,7 @@ const zh = {
     methodTitle: '安全支付',
     methodDesc: '由 Stripe 提供',
     paymentNote: '可用的支付选项由 Stripe 安全提供，并可能因设备而异。',
-    totalLabel: '支付总额（含 VAT）',
+    totalLabel: '总额',
   },
   auth: {
     navTitle: '账户登录',

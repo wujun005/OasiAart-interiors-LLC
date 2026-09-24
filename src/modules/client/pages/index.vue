@@ -108,6 +108,12 @@
             v-for="item in featuredCards"
             :key="item.id"
             class="offer-card"
+            role="link"
+            tabindex="0"
+            :aria-label="item.title"
+            @click="goProductDetail(item.spuId)"
+            @keydown.enter="goProductDetail(item.spuId)"
+            @keydown.space.prevent="goProductDetail(item.spuId)"
           >
             <div class="offer-card__media">
               <img :src="item.image" :alt="item.title" />
@@ -117,9 +123,16 @@
             </div>
             <div class="offer-card__body">
               <h3>{{ item.title }}</h3>
-              <p class="offer-card__desc">{{ item.desc }}</p>
+              <el-tooltip
+                :content="item.desc"
+                placement="top"
+                :show-after="250"
+                :disabled="!item.desc"
+              >
+                <p class="offer-card__desc">{{ item.desc }}</p>
+              </el-tooltip>
               <p class="offer-card__price">{{ item.price }}</p>
-              <button type="button" @click="goProductDetail(item.spuId)">
+              <button type="button" @click.stop="goProductDetail(item.spuId)">
                 {{ t("client.home.serviceCard.button") }}
               </button>
             </div>
@@ -373,7 +386,7 @@ const serviceTiles = computed<ServiceTile[]>(() => {
 
 const defaultOfferCards = computed<OfferCard[]>(() => [])
 
-const formatPriceText = (minPrice?: number | string): string => {
+const formatPriceText = (minPrice?: number | string | null): string => {
   if (minPrice === undefined || minPrice === null || minPrice === "") {
     return t("client.home.serviceCard.priceConsult")
   }
@@ -407,7 +420,7 @@ const featuredCards = computed<OfferCard[]>(() => {
         desc: cleanDescriptionText(
           pickI18nValue(item.descI18n, fallback?.desc || ""),
         ),
-        price: formatPriceText(item.minPrice),
+        price: formatPriceText(item.minNotIncTaxPrice),
         image:
           item.imageUrls?.[0] ||
           fallback?.image ||
@@ -514,7 +527,11 @@ const scrollToServices = () => {
 }
 
 const openWhatsApp = () => {
-  window.open("https://wa.me/971502100284/?text=Hi%2C+I%E2%80%99m+interested+in+HourX+services.+Could+you+please+help+me%3F", "_blank", "noopener,noreferrer")
+  window.open(
+    "https://wa.me/971502100284/?text=Hi%2C+I%E2%80%99m+interested+in+HourX+services.+Could+you+please+help+me%3F",
+    "_blank",
+    "noopener,noreferrer",
+  )
 }
 
 const loadExclusiveCards = async () => {
@@ -976,11 +993,24 @@ onMounted(() => {
 .offer-card {
   display: flex;
   flex-direction: column;
-  height: 100%;
+  height: 430px;
   border: 1px solid #f3f4f6;
   background: #fff;
   border-radius: 16px;
   overflow: hidden;
+  cursor: pointer;
+  transition: transform 180ms ease, border-color 180ms ease, box-shadow 180ms ease;
+}
+
+.offer-card:hover {
+  transform: translateY(-3px);
+  border-color: rgba(23, 105, 194, 0.2);
+  box-shadow: 0 14px 34px rgba(15, 23, 42, 0.09);
+}
+
+.offer-card:focus-visible {
+  outline: 3px solid rgba(23, 105, 194, 0.22);
+  outline-offset: 3px;
 }
 
 .offer-card__media {
@@ -1025,6 +1055,11 @@ onMounted(() => {
   font-size: 20px;
   line-height: 28px;
   font-weight: 800;
+  min-height: 56px;
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
 }
 
 .offer-card__desc {
@@ -1033,6 +1068,11 @@ onMounted(() => {
   font-size: 14px;
   line-height: 1.6;
   min-height: 68px;
+  max-height: 68px;
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
 }
 
 .offer-card__price {

@@ -21,6 +21,14 @@ export type OrderStripeRefundPayload = {
   orderId: number;
   refundAmount?: number;
   deductHandlingFee?: boolean;
+  refundReason: string;
+  refundReasonRemark?: string;
+};
+
+export type RefundReasonOption = {
+  code: string;
+  nameI18n?: Record<string, string>;
+  remarkRequired?: boolean;
 };
 
 export type OrderExportPayload = {
@@ -83,6 +91,16 @@ export function stripeRefund(payload: OrderStripeRefundPayload) {
   return http.post('/api/orderHeader/stripeRefund', payload);
 }
 
+// /api/orderHeader/refund-reasons 管理端 Stripe 退款原因枚举
+export async function getRefundReasons(): Promise<RefundReasonOption[]> {
+  const response = await http.get('/api/orderHeader/refund-reasons');
+  if (Array.isArray(response)) return response as RefundReasonOption[];
+  const data = response && typeof response === 'object'
+    ? (response as { data?: unknown }).data
+    : null;
+  return Array.isArray(data) ? data as RefundReasonOption[] : [];
+}
+
 // 供应商下拉查询（订单分配弹窗）
 export function querySuppliers(payload: any) {
   return http.post('/api/supplier/query', payload);
@@ -111,6 +129,7 @@ export default {
   updateAdminRemark,
   updateOrderStatus,
   stripeRefund,
+  getRefundReasons,
   querySuppliers,
   updateSupplier,
   exportOrders,

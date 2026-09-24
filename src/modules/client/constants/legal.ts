@@ -219,14 +219,14 @@ export const LEGAL_DOCS: Record<LegalLocale, Record<LegalDocType, LegalDoc>> = {
       lastUpdated: '____',
       sections: [
         {
-          heading: '15. Information We Collect',
+          heading: '1. Information We Collect',
           paragraphs: [
             'HourX collects account details (name, email, phone), booking history, address and service location, communication logs, and device and usage data.',
             'Payment information is processed by Stripe; HourX does not store card numbers.',
           ],
         },
         {
-          heading: '16. How We Use Your Information',
+          heading: '2. How We Use Your Information',
           paragraphs: ['Your data is used to:'],
           bullets: [
             'Manage bookings and service delivery.',
@@ -237,7 +237,7 @@ export const LEGAL_DOCS: Record<LegalLocale, Record<LegalDocType, LegalDoc>> = {
           ],
         },
         {
-          heading: '17. Sharing of Information',
+          heading: '3. Sharing of Information',
           paragraphs: [
             'HourX shares data only with the following parties:',
           ],
@@ -256,20 +256,20 @@ export const LEGAL_DOCS: Record<LegalLocale, Record<LegalDocType, LegalDoc>> = {
           ],
         },
         {
-          heading: '18. Communication Consent',
+          heading: '4. Communication Consent',
           paragraphs: [
             'By using HourX, you consent to receive booking confirmations, service updates, and account notifications.',
             'Marketing messages are optional and can be opted out at any time.',
           ],
         },
         {
-          heading: '19. Cookie Policy',
+          heading: '5. Cookie Policy',
           paragraphs: [
             'The HourX website may use cookies and similar tracking technologies to remember preferences, keep you signed in, and analyze site traffic. You can control or disable cookies through your browser settings; doing so may affect certain website functionality.',
           ],
         },
         {
-          heading: '20. Data Protection',
+          heading: '6. Data Protection',
           paragraphs: [
             'HourX uses secure systems and follows UAE Federal Decree-Law No. 45 of 2021 on the Protection of Personal Data (PDPL) and other applicable UAE data protection standards to safeguard personal information, applying appropriate technical and organizational measures to protect it from unauthorized access, loss, or misuse.',
           ],
@@ -281,7 +281,7 @@ export const LEGAL_DOCS: Record<LegalLocale, Record<LegalDocType, LegalDoc>> = {
           ],
         },
         {
-          heading: '21. User Rights',
+          heading: '7. User Rights',
           paragraphs: ['Users may request:'],
           bullets: [
             'Access to their data.',
@@ -290,7 +290,7 @@ export const LEGAL_DOCS: Record<LegalLocale, Record<LegalDocType, LegalDoc>> = {
           ],
         },
         {
-          heading: '22. Policy Updates',
+          heading: '8. Policy Updates',
           paragraphs: [
             'HourX may update these Terms & Conditions and Privacy Policy. Continued use of the platform constitutes acceptance of updated terms.',
           ],
@@ -530,14 +530,14 @@ export const LEGAL_DOCS: Record<LegalLocale, Record<LegalDocType, LegalDoc>> = {
       lastUpdated: '____',
       sections: [
         {
-          heading: '15. 我们收集的信息',
+          heading: '1. 我们收集的信息',
           paragraphs: [
             'HourX 收集账户资料（姓名、电子邮箱、电话）、预订历史、地址和服务地点、沟通记录，以及设备和使用数据。',
             '付款信息由 Stripe 处理；HourX 不存储银行卡号。',
           ],
         },
         {
-          heading: '16. 我们如何使用您的信息',
+          heading: '2. 我们如何使用您的信息',
           paragraphs: ['您的数据用于：'],
           bullets: [
             '管理预订和服务交付。',
@@ -548,7 +548,7 @@ export const LEGAL_DOCS: Record<LegalLocale, Record<LegalDocType, LegalDoc>> = {
           ],
         },
         {
-          heading: '17. 信息共享',
+          heading: '3. 信息共享',
           paragraphs: ['HourX 仅与以下对象共享数据：'],
           bullets: [
             '经批准的服务商，用于预订和服务交付。',
@@ -565,20 +565,20 @@ export const LEGAL_DOCS: Record<LegalLocale, Record<LegalDocType, LegalDoc>> = {
           ],
         },
         {
-          heading: '18. 通信同意',
+          heading: '4. 通信同意',
           paragraphs: [
             '使用 HourX 即表示您同意接收预订确认、服务更新及账户通知。',
             '营销信息为可选内容，您可随时退订。',
           ],
         },
         {
-          heading: '19. Cookie 政策',
+          heading: '5. Cookie 政策',
           paragraphs: [
             'HourX 网站可能使用 Cookie 及类似跟踪技术来记住偏好、保持登录状态并分析网站流量。您可以通过浏览器设置控制或禁用 Cookie，但这样做可能影响网站的部分功能。',
           ],
         },
         {
-          heading: '20. 数据保护',
+          heading: '6. 数据保护',
           paragraphs: [
             'HourX 使用安全系统，并遵守阿联酋《2021 年第 45 号个人数据保护联邦法令》（PDPL）及其他适用的数据保护标准，通过适当的技术和组织措施保护个人信息，防止未经授权的访问、丢失或滥用。',
           ],
@@ -590,7 +590,7 @@ export const LEGAL_DOCS: Record<LegalLocale, Record<LegalDocType, LegalDoc>> = {
           ],
         },
         {
-          heading: '21. 用户权利',
+          heading: '7. 用户权利',
           paragraphs: ['用户可以申请：'],
           bullets: [
             '访问其个人数据。',
@@ -599,7 +599,7 @@ export const LEGAL_DOCS: Record<LegalLocale, Record<LegalDocType, LegalDoc>> = {
           ],
         },
         {
-          heading: '22. 政策更新',
+          heading: '8. 政策更新',
           paragraphs: [
             'HourX 可更新本服务条款及隐私政策。继续使用平台即表示接受更新后的条款。',
           ],

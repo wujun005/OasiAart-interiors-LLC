@@ -1,7 +1,7 @@
 <template>
   <div class="admin-page">
     <el-container class="layout">
-      <el-aside width="270px" class="sidebar">
+      <el-aside width="216px" class="sidebar">
         <div class="logo">{{ t('admin.layout.logo') }}</div>
         <el-menu
           :default-active="activeMenu"
@@ -62,6 +62,11 @@ import {
   Collection,
   Tickets,
   Ticket,
+  OfficeBuilding,
+  UserFilled,
+  Calendar,
+  List,
+  PriceTag,
   Menu as MenuIcon,
 } from '@element-plus/icons-vue';
 import { ADMIN_LOCALE_STORAGE_KEY, type AdminLocale } from '@/modules/admin/locales';
@@ -113,6 +118,10 @@ const pageTitle = computed(() => {
 const handleSelect = (path: string) => {
   if (!path || !path.startsWith('/')) return;
   if (path === route.path) return;
+  if (import.meta.env.DEV && route.query.preview === 'supplier') {
+    router.push({ path, query: { preview: 'supplier' } });
+    return;
+  }
   router.push(path);
 };
 
@@ -145,6 +154,11 @@ const iconMap: Record<string, Component> = {
   collection: Collection,
   tickets: Tickets,
   ticket: Ticket,
+  officebuilding: OfficeBuilding,
+  userfilled: UserFilled,
+  calendar: Calendar,
+  list: List,
+  pricetag: PriceTag,
 };
 
 const resolveMenuIcon = (item: AdminMenuPermissionItem) => {
@@ -156,6 +170,12 @@ const resolveMenuIcon = (item: AdminMenuPermissionItem) => {
   if (path.startsWith('/admin/products')) return Goods;
   if (path.startsWith('/admin/orders')) return Document;
   if (path.startsWith('/admin/users')) return User;
+  if (path.startsWith('/admin/supplier-management/profile')) return Document;
+  if (path.startsWith('/admin/supplier-management/staff')) return UserFilled;
+  if (path.startsWith('/admin/supplier-management/schedule')) return Calendar;
+  if (path.startsWith('/admin/supplier-management/orders')) return List;
+  if (path.startsWith('/admin/supplier-management/pricing')) return PriceTag;
+  if (path.startsWith('/admin/supplier-management')) return OfficeBuilding;
   if (path.startsWith('/admin/basic/suppliers')) return User;
   if (path.startsWith('/admin/basic/spec-types')) return Ticket;
   if (path.startsWith('/admin/basic/specs')) return Tickets;
@@ -177,6 +197,12 @@ const menuLabelKeyByPath: Record<string, string> = {
   '/admin/basic/addon-categories': 'admin.layout.addonCategory',
   '/admin/basic/addons': 'admin.layout.addon',
   '/admin/basic/suppliers': 'admin.layout.supplier',
+  '/admin/supplier-management': 'admin.layout.supplierManagement',
+  '/admin/supplier-management/profile': 'admin.layout.supplierProfile',
+  '/admin/supplier-management/staff': 'admin.layout.supplierStaff',
+  '/admin/supplier-management/schedule': 'admin.layout.supplierSchedule',
+  '/admin/supplier-management/orders': 'admin.layout.supplierOrders',
+  '/admin/supplier-management/pricing': 'admin.layout.supplierPricing',
 };
 
 const resolveMenuLabel = (item: AdminMenuPermissionItem) => {
@@ -245,6 +271,6 @@ loadAdminMenuPermissions().catch((error) => {
   width: 110px;
 }
 .content {
-  padding: 20px;
+  padding: 12px;
 }
 </style>

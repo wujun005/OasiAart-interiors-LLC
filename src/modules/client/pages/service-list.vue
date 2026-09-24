@@ -3,8 +3,12 @@
     <section class="service-subheader">
       <div class="service-container">
         <nav class="service-back" aria-label="breadcrumb">
-          <button class="service-back__link" type="button" @click="goBackToHome">
-            {{ t('client.header.nav.services') }}
+          <button
+            class="service-back__link"
+            type="button"
+            @click="goBackToHome"
+          >
+            {{ t("client.header.nav.services") }}
           </button>
           <span class="service-back__separator" aria-hidden="true">&lt;</span>
           <span class="service-back__current">{{ pageTitle }}</span>
@@ -21,7 +25,10 @@
             <h1>{{ heroTitle }}</h1>
             <p>{{ heroDesc }}</p>
             <div class="service-hero__tags">
-              <span v-for="(tag, index) in heroTags" :key="`${tag.label}-${index}`">
+              <span
+                v-for="(tag, index) in heroTags"
+                :key="`${tag.label}-${index}`"
+              >
                 <img :src="tag.icon" alt="" />
                 {{ tag.label }}
               </span>
@@ -29,9 +36,16 @@
           </div>
         </article>
 
-        <div v-if="isServiceLoading" class="service-loading" role="status" aria-live="polite">
+        <div
+          v-if="isServiceLoading"
+          class="service-loading"
+          role="status"
+          aria-live="polite"
+        >
           <span class="service-loading__spinner" aria-hidden="true" />
-          <p>{{ locale === 'zh' ? '正在查找服务…' : 'Searching for services…' }}</p>
+          <p>
+            {{ locale === "zh" ? "正在查找服务…" : "Searching for services…" }}
+          </p>
         </div>
         <section v-else-if="serviceCards.length" class="service-grid">
           <article
@@ -50,15 +64,15 @@
             </div>
             <div class="service-card__body">
               <h3>{{ item.title }}</h3>
-              <p class="service-card__price">{{ t('client.serviceList.card.priceFrom', { price: item.price }) }}</p>
+              <p class="service-card__price">{{ item.price }}</p>
               <button type="button" @click.stop="goProductDetail(item.spuId)">
-                {{ t('client.serviceList.card.bookNow') }}
+                {{ t("client.serviceList.card.bookNow") }}
               </button>
             </div>
           </article>
         </section>
         <p v-else class="service-search__empty">
-          {{ t('client.home.sections.searchNoResults') }}
+          {{ t("client.home.sections.searchNoResults") }}
         </p>
       </div>
     </section>
@@ -66,281 +80,306 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue';
-import { useI18n } from 'vue-i18n';
-import { type LocationQueryValue, useRoute, useRouter } from 'vue-router';
+import { computed, ref, watch } from "vue"
+import { useI18n } from "vue-i18n"
+import { type LocationQueryValue, useRoute, useRouter } from "vue-router"
 import {
   level1Categories,
   onShelfSpus,
   searchOnShelfSpus,
   type ExclusiveSpuRecord,
   type Level1CategoryRecord,
-} from '@/modules/client/api';
+} from "@/modules/client/api"
 
 type ServiceCardView = {
-  key: string;
-  spuId: string;
-  title: string;
-  price: string;
-  icon: string;
-};
+  key: string
+  spuId: string
+  title: string
+  price: string
+  icon: string
+}
 
-const heroImage = 'https://www.figma.com/api/mcp/asset/9940165e-0acb-4e47-a159-467533923434';
-const tagIconCertified = new URL('@/assets/images/client/icon10.png', import.meta.url).href;
-const tagIconFast = new URL('@/assets/images/client/icon11.png', import.meta.url).href;
-const tagIconReliable = new URL('@/assets/images/client/icon12.png', import.meta.url).href;
+const heroImage =
+  "https://www.figma.com/api/mcp/asset/9940165e-0acb-4e47-a159-467533923434"
+const tagIconCertified = new URL(
+  "@/assets/images/client/icon10.png",
+  import.meta.url,
+).href
+const tagIconFast = new URL(
+  "@/assets/images/client/icon11.png",
+  import.meta.url,
+).href
+const tagIconReliable = new URL(
+  "@/assets/images/client/icon12.png",
+  import.meta.url,
+).href
 
 const cardIconSet = [
-  'https://www.figma.com/api/mcp/asset/eb5c30c7-689f-4ed5-bbbd-d173eed0127f',
-  'https://www.figma.com/api/mcp/asset/09552e9b-ee1f-4389-9c80-8ad2058e2a6d',
-  'https://www.figma.com/api/mcp/asset/4fd2bf43-6d9b-4120-b782-12f955ead59c',
-  'https://www.figma.com/api/mcp/asset/1cb9d72b-e802-4cc7-84c8-34ca417a10c7',
-  'https://www.figma.com/api/mcp/asset/6a649f2a-a66f-4922-b744-d52b9db77848',
-  'https://www.figma.com/api/mcp/asset/eb5c30c7-689f-4ed5-bbbd-d173eed0127f',
-];
+  "https://www.figma.com/api/mcp/asset/eb5c30c7-689f-4ed5-bbbd-d173eed0127f",
+  "https://www.figma.com/api/mcp/asset/09552e9b-ee1f-4389-9c80-8ad2058e2a6d",
+  "https://www.figma.com/api/mcp/asset/4fd2bf43-6d9b-4120-b782-12f955ead59c",
+  "https://www.figma.com/api/mcp/asset/1cb9d72b-e802-4cc7-84c8-34ca417a10c7",
+  "https://www.figma.com/api/mcp/asset/6a649f2a-a66f-4922-b744-d52b9db77848",
+  "https://www.figma.com/api/mcp/asset/eb5c30c7-689f-4ed5-bbbd-d173eed0127f",
+]
 
-const { t, locale } = useI18n({ useScope: 'global' });
-const route = useRoute();
-const router = useRouter();
+const { t, locale } = useI18n({ useScope: "global" })
+const route = useRoute()
+const router = useRouter()
 
-const selectedLevel1 = ref<Level1CategoryRecord | null>(null);
-const onShelfRecords = ref<ExclusiveSpuRecord[]>([]);
-const isServiceLoading = ref(false);
-let serviceRequestId = 0;
+const selectedLevel1 = ref<Level1CategoryRecord | null>(null)
+const onShelfRecords = ref<ExclusiveSpuRecord[]>([])
+const isServiceLoading = ref(false)
+let serviceRequestId = 0
 
 const getPreferredLangs = () =>
-  locale.value === 'zh'
-    ? ['zh-CN', 'zh', 'en', 'en-US']
-    : ['en', 'en-US', 'zh-CN', 'zh'];
+  locale.value === "zh"
+    ? ["zh-CN", "zh", "en", "en-US"]
+    : ["en", "en-US", "zh-CN", "zh"]
 
 const getQueryValue = (
   value?: LocationQueryValue | LocationQueryValue[] | null,
 ) => {
-  const raw = Array.isArray(value) ? value[0] : value;
-  return typeof raw === 'string' ? raw.trim() : '';
-};
+  const raw = Array.isArray(value) ? value[0] : value
+  return typeof raw === "string" ? raw.trim() : ""
+}
 
 const pickI18nValue = (
   i18n?: Record<string, string>,
-  fallback = '',
+  fallback = "",
 ): string => {
-  const valueMap = i18n || {};
-  const preferredLangs = getPreferredLangs();
+  const valueMap = i18n || {}
+  const preferredLangs = getPreferredLangs()
   for (const lang of preferredLangs) {
-    const value = valueMap[lang];
-    if (typeof value === 'string' && value.trim()) {
-      return value.trim();
+    const value = valueMap[lang]
+    if (typeof value === "string" && value.trim()) {
+      return value.trim()
     }
   }
   const firstValue = Object.values(valueMap).find(
-    (value) => typeof value === 'string' && value.trim(),
-  );
-  if (typeof firstValue === 'string') {
-    return firstValue.trim();
+    (value) => typeof value === "string" && value.trim(),
+  )
+  if (typeof firstValue === "string") {
+    return firstValue.trim()
   }
-  return fallback;
-};
+  return fallback
+}
 
 const normalizeTagList = (raw: unknown): string[] => {
-  const source = Array.isArray(raw) ? raw : [raw];
+  const source = Array.isArray(raw) ? raw : [raw]
   return source
     .flatMap((item) =>
-      String(item ?? '')
-        .split('|')
+      String(item ?? "")
+        .split("|")
         .map((part) => part.trim()),
     )
-    .filter(Boolean);
-};
+    .filter(Boolean)
+}
 
-const pickI18nTags = (
-  i18n?: Record<string, string[] | string>,
-): string[] => {
-  const valueMap = i18n || {};
-  const preferredLangs = getPreferredLangs();
+const pickI18nTags = (i18n?: Record<string, string[] | string>): string[] => {
+  const valueMap = i18n || {}
+  const preferredLangs = getPreferredLangs()
   for (const lang of preferredLangs) {
-    const tags = normalizeTagList(valueMap[lang]);
+    const tags = normalizeTagList(valueMap[lang])
     if (tags.length) {
-      return tags;
+      return tags
     }
   }
-  const firstValue = Object.values(valueMap).find((value) => normalizeTagList(value).length > 0);
-  return normalizeTagList(firstValue);
-};
+  const firstValue = Object.values(valueMap).find(
+    (value) => normalizeTagList(value).length > 0,
+  )
+  return normalizeTagList(firstValue)
+}
 
 const parseLevel1FromQuery = (): Level1CategoryRecord | null => {
-  const raw = getQueryValue(route.query.level1);
+  const raw = getQueryValue(route.query.level1)
   if (!raw) {
-    return null;
+    return null
   }
   try {
-    const parsed = JSON.parse(raw);
-    return parsed && typeof parsed === 'object' ? parsed as Level1CategoryRecord : null;
+    const parsed = JSON.parse(raw)
+    return parsed && typeof parsed === "object"
+      ? (parsed as Level1CategoryRecord)
+      : null
   } catch {
     try {
-      const decoded = decodeURIComponent(raw);
-      const parsed = JSON.parse(decoded);
-      return parsed && typeof parsed === 'object' ? parsed as Level1CategoryRecord : null;
+      const decoded = decodeURIComponent(raw)
+      const parsed = JSON.parse(decoded)
+      return parsed && typeof parsed === "object"
+        ? (parsed as Level1CategoryRecord)
+        : null
     } catch {
-      return null;
+      return null
     }
   }
-};
+}
 
-const categoryId = computed(() => getQueryValue(route.query.categoryId));
-const searchKeyword = computed(() => getQueryValue(route.query.keyword));
-const isSearchMode = computed(() => route.name === 'service-search' || Boolean(searchKeyword.value));
+const categoryId = computed(() => getQueryValue(route.query.categoryId))
+const searchKeyword = computed(() => getQueryValue(route.query.keyword))
+const isSearchMode = computed(
+  () => route.name === "service-search" || Boolean(searchKeyword.value),
+)
 
 const defaultHeroTags = computed(() => [
-  t('client.serviceList.hero.tagCertified'),
-  t('client.serviceList.hero.tagFast'),
-  t('client.serviceList.hero.tagReliable'),
-]);
+  t("client.serviceList.hero.tagCertified"),
+  t("client.serviceList.hero.tagFast"),
+  t("client.serviceList.hero.tagReliable"),
+])
 
 const pageTitle = computed(() => {
   if (isSearchMode.value) {
-    return locale.value === 'zh' ? '搜索结果' : 'Search Results';
+    return locale.value === "zh" ? "搜索结果" : "Search Results"
   }
-  const fromQuery = getQueryValue(route.query.name);
+  const fromQuery = getQueryValue(route.query.name)
   return pickI18nValue(
     selectedLevel1.value?.nameI18n,
-    fromQuery || t('client.serviceList.pageTitle'),
-  );
-});
+    fromQuery || t("client.serviceList.pageTitle"),
+  )
+})
 
 const heroTitle = computed(() =>
   pickI18nValue(selectedLevel1.value?.bannerTitleI18n, pageTitle.value),
-);
+)
 
 const heroDesc = computed(() => {
   if (isSearchMode.value) {
-    if (!searchKeyword.value) return '';
-    return locale.value === 'zh'
+    if (!searchKeyword.value) return ""
+    return locale.value === "zh"
       ? `“${searchKeyword.value}”的相关服务`
-      : `Services matching “${searchKeyword.value}”`;
+      : `Services matching “${searchKeyword.value}”`
   }
-  return pickI18nValue(selectedLevel1.value?.bannerDescI18n, '');
-});
+  return pickI18nValue(selectedLevel1.value?.bannerDescI18n, "")
+})
 
 const heroTags = computed(() => {
-  const labels = pickI18nTags(selectedLevel1.value?.bannerTagsI18n);
-  const source = labels.length ? labels : defaultHeroTags.value;
-  const icons = [tagIconCertified, tagIconFast, tagIconReliable];
+  const labels = pickI18nTags(selectedLevel1.value?.bannerTagsI18n)
+  const source = labels.length ? labels : defaultHeroTags.value
+  const icons = [tagIconCertified, tagIconFast, tagIconReliable]
   return source.slice(0, 6).map((label, index) => ({
     label,
     icon: icons[index % icons.length],
-  }));
-});
+  }))
+})
 
-const formatPrice = (minPrice?: number | string) => {
-  const value = Number(minPrice);
-  if (!Number.isFinite(value)) {
-    return '0.00';
+const formatPrice = (minPrice?: number | string | null) => {
+  if (minPrice === undefined || minPrice === null || minPrice === "") {
+    return t("client.serviceList.card.priceConsult")
   }
-  return value.toFixed(2);
-};
+  const value = Number(minPrice)
+  if (!Number.isFinite(value)) {
+    return t("client.serviceList.card.priceConsult")
+  }
+  return t("client.serviceList.card.priceFrom", { price: value.toFixed(2) })
+}
 
 const serviceCards = computed<ServiceCardView[]>(() => {
-  const records = onShelfRecords.value || [];
+  const records = onShelfRecords.value || []
   if (!records.length) {
-    return [];
+    return []
   }
   const mapped = records
     .map((item, index) => {
       return {
         key: String(item.id ?? `service-${index + 1}`),
-        spuId: String(item.id ?? ''),
-        title: pickI18nValue(item.nameI18n, ''),
-        price: formatPrice(item.minPrice),
+        spuId: String(item.id ?? ""),
+        title: pickI18nValue(item.nameI18n, ""),
+        price: formatPrice(item.minNotIncTaxPrice),
         icon: item.imageUrls?.[0] || cardIconSet[index % cardIconSet.length],
-      };
+      }
     })
-    .filter((item) => item.title);
-  return mapped;
-});
+    .filter((item) => item.title)
+  return mapped
+})
 
 const loadLevel1Context = async () => {
-  const fromQuery = parseLevel1FromQuery();
+  const fromQuery = parseLevel1FromQuery()
   if (fromQuery) {
-    selectedLevel1.value = fromQuery;
-    return;
+    selectedLevel1.value = fromQuery
+    return
   }
   if (!categoryId.value) {
-    selectedLevel1.value = null;
-    return;
+    selectedLevel1.value = null
+    return
   }
   try {
-    const records = await level1Categories();
-    selectedLevel1.value = records.find((item) => {
-      const id = item.category?.categoryId || item.category?.id;
-      return String(id ?? '') === categoryId.value;
-    }) || null;
+    const records = await level1Categories()
+    selectedLevel1.value =
+      records.find((item) => {
+        const id = item.category?.categoryId || item.category?.id
+        return String(id ?? "") === categoryId.value
+      }) || null
   } catch (error) {
-    console.error('load level1 category context failed:', error);
-    selectedLevel1.value = null;
+    console.error("load level1 category context failed:", error)
+    selectedLevel1.value = null
   }
-};
+}
 
 const loadOnShelfRecords = async () => {
-  const requestId = ++serviceRequestId;
+  const requestId = ++serviceRequestId
   if (isSearchMode.value) {
     if (!searchKeyword.value) {
-      onShelfRecords.value = [];
-      isServiceLoading.value = false;
-      return;
+      onShelfRecords.value = []
+      isServiceLoading.value = false
+      return
     }
-    isServiceLoading.value = true;
-    onShelfRecords.value = [];
+    isServiceLoading.value = true
+    onShelfRecords.value = []
     try {
-      const records = await searchOnShelfSpus(searchKeyword.value);
-      if (requestId === serviceRequestId) onShelfRecords.value = records;
+      const records = await searchOnShelfSpus(searchKeyword.value)
+      if (requestId === serviceRequestId) onShelfRecords.value = records
     } catch (error) {
-      console.error('search on shelf products failed:', error);
-      if (requestId === serviceRequestId) onShelfRecords.value = [];
+      console.error("search on shelf products failed:", error)
+      if (requestId === serviceRequestId) onShelfRecords.value = []
     } finally {
-      if (requestId === serviceRequestId) isServiceLoading.value = false;
+      if (requestId === serviceRequestId) isServiceLoading.value = false
     }
-    return;
+    return
   }
   if (!categoryId.value) {
-    onShelfRecords.value = [];
-    isServiceLoading.value = false;
-    return;
+    onShelfRecords.value = []
+    isServiceLoading.value = false
+    return
   }
-  isServiceLoading.value = true;
-  onShelfRecords.value = [];
+  isServiceLoading.value = true
+  onShelfRecords.value = []
   try {
     const records = await onShelfSpus({
       categoryId: categoryId.value,
-    });
-    if (requestId === serviceRequestId) onShelfRecords.value = records;
+    })
+    if (requestId === serviceRequestId) onShelfRecords.value = records
   } catch (error) {
-    console.error('load on shelf products failed:', error);
-    if (requestId === serviceRequestId) onShelfRecords.value = [];
+    console.error("load on shelf products failed:", error)
+    if (requestId === serviceRequestId) onShelfRecords.value = []
   } finally {
-    if (requestId === serviceRequestId) isServiceLoading.value = false;
+    if (requestId === serviceRequestId) isServiceLoading.value = false
   }
-};
+}
 
 watch(
-  () => [route.name, route.query.categoryId, route.query.level1, route.query.keyword],
+  () => [
+    route.name,
+    route.query.categoryId,
+    route.query.level1,
+    route.query.keyword,
+  ],
   () => {
-    void loadLevel1Context();
-    void loadOnShelfRecords();
+    void loadLevel1Context()
+    void loadOnShelfRecords()
   },
   { immediate: true },
-);
+)
 
 const goBackToHome = () => {
-  router.push({ path: '/', hash: '#services' });
-};
+  router.push({ path: "/", hash: "#services" })
+}
 
 const goProductDetail = (spuId: string) => {
   if (!spuId) {
-    return;
+    return
   }
-  const level1Raw = getQueryValue(route.query.level1);
+  const level1Raw = getQueryValue(route.query.level1)
   router.push({
-    name: 'product-detail',
+    name: "product-detail",
     params: { spuId },
     query: {
       breadcrumb: pageTitle.value,
@@ -349,8 +388,8 @@ const goProductDetail = (spuId: string) => {
       level1: level1Raw,
       keyword: searchKeyword.value,
     },
-  });
-};
+  })
+}
 </script>
 
 <style scoped lang="scss">
@@ -432,7 +471,12 @@ const goProductDetail = (spuId: string) => {
 .service-hero__mask {
   position: absolute;
   inset: 0;
-  background: linear-gradient(90deg, var(--hourx-brand) 0%, rgba(5, 21, 43, 0.8) 50%, rgba(0, 0, 0, 0) 100%);
+  background: linear-gradient(
+    90deg,
+    var(--hourx-brand) 0%,
+    rgba(5, 21, 43, 0.8) 50%,
+    rgba(0, 0, 0, 0) 100%
+  );
 }
 
 .service-hero__content {
@@ -453,7 +497,7 @@ const goProductDetail = (spuId: string) => {
 .service-hero__content p {
   margin: 16px 0 0;
   width: min(1060px, 100%);
-  color: #E5EAF1;
+  color: #e5eaf1;
   font-size: 20px;
   line-height: 1.45;
   font-weight: 500;
@@ -517,7 +561,9 @@ const goProductDetail = (spuId: string) => {
 }
 
 @keyframes service-spin {
-  to { transform: rotate(360deg); }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .service-search__empty {
@@ -545,7 +591,10 @@ const goProductDetail = (spuId: string) => {
   border-radius: 16px;
   overflow: hidden;
   cursor: pointer;
-  transition: transform 180ms ease, border-color 180ms ease, box-shadow 180ms ease;
+  transition:
+    transform 180ms ease,
+    border-color 180ms ease,
+    box-shadow 180ms ease;
 }
 
 .service-card:hover {

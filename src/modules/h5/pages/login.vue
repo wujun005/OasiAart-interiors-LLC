@@ -23,22 +23,36 @@
         </div>
 
         <form class="h5-login-form" @submit.prevent="submitLogin">
-          <label class="h5-login-field">
+          <div class="h5-login-field">
             <span>{{ isCodeLogin ? t('client.login.password.phoneEmailLabel') : t('client.login.password.accountLabel') }}</span>
-            <div class="h5-login-input">
-              <van-icon name="contact-o" />
-              <input
-                v-model.trim="form.account"
-                type="text"
-                autocomplete="username"
-                :placeholder="
-                  isCodeLogin
-                    ? t('client.login.password.phoneEmailPlaceholder')
-                    : t('client.login.password.accountPlaceholder')
-                "
-              />
+            <div class="h5-login-account-row">
+              <div class="h5-login-prefix-box">
+                <select
+                  v-model="form.countryCode"
+                  class="h5-login-country-code"
+                  autocomplete="tel-country-code"
+                  :aria-label="t('client.login.password.countryCodeLabel')"
+                >
+                  <option
+                    v-for="item in countryCodeOptions"
+                    :key="item.value"
+                    :value="item.value"
+                  >
+                    {{ item.value }}
+                  </option>
+                </select>
+              </div>
+              <div class="h5-login-input h5-login-input--account">
+                <van-icon name="contact-o" />
+                <input
+                  v-model.trim="form.account"
+                  type="text"
+                  autocomplete="username"
+                  :placeholder="t('client.login.password.mobileAccountPlaceholder')"
+                />
+              </div>
             </div>
-          </label>
+          </div>
 
           <label v-if="!isCodeLogin" class="h5-login-field h5-login-field--password">
             <span>{{ t('client.login.password.passwordLabel') }}</span>
@@ -113,10 +127,14 @@
         </form>
 
         <p class="h5-login-agreement">
-          {{ t('client.login.password.agreementPrefix') }}
-          <button type="button" @click="openTerms">{{ t('client.login.password.terms') }}</button>
-          {{ t('client.login.password.agreementAnd') }}
-          <button type="button" @click="openPrivacy">{{ t('client.login.password.privacy') }}</button>
+          <span class="h5-login-agreement__lead">
+            {{ t('client.login.password.agreementPrefix') }}
+          </span>
+          <span class="h5-login-agreement__links">
+            <button type="button" @click="openTerms">{{ t('client.login.password.terms') }}</button>
+            <span>{{ t('client.login.password.agreementAnd') }}</span>
+            <button type="button" @click="openPrivacy">{{ t('client.login.password.privacy') }}</button>
+          </span>
         </p>
       </section>
     </main>
@@ -131,6 +149,11 @@ import { showFailToast, showSuccessToast } from 'vant';
 import { login as loginByPassword, loginByVerifyCode, sendCode } from '@/modules/client/api/login';
 import { setClientLocale } from '@/modules/client/locales';
 import { openClientLegalPage, saveClientToken } from '@/modules/h5/utils/auth';
+import {
+  DEFAULT_LOGIN_COUNTRY_CODE,
+  LOGIN_COUNTRY_CODE_OPTIONS,
+  resolveLoginAccount,
+} from '@/utils/login-account';
 
 type LoginMode = 'password' | 'code';
 
@@ -141,6 +164,7 @@ const router = useRouter();
 const route = useRoute();
 
 const form = reactive({
+  countryCode: DEFAULT_LOGIN_COUNTRY_CODE,
   account: '',
   password: '',
   code: '',
@@ -155,8 +179,10 @@ const showPassword = ref(false);
 let codeTimer: number | null = null;
 
 const isCodeLogin = computed(() => loginMode.value === 'code');
+const countryCodeOptions = LOGIN_COUNTRY_CODE_OPTIONS;
+const resolvedLoginAccount = computed(() => resolveLoginAccount(form.account, form.countryCode));
 const isCodeDestinationValid = computed(() => {
-  const value = form.account.trim();
+  const value = resolvedLoginAccount.value;
   if (!value) return false;
   if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) return true;
   return /^\+?[\d\s()-]{7,}$/.test(value) && value.replace(/\D/g, '').length >= 7;
@@ -184,7 +210,7 @@ const maskCodeDestination = (value: string) => {
   return `${value.trim().startsWith('+') ? '+' : ''}${digits.slice(0, 3)}****${digits.slice(-4)}`;
 };
 const codeSentHint = computed(() => {
-  const current = form.account.trim();
+  const current = resolvedLoginAccount.value;
   if (!codeSentDestination.value || current !== codeSentDestination.value) return '';
   return t('client.login.password.codeSentTo', {
     destination: maskCodeDestination(codeSentDestination.value),
@@ -241,7 +267,7 @@ const startCodeCountdown = () => {
 };
 
 const requestLoginCode = async () => {
-  const accountValue = form.account.trim();
+  const accountValue = resolvedLoginAccount.value;
   if (!isCodeDestinationValid.value) {
     showFailToast(t('client.login.password.accountInvalid'));
     return;
@@ -299,7 +325,7 @@ const submitLogin = async () => {
   }
 
   submitting.value = true;
-  const accountValue = form.account.trim();
+  const accountValue = resolvedLoginAccount.value;
   try {
     if (isCodeLogin.value) {
       const codeValue = form.code.trim();
@@ -350,6 +376,8 @@ onBeforeUnmount(() => {
   min-height: 100vh;
   background: #fff;
   color: #1d293d;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
 }
 
 .h5-login-topbar {
@@ -466,7 +494,7 @@ onBeforeUnmount(() => {
   border-radius: 10px;
   border: 1px solid #cbd5e1;
   background: #f8fafc;
-  padding: 0 16px;
+  padding: 0 14px;
   display: flex;
   align-items: center;
   gap: 12px;
@@ -478,16 +506,72 @@ onBeforeUnmount(() => {
   font-size: 20px;
 }
 
-.h5-login-input input {
-  flex: 1;
+.h5-login-country-code {
+  width: 100%;
   min-width: 0;
   border: 0;
   outline: 0;
   background: transparent;
   color: #1d293d;
-  font-size: 16px;
+  font-size: 14px;
+  line-height: 1.4;
+  font-weight: 700;
+}
+
+.h5-login-account-row {
+  width: 100%;
+  min-width: 0;
+  display: grid;
+  grid-template-columns: 82px minmax(0, 1fr);
+  gap: 10px;
+}
+
+.h5-login-prefix-box {
+  min-width: 0;
+  min-height: 49px;
+  padding: 0 10px;
+  border: 1px solid #cbd5e1;
+  border-radius: 10px;
+  background: #f8fafc;
+  display: flex;
+  align-items: center;
+  box-sizing: border-box;
+}
+
+.h5-login-input input {
+  flex: 1;
+  width: 100%;
+  min-width: 0;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: #1d293d;
+  font-size: 14px;
   line-height: 1.4;
   font-weight: 500;
+}
+
+.h5-login-input--account {
+  min-width: 0;
+  gap: 8px;
+  padding-inline: 12px;
+  overflow: hidden;
+}
+
+.h5-login-input--account input {
+  font-size: 16px;
+}
+
+@media (max-width: 350px) {
+  .h5-login-account-row {
+    grid-template-columns: 76px minmax(0, 1fr);
+    gap: 8px;
+  }
+
+  .h5-login-prefix-box,
+  .h5-login-input--account {
+    padding-inline: 9px;
+  }
 }
 
 .h5-login-input input::placeholder {
@@ -610,13 +694,25 @@ onBeforeUnmount(() => {
 }
 
 .h5-login-agreement {
-  width: min(196px, 100%);
+  width: 100%;
   margin: 44px auto 0;
   color: #90a1b9;
   font-size: 12px;
   line-height: 19.5px;
   font-weight: 500;
   text-align: center;
+}
+
+.h5-login-agreement__lead {
+  display: block;
+}
+
+.h5-login-agreement__links {
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  display: flex;
+  white-space: nowrap;
 }
 
 .h5-login-agreement button {

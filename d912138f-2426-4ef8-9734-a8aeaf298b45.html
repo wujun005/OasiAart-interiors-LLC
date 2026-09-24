@@ -1,0 +1,501 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Order Management — Interactive Mockup</title>
+<style>
+  * { box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    margin: 0; background: #fff; color: #1f2430; font-size: 12.5px;
+  }
+  .topbar { display:flex; justify-content:space-between; align-items:center; padding:12px 20px; border-bottom:1px solid #eee; }
+  .topbar h2 { margin:0; font-size:16px; font-weight:700; }
+  .topbar .right { display:flex; gap:10px; align-items:center; }
+  .topbar select, .topbar button { border:1px solid #d9d9d9; border-radius:4px; padding:5px 10px; background:#fff; font-size:12px; }
+
+  /* Dashboard shell */
+  .app { display:flex; align-items:flex-start; }
+  .sidebar { width:216px; flex-shrink:0; border-right:1px solid #eee; }
+  .sidebar-brand { background:#182338; color:#fff; font-weight:700; font-size:14px; padding:16px 18px; white-space:nowrap; }
+  .nav-item { display:flex; align-items:center; justify-content:space-between; padding:10px 16px; font-size:12.5px; color:#333; cursor:pointer; font-weight:700; }
+  .nav-item:hover { background:#f7f9fc; }
+  .nav-item .label { display:flex; align-items:center; gap:8px; }
+  .nav-item .icon { width:14px; text-align:center; color:#8a94a6; font-size:12px; }
+  .nav-item .chevron { color:#aab0bc; font-size:10px; }
+  .nav-sub .nav-item { padding:8px 16px 8px 40px; font-weight:400; font-size:12.5px; }
+  .nav-sub .nav-item.active { color:#2f7ee0; background:#eaf2ff; border-right:3px solid #2f7ee0; font-weight:600; }
+  .main { flex:1; min-width:0; }
+
+  .banner { background:#eef5ff; border-bottom:1px solid #d7e8ff; color:#2454a3; padding:8px 20px; font-size:12px; }
+
+  .filters { display:flex; flex-wrap:wrap; gap:8px; padding:12px 20px 0; }
+  .filters input, .filters select { border:1px solid #d9d9d9; border-radius:4px; padding:6px 9px; font-size:12px; color:#888; min-width:130px; }
+  .filters .btn { border-radius:4px; padding:6px 14px; font-size:12px; border:1px solid #d9d9d9; background:#fff; cursor:pointer; }
+  .filters .btn.primary { background:#2f7ee0; color:#fff; border-color:#2f7ee0; }
+  .daterange { display:flex; align-items:center; gap:6px; border:1px solid #d9d9d9; border-radius:4px; padding:6px 9px; color:#888; font-size:12px; }
+
+  .legend { display:flex; align-items:center; gap:10px; padding:10px 20px; font-size:12px; color:#555; flex-wrap:wrap; }
+  .legend .key { display:inline-flex; align-items:center; gap:5px; }
+  .legend .dot { width:10px; height:10px; border-radius:2px; display:inline-block; }
+
+  table { width:100%; border-collapse:collapse; }
+  thead th { text-align:left; padding:8px 8px; border-bottom:2px solid #eee; border-top:1px solid #eee; font-size:11.5px; color:#333; background:#fff; white-space:nowrap; }
+  tbody td { padding:8px 8px; border-bottom:1px solid #f0f0f0; vertical-align:top; font-size:11.8px; }
+  tr.row-green td { background:#eefaf0; }
+  tr.row-grey td { background:#f2f2f4; }
+  tr.row-red td { background:#fdeaea; }
+  tr.row-red { cursor:pointer; }
+  tr.row-red:hover td { background:#fbdedd; }
+
+  .oid { color:#2f7ee0; font-weight:600; cursor:pointer; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; display:block; max-width:118px; }
+  .tag-changed { display:inline-block; background:#e5484d; color:#fff; font-size:10px; font-weight:600; padding:2px 6px; border-radius:3px; margin-top:4px; }
+
+  .cust-name { font-weight:700; }
+  .cust-contact { color:#555; margin-top:2px; }
+
+  .svc-name { font-weight:700; }
+  .svc-sub { color:#666; margin-top:2px; }
+
+  .sched-time { font-weight:700; }
+  .sched-sub { color:#e07a1f; margin-top:2px; }
+  .dash { color:#bbb; }
+
+  .resched-link { color:#2f7ee0; cursor:pointer; font-weight:600; white-space:nowrap; }
+  .resched-count { color:#e5484d; font-weight:700; }
+
+  .amount { font-weight:700; white-space:nowrap; }
+
+  .chip { display:inline-block; border-radius:4px; padding:3px 8px; font-size:10.5px; font-weight:700; white-space:nowrap; }
+  .chip.paid { background:#e6f7ee; color:#1a8a3e; }
+  .chip.unpaid { background:#fdeee0; color:#c9760a; }
+  .chip.refunded { background:#eee; color:#777; }
+
+  .status-select { border:1px solid #d9d9d9; border-radius:4px; padding:5px 6px; font-size:11.5px; width:120px; font-weight:600; cursor:pointer; }
+  .status-select.action { color:#1a8a3e; border-color:#bfe8cb; background:#eefaf0; }
+  .status-select.cancelled { color:#666; border-color:#ddd; background:#f4f4f5; }
+  .status-select.refunded { color:#777; border-color:#ddd; background:#eee; }
+  .status-select.completed { color:#2f7ee0; border-color:#cfe2fb; background:#eaf2ff; }
+
+  .supplier-action { display:block; cursor:pointer; font-weight:600; white-space:nowrap; }
+  .supplier-action.assign { color:#2f7ee0; }
+  .supplier-action.manage { color:#1a8a3e; }
+  .supplier-action.view { color:#2f7ee0; }
+  .supplier-name { color:#555; margin-top:3px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:120px; }
+
+  .actions-col a { display:block; color:#2f7ee0; text-decoration:none; font-size:11.8px; cursor:pointer; margin-bottom:3px; white-space:nowrap; }
+  .actions-col a.refund { color:#e5484d; }
+  .actions-col a:hover { text-decoration:underline; }
+
+  /* Modal */
+  .overlay { position:fixed; inset:0; background:rgba(30,34,44,.45); display:none; align-items:flex-start; justify-content:center; padding-top:60px; z-index:50; }
+  .overlay.show { display:flex; }
+  .modal { background:#fff; border-radius:8px; width:520px; max-width:92vw; max-height:82vh; overflow:auto; box-shadow:0 12px 40px rgba(0,0,0,.25); }
+  .modal-head { display:flex; justify-content:space-between; align-items:center; padding:16px 22px; border-bottom:1px solid #eee; }
+  .modal-head h3 { margin:0; font-size:16px; font-weight:700; }
+  .modal-head .x { cursor:pointer; color:#999; font-size:16px; }
+  .modal-body { padding:18px 22px; font-size:13px; line-height:1.6; }
+  .modal-foot { display:flex; justify-content:flex-end; gap:10px; padding:16px 22px; border-top:1px solid #eee; }
+  .btn-cancel { border:1px solid #d9d9d9; background:#fff; border-radius:4px; padding:8px 18px; font-size:13px; cursor:pointer; }
+  .btn-save { border:none; background:#2f7ee0; color:#fff; border-radius:4px; padding:8px 18px; font-size:13px; cursor:pointer; font-weight:600; }
+  textarea.remark { width:100%; min-height:100px; border:1px solid #d9d9d9; border-radius:4px; padding:10px; font-size:13px; font-family:inherit; }
+
+  .step { display:flex; gap:10px; margin-bottom:14px; }
+  .step-num { width:22px; height:22px; border-radius:50%; background:#fdeceb; color:#e5484d; font-weight:700; font-size:11px; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+  .step-body .step-time { font-weight:700; }
+  .step-body .step-addr { color:#666; margin-top:2px; }
+
+  .detail-row { display:flex; justify-content:space-between; padding:7px 0; border-bottom:1px solid #f2f2f4; }
+  .detail-row .k { color:#888; }
+  .detail-row .v { font-weight:600; text-align:right; }
+
+  #toast { position:fixed; bottom:26px; left:50%; transform:translateX(-50%) translateY(20px); background:#1f2430; color:#fff; padding:12px 20px; border-radius:6px; font-size:13px; opacity:0; pointer-events:none; transition:opacity .2s, transform .2s; z-index:99; max-width:80vw; text-align:center; }
+  #toast.show { opacity:1; transform:translateX(-50%) translateY(0); }
+</style>
+</head>
+<body>
+
+<div class="app">
+  <div class="sidebar">
+    <div class="sidebar-brand">Admin Console</div>
+
+    <div class="nav-item" onclick="toast('This mockup only covers Order Management')">
+      <span class="label"><span class="icon">&#8962;</span> Dashboard</span>
+      <span class="chevron">&#9662;</span>
+    </div>
+    <div class="nav-sub">
+      <div class="nav-item active"><span class="label">Order Management</span></div>
+      <div class="nav-item" onclick="toast('This mockup only covers Order Management')"><span class="label">Services</span></div>
+    </div>
+
+    <div class="nav-item" onclick="toast('This mockup only covers Order Management')">
+      <span class="label"><span class="icon">&#9635;</span> System Configuration</span>
+      <span class="chevron">&#9662;</span>
+    </div>
+    <div class="nav-sub">
+      <div class="nav-item" onclick="toast('This mockup only covers Order Management')"><span class="label">Service Categories</span></div>
+      <div class="nav-item" onclick="toast('This mockup only covers Order Management')"><span class="label">Service Types</span></div>
+      <div class="nav-item" onclick="toast('This mockup only covers Order Management')"><span class="label">Pricing Rules</span></div>
+      <div class="nav-item" onclick="toast('This mockup only covers Order Management')"><span class="label">Pricing Models</span></div>
+      <div class="nav-item" onclick="toast('This mockup only covers Order Management')"><span class="label">Add-on Categories</span></div>
+      <div class="nav-item" onclick="toast('This mockup only covers Order Management')"><span class="label">Add-on Services</span></div>
+    </div>
+
+    <div class="nav-item" onclick="toast('This mockup only covers Order Management')">
+      <span class="label"><span class="icon">&#9787;</span> Supplier Management</span>
+    </div>
+  </div>
+
+  <div class="main">
+
+<div class="banner">Interactive mockup — click an Order ID, a Reschedule "View" link, a Supplier action, or any Actions link to try it. All columns fit on screen with no horizontal scroll.</div>
+
+<div class="topbar">
+  <h2>Order Management</h2>
+  <div class="right">
+    <select><option>English</option></select>
+    <button onclick="toast('Refreshed (mock)')">Refresh</button>
+    <button onclick="toast('Logged out (mock)')">Log Out</button>
+  </div>
+</div>
+
+<div class="filters">
+  <input placeholder="Order ID">
+  <input placeholder="Customer Name">
+  <input placeholder="Contact Number">
+  <select><option>Service</option></select>
+  <span class="daterange">Service Date Start <span style="margin:0 4px;">to</span> Service Date End</span>
+</div>
+<div class="filters" style="padding-top:8px;">
+  <select><option>Order Status</option></select>
+  <select><option>Payment Status</option></select>
+  <select><option>All Orders</option></select>
+  <select><option>Sort by Service Time</option></select>
+  <button class="btn primary" onclick="toast('Search (mock)')">Search</button>
+  <button class="btn" onclick="toast('Cleared (mock)')">Clear</button>
+  <button class="btn" onclick="toast('Exported (mock)')">Export</button>
+</div>
+
+<div class="legend">
+  Order Status colour key:
+  <span class="key"><span class="dot" style="background:#fdeee0;"></span>Unpaid</span>
+  <span class="key"><span class="dot" style="background:#eefaf0;"></span>Action Needed</span>
+  <span class="key"><span class="dot" style="background:#eaf2ff;"></span>Completed</span>
+  <span class="key"><span class="dot" style="background:#f4f4f5;"></span>Cancelled</span>
+  <span class="key"><span class="dot" style="background:#eee;"></span>Refunded</span>
+</div>
+
+<table>
+  <thead>
+    <tr>
+      <th></th><th>Order ID</th><th>Date &amp; Time</th><th>Customer Name &amp; Contact</th>
+      <th>Service &amp; Details</th><th>Scheduled Time</th><th>Reschedule</th><th>Amount</th>
+      <th>Payment Status</th><th>Order Status</th><th>Supplier</th><th>Actions</th>
+    </tr>
+  </thead>
+  <tbody id="rows"></tbody>
+</table>
+
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<!-- Internal Remark modal -->
+<div class="overlay" id="remarkOverlay">
+  <div class="modal">
+    <div class="modal-head"><h3>Internal Remark</h3><span class="x" onclick="closeModal('remarkOverlay')">&times;</span></div>
+    <div class="modal-body">
+      <div style="margin-bottom:8px; color:#888;">Order <span id="remarkOrderId" style="color:#2f7ee0; font-weight:600;"></span></div>
+      <textarea class="remark" id="remarkText" placeholder="Add an internal note about this order (not visible to the customer)"></textarea>
+    </div>
+    <div class="modal-foot">
+      <button class="btn-cancel" onclick="closeModal('remarkOverlay')">Cancel</button>
+      <button class="btn-save" onclick="toast('Remark saved (mock)'); closeModal('remarkOverlay')">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- Details modal -->
+<div class="overlay" id="detailsOverlay">
+  <div class="modal">
+    <div class="modal-head"><h3>Order Details</h3><span class="x" onclick="closeModal('detailsOverlay')">&times;</span></div>
+    <div class="modal-body" id="detailsBody"></div>
+    <div class="modal-foot">
+      <button class="btn-save" onclick="closeModal('detailsOverlay')">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- Refund confirm modal -->
+<div class="overlay" id="refundOverlay">
+  <div class="modal" style="width:400px;">
+    <div class="modal-head"><h3>Process Refund</h3><span class="x" onclick="closeModal('refundOverlay')">&times;</span></div>
+    <div class="modal-body">Refund <b id="refundAmount"></b> to the customer for order <span id="refundOrderId" style="color:#2f7ee0; font-weight:600;"></span>? This can't be undone.</div>
+    <div class="modal-foot">
+      <button class="btn-cancel" onclick="closeModal('refundOverlay')">Cancel</button>
+      <button class="btn-save" style="background:#e5484d;" onclick="confirmRefund()">Refund</button>
+    </div>
+  </div>
+</div>
+
+<!-- Reschedule history modal -->
+<div class="overlay" id="reschedOverlay">
+  <div class="modal">
+    <div class="modal-head"><h3>Reschedule History</h3><span class="x" onclick="closeModal('reschedOverlay')">&times;</span></div>
+    <div class="modal-body" id="reschedBody"></div>
+    <div class="modal-foot">
+      <button class="btn-save" onclick="closeModal('reschedOverlay')">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- Supplier modal (assign / manage / view) -->
+<div class="overlay" id="supplierOverlay">
+  <div class="modal" style="width:440px;">
+    <div class="modal-head"><h3 id="supplierModalTitle">Assign Supplier</h3><span class="x" onclick="closeModal('supplierOverlay')">&times;</span></div>
+    <div class="modal-body">
+      <div style="margin-bottom:10px; color:#888;">Order <span id="supplierOrderId" style="color:#2f7ee0; font-weight:600;"></span></div>
+      <select class="es-select" id="supplierSelect" style="width:100%; border:1px solid #d9d9d9; border-radius:4px; padding:8px 10px; font-size:13px;">
+        <option>Supplier A [FO Cleaning Services]</option>
+        <option>Supplier B [Al Barsha Home Care]</option>
+        <option>Supplier C [Dubai Pro Services]</option>
+      </select>
+    </div>
+    <div class="modal-foot" id="supplierModalFoot">
+      <button class="btn-cancel" onclick="closeModal('supplierOverlay')">Cancel</button>
+      <button class="btn-save" onclick="saveSupplier()">Save</button>
+    </div>
+  </div>
+</div>
+
+<script>
+let rows = [
+  {
+    id:"HC202609191159507757", changed:false, datetime:"2026-09-19 11:59:51",
+    name:"Jen", contact:"582047633", service:"Regular Cleaning - Without Material", sub:"Duration: 2 hour / Number of People: 1 person",
+    sched:"2026-09-20 13:00", schedSub:"Tomorrow · Sunday",
+    resched:[["2026-09-20 12:00","Deira St, Al Owais Building, B43, Al Rigga"],["2026-09-20 13:00","Deira St, Al Owais Building, B43, Al Rigga"]],
+    amount:"AED 3.15", payment:"paid", status:"action", supplier:"Supplier A [FO Cleaning Services]", rowClass:"row-green"
+  },
+  { id:"HC202609191159364023", changed:false, datetime:"2026-09-19 11:59:36", name:"-", contact:"+971549936391",
+    service:"Regular Cleaning - Without Material", sub:"Duration: 2 hour / Number of People: 1 person",
+    sched:null, schedSub:null, resched:[], amount:"AED 3.15", payment:"unpaid", status:"cancelled", supplier:null, rowClass:"" },
+  { id:"HC202609191158495751", changed:false, datetime:"2026-09-19 11:58:49", name:"-", contact:"+971558461101",
+    service:"Regular Cleaning - Without Material", sub:"Duration: 2 hour / Number of People: 1 person",
+    sched:null, schedSub:null, resched:[], amount:"AED 3.15", payment:"unpaid", status:"cancelled", supplier:null, rowClass:"" },
+  { id:"AC202609191157248927", changed:false, datetime:"2026-09-19 11:57:24", name:"-", contact:"+971558461101",
+    service:"Split AC Cleaning", sub:"Per Unit: 1 Unit",
+    sched:null, schedSub:null, resched:[], amount:"AED 189.00", payment:"unpaid", status:"cancelled", supplier:null, rowClass:"" },
+  { id:"HC202609191144356301", changed:false, datetime:"2026-09-19 11:44:35", name:"-", contact:"+971558461101",
+    service:"Regular Cleaning - Without Material", sub:"Duration: 2 hour / Number of People: 1 person",
+    sched:null, schedSub:null, resched:[], amount:"AED 3.15", payment:"unpaid", status:"cancelled", supplier:null, rowClass:"" },
+  { id:"GM202609191143576314", changed:false, datetime:"2026-09-19 11:43:57", name:"-", contact:"+971558461101",
+    service:"Handyman", sub:"2594",
+    sched:null, schedSub:null, resched:[], amount:"AED 178.50", payment:"unpaid", status:"cancelled", supplier:null, rowClass:"" },
+  {
+    id:"HC202609191138329120", changed:true, datetime:"2026-09-19 11:38:32",
+    name:"YAOYAO", contact:"549936391", service:"Regular Cleaning - Without Material", sub:"Duration: 2 hour / Number of People: 1 person",
+    sched:"2026-09-30 12:30", schedSub:"Wednesday",
+    resched:[["2026-09-30 9:00","建设二路, Building 6, 607, 宁街道"],["2026-09-30 17:30","建设二路, Building 6, 607, 宁街道"],["2026-09-30 18:00","建设二路, Building 6, 607, 宁街道"],["2026-09-30 12:30","建设二路, Building 6, 607, 宁街道"]],
+    amount:"AED 3.15", payment:"paid", status:"action", supplier:"Supplier A [FO Cleaning Services]", rowClass:"row-green"
+  },
+  { id:"HC202609191118081272", changed:false, datetime:"2026-09-19 11:18:08", name:"-", contact:"+971549936391",
+    service:"Regular Cleaning - Without Material", sub:"Duration: 2 hour / Number of People: 1 person",
+    sched:null, schedSub:null, resched:[], amount:"AED 3.15", payment:"unpaid", status:"cancelled", supplier:null, rowClass:"" },
+  {
+    id:"BA202609191116306896_1", changed:false, datetime:"2026-09-19 11:16:31",
+    name:"Danah Jaseem", contact:"558461101", service:"Regular Cleaning - Without Material", sub:"Duration: 2 hour / Number of People: 1 person",
+    sched:"2026-09-20 10:00", schedSub:"Tomorrow · Sunday",
+    resched:[["2026-09-23 12:00","364V+R2G - Al Barsha South Third - Al Barsha South - Dubai - UAE, Building A, 205, Al Barsha South"],["2026-09-23 13:00","364V+R2G - Al Barsha South Third - Al Barsha South - Dubai - UAE, Building A, 205, Al Barsha South"],["2026-09-23 15:00","364V+R2G - Al Barsha South Third - Al Barsha South - Dubai - UAE, Building A, 205, Al Barsha South"],["2026-09-20 10:00","364V+R2G - Al Barsha South Third - Al Barsha South - Dubai - UAE, Building A, 205, Al Barsha South"]],
+    amount:"AED 3.15", payment:"refunded", status:"refunded", supplier:null, rowClass:"row-grey"
+  },
+  { id:"HC202609191114251941", changed:false, datetime:"2026-09-19 11:14:26", name:"-", contact:"+971549936391",
+    service:"Regular Cleaning - Without Material", sub:"Duration: 2 hour / Number of People: 1 person",
+    sched:null, schedSub:null, resched:[], amount:"AED 3.15", payment:"unpaid", status:"cancelled", supplier:null, rowClass:"" },
+];
+
+const STATUS_LABEL = {action:"Action Needed", cancelled:"Cancelled", completed:"Completed", refunded:"Refunded"};
+const CLOSED = ["cancelled","refunded","completed"];
+
+function render() {
+  const tbody = document.getElementById("rows");
+  tbody.innerHTML = "";
+  rows.forEach((r,i) => {
+    const tr = document.createElement("tr");
+    if (r.changed) {
+      tr.className = "row-red";
+      tr.title = "Rescheduled by the customer — click this row to acknowledge";
+      tr.addEventListener("click", (e) => {
+        if (e.target.closest("a, select, input, button, span[onclick]")) return;
+        acknowledgeReschedule(i);
+      });
+    } else if (r.rowClass) {
+      tr.className = r.rowClass;
+    }
+
+    const isClosed = CLOSED.includes(r.status);
+    let supplierHtml;
+    if (isClosed) {
+      supplierHtml = `<span class="supplier-action view" onclick="openSupplier(${i})">View Supplier</span><div class="supplier-name">${r.supplier || '-'}</div>`;
+    } else if (r.supplier) {
+      supplierHtml = `<span class="supplier-action manage" onclick="openSupplier(${i})">Manage Supplier</span><div class="supplier-name">${r.supplier}</div>`;
+    } else {
+      supplierHtml = `<span class="supplier-action assign" onclick="openSupplier(${i})">Assign Supplier</span>`;
+    }
+
+    const reschedHtml = r.resched.length
+      ? `<span class="resched-count">${r.resched.length}</span> <span class="resched-link" onclick="openResched(${i})">View</span>`
+      : `<span class="dash">-</span>`;
+
+    const schedHtml = r.sched
+      ? `<div class="sched-time">${r.sched}</div><div class="sched-sub">${r.schedSub}</div>`
+      : `<span class="dash">-</span>`;
+
+    tr.innerHTML = `
+      <td><input type="checkbox"></td>
+      <td><span class="oid" title="${r.id}" onclick="openDetails(${i})">${r.id}</span>${r.changed ? '<span class="tag-changed">Time changed</span>' : ''}</td>
+      <td>${r.datetime}</td>
+      <td><div class="cust-name">${r.name}</div><div class="cust-contact">${r.contact}</div></td>
+      <td><div class="svc-name">${r.service}</div><div class="svc-sub">${r.sub}</div></td>
+      <td>${schedHtml}</td>
+      <td>${reschedHtml}</td>
+      <td class="amount">${r.amount}</td>
+      <td><span class="chip ${r.payment}">${r.payment[0].toUpperCase()+r.payment.slice(1)}</span></td>
+      <td>
+        <select class="status-select ${r.status}" onchange="changeStatus(${i}, this.value)">
+          ${Object.entries(STATUS_LABEL).map(([k,label]) => `<option value="${k}" ${k===r.status?'selected':''}>${label}</option>`).join("")}
+        </select>
+      </td>
+      <td>${supplierHtml}</td>
+      <td class="actions-col">
+        <a onclick="openRemark(${i})">Internal Remark</a>
+        <a onclick="openDetails(${i})">Details</a>
+        <a onclick="copyInfo(${i})">Copy Info</a>
+        <a class="refund" onclick="openRefund(${i})">Refund</a>
+      </td>
+    `;
+    tbody.appendChild(tr);
+  });
+}
+
+function changeStatus(i, val) {
+  rows[i].status = val;
+  render();
+  toast(`${rows[i].id} status set to ${STATUS_LABEL[val]}`);
+}
+
+let currentIndex = null;
+
+function openRemark(i) {
+  currentIndex = i;
+  document.getElementById("remarkOrderId").textContent = rows[i].id;
+  document.getElementById("remarkText").value = "";
+  showModal("remarkOverlay");
+}
+
+function openDetails(i) {
+  const r = rows[i];
+  const body = document.getElementById("detailsBody");
+  body.innerHTML = `
+    <div class="detail-row"><span class="k">Order ID</span><span class="v">${r.id}</span></div>
+    <div class="detail-row"><span class="k">Date &amp; Time</span><span class="v">${r.datetime}</span></div>
+    <div class="detail-row"><span class="k">Customer</span><span class="v">${r.name} ${r.contact}</span></div>
+    <div class="detail-row"><span class="k">Service</span><span class="v">${r.service}</span></div>
+    <div class="detail-row"><span class="k">Details</span><span class="v">${r.sub}</span></div>
+    <div class="detail-row"><span class="k">Scheduled</span><span class="v">${r.sched || '-'}</span></div>
+    <div class="detail-row"><span class="k">Amount</span><span class="v">${r.amount}</span></div>
+    <div class="detail-row"><span class="k">Payment Status</span><span class="v">${r.payment}</span></div>
+    <div class="detail-row"><span class="k">Order Status</span><span class="v">${STATUS_LABEL[r.status]}</span></div>
+    <div class="detail-row"><span class="k">Supplier</span><span class="v">${r.supplier || 'Not assigned'}</span></div>
+  `;
+  showModal("detailsOverlay");
+}
+
+function copyInfo(i) {
+  toast(`Copied order ${rows[i].id} info to clipboard (mock)`);
+}
+
+function openRefund(i) {
+  currentIndex = i;
+  document.getElementById("refundOrderId").textContent = rows[i].id;
+  document.getElementById("refundAmount").textContent = rows[i].amount;
+  showModal("refundOverlay");
+}
+function confirmRefund() {
+  if (currentIndex !== null) {
+    rows[currentIndex].status = "refunded";
+    rows[currentIndex].payment = "refunded";
+    rows[currentIndex].rowClass = "row-grey";
+    render();
+    toast(`Refund processed for ${rows[currentIndex].id} (mock)`);
+  }
+  closeModal("refundOverlay");
+}
+
+function shortAddress(addr) {
+  const parts = addr.split(",").map(p => p.trim());
+  let short = parts[0];
+  if (parts[1]) short += ", " + parts[1];
+  if (short.length > 30) short = short.slice(0, 30) + "…";
+  else if (parts.length > 2) short += "…";
+  return short;
+}
+
+function openResched(i) {
+  const r = rows[i];
+  const body = document.getElementById("reschedBody");
+  body.innerHTML = r.resched.map((s, idx) => `
+    <div class="step">
+      <div class="step-num">${idx+1}</div>
+      <div class="step-body"><div class="step-time">${s[0]}</div><div class="step-addr" title="${s[1]}">${shortAddress(s[1])}</div></div>
+    </div>
+  `).join("");
+  showModal("reschedOverlay");
+}
+
+function acknowledgeReschedule(i) {
+  rows[i].changed = false;
+  render();
+  toast(`${rows[i].id} acknowledged — now shown as Action Needed`);
+}
+
+function openSupplier(i) {
+  currentIndex = i;
+  const r = rows[i];
+  const isClosed = CLOSED.includes(r.status);
+  const title = isClosed ? "View Supplier" : (r.supplier ? "Manage Supplier" : "Assign Supplier");
+  document.getElementById("supplierModalTitle").textContent = title;
+  document.getElementById("supplierOrderId").textContent = r.id;
+  const sel = document.getElementById("supplierSelect");
+  if (r.supplier) sel.value = r.supplier;
+  sel.disabled = isClosed;
+  document.getElementById("supplierModalFoot").style.display = isClosed ? "none" : "flex";
+  showModal("supplierOverlay");
+}
+function saveSupplier() {
+  if (currentIndex !== null) {
+    rows[currentIndex].supplier = document.getElementById("supplierSelect").value;
+    render();
+    toast(`Supplier saved for ${rows[currentIndex].id} (mock)`);
+  }
+  closeModal("supplierOverlay");
+}
+
+function showModal(id) { document.getElementById(id).classList.add("show"); }
+function closeModal(id) { document.getElementById(id).classList.remove("show"); }
+
+let toastTimer = null;
+function toast(msg) {
+  const el = document.getElementById("toast");
+  el.textContent = msg;
+  el.classList.add("show");
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove("show"), 2200);
+}
+
+render();
+</script>
+
+</body>
+</html>

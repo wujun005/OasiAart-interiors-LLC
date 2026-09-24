@@ -131,7 +131,7 @@ const en = {
     methodTitle: 'Secure payment',
     methodDesc: 'Powered by Stripe',
     paymentNote: 'Available payment options are securely provided by Stripe and may vary by device.',
-    totalLabel: 'Total (incl. VAT)',
+    totalLabel: 'Total',
   },
   auth: {
     navTitle: 'Sign in',

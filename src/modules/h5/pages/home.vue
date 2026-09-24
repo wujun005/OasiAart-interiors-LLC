@@ -39,7 +39,11 @@
               role="menu"
               @click.stop
             >
-              <button type="button" role="menuitem" @click="openAccountSection()">
+              <button
+                type="button"
+                role="menuitem"
+                @click="openAccountSection()"
+              >
                 <van-icon name="contact-o" />
                 <span>{{ t("h5.profile.accountMenu.myProfile") }}</span>
               </button>
@@ -585,7 +589,7 @@ const authButtonLabel = computed(() =>
   isLoggedIn.value ? t("client.header.profile") : t("client.header.auth"),
 )
 
-const formatPriceText = (minPrice?: number | string): string => {
+const formatPriceText = (minPrice?: number | string | null): string => {
   if (minPrice === undefined || minPrice === null || minPrice === "") {
     return t("client.home.serviceCard.priceConsult")
   }
@@ -631,7 +635,7 @@ const featuredCards = computed<OfferCard[]>(() => {
       spuId: String(item.id ?? ""),
       title: pickI18nValue(item.nameI18n, ""),
       desc: cleanDescriptionText(pickI18nValue(item.descI18n, "")),
-      price: formatPriceText(item.minPrice),
+      price: formatPriceText(item.minNotIncTaxPrice),
       image:
         item.imageUrls?.[0] ||
         defaultOfferImages[index % defaultOfferImages.length],
@@ -805,7 +809,11 @@ const scrollToServices = () => {
 }
 
 const openWhatsApp = () => {
-  window.open("https://wa.me/971502100284/?text=Hi%2C+I%E2%80%99m+interested+in+HourX+services.+Could+you+please+help+me%3F", "_blank", "noopener,noreferrer")
+  window.open(
+    "https://wa.me/971502100284/?text=Hi%2C+I%E2%80%99m+interested+in+HourX+services.+Could+you+please+help+me%3F",
+    "_blank",
+    "noopener,noreferrer",
+  )
 }
 
 const toggleLocale = () => {
@@ -1266,18 +1274,25 @@ onMounted(() => {
 .h5-service-tile__icon {
   width: 54px;
   height: 54px;
+  border: 1px solid rgba(5, 21, 43, 0.12);
   border-radius: 18px;
-  background: rgba(255, 255, 255, 0.68);
+  background: linear-gradient(
+    145deg,
+    var(--hourx-brand-soft) 0%,
+    var(--hourx-brand-soft) 100%
+  );
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 6px 16px rgba(18, 118, 185, 0.06);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.85);
+  box-sizing: border-box;
 }
 
 .h5-service-tile__icon img {
   width: 34px;
   height: 34px;
   object-fit: contain;
+  filter: var(--hourx-brand-filter);
 }
 
 .h5-service-tile__label {
@@ -1310,6 +1325,7 @@ onMounted(() => {
   width: 100%;
   height: 100%;
   object-fit: cover;
+  filter: none;
 }
 
 @media (max-width: 360px) {

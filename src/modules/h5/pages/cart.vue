@@ -44,6 +44,12 @@
             :key="item.id"
             class="h5-cart-item"
             :class="{ 'h5-cart-item--selected': item.selected }"
+            role="link"
+            tabindex="0"
+            :aria-label="itemTitle(item)"
+            @click="handleCartItemClick(item, $event)"
+            @keydown.enter.self.prevent="goDetails(item)"
+            @keydown.space.self.prevent="goDetails(item)"
           >
             <button
               class="h5-cart-check h5-cart-item__check"
@@ -120,8 +126,20 @@
       </button>
       <div class="h5-cart-settlement__price">
         <small>{{ t('client.cart.selectedCount', { count: selectedCount }) }}</small>
-        <strong>{{ formatAed(total) }}</strong>
-        <span>{{ t('client.cart.vatIncludedPreview') }}</span>
+        <dl>
+          <div>
+            <dt>{{ t('client.cart.subtotal') }}</dt>
+            <dd>{{ formatAed(subtotal) }}</dd>
+          </div>
+          <div>
+            <dt>{{ t('client.cart.vat') }}</dt>
+            <dd>{{ formatAed(tax) }}</dd>
+          </div>
+          <div class="is-total">
+            <dt>{{ t('client.cart.estimatedTotal') }}</dt>
+            <dd>{{ formatAed(total) }}</dd>
+          </div>
+        </dl>
       </div>
       <button
         class="h5-cart-settlement__checkout"
@@ -165,15 +183,21 @@
         <button type="button" @click="checkoutVisible = false"><van-icon name="cross" /></button>
       </header>
       <div class="h5-cart-checkout__items">
-        <div v-for="item in selectedItems" :key="item.id">
+        <div v-for="item in checkoutItems" :key="item.id">
           <img :src="item.image || fallbackImage" :alt="itemTitle(item)" />
           <span>{{ itemTitle(item) }}</span>
           <strong>{{ formatAed(item.unitPrice) }}</strong>
         </div>
       </div>
       <dl>
+        <div>
+          <dt>{{ t('client.cart.subtotal') }}</dt><dd>{{ formatAed(checkoutSubtotal) }}</dd>
+        </div>
+        <div>
+          <dt>{{ t('client.cart.vat') }}</dt><dd>{{ formatAed(checkoutTax) }}</dd>
+        </div>
         <div class="h5-cart-checkout__total">
-          <dt>{{ t('client.cart.estimatedTotal') }}</dt><dd>{{ formatAed(total) }}</dd>
+          <dt>{{ t('client.cart.estimatedTotal') }}</dt><dd>{{ formatAed(checkoutTotal) }}</dd>
         </div>
       </dl>
       <BookingPolicyDetails
@@ -191,7 +215,11 @@
     <StripePaymentModal
       :visible="stripeVisible"
       :client-secret="stripeClientSecret"
+      :customer-session-client-secret="stripeCustomerSessionClientSecret"
       :locale="locale"
+      :subtotal="checkoutSubtotal"
+      :tax="checkoutTax"
+      :total="checkoutTotal"
       @close="stripeVisible = false"
       @error="handleStripeError"
       @paid="handlePaymentSuccess"
@@ -201,7 +229,7 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref } from 'vue';
+import { computed, onMounted, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRoute, useRouter } from 'vue-router';
 import { showConfirmDialog, showFailToast, showSuccessToast } from 'vant';
@@ -223,10 +251,12 @@ const checkoutPolicyAgreed = ref(false);
 const isCheckingOut = ref(false);
 const stripeVisible = ref(false);
 const stripeClientSecret = ref('');
+const stripeCustomerSessionClientSecret = ref('');
 const legalDialogVisible = ref(false);
 const legalDocType = ref<LegalDocType>('terms');
 const checkoutSummary = ref({ orderNo: '', orderId: '', service: '', scheduled: '', amount: '' });
 const checkedOutItemIds = ref<string[]>([]);
+const checkoutItemIds = ref<string[]>([]);
 const {
   items,
   selectedItems,
@@ -235,12 +265,26 @@ const {
   selectedLineCount,
   allSelected,
   partiallySelected,
+  subtotal,
+  tax,
   total,
   refreshCart,
   setSelected,
   setAllSelected,
   removeItems,
 } = useCart();
+
+const checkoutItems = computed(() => {
+  const ids = new Set(checkoutItemIds.value);
+  return items.value.filter((item) => ids.has(item.id));
+});
+const checkoutSubtotal = computed(() =>
+  checkoutItems.value.reduce((sum, item) => sum + item.unitPrice, 0),
+);
+const checkoutTotal = computed(() =>
+  checkoutItems.value.reduce((sum, item) => sum + item.priceWithTax, 0),
+);
+const checkoutTax = computed(() => checkoutTotal.value - checkoutSubtotal.value);
 
 const pickLocalizedText = (value?: CartLocalizedText, fallback = '') => {
   const source = value || {};
@@ -269,7 +313,8 @@ const formatAed = (value: number) => `AED ${Number(value || 0).toFixed(2)}`;
 
 const goServices = () => router.push({ name: 'h5-home', hash: '#services' });
 const cartBookingRoute = (item: CartItem) => {
-  const subtotal = item.unitPrice / 1.05;
+  const subtotal = item.unitPrice;
+  const total = item.priceWithTax;
   return {
     name: 'h5-order-confirm',
     query: {
@@ -288,12 +333,21 @@ const cartBookingRoute = (item: CartItem) => {
       selectedSpecValueIds: JSON.stringify(item.selectedSpecValueIds || []),
       specValueNameI18n: JSON.stringify(item.specValueNameI18n || {}),
       subtotal: subtotal.toFixed(2),
-      tax: (item.unitPrice - subtotal).toFixed(2),
-      total: item.unitPrice.toFixed(2),
+      tax: (total - subtotal).toFixed(2),
+      total: total.toFixed(2),
     },
   };
 };
 const goDetails = (item: CartItem) => router.push(cartBookingRoute(item));
+
+const handleCartItemClick = (item: CartItem, event: MouseEvent) => {
+  const target = event.target;
+  if (
+    target instanceof Element
+    && target.closest('a, button, input, label, [role="checkbox"]')
+  ) return;
+  void goDetails(item);
+};
 
 const confirmRemove = async (ids: string[]) => {
   if (!ids.length) return;
@@ -322,6 +376,8 @@ const ensureLogin = async () => {
 
 const openCheckout = async () => {
   if (!(await ensureLogin())) return;
+  checkoutItemIds.value = selectedItems.value.map((item) => item.id);
+  if (!checkoutItemIds.value.length) return;
   checkoutPolicyAgreed.value = false;
   checkoutVisible.value = true;
 };
@@ -333,19 +389,21 @@ const openLegal = (docType: LegalDocType) => {
 
 const confirmCheckout = async () => {
   if (!checkoutPolicyAgreed.value || isCheckingOut.value) return;
+  const checkoutIds = [...checkoutItemIds.value];
+  if (!checkoutIds.length) return;
   isCheckingOut.value = true;
   try {
-    checkedOutItemIds.value = selectedItems.value.map((item) => item.id);
+    checkedOutItemIds.value = checkoutIds;
     const result = await checkoutCart(checkedOutItemIds.value, 'STRIPE', window.location.href);
     const payment = result?.payment;
     checkoutSummary.value = {
       orderNo: (result?.orderNos || []).join(', '),
       orderId: (result?.orderIds || []).join(', '),
-      service: selectedItems.value.length === 1 && selectedItems.value[0]
-        ? itemTitle(selectedItems.value[0])
-        : (locale.value === 'zh' ? `${selectedItems.value.length} 项家居服务` : `${selectedItems.value.length} home services`),
-      scheduled: selectedItems.value.length === 1 ? itemSchedule(selectedItems.value[0]!) : '',
-      amount: String(result?.totalAmount || total.value || ''),
+      service: checkoutItems.value.length === 1 && checkoutItems.value[0]
+        ? itemTitle(checkoutItems.value[0])
+        : (locale.value === 'zh' ? `${checkoutItems.value.length} 项家居服务` : `${checkoutItems.value.length} home services`),
+      scheduled: checkoutItems.value.length === 1 ? itemSchedule(checkoutItems.value[0]!) : '',
+      amount: String(result?.totalAmount || checkoutTotal.value || ''),
     };
     const approvalUrl = String(payment?.approvalUrl || '').trim();
     const clientSecret = String(payment?.clientSecret || '').trim();
@@ -356,6 +414,7 @@ const confirmCheckout = async () => {
     if (!clientSecret) throw new Error(locale.value === 'zh' ? '未获取到支付参数' : 'Missing payment parameters');
     checkoutVisible.value = false;
     stripeClientSecret.value = clientSecret;
+    stripeCustomerSessionClientSecret.value = String(payment?.customerSessionClientSecret || '').trim();
     stripeVisible.value = true;
   } catch (error: any) {
     checkedOutItemIds.value = [];
@@ -548,7 +607,13 @@ onMounted(async () => {
   display: grid;
   grid-template-columns: 94px minmax(0, 1fr);
   gap: 13px;
+  cursor: pointer;
   transition: border-color 180ms ease, box-shadow 180ms ease;
+}
+
+.h5-cart-item:focus-visible {
+  outline: 3px solid rgba(23, 105, 194, 0.2);
+  outline-offset: 2px;
 }
 
 .h5-cart-item--selected {
@@ -786,7 +851,29 @@ onMounted(async () => {
 
 .h5-cart-settlement__price small,
 .h5-cart-settlement__price span { color: #8a97aa; font-size: 9px; }
-.h5-cart-settlement__price strong { margin: 1px 0; font-size: 17px; }
+.h5-cart-settlement__price dl {
+  min-width: 142px;
+  margin: 2px 0 0;
+}
+.h5-cart-settlement__price dl > div {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  color: #7b889a;
+  font-size: 9px;
+  line-height: 1.35;
+}
+.h5-cart-settlement__price dt,
+.h5-cart-settlement__price dd { margin: 0; }
+.h5-cart-settlement__price dd { color: #435168; font-weight: 700; }
+.h5-cart-settlement__price .is-total {
+  margin-top: 1px;
+  color: #05152b;
+  font-size: 11px;
+  font-weight: 800;
+}
+.h5-cart-settlement__price .is-total dd { color: #1769c2; font-size: 14px; }
 
 .h5-cart-settlement__checkout {
   min-width: 94px;

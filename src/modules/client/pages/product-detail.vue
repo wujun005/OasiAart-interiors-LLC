@@ -3,15 +3,27 @@
     <section class="product-detail-subheader">
       <div class="product-detail-container">
         <nav class="product-detail-back" aria-label="breadcrumb">
-          <button class="product-detail-back__link" type="button" @click="goServicesHome">
-            {{ t('client.header.nav.services') }}
+          <button
+            class="product-detail-back__link"
+            type="button"
+            @click="goServicesHome"
+          >
+            {{ t("client.header.nav.services") }}
           </button>
-          <span class="product-detail-back__separator" aria-hidden="true">&lt;</span>
+          <span class="product-detail-back__separator" aria-hidden="true"
+            >&lt;</span
+          >
           <template v-if="parentBreadcrumbTitle">
-            <button class="product-detail-back__link" type="button" @click="goServiceList">
+            <button
+              class="product-detail-back__link"
+              type="button"
+              @click="goServiceList"
+            >
               {{ parentBreadcrumbTitle }}
             </button>
-            <span class="product-detail-back__separator" aria-hidden="true">&lt;</span>
+            <span class="product-detail-back__separator" aria-hidden="true"
+              >&lt;</span
+            >
           </template>
           <span class="product-detail-back__current">{{ displayTitle }}</span>
         </nav>
@@ -27,7 +39,10 @@
                 v-for="(image, index) in galleryImages"
                 :key="`thumb-${index}`"
                 class="product-gallery__thumb"
-                :class="{ 'product-gallery__thumb--active': index === selectedImageIndex }"
+                :class="{
+                  'product-gallery__thumb--active':
+                    index === selectedImageIndex,
+                }"
                 type="button"
                 @click="selectedImageIndex = index"
               >
@@ -60,7 +75,7 @@
                 </svg>
               </button>
               <span class="product-gallery__badge">
-                {{ t('client.productDetail.badge') }}
+                {{ t("client.productDetail.badge") }}
               </span>
               <div class="product-gallery__dots">
                 <button
@@ -68,7 +83,10 @@
                   :key="`dot-${index}`"
                   type="button"
                   class="product-gallery__dot"
-                  :class="{ 'product-gallery__dot--active': index === selectedImageIndex }"
+                  :class="{
+                    'product-gallery__dot--active':
+                      index === selectedImageIndex,
+                  }"
                   :aria-label="`${displayTitle} image ${index + 1}`"
                   @click="selectedImageIndex = index"
                 />
@@ -79,46 +97,52 @@
           <section class="product-card">
             <div class="product-card__head">
               <h1>{{ displayTitle }}</h1>
-              <p>{{ formatAed(totalPrice) }}</p>
+              <p>{{ formatAed(subtotalPrice) }}</p>
             </div>
             <div v-if="selectedSpecSummary" class="product-card__meta">
               <span>{{ selectedSpecSummary }}</span>
             </div>
             <div class="product-card__line" />
             <div class="product-card__desc">
-              <h2>{{ t('client.productDetail.serviceDescription') }}</h2>
-              <p v-if="isLoading">{{ t('client.productDetail.loading') }}</p>
+              <h2>{{ t("client.productDetail.serviceDescription") }}</h2>
+              <p v-if="isLoading">{{ t("client.productDetail.loading") }}</p>
               <div
                 v-else-if="serviceDescriptionHtml"
                 class="product-rich-text"
                 v-html="serviceDescriptionHtml"
               />
-              <p v-else class="product-card__empty">{{ t('client.productDetail.emptyDesc') }}</p>
+              <p v-else class="product-card__empty">
+                {{ t("client.productDetail.emptyDesc") }}
+              </p>
             </div>
           </section>
 
           <section class="product-card">
-            <h2>{{ t('client.productDetail.includesTitle') }}</h2>
+            <h2>{{ t("client.productDetail.includesTitle") }}</h2>
             <div
               v-if="serviceContentHtml"
               class="product-rich-text"
               v-html="serviceContentHtml"
             />
-            <p v-else class="product-card__empty">{{ t('client.productDetail.emptyDesc') }}</p>
+            <p v-else class="product-card__empty">
+              {{ t("client.productDetail.emptyDesc") }}
+            </p>
           </section>
 
           <section class="product-card">
-            <h2>{{ t('client.productDetail.noticeTitle') }}</h2>
+            <h2>{{ t("client.productDetail.noticeTitle") }}</h2>
             <div
               v-if="bookingNoticeHtml"
               class="product-rich-text"
               v-html="bookingNoticeHtml"
             />
-            <p v-else class="product-card__empty">{{ t('client.productDetail.emptyDesc') }}</p>
+            <p v-else class="product-card__empty">
+              {{ t("client.productDetail.emptyDesc") }}
+            </p>
           </section>
 
           <section class="product-card">
-            <h2>{{ t('client.productDetail.reviewsTitle') }}</h2>
+            <h2>{{ t("client.productDetail.reviewsTitle") }}</h2>
             <div v-if="reviewItems.length" class="product-review-list">
               <article
                 v-for="(item, index) in reviewItems"
@@ -126,7 +150,11 @@
                 class="product-review"
               >
                 <div class="product-review__avatar">
-                  <img v-if="item.avatarUrl" :src="item.avatarUrl" :alt="item.commenter" />
+                  <img
+                    v-if="item.avatarUrl"
+                    :src="item.avatarUrl"
+                    :alt="item.commenter"
+                  />
                   <span v-else>{{ item.avatarText }}</span>
                 </div>
                 <div class="product-review__content">
@@ -142,27 +170,38 @@
                     />
                   </div>
                   <p>{{ item.content }}</p>
-                  <span v-if="item.commentTime" class="product-review__time">{{ item.commentTime }}</span>
+                  <span v-if="item.commentTime" class="product-review__time">{{
+                    item.commentTime
+                  }}</span>
                 </div>
               </article>
             </div>
-            <p v-else class="product-card__empty">{{ t('client.productDetail.emptyReviews') }}</p>
+            <p v-else class="product-card__empty">
+              {{ t("client.productDetail.emptyReviews") }}
+            </p>
           </section>
         </div>
 
         <aside class="booking-side">
           <section class="booking-card">
-            <h2>{{ t('client.productDetail.booking.title') }}</h2>
+            <h2>{{ t("client.productDetail.booking.title") }}</h2>
 
             <template v-if="bookingSpecGroups.length">
-              <div v-for="group in bookingSpecGroups" :key="group.typeId" class="booking-field">
+              <div
+                v-for="group in bookingSpecGroups"
+                :key="group.typeId"
+                class="booking-field"
+              >
                 <p>{{ group.label }}</p>
                 <div class="booking-options">
                   <button
                     v-for="option in group.options"
                     :key="`${group.typeId}-${option.id}`"
                     class="booking-option"
-                    :class="{ 'booking-option--active': selectedSpecValues[group.typeId] === option.id }"
+                    :class="{
+                      'booking-option--active':
+                        selectedSpecValues[group.typeId] === option.id,
+                    }"
                     type="button"
                     @click="selectSpecValue(group.typeId, option.id)"
                   >
@@ -173,7 +212,11 @@
             </template>
 
             <template v-if="bookingAttachGroups.length">
-              <div v-for="group in bookingAttachGroups" :key="group.typeId" class="booking-field">
+              <div
+                v-for="group in bookingAttachGroups"
+                :key="group.typeId"
+                class="booking-field"
+              >
                 <p>{{ group.label }}</p>
                 <div class="booking-attach-list">
                   <div
@@ -182,10 +225,12 @@
                     class="booking-attach-item"
                   >
                     <div class="booking-attach-item__meta">
-                      <span class="booking-attach-item__name">{{ option.label }}</span>
+                      <span class="booking-attach-item__name">{{
+                        option.label
+                      }}</span>
                       <span class="booking-attach-item__price">
                         {{
-                          t('client.productDetail.booking.attachUnitPrice', {
+                          t("client.productDetail.booking.attachUnitPrice", {
                             price: option.price.toFixed(2),
                           })
                         }}
@@ -223,29 +268,35 @@
               v-if="!bookingSpecGroups.length && !bookingAttachGroups.length"
               class="booking-card__empty"
             >
-              {{ t('client.productDetail.emptyDesc') }}
+              {{ t("client.productDetail.emptyDesc") }}
             </p>
 
             <div class="booking-summary">
               <div class="booking-summary__row booking-summary__row--total">
-                <span>{{ t('client.productDetail.booking.total') }}</span>
-                <strong>{{ formatAed(totalPrice) }}</strong>
+                <span>{{ t("client.productDetail.booking.total") }}</span>
+                <strong>{{ formatAed(subtotalPrice) }}</strong>
               </div>
             </div>
 
             <div class="booking-actions">
-              <button class="booking-add-cart" type="button" @click="handleAddToCart">
+              <button
+                class="booking-add-cart"
+                type="button"
+                @click="handleAddToCart"
+              >
                 <svg
                   class="booking-add-cart__icon"
                   viewBox="0 0 24 24"
                   aria-hidden="true"
                 >
-                  <path d="M3 4h2.2l1.7 9.1a2 2 0 0 0 2 1.6h7.8a2 2 0 0 0 1.9-1.4L20 8H7" />
+                  <path
+                    d="M3 4h2.2l1.7 9.1a2 2 0 0 0 2 1.6h7.8a2 2 0 0 0 1.9-1.4L20 8H7"
+                  />
                   <circle cx="9.5" cy="19" r="1.3" />
                   <circle cx="17" cy="19" r="1.3" />
                   <path d="M14.5 3.5v5M12 6h5" />
                 </svg>
-                <span>{{ t('client.productDetail.booking.addToCart') }}</span>
+                <span>{{ t("client.productDetail.booking.addToCart") }}</span>
               </button>
               <button
                 class="booking-submit"
@@ -253,7 +304,7 @@
                 :disabled="isCreatingOrder"
                 @click="goOrderConfirm"
               >
-                {{ t('client.productDetail.booking.bookNow') }}
+                {{ t("client.productDetail.booking.bookNow") }}
               </button>
             </div>
           </section>
@@ -264,562 +315,599 @@
 </template>
 
 <script setup lang="ts">
-import { ElMessage } from 'element-plus';
-import { computed, ref, watch } from 'vue';
-import { useI18n } from 'vue-i18n';
-import { useRoute, useRouter } from 'vue-router';
-import { getProductDetail, getProductSku, createOrder } from '@/modules/client/api';
-import { formatCreatedAt } from '@/modules/client/utils/order-date-time';
-import { formatContactName } from '@/modules/client/utils/order-localization';
-import { clearStoredAuthState, getStoredAuthSnapshot } from '@/utils/auth-state';
+import { ElMessage } from "element-plus"
+import { computed, ref, watch } from "vue"
+import { useI18n } from "vue-i18n"
+import { useRoute, useRouter } from "vue-router"
+import {
+  getProductDetail,
+  getProductSku,
+  createOrder,
+} from "@/modules/client/api"
+import { formatCreatedAt } from "@/modules/client/utils/order-date-time"
+import { formatContactName } from "@/modules/client/utils/order-localization"
+import { clearStoredAuthState, getStoredAuthSnapshot } from "@/utils/auth-state"
 
-type I18nText = Record<string, string>;
-type I18nTextArray = Record<string, string[] | string>;
+type I18nText = Record<string, string>
+type I18nTextArray = Record<string, string[] | string>
 
 type ProductDetailRecord = {
-  id?: number | string;
-  spuId?: number | string;
-  imageUrls?: string[];
-  nameI18n?: I18nText;
-  descI18n?: I18nText;
-  serviceContentI18n?: I18nTextArray;
-  serviceContentTextI18n?: I18nText;
-  bookingNoticeI18n?: I18nText;
+  id?: number | string
+  spuId?: number | string
+  imageUrls?: string[]
+  nameI18n?: I18nText
+  descI18n?: I18nText
+  serviceContentI18n?: I18nTextArray
+  serviceContentTextI18n?: I18nText
+  bookingNoticeI18n?: I18nText
   specBindings?: Array<{
-    specTypeId?: number | string;
-    specValueIds?: Array<number | string>;
-  }>;
-  specTypeNameI18n?: Record<string, I18nText>;
-  specValueNameI18n?: Record<string, I18nText>;
+    specTypeId?: number | string
+    specValueIds?: Array<number | string>
+  }>
+  specTypeNameI18n?: Record<string, I18nText>
+  specValueNameI18n?: Record<string, I18nText>
   attachBindings?: Array<{
-    attachTypeId?: number | string;
-    attachValueIds?: Array<number | string>;
-  }>;
-  attachTypeNameI18n?: Record<string, I18nText>;
-  attachValueNameI18n?: Record<string, I18nText>;
+    attachTypeId?: number | string
+    attachValueIds?: Array<number | string>
+  }>
+  attachTypeNameI18n?: Record<string, I18nText>
+  attachValueNameI18n?: Record<string, I18nText>
   reviewList?: Array<{
-    rating?: number | string;
-    content?: string;
-    firstName?: string;
-    lastName?: string;
-    customerName?: string;
-    reviewerName?: string;
-    fullName?: string;
-    customerFullName?: string;
-    nickname?: string;
-    displayName?: string;
-    userName?: string;
-    name?: string;
-    commenter?: string;
-    avatarUrl?: string | null;
-    commentTime?: string;
+    rating?: number | string
+    content?: string
+    firstName?: string
+    lastName?: string
+    customerName?: string
+    reviewerName?: string
+    fullName?: string
+    customerFullName?: string
+    nickname?: string
+    displayName?: string
+    userName?: string
+    name?: string
+    commenter?: string
+    avatarUrl?: string | null
+    commentTime?: string
     user?: {
-      firstName?: string;
-      lastName?: string;
-      name?: string;
-      nickname?: string;
-    };
-  }>;
-  minPrice?: number | string;
-  price?: number | string;
-  [key: string]: unknown;
-};
+      firstName?: string
+      lastName?: string
+      name?: string
+      nickname?: string
+    }
+  }>
+  minPrice?: number | string
+  price?: number | string
+  [key: string]: unknown
+}
 
 type ProductSkuPayload = {
-  spuId: number | string;
-  specValueIds: Array<number | string>;
+  spuId: number | string
+  specValueIds: Array<number | string>
   attachItems: Array<{
-    attachValueId: number | string;
-    quantity: number;
-  }>;
-};
+    attachValueId: number | string
+    quantity: number
+  }>
+}
 
 type ProductSkuRecord = {
-  skuId?: number | string;
-  skuCode?: string;
-  originalPrice?: number | string;
-  price?: number | string;
-  totalOriginalPrice?: number | string;
-  totalPrice?: number | string;
-  originalPriceWithTax?: number | string;
-  priceWithTax?: number | string;
-  totalOriginalPriceWithTax?: number | string;
-  totalPriceWithTax?: number | string;
-  attachTotalPrice?: number | string;
-  attachTotalPriceWithTax?: number | string;
-  totalTaxPrice?: number | string;
-};
+  skuId?: number | string
+  skuCode?: string
+  originalPrice?: number | string
+  price?: number | string
+  totalOriginalPrice?: number | string
+  totalPrice?: number | string
+  originalPriceWithTax?: number | string
+  priceWithTax?: number | string
+  totalOriginalPriceWithTax?: number | string
+  totalPriceWithTax?: number | string
+  attachTotalPrice?: number | string
+  attachTotalPriceWithTax?: number | string
+  totalTaxPrice?: number | string
+}
 
 type RebookSpecSelection = {
-  specTypeId: string;
-  specValueId: string;
-};
+  specTypeId: string
+  specValueId: string
+}
 
 type RebookAttachSelection = {
-  attachValueId: string;
-  quantity: number;
-};
+  attachValueId: string
+  quantity: number
+}
 
 const fallbackGallery = [
-  'https://www.figma.com/api/mcp/asset/5aa6ad0e-a319-4f63-950e-3654b6bab901',
-  'https://www.figma.com/api/mcp/asset/30e46728-8330-4576-878d-44f5c5fe610e',
-  'https://www.figma.com/api/mcp/asset/30d7a797-41ac-4b26-be69-b05a69801e01',
-  'https://www.figma.com/api/mcp/asset/4a23c9cc-b72c-4b17-a507-ac26f8af0f40',
-  'https://www.figma.com/api/mcp/asset/a3925844-c8df-4a13-bc77-e9907c4ccc27',
-  'https://www.figma.com/api/mcp/asset/7e43c383-3d8d-4734-b4d3-d561d3a178eb',
-];
+  "https://www.figma.com/api/mcp/asset/5aa6ad0e-a319-4f63-950e-3654b6bab901",
+  "https://www.figma.com/api/mcp/asset/30e46728-8330-4576-878d-44f5c5fe610e",
+  "https://www.figma.com/api/mcp/asset/30d7a797-41ac-4b26-be69-b05a69801e01",
+  "https://www.figma.com/api/mcp/asset/4a23c9cc-b72c-4b17-a507-ac26f8af0f40",
+  "https://www.figma.com/api/mcp/asset/a3925844-c8df-4a13-bc77-e9907c4ccc27",
+  "https://www.figma.com/api/mcp/asset/7e43c383-3d8d-4734-b4d3-d561d3a178eb",
+]
 
-const route = useRoute();
-const router = useRouter();
-const { t, locale } = useI18n({ useScope: 'global' });
+const route = useRoute()
+const router = useRouter()
+const { t, locale } = useI18n({ useScope: "global" })
 
-const isLoading = ref(false);
-const productDetail = ref<ProductDetailRecord | null>(null);
-const skuPrice = ref<ProductSkuRecord | null>(null);
-const selectedImageIndex = ref(0);
-const selectedSpecValues = ref<Record<string, string>>({});
-const attachQuantities = ref<Record<string, number>>({});
-const skuRequestSeq = ref(0);
-const isCreatingOrder = ref(false);
+const isLoading = ref(false)
+const productDetail = ref<ProductDetailRecord | null>(null)
+const skuPrice = ref<ProductSkuRecord | null>(null)
+const selectedImageIndex = ref(0)
+const selectedSpecValues = ref<Record<string, string>>({})
+const attachQuantities = ref<Record<string, number>>({})
+const skuRequestSeq = ref(0)
+const isCreatingOrder = ref(false)
 
 const getPreferredLangs = () =>
-  locale.value === 'zh'
-    ? ['zh-CN', 'zh', 'en', 'en-US']
-    : ['en', 'en-US', 'zh-CN', 'zh'];
+  locale.value === "zh"
+    ? ["zh-CN", "zh", "en", "en-US"]
+    : ["en", "en-US", "zh-CN", "zh"]
 
-const pickI18nValue = (
-  i18n?: I18nText,
-  fallback = '',
-): string => {
-  const valueMap = i18n || {};
-  const preferredLangs = getPreferredLangs();
+const pickI18nValue = (i18n?: I18nText, fallback = ""): string => {
+  const valueMap = i18n || {}
+  const preferredLangs = getPreferredLangs()
   for (const lang of preferredLangs) {
-    const value = valueMap[lang];
-    if (typeof value === 'string' && value.trim()) {
-      return value.trim();
+    const value = valueMap[lang]
+    if (typeof value === "string" && value.trim()) {
+      return value.trim()
     }
   }
   const firstValue = Object.values(valueMap).find(
-    (value) => typeof value === 'string' && value.trim(),
-  );
-  if (typeof firstValue === 'string') {
-    return firstValue.trim();
+    (value) => typeof value === "string" && value.trim(),
+  )
+  if (typeof firstValue === "string") {
+    return firstValue.trim()
   }
-  return fallback;
-};
+  return fallback
+}
 
-const pickI18nList = (
-  i18n?: I18nTextArray,
-): string[] => {
-  const valueMap = i18n || {};
-  const preferredLangs = getPreferredLangs();
+const pickI18nList = (i18n?: I18nTextArray): string[] => {
+  const valueMap = i18n || {}
+  const preferredLangs = getPreferredLangs()
   for (const lang of preferredLangs) {
-    const value = valueMap[lang];
+    const value = valueMap[lang]
     if (Array.isArray(value)) {
-      const normalized = value.map((item) => String(item ?? '').trim()).filter(Boolean);
+      const normalized = value
+        .map((item) => String(item ?? "").trim())
+        .filter(Boolean)
       if (normalized.length) {
-        return normalized;
+        return normalized
       }
     }
   }
-  const firstValue = Object.values(valueMap).find((value) => Array.isArray(value) && value.length > 0);
+  const firstValue = Object.values(valueMap).find(
+    (value) => Array.isArray(value) && value.length > 0,
+  )
   if (Array.isArray(firstValue)) {
-    return firstValue.map((item) => String(item ?? '').trim()).filter(Boolean);
+    return firstValue.map((item) => String(item ?? "").trim()).filter(Boolean)
   }
-  return [];
-};
+  return []
+}
 
 const escapeHtml = (value: string) =>
   value
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#039;');
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;")
 
 const normalizeRichTextHtml = (value: string) => {
-  const content = String(value || '').trim();
-  if (!content) return '';
-  if (/<\/?[a-z][^>]*>/i.test(content)) return content;
-  return `<p>${escapeHtml(content).replace(/\r?\n/g, '<br>')}</p>`;
-};
+  const content = String(value || "").trim()
+  if (!content) return ""
+  if (/<\/?[a-z][^>]*>/i.test(content)) return content
+  return `<p>${escapeHtml(content).replace(/\r?\n/g, "<br>")}</p>`
+}
 
 const legacyListToHtml = (items: string[]) =>
   items.length
-    ? `<ul>${items.map((item) => `<li>${escapeHtml(item)}</li>`).join('')}</ul>`
-    : '';
+    ? `<ul>${items.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}</ul>`
+    : ""
 
 const parseSpuId = (): string => {
-  const fromParams = route.params.spuId;
-  if (typeof fromParams === 'string' && fromParams.trim()) {
-    return fromParams.trim();
+  const fromParams = route.params.spuId
+  if (typeof fromParams === "string" && fromParams.trim()) {
+    return fromParams.trim()
   }
-  if (Array.isArray(fromParams) && typeof fromParams[0] === 'string' && fromParams[0].trim()) {
-    return fromParams[0].trim();
+  if (
+    Array.isArray(fromParams) &&
+    typeof fromParams[0] === "string" &&
+    fromParams[0].trim()
+  ) {
+    return fromParams[0].trim()
   }
-  const fromQuery = route.query.spuId;
-  if (typeof fromQuery === 'string' && fromQuery.trim()) {
-    return fromQuery.trim();
+  const fromQuery = route.query.spuId
+  if (typeof fromQuery === "string" && fromQuery.trim()) {
+    return fromQuery.trim()
   }
-  if (Array.isArray(fromQuery) && typeof fromQuery[0] === 'string' && fromQuery[0].trim()) {
-    return fromQuery[0].trim();
+  if (
+    Array.isArray(fromQuery) &&
+    typeof fromQuery[0] === "string" &&
+    fromQuery[0].trim()
+  ) {
+    return fromQuery[0].trim()
   }
-  return '';
-};
+  return ""
+}
 
 const getRouteQueryText = (key: string): string => {
-  const raw = route.query[key];
+  const raw = route.query[key]
   if (Array.isArray(raw)) {
-    return typeof raw[0] === 'string' ? raw[0].trim() : '';
+    return typeof raw[0] === "string" ? raw[0].trim() : ""
   }
-  return typeof raw === 'string' ? raw.trim() : '';
-};
+  return typeof raw === "string" ? raw.trim() : ""
+}
 
 const parseRebookSpecSelections = (): RebookSpecSelection[] => {
-  const raw = getRouteQueryText('specSelections');
+  const raw = getRouteQueryText("specSelections")
   if (!raw) {
-    return [];
+    return []
   }
   try {
-    const parsed = JSON.parse(raw);
+    const parsed = JSON.parse(raw)
     if (!Array.isArray(parsed)) {
-      return [];
+      return []
     }
     return parsed
       .map((item) => {
-        if (!item || typeof item !== 'object') {
-          return null;
+        if (!item || typeof item !== "object") {
+          return null
         }
         const selection = item as {
-          specTypeId?: number | string;
-          specValueId?: number | string;
-        };
-        const specTypeId = String(selection.specTypeId ?? '').trim();
-        const specValueId = String(selection.specValueId ?? '').trim();
-        if (!specTypeId || !specValueId) {
-          return null;
+          specTypeId?: number | string
+          specValueId?: number | string
         }
-        return { specTypeId, specValueId };
+        const specTypeId = String(selection.specTypeId ?? "").trim()
+        const specValueId = String(selection.specValueId ?? "").trim()
+        if (!specTypeId || !specValueId) {
+          return null
+        }
+        return { specTypeId, specValueId }
       })
-      .filter((item): item is RebookSpecSelection => Boolean(item));
+      .filter((item): item is RebookSpecSelection => Boolean(item))
   } catch {
-    return [];
+    return []
   }
-};
+}
 
 const parseRebookAttachSelections = (): RebookAttachSelection[] => {
-  const raw = getRouteQueryText('attachSelections');
+  const raw = getRouteQueryText("attachSelections")
   if (!raw) {
-    return [];
+    return []
   }
   try {
-    const parsed = JSON.parse(raw);
+    const parsed = JSON.parse(raw)
     if (!Array.isArray(parsed)) {
-      return [];
+      return []
     }
     return parsed
       .map((item) => {
-        if (!item || typeof item !== 'object') {
-          return null;
+        if (!item || typeof item !== "object") {
+          return null
         }
         const selection = item as {
-          attachValueId?: number | string;
-          quantity?: number | string;
-        };
-        const attachValueId = String(selection.attachValueId ?? '').trim();
-        const quantity = Math.max(0, Number(selection.quantity ?? 0) || 0);
-        if (!attachValueId || quantity <= 0) {
-          return null;
+          attachValueId?: number | string
+          quantity?: number | string
         }
-        return { attachValueId, quantity };
+        const attachValueId = String(selection.attachValueId ?? "").trim()
+        const quantity = Math.max(0, Number(selection.quantity ?? 0) || 0)
+        if (!attachValueId || quantity <= 0) {
+          return null
+        }
+        return { attachValueId, quantity }
       })
-      .filter((item): item is RebookAttachSelection => Boolean(item));
+      .filter((item): item is RebookAttachSelection => Boolean(item))
   } catch {
-    return [];
+    return []
   }
-};
+}
 
-const spuId = computed(() => parseSpuId());
+const spuId = computed(() => parseSpuId())
 const level1FromQuery = computed(() => {
-  const raw = getRouteQueryText('level1');
+  const raw = getRouteQueryText("level1")
   if (!raw) {
-    return null;
+    return null
   }
   try {
-    const parsed = JSON.parse(raw);
-    return parsed && typeof parsed === 'object' ? (parsed as { nameI18n?: I18nText }) : null;
+    const parsed = JSON.parse(raw)
+    return parsed && typeof parsed === "object"
+      ? (parsed as { nameI18n?: I18nText })
+      : null
   } catch {
     try {
-      const decoded = decodeURIComponent(raw);
-      const parsed = JSON.parse(decoded);
-      return parsed && typeof parsed === 'object' ? (parsed as { nameI18n?: I18nText }) : null;
+      const decoded = decodeURIComponent(raw)
+      const parsed = JSON.parse(decoded)
+      return parsed && typeof parsed === "object"
+        ? (parsed as { nameI18n?: I18nText })
+        : null
     } catch {
-      return null;
+      return null
     }
   }
-});
+})
 
-const rebookSpecSelections = computed(() => parseRebookSpecSelections());
-const rebookAttachSelections = computed(() => parseRebookAttachSelections());
+const rebookSpecSelections = computed(() => parseRebookSpecSelections())
+const rebookAttachSelections = computed(() => parseRebookAttachSelections())
 
 const rebookSpecSelectionMap = computed(() => {
-  const map: Record<string, string> = {};
+  const map: Record<string, string> = {}
   rebookSpecSelections.value.forEach((item) => {
-    map[item.specTypeId] = item.specValueId;
-  });
-  return map;
-});
+    map[item.specTypeId] = item.specValueId
+  })
+  return map
+})
 
 const rebookAttachSelectionMap = computed(() => {
-  const map: Record<string, number> = {};
+  const map: Record<string, number> = {}
   rebookAttachSelections.value.forEach((item) => {
-    map[item.attachValueId] = item.quantity;
-  });
-  return map;
-});
+    map[item.attachValueId] = item.quantity
+  })
+  return map
+})
 
 const resolveNumber = (value: unknown): number => {
-  const numeric = Number(value);
+  const numeric = Number(value)
   if (!Number.isFinite(numeric)) {
-    return 0;
+    return 0
   }
-  return numeric >= 0 ? numeric : 0;
-};
+  return numeric >= 0 ? numeric : 0
+}
 
 const resolveOptionalNumber = (value: unknown): number | null => {
-  const numeric = Number(value);
+  if (value === undefined || value === null || value === "") return null
+  const numeric = Number(value)
   if (!Number.isFinite(numeric)) {
-    return null;
+    return null
   }
-  return numeric >= 0 ? numeric : 0;
-};
+  return numeric >= 0 ? numeric : 0
+}
 
 const normalizeIdForApi = (value: string): number | string => {
-  const numeric = Number(value);
+  const numeric = Number(value)
   if (Number.isInteger(numeric)) {
-    return numeric;
+    return numeric
   }
-  return value;
-};
+  return value
+}
 
 const galleryImages = computed<string[]>(() => {
-  const raw = productDetail.value?.imageUrls;
+  const raw = productDetail.value?.imageUrls
   const fromApi = Array.isArray(raw)
-    ? raw.filter((item): item is string => typeof item === 'string' && item.trim().length > 0)
-    : [];
-  return fromApi.length ? fromApi : fallbackGallery;
-});
+    ? raw.filter(
+        (item): item is string =>
+          typeof item === "string" && item.trim().length > 0,
+      )
+    : []
+  return fromApi.length ? fromApi : fallbackGallery
+})
 
-const heroImage = computed(() => galleryImages.value[selectedImageIndex.value] || fallbackGallery[0]);
+const heroImage = computed(
+  () => galleryImages.value[selectedImageIndex.value] || fallbackGallery[0],
+)
 
 const showPreviousImage = () => {
-  const imageCount = galleryImages.value.length;
+  const imageCount = galleryImages.value.length
   if (imageCount <= 1) {
-    return;
+    return
   }
-  selectedImageIndex.value = (selectedImageIndex.value - 1 + imageCount) % imageCount;
-};
+  selectedImageIndex.value =
+    (selectedImageIndex.value - 1 + imageCount) % imageCount
+}
 
 const showNextImage = () => {
-  const imageCount = galleryImages.value.length;
+  const imageCount = galleryImages.value.length
   if (imageCount <= 1) {
-    return;
+    return
   }
-  selectedImageIndex.value = (selectedImageIndex.value + 1) % imageCount;
-};
+  selectedImageIndex.value = (selectedImageIndex.value + 1) % imageCount
+}
 
 const displayTitle = computed(() =>
   pickI18nValue(
     productDetail.value?.nameI18n,
-    t('client.productDetail.fallbackTitle'),
+    t("client.productDetail.fallbackTitle"),
   ),
-);
+)
 
 const parentBreadcrumbTitle = computed(() =>
   pickI18nValue(
     level1FromQuery.value?.nameI18n,
-    getRouteQueryText('breadcrumb') || getRouteQueryText('name'),
+    getRouteQueryText("breadcrumb") || getRouteQueryText("name"),
   ),
-);
+)
 
 const serviceListQuery = computed(() => {
-  const query: Record<string, string> = {};
-  const categoryId = getRouteQueryText('categoryId');
-  const level1 = getRouteQueryText('level1');
-  const keyword = getRouteQueryText('keyword');
-  const name = parentBreadcrumbTitle.value || getRouteQueryText('name');
+  const query: Record<string, string> = {}
+  const categoryId = getRouteQueryText("categoryId")
+  const level1 = getRouteQueryText("level1")
+  const keyword = getRouteQueryText("keyword")
+  const name = parentBreadcrumbTitle.value || getRouteQueryText("name")
   if (categoryId) {
-    query.categoryId = categoryId;
+    query.categoryId = categoryId
   }
   if (level1) {
-    query.level1 = level1;
+    query.level1 = level1
   }
   if (name) {
-    query.name = name;
+    query.name = name
   }
   if (keyword) {
-    query.keyword = keyword;
+    query.keyword = keyword
   }
-  return query;
-});
+  return query
+})
 
 const serviceDescriptionHtml = computed(() =>
-  normalizeRichTextHtml(
-    pickI18nValue(productDetail.value?.descI18n, ''),
-  ),
-);
+  normalizeRichTextHtml(pickI18nValue(productDetail.value?.descI18n, "")),
+)
 
 const basePrice = computed(() =>
   resolveNumber(productDetail.value?.minPrice ?? productDetail.value?.price),
-);
+)
 
 const selectedSpecValueIds = computed(() =>
   bookingSpecGroups.value
     .map((group) => selectedSpecValues.value[group.typeId])
     .filter((value): value is string => Boolean(value))
     .map((value) => normalizeIdForApi(value)),
-);
+)
 
 const attachItemsForSku = computed(() => {
-  const payloadMap = new Map<string, { attachValueId: number | string; quantity: number }>();
+  const payloadMap = new Map<
+    string,
+    { attachValueId: number | string; quantity: number }
+  >()
   bookingAttachGroups.value.forEach((group) => {
     group.options.forEach((option) => {
-      const quantity = Math.max(0, Number(attachQuantities.value[option.id] || 0));
+      const quantity = Math.max(
+        0,
+        Number(attachQuantities.value[option.id] || 0),
+      )
       payloadMap.set(option.id, {
         attachValueId: normalizeIdForApi(option.id),
         quantity,
-      });
-    });
-  });
-  return Array.from(payloadMap.values());
-});
+      })
+    })
+  })
+  return Array.from(payloadMap.values())
+})
 
 const skuRequestPayload = computed<ProductSkuPayload | null>(() => {
   if (!spuId.value) {
-    return null;
+    return null
   }
   if (!productDetail.value) {
-    return null;
+    return null
   }
   if (
     bookingSpecGroups.value.length > 0 &&
     selectedSpecValueIds.value.length !== bookingSpecGroups.value.length
   ) {
-    return null;
+    return null
   }
   return {
     spuId: normalizeIdForApi(spuId.value),
     specValueIds: selectedSpecValueIds.value,
     attachItems: attachItemsForSku.value,
-  };
-});
+  }
+})
 
 const skuRequestSignature = computed(() => {
-  const payload = skuRequestPayload.value;
-  return payload ? JSON.stringify(payload) : '';
-});
+  const payload = skuRequestPayload.value
+  return payload ? JSON.stringify(payload) : ""
+})
 
 const subtotalPrice = computed(() => {
-  const skuSubtotal = resolveOptionalNumber(skuPrice.value?.totalPrice);
-  return skuSubtotal ?? basePrice.value;
-});
+  const skuSubtotal = resolveOptionalNumber(skuPrice.value?.totalPrice)
+  return skuSubtotal ?? basePrice.value
+})
 
 const attachTotalPrice = computed(() => {
-  const fromSku = resolveOptionalNumber(skuPrice.value?.attachTotalPrice);
+  const fromSku = resolveOptionalNumber(skuPrice.value?.attachTotalPrice)
   if (fromSku !== null) {
-    return fromSku;
+    return fromSku
   }
-  const fromSkuWithTax = resolveOptionalNumber(skuPrice.value?.attachTotalPriceWithTax);
+  const fromSkuWithTax = resolveOptionalNumber(
+    skuPrice.value?.attachTotalPriceWithTax,
+  )
   if (fromSkuWithTax !== null) {
-    return fromSkuWithTax;
+    return fromSkuWithTax
   }
   return bookingAttachGroups.value.reduce((sum, group) => {
-    return sum + group.options.reduce((groupSum, option) => {
-      const quantity = Math.max(0, Number(attachQuantities.value[option.id] || 0));
-      return groupSum + option.price * quantity;
-    }, 0);
-  }, 0);
-});
+    return (
+      sum +
+      group.options.reduce((groupSum, option) => {
+        const quantity = Math.max(
+          0,
+          Number(attachQuantities.value[option.id] || 0),
+        )
+        return groupSum + option.price * quantity
+      }, 0)
+    )
+  }, 0)
+})
 
 const vatPrice = computed(() => {
-  const explicitTax = resolveOptionalNumber(skuPrice.value?.totalTaxPrice);
+  const explicitTax = resolveOptionalNumber(skuPrice.value?.totalTaxPrice)
   if (explicitTax !== null) {
-    return explicitTax;
+    return explicitTax
   }
-  const withTax = resolveOptionalNumber(skuPrice.value?.totalPriceWithTax);
-  const withoutTax = resolveOptionalNumber(skuPrice.value?.totalPrice);
+  const withTax = resolveOptionalNumber(skuPrice.value?.totalPriceWithTax)
+  const withoutTax = resolveOptionalNumber(skuPrice.value?.totalPrice)
   if (withTax !== null && withoutTax !== null) {
-    return Math.max(0, withTax - withoutTax);
+    return Math.max(0, withTax - withoutTax)
   }
-  return 0;
-});
+  return 0
+})
 
 const totalPrice = computed(() => {
-  const skuTotal = resolveOptionalNumber(skuPrice.value?.totalPriceWithTax);
+  const skuTotal = resolveOptionalNumber(skuPrice.value?.totalPriceWithTax)
   if (skuTotal !== null) {
-    return skuTotal;
+    return skuTotal
   }
-  return subtotalPrice.value;
-});
+  return subtotalPrice.value
+})
 
 const serviceContentHtml = computed(() => {
-  const detail = productDetail.value;
-  const richText = pickI18nValue(detail?.serviceContentTextI18n, '');
-  if (richText) return normalizeRichTextHtml(richText);
+  const detail = productDetail.value
+  const richText = pickI18nValue(detail?.serviceContentTextI18n, "")
+  if (richText) return normalizeRichTextHtml(richText)
 
   const mixedText = pickI18nValue(
     detail?.serviceContentI18n as unknown as I18nText | undefined,
-    '',
-  );
-  if (mixedText) return normalizeRichTextHtml(mixedText);
+    "",
+  )
+  if (mixedText) return normalizeRichTextHtml(mixedText)
 
-  return legacyListToHtml(pickI18nList(detail?.serviceContentI18n));
-});
+  return legacyListToHtml(pickI18nList(detail?.serviceContentI18n))
+})
 
 const bookingNoticeHtml = computed(() =>
   normalizeRichTextHtml(
-    pickI18nValue(productDetail.value?.bookingNoticeI18n, ''),
+    pickI18nValue(productDetail.value?.bookingNoticeI18n, ""),
   ),
-);
+)
 
 const normalizeRating = (value: unknown): number => {
-  const rating = Number(value);
+  const rating = Number(value)
   if (!Number.isFinite(rating)) {
-    return 0;
+    return 0
   }
   if (rating < 0) {
-    return 0;
+    return 0
   }
   if (rating > 5) {
-    return 5;
+    return 5
   }
-  return rating;
-};
+  return rating
+}
 
 const reviewItems = computed(() => {
   const source = Array.isArray(productDetail.value?.reviewList)
     ? productDetail.value?.reviewList || []
-    : [];
+    : []
   return source.map((item) => {
-    const commenter = formatContactName(item.firstName, item.lastName)
-      || formatContactName(item.user?.firstName, item.user?.lastName)
-      || String(item.customerName ?? '').trim()
-      || String(item.customerFullName ?? '').trim()
-      || String(item.fullName ?? '').trim()
-      || String(item.reviewerName ?? '').trim()
-      || String(item.nickname ?? '').trim()
-      || String(item.displayName ?? '').trim()
-      || String(item.user?.name ?? '').trim()
-      || String(item.user?.nickname ?? '').trim()
-      || String(item.name ?? '').trim()
-      || t('client.productDetail.reviewUser');
-    const content = String(item.content ?? '').trim() || t('client.productDetail.reviewText');
-    const avatarUrl = typeof item.avatarUrl === 'string' ? item.avatarUrl.trim() : '';
-    const rawCommentTime = String(item.commentTime ?? '').trim();
+    const commenter =
+      formatContactName(item.firstName, item.lastName) ||
+      formatContactName(item.user?.firstName, item.user?.lastName) ||
+      String(item.customerName ?? "").trim() ||
+      String(item.customerFullName ?? "").trim() ||
+      String(item.fullName ?? "").trim() ||
+      String(item.reviewerName ?? "").trim() ||
+      String(item.nickname ?? "").trim() ||
+      String(item.displayName ?? "").trim() ||
+      String(item.user?.name ?? "").trim() ||
+      String(item.user?.nickname ?? "").trim() ||
+      String(item.name ?? "").trim() ||
+      t("client.productDetail.reviewUser")
+    const content =
+      String(item.content ?? "").trim() || t("client.productDetail.reviewText")
+    const avatarUrl =
+      typeof item.avatarUrl === "string" ? item.avatarUrl.trim() : ""
+    const rawCommentTime = String(item.commentTime ?? "").trim()
     const commentTime = rawCommentTime
       ? formatCreatedAt(rawCommentTime, locale.value, rawCommentTime)
-      : '';
-    const avatarText = commenter.slice(0, 1).toUpperCase();
+      : ""
+    const avatarText = commenter.slice(0, 1).toUpperCase()
     return {
       commenter,
       content,
@@ -827,439 +915,481 @@ const reviewItems = computed(() => {
       commentTime,
       avatarText,
       rating: normalizeRating(item.rating),
-    };
-  });
-});
+    }
+  })
+})
 
 type BookingSpecOption = {
-  id: string;
-  label: string;
-};
+  id: string
+  label: string
+}
 
 type BookingSpecGroup = {
-  typeId: string;
-  label: string;
-  options: BookingSpecOption[];
-};
+  typeId: string
+  label: string
+  options: BookingSpecOption[]
+}
 
 type BookingAttachOption = {
-  id: string;
-  label: string;
-  price: number;
-};
+  id: string
+  label: string
+  price: number
+}
 
 type BookingAttachGroup = {
-  typeId: string;
-  label: string;
-  options: BookingAttachOption[];
-};
+  typeId: string
+  label: string
+  options: BookingAttachOption[]
+}
 
 const buildAttachOptionPriceMap = (record: ProductDetailRecord | null) => {
-  const map: Record<string, number> = {};
-  if (!record || typeof record !== 'object') {
-    return map;
+  const map: Record<string, number> = {}
+  if (!record || typeof record !== "object") {
+    return map
   }
 
   const appendByMap = (source: unknown) => {
-    if (!source || typeof source !== 'object' || Array.isArray(source)) {
-      return;
+    if (!source || typeof source !== "object" || Array.isArray(source)) {
+      return
     }
-    Object.entries(source as Record<string, unknown>).forEach(([id, rawPrice]) => {
-      const cleanId = String(id || '').trim();
-      if (!cleanId) {
-        return;
-      }
-      const price = resolveOptionalNumber(rawPrice);
-      if (price === null) {
-        return;
-      }
-      if (map[cleanId] === undefined || map[cleanId] <= 0) {
-        map[cleanId] = price;
-      }
-    });
-  };
+    Object.entries(source as Record<string, unknown>).forEach(
+      ([id, rawPrice]) => {
+        const cleanId = String(id || "").trim()
+        if (!cleanId) {
+          return
+        }
+        const price = resolveOptionalNumber(rawPrice)
+        if (price === null) {
+          return
+        }
+        if (map[cleanId] === undefined || map[cleanId] <= 0) {
+          map[cleanId] = price
+        }
+      },
+    )
+  }
 
   const appendByArray = (source: unknown) => {
     if (!Array.isArray(source)) {
-      return;
+      return
     }
     source.forEach((item) => {
-      if (!item || typeof item !== 'object') {
-        return;
+      if (!item || typeof item !== "object") {
+        return
       }
-      const entry = item as Record<string, unknown>;
-      const id = String(entry.id ?? entry.attachValueId ?? entry.valueId ?? '').trim();
+      const entry = item as Record<string, unknown>
+      const id = String(
+        entry.id ?? entry.attachValueId ?? entry.valueId ?? "",
+      ).trim()
       if (!id) {
-        return;
+        return
       }
       const price = resolveOptionalNumber(
         entry.price ?? entry.amount ?? entry.attachPrice ?? entry.attachAmount,
-      );
+      )
       if (price === null) {
-        return;
+        return
       }
       if (map[id] === undefined || map[id] <= 0) {
-        map[id] = price;
+        map[id] = price
       }
-    });
-  };
+    })
+  }
 
-  appendByMap((record as any).attachValuePriceMap);
-  appendByMap((record as any).attachValueAmountMap);
-  appendByMap((record as any).attachPriceMap);
-  appendByMap((record as any).attachAmountMap);
-  appendByMap((record as any).attachValuePrices);
-  appendByMap((record as any).attachValueAmounts);
+  appendByMap((record as any).attachValuePriceMap)
+  appendByMap((record as any).attachValueAmountMap)
+  appendByMap((record as any).attachPriceMap)
+  appendByMap((record as any).attachAmountMap)
+  appendByMap((record as any).attachValuePrices)
+  appendByMap((record as any).attachValueAmounts)
 
-  appendByArray((record as any).attachValues);
-  appendByArray((record as any).attachValueList);
-  appendByArray((record as any).attachValueItems);
-  appendByArray((record as any).attachOptions);
-  appendByArray((record as any).addons);
-  appendByArray((record as any).addonOptions);
+  appendByArray((record as any).attachValues)
+  appendByArray((record as any).attachValueList)
+  appendByArray((record as any).attachValueItems)
+  appendByArray((record as any).attachOptions)
+  appendByArray((record as any).addons)
+  appendByArray((record as any).addonOptions)
 
   const bindings = Array.isArray((record as any).attachBindings)
     ? ((record as any).attachBindings as Array<Record<string, unknown>>)
-    : [];
+    : []
   bindings.forEach((binding) => {
     Object.values(binding).forEach((value) => {
-      appendByArray(value);
-    });
-  });
+      appendByArray(value)
+    })
+  })
 
-  return map;
-};
+  return map
+}
 
 const attachOptionPriceMap = computed(() =>
   buildAttachOptionPriceMap(productDetail.value),
-);
+)
 
 const bookingSpecGroups = computed<BookingSpecGroup[]>(() => {
-  const record = productDetail.value;
-  const bindings = Array.isArray(record?.specBindings) ? record.specBindings : [];
+  const record = productDetail.value
+  const bindings = Array.isArray(record?.specBindings)
+    ? record.specBindings
+    : []
   return bindings
     .map((binding) => {
-      const typeId = String(binding.specTypeId ?? '').trim();
+      const typeId = String(binding.specTypeId ?? "").trim()
       if (!typeId) {
-        return null;
+        return null
       }
-      const label = pickI18nValue(record?.specTypeNameI18n?.[typeId], typeId);
-      const valueIds = Array.isArray(binding.specValueIds) ? binding.specValueIds : [];
+      const label = pickI18nValue(record?.specTypeNameI18n?.[typeId], typeId)
+      const valueIds = Array.isArray(binding.specValueIds)
+        ? binding.specValueIds
+        : []
       const options = valueIds
         .map((valueId) => {
-          const id = String(valueId ?? '').trim();
+          const id = String(valueId ?? "").trim()
           if (!id) {
-            return null;
+            return null
           }
-          const optionLabel = pickI18nValue(record?.specValueNameI18n?.[id], id);
-          return optionLabel ? { id, label: optionLabel } : null;
+          const optionLabel = pickI18nValue(record?.specValueNameI18n?.[id], id)
+          return optionLabel ? { id, label: optionLabel } : null
         })
-        .filter((item): item is BookingSpecOption => Boolean(item));
+        .filter((item): item is BookingSpecOption => Boolean(item))
       if (!options.length) {
-        return null;
+        return null
       }
       return {
         typeId,
         label,
         options,
-      };
+      }
     })
-    .filter((item): item is BookingSpecGroup => Boolean(item));
-});
+    .filter((item): item is BookingSpecGroup => Boolean(item))
+})
 
 const selectedSpecSummary = computed(() => {
   return bookingSpecGroups.value
     .map((group) => {
-      const selectedId = selectedSpecValues.value[group.typeId];
-      const selected = group.options.find((option) => option.id === selectedId);
-      return selected?.label || '';
+      const selectedId = selectedSpecValues.value[group.typeId]
+      const selected = group.options.find((option) => option.id === selectedId)
+      return selected?.label || ""
     })
     .filter(Boolean)
-    .join(' / ');
-});
+    .join(" / ")
+})
 
 const bookingAttachGroups = computed<BookingAttachGroup[]>(() => {
-  const record = productDetail.value;
-  const bindings = Array.isArray(record?.attachBindings) ? record.attachBindings : [];
+  const record = productDetail.value
+  const bindings = Array.isArray(record?.attachBindings)
+    ? record.attachBindings
+    : []
   return bindings
     .map((binding) => {
-      const typeId = String(binding.attachTypeId ?? '').trim();
+      const typeId = String(binding.attachTypeId ?? "").trim()
       if (!typeId) {
-        return null;
+        return null
       }
-      const label = pickI18nValue(record?.attachTypeNameI18n?.[typeId], typeId);
-      const valueIds = Array.isArray(binding.attachValueIds) ? binding.attachValueIds : [];
+      const label = pickI18nValue(record?.attachTypeNameI18n?.[typeId], typeId)
+      const valueIds = Array.isArray(binding.attachValueIds)
+        ? binding.attachValueIds
+        : []
       const options = valueIds
         .map((valueId) => {
-          const id = String(valueId ?? '').trim();
+          const id = String(valueId ?? "").trim()
           if (!id) {
-            return null;
+            return null
           }
-          const optionLabel = pickI18nValue(record?.attachValueNameI18n?.[id], id);
+          const optionLabel = pickI18nValue(
+            record?.attachValueNameI18n?.[id],
+            id,
+          )
           return optionLabel
-            ? { id, label: optionLabel, price: attachOptionPriceMap.value[id] ?? 0 }
-            : null;
+            ? {
+                id,
+                label: optionLabel,
+                price: attachOptionPriceMap.value[id] ?? 0,
+              }
+            : null
         })
-        .filter((item): item is BookingAttachOption => Boolean(item));
+        .filter((item): item is BookingAttachOption => Boolean(item))
       if (!options.length) {
-        return null;
+        return null
       }
       return {
         typeId,
         label,
         options,
-      };
+      }
     })
-    .filter((item): item is BookingAttachGroup => Boolean(item));
-});
+    .filter((item): item is BookingAttachGroup => Boolean(item))
+})
 
 const loadProductDetail = async () => {
   if (!spuId.value) {
-    productDetail.value = null;
-    skuPrice.value = null;
-    return;
+    productDetail.value = null
+    skuPrice.value = null
+    return
   }
-  isLoading.value = true;
-  skuPrice.value = null;
+  isLoading.value = true
+  skuPrice.value = null
   try {
-    const payload = await getProductDetail(spuId.value);
+    const payload = await getProductDetail(spuId.value)
     productDetail.value =
-      payload && typeof payload === 'object'
+      payload && typeof payload === "object"
         ? (payload as ProductDetailRecord)
-        : null;
+        : null
   } catch (error) {
-    console.error('load product detail failed:', error);
-    productDetail.value = null;
+    console.error("load product detail failed:", error)
+    productDetail.value = null
   } finally {
-    isLoading.value = false;
+    isLoading.value = false
   }
-};
+}
 
 const loadSkuPrice = async (payload: ProductSkuPayload) => {
-  const requestId = skuRequestSeq.value + 1;
-  skuRequestSeq.value = requestId;
+  const requestId = skuRequestSeq.value + 1
+  skuRequestSeq.value = requestId
   try {
-    const result = await getProductSku(payload);
+    const result = await getProductSku(payload)
     if (requestId !== skuRequestSeq.value) {
-      return;
+      return
     }
-    skuPrice.value = result && typeof result === 'object'
-      ? (result as ProductSkuRecord)
-      : null;
+    skuPrice.value =
+      result && typeof result === "object" ? (result as ProductSkuRecord) : null
   } catch (error) {
     if (requestId !== skuRequestSeq.value) {
-      return;
+      return
     }
-    console.error('load product sku failed:', error);
-    skuPrice.value = null;
+    console.error("load product sku failed:", error)
+    skuPrice.value = null
   }
-};
+}
 
 watch(
   () => spuId.value,
   () => {
-    void loadProductDetail();
+    void loadProductDetail()
   },
   { immediate: true },
-);
+)
 
 watch(
-  () => [spuId.value, getRouteQueryText('specSelections'), getRouteQueryText('attachSelections')],
+  () => [
+    spuId.value,
+    getRouteQueryText("specSelections"),
+    getRouteQueryText("attachSelections"),
+  ],
   () => {
-    selectedSpecValues.value = {};
-    attachQuantities.value = {};
+    selectedSpecValues.value = {}
+    attachQuantities.value = {}
   },
   { immediate: true },
-);
+)
 
 watch(
   () => galleryImages.value.length,
   (length) => {
     if (!length) {
-      selectedImageIndex.value = 0;
-      return;
+      selectedImageIndex.value = 0
+      return
     }
     if (selectedImageIndex.value >= length) {
-      selectedImageIndex.value = 0;
+      selectedImageIndex.value = 0
     }
   },
   { immediate: true },
-);
+)
 
 watch(
   () => bookingSpecGroups.value,
   (groups) => {
-    const rebookMap = rebookSpecSelectionMap.value;
-    const next: Record<string, string> = {};
+    const rebookMap = rebookSpecSelectionMap.value
+    const next: Record<string, string> = {}
     groups.forEach((group) => {
-      const current = selectedSpecValues.value[group.typeId];
-      const isValid = group.options.some((option) => option.id === current);
-      const rebookSelected = rebookMap[group.typeId];
-      const isRebookValid = group.options.some((option) => option.id === rebookSelected);
+      const current = selectedSpecValues.value[group.typeId]
+      const isValid = group.options.some((option) => option.id === current)
+      const rebookSelected = rebookMap[group.typeId]
+      const isRebookValid = group.options.some(
+        (option) => option.id === rebookSelected,
+      )
       next[group.typeId] = isValid
         ? current
-        : (isRebookValid ? rebookSelected : group.options[0].id);
-    });
-    selectedSpecValues.value = next;
+        : isRebookValid
+          ? rebookSelected
+          : group.options[0].id
+    })
+    selectedSpecValues.value = next
   },
   { immediate: true },
-);
+)
 
 watch(
   () => bookingAttachGroups.value,
   (groups) => {
-    const rebookMap = rebookAttachSelectionMap.value;
-    const next: Record<string, number> = {};
+    const rebookMap = rebookAttachSelectionMap.value
+    const next: Record<string, number> = {}
     groups.forEach((group) => {
       group.options.forEach((option) => {
-        const current = attachQuantities.value[option.id];
-        const rebookQuantity = rebookMap[option.id];
-        next[option.id] = Number.isFinite(current) && current > 0
-          ? current
-          : (Number.isFinite(rebookQuantity) && rebookQuantity > 0 ? rebookQuantity : 0);
-      });
-    });
-    attachQuantities.value = next;
+        const current = attachQuantities.value[option.id]
+        const rebookQuantity = rebookMap[option.id]
+        next[option.id] =
+          Number.isFinite(current) && current > 0
+            ? current
+            : Number.isFinite(rebookQuantity) && rebookQuantity > 0
+              ? rebookQuantity
+              : 0
+      })
+    })
+    attachQuantities.value = next
   },
   { immediate: true },
-);
+)
 
 watch(
   () => skuRequestSignature.value,
   () => {
-    const payload = skuRequestPayload.value;
+    const payload = skuRequestPayload.value
     if (!payload) {
-      skuPrice.value = null;
-      return;
+      skuPrice.value = null
+      return
     }
-    void loadSkuPrice(payload);
+    void loadSkuPrice(payload)
   },
   { immediate: true },
-);
+)
 
-const formatAed = (value: number) => `AED ${value.toFixed(2)}`;
+const formatAed = (value: number) => `AED ${value.toFixed(2)}`
 
 const selectSpecValue = (typeId: string, valueId: string) => {
   selectedSpecValues.value = {
     ...selectedSpecValues.value,
     [typeId]: valueId,
-  };
-};
+  }
+}
 
 const increaseAttachQty = (valueId: string) => {
-  const current = attachQuantities.value[valueId] || 0;
+  const current = attachQuantities.value[valueId] || 0
   attachQuantities.value = {
     ...attachQuantities.value,
     [valueId]: current + 1,
-  };
-};
+  }
+}
 
 const decreaseAttachQty = (valueId: string) => {
-  const current = attachQuantities.value[valueId] || 0;
+  const current = attachQuantities.value[valueId] || 0
   attachQuantities.value = {
     ...attachQuantities.value,
     [valueId]: Math.max(0, current - 1),
-  };
-};
+  }
+}
 
 const handleAddToCart = async () => {
-  const payload = skuRequestPayload.value;
+  const payload = skuRequestPayload.value
   if (!payload) {
-    ElMessage.warning(t('client.productDetail.booking.createOrderInvalid'));
-    return;
+    ElMessage.warning(t("client.productDetail.booking.createOrderInvalid"))
+    return
   }
-  const authSnapshot = getStoredAuthSnapshot();
-  if (authSnapshot.isExpired) clearStoredAuthState();
+  const authSnapshot = getStoredAuthSnapshot()
+  if (authSnapshot.isExpired) clearStoredAuthState()
   if (!authSnapshot.isLoggedIn) {
-    await router.push({ name: 'login', query: { redirect: route.fullPath } });
-    return;
+    await router.push({ name: "login", query: { redirect: route.fullPath } })
+    return
   }
   await router.push({
-    name: 'order-confirm',
+    name: "order-confirm",
     query: {
-      mode: 'cart',
+      mode: "cart",
       cartSkuDetail: JSON.stringify(payload),
       spuId: spuId.value,
-      skuId: skuPrice.value?.skuId ? String(skuPrice.value.skuId) : '',
+      skuId: skuPrice.value?.skuId ? String(skuPrice.value.skuId) : "",
       title: displayTitle.value,
       titleI18n: JSON.stringify(productDetail.value?.nameI18n || {}),
       specSummary: selectedSpecSummary.value,
-      selectedSpecValueIds: JSON.stringify(selectedSpecValueIds.value.map((id) => String(id))),
+      selectedSpecValueIds: JSON.stringify(
+        selectedSpecValueIds.value.map((id) => String(id)),
+      ),
+      specValueNameI18n: JSON.stringify(
+        productDetail.value?.specValueNameI18n || {},
+      ),
       subtotal: subtotalPrice.value.toFixed(2),
       tax: vatPrice.value.toFixed(2),
       total: totalPrice.value.toFixed(2),
     },
-  });
-};
+  })
+}
 
 const goServicesHome = () => {
-  router.push({ path: '/', hash: '#services' });
-};
+  router.push({ path: "/", hash: "#services" })
+}
 
 const goServiceList = () => {
-  const path = getRouteQueryText('keyword') ? '/services/search' : '/services/daily-cleaning';
+  const path = getRouteQueryText("keyword")
+    ? "/services/search"
+    : "/services/daily-cleaning"
   router.push({
     path,
-    query: Object.keys(serviceListQuery.value).length ? serviceListQuery.value : undefined,
-  });
-};
+    query: Object.keys(serviceListQuery.value).length
+      ? serviceListQuery.value
+      : undefined,
+  })
+}
 
 const goOrderConfirm = async () => {
   if (isCreatingOrder.value) {
-    return;
+    return
   }
 
-  const authSnapshot = getStoredAuthSnapshot();
+  const authSnapshot = getStoredAuthSnapshot()
   if (authSnapshot.isExpired) {
-    clearStoredAuthState();
+    clearStoredAuthState()
   }
   if (!authSnapshot.isLoggedIn) {
     await router.push({
-      name: 'login',
+      name: "login",
       query: { redirect: route.fullPath },
-    });
-    return;
+    })
+    return
   }
 
-  const payload = skuRequestPayload.value;
+  const payload = skuRequestPayload.value
   if (!payload) {
-    ElMessage.warning(t('client.productDetail.booking.createOrderInvalid'));
-    return;
+    ElMessage.warning(t("client.productDetail.booking.createOrderInvalid"))
+    return
   }
 
-  isCreatingOrder.value = true;
+  isCreatingOrder.value = true
   try {
-    const createdOrderId = await createOrder(payload);
-    const orderIdText = String(createdOrderId ?? '').trim();
+    const createdOrderId = await createOrder(payload)
+    const orderIdText = String(createdOrderId ?? "").trim()
     if (!orderIdText) {
-      ElMessage.error(t('client.productDetail.booking.createOrderFailed'));
-      return;
+      ElMessage.error(t("client.productDetail.booking.createOrderFailed"))
+      return
     }
 
     router.push({
-      name: 'order-confirm',
+      name: "order-confirm",
       query: {
         orderId: orderIdText,
         spuId: spuId.value,
-        skuId: skuPrice.value?.skuId ? String(skuPrice.value.skuId) : '',
+        skuId: skuPrice.value?.skuId ? String(skuPrice.value.skuId) : "",
         title: displayTitle.value,
         titleI18n: JSON.stringify(productDetail.value?.nameI18n || {}),
         specSummary: selectedSpecSummary.value,
         selectedSpecValueIds: JSON.stringify(
           selectedSpecValueIds.value.map((id) => String(id)),
         ),
-        specValueNameI18n: JSON.stringify(productDetail.value?.specValueNameI18n || {}),
+        specValueNameI18n: JSON.stringify(
+          productDetail.value?.specValueNameI18n || {},
+        ),
         subtotal: subtotalPrice.value.toFixed(2),
         tax: vatPrice.value.toFixed(2),
         total: totalPrice.value.toFixed(2),
       },
-    });
+    })
   } catch (error: any) {
-    ElMessage.error(error?.message || t('client.productDetail.booking.createOrderFailed'));
+    ElMessage.error(
+      error?.message || t("client.productDetail.booking.createOrderFailed"),
+    )
   } finally {
-    isCreatingOrder.value = false;
+    isCreatingOrder.value = false
   }
-};
+}
 </script>
 
 <style scoped lang="scss">
@@ -1979,7 +2109,12 @@ const goOrderConfirm = async () => {
 
 .booking-submit {
   border: 1.5px solid var(--hourx-brand);
-  background: linear-gradient(135deg, #0b2a4d 0%, var(--hourx-brand) 68%, #020c1a 100%);
+  background: linear-gradient(
+    135deg,
+    #0b2a4d 0%,
+    var(--hourx-brand) 68%,
+    #020c1a 100%
+  );
   color: #fff;
   box-shadow: 0 10px 20px rgba(5, 21, 43, 0.2);
 }

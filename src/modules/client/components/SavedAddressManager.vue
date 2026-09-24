@@ -70,10 +70,12 @@
 
           <GoogleAddressPicker
             :locale="String(locale)"
+            :latitude="form.latitude"
+            :longitude="form.longitude"
             @select="applyGoogleAddress"
           />
 
-          <div v-if="!editingId" class="address-editor__location" :class="`is-${locationStatusType}`">
+          <div class="address-editor__location" :class="`is-${locationStatusType}`">
             <button type="button" :disabled="locating" @click="fillWithCurrentLocation(true)">
               <svg viewBox="0 0 24 24" aria-hidden="true">
                 <circle cx="12" cy="12" r="3" />
@@ -198,6 +200,8 @@ const form = reactive({
   building: '',
   roomNo: '',
   community: '',
+  latitude: null as number | null,
+  longitude: null as number | null,
   additionalNotes: '',
   category: 'home' as AddressCategory,
 });
@@ -211,6 +215,11 @@ const editorTitle = computed(() => editingId.value
   ? t('client.orderConfirm.addressBook.editTitle')
   : t('client.orderConfirm.addressBook.addTitle'));
 const normalize = (value: unknown) => String(value || '').trim();
+const normalizeCoordinate = (value: unknown) => {
+  if (value === null || value === undefined || String(value).trim() === '') return null;
+  const coordinate = Number(value);
+  return Number.isFinite(coordinate) ? coordinate : null;
+};
 const normalizeCategory = (category: unknown): AddressCategory =>
   category === 'home' || category === 'office' || category === 'others' ? category : 'others';
 const categoryLabel = (category: unknown) => {
@@ -243,7 +252,9 @@ const loadAddresses = async () => {
 const resetForm = () => Object.assign(form, {
   fullName: '',
   phoneCountryCode: '+971', phone: '',
-  district: '', address: '', building: '', roomNo: '', community: '', additionalNotes: '', category: 'home' as AddressCategory,
+  district: '', address: '', building: '', roomNo: '', community: '',
+  latitude: null, longitude: null,
+  additionalNotes: '', category: 'home' as AddressCategory,
 });
 
 const locationErrorKeyMap: Record<LocationLookupErrorCode, string> = {
@@ -264,13 +275,15 @@ const fillWithCurrentLocation = async (overwrite = false) => {
     : 'Getting your current location and filling the area and street…';
   try {
     const result = await locateCurrentAddress(String(locale.value));
-    if (requestId !== locationRequestId || !editorVisible.value || editingId.value) return;
+    if (requestId !== locationRequestId || !editorVisible.value) return;
     if (overwrite || !normalize(form.community)) {
       const area = result.district || result.address;
       form.community = area;
       form.district = area;
       form.address = result.street || result.address;
     }
+    form.latitude = result.latitude;
+    form.longitude = result.longitude;
     locationStatusType.value = 'success';
     locationStatus.value = locale.value === 'zh'
       ? '已自动填写区域和街道，请补充楼栋、别墅、公寓或楼层信息。'
@@ -311,6 +324,8 @@ const applyGoogleAddress = (selection: GoogleAddressSelection) => {
   if (normalize(selection.building) && !normalize(form.building)) {
     form.building = normalize(selection.building);
   }
+  form.latitude = selection.latitude;
+  form.longitude = selection.longitude;
   locationStatusType.value = 'success';
   locationStatus.value = locale.value === 'zh'
     ? '已从 Google 地图填写区域和街道，请确认并补充楼栋、房间或楼层信息。'
@@ -326,6 +341,8 @@ const openEdit = (item: ClientAddressRecord) => {
     district: normalize(item.district), address: normalize(item.address),
     building: normalize(item.building),
     roomNo: normalize(item.roomNo), community: normalize(item.community) || normalize(item.district),
+    latitude: normalizeCoordinate(item.latitude),
+    longitude: normalizeCoordinate(item.longitude),
     additionalNotes: normalize(item.additionalNotes), category: item.category || 'others',
   });
   formError.value = '';
@@ -366,6 +383,8 @@ const saveAddress = async () => {
       address: normalize(form.address), building: normalize(form.building),
       roomNo: normalize(form.roomNo),
       community: normalize(form.community) || undefined,
+      latitude: normalizeCoordinate(form.latitude) ?? undefined,
+      longitude: normalizeCoordinate(form.longitude) ?? undefined,
       additionalNotes: normalize(form.additionalNotes) || undefined,
       category: form.category,
     };
@@ -373,11 +392,18 @@ const saveAddress = async () => {
     let savedRecord: ClientAddressRecord | null = null;
     if (editingId.value) {
       await updateClientAddress({ id: editingId.value, ...payload });
+      savedRecord = { id: editingId.value, ...payload } as ClientAddressRecord;
     } else {
       const added = await addClientAddress(payload);
       savedId = Number(typeof added === 'number' ? added : added?.id);
       if (!Number.isFinite(savedId)) savedId = null;
-      if (added && typeof added === 'object') savedRecord = added;
+      if (savedId !== null) {
+        savedRecord = {
+          ...(added && typeof added === 'object' ? added : {}),
+          ...payload,
+          id: savedId,
+        } as ClientAddressRecord;
+      }
     }
     editorVisible.value = false;
     messageType.value = 'success';

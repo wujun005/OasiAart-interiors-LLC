@@ -90,8 +90,7 @@
             <van-icon class="h5-profile-row__arrow" name="arrow" />
           </button>
           <div v-if="activeSection === 'payments'" class="h5-profile-panel">
-            <p class="h5-profile-empty">{{ t('h5.profile.payments.empty') }}</p>
-            <p class="h5-profile-panel__note">{{ t('h5.profile.payments.note') }}</p>
+            <SavedPaymentMethodManager />
           </div>
         </div>
 
@@ -233,6 +232,7 @@ import { setClientLocale } from '@/modules/client/locales';
 import { useAuth } from '@/modules/h5/composables/useAuth';
 import { useCart } from '@/modules/client/composables/useCart';
 import SavedAddressManager from '@/modules/client/components/SavedAddressManager.vue';
+import SavedPaymentMethodManager from '@/modules/client/components/SavedPaymentMethodManager.vue';
 import { getFaqGroups } from '@/modules/client/data/faq';
 
 type ProfileSection = 'personal' | 'addresses' | 'payments' | 'notifications' | 'support';

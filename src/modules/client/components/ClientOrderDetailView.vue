@@ -157,11 +157,30 @@
                 <dt>{{ paymentSummaryLabel }}</dt>
                 <dd>{{ paymentSummaryText }}</dd>
               </div>
-              <div class="is-total">
+              <div>
+                <dt>{{ locale.startsWith("zh") ? "小计" : "Subtotal" }}</dt>
+                <dd>{{ formatAed(orderSubtotal) }}</dd>
+              </div>
+              <div>
+                <dt>{{ locale.startsWith("zh") ? "增值税 VAT（5%）" : "VAT (5%)" }}</dt>
+                <dd>{{ formatAed(orderTax) }}</dd>
+              </div>
+              <div
+                class="is-total"
+                :class="{ 'has-refund-breakdown': showRefundBreakdown }"
+              >
                 <dt>
-                  {{ locale.startsWith("zh") ? "订单总额（含 VAT）" : "Total (incl. VAT)" }}
+                  {{ locale.startsWith("zh") ? "总额" : "Total" }}
                 </dt>
                 <dd>{{ formatAed(order.orderAmount) }}</dd>
+              </div>
+              <div v-if="showRefundBreakdown" class="is-refund-deduction">
+                <dt>{{ locale.startsWith("zh") ? "扣款金额" : "Deducted amount" }}</dt>
+                <dd>− {{ formatAed(refundHandlingFeeAmount) }}</dd>
+              </div>
+              <div v-if="showRefundBreakdown" class="is-refund-amount">
+                <dt>{{ locale.startsWith("zh") ? "退款金额" : "Refund amount" }}</dt>
+                <dd>{{ formatAed(refundedAmount) }}</dd>
               </div>
             </dl>
           </section>
@@ -245,6 +264,9 @@
               : `How was your ${serviceTitle} service?`
           }}
         </p>
+        <span class="client-order-detail__review-field-label">
+          {{ locale.startsWith("zh") ? "评分" : "Rating" }}
+        </span>
         <div
           class="client-order-detail__review-stars"
           :aria-label="locale.startsWith('zh') ? '评分' : 'Rating'"
@@ -259,6 +281,35 @@
             ★
           </button>
         </div>
+        <small
+          v-if="reviewRatingLabel"
+          class="client-order-detail__review-rating-label"
+        >
+          {{ reviewRatingLabel }}
+        </small>
+        <div class="client-order-detail__review-tag-field">
+          <span class="client-order-detail__review-field-label">
+            {{
+              locale.startsWith("zh")
+                ? "你最满意什么？"
+                : "WHAT DID YOU LIKE MOST?"
+            }}
+          </span>
+          <div class="client-order-detail__review-tags">
+            <button
+              v-for="tag in reviewTagOptions"
+              :key="tag"
+              type="button"
+              :class="{ 'is-selected': reviewTags.includes(tag) }"
+              @click="toggleReviewTag(tag)"
+            >
+              {{ tag }}
+            </button>
+          </div>
+        </div>
+        <span class="client-order-detail__review-field-label">
+          {{ locale.startsWith("zh") ? "评价内容" : "Comment" }}
+        </span>
         <textarea
           v-model.trim="reviewContent"
           maxlength="500"
@@ -266,7 +317,9 @@
             locale.startsWith('zh') ? '写下您的服务体验…' : 'Write your review…'
           "
         />
-        <small>{{ reviewContent.length }}/500</small>
+        <small class="client-order-detail__review-counter">
+          {{ reviewContent.length }}/500
+        </small>
         <p v-if="reviewError" class="client-order-detail__review-error">
           {{ reviewError }}
         </p>
@@ -417,6 +470,9 @@
 
     <CancellationPolicyGate
       v-model="cancelPolicyVisible"
+      :show-refund-summary="cancelForm.mode === 'refund'"
+      :handling-fee-text="cancelForm.handlingFeeText"
+      :refund-amount-text="cancelForm.amountText"
       @continue="continueCancellation"
     />
 
@@ -486,7 +542,9 @@ import {
   checkOrderRefund,
   getAvailableSelectTime,
   getClientProfile,
+  getOrderByOrderNo,
   getOrderList,
+  getOrderRefundAmount,
   getRefundReasons,
   requestOrderRefund,
   rescheduleOrder,
@@ -520,6 +578,7 @@ const reviewDialogVisible = ref(false)
 const reviewSubmitting = ref(false)
 const reviewRating = ref(0)
 const reviewContent = ref("")
+const reviewTags = ref<string[]>([])
 const reviewError = ref("")
 const cancelPolicyVisible = ref(false)
 const cancelDialogVisible = ref(false)
@@ -532,6 +591,10 @@ const cancelForm = reactive({
   mode: "refund" as "refund" | "cancel",
   amountText: "",
   handlingFeeText: "",
+})
+const refundSummaryFallback = reactive({
+  handlingFee: null as number | null,
+  refundedAmount: null as number | null,
 })
 
 // Reschedule dialog state
@@ -676,6 +739,25 @@ const naturalSpecText = computed(() =>
 )
 const addOnsText = computed(() =>
   formatOrderAddOns(order.value?.attachSelections, locale.value),
+)
+const orderTotal = computed(() => Math.max(0, Number(order.value?.orderAmount) || 0))
+const orderSubtotal = computed(() => orderTotal.value / 1.05)
+const orderTax = computed(() => orderTotal.value - orderSubtotal.value)
+const nullableAmount = (value: unknown) => {
+  if (value === null || value === undefined || String(value).trim() === "") return null
+  const amount = Number(value)
+  return Number.isFinite(amount) ? Math.max(0, amount) : null
+}
+const showRefundBreakdown = computed(() => rawStatus.value === 5)
+const refundHandlingFeeAmount = computed(() =>
+  nullableAmount(order.value?.refundHandlingFee)
+    ?? refundSummaryFallback.handlingFee
+    ?? 0,
+)
+const refundedAmount = computed(() =>
+  nullableAmount(order.value?.refundedAmount)
+    ?? refundSummaryFallback.refundedAmount
+    ?? Math.max(0, orderTotal.value - refundHandlingFeeAmount.value),
 )
 const serviceAddressText = computed(() =>
   [
@@ -974,9 +1056,32 @@ const goBack = () => router.push({ name: listRouteName.value })
 const closeReview = () => {
   if (!reviewSubmitting.value) reviewDialogVisible.value = false
 }
+const reviewRatingLabel = computed(() => {
+  const labels = locale.value.startsWith("zh")
+    ? ["", "较差", "一般", "满意", "很好", "非常满意"]
+    : ["", "Poor", "Fair", "Good", "Very good", "Excellent"]
+  return labels[Math.round(reviewRating.value)] || ""
+})
+const reviewTagOptions = computed(() =>
+  locale.value.startsWith("zh")
+    ? ["准时到达", "服务专业", "沟通顺畅", "细致认真", "物有所值"]
+    : [
+        "On time",
+        "Professional",
+        "Great communication",
+        "Detail-oriented",
+        "Good value",
+      ],
+)
+const toggleReviewTag = (tag: string) => {
+  const index = reviewTags.value.indexOf(tag)
+  if (index >= 0) reviewTags.value.splice(index, 1)
+  else reviewTags.value.push(tag)
+}
 const openFeedback = () => {
   reviewRating.value = 0
   reviewContent.value = ""
+  reviewTags.value = []
   reviewError.value = ""
   reviewDialogVisible.value = true
 }
@@ -988,10 +1093,14 @@ const submitFeedback = async () => {
       : "Please select a 1–5 star rating."
     return
   }
-  if (!reviewContent.value.trim()) {
+  const note = reviewContent.value.trim()
+  const content = [reviewTags.value.join(", "), note]
+    .filter(Boolean)
+    .join(" — ")
+  if (!content) {
     reviewError.value = locale.value.startsWith("zh")
-      ? "请填写评价内容。"
-      : "Please write a short review."
+      ? "请选择评价标签或填写评价内容。"
+      : "Please select a feedback tag or write a short review."
     return
   }
   reviewSubmitting.value = true
@@ -999,8 +1108,8 @@ const submitFeedback = async () => {
   try {
     await review({
       orderNo: order.value.orderNo,
-      rating: reviewRating.value,
-      content: reviewContent.value.trim(),
+      rating: Math.round(reviewRating.value),
+      content,
     })
     order.value.reviewed = true
     reviewDialogVisible.value = false
@@ -1145,6 +1254,28 @@ const openReschedule = () => {
 const closeReschedule = () => {
   if (!isRescheduleSubmitting.value) rescheduleDialogVisible.value = false
 }
+const loadOrderRecord = async (orderNo: string): Promise<OrderListRecord | null> => {
+  if (!orderNo) return null
+  const results = await Promise.allSettled([
+    getOrderList({ tab: "ACTIVE", keyWord: orderNo }),
+    getOrderList({ tab: "HISTORY", keyWord: orderNo }),
+  ])
+  const records = results.flatMap((result) =>
+    result.status === "fulfilled" && Array.isArray(result.value)
+      ? result.value
+      : [],
+  )
+  const matched = records.find(
+    (item) => String(item.orderNo || "").trim() === orderNo,
+  )
+  if (matched) return matched
+  try {
+    return (await getOrderByOrderNo(orderNo)) || records[0] || null
+  } catch (error) {
+    console.warn("load order detail fallback failed:", error)
+    return records[0] || null
+  }
+}
 const submitReschedule = async () => {
   if (isRescheduleSubmitting.value) return
   if (!rescheduleForm.serviceTime) {
@@ -1189,11 +1320,7 @@ const submitReschedule = async () => {
     )
     // Reload order data
     const orderNo = String(route.params.orderNo || "").trim()
-    const records = await getOrderList({ status: 0, keyWord: orderNo })
-    order.value =
-      records.find((item) => String(item.orderNo) === orderNo) ||
-      records[0] ||
-      null
+    order.value = await loadOrderRecord(orderNo)
     if (order.value && !orderEmail.value) {
       try {
         profileEmail.value = String((await getClientProfile())?.email || "").trim()
@@ -1231,11 +1358,7 @@ const rescheduleFromCancellation = () => {
 }
 const reloadCurrentOrder = async () => {
   const orderNo = String(route.params.orderNo || "").trim()
-  const records = await getOrderList({ status: 0, keyWord: orderNo })
-  order.value =
-    records.find((item) => String(item.orderNo) === orderNo) ||
-    records[0] ||
-    null
+  order.value = await loadOrderRecord(orderNo)
 }
 const cancelFromManage = async () => {
   const orderNo = String(order.value?.orderNo || "").trim()
@@ -1257,10 +1380,17 @@ const cancelFromManage = async () => {
     cancelForm.reason = cancelReasonOptions.value[0]?.value || "PLANS_CHANGED"
     cancelForm.otherReason = ""
     cancelForm.mode = check.canRefund ? "refund" : "cancel"
-    cancelForm.amountText = formatAed(check.canRefund ? check.refundAmount : 0)
-    cancelForm.handlingFeeText = check.canRefund
-      ? formatAed(check.handlingFee)
-      : ""
+    if (check.canRefund) {
+      const refundAmount = await getOrderRefundAmount(orderNo)
+      if (!refundAmount) throw new Error(
+        locale.value.startsWith("zh") ? "无法获取退款金额" : "Unable to load refund amount",
+      )
+      cancelForm.amountText = formatAed(refundAmount.refundAmount)
+      cancelForm.handlingFeeText = formatAed(refundAmount.handlingFee)
+    } else {
+      cancelForm.amountText = ""
+      cancelForm.handlingFeeText = ""
+    }
     cancelConfirmed.value = false
     rescheduleDialogVisible.value = false
     cancelDialogVisible.value = false
@@ -1345,11 +1475,23 @@ const runAction = (action: string) => {
 onMounted(async () => {
   try {
     const orderNo = String(route.params.orderNo || "").trim()
-    const records = await getOrderList({ status: 0, keyWord: orderNo })
-    order.value =
-      records.find((item) => String(item.orderNo) === orderNo) ||
-      records[0] ||
-      null
+    order.value = await loadOrderRecord(orderNo)
+    if (
+      order.value
+      && rawStatus.value === 5
+      && (
+        nullableAmount(order.value.refundHandlingFee) === null
+        || nullableAmount(order.value.refundedAmount) === null
+      )
+    ) {
+      try {
+        const summary = await getOrderRefundAmount(order.value.orderNo || orderNo)
+        refundSummaryFallback.handlingFee = nullableAmount(summary?.handlingFee)
+        refundSummaryFallback.refundedAmount = nullableAmount(summary?.refundAmount)
+      } catch (error) {
+        console.warn("load refunded order amount fallback failed:", error)
+      }
+    }
     if (order.value && !orderEmail.value) {
       try {
         profileEmail.value = String((await getClientProfile())?.email || "").trim()
@@ -1722,10 +1864,26 @@ onMounted(async () => {
 .client-order-detail__info-list .is-total {
   border-bottom: 0;
 }
+.client-order-detail__info-list .is-total.has-refund-breakdown {
+  border-bottom: 1px solid #f0f3f6;
+}
 .client-order-detail__info-list .is-total dt,
 .client-order-detail__info-list .is-total dd {
   color: #05152b;
   font-size: 16px;
+  font-weight: 900;
+}
+.client-order-detail__info-list .is-refund-deduction dd {
+  color: #a65b00;
+  font-weight: 800;
+}
+.client-order-detail__info-list .is-refund-amount {
+  border-bottom: 0;
+}
+.client-order-detail__info-list .is-refund-amount dt,
+.client-order-detail__info-list .is-refund-amount dd {
+  color: #087a51;
+  font-size: 15px;
   font-weight: 900;
 }
 .client-order-detail__actions {
@@ -1890,7 +2048,7 @@ onMounted(async () => {
   font-size: 13px;
 }
 .client-order-detail__review-stars {
-  margin-bottom: 16px;
+  margin: 5px 0 0;
   display: flex;
   justify-content: center;
   gap: 6px;
@@ -1906,7 +2064,51 @@ onMounted(async () => {
 .client-order-detail__review-stars button.is-active {
   color: #f6b91c;
 }
+.client-order-detail__review-field-label {
+  display: block;
+  margin-top: 15px;
+  color: #334155;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-align: left;
+  text-transform: uppercase;
+}
+.client-order-detail__review-rating-label {
+  display: block;
+  margin-top: 2px;
+  color: #64748b;
+  font-size: 11px;
+  text-align: center;
+}
+.client-order-detail__review-tag-field {
+  text-align: left;
+}
+.client-order-detail__review-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  margin-top: 8px;
+}
+.client-order-detail__review-tags button {
+  min-height: 30px;
+  padding: 5px 10px;
+  border: 1px solid #d7e0ea;
+  border-radius: 999px;
+  background: #fff;
+  color: #526176;
+  font: inherit;
+  font-size: 11px;
+  cursor: pointer;
+}
+.client-order-detail__review-tags button.is-selected {
+  border-color: #1769c2;
+  background: #eaf3fd;
+  color: #1769c2;
+  font-weight: 800;
+}
 .client-order-detail__review-dialog textarea {
+  margin-top: 8px;
   width: 100%;
   min-height: 112px;
   padding: 13px;
@@ -1916,7 +2118,7 @@ onMounted(async () => {
   resize: vertical;
   font: inherit;
 }
-.client-order-detail__review-dialog > small {
+.client-order-detail__review-counter {
   display: block;
   margin-top: 5px;
   color: #94a3b8;

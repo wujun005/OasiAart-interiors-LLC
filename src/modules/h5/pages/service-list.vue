@@ -2,7 +2,11 @@
   <div class="h5-service-page">
     <header class="h5-service-topbar">
       <div class="h5-service-topbar__main">
-        <button class="h5-service-topbar__back" type="button" @click="goBackToHome">
+        <button
+          class="h5-service-topbar__back"
+          type="button"
+          @click="goBackToHome"
+        >
           <van-icon name="arrow-left" />
         </button>
         <h1>{{ pageTitle }}</h1>
@@ -20,8 +24,16 @@
           :placeholder="t('client.home.sections.searchPlaceholder')"
           :aria-label="t('client.home.sections.searchPlaceholder')"
         />
-        <button type="submit" :disabled="isServiceLoading" :aria-label="t('client.home.sections.searchPlaceholder')">
-          <span v-if="isServiceLoading" class="h5-service-search__button-spinner" aria-hidden="true" />
+        <button
+          type="submit"
+          :disabled="isServiceLoading"
+          :aria-label="t('client.home.sections.searchPlaceholder')"
+        >
+          <span
+            v-if="isServiceLoading"
+            class="h5-service-search__button-spinner"
+            aria-hidden="true"
+          />
           <van-icon v-else name="search" />
         </button>
       </form>
@@ -46,9 +58,16 @@
           <span />
         </div>
 
-        <div v-if="isServiceLoading" class="h5-service-loading" role="status" aria-live="polite">
+        <div
+          v-if="isServiceLoading"
+          class="h5-service-loading"
+          role="status"
+          aria-live="polite"
+        >
           <span class="h5-service-loading__spinner" aria-hidden="true" />
-          <p>{{ locale === 'zh' ? '正在查找服务…' : 'Searching for services…' }}</p>
+          <p>
+            {{ locale === "zh" ? "正在查找服务…" : "Searching for services…" }}
+          </p>
         </div>
         <div v-else-if="serviceCards.length" class="h5-service-list">
           <article
@@ -67,15 +86,15 @@
             </div>
             <div class="h5-service-card__content">
               <h4>{{ item.title }}</h4>
-              <p>{{ t('client.serviceList.card.priceFrom', { price: item.price }) }}</p>
+              <p>{{ item.price }}</p>
             </div>
             <button type="button" @click.stop="goProductDetail(item.spuId)">
-              {{ t('h5.serviceList.bookNow') }}
+              {{ t("h5.serviceList.bookNow") }}
             </button>
           </article>
         </div>
         <p v-else class="h5-service-search__empty">
-          {{ t('client.home.sections.searchNoResults') }}
+          {{ t("client.home.sections.searchNoResults") }}
         </p>
       </section>
     </main>
@@ -83,280 +102,317 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue';
-import { useI18n } from 'vue-i18n';
-import { useRoute, useRouter, type LocationQueryValue } from 'vue-router';
+import { computed, ref, watch } from "vue"
+import { useI18n } from "vue-i18n"
+import { useRoute, useRouter, type LocationQueryValue } from "vue-router"
 import {
   level1Categories,
   onShelfSpus,
   searchOnShelfSpus,
   type ExclusiveSpuRecord,
   type Level1CategoryRecord,
-} from '@/modules/client/api';
-import { setClientLocale } from '@/modules/client/locales';
+} from "@/modules/client/api"
+import { setClientLocale } from "@/modules/client/locales"
 
 type ServiceCardView = {
-  key: string;
-  spuId: string;
-  title: string;
-  price: string;
-  icon: string;
-};
+  key: string
+  spuId: string
+  title: string
+  price: string
+  icon: string
+}
 
-const tagIconCertified = new URL('@/assets/images/client/icon10.png', import.meta.url).href;
-const tagIconFast = new URL('@/assets/images/client/icon11.png', import.meta.url).href;
-const tagIconReliable = new URL('@/assets/images/client/icon12.png', import.meta.url).href;
+const tagIconCertified = new URL(
+  "@/assets/images/client/icon10.png",
+  import.meta.url,
+).href
+const tagIconFast = new URL(
+  "@/assets/images/client/icon11.png",
+  import.meta.url,
+).href
+const tagIconReliable = new URL(
+  "@/assets/images/client/icon12.png",
+  import.meta.url,
+).href
 
 const cardIconSet = [
-  'https://www.figma.com/api/mcp/asset/0928f181-b954-49a5-b2f6-373df17e5a05',
-  'https://www.figma.com/api/mcp/asset/c4bfe039-3b87-4506-909a-a3376acba5a7',
-  'https://www.figma.com/api/mcp/asset/0726b733-167b-40de-bcc7-c1f3ea51204e',
-  'https://www.figma.com/api/mcp/asset/bd8706ba-39ac-4275-a865-5371b9c70f8c',
-  'https://www.figma.com/api/mcp/asset/439ddc00-08a0-483f-a15a-c505055cb46d',
-  'https://www.figma.com/api/mcp/asset/397e0bd6-cb70-4344-8f7a-758d216f828d',
-];
+  "https://www.figma.com/api/mcp/asset/0928f181-b954-49a5-b2f6-373df17e5a05",
+  "https://www.figma.com/api/mcp/asset/c4bfe039-3b87-4506-909a-a3376acba5a7",
+  "https://www.figma.com/api/mcp/asset/0726b733-167b-40de-bcc7-c1f3ea51204e",
+  "https://www.figma.com/api/mcp/asset/bd8706ba-39ac-4275-a865-5371b9c70f8c",
+  "https://www.figma.com/api/mcp/asset/439ddc00-08a0-483f-a15a-c505055cb46d",
+  "https://www.figma.com/api/mcp/asset/397e0bd6-cb70-4344-8f7a-758d216f828d",
+]
 
-const { t, locale } = useI18n({ useScope: 'global' });
-const route = useRoute();
-const router = useRouter();
+const { t, locale } = useI18n({ useScope: "global" })
+const route = useRoute()
+const router = useRouter()
 
-const selectedLevel1 = ref<Level1CategoryRecord | null>(null);
-const onShelfRecords = ref<ExclusiveSpuRecord[]>([]);
-const serviceSearch = ref('');
-const isServiceLoading = ref(false);
-let serviceRequestId = 0;
+const selectedLevel1 = ref<Level1CategoryRecord | null>(null)
+const onShelfRecords = ref<ExclusiveSpuRecord[]>([])
+const serviceSearch = ref("")
+const isServiceLoading = ref(false)
+let serviceRequestId = 0
 
 const getPreferredLangs = () =>
-  locale.value === 'zh'
-    ? ['zh-CN', 'zh', 'en', 'en-US']
-    : ['en', 'en-US', 'zh-CN', 'zh'];
+  locale.value === "zh"
+    ? ["zh-CN", "zh", "en", "en-US"]
+    : ["en", "en-US", "zh-CN", "zh"]
 
-const getQueryValue = (value?: LocationQueryValue | LocationQueryValue[] | null) => {
-  const raw = Array.isArray(value) ? value[0] : value;
-  return typeof raw === 'string' ? raw.trim() : '';
-};
+const getQueryValue = (
+  value?: LocationQueryValue | LocationQueryValue[] | null,
+) => {
+  const raw = Array.isArray(value) ? value[0] : value
+  return typeof raw === "string" ? raw.trim() : ""
+}
 
-const pickI18nValue = (i18n?: Record<string, string>, fallback = ''): string => {
-  const valueMap = i18n || {};
+const pickI18nValue = (
+  i18n?: Record<string, string>,
+  fallback = "",
+): string => {
+  const valueMap = i18n || {}
   for (const lang of getPreferredLangs()) {
-    const value = valueMap[lang];
-    if (typeof value === 'string' && value.trim()) {
-      return value.trim();
+    const value = valueMap[lang]
+    if (typeof value === "string" && value.trim()) {
+      return value.trim()
     }
   }
   const firstValue = Object.values(valueMap).find(
-    (value) => typeof value === 'string' && value.trim(),
-  );
-  return typeof firstValue === 'string' ? firstValue.trim() : fallback;
-};
+    (value) => typeof value === "string" && value.trim(),
+  )
+  return typeof firstValue === "string" ? firstValue.trim() : fallback
+}
 
 const normalizeTagList = (raw: unknown): string[] => {
-  const source = Array.isArray(raw) ? raw : [raw];
+  const source = Array.isArray(raw) ? raw : [raw]
   return source
     .flatMap((item) =>
-      String(item ?? '')
-        .split('|')
+      String(item ?? "")
+        .split("|")
         .map((part) => part.trim()),
     )
-    .filter(Boolean);
-};
+    .filter(Boolean)
+}
 
 const pickI18nTags = (i18n?: Record<string, string[] | string>): string[] => {
-  const valueMap = i18n || {};
+  const valueMap = i18n || {}
   for (const lang of getPreferredLangs()) {
-    const tags = normalizeTagList(valueMap[lang]);
+    const tags = normalizeTagList(valueMap[lang])
     if (tags.length) {
-      return tags;
+      return tags
     }
   }
-  const firstValue = Object.values(valueMap).find((value) => normalizeTagList(value).length > 0);
-  return normalizeTagList(firstValue);
-};
+  const firstValue = Object.values(valueMap).find(
+    (value) => normalizeTagList(value).length > 0,
+  )
+  return normalizeTagList(firstValue)
+}
 
 const parseLevel1FromQuery = (): Level1CategoryRecord | null => {
-  const raw = getQueryValue(route.query.level1);
+  const raw = getQueryValue(route.query.level1)
   if (!raw) {
-    return null;
+    return null
   }
   try {
-    const parsed = JSON.parse(raw);
-    return parsed && typeof parsed === 'object' ? (parsed as Level1CategoryRecord) : null;
+    const parsed = JSON.parse(raw)
+    return parsed && typeof parsed === "object"
+      ? (parsed as Level1CategoryRecord)
+      : null
   } catch {
     try {
-      const decoded = decodeURIComponent(raw);
-      const parsed = JSON.parse(decoded);
-      return parsed && typeof parsed === 'object' ? (parsed as Level1CategoryRecord) : null;
+      const decoded = decodeURIComponent(raw)
+      const parsed = JSON.parse(decoded)
+      return parsed && typeof parsed === "object"
+        ? (parsed as Level1CategoryRecord)
+        : null
     } catch {
-      return null;
+      return null
     }
   }
-};
+}
 
-const categoryId = computed(() => getQueryValue(route.query.categoryId));
-const searchKeyword = computed(() => getQueryValue(route.query.keyword));
-const isSearchMode = computed(() => route.name === 'h5-service-search' || Boolean(searchKeyword.value));
+const categoryId = computed(() => getQueryValue(route.query.categoryId))
+const searchKeyword = computed(() => getQueryValue(route.query.keyword))
+const isSearchMode = computed(
+  () => route.name === "h5-service-search" || Boolean(searchKeyword.value),
+)
 
 const defaultHeroTags = computed(() => [
-  t('client.serviceList.hero.tagCertified'),
-  t('client.serviceList.hero.tagFast'),
-  t('client.serviceList.hero.tagReliable'),
-]);
+  t("client.serviceList.hero.tagCertified"),
+  t("client.serviceList.hero.tagFast"),
+  t("client.serviceList.hero.tagReliable"),
+])
 
 const pageTitle = computed(() => {
   if (isSearchMode.value) {
-    return locale.value === 'zh' ? '搜索结果' : 'Search Results';
+    return locale.value === "zh" ? "搜索结果" : "Search Results"
   }
-  const fromQuery = getQueryValue(route.query.name);
+  const fromQuery = getQueryValue(route.query.name)
   return pickI18nValue(
     selectedLevel1.value?.nameI18n,
-    fromQuery || t('client.serviceList.pageTitle'),
-  );
-});
+    fromQuery || t("client.serviceList.pageTitle"),
+  )
+})
 
-const heroTitle = computed(() => pickI18nValue(selectedLevel1.value?.bannerTitleI18n, pageTitle.value));
+const heroTitle = computed(() =>
+  pickI18nValue(selectedLevel1.value?.bannerTitleI18n, pageTitle.value),
+)
 const heroDesc = computed(() => {
   if (isSearchMode.value) {
-    if (!searchKeyword.value) return '';
-    return locale.value === 'zh'
+    if (!searchKeyword.value) return ""
+    return locale.value === "zh"
       ? `“${searchKeyword.value}”的相关服务`
-      : `Services matching “${searchKeyword.value}”`;
+      : `Services matching “${searchKeyword.value}”`
   }
-  return pickI18nValue(selectedLevel1.value?.bannerDescI18n, '');
-});
+  return pickI18nValue(selectedLevel1.value?.bannerDescI18n, "")
+})
 const serviceSectionTitle = computed(() =>
   isSearchMode.value
-    ? (locale.value === 'zh' ? '搜索结果' : 'Search Results')
-    : (locale.value === 'zh' ? '选择服务类型' : 'Choose Service Type'),
-);
+    ? locale.value === "zh"
+      ? "搜索结果"
+      : "Search Results"
+    : locale.value === "zh"
+      ? "选择服务类型"
+      : "Choose Service Type",
+)
 
 const heroTags = computed(() => {
-  const labels = pickI18nTags(selectedLevel1.value?.bannerTagsI18n);
-  const source = labels.length ? labels : defaultHeroTags.value;
-  const icons = [tagIconCertified, tagIconFast, tagIconReliable];
+  const labels = pickI18nTags(selectedLevel1.value?.bannerTagsI18n)
+  const source = labels.length ? labels : defaultHeroTags.value
+  const icons = [tagIconCertified, tagIconFast, tagIconReliable]
   return source.slice(0, 3).map((label, index) => ({
     label,
     icon: icons[index % icons.length],
-  }));
-});
+  }))
+})
 
-const formatPrice = (minPrice?: number | string) => {
-  const value = Number(minPrice);
-  if (!Number.isFinite(value)) {
-    return '0.00';
+const formatPrice = (minPrice?: number | string | null) => {
+  if (minPrice === undefined || minPrice === null || minPrice === "") {
+    return t("client.serviceList.card.priceConsult")
   }
-  return value.toFixed(2);
-};
+  const value = Number(minPrice)
+  if (!Number.isFinite(value)) {
+    return t("client.serviceList.card.priceConsult")
+  }
+  return t("client.serviceList.card.priceFrom", { price: value.toFixed(2) })
+}
 
 const serviceCards = computed<ServiceCardView[]>(() => {
-  const records = onShelfRecords.value || [];
+  const records = onShelfRecords.value || []
   if (!records.length) {
-    return [];
+    return []
   }
   return records
     .map((item, index) => ({
       key: String(item.id ?? `service-${index + 1}`),
-      spuId: String(item.id ?? ''),
-      title: pickI18nValue(item.nameI18n, ''),
-      price: formatPrice(item.minPrice),
+      spuId: String(item.id ?? ""),
+      title: pickI18nValue(item.nameI18n, ""),
+      price: formatPrice(item.minNotIncTaxPrice),
       icon: item.imageUrls?.[0] || cardIconSet[index % cardIconSet.length],
     }))
-    .filter((item) => item.title);
-});
+    .filter((item) => item.title)
+})
 
 const syncLocaleToClient = () => {
-  setClientLocale(locale.value === 'zh' ? 'zh' : 'en');
-};
+  setClientLocale(locale.value === "zh" ? "zh" : "en")
+}
 
 const loadLevel1Context = async () => {
-  const fromQuery = parseLevel1FromQuery();
+  const fromQuery = parseLevel1FromQuery()
   if (fromQuery) {
-    selectedLevel1.value = fromQuery;
-    return;
+    selectedLevel1.value = fromQuery
+    return
   }
   if (!categoryId.value) {
-    selectedLevel1.value = null;
-    return;
+    selectedLevel1.value = null
+    return
   }
   try {
-    const records = await level1Categories();
+    const records = await level1Categories()
     selectedLevel1.value =
       records.find((item) => {
-        const id = item.category?.categoryId || item.category?.id;
-        return String(id ?? '') === categoryId.value;
-      }) || null;
+        const id = item.category?.categoryId || item.category?.id
+        return String(id ?? "") === categoryId.value
+      }) || null
   } catch (error) {
-    console.error('load level1 category context failed:', error);
-    selectedLevel1.value = null;
+    console.error("load level1 category context failed:", error)
+    selectedLevel1.value = null
   }
-};
+}
 
 const loadOnShelfRecords = async () => {
-  const requestId = ++serviceRequestId;
+  const requestId = ++serviceRequestId
   if (isSearchMode.value) {
     if (!searchKeyword.value) {
-      onShelfRecords.value = [];
-      isServiceLoading.value = false;
-      return;
+      onShelfRecords.value = []
+      isServiceLoading.value = false
+      return
     }
-    isServiceLoading.value = true;
-    onShelfRecords.value = [];
+    isServiceLoading.value = true
+    onShelfRecords.value = []
     try {
-      const records = await searchOnShelfSpus(searchKeyword.value);
-      if (requestId === serviceRequestId) onShelfRecords.value = records;
+      const records = await searchOnShelfSpus(searchKeyword.value)
+      if (requestId === serviceRequestId) onShelfRecords.value = records
     } catch (error) {
-      console.error('search on shelf products failed:', error);
-      if (requestId === serviceRequestId) onShelfRecords.value = [];
+      console.error("search on shelf products failed:", error)
+      if (requestId === serviceRequestId) onShelfRecords.value = []
     } finally {
-      if (requestId === serviceRequestId) isServiceLoading.value = false;
+      if (requestId === serviceRequestId) isServiceLoading.value = false
     }
-    return;
+    return
   }
   if (!categoryId.value) {
-    onShelfRecords.value = [];
-    isServiceLoading.value = false;
-    return;
+    onShelfRecords.value = []
+    isServiceLoading.value = false
+    return
   }
-  isServiceLoading.value = true;
-  onShelfRecords.value = [];
+  isServiceLoading.value = true
+  onShelfRecords.value = []
   try {
-    const records = await onShelfSpus({ categoryId: categoryId.value });
-    if (requestId === serviceRequestId) onShelfRecords.value = records;
+    const records = await onShelfSpus({ categoryId: categoryId.value })
+    if (requestId === serviceRequestId) onShelfRecords.value = records
   } catch (error) {
-    console.error('load on shelf products failed:', error);
-    if (requestId === serviceRequestId) onShelfRecords.value = [];
+    console.error("load on shelf products failed:", error)
+    if (requestId === serviceRequestId) onShelfRecords.value = []
   } finally {
-    if (requestId === serviceRequestId) isServiceLoading.value = false;
+    if (requestId === serviceRequestId) isServiceLoading.value = false
   }
-};
+}
 
 watch(
-  () => [route.name, route.query.categoryId, route.query.level1, route.query.keyword, locale.value],
+  () => [
+    route.name,
+    route.query.categoryId,
+    route.query.level1,
+    route.query.keyword,
+    locale.value,
+  ],
   () => {
-    syncLocaleToClient();
-    serviceSearch.value = searchKeyword.value;
-    void loadLevel1Context();
-    void loadOnShelfRecords();
+    syncLocaleToClient()
+    serviceSearch.value = searchKeyword.value
+    void loadLevel1Context()
+    void loadOnShelfRecords()
   },
   { immediate: true },
-);
+)
 
 const submitServiceSearch = () => {
-  const keyword = serviceSearch.value.trim();
-  if (!keyword) return;
-  router.push({ name: 'h5-service-search', query: { keyword } });
-};
+  const keyword = serviceSearch.value.trim()
+  if (!keyword) return
+  router.push({ name: "h5-service-search", query: { keyword } })
+}
 
 const goBackToHome = () => {
-  router.push({ name: 'h5-home' });
-};
+  router.push({ name: "h5-home" })
+}
 
 const goProductDetail = (spuId: string) => {
   if (!spuId) {
-    return;
+    return
   }
-  const level1Raw = getQueryValue(route.query.level1);
+  const level1Raw = getQueryValue(route.query.level1)
   router.push({
-    name: 'h5-product-detail',
+    name: "h5-product-detail",
     params: { spuId },
     query: {
       breadcrumb: pageTitle.value,
@@ -365,8 +421,8 @@ const goProductDetail = (spuId: string) => {
       level1: level1Raw,
       keyword: searchKeyword.value,
     },
-  });
-};
+  })
+}
 </script>
 
 <style scoped lang="scss">
@@ -425,7 +481,11 @@ const goProductDetail = (spuId: string) => {
 .h5-service-hero {
   padding: 30px 20px 20px;
   border-radius: 16px;
-  background: linear-gradient(180deg, var(--hourx-brand) 0%, var(--hourx-brand-hover) 100%);
+  background: linear-gradient(
+    180deg,
+    var(--hourx-brand) 0%,
+    var(--hourx-brand-hover) 100%
+  );
   box-shadow: 0 18px 40px rgba(5, 21, 43, 0.22);
 }
 
@@ -439,7 +499,7 @@ const goProductDetail = (spuId: string) => {
 
 .h5-service-hero p {
   margin: 12px 0 0;
-  color: #E5EAF1;
+  color: #e5eaf1;
   font-size: 12px;
   line-height: 1.6;
   font-weight: 500;
@@ -511,7 +571,9 @@ const goProductDetail = (spuId: string) => {
   display: flex;
   align-items: center;
   overflow: hidden;
-  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  transition:
+    border-color 0.2s ease,
+    box-shadow 0.2s ease;
 }
 
 .h5-service-search:focus-within {
@@ -530,7 +592,9 @@ const goProductDetail = (spuId: string) => {
   font-size: 13px;
 }
 
-.h5-service-search input::-webkit-search-cancel-button { display: none; }
+.h5-service-search input::-webkit-search-cancel-button {
+  display: none;
+}
 
 .h5-service-search button {
   align-self: stretch;
@@ -588,7 +652,9 @@ const goProductDetail = (spuId: string) => {
 }
 
 @keyframes h5-service-spin {
-  to { transform: rotate(360deg); }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .h5-service-search__empty {
@@ -611,7 +677,10 @@ const goProductDetail = (spuId: string) => {
   background: #fff;
   box-shadow: 0 10px 30px rgba(15, 23, 42, 0.05);
   cursor: pointer;
-  transition: transform 180ms ease, border-color 180ms ease, box-shadow 180ms ease;
+  transition:
+    transform 180ms ease,
+    border-color 180ms ease,
+    box-shadow 180ms ease;
 }
 
 .h5-service-card:active {

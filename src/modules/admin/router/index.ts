@@ -37,6 +37,43 @@ const routes: RouteRecordRaw[] = [
         component: () => import('@/modules/admin/pages/user/index.vue'),
       },
       {
+        path: 'supplier-management',
+        component: () => import('@/modules/admin/pages/basic/Layout.vue'),
+        redirect: '/admin/supplier-management/profile',
+        children: [
+          {
+            path: 'profile',
+            name: 'admin-supplier-profile',
+            component: () => import('@/modules/admin/pages/supplier-management/index.vue'),
+            props: { section: 'profile' },
+          },
+          {
+            path: 'staff',
+            name: 'admin-supplier-staff',
+            component: () => import('@/modules/admin/pages/supplier-management/index.vue'),
+            props: { section: 'staff' },
+          },
+          {
+            path: 'schedule',
+            name: 'admin-supplier-schedule',
+            component: () => import('@/modules/admin/pages/supplier-management/index.vue'),
+            props: { section: 'schedule' },
+          },
+          {
+            path: 'orders',
+            name: 'admin-supplier-orders',
+            component: () => import('@/modules/admin/pages/supplier-management/index.vue'),
+            props: { section: 'orders' },
+          },
+          {
+            path: 'pricing',
+            name: 'admin-supplier-pricing',
+            component: () => import('@/modules/admin/pages/supplier-management/index.vue'),
+            props: { section: 'pricing' },
+          },
+        ],
+      },
+      {
         path: 'basic',
         component: () => import('@/modules/admin/pages/basic/Layout.vue'),
         children: [
@@ -109,6 +146,13 @@ export const router = createRouter({
 router.beforeEach(async (to) => {
   if (!to.path.startsWith('/admin')) return true;
   if (to.path === '/admin/login') return true;
+  if (
+    import.meta.env.DEV &&
+    to.query.preview === 'supplier' &&
+    to.path.startsWith('/admin/supplier-management')
+  ) {
+    return true;
+  }
 
   const auth = getAdminAuthSnapshot();
   if (auth.isExpired) clearAdminAuthState();

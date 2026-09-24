@@ -152,31 +152,53 @@
         </div>
       </div>
 
+      <div
+        class="order-status-legend"
+        role="group"
+        :aria-label="t('admin.orders.statusColourKey')"
+      >
+        <strong>{{ t("admin.orders.statusColourKey") }}</strong>
+        <span
+          v-for="item in orderStatusLegend"
+          :key="item.value"
+          class="order-status-legend__item"
+          :class="`order-status--${orderStatusTone(item.value)}`"
+        >
+          {{ item.label }}
+        </span>
+      </div>
+
       <el-table
+        class="orders-table"
         :data="orders"
         border
-        stripe
         v-loading="tableLoading"
         row-key="id"
         :row-class-name="orderRowClassName"
         @selection-change="handleSelectionChange"
       >
-        <el-table-column type="selection" width="48" fixed="left" />
+        <el-table-column type="selection" width="36" />
         <el-table-column
           prop="orderNo"
           :label="t('admin.orders.table.orderNo')"
-          min-width="210"
+          width="122"
         >
           <template #default="{ row }">
-            <el-button
+            <el-tooltip
               v-if="row.orderNo"
-              class="order-number-link"
-              link
-              type="primary"
-              @click="openOrderDetail(row)"
+              :content="row.orderNo"
+              placement="top"
+              :show-after="250"
             >
-              {{ row.orderNo }}
-            </el-button>
+              <el-button
+                class="order-number-link"
+                link
+                type="primary"
+                @click="openOrderDetail(row)"
+              >
+                {{ row.orderNo }}
+              </el-button>
+            </el-tooltip>
             <el-tag
               v-if="hasUnreadReschedule(row)"
               class="order-reschedule-alert"
@@ -190,7 +212,7 @@
         </el-table-column>
         <el-table-column
           :label="t('admin.orders.table.createdAt')"
-          min-width="170"
+          width="110"
         >
           <template #default="{ row }">
             {{ formatDateTime(row.createdAt) }}
@@ -198,39 +220,56 @@
         </el-table-column>
         <el-table-column
           :label="t('admin.orders.table.customerContact')"
-          min-width="210"
+          width="105"
         >
           <template #default="{ row }">
             <div class="table-stack">
-              <strong>{{ row.customerName || "-" }}</strong>
-              <span>{{ row.contactPhone || row.userPhone || "-" }}</span>
+              <el-tooltip :content="row.customerName || '-'" placement="top" :show-after="250">
+                <strong class="table-stack__ellipsis">{{ row.customerName || "-" }}</strong>
+              </el-tooltip>
+              <el-tooltip
+                :content="row.contactPhone || row.userPhone || '-'"
+                placement="top"
+                :show-after="250"
+              >
+                <span class="table-stack__ellipsis">{{ row.contactPhone || row.userPhone || "-" }}</span>
+              </el-tooltip>
             </div>
           </template>
         </el-table-column>
         <el-table-column
           :label="t('admin.orders.table.serviceDetails')"
-          min-width="260"
+          min-width="135"
         >
           <template #default="{ row }">
             <div class="table-stack">
-              <strong>{{ row.productName || "-" }}</strong>
-              <span>{{ row.specDescText || "-" }}</span>
-              <small
+              <el-tooltip :content="row.productName || '-'" placement="top" :show-after="250">
+                <strong class="table-stack__ellipsis">{{ row.productName || "-" }}</strong>
+              </el-tooltip>
+              <el-tooltip :content="row.specDescText || '-'" placement="top" :show-after="250">
+                <span class="table-stack__ellipsis">{{ row.specDescText || "-" }}</span>
+              </el-tooltip>
+              <el-tooltip
                 v-if="row.attachDetailsText && row.attachDetailsText !== '-'"
+                :content="row.attachDetailsText"
+                placement="top"
+                :show-after="250"
               >
-                {{ row.attachDetailsText }}
-              </small>
+                <small class="table-stack__ellipsis">{{ row.attachDetailsText }}</small>
+              </el-tooltip>
             </div>
           </template>
         </el-table-column>
         <el-table-column
           prop="serviceTime"
           :label="t('admin.orders.table.scheduledTime')"
-          min-width="180"
+          width="125"
         >
           <template #default="{ row }">
             <div class="table-stack">
-              <strong>{{ row.serviceTime || "-" }}</strong>
+              <el-tooltip :content="row.serviceTime || '-'" placement="top" :show-after="250">
+                <strong class="table-stack__ellipsis">{{ row.serviceTime || "-" }}</strong>
+              </el-tooltip>
               <span
                 v-if="formatServiceDayLabel(row.serviceTime)"
                 class="service-day-label"
@@ -238,37 +277,22 @@
               >
                 {{ formatServiceDayLabel(row.serviceTime) }}
               </span>
-              <span>{{ formatServiceAddress(row) }}</span>
+              <el-tooltip :content="formatServiceAddress(row)" placement="top" :show-after="250">
+                <span class="table-stack__ellipsis">{{ formatServiceAddress(row) }}</span>
+              </el-tooltip>
             </div>
           </template>
         </el-table-column>
         <el-table-column
           :label="t('admin.orders.table.rescheduleChanges')"
-          min-width="300"
+          width="78"
         >
           <template #default="{ row }">
-            <div
-              v-if="row.rescheduleChanges.length"
-              class="order-reschedule-changes"
-            >
-              <div
-                v-for="(change, index) in row.rescheduleChanges"
-                :key="`${row.id}-reschedule-${index}`"
-                class="order-reschedule-changes__item"
-              >
-                <span class="order-reschedule-changes__index">
-                  {{ index + 1 }}
-                </span>
-                <span class="order-reschedule-changes__content">
-                  <strong>{{ formatRescheduleChangeTime(change) }}</strong>
-                  <small>{{ formatRescheduleChangeAddress(change) }}</small>
-                </span>
-                <span
-                  v-if="index < row.rescheduleChanges.length - 1"
-                  class="order-reschedule-changes__arrow"
-                  aria-hidden="true"
-                >↓</span>
-              </div>
+            <div v-if="row.rescheduleChanges.length" class="reschedule-compact">
+              <span>{{ row.rescheduleChanges.length }}</span>
+              <el-button link type="primary" size="small" @click="openRescheduleHistory(row)">
+                {{ t('admin.orders.actions.viewReschedule') }}
+              </el-button>
             </div>
             <span v-else>-</span>
           </template>
@@ -276,11 +300,12 @@
         <el-table-column
           prop="amountText"
           :label="t('admin.orders.table.amount')"
-          min-width="120"
+          width="80"
+          show-overflow-tooltip
         />
         <el-table-column
           :label="t('admin.orders.table.paymentStatus')"
-          min-width="120"
+          width="86"
         >
           <template #default="{ row }">
             <el-tag :type="paymentStatusTag(row.paymentStatusCode)">
@@ -290,11 +315,12 @@
         </el-table-column>
         <el-table-column
           :label="t('admin.orders.table.orderStatus')"
-          min-width="180"
+          width="112"
         >
           <template #default="{ row }">
             <el-select
               class="order-status-select"
+              :class="`order-status-select--${orderStatusTone(row.orderStatusCode)}`"
               :model-value="row.orderStatusCode"
               :disabled="!row.orderId || updatingStatusOrderId !== null"
               :loading="updatingStatusOrderId === row.id"
@@ -312,82 +338,84 @@
         <el-table-column
           prop="supplierName"
           :label="t('admin.orders.table.supplierName')"
-          min-width="150"
-          show-overflow-tooltip
+          width="110"
         >
           <template #default="{ row }">
-            {{ row.supplierName || "-" }}
+            <div class="supplier-cell">
+              <el-button
+                link
+                :type="
+                  !isSupplierReadOnly(row) && hasAssignedSupplier(row)
+                    ? 'success'
+                    : 'primary'
+                "
+                size="small"
+                :disabled="!row.orderId"
+                @click="openAssignDialog(row)"
+              >
+                {{ t(supplierActionKey(row)) }}
+              </el-button>
+              <el-tooltip :content="row.supplierName || '-'" placement="top" :show-after="250">
+                <span>{{ row.supplierName || '-' }}</span>
+              </el-tooltip>
+            </div>
           </template>
         </el-table-column>
         <el-table-column
           :label="t('admin.orders.table.actions')"
-          width="500"
-          fixed="right"
+          width="86"
         >
           <template #default="{ row }">
-            <el-button
-              link
-              :type="hasAssignedSupplier(row) ? 'success' : 'primary'"
-              size="small"
-              :disabled="!row.orderId"
-              @click="openAssignDialog(row)"
-            >
-              {{
-                t(
-                  hasAssignedSupplier(row)
-                    ? "admin.orders.actions.assigned"
-                    : "admin.orders.actions.assignSupplier",
-                )
-              }}
-            </el-button>
-            <el-button
-              link
-              type="primary"
-              size="small"
-              :loading="copyingOrderId === row.id"
-              @click="copySupplierInfo(row)"
-            >
-              {{ t("admin.orders.actions.copySupplier") }}
-            </el-button>
-            <el-badge
-              :is-dot="hasOrderRemark(row)"
-              type="warning"
-              class="order-remark-badge"
-            >
+            <div class="order-table-actions">
+              <el-badge
+                :is-dot="hasOrderRemark(row)"
+                type="warning"
+                class="order-remark-badge"
+              >
+                <el-button
+                  link
+                  :type="hasOrderRemark(row) ? 'warning' : 'primary'"
+                  size="small"
+                  :title="
+                    hasOrderRemark(row)
+                      ? t('admin.orders.actions.remarkAdded')
+                      : t('admin.orders.actions.remark')
+                  "
+                  :disabled="!row.orderId"
+                  @click="openRemarkDialog(row)"
+                >
+                  {{ t("admin.orders.actions.remark") }}
+                </el-button>
+              </el-badge>
               <el-button
                 link
-                :type="hasOrderRemark(row) ? 'warning' : 'primary'"
+                type="primary"
                 size="small"
-                :title="
-                  hasOrderRemark(row)
-                    ? t('admin.orders.actions.remarkAdded')
-                    : t('admin.orders.actions.remark')
-                "
-                :disabled="!row.orderId"
-                @click="openRemarkDialog(row)"
+                :disabled="!row.orderNo"
+                @click="openOrderDetail(row)"
               >
-                {{ t("admin.orders.actions.remark") }}
+                {{ t("admin.orders.actions.details") }}
               </el-button>
-            </el-badge>
-            <el-button
-              link
-              type="danger"
-              size="small"
-              :disabled="!canStripeRefund(row)"
-              :loading="refundingOrderId === row.orderId"
-              @click="handleStripeRefund(row)"
-            >
-              {{ t("admin.orders.actions.stripeRefund") }}
-            </el-button>
-            <el-button
-              link
-              type="primary"
-              size="small"
-              :disabled="!row.orderNo"
-              @click="openOrderDetail(row)"
-            >
-              {{ t("admin.orders.actions.details") }}
-            </el-button>
+              <el-button
+                link
+                type="primary"
+                size="small"
+                :loading="copyingOrderId === row.id"
+                @click="copySupplierInfo(row)"
+              >
+                {{ t("admin.orders.actions.copySupplier") }}
+              </el-button>
+              <el-button
+                link
+                type="danger"
+                size="small"
+                :disabled="!canStripeRefund(row)"
+                :loading="refundingOrderId === row.orderId"
+                @click="handleStripeRefund(row)"
+              >
+                {{ t("admin.orders.actions.stripeRefund") }}
+              </el-button>
+            </div>
           </template>
         </el-table-column>
       </el-table>
@@ -437,10 +465,7 @@
       @closed="closeOrderDetail"
     >
       <el-skeleton v-if="detailLoading" :rows="12" animated />
-      <div
-        v-else-if="detailRow"
-        class="order-detail"
-      >
+      <div v-else-if="detailRow" class="order-detail">
         <header class="order-detail__hero">
           <div>
             <div class="order-detail__eyebrow">
@@ -593,7 +618,10 @@
             <section class="order-detail__panel">
               <div class="order-detail__panel-title">
                 <h3>{{ t("admin.orders.detail.internalRemark") }}</h3>
-                <el-button link type="primary" @click="openRemarkDialog(detailRow)"
+                <el-button
+                  link
+                  type="primary"
+                  @click="openRemarkDialog(detailRow)"
                   >✎</el-button
                 >
               </div>
@@ -605,10 +633,7 @@
             <section class="order-detail__panel">
               <div class="order-detail__panel-title">
                 <h3>{{ t("admin.orders.detail.customerDetails") }}</h3>
-                <el-button
-                  link
-                  type="primary"
-                  @click="openDetailEdit"
+                <el-button link type="primary" @click="openDetailEdit"
                   >✎</el-button
                 >
               </div>
@@ -737,11 +762,25 @@
           <dl class="order-detail__refund-grid">
             <div class="order-detail__refund-reason">
               <dt>{{ t("admin.orders.detail.refundReason") }}</dt>
-              <dd>{{ displayValue(pickI18nValue(detailRow.refundInfo.refundReasonI18n, detailRow.refundInfo.refundReason)) }}</dd>
+              <dd>
+                {{
+                  displayValue(
+                    pickI18nValue(
+                      detailRow.refundInfo.refundReasonI18n,
+                      detailRow.refundInfo.refundReason,
+                    ),
+                  )
+                }}
+              </dd>
             </div>
-            <div v-if="detailRow.refundInfo.refundReasonRemark" class="order-detail__refund-reason">
+            <div
+              v-if="detailRow.refundInfo.refundReasonRemark"
+              class="order-detail__refund-reason"
+            >
               <dt>{{ t("admin.orders.detail.refundReasonRemark") }}</dt>
-              <dd>{{ displayValue(detailRow.refundInfo.refundReasonRemark) }}</dd>
+              <dd>
+                {{ displayValue(detailRow.refundInfo.refundReasonRemark) }}
+              </dd>
             </div>
             <div>
               <dt>{{ t("admin.orders.detail.requestedRefundAmount") }}</dt>
@@ -860,13 +899,13 @@
             </el-form-item>
           </div>
           <el-form-item :label="t('admin.orders.detail.bookingNotes')">
-          <el-input
-            v-model="detailEditForm.remark"
-            type="textarea"
-            :rows="5"
-            maxlength="500"
-            show-word-limit
-          />
+            <el-input
+              v-model="detailEditForm.remark"
+              type="textarea"
+              :rows="5"
+              maxlength="500"
+              show-word-limit
+            />
           </el-form-item>
         </section>
       </el-form>
@@ -883,6 +922,70 @@
           @click="submitDetailEdit"
         >
           {{ t("admin.orders.actions.save") }}
+        </el-button>
+      </template>
+    </el-dialog>
+
+    <el-dialog
+      v-model="refundDialogVisible"
+      :title="t('admin.orders.dialog.stripeRefundTitle')"
+      :close-on-click-modal="false"
+      width="min(560px, calc(100vw - 28px))"
+    >
+      <el-alert
+        :title="t('admin.orders.refund.warning')"
+        type="warning"
+        :closable="false"
+        show-icon
+      />
+      <el-form class="refund-reason-form" label-position="top">
+        <el-form-item :label="t('admin.orders.form.orderNo')">
+          <el-input :model-value="refundTarget?.orderNo || ''" disabled />
+        </el-form-item>
+        <el-form-item :label="t('admin.orders.refund.reason')" required>
+          <el-select
+            v-model="refundForm.refundReason"
+            :loading="refundReasonsLoading"
+            :placeholder="t('admin.orders.refund.reasonPlaceholder')"
+            style="width: 100%"
+          >
+            <el-option
+              v-for="item in refundReasonOptions"
+              :key="item.code"
+              :label="refundReasonLabel(item)"
+              :value="item.code"
+            />
+          </el-select>
+        </el-form-item>
+        <el-form-item
+          v-if="selectedRefundReason?.remarkRequired"
+          :label="t('admin.orders.refund.reasonRemark')"
+          required
+        >
+          <el-input
+            v-model.trim="refundForm.refundReasonRemark"
+            type="textarea"
+            :rows="4"
+            maxlength="500"
+            show-word-limit
+            :placeholder="t('admin.orders.refund.reasonRemarkPlaceholder')"
+          />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button
+          :disabled="refundingOrderId !== null"
+          @click="refundDialogVisible = false"
+        >
+          {{ t("admin.orders.actions.cancel") }}
+        </el-button>
+        <el-button
+          type="danger"
+          :disabled="refundReasonsLoading || !refundForm.refundReason"
+          :loading="refundingOrderId !== null"
+          @click="submitStripeRefund"
+        >
+          {{ t("admin.orders.refund.continue") }}
         </el-button>
       </template>
     </el-dialog>
@@ -918,6 +1021,73 @@
           @click="submitRemark"
         >
           {{ t("admin.orders.actions.save") }}
+        </el-button>
+      </template>
+    </el-dialog>
+
+    <el-dialog
+      v-model="rescheduleDialogVisible"
+      :title="t('admin.orders.dialog.rescheduleHistoryTitle')"
+      width="560px"
+    >
+      <div v-if="rescheduleTarget" class="reschedule-history">
+        <p class="reschedule-history__order">
+          {{ t('admin.orders.table.orderNo') }}:
+          <strong>{{ rescheduleTarget.orderNo }}</strong>
+        </p>
+        <div
+          v-for="(change, index) in rescheduleTarget.rescheduleChanges"
+          :key="`${rescheduleTarget.id}-history-${index}`"
+          class="reschedule-history__item"
+        >
+          <span class="reschedule-history__index">{{ index + 1 }}</span>
+          <div>
+            <strong>{{ formatRescheduleChangeTime(change) }}</strong>
+            <p>{{ formatRescheduleChangeAddress(change) }}</p>
+          </div>
+        </div>
+      </div>
+      <template #footer>
+        <el-button type="primary" @click="rescheduleDialogVisible = false">
+          {{ t('admin.orders.actions.close') }}
+        </el-button>
+      </template>
+    </el-dialog>
+
+    <el-dialog
+      v-model="supplierViewVisible"
+      :title="t('admin.orders.actions.viewSupplier')"
+      width="520px"
+      @close="closeSupplierView"
+    >
+      <div class="supplier-view">
+        <p>{{ t("admin.orders.supplierView.readOnly") }}</p>
+        <el-descriptions :column="1" border>
+          <el-descriptions-item :label="t('admin.orders.table.orderNo')">
+            {{ displayValue(supplierViewOrderNo) }}
+          </el-descriptions-item>
+          <el-descriptions-item :label="t('admin.supplier.table.supplierName')">
+            {{
+              supplierViewInfo.supplierName ||
+              t("admin.orders.supplierView.unassigned")
+            }}
+          </el-descriptions-item>
+          <el-descriptions-item :label="t('admin.supplier.table.contactInfo')">
+            {{ displayValue(supplierViewInfo.contactInfo) }}
+          </el-descriptions-item>
+        </el-descriptions>
+        <el-skeleton v-if="supplierViewLoading" :rows="2" animated />
+        <el-alert
+          v-if="supplierViewError"
+          :title="supplierViewError"
+          type="error"
+          :closable="false"
+          show-icon
+        />
+      </div>
+      <template #footer>
+        <el-button @click="supplierViewVisible = false">
+          {{ t("admin.orders.actions.close") }}
         </el-button>
       </template>
     </el-dialog>
@@ -974,7 +1144,6 @@
         </el-button>
       </template>
     </el-dialog>
-
   </div>
 </template>
 
@@ -986,6 +1155,7 @@ import {
   detail as getOrderDetail,
   edit as editOrder,
   exportOrders,
+  getRefundReasons,
   page,
   querySuppliers,
   stripeRefund as requestStripeRefund,
@@ -993,6 +1163,7 @@ import {
   updateAdminRemark,
   updateSupplier,
   type OrderExportPayload,
+  type RefundReasonOption,
 } from "@/modules/admin/api/order"
 import { detail as getSupplierDetail } from "@/modules/admin/api/supplier"
 import { page as pageServices } from "@/modules/admin/api/spu"
@@ -1155,6 +1326,12 @@ const orderStatusOptions = computed(() => [
   { value: 6, label: t("admin.orders.status.orderRefundRejected") },
 ])
 
+const orderStatusLegend = computed(() =>
+  orderStatusOptions.value.filter((item) =>
+    [0, 1, 2, 3, 5].includes(item.value),
+  ),
+)
+
 const paymentStatusOptions = computed(() => [
   { value: 0, label: t("admin.orders.status.paymentUnpaid") },
   { value: 1, label: t("admin.orders.status.paymentPaid") },
@@ -1188,6 +1365,20 @@ const serviceOptions = ref<Array<{ value: number; label: string }>>([])
 const copyingOrderId = ref<OrderRow["id"] | null>(null)
 const updatingStatusOrderId = ref<OrderRow["id"] | null>(null)
 const refundingOrderId = ref<number | null>(null)
+const refundDialogVisible = ref(false)
+const refundReasonsLoading = ref(false)
+const refundTarget = ref<OrderRow | null>(null)
+const refundReasonOptions = ref<RefundReasonOption[]>([])
+const refundForm = reactive({
+  refundReason: "",
+  refundReasonRemark: "",
+})
+const selectedRefundReason = computed(
+  () =>
+    refundReasonOptions.value.find(
+      (item) => item.code === refundForm.refundReason,
+    ) || null,
+)
 const detailDrawerVisible = ref(false)
 const detailRow = ref<OrderRow | null>(null)
 const detailLoading = ref(false)
@@ -1222,8 +1413,17 @@ const remarkForm = reactive({
   orderNo: "",
   adminRemark: "",
 })
+const rescheduleDialogVisible = ref(false)
+const rescheduleTarget = ref<OrderRow | null>(null)
+const supplierViewVisible = ref(false)
+const supplierViewLoading = ref(false)
+const supplierViewError = ref("")
+const supplierViewRequestId = ref(0)
+const supplierViewOrderNo = ref("")
+const supplierViewInfo = ref({ supplierName: "", contactInfo: "" })
 const assignDialogVisible = ref(false)
 const assignSubmitting = ref(false)
+const assignTarget = ref<OrderRow | null>(null)
 const bulkAssignMode = ref(false)
 const bulkAssignTargets = ref<OrderRow[]>([])
 const bulkCompleting = ref(false)
@@ -1310,6 +1510,18 @@ const hasAssignedSupplier = (row: OrderRow) =>
     row.supplierId !== "") ||
   Boolean(row.supplierName.trim())
 
+const isSupplierReadOnly = (row: OrderRow) =>
+  row.orderStatusCode === 2 ||
+  row.orderStatusCode === 3 ||
+  row.orderStatusCode === 5
+
+const supplierActionKey = (row: OrderRow) =>
+  isSupplierReadOnly(row)
+    ? "admin.orders.actions.viewSupplier"
+    : hasAssignedSupplier(row)
+      ? "admin.orders.actions.assigned"
+      : "admin.orders.actions.assignSupplier"
+
 const canStripeRefund = (row: OrderRow) =>
   Boolean(row.orderId) &&
   (row.paymentStatusCode === 1 || row.paymentStatusCode === 4) &&
@@ -1335,12 +1547,24 @@ const cancellationTimeText = (row: OrderRow) =>
 const hasUnreadReschedule = (row: OrderRow) =>
   row.rescheduled && !row.rescheduleRead
 
-const orderRowClassName = ({ row }: { row: OrderRow }) => {
-  const classes: string[] = []
-  const dayKind = serviceDayKind(row.serviceTime)
-  if (dayKind === "today" || dayKind === "tomorrow") {
-    classes.push(`order-row--${dayKind}`)
+const orderStatusTone = (code: number | null) => {
+  if (code === 1) return "action-needed"
+  if (code === 2) return "completed"
+  if (code === 3 || code === 5) return "closed"
+  // 图中未指定退款中、退款失败及未知状态，保持中性底色。
+  return "neutral"
+}
+
+const orderRowTone = (row: OrderRow) => {
+  // 未付款订单即使已取消，也保持白色，避免与已付款后关闭的订单混淆。
+  if (row.paymentStatusCode === 0 && row.orderStatusCode === 3) {
+    return "neutral"
   }
+  return orderStatusTone(row.orderStatusCode)
+}
+
+const orderRowClassName = ({ row }: { row: OrderRow }) => {
+  const classes = [`order-status--${orderRowTone(row)}`]
   if (hasUnreadReschedule(row)) classes.push("order-row--rescheduled-unread")
   return classes.join(" ")
 }
@@ -1365,6 +1589,12 @@ const formatRescheduleChangeAddress = (item: RescheduleChangeItem) =>
     .filter(Boolean)
     .join(", ") || "-"
 
+const openRescheduleHistory = (row: OrderRow) => {
+  if (!row.rescheduleChanges.length) return
+  rescheduleTarget.value = row
+  rescheduleDialogVisible.value = true
+}
+
 const openOrderDetail = async (row: OrderRow) => {
   detailRow.value = row
   detailDrawerVisible.value = true
@@ -1383,10 +1613,7 @@ const openOrderDetail = async (row: OrderRow) => {
       if (source?.rescheduled) source.rescheduleRead = true
       if (normalized.rescheduled) normalized.rescheduleRead = true
       detailRow.value = normalized
-      if (
-        query.rescheduleFilter === "UNPROCESSED" &&
-        normalized.rescheduled
-      ) {
+      if (query.rescheduleFilter === "UNPROCESSED" && normalized.rescheduled) {
         orders.value = orders.value.filter(
           (item) => item.orderId !== row.orderId,
         )
@@ -1520,16 +1747,61 @@ const submitDetailEdit = async () => {
 
 const printOrderDetail = () => window.print()
 
-const handleStripeRefund = async (row: OrderRow) => {
+const refundReasonLabel = (item: RefundReasonOption) =>
+  pickI18nValue(item.nameI18n, item.code)
+
+const loadRefundReasons = async () => {
+  refundReasonsLoading.value = true
+  try {
+    refundReasonOptions.value = await getRefundReasons()
+    if (!refundReasonOptions.value.length) {
+      ElMessage.warning(t("admin.orders.refund.noReasons"))
+    }
+  } catch (error: any) {
+    refundReasonOptions.value = []
+    ElMessage.error(error?.message || t("admin.orders.refund.reasonLoadFailed"))
+  } finally {
+    refundReasonsLoading.value = false
+  }
+}
+
+const handleStripeRefund = (row: OrderRow) => {
   if (!row.orderId || !canStripeRefund(row)) return
+
+  refundTarget.value = row
+  refundForm.refundReason = ""
+  refundForm.refundReasonRemark = ""
+  refundDialogVisible.value = true
+  void loadRefundReasons()
+}
+
+const submitStripeRefund = async () => {
+  const row = refundTarget.value
+  if (!row?.orderId || !canStripeRefund(row)) return
+  if (!refundForm.refundReason) {
+    ElMessage.warning(t("admin.orders.refund.reasonRequired"))
+    return
+  }
+  if (
+    selectedRefundReason.value?.remarkRequired &&
+    !refundForm.refundReasonRemark.trim()
+  ) {
+    ElMessage.warning(t("admin.orders.refund.reasonRemarkRequired"))
+    return
+  }
 
   try {
     await ElMessageBox.confirm(
-      t("admin.orders.refund.confirmFull", {
+      t("admin.orders.refund.confirmWithReason", {
         orderNo: row.orderNo,
         amount: row.amountText,
+        reason: refundReasonLabel(
+          selectedRefundReason.value || {
+            code: refundForm.refundReason,
+          },
+        ),
       }),
-      t("admin.orders.dialog.stripeRefundTitle"),
+      t("admin.orders.refund.confirmTitle"),
       {
         type: "warning",
         confirmButtonText: t("admin.orders.refund.confirm"),
@@ -1546,15 +1818,18 @@ const handleStripeRefund = async (row: OrderRow) => {
     const result = await requestStripeRefund({
       orderId: row.orderId,
       deductHandlingFee: false,
+      refundReason: refundForm.refundReason,
+      refundReasonRemark: refundForm.refundReasonRemark.trim() || undefined,
     })
     const refundId = String(
-      typeof result === "string" ? result : (result as any)?.data ?? "",
+      typeof result === "string" ? result : ((result as any)?.data ?? ""),
     ).trim()
     ElMessage.success(
       refundId
         ? t("admin.orders.refund.successWithId", { refundId })
         : t("admin.orders.refund.success"),
     )
+    refundDialogVisible.value = false
     await fetchOrders()
     if (detailRow.value?.orderId === row.orderId) {
       try {
@@ -1581,7 +1856,8 @@ const openReceipt = () => {
   }
   try {
     const targetUrl = new URL(receiptUrl, window.location.origin)
-    if (!/^https?:$/.test(targetUrl.protocol)) throw new Error("invalid protocol")
+    if (!/^https?:$/.test(targetUrl.protocol))
+      throw new Error("invalid protocol")
     window.open(targetUrl.toString(), "_blank", "noopener,noreferrer")
   } catch {
     ElMessage.warning(t("admin.orders.message.receiptUnavailable"))
@@ -2304,10 +2580,10 @@ const normalizeOrderDetail = (payload: any, fallback: OrderRow): OrderRow => {
       .map(normalizeCustomerNamePart)
       .filter(Boolean)
       .join(" ") ||
-    String(
-      root.customerName ?? root.contactName ?? root.recipientName ?? "",
-    ).trim() ||
-    fallback.customerName,
+      String(
+        root.customerName ?? root.contactName ?? root.recipientName ?? "",
+      ).trim() ||
+      fallback.customerName,
   )
   const rawLineItems = Array.isArray(root.lineItems) ? root.lineItems : []
   const sumLineItemAmount = (
@@ -2343,10 +2619,8 @@ const normalizeOrderDetail = (payload: any, fallback: OrderRow): OrderRow => {
     timeRange: root.timeRange ?? fallback.timeRange,
     contactPhone: root.contactPhone ?? fallback.contactPhone,
     contactEmail: root.contactEmail ?? fallback.contactEmail,
-    firstName:
-      normalizeCustomerNamePart(root.firstName) || fallback.firstName,
-    lastName:
-      normalizeCustomerNamePart(root.lastName) || fallback.lastName,
+    firstName: normalizeCustomerNamePart(root.firstName) || fallback.firstName,
+    lastName: normalizeCustomerNamePart(root.lastName) || fallback.lastName,
     customerName: detailCustomerName,
     customerEmail: root.userEmail ?? fallback.customerEmail,
     userEmail: root.userEmail ?? fallback.userEmail,
@@ -2358,7 +2632,10 @@ const normalizeOrderDetail = (payload: any, fallback: OrderRow): OrderRow => {
       root.cancellationRemark ??
       fallback.cancelReasonRemark,
     cancelledAt:
-      root.cancelledAt ?? root.canceledAt ?? root.cancelTime ?? fallback.cancelledAt,
+      root.cancelledAt ??
+      root.canceledAt ??
+      root.cancelTime ??
+      fallback.cancelledAt,
     orderTime: root.orderTime ?? fallback.createdAt,
     paymentGateway: root.paymentGateway ?? fallback.paymentGateway,
     paymentMethod: fallback.paymentMethod,
@@ -2636,13 +2913,56 @@ const loadSupplierOptions = async (keyword = "") => {
   }
 }
 
+const closeSupplierView = () => {
+  supplierViewRequestId.value++
+  supplierViewLoading.value = false
+}
+
+const openSupplierView = async (row: OrderRow) => {
+  const requestId = ++supplierViewRequestId.value
+  supplierViewOrderNo.value = row.orderNo
+  supplierViewInfo.value = {
+    supplierName:
+      row.supplierName || (row.supplierId ? `#${row.supplierId}` : ""),
+    contactInfo: "",
+  }
+  supplierViewError.value = ""
+  supplierViewLoading.value = false
+  supplierViewVisible.value = true
+  if (!row.supplierId) return
+
+  supplierViewLoading.value = true
+  try {
+    const response = await getSupplierDetail(row.supplierId)
+    if (requestId !== supplierViewRequestId.value) return
+    supplierViewInfo.value = normalizeSupplierCopyInfo(
+      response,
+      supplierViewInfo.value.supplierName,
+    )
+  } catch (error: any) {
+    if (requestId === supplierViewRequestId.value) {
+      supplierViewError.value =
+        error?.message || t("admin.orders.supplierView.loadFailed")
+    }
+  } finally {
+    if (requestId === supplierViewRequestId.value)
+      supplierViewLoading.value = false
+  }
+}
+
 const openAssignDialog = async (row: OrderRow) => {
+  if (isSupplierReadOnly(row)) {
+    assignDialogVisible.value = false
+    assignTarget.value = null
+    return openSupplierView(row)
+  }
   if (!row.orderId) {
     ElMessage.warning(t("admin.orders.message.assignOrderIdMissing"))
     return
   }
   bulkAssignMode.value = false
   bulkAssignTargets.value = []
+  assignTarget.value = row
   assignForm.orderId = row.orderId
   assignForm.orderNo = row.orderNo
   assignForm.supplierId = row.supplierId
@@ -2656,11 +2976,16 @@ const openAssignDialog = async (row: OrderRow) => {
 
 const openBulkAssignDialog = async () => {
   const targets = selectedRows.value.filter((row) => row.orderId)
+  if (targets.some(isSupplierReadOnly)) {
+    ElMessage.warning(t("admin.orders.message.supplierReadOnly"))
+    return
+  }
   if (!targets.length) {
     ElMessage.warning(t("admin.orders.message.bulkNoValidOrders"))
     return
   }
   bulkAssignMode.value = true
+  assignTarget.value = null
   bulkAssignTargets.value = targets
   assignForm.orderId = null
   assignForm.orderNo = ""
@@ -2671,6 +2996,24 @@ const openBulkAssignDialog = async () => {
 }
 
 const submitSupplierAssignment = async () => {
+  if (assignSubmitting.value || !assignDialogVisible.value) return
+  const targets = bulkAssignMode.value
+    ? bulkAssignTargets.value
+    : assignTarget.value
+      ? [assignTarget.value]
+      : []
+  if (!targets.length) return
+  // 提交时再次检查当前行状态，避免通过批量入口或旧弹窗修改只读订单。
+  if (
+    targets.some((target) =>
+      isSupplierReadOnly(
+        orders.value.find((row) => row.orderId === target.orderId) || target,
+      ),
+    )
+  ) {
+    ElMessage.warning(t("admin.orders.message.supplierReadOnly"))
+    return
+  }
   if (!bulkAssignMode.value && !assignForm.orderId) {
     ElMessage.warning(t("admin.orders.message.assignOrderIdMissing"))
     return
@@ -3064,8 +3407,21 @@ onMounted(() => {
 </script>
 
 <style scoped>
+.refund-reason-form {
+  margin-top: 18px;
+}
 .page {
-  padding: 20px;
+  --el-font-size-base: 12px;
+  --el-component-size: 30px;
+  --el-component-size-small: 26px;
+  padding: 12px;
+  font-size: 12px;
+}
+.page > :deep(.el-card) {
+  --el-card-padding: 12px;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
 }
 .table-stack {
   min-width: 0;
@@ -3083,55 +3439,68 @@ onMounted(() => {
   color: #64748b;
   overflow-wrap: anywhere;
 }
-.order-reschedule-changes {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
+.table-stack__ellipsis {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
-.order-reschedule-changes__item {
-  position: relative;
-  display: grid;
-  grid-template-columns: 22px minmax(0, 1fr);
-  gap: 8px;
-  padding-bottom: 13px;
+.reschedule-compact {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  white-space: nowrap;
 }
-.order-reschedule-changes__item:last-child {
-  padding-bottom: 0;
-}
-.order-reschedule-changes__index {
-  width: 22px;
-  height: 22px;
+.reschedule-compact > span,
+.reschedule-history__index {
+  width: 20px;
+  height: 20px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   border-radius: 50%;
   background: #fee2e2;
   color: #b91c1c;
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 800;
+  flex: 0 0 auto;
 }
-.order-reschedule-changes__content {
-  min-width: 0;
+.reschedule-history {
   display: flex;
   flex-direction: column;
-  gap: 2px;
-  line-height: 1.4;
-  overflow-wrap: anywhere;
+  gap: 12px;
 }
-.order-reschedule-changes__content strong {
+.reschedule-history__order {
+  margin: 0 0 2px;
+  color: #64748b;
+  font-size: 12px;
+}
+.reschedule-history__order strong {
+  color: #2f7ee0;
+}
+.reschedule-history__item {
+  display: grid;
+  grid-template-columns: 20px minmax(0, 1fr);
+  gap: 10px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #f0f2f5;
+}
+.reschedule-history__item:last-child {
+  padding-bottom: 0;
+  border-bottom: 0;
+}
+.reschedule-history__item strong {
   color: #334155;
   font-size: 12px;
 }
-.order-reschedule-changes__content small {
+.reschedule-history__item p {
+  margin: 3px 0 0;
   color: #64748b;
   font-size: 11px;
-}
-.order-reschedule-changes__arrow {
-  position: absolute;
-  left: 7px;
-  bottom: -2px;
-  color: #dc2626;
-  font-size: 12px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
 }
 .export-caret {
   margin-left: 6px;
@@ -3140,32 +3509,32 @@ onMounted(() => {
 .toolbar {
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  margin-bottom: 16px;
+  gap: 8px;
+  margin-bottom: 12px;
 }
 .toolbar-row {
   display: flex;
-  gap: 10px;
+  gap: 8px;
   align-items: center;
   flex-wrap: wrap;
 }
 .toolbar-time {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
 }
 .toolbar-time__label {
   color: #606266;
-  font-size: 14px;
+  font-size: 12px;
   white-space: nowrap;
 }
 .toolbar .el-input,
 .toolbar .el-select,
 .toolbar .el-date-editor {
-  width: 180px;
+  width: 160px;
 }
 .toolbar-time .el-date-editor {
-  width: 280px;
+  width: 250px;
 }
 .bulk-bar {
   display: flex;
@@ -3200,7 +3569,7 @@ onMounted(() => {
 .pager {
   display: flex;
   justify-content: flex-end;
-  margin-top: 16px;
+  margin-top: 12px;
 }
 .order-number-link {
   height: auto;
@@ -3228,23 +3597,126 @@ onMounted(() => {
   background: #e8f2ff;
   color: #185ca8;
 }
-:deep(.el-table__body tr.order-row--today > td.el-table__cell) {
-  background: #fffaf0;
+.order-status-legend {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 10px;
+  padding: 7px 10px;
+  border: 1px solid #ebeef5;
+  border-radius: 4px;
+  background: #fafbfc;
+  color: #606266;
+  font-size: 12px;
 }
-:deep(.el-table__body tr.order-row--tomorrow > td.el-table__cell) {
-  background: #f6faff;
+.order-status-legend strong {
+  margin-right: 4px;
 }
-:deep(.el-table__body tr.order-row--rescheduled-unread > td.el-table__cell) {
-  background: #fff1f2 !important;
+.order-status-legend__item {
+  padding: 2px 8px;
+  border: 1px solid #dcdfe6;
+  border-radius: 3px;
+  background-color: var(--order-status-bg);
 }
-:deep(.el-table__body tr.order-row--rescheduled-unread:hover > td.el-table__cell) {
-  background: #ffe4e6 !important;
+.order-status--neutral,
+:deep(.el-table__body tr.order-status--neutral) {
+  --order-status-bg: #ffffff;
+}
+.order-status--action-needed,
+:deep(.el-table__body tr.order-status--action-needed) {
+  --order-status-bg: #e7f6ec;
+}
+.order-status--completed,
+:deep(.el-table__body tr.order-status--completed) {
+  --order-status-bg: #e8f2ff;
+}
+.order-status--closed,
+:deep(.el-table__body tr.order-status--closed) {
+  --order-status-bg: #e5e7eb;
+}
+/* 固定列与悬停行同样使用订单状态底色，不被表格默认背景覆盖。 */
+.orders-table :deep(.el-table__body tr > td.el-table__cell) {
+  background-color: var(--order-status-bg, #ffffff) !important;
+}
+.orders-table :deep(.el-table__cell) {
+  padding: 6px 0;
+  font-size: 12px;
+}
+.orders-table :deep(.el-table__header .cell) {
+  line-height: 1.3;
+  word-break: normal;
+}
+.orders-table :deep(.el-table__body .cell) {
+  line-height: 1.4;
+}
+.orders-table :deep(.el-button.is-link) {
+  height: 24px;
+  padding: 0 3px;
+  font-size: 12px;
+}
+.order-table-actions,
+.supplier-cell {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  align-items: flex-start;
+}
+.order-table-actions :deep(.el-button + .el-button),
+.supplier-cell :deep(.el-button + .el-button) {
+  margin-left: 0;
+}
+.supplier-cell > span {
+  display: block;
+  width: 100%;
+  overflow: hidden;
+  color: #606266;
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.orders-table :deep(.el-tag) {
+  height: 22px;
+  padding: 0 7px;
+  font-size: 11px;
+}
+.supplier-view {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  overflow-wrap: anywhere;
+}
+.supplier-view p {
+  margin: 0;
+  color: #606266;
 }
 :deep(.el-table__body tr.order-row--rescheduled-unread .order-number-link) {
   color: #dc2626;
 }
+:deep(.orders-table .el-table__body tr.order-row--rescheduled-unread > td.el-table__cell) {
+  background: #fdeaea !important;
+}
 .order-status-select {
-  width: 160px;
+  width: 102px;
+}
+.order-status-select--action-needed :deep(.el-select__wrapper) {
+  background: #eefaf0;
+  box-shadow: 0 0 0 1px #bfe8cb inset;
+}
+.order-status-select--completed :deep(.el-select__wrapper) {
+  background: #eaf2ff;
+  box-shadow: 0 0 0 1px #cfe2fb inset;
+}
+.order-status-select--closed :deep(.el-select__wrapper) {
+  background: #f2f2f4;
+  box-shadow: 0 0 0 1px #dcdfe6 inset;
+}
+.order-number-link {
+  display: block;
+  max-width: 104px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .order-detail {
   min-height: 100%;
@@ -3278,12 +3750,27 @@ onMounted(() => {
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 14px;
 }
-.detail-edit-section { padding: 18px; border: 1px solid #e3eaf2; border-radius: 16px; background: #fbfcfe; }
-.detail-edit-section + .detail-edit-section { margin-top: 16px; }
-.detail-edit-section h4 { margin: 0 0 16px; color: #05152b; font-size: 15px; }
-.detail-edit-section :deep(.el-form-item:last-child) { margin-bottom: 0; }
+.detail-edit-section {
+  padding: 18px;
+  border: 1px solid #e3eaf2;
+  border-radius: 16px;
+  background: #fbfcfe;
+}
+.detail-edit-section + .detail-edit-section {
+  margin-top: 16px;
+}
+.detail-edit-section h4 {
+  margin: 0 0 16px;
+  color: #05152b;
+  font-size: 15px;
+}
+.detail-edit-section :deep(.el-form-item:last-child) {
+  margin-bottom: 0;
+}
 :deep(.order-detail-edit-dialog .el-date-editor.el-input),
-:deep(.order-detail-edit-dialog .el-select) { width: 100%; }
+:deep(.order-detail-edit-dialog .el-select) {
+  width: 100%;
+}
 @media print {
   :global(body *) {
     visibility: hidden;
@@ -3570,9 +4057,17 @@ onMounted(() => {
   .order-detail__panel {
     padding: 16px;
   }
-  .order-detail__toolbar { justify-content: flex-start; flex-wrap: wrap; }
-  .detail-edit-grid { grid-template-columns: 1fr; gap: 0; }
-  .detail-edit-section { padding: 14px; }
+  .order-detail__toolbar {
+    justify-content: flex-start;
+    flex-wrap: wrap;
+  }
+  .detail-edit-grid {
+    grid-template-columns: 1fr;
+    gap: 0;
+  }
+  .detail-edit-section {
+    padding: 14px;
+  }
   .order-detail__line-item {
     flex-direction: column;
   }

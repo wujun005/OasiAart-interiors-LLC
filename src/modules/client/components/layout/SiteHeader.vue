@@ -164,6 +164,7 @@ import { useRoute, useRouter } from "vue-router"
 import { Search, ShoppingCart } from "@element-plus/icons-vue"
 import { setClientLocale, type ClientLocale } from "@/modules/client/locales"
 import {
+  getClientProfile,
   onShelfSpus,
   searchOnShelfSpus,
   type ExclusiveSpuRecord,
@@ -177,6 +178,7 @@ const route = useRoute()
 const router = useRouter()
 const hasToken = ref(false)
 const userName = ref("")
+const profileName = ref("")
 const serviceSearch = ref("")
 const searchOpen = ref(false)
 const searchLoading = ref(false)
@@ -185,6 +187,7 @@ const searchRoot = ref<HTMLElement | null>(null)
 const searchInput = ref<HTMLInputElement | null>(null)
 let searchTimer: number | null = null
 let searchRequestId = 0
+let profileRequestId = 0
 const logoUrl = "/assets/images/client/hourx-mark.svg"
 const { cartCount } = useCart()
 
@@ -204,7 +207,7 @@ const localeLabel = computed(() =>
 const isLoggedIn = computed(() => hasToken.value)
 
 const userLabel = computed(() => {
-  const trimmed = userName.value.trim()
+  const trimmed = profileName.value.trim() || userName.value.trim()
   return trimmed || t("client.header.user")
 })
 
@@ -215,10 +218,31 @@ const syncAuthState = () => {
     clearStoredAuthState()
     hasToken.value = false
     userName.value = ""
+    profileName.value = ""
     return
   }
   hasToken.value = snapshot.isLoggedIn
   userName.value = snapshot.userInfo.username || ""
+  if (!snapshot.isLoggedIn) profileName.value = ""
+}
+
+const loadClientProfileName = async () => {
+  if (!hasToken.value) return
+  const requestId = ++profileRequestId
+  try {
+    const profile = await getClientProfile()
+    if (requestId !== profileRequestId || !hasToken.value) return
+    profileName.value = String(profile?.name || "").trim()
+  } catch {
+    // Keep the locally stored account name when profile loading is unavailable.
+  }
+}
+
+const handleAuthStorageChange = () => {
+  const wasLoggedIn = hasToken.value
+  syncAuthState()
+  if (hasToken.value && !wasLoggedIn) void loadClientProfileName()
+  if (!hasToken.value) profileRequestId += 1
 }
 
 const handleLocaleCommand = (value: string | number | object) => {
@@ -325,6 +349,8 @@ const handleUserCommand = async (command: string | number | object) => {
       return
     }
     clearStoredAuthState()
+    profileRequestId += 1
+    profileName.value = ""
     syncAuthState()
     router.push("/")
   }
@@ -332,14 +358,16 @@ const handleUserCommand = async (command: string | number | object) => {
 
 onMounted(() => {
   syncAuthState()
-  window.addEventListener("storage", syncAuthState)
+  void loadClientProfileName()
+  window.addEventListener("storage", handleAuthStorageChange)
   window.addEventListener("pointerdown", closeSearchOnOutsidePointer)
 })
 
 onBeforeUnmount(() => {
   if (searchTimer !== null) window.clearTimeout(searchTimer)
   searchRequestId += 1
-  window.removeEventListener("storage", syncAuthState)
+  profileRequestId += 1
+  window.removeEventListener("storage", handleAuthStorageChange)
   window.removeEventListener("pointerdown", closeSearchOnOutsidePointer)
 })
 </script>

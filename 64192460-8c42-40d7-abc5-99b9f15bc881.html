@@ -1,0 +1,507 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Services — Interactive Mockup</title>
+<style>
+  * { box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    margin: 0;
+    background: #fff;
+    color: #1f2430;
+    font-size: 13px;
+  }
+  .topbar {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 14px 20px; border-bottom: 1px solid #eee;
+  }
+  .topbar h2 { margin: 0; font-size: 16px; font-weight: 700; }
+  .topbar .right { display:flex; gap:10px; align-items:center; color:#555; }
+  .topbar select, .topbar button {
+    border: 1px solid #d9d9d9; border-radius: 4px; padding: 5px 10px; background:#fff; font-size:12px; cursor:pointer;
+  }
+  .filters { display: flex; flex-wrap: wrap; gap: 10px; padding: 16px 20px; background:#fafbfc; }
+  .filters input, .filters select {
+    border: 1px solid #d9d9d9; border-radius: 4px; padding: 7px 10px; font-size: 12px; min-width: 150px; color:#888;
+  }
+  .filters .btn { border-radius:4px; padding:7px 16px; font-size:12px; border:1px solid #d9d9d9; background:#fff; cursor:pointer; }
+  .filters .btn.primary { background:#2f7ee0; color:#fff; border-color:#2f7ee0; }
+  .filters .btn.add { background:#2f7ee0; color:#fff; border-color:#2f7ee0; font-weight:600; }
+
+  /* Dashboard shell */
+  .app { display:flex; align-items:flex-start; }
+  .sidebar { width:216px; flex-shrink:0; border-right:1px solid #eee; }
+  .sidebar-brand { background:#182338; color:#fff; font-weight:700; font-size:14px; padding:16px 18px; white-space:nowrap; }
+  .nav-item { display:flex; align-items:center; justify-content:space-between; padding:10px 16px; font-size:12.5px; color:#333; cursor:pointer; font-weight:700; }
+  .nav-item:hover { background:#f7f9fc; }
+  .nav-item .label { display:flex; align-items:center; gap:8px; }
+  .nav-item .icon { width:14px; text-align:center; color:#8a94a6; font-size:12px; }
+  .nav-item .chevron { color:#aab0bc; font-size:10px; }
+  .nav-sub .nav-item { padding:8px 16px 8px 40px; font-weight:400; font-size:12.5px; }
+  .nav-sub .nav-item.active { color:#2f7ee0; background:#eaf2ff; border-right:3px solid #2f7ee0; font-weight:600; }
+  .main { flex:1; min-width:0; }
+
+  table { width: 100%; border-collapse: collapse; }
+  thead th {
+    text-align: left; padding: 10px 12px; border-bottom: 2px solid #eee; border-top:1px solid #eee;
+    font-size: 12px; color:#333; background:#fff; border-right: 1px solid #edeff3;
+  }
+  thead th:last-child, tbody td:last-child { border-right:none; }
+  tbody td {
+    padding: 10px 12px; border-bottom: 1px solid #f0f0f0; vertical-align: middle; font-size:12.5px;
+    border-right: 1px solid #edeff3;
+  }
+  col.order{width:44px} col.thumb{width:64px} col.name{width:150px} col.cat{width:140px}
+  col.type{width:130px} col.pricing{width:170px} col.sale{width:112px} col.price{width:54px}
+  col.dates{width:150px} col.actions{width:68px} col.limited{width:70px}
+
+  .drag { color:#bbb; cursor:grab; }
+  .thumb { display:inline-flex; align-items:center; gap:4px; }
+  .thumb-box { width:34px; height:34px; border-radius:6px; background:#d8dee8; flex-shrink:0; }
+  .thumb-count { font-size:11px; color:#888; }
+  .name-cell { font-weight:600; color:#1f2430; }
+  .muted { color:#555; }
+  .chip { display:inline-block; background:#eaf2ff; color:#2f7ee0; border-radius:4px; padding:3px 8px; font-size:11.5px; max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+
+  .sale-toggle { display:inline-flex; align-items:center; gap:4px; border-radius:4px; padding:4px 8px; font-size:11.5px; font-weight:600; cursor:pointer; border:1px solid transparent; user-select:none; white-space:nowrap; }
+  .sale-toggle.on { background:#e4f7ea; color:#1a8a3e; border-color:#c9ecd4; }
+  .sale-toggle.off { background:#fdeceb; color:#e5484d; border-color:#f7d3d1; }
+  .sale-toggle .arrow { font-size:9px; transition: transform .15s ease; }
+
+  .price-link { color:#2f7ee0; cursor:pointer; text-decoration:none; font-weight:500; }
+  .price-link:hover { text-decoration:underline; }
+
+  .date-line { color:#666; font-size:11.5px; line-height:1.6; white-space:nowrap; }
+
+  .actions-col a { display:block; color:#2f7ee0; text-decoration:none; font-size:12px; cursor:pointer; margin-bottom:2px; white-space:nowrap; }
+  .actions-col a.del { color:#e5484d; }
+  .actions-col a:hover { text-decoration:underline; }
+
+  .limited-link { color:#2f7ee0; cursor:pointer; font-size:12px; font-weight:500; white-space:nowrap; }
+  .limited-link.added { color:#e5484d; }
+
+  .banner { background:#eef5ff; border-bottom:1px solid #d7e8ff; color:#2454a3; padding:8px 20px; font-size:12px; }
+
+  /* Modal */
+  .overlay {
+    position:fixed; inset:0; background:rgba(30,34,44,.45); display:none; align-items:flex-start; justify-content:center;
+    padding-top: 60px; z-index: 50;
+  }
+  .overlay.show { display:flex; }
+  .modal {
+    background:#fff; border-radius:8px; width:640px; max-width:92vw; max-height:82vh; overflow:auto;
+    box-shadow: 0 12px 40px rgba(0,0,0,.25);
+  }
+  .modal.wide { width: 760px; }
+  .modal-head {
+    display:flex; justify-content:space-between; align-items:center; padding:16px 22px; border-bottom:1px solid #eee;
+  }
+  .modal-head h3 { margin:0; font-size:16px; font-weight:700; }
+  .modal-head .x { cursor:pointer; color:#999; font-size:16px; }
+  .modal-body { padding: 18px 22px; }
+  .modal-foot { display:flex; justify-content:flex-end; gap:10px; padding:16px 22px; border-top:1px solid #eee; }
+  .btn-cancel { border:1px solid #d9d9d9; background:#fff; border-radius:4px; padding:8px 18px; font-size:13px; cursor:pointer; }
+  .btn-save { border:none; background:#2f7ee0; color:#fff; border-radius:4px; padding:8px 18px; font-size:13px; cursor:pointer; font-weight:600; }
+
+  .pm-table { width:100%; border-collapse:collapse; margin-top:6px; }
+  .pm-table th { text-align:left; font-size:11.5px; color:#8a8f99; font-weight:600; padding:8px 4px; border-bottom:1px solid #eee; }
+  .pm-table td { padding:12px 4px; border-bottom:1px solid #f2f2f4; font-size:13px; }
+  .stepper { display:inline-flex; align-items:center; border:1px solid #d9d9d9; border-radius:4px; overflow:hidden; }
+  .stepper button { border:none; background:#f5f6f8; width:26px; height:30px; font-size:14px; cursor:pointer; color:#555; }
+  .stepper input { width:70px; border:none; text-align:center; font-size:13px; color:#2f7ee0; font-weight:600; height:30px; }
+  .stepper input.discount { color:#e5484d; }
+
+  .es-row { display:flex; gap:16px; margin-bottom:16px; align-items:flex-start; }
+  .es-label { width:110px; font-size:12.5px; color:#555; padding-top:8px; text-align:right; flex-shrink:0; }
+  .es-label .req { color:#e5484d; margin-right:3px; }
+  .es-field { flex:1; }
+  .es-select, .es-input {
+    width:100%; border:1px solid #d9d9d9; border-radius:4px; padding:8px 10px; font-size:13px; color:#333;
+  }
+  .card { border:1px solid #eee; border-radius:6px; padding:16px; margin-bottom:14px; background:#fbfbfc; }
+  .card-head { display:flex; justify-content:space-between; align-items:center; font-weight:700; font-size:13px; margin-bottom:12px; }
+  .card-head .del { color:#e5484d; font-weight:500; cursor:pointer; font-size:12.5px; }
+  .tag-input { display:flex; flex-wrap:wrap; gap:6px; border:1px solid #d9d9d9; border-radius:4px; padding:8px; }
+  .tag { background:#f0f2f5; border-radius:4px; padding:4px 8px; font-size:12px; color:#444; }
+  .tag span { color:#999; margin-left:6px; cursor:pointer; }
+  .add-link { color:#2f7ee0; font-size:12.5px; cursor:pointer; display:inline-block; margin-top:4px; }
+  .section-title { font-weight:700; font-size:13.5px; margin: 18px 0 10px; }
+  .switch-row { display:flex; align-items:center; gap:10px; margin: 18px 0; }
+  .switch { width:38px; height:20px; border-radius:12px; background:#ccc; position:relative; cursor:pointer; transition: background .15s; }
+  .switch.on { background:#2f7ee0; }
+  .switch .knob { position:absolute; top:2px; left:2px; width:16px; height:16px; border-radius:50%; background:#fff; transition: left .15s; }
+  .switch.on .knob { left:20px; }
+  .toolbar { display:flex; gap:10px; align-items:center; border:1px solid #d9d9d9; border-bottom:none; border-radius:4px 4px 0 0; padding:8px 10px; background:#fafafa; font-size:13px; color:#555; }
+  .desc-box { border:1px solid #d9d9d9; border-radius:0 0 4px 4px; padding:12px; font-size:12.5px; color:#333; line-height:1.6; }
+
+  /* Toast */
+  #toast {
+    position:fixed; bottom:26px; left:50%; transform:translateX(-50%) translateY(20px);
+    background:#1f2430; color:#fff; padding:12px 20px; border-radius:6px; font-size:13px;
+    opacity:0; pointer-events:none; transition: opacity .2s, transform .2s; z-index:99; max-width: 80vw; text-align:center;
+  }
+  #toast.show { opacity:1; transform:translateX(-50%) translateY(0); }
+
+  /* Confirm dialog */
+  .confirm-box { width:360px; }
+  .confirm-box .modal-body { font-size:13.5px; color:#333; }
+</style>
+</head>
+<body>
+
+<div class="app">
+  <div class="sidebar">
+    <div class="sidebar-brand">Admin Console</div>
+
+    <div class="nav-item" onclick="toast('This mockup only covers Services')">
+      <span class="label"><span class="icon">&#8962;</span> Dashboard</span>
+      <span class="chevron">&#9662;</span>
+    </div>
+    <div class="nav-sub">
+      <div class="nav-item" onclick="toast('This mockup only covers Services')"><span class="label">Order Management</span></div>
+      <div class="nav-item active"><span class="label">Services</span></div>
+    </div>
+
+    <div class="nav-item" onclick="toast('This mockup only covers Services')">
+      <span class="label"><span class="icon">&#9635;</span> System Configuration</span>
+      <span class="chevron">&#9662;</span>
+    </div>
+    <div class="nav-sub">
+      <div class="nav-item" onclick="toast('This mockup only covers Services')"><span class="label">Service Categories</span></div>
+      <div class="nav-item" onclick="toast('This mockup only covers Services')"><span class="label">Service Types</span></div>
+      <div class="nav-item" onclick="toast('This mockup only covers Services')"><span class="label">Pricing Rules</span></div>
+      <div class="nav-item" onclick="toast('This mockup only covers Services')"><span class="label">Pricing Models</span></div>
+      <div class="nav-item" onclick="toast('This mockup only covers Services')"><span class="label">Add-on Categories</span></div>
+      <div class="nav-item" onclick="toast('This mockup only covers Services')"><span class="label">Add-on Services</span></div>
+    </div>
+
+    <div class="nav-item" onclick="toast('This mockup only covers Services')">
+      <span class="label"><span class="icon">&#9787;</span> Supplier Management</span>
+    </div>
+  </div>
+
+  <div class="main">
+
+<div class="banner">Interactive mockup — click "Price", the Sale Status arrow, "Edit", "Preview", "Delete" and "Add / Remove" to try each interaction.</div>
+
+<div class="topbar">
+  <h2>Services</h2>
+  <div class="right">
+    <select><option>English</option></select>
+    <button onclick="toast('Refreshed (mock)')">Refresh</button>
+    <button onclick="toast('Logged out (mock)')">Log Out</button>
+  </div>
+</div>
+
+<div class="filters">
+  <select><option>Service Category</option></select>
+  <select><option>Service Type</option></select>
+  <select><option value="" disabled hidden selected>Listing Status</option><option>On Sale</option><option>Off Sale</option></select>
+  <input placeholder="Service Name">
+  <select><option>Limited-Time Offers</option></select>
+</div>
+<div class="filters" style="padding-top:0;">
+  <button class="btn primary" onclick="toast('Search (mock)')">Search</button>
+  <button class="btn" onclick="toast('Cleared (mock)')">Clear</button>
+  <button class="btn" onclick="toast('Exported (mock)')">Export</button>
+  <button class="btn add" onclick="toast('Add Service (mock)')">Add Service</button>
+</div>
+
+<table>
+  <thead>
+    <tr>
+      <th>Order</th><th></th><th>Name</th><th>Category</th><th>Service Type</th>
+      <th>Pricing Rules</th><th>Sale Status</th><th>Price</th><th>Created / Updated</th><th>Actions</th><th>Limited Offer</th>
+    </tr>
+  </thead>
+  <tbody id="rows"></tbody>
+</table>
+
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<!-- Price Maintenance modal -->
+<div class="overlay" id="priceOverlay">
+  <div class="modal">
+    <div class="modal-head"><h3>Price Maintenance</h3><span class="x" onclick="closeModal('priceOverlay')">&times;</span></div>
+    <div class="modal-body">
+      <table class="pm-table">
+        <thead><tr><th id="pmHeader">4 Hour</th><th>Original Price</th><th>Discount Price</th></tr></thead>
+        <tbody id="pmRows"></tbody>
+      </table>
+    </div>
+    <div class="modal-foot">
+      <button class="btn-cancel" onclick="closeModal('priceOverlay')">Cancel</button>
+      <button class="btn-save" onclick="toast('Prices saved (mock)'); closeModal('priceOverlay')">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- Edit Service modal -->
+<div class="overlay" id="editOverlay">
+  <div class="modal wide">
+    <div class="modal-head"><h3>Edit Service</h3><span class="x" onclick="closeModal('editOverlay')">&times;</span></div>
+    <div class="modal-body">
+      <div class="es-row">
+        <div class="es-label"><span class="req">*</span>Service</div>
+        <div class="es-field"><select class="es-select"><option>General Maintenance &amp; Repairs</option></select></div>
+      </div>
+      <div class="es-row">
+        <div class="es-label">Category<br>Service Type</div>
+        <div class="es-field"><select class="es-select" id="editServiceType"></select></div>
+      </div>
+
+      <div class="section-title">Pricing Rules</div>
+      <div class="card">
+        <div class="card-head"><span>Pricing Rule 1</span><span class="del" onclick="toast('Pricing rule removed (mock)')">Delete</span></div>
+        <div class="es-row" style="margin-bottom:12px;">
+          <div class="es-label" style="width:90px;">Pricing</div>
+          <div class="es-field"><select class="es-select" id="editPricingLabel"></select></div>
+        </div>
+        <div class="es-row">
+          <div class="es-label" style="width:90px;">Model<br>Pricing Rule</div>
+          <div class="es-field"><div class="tag-input" id="editTags"></div></div>
+        </div>
+      </div>
+      <div class="add-link" onclick="toast('New pricing rule row added (mock)')">+ Add Pricing Rule</div>
+
+      <div class="section-title">Add-on Services</div>
+      <div class="add-link" onclick="toast('Add-on service picker (mock)')">+ Add Add-on Service</div>
+
+      <div class="switch-row">
+        <div class="switch" id="editSwitch" onclick="toggleEditSwitch()"><div class="knob"></div></div>
+        <span id="editSwitchLabel" style="font-size:13px; font-weight:500;">On Sale</span>
+      </div>
+
+      <div class="section-title">Name &amp; Description</div>
+      <div class="es-row">
+        <div class="es-label">Name (i18n)</div>
+        <div class="es-field" style="display:flex; gap:10px;">
+          <select class="es-select" style="max-width:130px;"><option>English</option></select>
+          <input class="es-input" id="editName" value="">
+        </div>
+      </div>
+      <div style="text-align:center; margin: 4px 0 18px;">
+        <span class="add-link" onclick="toast('Add another language (mock)')">Add Language</span>
+      </div>
+
+      <div class="es-row">
+        <div class="es-label">Description<br>(i18n)<br><br><select class="es-select" style="margin-top:6px;"><option>English</option></select></div>
+        <div class="es-field">
+          <div class="toolbar">Normal &nbsp;&nbsp; <b>B</b> <i>I</i> <u>U</u> 🔗 ≣ ≡ Tx</div>
+          <div class="desc-box" id="editDesc"></div>
+        </div>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn-cancel" onclick="closeModal('editOverlay')">Cancel</button>
+      <button class="btn-save" onclick="saveEdit()">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- Confirm delete modal -->
+<div class="overlay" id="confirmOverlay">
+  <div class="modal confirm-box">
+    <div class="modal-head"><h3>Delete Service</h3><span class="x" onclick="closeModal('confirmOverlay')">&times;</span></div>
+    <div class="modal-body">Are you sure you want to delete "<span id="confirmName"></span>"? This can't be undone.</div>
+    <div class="modal-foot">
+      <button class="btn-cancel" onclick="closeModal('confirmOverlay')">Cancel</button>
+      <button class="btn-save" style="background:#e5484d;" onclick="confirmDelete()">Delete</button>
+    </div>
+  </div>
+</div>
+
+<script>
+let rows = [
+  {name:"Half Day Callout", cat:"General Maintenance & Repairs", type:"Half Day Callout", pricing:"4 Hour: Handyman, Electrician, Plumber", onSale:true, limited:false, created:"2026-09-11", updated:"2026-09-19"},
+  {name:"Full Day Callout", cat:"General Maintenance & Repairs", type:"Full Day Callout", pricing:"8 Hour: Handyman, Electrician, Plumber", onSale:true, limited:false, created:"2026-09-11", updated:"2026-09-19"},
+  {name:"TV Installation", cat:"General Maintenance & Repairs", type:"TV Installation Services", pricing:"Inches: Below 55 inches, 55 - 75 inches, Above 75 inches", onSale:true, limited:false, created:"2026-09-11", updated:"2026-09-19"},
+  {name:"Fly Screen Installation", cat:"General Maintenance & Repairs", type:"Fly Screen", pricing:"Fly Screen Installation: upto 10 sqft, upto 20 sqft, upto 40", onSale:true, limited:false, created:"2026-09-11", updated:"2026-09-19"},
+  {name:"Bird Spike Installation", cat:"General Maintenance & Repairs", type:"Bird Spike Installation", pricing:"Meter: 5, 10, 20, Inspection & Assessment", onSale:true, limited:false, created:"2026-09-10", updated:"2026-09-19"},
+  {name:"Curtain & Blinds Installation", cat:"General Maintenance & Repairs", type:"Curtain & Blinds", pricing:"Installation: Curtain & Blinds", onSale:true, limited:false, created:"2026-09-10", updated:"2026-09-19"},
+  {name:"Smart Lock Replacement", cat:"General Maintenance & Repairs", type:"Smart Lock", pricing:"Smart Lock: Replacement", onSale:true, limited:false, created:"2026-09-11", updated:"2026-09-19"},
+  {name:"Water Pump Repair & Inspection", cat:"General Maintenance & Repairs", type:"Water Pump Repair & Inspection", pricing:"Services: Repair, Inspection", onSale:true, limited:false, created:"2026-09-10", updated:"2026-09-19"},
+  {name:"Water Heater Installation - Solar", cat:"General Maintenance & Repairs", type:"Water Heater Installation - Solar", pricing:"Liters: 200L, 300L", onSale:true, limited:true, created:"2026-09-10", updated:"2026-09-19"},
+];
+
+function parsePricing(str) {
+  const idx = str.indexOf(":");
+  const label = str.slice(0, idx);
+  const items = str.slice(idx+1).split(",").map(s => s.trim());
+  return {label, items};
+}
+
+function render() {
+  const tbody = document.getElementById("rows");
+  tbody.innerHTML = "";
+  rows.forEach((r, i) => {
+    const {label, items} = parsePricing(r.pricing);
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td class="drag">::</td>
+      <td><div class="thumb"><div class="thumb-box"></div><span class="thumb-count">+4</span></div></td>
+      <td class="name-cell">${r.name}</td>
+      <td class="muted">${r.cat}</td>
+      <td class="muted">${r.type}</td>
+      <td><span class="chip" title="${r.pricing}">${r.pricing}</span></td>
+      <td>
+        <span class="sale-toggle ${r.onSale ? 'on' : 'off'}" onclick="toggleSale(${i})">
+          ${r.onSale ? 'On Sale' : 'Off Sale'} <span class="arrow">&#9662;</span>
+        </span>
+      </td>
+      <td><span class="price-link" onclick="openPrice(${i})">Price</span></td>
+      <td>
+        <div class="date-line">Created: ${r.created}</div>
+        <div class="date-line">Updated: ${r.updated}</div>
+      </td>
+      <td class="actions-col">
+        <a onclick="openEdit(${i})">Edit</a>
+        <a onclick="previewService(${i})">Preview</a>
+        <a class="del" onclick="askDelete(${i})">Delete</a>
+      </td>
+      <td>
+        <span class="limited-link ${r.limited ? 'added' : ''}" onclick="toggleLimited(${i})">${r.limited ? 'Remove' : 'Add'}</span>
+      </td>
+    `;
+    tbody.appendChild(tr);
+  });
+}
+
+function toggleSale(i) {
+  rows[i].onSale = !rows[i].onSale;
+  render();
+  toast(rows[i].name + " is now " + (rows[i].onSale ? "On Sale" : "Off Sale"));
+}
+
+function toggleLimited(i) {
+  rows[i].limited = !rows[i].limited;
+  render();
+  toast(rows[i].limited ? "Added to Limited-Time Offers" : "Removed from Limited-Time Offers");
+}
+
+let currentIndex = null;
+
+function openPrice(i) {
+  currentIndex = i;
+  const {label, items} = parsePricing(rows[i].pricing);
+  document.getElementById("pmHeader").textContent = label;
+  const tbody = document.getElementById("pmRows");
+  tbody.innerHTML = "";
+  items.forEach((item, idx) => {
+    const base = 80 + idx*35 + (i*5 % 40);
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td>${item}</td>
+      <td>
+        <div class="stepper">
+          <button onclick="step(this,-1)">-</button>
+          <input value="${base}">
+          <button onclick="step(this,1)">+</button>
+        </div>
+      </td>
+      <td>
+        <div class="stepper">
+          <button onclick="step(this,-1)">-</button>
+          <input class="discount" value="0">
+          <button onclick="step(this,1)">+</button>
+        </div>
+      </td>
+    `;
+    tbody.appendChild(tr);
+  });
+  showModal("priceOverlay");
+}
+
+function step(btn, dir) {
+  const input = btn.parentElement.querySelector("input");
+  let v = parseInt(input.value || "0", 10);
+  v = Math.max(0, v + dir*5);
+  input.value = v;
+}
+
+function openEdit(i) {
+  currentIndex = i;
+  const r = rows[i];
+  const {label, items} = parsePricing(r.pricing);
+
+  const typeSel = document.getElementById("editServiceType");
+  typeSel.innerHTML = `<option>${r.type}</option>`;
+
+  const pricingSel = document.getElementById("editPricingLabel");
+  pricingSel.innerHTML = `<option>${label}</option>`;
+
+  const tagBox = document.getElementById("editTags");
+  tagBox.innerHTML = items.map(it => `<span class="tag">${it} <span onclick="toast('Removed ${it} (mock)')">&times;</span></span>`).join("") +
+    `<span class="tag" style="background:transparent;color:#2f7ee0;cursor:pointer;" onclick="toast('Add option (mock)')">+</span>`;
+
+  document.getElementById("editName").value = r.name;
+  document.getElementById("editDesc").textContent =
+    `Book our ${r.name} service — professional, reliable, and available at a time that suits you. Our vetted technicians handle everything so you don't have to.`;
+
+  const sw = document.getElementById("editSwitch");
+  sw.classList.toggle("on", r.onSale);
+  document.getElementById("editSwitchLabel").textContent = r.onSale ? "On Sale" : "Off Sale";
+
+  showModal("editOverlay");
+}
+
+function toggleEditSwitch() {
+  const sw = document.getElementById("editSwitch");
+  const isOn = !sw.classList.contains("on");
+  sw.classList.toggle("on", isOn);
+  document.getElementById("editSwitchLabel").textContent = isOn ? "On Sale" : "Off Sale";
+}
+
+function saveEdit() {
+  if (currentIndex !== null) {
+    const r = rows[currentIndex];
+    r.name = document.getElementById("editName").value || r.name;
+    r.onSale = document.getElementById("editSwitch").classList.contains("on");
+    render();
+  }
+  toast("Service saved (mock)");
+  closeModal("editOverlay");
+}
+
+function previewService(i) {
+  const slug = rows[i].name.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/(^-|-$)/g,'');
+  toast(`Would open the live website service page: hourxportal.com/services/${slug}`);
+}
+
+let pendingDelete = null;
+function askDelete(i) {
+  pendingDelete = i;
+  document.getElementById("confirmName").textContent = rows[i].name;
+  showModal("confirmOverlay");
+}
+function confirmDelete() {
+  if (pendingDelete !== null) {
+    const name = rows[pendingDelete].name;
+    rows.splice(pendingDelete, 1);
+    render();
+    toast(`"${name}" deleted (mock)`);
+  }
+  closeModal("confirmOverlay");
+}
+
+function showModal(id) { document.getElementById(id).classList.add("show"); }
+function closeModal(id) { document.getElementById(id).classList.remove("show"); }
+
+let toastTimer = null;
+function toast(msg) {
+  const el = document.getElementById("toast");
+  el.textContent = msg;
+  el.classList.add("show");
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove("show"), 2200);
+}
+
+render();
+</script>
+
+</body>
+</html>

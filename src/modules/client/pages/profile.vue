@@ -197,10 +197,7 @@
                 <el-icon class="profile-section__arrow"><ArrowRight /></el-icon>
               </button>
               <div v-if="activeSection === 'payments'" class="profile-section__content">
-                <div class="section-state section-state--stacked">
-                  <strong>{{ t("client.profile.payments.empty") }}</strong>
-                  <span>{{ t("client.profile.payments.note") }}</span>
-                </div>
+                <SavedPaymentMethodManager />
               </div>
             </article>
 
@@ -326,6 +323,7 @@ import { useAuth } from "../composables/useAuth"
 import { setClientLocale } from "../locales"
 import { getFaqGroups } from "@/modules/client/data/faq"
 import SavedAddressManager from "@/modules/client/components/SavedAddressManager.vue"
+import SavedPaymentMethodManager from "@/modules/client/components/SavedPaymentMethodManager.vue"
 import ForgotPasswordDialog from "@/modules/client/components/ForgotPasswordDialog.vue"
 
 type ProfileSection = "personal" | "addresses" | "payments" | "notifications" | "support" | "language"

@@ -42,7 +42,18 @@
               <span>{{ t('client.cart.columns.actions') }}</span>
             </div>
 
-            <article v-for="item in items" :key="item.id" class="cart-item" :class="{ 'is-selected': item.selected }">
+            <article
+              v-for="item in items"
+              :key="item.id"
+              class="cart-item"
+              :class="{ 'is-selected': item.selected }"
+              role="link"
+              tabindex="0"
+              :aria-label="itemTitle(item)"
+              @click="handleCartItemClick(item, $event)"
+              @keydown.enter.self.prevent="goDetails(item)"
+              @keydown.space.self.prevent="goDetails(item)"
+            >
               <div class="cart-item__select">
                 <el-checkbox
                   :model-value="item.selected"
@@ -101,13 +112,22 @@
           </div>
 
           <div class="cart-summary__prices">
-            <div>
+            <div class="cart-summary__breakdown">
               <span>{{ t('client.cart.selectedCount', { count: selectedCount }) }}</span>
-              <p>
-                {{ t('client.cart.estimatedTotal') }}
-                <strong>{{ formatAed(total) }}</strong>
-              </p>
-              <small>{{ t('client.cart.vatIncludedPreview') }}</small>
+              <dl>
+                <div>
+                  <dt>{{ t('client.cart.subtotal') }}</dt>
+                  <dd>{{ formatAed(subtotal) }}</dd>
+                </div>
+                <div>
+                  <dt>{{ t('client.cart.vat') }}</dt>
+                  <dd>{{ formatAed(tax) }}</dd>
+                </div>
+                <div class="is-total">
+                  <dt>{{ t('client.cart.estimatedTotal') }}</dt>
+                  <dd>{{ formatAed(total) }}</dd>
+                </div>
+              </dl>
             </div>
             <button type="button" :disabled="!selectedLineCount" @click="openCheckout">
               {{ t('client.cart.checkout') }}
@@ -133,15 +153,23 @@
     >
       <div class="checkout-dialog__scroll">
       <div class="checkout-dialog__items">
-        <div v-for="item in selectedItems" :key="item.id">
+        <div v-for="item in checkoutItems" :key="item.id">
           <span>{{ itemTitle(item) }}</span>
           <strong>{{ formatAed(item.unitPrice) }}</strong>
         </div>
       </div>
       <dl class="checkout-dialog__total">
         <div>
+          <dt>{{ t('client.cart.subtotal') }}</dt>
+          <dd>{{ formatAed(checkoutSubtotal) }}</dd>
+        </div>
+        <div>
+          <dt>{{ t('client.cart.vat') }}</dt>
+          <dd>{{ formatAed(checkoutTax) }}</dd>
+        </div>
+        <div>
           <dt>{{ t('client.cart.estimatedTotal') }}</dt>
-          <dd>{{ formatAed(total) }}</dd>
+          <dd>{{ formatAed(checkoutTotal) }}</dd>
         </div>
       </dl>
       <BookingPolicyDetails
@@ -165,7 +193,11 @@
     <StripePaymentModal
       :visible="stripeVisible"
       :client-secret="stripeClientSecret"
+      :customer-session-client-secret="stripeCustomerSessionClientSecret"
       :locale="locale"
+      :subtotal="checkoutSubtotal"
+      :tax="checkoutTax"
+      :total="checkoutTotal"
       @close="stripeVisible = false"
       @error="handleStripeError"
       @paid="handlePaymentSuccess"
@@ -196,10 +228,12 @@ const checkoutPolicyAgreed = ref(false);
 const isCheckingOut = ref(false);
 const stripeVisible = ref(false);
 const stripeClientSecret = ref('');
+const stripeCustomerSessionClientSecret = ref('');
 const legalDialogVisible = ref(false);
 const legalDocType = ref<LegalDocType>('terms');
 const checkoutSummary = ref({ orderNo: '', orderId: '', service: '', scheduled: '', amount: '' });
 const checkedOutItemIds = ref<string[]>([]);
+const checkoutItemIds = ref<string[]>([]);
 const router = useRouter();
 const route = useRoute();
 const {
@@ -209,6 +243,8 @@ const {
   selectedLineCount,
   allSelected,
   partiallySelected,
+  subtotal,
+  tax,
   total,
   isLoading,
   refreshCart,
@@ -218,6 +254,17 @@ const {
 } = useCart();
 
 const selectedIds = computed(() => selectedItems.value.map((item) => item.id));
+const checkoutItems = computed(() => {
+  const ids = new Set(checkoutItemIds.value);
+  return items.value.filter((item) => ids.has(item.id));
+});
+const checkoutSubtotal = computed(() =>
+  checkoutItems.value.reduce((sum, item) => sum + item.unitPrice, 0),
+);
+const checkoutTotal = computed(() =>
+  checkoutItems.value.reduce((sum, item) => sum + item.priceWithTax, 0),
+);
+const checkoutTax = computed(() => checkoutTotal.value - checkoutSubtotal.value);
 
 const pickLocalizedText = (value?: CartLocalizedText, fallback = '') => {
   const source = value || {};
@@ -258,7 +305,8 @@ const itemAddOns = (item: CartItem) => {
 const formatAed = (value: number) => `AED ${Number(value || 0).toFixed(2)}`;
 
 const cartBookingRoute = (item: CartItem) => {
-  const subtotal = item.unitPrice / 1.05;
+  const subtotal = item.unitPrice;
+  const total = item.priceWithTax;
   return {
     name: 'order-confirm',
     query: {
@@ -276,10 +324,21 @@ const cartBookingRoute = (item: CartItem) => {
       selectedSpecValueIds: JSON.stringify(item.selectedSpecValueIds || []),
       specValueNameI18n: JSON.stringify(item.specValueNameI18n || {}),
       subtotal: subtotal.toFixed(2),
-      tax: (item.unitPrice - subtotal).toFixed(2),
-      total: item.unitPrice.toFixed(2),
+      tax: (total - subtotal).toFixed(2),
+      total: total.toFixed(2),
     },
   };
+};
+
+const goDetails = (item: CartItem) => router.push(cartBookingRoute(item));
+
+const handleCartItemClick = (item: CartItem, event: MouseEvent) => {
+  const target = event.target;
+  if (
+    target instanceof Element
+    && target.closest('a, button, input, label, [role="checkbox"]')
+  ) return;
+  void goDetails(item);
 };
 
 const handleSelectAll = (value: string | number | boolean) => {
@@ -315,6 +374,8 @@ const ensureLogin = async () => {
 
 const openCheckout = async () => {
   if (!(await ensureLogin())) return;
+  checkoutItemIds.value = [...selectedIds.value];
+  if (!checkoutItemIds.value.length) return;
   checkoutPolicyAgreed.value = false;
   checkoutVisible.value = true;
 };
@@ -326,19 +387,21 @@ const openLegal = (docType: LegalDocType) => {
 
 const confirmCheckout = async () => {
   if (!checkoutPolicyAgreed.value || isCheckingOut.value) return;
+  const checkoutIds = [...checkoutItemIds.value];
+  if (!checkoutIds.length) return;
   isCheckingOut.value = true;
   try {
-    checkedOutItemIds.value = [...selectedIds.value];
+    checkedOutItemIds.value = checkoutIds;
     const result = await checkoutCart(checkedOutItemIds.value, 'STRIPE', window.location.href);
     const payment = result?.payment;
     checkoutSummary.value = {
       orderNo: (result?.orderNos || []).join(', '),
       orderId: (result?.orderIds || []).join(', '),
-      service: selectedItems.value.length === 1 && selectedItems.value[0]
-        ? itemTitle(selectedItems.value[0])
-        : (locale.value === 'zh' ? `${selectedItems.value.length} 项家居服务` : `${selectedItems.value.length} home services`),
-      scheduled: selectedItems.value.length === 1 ? itemSchedule(selectedItems.value[0]!) : '',
-      amount: String(result?.totalAmount || total.value || ''),
+      service: checkoutItems.value.length === 1 && checkoutItems.value[0]
+        ? itemTitle(checkoutItems.value[0])
+        : (locale.value === 'zh' ? `${checkoutItems.value.length} 项家居服务` : `${checkoutItems.value.length} home services`),
+      scheduled: checkoutItems.value.length === 1 ? itemSchedule(checkoutItems.value[0]!) : '',
+      amount: String(result?.totalAmount || checkoutTotal.value || ''),
     };
     const approvalUrl = String(payment?.approvalUrl || '').trim();
     const clientSecret = String(payment?.clientSecret || '').trim();
@@ -349,6 +412,7 @@ const confirmCheckout = async () => {
     if (!clientSecret) throw new Error(locale.value === 'zh' ? '未获取到支付参数' : 'Missing payment parameters');
     checkoutVisible.value = false;
     stripeClientSecret.value = clientSecret;
+    stripeCustomerSessionClientSecret.value = String(payment?.customerSessionClientSecret || '').trim();
     stripeVisible.value = true;
   } catch (error: any) {
     checkedOutItemIds.value = [];
@@ -544,7 +608,13 @@ onMounted(async () => {
   border: 1px solid #e6ebf2;
   border-radius: 16px;
   background: #fff;
+  cursor: pointer;
   transition: border-color 0.2s ease, background-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.cart-item:focus-visible {
+  outline: 3px solid rgb(23 105 194 / 22%);
+  outline-offset: 3px;
 }
 
 .cart-item.is-selected {
@@ -721,26 +791,50 @@ onMounted(async () => {
   gap: 20px;
 }
 
-.cart-summary__prices > div {
+.cart-summary__breakdown {
   text-align: right;
 }
 
-.cart-summary__prices > div > span,
-.cart-summary__prices small {
+.cart-summary__breakdown > span {
   color: #7a8798;
   font-size: 11px;
 }
 
-.cart-summary__prices p {
-  margin: 3px 0;
-  color: #526176;
-  font-size: 13px;
+.cart-summary__breakdown dl {
+  min-width: 210px;
+  margin: 5px 0 0;
 }
 
-.cart-summary__prices p strong {
-  margin-left: 7px;
+.cart-summary__breakdown dl > div {
+  display: grid;
+  grid-template-columns: auto minmax(82px, auto);
+  gap: 14px;
+  color: #526176;
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.cart-summary__breakdown dt,
+.cart-summary__breakdown dd {
+  margin: 0;
+}
+
+.cart-summary__breakdown dd {
+  color: #34445a;
+  font-weight: 700;
+}
+
+.cart-summary__breakdown .is-total {
+  margin-top: 2px;
+  padding-top: 2px;
+  border-top: 1px solid #e5eaf0;
+  font-size: 14px;
+  font-weight: 800;
+}
+
+.cart-summary__breakdown .is-total dd {
   color: #1769c2;
-  font-size: 22px;
+  font-size: 18px;
 }
 
 .cart-summary__prices > button {
@@ -1004,7 +1098,7 @@ onMounted(async () => {
     justify-content: space-between;
   }
 
-  .cart-summary__prices > div {
+  .cart-summary__breakdown {
     text-align: left;
   }
 
@@ -1029,15 +1123,23 @@ onMounted(async () => {
     display: none;
   }
 
-  .cart-summary__prices > div > span,
-  .cart-summary__prices small {
+  .cart-summary__breakdown > span {
     display: none;
   }
 
-  .cart-summary__prices p strong {
-    display: block;
-    margin-left: 0;
-    font-size: 19px;
+  .cart-summary__breakdown dl {
+    min-width: 0;
+    margin-top: 0;
+  }
+
+  .cart-summary__breakdown dl > div {
+    grid-template-columns: auto auto;
+    gap: 8px;
+    font-size: 10px;
+  }
+
+  .cart-summary__breakdown .is-total dd {
+    font-size: 15px;
   }
 
   .cart-summary__prices > button {

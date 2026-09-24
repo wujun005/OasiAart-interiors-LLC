@@ -122,6 +122,14 @@
             </div>
           </div>
 
+          <div
+            v-if="item.refundHandlingFeeText"
+            class="h5-order-card__refund-fee"
+          >
+            <span>{{ t("client.orderList.refundHandlingFee") }}</span>
+            <strong>{{ item.refundHandlingFeeText }}</strong>
+          </div>
+
           <div v-if="item.showActions" class="h5-order-card__actions">
             <button
               v-if="item.canContinue"
@@ -265,6 +273,9 @@
 
     <CancellationPolicyGate
       v-model="cancelPolicyVisible"
+      :show-refund-summary="refundForm.mode === 'refund'"
+      :handling-fee-text="refundForm.handlingFeeText"
+      :refund-amount-text="refundForm.amountText"
       @continue="continueCancellation"
     />
 
@@ -363,7 +374,14 @@
               :value="slot.timeRange"
               :disabled="!slot.available || slot.isCurrent"
             >
-              {{ slot.time }}{{ slot.isCurrent ? (locale.startsWith("zh") ? "（当前时段）" : " (current slot)") : "" }}
+              {{ slot.time
+              }}{{
+                slot.isCurrent
+                  ? locale.startsWith("zh")
+                    ? "（当前时段）"
+                    : " (current slot)"
+                  : ""
+              }}
             </option>
           </select>
         </label>
@@ -386,10 +404,7 @@
           <button
             class="h5-review-sheet__submit"
             type="button"
-            :disabled="
-              isRescheduleSubmitting ||
-              isRescheduleTimeLoading
-            "
+            :disabled="isRescheduleSubmitting || isRescheduleTimeLoading"
             @click="submitReschedule"
           >
             {{
@@ -426,6 +441,7 @@ import {
   checkOrderRefund,
   getAvailableSelectTime,
   getOrderByOrderNo,
+  getOrderRefundAmount,
   getRefundReasons,
   getOrderList,
   requestOrderRefund,
@@ -475,6 +491,7 @@ type OrderCardView = {
   rawOrderStatus: number | null
   title: string
   amountText: string
+  refundHandlingFeeText: string
   serviceTimeText: string
   createdTimeText: string
   addressText: string
@@ -558,7 +575,9 @@ const rescheduleAvailableTimeRecords = ref<AvailableTimeRecord[]>([])
 const isRescheduleTimeLoading = ref(false)
 const lastLoadedRescheduleKey = ref("")
 const normalizeTimeSlot = (value: string) =>
-  String(value || "").replace(/\s/g, "").replace(/[–—]/g, "-")
+  String(value || "")
+    .replace(/\s/g, "")
+    .replace(/[–—]/g, "-")
 const rescheduleDateCalendarVisible = ref(false)
 const minRescheduleDate = computed(() => {
   const today = new Date()
@@ -614,13 +633,14 @@ const selectableRescheduleTimeOptions = computed(() =>
       }
     })
     .filter(
-      (item): item is {
+      (
+        item,
+      ): item is {
         time: string
         timeRange: number
         available: boolean
         isCurrent: boolean
-      } =>
-        Boolean(item),
+      } => Boolean(item),
     ),
 )
 const rescheduleTimePlaceholder = computed(() => {
@@ -801,10 +821,11 @@ const ensureRefundReasons = async () => {
   }
 }
 
-const formatAmount = (value?: number | string) => {
+const formatAmount = (value?: number | string | null, fallback = "AED 0") => {
+  if (value == null || String(value).trim() === "") return fallback
   const numeric = Number(value)
-  if (!Number.isFinite(numeric)) {
-    return "AED 0"
+  if (!Number.isFinite(numeric) || numeric < 0) {
+    return fallback
   }
   const text = Number.isInteger(numeric) ? String(numeric) : numeric.toFixed(2)
   return `AED ${text}`
@@ -856,7 +877,10 @@ const orderStatusNameMap: Record<string, number> = {
 
 const getRawOrderStatus = (record: OrderListRecord): number | null => {
   // 1. 优先尝试数值型 orderStatus
-  const explicitStatus = Number(record.orderStatus)
+  const explicitStatus =
+    record.orderStatus == null || String(record.orderStatus).trim() === ""
+      ? NaN
+      : Number(record.orderStatus)
   if (Number.isFinite(explicitStatus)) return explicitStatus
 
   // 2. 尝试将字符串型 orderStatus 通过枚举映射转换
@@ -985,6 +1009,8 @@ const orderCards = computed<OrderCardView[]>(() =>
             t("client.orderList.unknownService"),
         ),
         amountText: formatAmount(item.orderAmount),
+        refundHandlingFeeText:
+          orderStatus === 5 ? formatAmount(item.refundHandlingFee, "") : "",
         serviceTimeText: formatServiceSchedule(
           item.serviceDateTime,
           locale.value,
@@ -1056,9 +1082,8 @@ const loadOrders = async () => {
         (item) => String(item.orderNo || "") === requestedOrderNo,
       )
       if (requestedRecord) {
-        selectedStatus.value = getRawOrderStatus(requestedRecord) === 1
-          ? "ACTIVE"
-          : "HISTORY"
+        selectedStatus.value =
+          getRawOrderStatus(requestedRecord) === 1 ? "ACTIVE" : "HISTORY"
       }
       const target = orderCards.value.find(
         (item) => item.orderNo === requestedOrderNo,
@@ -1324,12 +1349,18 @@ const openRefund = async (item: OrderCardView) => {
       )
       return
     }
+    const refundAmount = check.canRefund
+      ? await getOrderRefundAmount(item.orderNo)
+      : null
+    if (check.canRefund && !refundAmount) {
+      throw new Error(locale.value === "zh" ? "无法获取退款金额" : "Unable to load refund amount")
+    }
     refundForm.value = {
       orderNo: item.orderNo,
       reason: cancelReasonOptions.value[0]?.value || "PLANS_CHANGED",
       otherReason: "",
-      amountText: formatAmount(check.canRefund ? check.refundAmount : 0),
-      handlingFeeText: check.canRefund ? formatAmount(check.handlingFee) : "",
+      amountText: check.canRefund ? formatAmount(refundAmount?.refundAmount) : "",
+      handlingFeeText: check.canRefund ? formatAmount(refundAmount?.handlingFee) : "",
       mode: check.canRefund ? "refund" : "cancel",
       item,
     }
@@ -1768,6 +1799,22 @@ onBeforeUnmount(() => {
 .h5-order-card__selections b {
   color: rgba(15, 23, 42, 0.7);
   font-weight: 700;
+}
+
+.h5-order-card__refund-fee {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid #edf0f3;
+  color: #687588;
+  font-size: 12px;
+}
+
+.h5-order-card__refund-fee strong {
+  color: #172033;
+  white-space: nowrap;
 }
 
 .h5-order-card__actions {

@@ -132,6 +132,14 @@
                   </span>
                 </div>
 
+                <div
+                  v-if="item.refundHandlingFeeText"
+                  class="order-card__refund-fee"
+                >
+                  <span>{{ t("client.orderList.refundHandlingFee") }}</span>
+                  <strong>{{ item.refundHandlingFeeText }}</strong>
+                </div>
+
                 <div class="order-card__actions">
                   <button
                     v-if="item.canContinue"
@@ -248,6 +256,9 @@
 
     <CancellationPolicyGate
       v-model="cancelPolicyVisible"
+      :show-refund-summary="refundForm.mode === 'refund'"
+      :handling-fee-text="refundForm.handlingFeeText"
+      :refund-amount-text="refundForm.amountText"
       @continue="continueCancellation"
     />
 
@@ -338,7 +349,14 @@
                 :value="slot.timeRange"
                 :disabled="!slot.available || slot.isCurrent"
               >
-                {{ slot.time }}{{ slot.isCurrent ? (locale.startsWith("zh") ? "（当前时段）" : " (current slot)") : "" }}
+                {{ slot.time
+                }}{{
+                  slot.isCurrent
+                    ? locale.startsWith("zh")
+                      ? "（当前时段）"
+                      : " (current slot)"
+                    : ""
+                }}
               </option>
             </select>
           </label>
@@ -364,10 +382,7 @@
           <button
             class="order-card__btn order-card__btn--primary"
             type="button"
-            :disabled="
-              isRescheduleSubmitting ||
-              isRescheduleTimeLoading
-            "
+            :disabled="isRescheduleSubmitting || isRescheduleTimeLoading"
             @click="submitReschedule"
           >
             {{
@@ -408,6 +423,7 @@ import {
   checkOrderRefund,
   getAvailableSelectTime,
   getOrderByOrderNo,
+  getOrderRefundAmount,
   getRefundReasons,
   getOrderList,
   requestOrderRefund,
@@ -446,6 +462,7 @@ type OrderCardView = {
   rawOrderStatus: number | null
   title: string
   amountText: string
+  refundHandlingFeeText: string
   serviceTimeText: string
   createdTimeText: string
   addressText: string
@@ -561,7 +578,9 @@ const rescheduleAvailableTimeRecords = ref<AvailableTimeRecord[]>([])
 const isRescheduleTimeLoading = ref(false)
 const lastLoadedRescheduleKey = ref("")
 const normalizeTimeSlot = (value: string) =>
-  String(value || "").replace(/\s/g, "").replace(/[–—]/g, "-")
+  String(value || "")
+    .replace(/\s/g, "")
+    .replace(/[–—]/g, "-")
 const minRescheduleDate = computed(() => {
   const today = new Date()
   const year = today.getFullYear()
@@ -606,17 +625,19 @@ const selectableRescheduleTimeOptions = computed(() =>
         available: Boolean(item.avaiable ?? item.available ?? false),
         isCurrent:
           rescheduleForm.serviceTime === rescheduleForm.currentServiceDate &&
-          normalizeTimeSlot(time) === normalizeTimeSlot(rescheduleForm.currentTimeText),
+          normalizeTimeSlot(time) ===
+            normalizeTimeSlot(rescheduleForm.currentTimeText),
       }
     })
     .filter(
-      (item): item is {
+      (
+        item,
+      ): item is {
         time: string
         timeRange: number
         available: boolean
         isCurrent: boolean
-      } =>
-        Boolean(item),
+      } => Boolean(item),
     ),
 )
 const rescheduleTimePlaceholder = computed(() => {
@@ -791,10 +812,11 @@ const ensureRefundReasons = async () => {
   }
 }
 
-const formatAmount = (value?: number | string) => {
+const formatAmount = (value?: number | string | null, fallback = "AED 0") => {
+  if (value == null || String(value).trim() === "") return fallback
   const numeric = Number(value)
-  if (!Number.isFinite(numeric)) {
-    return "AED 0"
+  if (!Number.isFinite(numeric) || numeric < 0) {
+    return fallback
   }
   const text = Number.isInteger(numeric) ? String(numeric) : numeric.toFixed(2)
   return `AED ${text}`
@@ -846,7 +868,10 @@ const orderStatusNameMap: Record<string, number> = {
 
 const getRawOrderStatus = (record: OrderListRecord): number | null => {
   // 1. 优先尝试数值型 orderStatus
-  const explicitStatus = Number(record.orderStatus)
+  const explicitStatus =
+    record.orderStatus == null || String(record.orderStatus).trim() === ""
+      ? NaN
+      : Number(record.orderStatus)
   if (Number.isFinite(explicitStatus)) return explicitStatus
 
   // 2. 尝试将字符串型 orderStatus 通过枚举映射转换
@@ -961,6 +986,8 @@ const orderCards = computed<OrderCardView[]>(() =>
         rawOrderStatus: orderStatus,
         title,
         amountText: formatAmount(item.orderAmount),
+        refundHandlingFeeText:
+          orderStatus === 5 ? formatAmount(item.refundHandlingFee, "") : "",
         serviceTimeText: formatServiceSchedule(
           item.serviceDateTime,
           locale.value,
@@ -1032,9 +1059,8 @@ const loadOrders = async () => {
         (item) => String(item.orderNo || "") === requestedOrderNo,
       )
       if (requestedRecord) {
-        selectedStatus.value = getRawOrderStatus(requestedRecord) === 1
-          ? "ACTIVE"
-          : "HISTORY"
+        selectedStatus.value =
+          getRawOrderStatus(requestedRecord) === 1 ? "ACTIVE" : "HISTORY"
       }
       const target = orderCards.value.find(
         (item) => item.orderNo === requestedOrderNo,
@@ -1297,12 +1323,17 @@ const openRefund = async (item: OrderCardView) => {
     refundForm.otherReason = ""
     refundForm.item = item
     refundForm.mode = check.canRefund ? "refund" : "cancel"
-    refundForm.amountText = formatAmount(
-      check.canRefund ? check.refundAmount : 0,
-    )
-    refundForm.handlingFeeText = check.canRefund
-      ? formatAmount(check.handlingFee)
-      : ""
+    if (check.canRefund) {
+      const refundAmount = await getOrderRefundAmount(item.orderNo)
+      if (!refundAmount) throw new Error(
+        locale.value === "zh" ? "无法获取退款金额" : "Unable to load refund amount",
+      )
+      refundForm.amountText = formatAmount(refundAmount.refundAmount)
+      refundForm.handlingFeeText = formatAmount(refundAmount.handlingFee)
+    } else {
+      refundForm.amountText = ""
+      refundForm.handlingFeeText = ""
+    }
     cancelConfirmed.value = false
     refundDialogVisible.value = false
     cancelPolicyVisible.value = true
@@ -1778,6 +1809,22 @@ onBeforeUnmount(() => {
 .order-card__selections b {
   color: rgba(15, 23, 42, 0.76);
   font-weight: 700;
+}
+
+.order-card__refund-fee {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid #edf0f3;
+  color: #687588;
+  font-size: 13px;
+}
+
+.order-card__refund-fee strong {
+  color: #172033;
+  white-space: nowrap;
 }
 
 .order-card__actions {

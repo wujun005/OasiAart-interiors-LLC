@@ -18,18 +18,39 @@
           <section class="order-card">
             <header class="order-section-title">
               <span class="order-section-title__index">1</span>
-              <h2>{{ locale === 'zh' ? '联系信息与服务地址' : 'Contact & Service Address' }}</h2>
+              <h2>
+                {{
+                  locale === "zh"
+                    ? "联系信息与服务地址"
+                    : "Contact & Service Address"
+                }}
+              </h2>
             </header>
             <div class="order-address-book">
               <div class="order-address-book__bar">
-                <strong>{{ locale === 'zh' ? '服务地址' : 'Service Address' }}</strong>
+                <strong>{{
+                  locale === "zh" ? "服务地址" : "Service Address"
+                }}</strong>
               </div>
               <p v-if="addressListLoading" class="order-address-book__state">
                 {{ t("client.orderConfirm.addressBook.loading") }}
               </p>
-              <div v-else-if="addressListError" class="order-address-book__state order-address-book__state--error" role="alert">
-                <span>{{ locale === 'zh' ? '地址加载失败，请重试。' : 'Unable to load addresses. Please try again.' }}</span>
-                <button type="button" @click="loadAddressBook(selectedAddressId)">{{ locale === 'zh' ? '重试' : 'Retry' }}</button>
+              <div
+                v-else-if="addressListError"
+                class="order-address-book__state order-address-book__state--error"
+                role="alert"
+              >
+                <span>{{
+                  locale === "zh"
+                    ? "地址加载失败，请重试。"
+                    : "Unable to load addresses. Please try again."
+                }}</span>
+                <button
+                  type="button"
+                  @click="loadAddressBook(selectedAddressId)"
+                >
+                  {{ locale === "zh" ? "重试" : "Retry" }}
+                </button>
               </div>
               <div
                 v-else-if="addressList.length && selectedAddress"
@@ -42,14 +63,21 @@
                   :aria-expanded="addressPickerExpanded"
                   @click="addressPickerExpanded = !addressPickerExpanded"
                 >
-                  <span class="order-address-picker__category-icon" aria-hidden="true">
+                  <span
+                    class="order-address-picker__category-icon"
+                    aria-hidden="true"
+                  >
                     {{ addressCategoryIcon(selectedAddress.category) }}
                   </span>
                   <span class="order-address-picker__summary">
-                    <strong>{{ addressCategoryLabel(selectedAddress.category) }}</strong>
+                    <strong>{{
+                      addressCategoryLabel(selectedAddress.category)
+                    }}</strong>
                     <small>{{ formatAddressLine(selectedAddress) }}</small>
                   </span>
-                  <span class="order-address-picker__arrow" aria-hidden="true">⌄</span>
+                  <span class="order-address-picker__arrow" aria-hidden="true"
+                    >⌄</span
+                  >
                 </button>
                 <div
                   v-if="addressPickerExpanded"
@@ -67,7 +95,10 @@
                     :aria-checked="selectedAddressId === item.id"
                     @click="selectSavedAddress(item)"
                   >
-                    <span class="order-address-picker__category-icon" aria-hidden="true">
+                    <span
+                      class="order-address-picker__category-icon"
+                      aria-hidden="true"
+                    >
                       {{ addressCategoryIcon(item.category) }}
                     </span>
                     <span class="order-address-picker__summary">
@@ -78,24 +109,38 @@
                       v-if="selectedAddressId === item.id"
                       class="order-address-picker__check"
                       aria-hidden="true"
-                    >✓</span>
+                      >✓</span
+                    >
                   </button>
                   <button
                     class="order-address-picker__manage"
                     type="button"
                     @click="goManageAddresses"
                   >
-                    {{ locale === 'zh' ? '+ 添加新地址' : '+ Add another address' }}
+                    {{
+                      locale === "zh" ? "+ 添加新地址" : "+ Add another address"
+                    }}
                   </button>
                 </div>
               </div>
-              <div v-else class="order-address-book__state order-address-book__state--empty">
+              <div
+                v-else
+                class="order-address-book__state order-address-book__state--empty"
+              >
                 <div>
-                  <strong>{{ locale === 'zh' ? '还没有服务地址' : 'No service address yet' }}</strong>
-                  <span>{{ locale === 'zh' ? '添加地址后即可继续预约。' : 'Add an address to continue your booking.' }}</span>
+                  <strong>{{
+                    locale === "zh"
+                      ? "还没有服务地址"
+                      : "No service address yet"
+                  }}</strong>
+                  <span>{{
+                    locale === "zh"
+                      ? "添加地址后即可继续预约。"
+                      : "Add an address to continue your booking."
+                  }}</span>
                 </div>
                 <button type="button" @click="goManageAddresses">
-                  {{ locale === 'zh' ? '添加地址' : 'Add address' }}
+                  {{ locale === "zh" ? "添加地址" : "Add address" }}
                 </button>
               </div>
             </div>
@@ -176,38 +221,6 @@
             </label>
           </section>
 
-          <section class="order-card">
-            <header class="order-section-title">
-              <span class="order-section-title__index">4</span>
-              <h2>{{ t("client.orderConfirm.sections.payment") }}</h2>
-            </header>
-            <div class="payment-methods">
-              <div class="payment-method payment-method--static">
-                <span class="payment-method__icon" aria-hidden="true">▣</span>
-                <div>
-                  <strong>{{ locale === "zh" ? "安全支付" : "Secure payment" }}</strong>
-                  <small>{{ locale === "zh" ? "由 Stripe 提供" : "Powered by Stripe" }}</small>
-                  <p>Apple Pay · Google Pay · Link · Cards</p>
-                </div>
-              </div>
-            </div>
-            <p class="payment-method__note">
-              {{
-                locale === "zh"
-                  ? "可用的支付选项由 Stripe 安全提供，并可能因设备而异。"
-                  : "Available payment options are securely provided by Stripe and may vary by device."
-              }}
-            </p>
-            <div class="payment-policy">
-              <span>{{ t("client.orderConfirm.payment.policy") }}</span>
-              <button type="button" @click="openLegal('terms')">
-                {{ locale === "zh" ? "条款与条件" : "Terms & Conditions" }}
-              </button>
-              <button type="button" @click="openLegal('privacy')">
-                {{ locale === "zh" ? "隐私政策" : "Privacy Policy" }}
-              </button>
-            </div>
-          </section>
         </div>
 
         <aside class="order-summary-side">
@@ -218,10 +231,18 @@
                 <h3>{{ summaryTitle }}</h3>
                 <p>{{ summaryMeta }}</p>
               </div>
-              <strong>{{ formatAed(total) }}</strong>
+              <strong>{{ formatAed(subtotal) }}</strong>
             </div>
 
             <div class="order-summary-card__prices">
+              <div>
+                <span>{{ t("client.orderConfirm.summary.subtotal") }}</span>
+                <span>{{ formatAed(subtotal) }}</span>
+              </div>
+              <div>
+                <span>{{ t("client.orderConfirm.summary.vat") }}</span>
+                <span>{{ formatAed(tax) }}</span>
+              </div>
               <div class="order-summary-card__total">
                 <span>{{ t("client.orderConfirm.summary.total") }}</span>
                 <span>{{ formatAed(total) }}</span>
@@ -258,6 +279,17 @@
       v-model="policyDialogVisible"
       :agreed="agreedPolicy"
       :submitting="isSubmitting"
+      show-order-summary
+      :order-summary-items="[
+        {
+          title: summaryTitle,
+          meta: summaryMeta,
+          amountText: formatAed(subtotal),
+        },
+      ]"
+      :subtotal-text="formatAed(subtotal)"
+      :tax-text="formatAed(tax)"
+      :total-text="formatAed(total)"
       @update:agreed="agreedPolicy = $event"
       @read-policy="openLegal('terms')"
       @continue="confirmPolicyAndContinue"
@@ -407,6 +439,8 @@ const form = reactive({
   building: "",
   roomNo: "",
   community: "",
+  latitude: null as number | null,
+  longitude: null as number | null,
   remark: "",
   category: "others" as AddressCategory,
   serviceDate: "",
@@ -487,6 +521,7 @@ const stripeDialogVisible = ref(false)
 const stripeInitializing = ref(false)
 const stripeSubmitting = ref(false)
 const stripeClientSecret = ref("")
+const stripeCustomerSessionClientSecret = ref("")
 const stripeExpressVisible = ref(true)
 const stripeExpressContainerRef = ref<HTMLElement | null>(null)
 const stripeElementContainerRef = ref<HTMLElement | null>(null)
@@ -506,6 +541,12 @@ const getDateText = (date: Date): string => {
 
 const normalizeText = (value: unknown): string =>
   typeof value === "string" ? value.trim() : ""
+
+const normalizeCoordinate = (value: unknown): number | null => {
+  if (value === null || value === undefined || String(value).trim() === "") return null
+  const coordinate = Number(value)
+  return Number.isFinite(coordinate) ? coordinate : null
+}
 
 const normalizePhoneNumber = (value: unknown): string =>
   typeof value === "string" ? value.replace(/[^\d]/g, "") : ""
@@ -529,8 +570,10 @@ const addressCategoryIcon = (category: unknown) => {
   return "●"
 }
 
-const selectedAddress = computed(() =>
-  addressList.value.find((item) => item.id === selectedAddressId.value) || null,
+const selectedAddress = computed(
+  () =>
+    addressList.value.find((item) => item.id === selectedAddressId.value) ||
+    null,
 )
 
 const formatAddressLine = (item: ClientAddressRecord) =>
@@ -563,6 +606,8 @@ const normalizeAddressRecord = (
     building: normalizeText(item.building),
     roomNo: normalizeText(item.roomNo),
     community: normalizeText(item.community),
+    latitude: normalizeCoordinate(item.latitude) ?? undefined,
+    longitude: normalizeCoordinate(item.longitude) ?? undefined,
     additionalNotes: normalizeText(item.additionalNotes),
     category: normalizeAddressCategory(item.category),
     isDefault: item.isDefault === true,
@@ -583,6 +628,8 @@ const selectSavedAddress = (item: ClientAddressRecord) => {
   form.building = normalizeText(item.building)
   form.roomNo = normalizeText(item.roomNo)
   form.community = normalizeText(item.community)
+  form.latitude = normalizeCoordinate(item.latitude)
+  form.longitude = normalizeCoordinate(item.longitude)
   form.category = normalizeAddressCategory(item.category)
   addressPickerExpanded.value = false
   isApplyingSavedAddress = false
@@ -632,9 +679,15 @@ const handleCheckoutAddressSaved = async (saved: {
   record: ClientAddressRecord | null
 }) => {
   await loadAddressBook(saved.id)
-  if (saved.id === null && saved.record) {
+  if (saved.record) {
     const matched = addressList.value.find((item) => item.id === saved.record?.id)
-    if (matched) selectSavedAddress(matched)
+    if (matched) {
+      Object.assign(matched, {
+        latitude: normalizeCoordinate(saved.record.latitude) ?? matched.latitude,
+        longitude: normalizeCoordinate(saved.record.longitude) ?? matched.longitude,
+      })
+      selectSavedAddress(matched)
+    }
   }
   addressPickerExpanded.value = false
 }
@@ -723,7 +776,12 @@ const extractServiceStartTime = (value: string): string => {
     return ""
   }
   const [rangeStart = ""] = text.split("-")
-  return normalizeText(rangeStart)
+  const normalized = normalizeText(rangeStart)
+  const matched = /^(\d{1,2}):(\d{2})$/.exec(normalized)
+  if (!matched) {
+    return normalized
+  }
+  return `${matched[1].padStart(2, "0")}:${matched[2]}`
 }
 
 const isFutureServiceSlot = (dateText: string, timeText: string): boolean => {
@@ -943,6 +1001,7 @@ watch(
       return
     }
     stripeClientSecret.value = ""
+    stripeCustomerSessionClientSecret.value = ""
     destroyStripeElements()
   },
 )
@@ -1047,9 +1106,9 @@ const summaryMeta = computed(() => {
   )
   if (Array.isArray(selectedSpecValueIds) && selectedSpecValueIds.length) {
     const labels = selectedSpecValueIds
-      .map((id) => pickI18nValue(specValueNameI18n[String(id)], String(id)))
+      .map((id) => pickI18nValue(specValueNameI18n[String(id)], ""))
       .filter(Boolean)
-    if (labels.length) {
+    if (labels.length === selectedSpecValueIds.length) {
       return labels.join(" / ")
     }
   }
@@ -1058,10 +1117,18 @@ const summaryMeta = computed(() => {
   )
 })
 
-const subtotal = computed(() => getQueryNumber("subtotal", 0))
-const tax = computed(() => getQueryNumber("tax", 0))
+const explicitSubtotal = computed(() => getQueryNumber("subtotal", 0))
+const explicitTax = computed(() => getQueryNumber("tax", 0))
 const total = computed(() =>
-  getQueryNumber("total", subtotal.value + tax.value),
+  getQueryText("total")
+    ? getQueryNumber("total", 0)
+    : explicitSubtotal.value + explicitTax.value,
+)
+const subtotal = computed(() =>
+  getQueryText("subtotal") ? explicitSubtotal.value : total.value / 1.05,
+)
+const tax = computed(() =>
+  getQueryText("tax") ? explicitTax.value : Math.max(0, total.value - subtotal.value),
 )
 
 const formatAed = (value: number) => `AED ${value.toFixed(2)}`
@@ -1175,6 +1242,9 @@ const initStripeElements = async () => {
     destroyStripeElements()
     const elements = stripeInstance.value.elements({
       clientSecret: stripeClientSecret.value,
+      ...(stripeCustomerSessionClientSecret.value
+        ? { customerSessionClientSecret: stripeCustomerSessionClientSecret.value }
+        : {}),
       appearance: { theme: "stripe" },
     })
     if (expressContainer) {
@@ -1207,8 +1277,12 @@ const initStripeElements = async () => {
   }
 }
 
-const openStripeDialog = async (clientSecret: string) => {
+const openStripeDialog = async (
+  clientSecret: string,
+  customerSessionClientSecret = "",
+) => {
   stripeClientSecret.value = clientSecret
+  stripeCustomerSessionClientSecret.value = customerSessionClientSecret
   stripeDialogVisible.value = true
   await initStripeElements()
 }
@@ -1455,7 +1529,10 @@ const startStripePayment = async (targetOrderId: number) => {
 
   const clientSecret = normalizeText(paymentData.clientSecret)
   if (clientSecret) {
-    await openStripeDialog(clientSecret)
+    await openStripeDialog(
+      clientSecret,
+      normalizeText(paymentData.customerSessionClientSecret),
+    )
     return
   }
 
@@ -1565,6 +1642,8 @@ const submitBooking = async () => {
     building: normalizeText(form.building),
     roomNo: normalizeText(form.roomNo),
     community: normalizeText(form.community),
+    latitude: normalizeCoordinate(form.latitude) ?? undefined,
+    longitude: normalizeCoordinate(form.longitude) ?? undefined,
     remark: normalizeText(form.remark),
     category: normalizeAddressCategory(form.category),
     serviceTime: normalizeText(form.serviceDate),
@@ -2403,100 +2482,6 @@ onMounted(async () => {
   color: #fff;
 }
 
-.payment-methods {
-  margin-top: 18px;
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 10px;
-}
-
-.payment-method {
-  min-height: 84px;
-  border-radius: 14px;
-  border: 1px solid #e5e7eb;
-  background: #fff;
-  color: rgba(15, 23, 42, 0.58);
-  font-size: 16px;
-  font-weight: 700;
-}
-
-.payment-method--static {
-  padding: 16px 18px;
-  cursor: default;
-  display: flex;
-  align-items: center;
-  gap: 14px;
-}
-
-.payment-method--static strong {
-  display: block;
-  color: #172033;
-}
-
-.payment-method--static small {
-  display: block;
-  margin-top: 2px;
-  color: #64748b;
-  font-size: 12px;
-  font-weight: 650;
-}
-
-.payment-method__icon {
-  width: 42px;
-  height: 42px;
-  flex: 0 0 42px;
-  border-radius: 12px;
-  display: grid;
-  place-items: center;
-  background: #05152b;
-  color: #fff;
-  font-size: 19px;
-}
-
-.payment-method--static p {
-  margin: 8px 0 0;
-  color: rgba(15, 23, 42, 0.5);
-  font-size: 13px;
-  line-height: 1.5;
-  font-weight: 500;
-}
-
-.payment-method__note {
-  margin: 10px 0 0;
-  color: #64748b;
-  font-size: 12px;
-  line-height: 1.5;
-}
-
-.payment-policy {
-  margin-top: 12px;
-  min-height: 32px;
-  border-radius: 8px;
-  background: var(--hourx-brand-soft);
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 6px 10px;
-}
-
-.payment-policy input {
-  margin: 0;
-}
-
-.payment-policy span {
-  color: var(--hourx-brand);
-  font-size: 12px;
-  font-weight: 600;
-}
-.payment-policy button {
-  padding: 0;
-  border: 0;
-  background: transparent;
-  color: #1769c2;
-  font-size: 12px;
-  font-weight: 800;
-  cursor: pointer;
-}
 .order-summary-side {
   position: sticky;
   top: 112px;
@@ -2687,9 +2672,6 @@ onMounted(async () => {
     grid-template-columns: 1fr;
   }
 
-  .payment-methods {
-    grid-template-columns: 1fr;
-  }
 }
 
 @media (max-width: 640px) {
@@ -2741,7 +2723,6 @@ onMounted(async () => {
     align-items: flex-start;
     flex-direction: column;
   }
-
 }
 
 @media (max-width: 480px) {
@@ -2752,6 +2733,5 @@ onMounted(async () => {
   .order-input-wrap--dial {
     width: 100%;
   }
-
 }
 </style>

@@ -1,0 +1,1 @@
+import{h as p}from"./admin-1geBQk19.js";function t(e){return p.post("/api/specType/specValue/page",e)}function c(e){return p.post("/api/specType/specValue/addOrUpdate",e)}function s(e){return p.post("/api/specType/specValue/deleteSpecValue",e)}export{c as a,s as d,t as g};

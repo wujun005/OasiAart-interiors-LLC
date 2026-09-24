@@ -29,7 +29,10 @@ export interface CartItem {
   selectedSpecValueIds?: string[];
   specValueNameI18n?: Record<string, CartLocalizedText>;
   skuDetail?: CartSkuDetail;
+  /** Service price before VAT, used for cart line-item display. */
   unitPrice: number;
+  /** Amount charged for the line item after VAT. */
+  priceWithTax: number;
   detailPath?: string;
   selected: boolean;
   addressId?: number | string;
@@ -41,6 +44,7 @@ export interface CartItem {
 }
 
 const TAX_RATE = 0.05;
+const roundMoney = (value: number) => Math.round((value + Number.EPSILON) * 100) / 100;
 const CART_TIME_RANGES: Record<string, string> = {
   '1': '09:00-11:00',
   '2': '11:00-13:00',
@@ -101,6 +105,8 @@ const normalizeRecord = (record: ClientCartItemRecord): CartItem => {
           })),
       }
     : undefined;
+  const priceWithTax = Math.max(0, Number(record.amountWithTax) || 0);
+  const unitPrice = roundMoney(priceWithTax / (1 + TAX_RATE));
   return {
     id: String(record.cartItemId || ''),
     spuId: String(record.spuId ?? ''),
@@ -122,7 +128,8 @@ const normalizeRecord = (record: ClientCartItemRecord): CartItem => {
     selectedSpecValueIds: (record.specValueIds || []).map((item) => String(item)),
     specValueNameI18n,
     skuDetail,
-    unitPrice: Math.max(0, Number(record.amountWithTax) || 0),
+    unitPrice,
+    priceWithTax,
     detailPath: record.spuId ? `/services/detail/${record.spuId}` : '/',
     selected: true,
     addressId: record.addressId,
@@ -145,6 +152,9 @@ const normalizeRecord = (record: ClientCartItemRecord): CartItem => {
 const refreshCart = async () => {
   if (loadingPromise) return loadingPromise;
   const requestRevision = cartRevision;
+  const selectedState = new Map(
+    cartItems.value.map((item) => [item.id, item.selected] as const),
+  );
   cartLoading.value = true;
   cartError.value = '';
   loadingPromise = (async () => {
@@ -162,7 +172,11 @@ const refreshCart = async () => {
       if (requestRevision === cartRevision) {
         cartItems.value = detailed
           .filter((item) => Boolean(item.cartItemId))
-          .map(normalizeRecord);
+          .map(normalizeRecord)
+          .map((item) => ({
+            ...item,
+            selected: selectedState.get(item.id) ?? true,
+          }));
       }
     } catch (error: any) {
       if (requestRevision === cartRevision) {
@@ -192,9 +206,13 @@ export const useCart = () => {
   const selectedLineCount = computed(() => selectedItems.value.length);
   const allSelected = computed(() => cartItems.value.length > 0 && cartItems.value.every((item) => item.selected));
   const partiallySelected = computed(() => selectedItems.value.length > 0 && !allSelected.value);
-  const total = computed(() => selectedItems.value.reduce((sum, item) => sum + item.unitPrice, 0));
-  const subtotal = computed(() => total.value / (1 + TAX_RATE));
-  const tax = computed(() => total.value - subtotal.value);
+  const subtotal = computed(() => roundMoney(
+    selectedItems.value.reduce((sum, item) => sum + item.unitPrice, 0),
+  ));
+  const total = computed(() => roundMoney(
+    selectedItems.value.reduce((sum, item) => sum + item.priceWithTax, 0),
+  ));
+  const tax = computed(() => roundMoney(total.value - subtotal.value));
 
   const addItem = async (payload: AddCartItemPayload) => {
     const cartItemId = await addCartItem(payload);

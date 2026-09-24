@@ -69,8 +69,23 @@
                   : t('client.login.password.accountLabel')
               }}
             </span>
-            <div class="form-item__control">
+            <div class="form-item__control form-item__control--account">
               <img :src="assetAccount" alt="" />
+              <select
+                v-model="form.countryCode"
+                class="login-country-code"
+                autocomplete="tel-country-code"
+                :aria-label="t('client.login.password.countryCodeLabel')"
+              >
+                <option
+                  v-for="item in countryCodeOptions"
+                  :key="item.value"
+                  :value="item.value"
+                >
+                  {{ item.value }}
+                </option>
+              </select>
+              <span class="login-country-code__divider" aria-hidden="true" />
               <input
                 v-model.trim="form.account"
                 type="text"
@@ -202,6 +217,11 @@ import {
   clearStoredAuthState,
   setClientAuthStorageValue,
 } from '@/utils/auth-state';
+import {
+  DEFAULT_LOGIN_COUNTRY_CODE,
+  LOGIN_COUNTRY_CODE_OPTIONS,
+  resolveLoginAccount,
+} from '@/utils/login-account';
 
 const assetLogo = '/assets/images/client/hourx-mark.svg';
 const assetFeature1 = new URL('@/assets/images/client/icon.png', import.meta.url).href;
@@ -218,6 +238,7 @@ const router = useRouter();
 type LoginMode = 'password' | 'code';
 
 const form = reactive({
+  countryCode: DEFAULT_LOGIN_COUNTRY_CODE,
   account: '',
   password: '',
   code: '',
@@ -233,6 +254,8 @@ const localeLabel = computed(() =>
   locale.value === 'zh' ? t('client.header.languageZh') : t('client.header.languageEn'),
 );
 const isCodeLogin = computed(() => loginMode.value === 'code');
+const countryCodeOptions = LOGIN_COUNTRY_CODE_OPTIONS;
+const resolvedLoginAccount = computed(() => resolveLoginAccount(form.account, form.countryCode));
 const passwordInputType = computed(() => (showPassword.value ? 'text' : 'password'));
 const codeBtnText = computed(() => {
   if (codeCooldown.value > 0) {
@@ -372,7 +395,7 @@ const startCodeCountdown = () => {
 };
 
 const requestLoginCode = async () => {
-  const accountValue = form.account.trim();
+  const accountValue = resolvedLoginAccount.value;
   if (!accountValue) {
     ElMessage.warning(t('client.login.password.accountRequired'));
     return;
@@ -396,7 +419,7 @@ const submitLogin = async () => {
   if (!valid) return;
 
   submitting.value = true;
-  const accountValue = form.account.trim();
+  const accountValue = resolvedLoginAccount.value;
   try {
     if (!isCodeLogin.value) {
       const result = await loginByPassword({
@@ -682,6 +705,25 @@ onBeforeUnmount(() => {
   flex-shrink: 0;
 }
 
+.login-country-code {
+  width: 100%;
+  min-width: 0;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: rgba(15, 23, 42, 0.88);
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.login-country-code__divider {
+  width: 1px;
+  height: 24px;
+  flex: 0 0 1px;
+  background: #d8e0ea;
+}
+
 .form-item__leading-icon {
   width: 18px;
   height: 18px;
@@ -695,12 +737,20 @@ onBeforeUnmount(() => {
 
 .form-item__control input {
   flex: 1;
+  width: 100%;
   min-width: 0;
   border: 0;
   outline: 0;
   background: transparent;
   color: rgba(15, 23, 42, 0.88);
-  font-size: 16px;
+  font-size: 14px;
+}
+
+.form-item__control--account {
+  display: grid;
+  grid-template-columns: 18px 54px 1px minmax(0, 1fr);
+  column-gap: 8px;
+  overflow: hidden;
 }
 
 .form-item__control input::placeholder {

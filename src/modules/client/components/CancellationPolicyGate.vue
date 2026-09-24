@@ -3,6 +3,9 @@
     :model-value="modelValue"
     :agreed="agreed"
     context="cancellation"
+    :show-refund-summary="showRefundSummary"
+    :handling-fee-text="handlingFeeText"
+    :refund-amount-text="refundAmountText"
     @update:model-value="$emit('update:modelValue', $event)"
     @update:agreed="agreed = $event"
     @read-policy="legalDialogVisible = true"
@@ -18,6 +21,9 @@ import BookingPolicyConfirm from "@/modules/client/components/booking-policy-con
 
 const props = defineProps<{
   modelValue: boolean
+  showRefundSummary?: boolean
+  handlingFeeText?: string
+  refundAmountText?: string
 }>()
 
 const emit = defineEmits<{

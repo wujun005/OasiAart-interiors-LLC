@@ -36,18 +36,37 @@ export const loadGoogleMapsApi = (language = 'en'): Promise<any> => {
   }
 
   googleMapsPromise = new Promise((resolve, reject) => {
+    let timeoutId: ReturnType<typeof setTimeout> | null = null;
+    const fail = (error: Error) => {
+      if (timeoutId) clearTimeout(timeoutId);
+      delete browserWindow[GOOGLE_MAPS_CALLBACK];
+      document.getElementById(GOOGLE_MAPS_SCRIPT_ID)?.remove();
+      googleMapsPromise = null;
+      reject(error);
+    };
+
     const finish = () => {
       if (browserWindow.google?.maps?.importLibrary) {
+        if (timeoutId) clearTimeout(timeoutId);
         resolve(browserWindow.google.maps);
         return;
       }
-      reject(new Error('Google Maps API loaded without the expected library API'));
+      fail(new Error('Google Maps API loaded without the expected library API'));
     };
+
+    timeoutId = setTimeout(
+      () => fail(new Error('Google Maps API loading timed out')),
+      15000,
+    );
 
     const existing = document.getElementById(GOOGLE_MAPS_SCRIPT_ID) as HTMLScriptElement | null;
     if (existing) {
       existing.addEventListener('load', finish, { once: true });
-      existing.addEventListener('error', () => reject(new Error('Failed to load Google Maps API')), { once: true });
+      existing.addEventListener(
+        'error',
+        () => fail(new Error('Failed to load Google Maps API')),
+        { once: true },
+      );
       return;
     }
 
@@ -72,8 +91,7 @@ export const loadGoogleMapsApi = (language = 'en'): Promise<any> => {
     script.defer = true;
     script.src = `https://maps.googleapis.com/maps/api/js?${params.toString()}`;
     script.onerror = () => {
-      delete browserWindow[GOOGLE_MAPS_CALLBACK];
-      reject(new Error('Failed to load Google Maps API'));
+      fail(new Error('Failed to load Google Maps API'));
     };
     document.head.appendChild(script);
   });

@@ -14,18 +14,41 @@
           <span class="h5-order-card__heading-icon" aria-hidden="true">
             <van-icon name="location-o" />
           </span>
-          <h2>{{ locale === 'zh' ? '联系信息与服务地址' : 'Contact & Service Address' }}</h2>
+          <h2>
+            {{
+              locale === "zh"
+                ? "联系信息与服务地址"
+                : "Contact & Service Address"
+            }}
+          </h2>
         </div>
         <div class="h5-address-book">
           <div class="h5-address-book__bar">
-            <strong>{{ locale === 'zh' ? '服务地址' : 'Service Address' }}</strong>
+            <strong>{{
+              locale === "zh" ? "服务地址" : "Service Address"
+            }}</strong>
           </div>
           <p v-if="addressListLoading" class="h5-address-book__state">
             {{ t("client.orderConfirm.addressBook.loading") }}
           </p>
-          <div v-else-if="addressListError" class="h5-address-book__state h5-address-book__state--error" role="alert">
-            <span>{{ locale === 'zh' ? '地址加载失败，请重试。' : 'Unable to load addresses. Please try again.' }}</span>
-            <button type="button" @click="loadAddressBook(selectedAddressId)">{{ locale === 'zh' ? '重试' : 'Retry' }}</button>
+          <div
+            v-else-if="addressListError"
+            class="h5-address-book__state h5-address-book__state--error"
+            role="alert"
+          >
+            <span>{{
+              locale === "zh"
+                ? "地址加载失败，请重试。"
+                : "Unable to load addresses. Please try again."
+            }}</span>
+            <div class="h5-address-book__error-actions">
+              <button type="button" @click="loadAddressBook(selectedAddressId)">
+                {{ locale === "zh" ? "重试" : "Retry" }}
+              </button>
+              <button type="button" @click="openAddAddressPopup">
+                {{ locale === "zh" ? "添加地址" : "Add address" }}
+              </button>
+            </div>
           </div>
           <div
             v-else-if="addressList.length && selectedAddress"
@@ -43,10 +66,14 @@
                 :class="`h5-address-picker__category-icon--${normalizeAddressCategory(selectedAddress.category)}`"
                 aria-hidden="true"
               >
-                <AddressCategoryIcon :category="normalizeAddressCategory(selectedAddress.category)" />
+                <AddressCategoryIcon
+                  :category="normalizeAddressCategory(selectedAddress.category)"
+                />
               </span>
               <span class="h5-address-picker__summary">
-                <strong>{{ addressCategoryLabel(selectedAddress.category) }}</strong>
+                <strong>{{
+                  addressCategoryLabel(selectedAddress.category)
+                }}</strong>
                 <span class="h5-address-picker__contact">
                   {{ getAddressFullName(selectedAddress) }}
                   <template v-if="formatAddressPhone(selectedAddress)">
@@ -55,7 +82,11 @@
                 </span>
                 <small>{{ formatAddressLine(selectedAddress) }}</small>
               </span>
-              <van-icon class="h5-address-picker__arrow" name="arrow" aria-hidden="true" />
+              <van-icon
+                class="h5-address-picker__arrow"
+                name="arrow"
+                aria-hidden="true"
+              />
             </button>
             <div
               v-if="addressPickerExpanded"
@@ -78,7 +109,9 @@
                   :class="`h5-address-picker__category-icon--${normalizeAddressCategory(item.category)}`"
                   aria-hidden="true"
                 >
-                  <AddressCategoryIcon :category="normalizeAddressCategory(item.category)" />
+                  <AddressCategoryIcon
+                    :category="normalizeAddressCategory(item.category)"
+                  />
                 </span>
                 <span class="h5-address-picker__summary">
                   <strong>{{ addressCategoryLabel(item.category) }}</strong>
@@ -94,25 +127,39 @@
                   v-if="selectedAddressId === item.id"
                   class="h5-address-picker__check"
                   aria-hidden="true"
-                >✓</span>
+                  >✓</span
+                >
               </button>
               <button
                 class="h5-address-picker__manage"
                 type="button"
-                @click="goManageAddresses"
+                @click="openAddAddressPopup"
               >
-                {{ locale === 'zh' ? '在个人中心管理地址 →' : 'Manage addresses in profile →' }}
+                {{
+                  locale === "zh"
+                    ? "+ 添加新地址"
+                    : "+ Add another address"
+                }}
               </button>
             </div>
           </div>
-          <div v-else class="h5-address-book__state h5-address-book__state--empty">
+          <div
+            v-else
+            class="h5-address-book__state h5-address-book__state--empty"
+          >
             <van-icon name="location-o" aria-hidden="true" />
             <div>
-              <strong>{{ locale === 'zh' ? '还没有服务地址' : 'No service address yet' }}</strong>
-              <span>{{ locale === 'zh' ? '添加地址后即可继续预约。' : 'Add an address to continue your booking.' }}</span>
+              <strong>{{
+                locale === "zh" ? "还没有服务地址" : "No service address yet"
+              }}</strong>
+              <span>{{
+                locale === "zh"
+                  ? "添加地址后即可继续预约。"
+                  : "Add an address to continue your booking."
+              }}</span>
             </div>
-            <button type="button" @click="goManageAddresses">
-              {{ locale === 'zh' ? '去添加' : 'Add' }}
+            <button type="button" @click="openAddAddressPopup">
+              {{ locale === "zh" ? "去添加" : "Add" }}
             </button>
           </div>
         </div>
@@ -133,10 +180,18 @@
           <div class="h5-order-summary__content">
             <strong>{{ summaryTitle }}</strong>
             <p>{{ summaryMeta }}</p>
-            <em>{{ formatAed(total) }}</em>
+            <em>{{ formatAed(subtotal) }}</em>
           </div>
         </div>
         <div class="h5-order-summary__prices">
+          <div>
+            <span>{{ t("client.orderConfirm.summary.subtotal") }}</span>
+            <span>{{ formatAed(subtotal) }}</span>
+          </div>
+          <div>
+            <span>{{ t("client.orderConfirm.summary.vat") }}</span>
+            <span>{{ formatAed(tax) }}</span>
+          </div>
           <div class="h5-order-summary__total">
             <strong>{{ t("h5.orderConfirm.totalLabel") }}</strong>
             <strong>{{ formatAed(total) }}</strong>
@@ -225,39 +280,6 @@
         </label>
       </section>
 
-      <section class="h5-order-card h5-order-card--payment">
-        <div class="h5-order-card__heading">
-          <span class="h5-order-card__heading-icon" aria-hidden="true">
-            <van-icon name="debit-pay" />
-          </span>
-          <h2>{{ t("client.orderConfirm.sections.payment") }}</h2>
-        </div>
-        <div class="h5-payment-method">
-          <div class="h5-payment-method__icon" aria-hidden="true">
-            <van-icon name="lock" />
-          </div>
-          <div class="h5-payment-method__content">
-            <strong>{{ t("h5.orderConfirm.methodTitle") }}</strong>
-            <span>{{ t("h5.orderConfirm.methodDesc") }}</span>
-            <b>Apple Pay · Google Pay · Link · Cards</b>
-          </div>
-        </div>
-        <div class="h5-payment-note">
-          <van-icon name="shield-o" />
-          <span>{{ t("h5.orderConfirm.paymentNote") }}</span>
-        </div>
-        <div class="h5-payment-policy">
-          <span>{{ t("client.orderConfirm.payment.policy") }}</span>
-          <span class="h5-payment-policy__links">
-            <button type="button" @click="openLegal('terms')">
-              {{ locale === "zh" ? "条款" : "Terms" }}
-            </button>
-            <button type="button" @click="openLegal('privacy')">
-              {{ locale === "zh" ? "隐私政策" : "Privacy" }}
-            </button>
-          </span>
-        </div>
-      </section>
     </main>
 
     <footer class="h5-order-footer">
@@ -272,17 +294,19 @@
         @click="handleConfirm"
       >
         <span>{{
-            isCartEditMode
+          isCartEditMode
+            ? locale === "zh"
+              ? "确认结算"
+              : "Confirm Checkout"
+            : isCartMode
               ? locale === "zh"
-                ? "确认结算"
-                : "Confirm Checkout"
-              : isCartMode
-                ? locale === "zh"
-                  ? "加入购物车"
-                  : "Add to Cart"
-                : t("client.orderConfirm.summary.confirmPay")
+                ? "加入购物车"
+                : "Add to Cart"
+              : t("client.orderConfirm.summary.confirmPay")
         }}</span>
-        <van-icon :name="isCartMode && !isCartEditMode ? 'shopping-cart-o' : 'shield-o'" />
+        <van-icon
+          :name="isCartMode && !isCartEditMode ? 'shopping-cart-o' : 'shield-o'"
+        />
       </button>
       <p class="h5-order-footer__ssl">
         <van-icon name="shield-o" />
@@ -326,10 +350,15 @@
             <span>{{ item.label }}</span>
           </button>
         </div>
-        <div
-          v-if="!editingAddressId"
-          class="h5-add-address-sheet__location"
-        >
+        <GoogleAddressPicker
+          v-if="addAddressPopupVisible"
+          class="h5-add-address-sheet__google-map"
+          :locale="String(locale)"
+          :latitude="addAddressForm.latitude"
+          :longitude="addAddressForm.longitude"
+          @select="applyGoogleAddressToEditor"
+        />
+        <div class="h5-add-address-sheet__location">
           <button
             type="button"
             :disabled="addressEditorLocating"
@@ -353,8 +382,14 @@
         <div class="h5-add-address-sheet__section">
           <van-icon name="location-o" />
           <div>
-            <strong>{{ locale === 'zh' ? '地址详情' : 'Address Details' }}</strong>
-            <small>{{ locale === 'zh' ? '请输入您的迪拜地址' : 'Enter your Dubai address.' }}</small>
+            <strong>{{
+              locale === "zh" ? "地址详情" : "Address Details"
+            }}</strong>
+            <small>{{
+              locale === "zh"
+                ? "请输入您的迪拜地址"
+                : "Enter your Dubai address."
+            }}</small>
           </div>
         </div>
         <label class="h5-add-address-field">
@@ -391,20 +426,28 @@
           />
         </label>
         <label class="h5-add-address-field">
-          <span>{{ t("client.orderConfirm.fields.apartmentUnitFloor") }} *</span>
+          <span
+            >{{ t("client.orderConfirm.fields.apartmentUnitFloor") }} *</span
+          >
           <input
             v-model="addAddressForm.roomNo"
             type="text"
             maxlength="128"
-            :placeholder="t('client.orderConfirm.placeholders.apartmentUnitFloor')"
+            :placeholder="
+              t('client.orderConfirm.placeholders.apartmentUnitFloor')
+            "
           />
         </label>
 
         <div class="h5-add-address-sheet__section">
           <van-icon name="contact-o" />
           <div>
-            <strong>{{ locale === 'zh' ? '联系人信息' : 'Contact Details' }}</strong>
-            <small>{{ locale === 'zh' ? '我们应该联系谁？' : 'Who should we deliver to?' }}</small>
+            <strong>{{
+              locale === "zh" ? "联系人信息" : "Contact Details"
+            }}</strong>
+            <small>{{
+              locale === "zh" ? "我们应该联系谁？" : "Who should we deliver to?"
+            }}</small>
           </div>
         </div>
         <label class="h5-add-address-field">
@@ -438,7 +481,7 @@
         <div class="h5-add-address-sheet__section">
           <van-icon name="records-o" />
           <div>
-            <strong>{{ t('client.orderConfirm.fields.remark') }}</strong>
+            <strong>{{ t("client.orderConfirm.fields.remark") }}</strong>
           </div>
         </div>
         <label class="h5-add-address-field">
@@ -479,6 +522,17 @@
       v-model="policyPopupVisible"
       :agreed="agreedPolicy"
       :submitting="isSubmitting"
+      show-order-summary
+      :order-summary-items="[
+        {
+          title: summaryTitle,
+          meta: summaryMeta,
+          amountText: formatAed(subtotal),
+        },
+      ]"
+      :subtotal-text="formatAed(subtotal)"
+      :tax-text="formatAed(tax)"
+      :total-text="formatAed(total)"
       @update:agreed="agreedPolicy = $event"
       @read-policy="openLegal('terms')"
       @continue="confirmPolicyAndContinue"
@@ -573,7 +627,9 @@ import { setClientLocale } from "@/modules/client/locales"
 import AgreementDialog from "@/modules/client/components/agreement-dialog.vue"
 import BookingPolicyConfirm from "@/modules/client/components/booking-policy-confirm.vue"
 import AddressCategoryIcon from "@/modules/client/components/address-category-icon.vue"
+import GoogleAddressPicker from "@/modules/client/components/GoogleAddressPicker.vue"
 import type { LegalDocType } from "@/modules/client/constants/legal"
+import type { GoogleAddressSelection } from "@/modules/client/utils/google-maps"
 import {
   locateCurrentAddress,
   LocationLookupError,
@@ -669,6 +725,8 @@ const form = reactive({
   building: "",
   roomNo: "",
   community: "",
+  latitude: null as number | null,
+  longitude: null as number | null,
   remark: "",
   category: "others" as AddressCategory,
   serviceDate: "",
@@ -705,6 +763,8 @@ const addAddressForm = reactive({
   building: "",
   roomNo: "",
   community: "",
+  latitude: null as number | null,
+  longitude: null as number | null,
   additionalNotes: "",
   category: "home" as AddressCategory,
 })
@@ -714,6 +774,7 @@ const stripePopupVisible = ref(false)
 const stripeInitializing = ref(false)
 const stripeSubmitting = ref(false)
 const stripeClientSecret = ref("")
+const stripeCustomerSessionClientSecret = ref("")
 const legalDialogVisible = ref(false)
 const legalDocType = ref<LegalDocType>("terms")
 const stripeExpressVisible = ref(true)
@@ -733,6 +794,12 @@ const openLegal = (docType: LegalDocType) => {
 
 const normalizeText = (value: unknown): string =>
   typeof value === "string" ? value.trim() : ""
+
+const normalizeCoordinate = (value: unknown): number | null => {
+  if (value === null || value === undefined || String(value).trim() === "") return null
+  const coordinate = Number(value)
+  return Number.isFinite(coordinate) ? coordinate : null
+}
 
 const normalizePhoneNumber = (value: unknown): string =>
   typeof value === "string" ? value.replace(/[^\d]/g, "") : ""
@@ -764,8 +831,10 @@ const addressCategoryLabel = (category: unknown) => {
   return t(`client.orderConfirm.addressBook.categories.${normalized}`)
 }
 
-const selectedAddress = computed(() =>
-  addressList.value.find((item) => item.id === selectedAddressId.value) || null,
+const selectedAddress = computed(
+  () =>
+    addressList.value.find((item) => item.id === selectedAddressId.value) ||
+    null,
 )
 
 const formatAddressPhone = (item: ClientAddressRecord) =>
@@ -803,6 +872,8 @@ const normalizeAddressRecord = (
     building: normalizeText(item.building),
     roomNo: normalizeText(item.roomNo),
     community: normalizeText(item.community),
+    latitude: normalizeCoordinate(item.latitude) ?? undefined,
+    longitude: normalizeCoordinate(item.longitude) ?? undefined,
     additionalNotes: normalizeText(item.additionalNotes),
     category: normalizeAddressCategory(item.category),
     isDefault: item.isDefault === true,
@@ -823,6 +894,8 @@ const selectSavedAddress = (item: ClientAddressRecord) => {
   form.building = normalizeText(item.building)
   form.roomNo = normalizeText(item.roomNo)
   form.community = normalizeText(item.community)
+  form.latitude = normalizeCoordinate(item.latitude)
+  form.longitude = normalizeCoordinate(item.longitude)
   form.category = normalizeAddressCategory(item.category)
   locationLookupUsed.value = false
   addressPickerExpanded.value = false
@@ -837,6 +910,8 @@ const selectManualAddress = () => {
   form.building = ""
   form.roomNo = ""
   form.community = ""
+  form.latitude = null
+  form.longitude = null
   form.category = "others"
   locationLookupUsed.value = false
   isApplyingSavedAddress = false
@@ -883,13 +958,29 @@ const openAddAddressPopup = () => {
     building: "",
     roomNo: "",
     community: "",
+    latitude: null,
+    longitude: null,
     additionalNotes: "",
     category: "home" as AddressCategory,
   })
   addAddressPopupVisible.value = true
-  if (!normalizeText(addAddressForm.community)) {
-    void fillAddressEditorWithCurrentLocation()
+}
+
+const applyGoogleAddressToEditor = (selection: GoogleAddressSelection) => {
+  const community = normalizeText(selection.community)
+  const street =
+    normalizeText(selection.street) || normalizeText(selection.formattedAddress)
+  const building = normalizeText(selection.building)
+  if (community) {
+    addAddressForm.community = community
+    addAddressForm.district = community
   }
+  if (street) addAddressForm.address = street
+  if (building && !normalizeText(addAddressForm.building)) {
+    addAddressForm.building = building
+  }
+  addAddressForm.latitude = selection.latitude
+  addAddressForm.longitude = selection.longitude
 }
 
 const fillAddressEditorWithCurrentLocation = async () => {
@@ -897,13 +988,13 @@ const fillAddressEditorWithCurrentLocation = async () => {
   addressEditorLocating.value = true
   try {
     const result = await locateCurrentAddress(locale.value)
-    if (!addAddressPopupVisible.value || editingAddressId.value) return
-    if (!normalizeText(addAddressForm.community)) {
-      const area = result.district || result.address
-      addAddressForm.community = area
-      addAddressForm.district = area
-      addAddressForm.address = result.street || result.address
-    }
+    if (!addAddressPopupVisible.value) return
+    const area = result.district || result.address
+    addAddressForm.community = area
+    addAddressForm.district = area
+    addAddressForm.address = result.street || result.address
+    addAddressForm.latitude = result.latitude
+    addAddressForm.longitude = result.longitude
   } catch (error) {
     const code =
       error instanceof LocationLookupError ? error.code : "LOOKUP_FAILED"
@@ -925,6 +1016,8 @@ const openEditAddressPopup = (item: ClientAddressRecord) => {
     building: normalizeText(item.building),
     roomNo: normalizeText(item.roomNo),
     community: normalizeText(item.community) || normalizeText(item.district),
+    latitude: normalizeCoordinate(item.latitude),
+    longitude: normalizeCoordinate(item.longitude),
     additionalNotes: normalizeText(item.additionalNotes),
     category: normalizeAddressCategory(item.category),
   })
@@ -997,6 +1090,8 @@ const submitAddressEditor = async () => {
       building: normalizeText(addAddressForm.building),
       roomNo: normalizeText(addAddressForm.roomNo),
       community: normalizeText(addAddressForm.community) || undefined,
+      latitude: normalizeCoordinate(addAddressForm.latitude) ?? undefined,
+      longitude: normalizeCoordinate(addAddressForm.longitude) ?? undefined,
       additionalNotes:
         normalizeText(addAddressForm.additionalNotes) || undefined,
       category: normalizeAddressCategory(addAddressForm.category),
@@ -1004,6 +1099,14 @@ const submitAddressEditor = async () => {
     if (editingAddressId.value) {
       await updateClientAddress({ id: editingAddressId.value, ...payload })
       await loadAddressBook(editingAddressId.value)
+      const edited = addressList.value.find((item) => item.id === editingAddressId.value)
+      if (edited) {
+        Object.assign(edited, {
+          latitude: payload.latitude,
+          longitude: payload.longitude,
+        })
+        selectSavedAddress(edited)
+      }
       addAddressPopupVisible.value = false
       showSuccessToast(t("client.orderConfirm.addressBook.editSuccess"))
       return
@@ -1012,18 +1115,26 @@ const submitAddressEditor = async () => {
     const added = await addClientAddress(payload)
     const addedId = Number(typeof added === "number" ? added : added?.id)
     await loadAddressBook(Number.isFinite(addedId) ? addedId : null)
-    if (!Number.isFinite(addedId)) {
-      const matched = [...addressList.value]
+    const matched = Number.isFinite(addedId)
+      ? addressList.value.find((item) => item.id === addedId)
+      : [...addressList.value]
         .reverse()
         .find(
           (item) =>
             item.address === normalizeText(addAddressForm.address) &&
             item.building === normalizeText(addAddressForm.building) &&
-            normalizeText(item.roomNo) === normalizeText(addAddressForm.roomNo) &&
-            normalizeText(item.community) === normalizeText(addAddressForm.community) &&
+            normalizeText(item.roomNo) ===
+              normalizeText(addAddressForm.roomNo) &&
+            normalizeText(item.community) ===
+              normalizeText(addAddressForm.community) &&
             item.phone === normalizeText(addAddressForm.phone),
         )
-      if (matched) selectSavedAddress(matched)
+    if (matched) {
+      Object.assign(matched, {
+        latitude: payload.latitude,
+        longitude: payload.longitude,
+      })
+      selectSavedAddress(matched)
     }
     addAddressPopupVisible.value = false
     showSuccessToast(t("client.orderConfirm.addressBook.addSuccess"))
@@ -1059,6 +1170,8 @@ const handleUseCurrentLocation = async () => {
     form.building = ""
     form.roomNo = ""
     form.community = ""
+    form.latitude = result.latitude
+    form.longitude = result.longitude
     locationLookupUsed.value = true
     showSuccessToast(t("client.orderConfirm.location.success"))
   } catch (error) {
@@ -1184,7 +1297,12 @@ const extractServiceStartTime = (value: string): string => {
     return ""
   }
   const [rangeStart = ""] = text.split("-")
-  return normalizeText(rangeStart)
+  const normalized = normalizeText(rangeStart)
+  const matched = /^(\d{1,2}):(\d{2})$/.exec(normalized)
+  if (!matched) {
+    return normalized
+  }
+  return `${matched[1].padStart(2, "0")}:${matched[2]}`
 }
 
 const isFutureServiceSlot = (dateText: string, timeText: string): boolean => {
@@ -1428,6 +1546,7 @@ watch(
       return
     }
     stripeClientSecret.value = ""
+    stripeCustomerSessionClientSecret.value = ""
     destroyStripeElements()
   },
 )
@@ -1505,9 +1624,9 @@ const summaryMeta = computed(() => {
   )
   if (Array.isArray(selectedSpecValueIds) && selectedSpecValueIds.length) {
     const labels = selectedSpecValueIds
-      .map((id) => pickI18nValue(specValueNameI18n[String(id)], String(id)))
+      .map((id) => pickI18nValue(specValueNameI18n[String(id)], ""))
       .filter(Boolean)
-    if (labels.length) {
+    if (labels.length === selectedSpecValueIds.length) {
       return labels.join(" / ")
     }
   }
@@ -1526,15 +1645,24 @@ const summaryImageUrl = computed(() => {
     ? level1.imageUrls
     : []
   const imageUrl = [...productImageUrls, ...categoryImageUrls].find(
-    (item): item is string => typeof item === "string" && item.trim().length > 0,
+    (item): item is string =>
+      typeof item === "string" && item.trim().length > 0,
   )
   return imageUrl?.trim() || ""
 })
 
-const subtotal = computed(() => getQueryNumber("subtotal", 0))
-const tax = computed(() => getQueryNumber("tax", 0))
+const explicitSubtotal = computed(() => getQueryNumber("subtotal", 0))
+const explicitTax = computed(() => getQueryNumber("tax", 0))
 const total = computed(() =>
-  getQueryNumber("total", subtotal.value + tax.value),
+  getQueryText("total")
+    ? getQueryNumber("total", 0)
+    : explicitSubtotal.value + explicitTax.value,
+)
+const subtotal = computed(() =>
+  getQueryText("subtotal") ? explicitSubtotal.value : total.value / 1.05,
+)
+const tax = computed(() =>
+  getQueryText("tax") ? explicitTax.value : Math.max(0, total.value - subtotal.value),
 )
 
 const formatAed = (value: number) => `AED ${value.toFixed(2)}`
@@ -1662,6 +1790,9 @@ const initStripeElements = async () => {
     destroyStripeElements()
     const elements = stripeInstance.value.elements({
       clientSecret: stripeClientSecret.value,
+      ...(stripeCustomerSessionClientSecret.value
+        ? { customerSessionClientSecret: stripeCustomerSessionClientSecret.value }
+        : {}),
       appearance: { theme: "stripe" },
     })
     if (expressContainer) {
@@ -1694,8 +1825,12 @@ const initStripeElements = async () => {
   }
 }
 
-const openStripePopup = async (clientSecret: string) => {
+const openStripePopup = async (
+  clientSecret: string,
+  customerSessionClientSecret = "",
+) => {
   stripeClientSecret.value = clientSecret
+  stripeCustomerSessionClientSecret.value = customerSessionClientSecret
   stripePopupVisible.value = true
   await initStripeElements()
 }
@@ -1941,7 +2076,10 @@ const startStripePayment = async (targetOrderId: number) => {
 
   const clientSecret = normalizeText(paymentData.clientSecret)
   if (clientSecret) {
-    await openStripePopup(clientSecret)
+    await openStripePopup(
+      clientSecret,
+      normalizeText(paymentData.customerSessionClientSecret),
+    )
     return
   }
 
@@ -2025,13 +2163,6 @@ const goBack = () => {
   router.push({ name: "h5-home" })
 }
 
-const goManageAddresses = () => {
-  void router.push({
-    name: "h5-profile",
-    query: { section: "addresses", returnTo: route.fullPath },
-  })
-}
-
 const submitBooking = async () => {
   if (isSubmitting.value) {
     return
@@ -2056,6 +2187,8 @@ const submitBooking = async () => {
     building: normalizeText(form.building),
     roomNo: normalizeText(form.roomNo),
     community: normalizeText(form.community),
+    latitude: normalizeCoordinate(form.latitude) ?? undefined,
+    longitude: normalizeCoordinate(form.longitude) ?? undefined,
     remark: normalizeText(form.remark),
     category: normalizeAddressCategory(form.category),
     serviceTime: normalizeText(form.serviceDate),
@@ -2501,6 +2634,13 @@ onMounted(async () => {
   color: #fff;
   font-size: 11px;
   font-weight: 800;
+}
+
+.h5-address-book__error-actions {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }
 
 .h5-address-book__state--empty {
@@ -3010,117 +3150,6 @@ onMounted(async () => {
   flex: 1;
 }
 
-.h5-order-card--payment {
-  padding-bottom: 15px;
-}
-
-.h5-payment-method {
-  margin-top: 14px;
-  min-height: 76px;
-  border-radius: 14px;
-  border: 1.5px solid var(--hourx-brand);
-  background: linear-gradient(135deg, #fbfdff 0%, #f2f7fc 100%);
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 13px;
-}
-
-.h5-payment-method__icon {
-  width: 40px;
-  height: 40px;
-  border-radius: 12px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  background: #1d293d;
-  color: #fff;
-  font-size: 18px;
-  font-weight: 700;
-  flex-shrink: 0;
-}
-
-.h5-payment-method__content {
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.h5-payment-method__content b {
-  color: #172033;
-  font-size: 11px;
-  font-weight: 750;
-}
-
-.h5-payment-method strong {
-  color: #172033;
-  font-size: 13px;
-  font-weight: 700;
-}
-
-.h5-payment-method span {
-  color: #62748e;
-  font-size: 11px;
-  line-height: 1.4;
-}
-
-.h5-payment-note {
-  margin-top: 10px;
-  min-height: 40px;
-  border-radius: 11px;
-  border: 0;
-  background: #f6f8fa;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 0 12px;
-  color: #314158;
-  font-size: 11px;
-  line-height: 1.4;
-}
-
-.h5-payment-note :deep(.van-icon) {
-  color: #62748e;
-  font-size: 14px;
-  flex-shrink: 0;
-}
-
-.h5-payment-policy {
-  margin-top: 11px;
-  display: block;
-}
-
-.h5-payment-policy input {
-  margin-top: 2px;
-}
-
-.h5-payment-policy span {
-  color: #62748e;
-  font-size: 11px;
-  line-height: 1.5;
-}
-
-.h5-payment-policy > span:first-child {
-  display: block;
-}
-
-.h5-payment-policy .h5-payment-policy__links {
-  margin-top: 5px;
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.h5-payment-policy button {
-  padding: 0;
-  border: 0;
-  background: transparent;
-  color: #1769c2;
-  font-size: 11px;
-  font-weight: 800;
-  white-space: nowrap;
-}
 .h5-order-footer {
   position: fixed;
   left: 50%;
@@ -3247,6 +3276,10 @@ onMounted(async () => {
 
 .h5-add-address-sheet__categories::-webkit-scrollbar {
   display: none;
+}
+
+.h5-add-address-sheet__google-map {
+  margin: 0 0 16px;
 }
 
 .h5-add-address-sheet__location {
