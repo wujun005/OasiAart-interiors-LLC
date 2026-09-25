@@ -250,6 +250,16 @@
                 <span class="table-stack__ellipsis">{{ row.specDescText || "-" }}</span>
               </el-tooltip>
               <el-tooltip
+                v-if="row.specRemarkText && row.specRemarkText !== '-'"
+                :content="row.specRemarkText"
+                placement="top"
+                :show-after="250"
+              >
+                <small class="table-stack__ellipsis spec-remark-text">
+                  {{ t("admin.orders.table.specRemark") }}: {{ row.specRemarkText }}
+                </small>
+              </el-tooltip>
+              <el-tooltip
                 v-if="row.attachDetailsText && row.attachDetailsText !== '-'"
                 :content="row.attachDetailsText"
                 placement="top"
@@ -543,6 +553,10 @@
                 <div>
                   <dt>{{ t("admin.orders.table.specDesc") }}</dt>
                   <dd>{{ displayValue(detailRow.specDescText) }}</dd>
+                </div>
+                <div v-if="detailRow.specRemarkText !== '-'">
+                  <dt>{{ t("admin.orders.table.specRemark") }}</dt>
+                  <dd>{{ displayValue(detailRow.specRemarkText) }}</dd>
                 </div>
                 <div>
                   <dt>{{ t("admin.orders.table.attachDetails") }}</dt>
@@ -1169,6 +1183,10 @@ import { detail as getSupplierDetail } from "@/modules/admin/api/supplier"
 import { page as pageServices } from "@/modules/admin/api/spu"
 
 type I18nText = Record<string, string>
+type SpecValueI18nEntry = {
+  remarkI18n?: I18nText
+  [key: string]: string | I18nText | undefined
+}
 type RescheduleFilter =
   | "UNPROCESSED"
   | "PROCESSED"
@@ -1216,6 +1234,7 @@ type OrderRow = {
   productName: string
   adminRemark: string
   specDescText: string
+  specRemarkText: string
   attachDetailsText: string
   serviceTime: string
   timeRange: number | null
@@ -2100,6 +2119,34 @@ const parseSpecDescText = (item: any) => {
   return fallback || "-"
 }
 
+const parseSpecRemarkText = (item: any) => {
+  const order = item?.order ?? item?.orderHeader ?? item ?? {}
+  const specValueNameI18n = (order.specValueNameI18n ??
+    item.specValueNameI18n ??
+    {}) as Record<string, SpecValueI18nEntry>
+  const selections = (
+    Array.isArray(order.specSelections)
+      ? order.specSelections
+      : Array.isArray(item.specSelections)
+        ? item.specSelections
+        : []
+  ) as RawSpecSelection[]
+  const remarks = selections
+    .map((selection) => {
+      const key = String(selection?.specValueId ?? "").trim()
+      if (!key) return ""
+      const valueI18n = specValueNameI18n[key]
+      const remark = pickI18nValue(valueI18n?.remarkI18n, "")
+      if (!remark) return ""
+      const valueName =
+        String(selection?.specValueName || "").trim() ||
+        pickI18nValue(valueI18n as I18nText, "")
+      return joinLabelValue(valueName, remark)
+    })
+    .filter(Boolean)
+  return remarks.length ? remarks.join(" / ") : "-"
+}
+
 const parseAttachDetailsText = (item: any) => {
   const order = item?.order ?? item?.orderHeader ?? item ?? {}
   const attachItems = (
@@ -2475,6 +2522,7 @@ const parseOrderRow = (item: any): OrderRow => {
     ),
     adminRemark: String(order.adminRemark ?? item.adminRemark ?? "").trim(),
     specDescText: parseSpecDescText(item),
+    specRemarkText: parseSpecRemarkText(item),
     attachDetailsText: parseAttachDetailsText(item),
     serviceTime: String(
       order.serviceTime ??
@@ -3446,6 +3494,9 @@ onMounted(() => {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+.table-stack .spec-remark-text {
+  color: #8a5b12;
 }
 .reschedule-compact {
   display: inline-flex;

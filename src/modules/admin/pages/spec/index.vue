@@ -70,6 +70,11 @@
           :label="t('admin.spec.table.specType')"
           min-width="140"
         />
+        <el-table-column :label="t('admin.spec.table.remark')" min-width="200">
+          <template #default="{ row }">
+            <span class="remark-cell">{{ row.displayRemark || '-' }}</span>
+          </template>
+        </el-table-column>
         <el-table-column
           :label="t('admin.spec.table.createdAt')"
           min-width="160"
@@ -115,7 +120,7 @@
           : t('admin.spec.dialog.createTitle')
       "
       :close-on-click-modal="false"
-      width="520px"
+      width="min(640px, calc(100vw - 32px))"
     >
       <el-form ref="formRef" :model="form" :rules="rules" label-width="100px">
         <el-form-item
@@ -182,6 +187,43 @@
             }}</el-button>
           </div>
         </el-form-item>
+        <el-form-item :label="t('admin.spec.form.remarkI18n')">
+          <div class="i18n-list">
+            <div
+              v-for="(item, idx) in remarkI18nList"
+              :key="idx"
+              class="i18n-row i18n-row--textarea"
+            >
+              <el-select
+                v-model="item.lang"
+                :placeholder="t('admin.spec.form.languagePlaceholder')"
+                style="width: 140px"
+              >
+                <el-option :label="t('admin.common.langZhCn')" value="zh-CN" />
+                <el-option :label="t('admin.common.langEnCode')" value="en" />
+              </el-select>
+              <el-input
+                v-model="item.value"
+                type="textarea"
+                :rows="2"
+                maxlength="500"
+                show-word-limit
+                :placeholder="t('admin.spec.form.remarkPlaceholder')"
+              />
+              <el-button
+                link
+                type="danger"
+                :disabled="remarkI18nList.length === 1"
+                @click="removeRemarkI18n(idx)"
+              >
+                {{ t('admin.spec.actions.removeLang') }}
+              </el-button>
+            </div>
+            <el-button link type="primary" @click="addRemarkI18n">{{
+              t('admin.spec.actions.addLang')
+            }}</el-button>
+          </div>
+        </el-form-item>
       </el-form>
       <template #footer>
         <el-button @click="dialogVisible = false">{{
@@ -218,6 +260,8 @@ type Spec = {
   createdAt: string;
   displayName: string;
   nameI18n?: Record<string, string>;
+  displayRemark?: string;
+  remarkI18n?: Record<string, string>;
 };
 
 type SpecTypeOption = {
@@ -317,8 +361,13 @@ const form = reactive<Spec>({
   createdAt: '',
   displayName: '',
   nameI18n: {},
+  displayRemark: '',
+  remarkI18n: {},
 });
 const nameI18nList = ref<{ lang: string; value: string }[]>([
+  createEmptyI18nItem(),
+]);
+const remarkI18nList = ref<{ lang: string; value: string }[]>([
   createEmptyI18nItem(),
 ]);
 
@@ -392,8 +441,11 @@ const openCreate = () => {
     createdAt: new Date().toISOString(),
     displayName: '',
     nameI18n: {},
+    displayRemark: '',
+    remarkI18n: {},
   });
   nameI18nList.value = [createEmptyI18nItem()];
+  remarkI18nList.value = [createEmptyI18nItem()];
   dialogVisible.value = true;
 };
 
@@ -409,6 +461,13 @@ const openEdit = (row: Spec) => {
           value: value as string,
         }))
       : [createEmptyI18nItem(row.displayName || '')];
+  remarkI18nList.value =
+    row.remarkI18n && Object.keys(row.remarkI18n).length
+      ? Object.entries(row.remarkI18n).map(([lang, value]) => ({
+          lang,
+          value: value as string,
+        }))
+      : [createEmptyI18nItem(row.displayRemark || '')];
   dialogVisible.value = true;
 };
 
@@ -423,6 +482,19 @@ const save = () => {
       nameI18nList.value[0]?.value ||
       '';
     const enName = nameI18nList.value.find((i) => i.lang === 'en')?.value || '';
+    const remarkI18n = remarkI18nList.value.reduce<Record<string, string>>(
+      (acc, cur) => {
+        if (cur.lang && cur.value?.trim()) acc[cur.lang] = cur.value.trim();
+        return acc;
+      },
+      {},
+    );
+    const remark =
+      remarkI18n['zh-CN'] ||
+      remarkI18n.zh ||
+      remarkI18n.en ||
+      Object.values(remarkI18n)[0] ||
+      '';
     const subCategoryId =
       form.subCategoryId ??
       findSubCategoryIdBySpecTypeId(form.specTypeId) ??
@@ -443,6 +515,8 @@ const save = () => {
         },
         {},
       ),
+      remark,
+      remarkI18n,
       ...(isEdit.value ? { sort: form.sort } : {}),
     };
     addOrUpdateSpecValue(payload)
@@ -560,10 +634,16 @@ const fetchList = async () => {
     list.value = records.map((item: any) => ({
       id: item.specValue?.id ?? item.id,
       nameI18n: item.nameI18n || item.specValue?.nameI18n,
+      remarkI18n: item.remarkI18n || item.specValue?.remarkI18n || {},
       displayName: pickI18nText(
         item.nameI18n || item.specValue?.nameI18n,
         locale.value,
         item.specValue?.specValue || item.name || '',
+      ),
+      displayRemark: pickI18nText(
+        item.remarkI18n || item.specValue?.remarkI18n,
+        locale.value,
+        item.specValue?.remark || item.remark || '',
       ),
       sort: item.sort ?? item.specValue?.sort ?? 0,
       specTypeId: normalizeOptionalId(
@@ -648,6 +728,15 @@ const removeI18n = (idx: number) => {
   nameI18nList.value.splice(idx, 1);
 };
 
+const addRemarkI18n = () => {
+  remarkI18nList.value.push(createEmptyI18nItem());
+};
+
+const removeRemarkI18n = (idx: number) => {
+  if (remarkI18nList.value.length === 1) return;
+  remarkI18nList.value.splice(idx, 1);
+};
+
 onMounted(async () => {
   await Promise.allSettled([fetchSubCategoryOptions(), fetchSpecTypes()]);
   fetchList();
@@ -702,5 +791,25 @@ watch(
   margin-top: 16px;
   display: flex;
   justify-content: flex-end;
+}
+.i18n-list {
+  width: 100%;
+}
+.i18n-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+.i18n-row--textarea {
+  align-items: flex-start;
+}
+.remark-cell {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-height: 1.45;
+  color: #606266;
 }
 </style>

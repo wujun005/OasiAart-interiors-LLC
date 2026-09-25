@@ -8,6 +8,9 @@
             :placeholder="t('admin.product.filters.categoryPlaceholder')"
             clearable
             filterable
+            remote
+            :remote-method="searchCategoryOptions"
+            :loading="categorySearchLoading"
           >
             <el-option
               v-for="item in categoryOptions"
@@ -21,6 +24,9 @@
             :placeholder="t('admin.product.filters.serviceSubCategoryPlaceholder')"
             clearable
             filterable
+            remote
+            :remote-method="remoteSearchSubCategoryOptions"
+            :loading="subCategorySearchLoading"
           >
             <el-option
               v-for="item in searchSubCategoryOptions"
@@ -266,6 +272,9 @@
             v-model="form.product.categoryId"
             :placeholder="t('admin.product.form.categoryPlaceholder')"
             filterable
+            remote
+            :remote-method="searchCategoryOptions"
+            :loading="categorySearchLoading"
             style="width: 100%"
             @change="onCategoryChange"
           >
@@ -282,6 +291,9 @@
             v-model="form.product.subCategoryId"
             :placeholder="t('admin.product.form.subcategoryPlaceholder')"
             filterable
+            remote
+            :remote-method="remoteSearchSubCategoryOptions"
+            :loading="subCategorySearchLoading"
             style="width: 100%"
           >
             <el-option
@@ -320,6 +332,9 @@
                 v-model="group.specTypeId"
                 :placeholder="t('admin.product.form.specTypePlaceholder')"
                 filterable
+                remote
+                :remote-method="searchSpecOptions"
+                :loading="specSearchLoading"
                 style="width: 100%"
                 @change="
                   () => {
@@ -352,6 +367,9 @@
                 :placeholder="t('admin.product.form.specPlaceholder')"
                 multiple
                 filterable
+                remote
+                :remote-method="searchSpecOptions"
+                :loading="specSearchLoading"
                 style="width: 100%"
               >
                 <el-option
@@ -778,8 +796,15 @@ import {
   enableExclusive,
   disableExclusive,
 } from '@/modules/admin/api/spu';
-import { getPage as getCategoryPage, searchCategory } from '@/modules/admin/api/category';
-import { getSpecTypePage } from '@/modules/admin/api/specType';
+import {
+  fuzzySearchCategory,
+  getPage as getCategoryPage,
+  searchCategory,
+} from '@/modules/admin/api/category';
+import {
+  fuzzySearchSpecType,
+  getSpecTypePage,
+} from '@/modules/admin/api/specType';
 import { getSpecValuePage } from '@/modules/admin/api/spec';
 import { getPage as getAddonTypePage } from '@/modules/admin/api/addonType';
 import { getPage as getAddonPage } from '@/modules/admin/api/addon';
@@ -855,9 +880,12 @@ const normalizeOptionalId = (value: unknown): number | null => {
   return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
 };
 
-const subCategoryOptions = ref<
-  { label: string; value: number; parentId: number | null }[]
->([]);
+type CategoryOption = { label: string; value: number };
+type SubCategoryOption = CategoryOption & { parentId: number | null };
+type SpecTypeOption = CategoryOption & { subCategoryId: number | null };
+type SpecOption = SpecTypeOption & { typeId: number | null };
+
+const subCategoryOptions = ref<SubCategoryOption[]>([]);
 const { locale, t } = useI18n({ useScope: 'global' });
 const getDefaultI18nLang = () => ADMIN_LANG_EN;
 const getNextAvailableLang = (langs: string[]) => {
@@ -874,15 +902,21 @@ const createEmptyLangValue = (lang = ADMIN_LANG_EN, value = '') => ({
   value,
 });
 
-const categoryOptions = ref<{ label: string; value: number }[]>([]);
+const categoryOptions = ref<CategoryOption[]>([]);
 
-const specOptions = ref<
-  { label: string; value: number; typeId: number | null; subCategoryId: number | null }[]
->([]);
+const specOptions = ref<SpecOption[]>([]);
 
-const specTypeOptions = ref<
-  { label: string; value: number; subCategoryId: number | null }[]
->([]);
+const specTypeOptions = ref<SpecTypeOption[]>([]);
+const baseCategoryOptions = ref<CategoryOption[]>([]);
+const baseSubCategoryOptions = ref<SubCategoryOption[]>([]);
+const baseSpecTypeOptions = ref<SpecTypeOption[]>([]);
+const baseSpecOptions = ref<SpecOption[]>([]);
+const categorySearchLoading = ref(false);
+const subCategorySearchLoading = ref(false);
+const specSearchLoading = ref(false);
+let categorySearchSequence = 0;
+let subCategorySearchSequence = 0;
+let specSearchSequence = 0;
 
 const addonCategoryOptions = ref<{ label: string; value: number }[]>([]);
 
@@ -1412,6 +1446,188 @@ const fetchCurrencies = async () => {
   }
 };
 
+const unwrapSearchList = (res: any): any[] => {
+  const payload = res?.data ?? res ?? {};
+  if (Array.isArray(payload)) return payload;
+  if (Array.isArray(payload.list)) return payload.list;
+  if (Array.isArray(payload.data)) return payload.data;
+  if (Array.isArray(payload.data?.list)) return payload.data.list;
+  return [];
+};
+
+const mergeWithSelected = <T extends { value: number }>(
+  matches: T[],
+  available: T[],
+  selectedIds: Array<unknown>,
+) => {
+  const selected = new Set(
+    selectedIds
+      .map(normalizeOptionalId)
+      .filter((id): id is number => id !== null),
+  );
+  const merged = new Map<number, T>();
+  available.forEach((item) => {
+    if (selected.has(item.value)) merged.set(item.value, item);
+  });
+  matches.forEach((item) => merged.set(item.value, item));
+  return Array.from(merged.values());
+};
+
+const mapCategoryOption = (item: any): SubCategoryOption | null => {
+  const category = item?.category ?? item ?? {};
+  const id = Number(category.id ?? category.categoryId ?? item?.id);
+  if (!Number.isFinite(id) || id <= 0) return null;
+  const nameI18n = item?.nameI18n || category.nameI18n || {};
+  return {
+    value: id,
+    label: pickName(
+      nameI18n,
+      category.categoryName || item?.categoryName || item?.displayName || '',
+    ),
+    parentId: normalizeOptionalId(
+      category.pcategoryId ??
+        category.parentId ??
+        category.rootId ??
+        item?.pcategoryId ??
+        item?.parentId ??
+        item?.rootId,
+    ),
+  };
+};
+
+const searchCategoryOptions = async (rawKeyword: string) => {
+  const keyword = rawKeyword.trim();
+  const sequence = ++categorySearchSequence;
+  if (!keyword) {
+    categoryOptions.value = baseCategoryOptions.value;
+    categorySearchLoading.value = false;
+    return;
+  }
+  categorySearchLoading.value = true;
+  try {
+    const res = await fuzzySearchCategory({
+      nameKeyword: keyword,
+      categoryDomain: '1',
+      level: '1',
+    });
+    if (sequence !== categorySearchSequence) return;
+    const matches = unwrapSearchList(res)
+      .map(mapCategoryOption)
+      .filter((item): item is SubCategoryOption => Boolean(item))
+      .map(({ label, value }) => ({ label, value }));
+    categoryOptions.value = mergeWithSelected(
+      matches,
+      [...categoryOptions.value, ...baseCategoryOptions.value],
+      [query.categoryId, form.product.categoryId],
+    );
+  } catch (error) {
+    console.error('fuzzy search category failed:', error);
+  } finally {
+    if (sequence === categorySearchSequence) categorySearchLoading.value = false;
+  }
+};
+
+const remoteSearchSubCategoryOptions = async (rawKeyword: string) => {
+  const keyword = rawKeyword.trim();
+  const sequence = ++subCategorySearchSequence;
+  if (!keyword) {
+    subCategoryOptions.value = baseSubCategoryOptions.value;
+    subCategorySearchLoading.value = false;
+    return;
+  }
+  subCategorySearchLoading.value = true;
+  try {
+    const res = await fuzzySearchCategory({
+      nameKeyword: keyword,
+      categoryDomain: '2',
+    });
+    if (sequence !== subCategorySearchSequence) return;
+    const matches = unwrapSearchList(res)
+      .map(mapCategoryOption)
+      .filter((item): item is SubCategoryOption => Boolean(item));
+    subCategoryOptions.value = mergeWithSelected(
+      matches,
+      [...subCategoryOptions.value, ...baseSubCategoryOptions.value],
+      [query.serviceSubCategoryId, form.product.subCategoryId],
+    );
+  } catch (error) {
+    console.error('fuzzy search subcategory failed:', error);
+  } finally {
+    if (sequence === subCategorySearchSequence) {
+      subCategorySearchLoading.value = false;
+    }
+  }
+};
+
+const searchSpecOptions = async (rawKeyword: string) => {
+  const keyword = rawKeyword.trim();
+  const sequence = ++specSearchSequence;
+  if (!keyword) {
+    specTypeOptions.value = baseSpecTypeOptions.value;
+    specOptions.value = baseSpecOptions.value;
+    specSearchLoading.value = false;
+    return;
+  }
+  specSearchLoading.value = true;
+  try {
+    const res = await fuzzySearchSpecType({ nameKeyword: keyword });
+    if (sequence !== specSearchSequence) return;
+    const typeMatches: SpecTypeOption[] = [];
+    const valueMatches: SpecOption[] = [];
+    unwrapSearchList(res).forEach((item: any) => {
+      const specType = item?.specType ?? item ?? {};
+      const typeId = normalizeOptionalId(specType.id ?? item?.id);
+      if (!typeId) return;
+      const subCategoryId = normalizeOptionalId(
+        item?.categoryId ??
+          specType.categoryId ??
+          specType.subCategoryId ??
+          specType.pcategoryId,
+      );
+      typeMatches.push({
+        value: typeId,
+        label: pickName(
+          item?.nameI18n || specType.nameI18n,
+          specType.typeName || item?.name || '',
+        ),
+        subCategoryId,
+      });
+      const values = Array.isArray(item?.values) ? item.values : [];
+      values.forEach((valueItem: any) => {
+        const specValue = valueItem?.specValue ?? valueItem ?? {};
+        const valueId = normalizeOptionalId(specValue.id ?? valueItem?.id);
+        if (!valueId) return;
+        valueMatches.push({
+          value: valueId,
+          label: pickName(
+            valueItem?.nameI18n || specValue.nameI18n,
+            specValue.specValue || valueItem?.name || '',
+          ),
+          typeId,
+          subCategoryId:
+            normalizeOptionalId(valueItem?.categoryId) ?? subCategoryId,
+        });
+      });
+    });
+    const selectedTypeIds = form.specGroups.map((group) => group.specTypeId);
+    const selectedValueIds = form.specGroups.flatMap((group) => group.specIds);
+    specTypeOptions.value = mergeWithSelected(
+      typeMatches,
+      [...specTypeOptions.value, ...baseSpecTypeOptions.value],
+      selectedTypeIds,
+    );
+    specOptions.value = mergeWithSelected(
+      valueMatches,
+      [...specOptions.value, ...baseSpecOptions.value],
+      selectedValueIds,
+    );
+  } catch (error) {
+    console.error('fuzzy search spec failed:', error);
+  } finally {
+    if (sequence === specSearchSequence) specSearchLoading.value = false;
+  }
+};
+
 const fetchCategories = async () => {
   try {
     const [level1Res, level2Res] = await Promise.all([
@@ -1470,8 +1686,10 @@ const fetchCategories = async () => {
         ): item is { label: string; value: number; parentId: number | null } =>
           Boolean(item),
       );
-    categoryOptions.value = level1;
-    subCategoryOptions.value = level2;
+    baseCategoryOptions.value = level1;
+    baseSubCategoryOptions.value = level2;
+    categoryOptions.value = [...level1];
+    subCategoryOptions.value = [...level2];
     // adjust defaults if empty
     if (!form.product.categoryId && level1.length)
       form.product.categoryId = level1[0].value;
@@ -1501,7 +1719,7 @@ const fetchSpecTypes = async () => {
           : Array.isArray(payload.data?.list)
             ? payload.data.list
             : [];
-    specTypeOptions.value = records
+    const options = records
       .map((item: any) => {
         const specType = item.specType ?? item;
         const id = Number(specType.id ?? item.id);
@@ -1526,6 +1744,8 @@ const fetchSpecTypes = async () => {
         ): item is { label: string; value: number; subCategoryId: number | null } =>
           Boolean(item),
       );
+    baseSpecTypeOptions.value = options;
+    specTypeOptions.value = [...options];
     normalizeSpecGroups(true);
   } catch (error: any) {
     ElMessage.error(error?.message || t('admin.product.message.fetchSpecTypeFailed'));
@@ -1545,7 +1765,7 @@ const fetchSpecs = async () => {
           : Array.isArray(payload.data?.list)
             ? payload.data.list
             : [];
-    specOptions.value = records
+    const options = records
       .map((item: any) => {
         const specValue = item.specValue ?? item;
         const id = Number(specValue.id ?? item.id);
@@ -1577,6 +1797,8 @@ const fetchSpecs = async () => {
           subCategoryId: number | null;
         } => Boolean(item),
       );
+    baseSpecOptions.value = options;
+    specOptions.value = [...options];
     normalizeSpecGroups(true);
   } catch (error: any) {
     ElMessage.error(error?.message || t('admin.product.message.fetchSpecFailed'));

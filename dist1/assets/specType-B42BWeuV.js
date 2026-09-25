@@ -1,0 +1,1 @@
+import{h as p}from"./admin-MRcDIBoX.js";function a(e){return p.post("/api/specType/page",e)}function c(e){return p.post("/api/specType/addOrUpdateSpecType",e)}function r(e){return p.post("/api/specType/deleteSpecType",e)}function s(e){return p.post("/api/specType/fuzzySearch",e)}export{c as a,r as d,s as f,a as g};

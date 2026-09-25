@@ -39,3 +39,8 @@ export function upload(payload: any) {
 export function searchCategory(payload: any) {
   return http.post('/api/category/search', payload);
 }
+
+// 分类名称模糊搜索（支持中文、英文及名称多语言）
+export function fuzzySearchCategory(payload: any) {
+  return http.post('/api/category/fuzzySearch', payload);
+}

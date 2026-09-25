@@ -94,17 +94,43 @@
             </div>
           </section>
 
-          <section class="product-card">
-            <div class="product-card__head">
-              <h1>{{ displayTitle }}</h1>
-              <p>{{ formatAed(subtotalPrice) }}</p>
+          <div class="product-trust-strip" aria-label="service benefits">
+            <div class="product-trust-strip__item">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M12 3 5 6v5c0 4.8 2.9 8.2 7 10 4.1-1.8 7-5.2 7-10V6l-7-3Z" />
+                <path d="m9 12 2 2 4-4" />
+              </svg>
+              <span>{{ t("client.productDetail.trust.professional") }}</span>
             </div>
-            <div v-if="selectedSpecSummary" class="product-card__meta">
-              <span>{{ selectedSpecSummary }}</span>
+            <div class="product-trust-strip__item">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <rect x="4" y="5" width="16" height="15" rx="2" />
+                <path d="M8 3v4M16 3v4M4 10h16" />
+              </svg>
+              <span>{{ t("client.productDetail.trust.flexible") }}</span>
             </div>
-            <div class="product-card__line" />
+            <div class="product-trust-strip__item">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M20 12a8 8 0 1 1-3.1-6.3" />
+                <path d="m20 4-8.5 8.5L8 9" />
+              </svg>
+              <span>{{ t("client.productDetail.trust.clearPricing") }}</span>
+            </div>
+          </div>
+
+          <section class="product-card product-card--overview">
+            <div class="product-section-heading">
+              <span class="product-section-heading__icon">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M5 19h14M7 16V8l5-4 5 4v8M10 16v-4h4v4" />
+                </svg>
+              </span>
+              <div>
+                <span>{{ t("client.productDetail.pageTitle") }}</span>
+                <h2>{{ t("client.productDetail.serviceDescription") }}</h2>
+              </div>
+            </div>
             <div class="product-card__desc">
-              <h2>{{ t("client.productDetail.serviceDescription") }}</h2>
               <p v-if="isLoading">{{ t("client.productDetail.loading") }}</p>
               <div
                 v-else-if="serviceDescriptionHtml"
@@ -117,32 +143,62 @@
             </div>
           </section>
 
-          <section class="product-card">
-            <h2>{{ t("client.productDetail.includesTitle") }}</h2>
-            <div
-              v-if="serviceContentHtml"
-              class="product-rich-text"
-              v-html="serviceContentHtml"
-            />
-            <p v-else class="product-card__empty">
-              {{ t("client.productDetail.emptyDesc") }}
-            </p>
-          </section>
+          <div class="product-info-grid">
+            <section class="product-card product-card--compact">
+              <div class="product-section-heading">
+                <span class="product-section-heading__icon">
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="m5 12 4 4L19 6" />
+                  </svg>
+                </span>
+                <h2>{{ t("client.productDetail.includesTitle") }}</h2>
+              </div>
+              <div
+                v-if="serviceContentHtml"
+                class="product-rich-text"
+                v-html="serviceContentHtml"
+              />
+              <p v-else class="product-card__empty">
+                {{ t("client.productDetail.emptyDesc") }}
+              </p>
+            </section>
+
+            <section class="product-card product-card--compact">
+              <div class="product-section-heading">
+                <span class="product-section-heading__icon">
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <circle cx="12" cy="12" r="9" />
+                    <path d="M12 11v5M12 8h.01" />
+                  </svg>
+                </span>
+                <h2>{{ t("client.productDetail.noticeTitle") }}</h2>
+              </div>
+              <div
+                v-if="bookingNoticeHtml"
+                class="product-rich-text"
+                v-html="bookingNoticeHtml"
+              />
+              <p v-else class="product-card__empty">
+                {{ t("client.productDetail.emptyDesc") }}
+              </p>
+            </section>
+          </div>
 
           <section class="product-card">
-            <h2>{{ t("client.productDetail.noticeTitle") }}</h2>
-            <div
-              v-if="bookingNoticeHtml"
-              class="product-rich-text"
-              v-html="bookingNoticeHtml"
-            />
-            <p v-else class="product-card__empty">
-              {{ t("client.productDetail.emptyDesc") }}
-            </p>
-          </section>
-
-          <section class="product-card">
-            <h2>{{ t("client.productDetail.reviewsTitle") }}</h2>
+            <div class="product-reviews-heading">
+              <div class="product-section-heading">
+                <span class="product-section-heading__icon">
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="m12 3 2.8 5.7 6.2.9-4.5 4.4 1.1 6.2-5.6-2.9-5.6 2.9 1.1-6.2L3 9.6l6.2-.9L12 3Z" />
+                  </svg>
+                </span>
+                <h2>{{ t("client.productDetail.reviewsTitle") }}</h2>
+              </div>
+              <div v-if="reviewCount" class="product-reviews-heading__score">
+                <strong>{{ averageRating.toFixed(1) }}</strong>
+                <span>{{ t("client.productDetail.reviewCount", { count: reviewCount }) }}</span>
+              </div>
+            </div>
             <div v-if="reviewItems.length" class="product-review-list">
               <article
                 v-for="(item, index) in reviewItems"
@@ -184,7 +240,37 @@
 
         <aside class="booking-side">
           <section class="booking-card">
-            <h2>{{ t("client.productDetail.booking.title") }}</h2>
+            <div class="booking-card__hero">
+              <span class="booking-card__eyebrow">{{
+                t("client.productDetail.pageTitle")
+              }}</span>
+              <h1>{{ displayTitle }}</h1>
+              <div class="booking-card__meta">
+                <div v-if="reviewCount" class="booking-card__rating">
+                  <span aria-hidden="true">★★★★★</span>
+                  <strong>{{ averageRating.toFixed(1) }}</strong>
+                  <small>{{
+                    t("client.productDetail.reviewCount", { count: reviewCount })
+                  }}</small>
+                </div>
+                <span class="booking-card__trust">
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M12 3 5 6v5c0 4.8 2.9 8.2 7 10 4.1-1.8 7-5.2 7-10V6l-7-3Z" />
+                    <path d="m9 12 2 2 4-4" />
+                  </svg>
+                  {{ t("client.productDetail.trust.trusted") }}
+                </span>
+              </div>
+              <div class="booking-card__price">
+                <span>{{ t("client.productDetail.booking.priceFrom") }}</span>
+                <strong>{{ formatAed(basePrice) }}</strong>
+              </div>
+            </div>
+
+            <div class="booking-card__section-heading">
+              <h2>{{ t("client.productDetail.booking.chooseTitle") }}</h2>
+              <p>{{ t("client.productDetail.booking.chooseHint") }}</p>
+            </div>
 
             <template v-if="bookingSpecGroups.length">
               <div
@@ -205,13 +291,30 @@
                     type="button"
                     @click="selectSpecValue(group.typeId, option.id)"
                   >
-                    {{ option.label }}
+                    <span class="booking-option__topline">
+                      <span class="booking-option__name">{{ option.label }}</span>
+                      <svg
+                        v-if="selectedSpecValues[group.typeId] === option.id"
+                        viewBox="0 0 24 24"
+                        aria-hidden="true"
+                      >
+                        <circle cx="12" cy="12" r="10" />
+                        <path d="m8 12 2.5 2.5L16 9" />
+                      </svg>
+                    </span>
+                    <small v-if="option.remark" class="booking-option__remark">
+                      {{ option.remark }}
+                    </small>
                   </button>
                 </div>
               </div>
             </template>
 
             <template v-if="bookingAttachGroups.length">
+              <div class="booking-card__section-heading booking-card__section-heading--addons">
+                <h2>{{ t("client.productDetail.booking.addOnsTitle") }}</h2>
+                <p>{{ t("client.productDetail.booking.addOnsHint") }}</p>
+              </div>
               <div
                 v-for="group in bookingAttachGroups"
                 :key="group.typeId"
@@ -272,9 +375,23 @@
             </p>
 
             <div class="booking-summary">
+              <div class="booking-summary__caption">
+                {{ t("client.productDetail.booking.summaryTitle") }}
+              </div>
+              <div class="booking-summary__row">
+                <span>
+                  {{ t("client.productDetail.booking.selectedService") }}
+                  <small v-if="selectedSpecSummary">{{ selectedSpecSummary }}</small>
+                </span>
+                <strong>{{ formatAed(basePrice) }}</strong>
+              </div>
+              <div v-if="attachTotalPrice > 0" class="booking-summary__row">
+                <span>{{ t("client.productDetail.booking.attachTotal") }}</span>
+                <strong>{{ formatAed(attachTotalPrice) }}</strong>
+              </div>
               <div class="booking-summary__row booking-summary__row--total">
                 <span>{{ t("client.productDetail.booking.total") }}</span>
-                <strong>{{ formatAed(subtotalPrice) }}</strong>
+                <strong>{{ formatAed(totalPrice) }}</strong>
               </div>
             </div>
 
@@ -305,8 +422,18 @@
                 @click="goOrderConfirm"
               >
                 {{ t("client.productDetail.booking.bookNow") }}
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M5 12h14M14 7l5 5-5 5" />
+                </svg>
               </button>
             </div>
+            <p class="booking-card__policy">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <rect x="4" y="5" width="16" height="15" rx="2" />
+                <path d="M8 3v4M16 3v4M4 10h16" />
+              </svg>
+              {{ t("client.productDetail.booking.flexiblePolicy") }}
+            </p>
           </section>
         </aside>
       </div>
@@ -330,6 +457,10 @@ import { clearStoredAuthState, getStoredAuthSnapshot } from "@/utils/auth-state"
 
 type I18nText = Record<string, string>
 type I18nTextArray = Record<string, string[] | string>
+type SpecValueI18nEntry = {
+  remarkI18n?: I18nText
+  [key: string]: string | I18nText | undefined
+}
 
 type ProductDetailRecord = {
   id?: number | string
@@ -345,7 +476,8 @@ type ProductDetailRecord = {
     specValueIds?: Array<number | string>
   }>
   specTypeNameI18n?: Record<string, I18nText>
-  specValueNameI18n?: Record<string, I18nText>
+  specValueNameI18n?: Record<string, SpecValueI18nEntry>
+  specValueRemarkI18n?: Record<string, I18nText>
   attachBindings?: Array<{
     attachTypeId?: number | string
     attachValueIds?: Array<number | string>
@@ -919,9 +1051,17 @@ const reviewItems = computed(() => {
   })
 })
 
+const reviewCount = computed(() => reviewItems.value.length)
+const averageRating = computed(() => {
+  if (!reviewCount.value) return 0
+  const total = reviewItems.value.reduce((sum, item) => sum + item.rating, 0)
+  return total / reviewCount.value
+})
+
 type BookingSpecOption = {
   id: string
   label: string
+  remark: string
 }
 
 type BookingSpecGroup = {
@@ -1047,8 +1187,13 @@ const bookingSpecGroups = computed<BookingSpecGroup[]>(() => {
           if (!id) {
             return null
           }
-          const optionLabel = pickI18nValue(record?.specValueNameI18n?.[id], id)
-          return optionLabel ? { id, label: optionLabel } : null
+          const optionI18n = record?.specValueNameI18n?.[id]
+          const optionLabel = pickI18nValue(optionI18n as I18nText, id)
+          const remark = pickI18nValue(
+            record?.specValueRemarkI18n?.[id] || optionI18n?.remarkI18n,
+            "",
+          )
+          return optionLabel ? { id, label: optionLabel, remark } : null
         })
         .filter((item): item is BookingSpecOption => Boolean(item))
       if (!options.length) {
@@ -1395,29 +1540,31 @@ const goOrderConfirm = async () => {
 <style scoped lang="scss">
 .product-detail-page {
   min-height: 100%;
-  background: #f8fafc;
+  background:
+    radial-gradient(circle at 82% 4%, rgba(19, 163, 109, 0.06), transparent 28%),
+    linear-gradient(180deg, #f8fbff 0%, #f5f8fc 48%, #f7f9fc 100%);
 }
 
 .product-detail-subheader {
-  height: 64px;
-  background: #fff;
-  border-top: 1px solid #f3f4f6;
-  border-bottom: 1px solid #e5e7eb;
+  height: 58px;
+  background: rgba(255, 255, 255, 0.88);
+  border-top: 1px solid #eef2f7;
+  border-bottom: 1px solid #e7edf4;
 }
 
 .product-detail-container {
-  width: min(1680px, calc(100% - clamp(32px, 4vw, 72px)));
+  width: min(1480px, calc(100% - clamp(32px, 4vw, 72px)));
   margin: 0 auto;
 }
 
 .product-detail-back {
-  height: 64px;
+  height: 58px;
   display: inline-flex;
   align-items: center;
   gap: 8px;
   color: rgba(15, 23, 42, 0.78);
-  font-size: 17px;
-  font-weight: 600;
+  font-size: 14px;
+  font-weight: 650;
   line-height: 1;
   padding: 0;
 }
@@ -1426,7 +1573,7 @@ const goOrderConfirm = async () => {
   border: 0;
   background: transparent;
   padding: 0;
-  color: var(--hourx-brand);
+  color: #58708d;
   font-size: inherit;
   line-height: 1;
   font-weight: 700;
@@ -1434,8 +1581,8 @@ const goOrderConfirm = async () => {
 }
 
 .product-detail-back__separator {
-  color: rgba(15, 23, 42, 0.45);
-  font-size: 16px;
+  color: #a4b1c2;
+  font-size: 14px;
 }
 
 .product-detail-back__current {
@@ -1446,13 +1593,13 @@ const goOrderConfirm = async () => {
 }
 
 .product-detail-body {
-  padding: 16px 0 40px;
+  padding: 22px 0 64px;
 }
 
 .product-detail-layout {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) clamp(360px, 24vw, 440px);
-  gap: clamp(24px, 2vw, 36px);
+  grid-template-columns: minmax(0, 1.55fr) minmax(400px, 0.82fr);
+  gap: clamp(20px, 2vw, 30px);
   align-items: start;
 }
 
@@ -1460,20 +1607,20 @@ const goOrderConfirm = async () => {
   min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 14px;
 }
 
 .product-gallery {
   display: grid;
-  grid-template-columns: 72px minmax(0, 1fr);
-  gap: 16px;
+  grid-template-columns: 76px minmax(0, 1fr);
+  gap: 14px;
 }
 
 .product-gallery__thumbs {
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  max-height: 400px;
+  gap: 9px;
+  max-height: 430px;
   overflow-x: hidden;
   overflow-y: auto;
   scrollbar-width: thin;
@@ -1481,15 +1628,17 @@ const goOrderConfirm = async () => {
 }
 
 .product-gallery__thumb {
-  flex: 0 0 72px;
-  width: 72px;
-  height: 72px;
-  border-radius: 10px;
-  border: 2px solid transparent;
+  flex: 0 0 76px;
+  width: 76px;
+  height: 76px;
+  border-radius: 12px;
+  border: 2px solid #fff;
   overflow: hidden;
   padding: 0;
   cursor: pointer;
   background: #fff;
+  box-shadow: 0 4px 14px rgba(7, 27, 51, 0.08);
+  transition: transform 160ms ease, border-color 160ms ease, box-shadow 160ms ease;
 }
 
 .product-gallery__thumb img {
@@ -1499,16 +1648,19 @@ const goOrderConfirm = async () => {
 }
 
 .product-gallery__thumb--active {
-  border-color: var(--hourx-brand);
-  box-shadow: 0 0 0 2px rgba(5, 21, 43, 0.2);
+  border-color: #13a36d;
+  box-shadow: 0 0 0 2px rgba(19, 163, 109, 0.14), 0 8px 18px rgba(7, 27, 51, 0.12);
+  transform: translateY(-1px);
 }
 
 .product-gallery__hero {
   position: relative;
-  aspect-ratio: 16 / 8.5;
-  border-radius: 16px;
+  aspect-ratio: 16 / 9;
+  border-radius: 18px;
   overflow: hidden;
   background: #e5e7eb;
+  border: 1px solid rgba(209, 219, 231, 0.8);
+  box-shadow: 0 16px 40px rgba(7, 27, 51, 0.1);
 }
 
 .product-gallery__hero img {
@@ -1582,13 +1734,14 @@ const goOrderConfirm = async () => {
   left: 16px;
   height: 24px;
   border-radius: 999px;
-  background: var(--hourx-brand);
+  background: #0b8f62;
   color: #fff;
   display: inline-flex;
   align-items: center;
   padding: 0 12px;
-  font-size: 12px;
-  font-weight: 700;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.02em;
 }
 
 .product-gallery__dots {
@@ -1624,18 +1777,135 @@ const goOrderConfirm = async () => {
   box-shadow: 0 4px 10px rgba(15, 23, 42, 0.24);
 }
 
+.product-trust-strip {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0;
+  min-height: 54px;
+  border: 1px solid #e5ecf4;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.9);
+  box-shadow: 0 8px 24px rgba(7, 27, 51, 0.05);
+}
+
+.product-trust-strip__item {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  padding: 12px 14px;
+  color: #52647b;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.product-trust-strip__item + .product-trust-strip__item {
+  border-left: 1px solid #e9eef5;
+}
+
+.product-trust-strip__item svg {
+  width: 20px;
+  height: 20px;
+  flex: 0 0 auto;
+  fill: none;
+  stroke: #13a36d;
+  stroke-width: 1.9;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
 .product-card {
-  border-radius: 16px;
+  border-radius: 18px;
   background: #fff;
-  border: 1px solid #f3f4f6;
-  padding: 24px;
+  border: 1px solid #e6edf5;
+  padding: 26px;
+  box-shadow: 0 10px 30px rgba(7, 27, 51, 0.055);
 }
 
 .product-card h2 {
   margin: 0;
-  color: rgba(15, 23, 42, 0.9);
+  color: #10233e;
   font-size: 18px;
+  font-weight: 850;
+}
+
+.product-card--overview {
+  padding: 28px;
+}
+
+.product-card--compact {
+  min-width: 0;
+  padding: 24px;
+}
+
+.product-info-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.product-section-heading {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.product-section-heading > div {
+  min-width: 0;
+}
+
+.product-section-heading > div > span {
+  display: block;
+  margin-bottom: 3px;
+  color: #7c8ba0;
+  font-size: 10px;
   font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.product-section-heading__icon {
+  width: 34px;
+  height: 34px;
+  flex: 0 0 auto;
+  border-radius: 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #07865a;
+  background: #eaf8f2;
+}
+
+.product-section-heading__icon svg {
+  width: 19px;
+  height: 19px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.9;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.product-reviews-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+}
+
+.product-reviews-heading__score {
+  display: flex;
+  align-items: baseline;
+  gap: 7px;
+  color: #7c8ba0;
+  font-size: 12px;
+}
+
+.product-reviews-heading__score strong {
+  color: #10233e;
+  font-size: 24px;
+  font-weight: 900;
 }
 
 .product-card__head {
@@ -1679,10 +1949,10 @@ const goOrderConfirm = async () => {
 }
 
 .product-card__desc p {
-  margin: 12px 0 0;
-  color: rgba(15, 23, 42, 0.6);
+  margin: 16px 0 0;
+  color: #52647b;
   font-size: 14px;
-  line-height: 1.7;
+  line-height: 1.75;
 }
 
 .product-card__empty {
@@ -1723,10 +1993,10 @@ const goOrderConfirm = async () => {
 }
 
 .product-rich-text {
-  margin-top: 16px;
-  color: rgba(15, 23, 42, 0.65);
-  font-size: 13px;
-  line-height: 1.7;
+  margin-top: 18px;
+  color: #52647b;
+  font-size: 14px;
+  line-height: 1.72;
   overflow-wrap: anywhere;
 }
 
@@ -1761,12 +2031,17 @@ const goOrderConfirm = async () => {
 
 .product-rich-text :deep(ul),
 .product-rich-text :deep(ol) {
-  margin: 8px 0;
-  padding-left: 20px;
+  margin: 10px 0 0;
+  padding-left: 19px;
 }
 
 .product-rich-text :deep(li) {
-  margin: 6px 0;
+  margin: 7px 0;
+  padding-left: 2px;
+}
+
+.product-rich-text :deep(li::marker) {
+  color: #13a36d;
 }
 
 .product-rich-text :deep(p) {
@@ -1803,15 +2078,17 @@ const goOrderConfirm = async () => {
 }
 
 .product-review-list {
-  margin-top: 16px;
+  margin-top: 20px;
   display: grid;
-  gap: 10px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
 }
 
 .product-review {
-  border-radius: 12px;
-  background: #f8fafc;
-  padding: 14px;
+  border-radius: 14px;
+  border: 1px solid #e7edf4;
+  background: #f9fbfd;
+  padding: 16px;
   display: flex;
   gap: 10px;
 }
@@ -1890,64 +2167,237 @@ const goOrderConfirm = async () => {
 
 .booking-side {
   position: sticky;
-  top: 112px;
+  top: 92px;
 }
 
 .booking-card {
-  border-radius: 14px;
+  border-radius: 20px;
   background: #fff;
-  border: 1px solid #f3f4f6;
-  padding: 18px;
+  border: 1px solid #e2eaf3;
+  padding: 0;
+  overflow: hidden;
+  box-shadow: 0 20px 52px rgba(7, 27, 51, 0.12);
 }
 
-.booking-card h2 {
-  margin: 0;
-  color: rgba(15, 23, 42, 0.9);
-  font-size: 20px;
-  font-weight: 800;
+.booking-card__hero {
+  padding: 26px 26px 22px;
+  border-bottom: 1px solid #e9eef5;
+  background:
+    radial-gradient(circle at 100% 0, rgba(19, 163, 109, 0.1), transparent 38%),
+    linear-gradient(180deg, #ffffff 0%, #fbfdff 100%);
 }
 
-.booking-field {
+.booking-card__eyebrow {
+  color: #0b8f62;
+  font-size: 10px;
+  font-weight: 850;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.booking-card__hero h1 {
+  margin: 8px 0 0;
+  color: #071b33;
+  font-size: clamp(24px, 2vw, 32px);
+  line-height: 1.14;
+  font-weight: 900;
+  letter-spacing: -0.025em;
+}
+
+.booking-card__meta {
+  margin-top: 13px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.booking-card__rating {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.booking-card__rating > span {
+  color: #f4a21b;
+  font-size: 12px;
+  letter-spacing: 0.02em;
+}
+
+.booking-card__rating strong {
+  color: #087653;
+  font-size: 12px;
+}
+
+.booking-card__rating small {
+  color: #718096;
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.booking-card__trust {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: #4c6279;
+  font-size: 11px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.booking-card__trust svg {
+  width: 16px;
+  height: 16px;
+  fill: none;
+  stroke: #13a36d;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.booking-card__price {
   margin-top: 18px;
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
 }
 
-.booking-field > p {
-  margin: 0 0 10px;
-  color: rgba(15, 23, 42, 0.86);
+.booking-card__price span {
+  color: #67798e;
   font-size: 13px;
   font-weight: 700;
 }
 
+.booking-card__price strong {
+  color: #0b9b67;
+  font-size: 28px;
+  line-height: 1;
+  font-weight: 900;
+  letter-spacing: -0.025em;
+}
+
+.booking-card__section-heading {
+  padding: 22px 26px 0;
+}
+
+.booking-card__section-heading h2 {
+  margin: 0;
+  color: #10233e;
+  font-size: 18px;
+  font-weight: 850;
+}
+
+.booking-card__section-heading p {
+  margin: 5px 0 0;
+  color: #7a8ba0;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.booking-card__section-heading--addons {
+  padding-top: 26px;
+}
+
+.booking-field {
+  margin-top: 18px;
+  padding: 0 26px;
+}
+
+.booking-field > p {
+  margin: 0 0 10px;
+  color: #203650;
+  font-size: 13px;
+  font-weight: 800;
+}
+
 .booking-options {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 8px;
+  grid-template-columns: repeat(auto-fit, minmax(142px, 1fr));
+  gap: 9px;
 }
 
 .booking-option {
-  height: 34px;
+  min-height: 52px;
+  padding: 8px 10px;
   border-radius: 10px;
-  border: 2px solid #f1f5f9;
-  background: #f8fafc;
-  color: rgba(15, 23, 42, 0.5);
-  font-size: 12px;
-  font-weight: 700;
+  border: 1.5px solid #dfe7f0;
+  background: #fff;
+  color: #1b3049;
+  font-size: 13px;
+  font-weight: 750;
   cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 3px;
+  text-align: left;
+  box-shadow: 0 3px 10px rgba(7, 27, 51, 0.03);
+  transition: border-color 160ms ease, background-color 160ms ease, box-shadow 160ms ease, transform 160ms ease;
+}
+
+.booking-option:hover {
+  border-color: rgba(19, 163, 109, 0.58);
+  box-shadow: 0 8px 18px rgba(7, 27, 51, 0.07);
+  transform: translateY(-1px);
+}
+
+.booking-option__topline {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.booking-option__topline svg {
+  width: 16px;
+  height: 16px;
+  flex: 0 0 auto;
+  fill: #13a36d;
+  stroke: #fff;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.booking-option__name {
+  color: inherit;
+  line-height: 1.28;
+}
+
+.booking-option__remark {
+  margin-top: 3px;
+  color: #74859a;
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 1.42;
 }
 
 .booking-option--active {
-  border-color: var(--hourx-brand);
-  color: var(--hourx-brand);
-  background: #fff;
+  border-color: #13a36d;
+  color: #0b7554;
+  background: #f4fcf8;
+  box-shadow: 0 0 0 2px rgba(19, 163, 109, 0.1), 0 10px 22px rgba(7, 27, 51, 0.06);
+}
+
+.booking-option--active .booking-option__remark {
+  color: #526c62;
 }
 
 .booking-option--step {
   width: 34px;
   min-width: 34px;
   height: 34px;
+  min-height: 34px;
   padding: 0;
+  border-radius: 9px;
   font-size: 16px;
   line-height: 1;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
 }
 
 .booking-option--readonly {
@@ -1961,14 +2411,14 @@ const goOrderConfirm = async () => {
 .booking-attach-list {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 9px;
 }
 
 .booking-attach-item {
   border-radius: 12px;
-  border: 2px solid #f1f5f9;
-  background: #f8fafc;
-  padding: 8px 10px;
+  border: 1px solid #e0e8f1;
+  background: #fbfcfe;
+  padding: 11px 12px;
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
@@ -1984,16 +2434,16 @@ const goOrderConfirm = async () => {
 
 .booking-attach-item__name {
   display: block;
-  color: rgba(15, 23, 42, 0.82);
+  color: #1b3049;
   font-size: 13px;
-  font-weight: 700;
+  font-weight: 750;
 }
 
 .booking-attach-item__price {
   display: block;
   margin-top: 2px;
-  color: rgba(15, 23, 42, 0.52);
-  font-size: 12px;
+  color: #73859a;
+  font-size: 11px;
   font-weight: 600;
 }
 
@@ -2004,18 +2454,25 @@ const goOrderConfirm = async () => {
 }
 
 .booking-card__empty {
-  margin: 18px 0 0;
+  margin: 18px 26px 0;
   color: rgba(15, 23, 42, 0.35);
   font-size: 12px;
 }
 
 .booking-summary {
-  margin-top: 18px;
-  padding-top: 14px;
-  border-top: 1px solid #f3f4f6;
+  margin-top: 24px;
+  padding: 20px 26px 0;
+  border-top: 1px solid #e9eef5;
   display: flex;
   flex-direction: column;
   gap: 8px;
+}
+
+.booking-summary__caption {
+  margin-bottom: 4px;
+  color: #10233e;
+  font-size: 16px;
+  font-weight: 850;
 }
 
 .booking-summary__row {
@@ -2023,12 +2480,25 @@ const goOrderConfirm = async () => {
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  color: rgba(15, 23, 42, 0.56);
-  font-size: 14px;
+  color: #66788e;
+  font-size: 13px;
 }
 
 .booking-summary__row > span {
   min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.booking-summary__row > span small {
+  max-width: 245px;
+  overflow: hidden;
+  color: #91a0b2;
+  font-size: 11px;
+  font-weight: 500;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .booking-summary__row strong {
@@ -2042,28 +2512,29 @@ const goOrderConfirm = async () => {
 }
 
 .booking-summary__row--total {
-  margin-top: 2px;
-  padding-top: 10px;
-  border-top: 1px solid #e5e7eb;
+  margin-top: 6px;
+  padding-top: 14px;
+  border-top: 1px solid #e3eaf2;
 }
 
 .booking-summary__row--total span {
-  color: rgba(15, 23, 42, 0.56);
-  font-size: 18px;
+  color: #10233e;
+  font-size: 17px;
   font-weight: 800;
 }
 
 .booking-summary__row--total strong {
-  color: var(--hourx-brand);
-  font-size: 24px;
+  color: #0b9b67;
+  font-size: 27px;
   font-weight: 900;
 }
 
 .booking-actions {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1.08fr);
-  gap: 10px;
-  margin-top: 18px;
+  grid-template-columns: 1fr;
+  gap: 9px;
+  margin-top: 20px;
+  padding: 0 26px;
 }
 
 .booking-add-cart,
@@ -2071,9 +2542,9 @@ const goOrderConfirm = async () => {
   position: relative;
   width: 100%;
   min-width: 0;
-  height: 52px;
-  border-radius: 14px;
-  font-size: 15px;
+  height: 50px;
+  border-radius: 11px;
+  font-size: 14px;
   font-weight: 800;
   line-height: 1;
   letter-spacing: 0.01em;
@@ -2086,10 +2557,11 @@ const goOrderConfirm = async () => {
 }
 
 .booking-add-cart {
-  border: 1.5px solid rgba(5, 21, 43, 0.72);
-  background: linear-gradient(180deg, #f8fbff 0%, #edf5ff 100%);
-  color: var(--hourx-brand);
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.7);
+  order: 2;
+  border: 1px solid #cbd7e4;
+  background: #fff;
+  color: #17314e;
+  box-shadow: none;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -2108,26 +2580,36 @@ const goOrderConfirm = async () => {
 }
 
 .booking-submit {
-  border: 1.5px solid var(--hourx-brand);
-  background: linear-gradient(
-    135deg,
-    #0b2a4d 0%,
-    var(--hourx-brand) 68%,
-    #020c1a 100%
-  );
+  order: 1;
+  border: 1px solid #079864;
+  background: linear-gradient(135deg, #0aa36c 0%, #0b8f62 100%);
   color: #fff;
-  box-shadow: 0 10px 20px rgba(5, 21, 43, 0.2);
+  box-shadow: 0 12px 24px rgba(11, 143, 98, 0.2);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+}
+
+.booking-submit svg {
+  width: 18px;
+  height: 18px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
 }
 
 .booking-add-cart:hover {
-  border-color: var(--hourx-brand);
-  background: #e8f2ff;
+  border-color: #93a7bd;
+  background: #f7fafd;
   box-shadow: 0 8px 18px rgba(5, 21, 43, 0.12);
   transform: translateY(-1px);
 }
 
 .booking-submit:hover:not(:disabled) {
-  box-shadow: 0 13px 24px rgba(5, 21, 43, 0.28);
+  box-shadow: 0 14px 28px rgba(11, 143, 98, 0.28);
   transform: translateY(-1px);
 }
 
@@ -2149,18 +2631,41 @@ const goOrderConfirm = async () => {
   box-shadow: none;
 }
 
+.booking-card__policy {
+  margin: 14px 26px 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  color: #7a8ba0;
+  font-size: 11px;
+  line-height: 1.4;
+  text-align: center;
+}
+
+.booking-card__policy svg {
+  width: 15px;
+  height: 15px;
+  flex: 0 0 auto;
+  fill: none;
+  stroke: #71849a;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
 @media (min-width: 1440px) {
   .product-detail-layout {
-    grid-template-columns: minmax(0, 1fr) clamp(400px, 24vw, 440px);
+    grid-template-columns: minmax(0, 1.58fr) minmax(430px, 0.82fr);
   }
 
   .product-detail-subheader,
   .product-detail-back {
-    height: 72px;
+    height: 62px;
   }
 
   .product-detail-back {
-    font-size: 18px;
+    font-size: 14px;
   }
 
   .product-detail-body {
@@ -2215,16 +2720,16 @@ const goOrderConfirm = async () => {
   }
 
   .booking-side {
-    top: 120px;
+    top: 104px;
   }
 
   .booking-card {
-    padding: 24px;
-    border-radius: 18px;
+    padding: 0;
+    border-radius: 20px;
   }
 
-  .booking-card h2 {
-    font-size: 23px;
+  .booking-card__section-heading h2 {
+    font-size: 19px;
   }
 
   .booking-field > p,
@@ -2233,7 +2738,7 @@ const goOrderConfirm = async () => {
   }
 
   .booking-option {
-    height: 40px;
+    min-height: 56px;
     font-size: 13px;
   }
 
@@ -2241,6 +2746,7 @@ const goOrderConfirm = async () => {
     width: 40px;
     min-width: 40px;
     height: 40px;
+    min-height: 40px;
   }
 
   .booking-summary__row {
@@ -2257,14 +2763,14 @@ const goOrderConfirm = async () => {
 
   .booking-add-cart,
   .booking-submit {
-    height: 58px;
-    font-size: 16px;
+    height: 52px;
+    font-size: 15px;
   }
 }
 
 @media (max-width: 1180px) {
   .product-detail-layout {
-    grid-template-columns: minmax(0, 1fr) clamp(320px, 32vw, 360px);
+    grid-template-columns: minmax(0, 1fr) clamp(350px, 35vw, 390px);
     gap: clamp(16px, 2vw, 24px);
   }
 
@@ -2352,6 +2858,11 @@ const goOrderConfirm = async () => {
     grid-template-columns: 1fr;
   }
 
+  .product-info-grid,
+  .product-review-list {
+    grid-template-columns: 1fr;
+  }
+
   .product-card__head h1 {
     font-size: 28px;
   }
@@ -2380,6 +2891,46 @@ const goOrderConfirm = async () => {
 
   .product-card {
     padding: 18px;
+  }
+
+  .product-trust-strip__item {
+    flex-direction: column;
+    gap: 5px;
+    padding: 10px 6px;
+    font-size: 10px;
+    text-align: center;
+  }
+
+  .product-trust-strip__item svg {
+    width: 18px;
+    height: 18px;
+  }
+
+  .product-reviews-heading {
+    align-items: flex-start;
+  }
+
+  .booking-card__hero,
+  .booking-card__section-heading,
+  .booking-field,
+  .booking-summary,
+  .booking-actions {
+    padding-left: 18px;
+    padding-right: 18px;
+  }
+
+  .booking-card__meta {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .booking-card__policy {
+    margin-right: 18px;
+    margin-left: 18px;
+  }
+
+  .booking-options {
+    grid-template-columns: 1fr;
   }
 
   .product-card__head {

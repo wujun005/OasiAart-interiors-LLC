@@ -117,7 +117,10 @@
                 type="button"
                 @click="selectSpecValue(group.typeId, option.id)"
               >
-                {{ option.label }}
+                <span class="h5-booking-option__name">{{ option.label }}</span>
+                <small v-if="option.remark" class="h5-booking-option__remark">
+                  {{ option.remark }}
+                </small>
               </button>
             </div>
           </div>
@@ -313,6 +316,10 @@ import { clearStoredAuthState, getStoredAuthSnapshot } from "@/utils/auth-state"
 
 type I18nText = Record<string, string>
 type I18nTextArray = Record<string, string[] | string>
+type SpecValueI18nEntry = {
+  remarkI18n?: I18nText
+  [key: string]: string | I18nText | undefined
+}
 
 type ProductDetailRecord = {
   id?: number | string
@@ -328,7 +335,8 @@ type ProductDetailRecord = {
     specValueIds?: Array<number | string>
   }>
   specTypeNameI18n?: Record<string, I18nText>
-  specValueNameI18n?: Record<string, I18nText>
+  specValueNameI18n?: Record<string, SpecValueI18nEntry>
+  specValueRemarkI18n?: Record<string, I18nText>
   attachBindings?: Array<{
     attachTypeId?: number | string
     attachValueIds?: Array<number | string>
@@ -400,7 +408,7 @@ type RebookAttachSelection = {
   quantity: number
 }
 
-type BookingSpecOption = { id: string; label: string }
+type BookingSpecOption = { id: string; label: string; remark: string }
 type BookingSpecGroup = {
   typeId: string
   label: string
@@ -777,8 +785,13 @@ const bookingSpecGroups = computed<BookingSpecGroup[]>(() => {
         .map((valueId) => {
           const id = String(valueId ?? "").trim()
           if (!id) return null
-          const optionLabel = pickI18nValue(record?.specValueNameI18n?.[id], id)
-          return optionLabel ? { id, label: optionLabel } : null
+          const optionI18n = record?.specValueNameI18n?.[id]
+          const optionLabel = pickI18nValue(optionI18n as I18nText, id)
+          const remark = pickI18nValue(
+            record?.specValueRemarkI18n?.[id] || optionI18n?.remarkI18n,
+            "",
+          )
+          return optionLabel ? { id, label: optionLabel, remark } : null
         })
         .filter((item): item is BookingSpecOption => Boolean(item))
       return options.length ? { typeId, label, options } : null
@@ -1544,12 +1557,33 @@ const goOrderConfirm = async () => {
   padding: 7px 8px;
   line-height: 1.25;
   overflow-wrap: anywhere;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 3px;
+  text-align: left;
+}
+
+.h5-booking-option__name {
+  line-height: 1.25;
+}
+
+.h5-booking-option__remark {
+  color: #8a94a6;
+  font-size: 10px;
+  font-weight: 500;
+  line-height: 1.35;
 }
 
 .h5-booking-option--active {
   border-color: var(--hourx-brand);
   background: var(--hourx-brand-soft);
   color: var(--hourx-brand);
+}
+
+.h5-booking-option--active .h5-booking-option__remark {
+  color: rgba(5, 21, 43, 0.64);
 }
 
 .h5-attach-list {

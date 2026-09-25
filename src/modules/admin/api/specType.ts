@@ -15,3 +15,7 @@ export function deleteSpecType(payload: any) {
   return http.post('/api/specType/deleteSpecType', payload);
 }
 
+// 规格类型/规格值名称模糊搜索
+export function fuzzySearchSpecType(payload: any) {
+  return http.post('/api/specType/fuzzySearch', payload);
+}
