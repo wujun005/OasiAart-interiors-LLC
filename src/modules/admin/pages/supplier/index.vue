@@ -28,14 +28,14 @@
       </div>
 
       <el-table :data="suppliers" border stripe row-key="id" v-loading="tableLoading">
-        <el-table-column prop="supplierName" :label="t('admin.supplier.table.supplierName')" min-width="180" />
-        <el-table-column prop="contactInfo" :label="t('admin.supplier.table.contactInfo')" min-width="220" show-overflow-tooltip>
+        <el-table-column prop="supplierName" :label="t('admin.supplier.table.supplierName')" min-width="140" />
+        <el-table-column prop="contactInfo" :label="t('admin.supplier.table.contactInfo')" min-width="160" show-overflow-tooltip>
           <template #default="{ row }">{{ row.contactInfo || '-' }}</template>
         </el-table-column>
-        <el-table-column prop="remark" :label="t('admin.supplier.table.remark')" min-width="220" show-overflow-tooltip>
+        <el-table-column prop="remark" :label="t('admin.supplier.table.remark')" min-width="140" show-overflow-tooltip>
           <template #default="{ row }">{{ row.remark || '-' }}</template>
         </el-table-column>
-        <el-table-column :label="t('admin.supplier.table.status')" width="110">
+        <el-table-column :label="t('admin.supplier.table.status')" width="88">
           <template #default="{ row }">
             <el-switch
               :model-value="row.status === 1"
@@ -44,10 +44,10 @@
             />
           </template>
         </el-table-column>
-        <el-table-column :label="t('admin.supplier.table.updatedAt')" min-width="170">
+        <el-table-column :label="t('admin.supplier.table.updatedAt')" width="148">
           <template #default="{ row }">{{ formatDateTime(row.updatedAt) }}</template>
         </el-table-column>
-        <el-table-column :label="t('admin.supplier.table.actions')" width="150" fixed="right">
+        <el-table-column :label="t('admin.supplier.table.actions')" width="132" fixed="right">
           <template #default="{ row }">
             <el-button link type="primary" size="small" @click="openEdit(row)">
               {{ t('admin.supplier.actions.edit') }}

@@ -137,6 +137,7 @@ export const adminMenuState = reactive<AdminMenuPermissionState>({
 });
 
 let pendingLoad: Promise<void> | null = null;
+let loadVersion = 0;
 
 const normalizePath = (rawPath?: unknown): string => {
   if (typeof rawPath !== 'string') return '';
@@ -318,13 +319,14 @@ const hydrateMenuState = (list: RawMenuItem[]) => {
 };
 
 export const resetAdminMenuPermissions = () => {
+  loadVersion += 1;
+  pendingLoad = null;
   adminMenuState.loaded = false;
   adminMenuState.lastToken = '';
   adminMenuState.menus = [];
   adminMenuState.flatMenus = [];
   adminMenuState.allowedPaths = [];
   adminMenuState.firstPath = ROOT_PATH;
-  pendingLoad = null;
 };
 
 export const loadAdminMenuPermissions = async (force = false) => {
@@ -356,22 +358,30 @@ export const loadAdminMenuPermissions = async (force = false) => {
     return adminMenuState;
   }
 
-  pendingLoad = (async () => {
+  const version = loadVersion + 1;
+  loadVersion = version;
+  const task = (async () => {
     const res = await getCurrentUserRoles();
-    const list = parseMenuList(res);
-    hydrateMenuState(list);
+    if (version !== loadVersion) return;
+    hydrateMenuState(parseMenuList(res));
     adminMenuState.lastToken = token;
     adminMenuState.loaded = true;
   })()
     .catch((error) => {
-      resetAdminMenuPermissions();
-      adminMenuState.loaded = true;
+      if (version !== loadVersion) return;
+      adminMenuState.loaded = false;
+      adminMenuState.lastToken = '';
+      adminMenuState.menus = [];
+      adminMenuState.flatMenus = [];
+      adminMenuState.allowedPaths = [];
+      adminMenuState.firstPath = ROOT_PATH;
       throw error;
     })
     .finally(() => {
-      pendingLoad = null;
+      if (pendingLoad === task) pendingLoad = null;
     });
 
+  pendingLoad = task;
   await pendingLoad;
   return adminMenuState;
 };

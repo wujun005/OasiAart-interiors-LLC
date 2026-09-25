@@ -187,8 +187,8 @@
             <el-table :data="documents" class="data-table" row-key="name">
               <el-table-column label="文件" min-width="240"><template #default="{ row }"><div class="document-cell"><Document /><span><strong>{{ row.name }}</strong><small>{{ row.file }}</small></span></div></template></el-table-column>
               <el-table-column label="文件编号" prop="number" min-width="150" />
-              <el-table-column label="到期日" prop="expiry" min-width="140" />
-              <el-table-column label="审核状态" min-width="150"><template #default="{ row }"><el-tag :type="row.status === 'Verified' ? 'success' : row.status === 'Expiring' ? 'warning' : 'info'" effect="light">{{ row.status }}</el-tag></template></el-table-column>
+              <el-table-column label="到期日" prop="expiry" width="118" />
+              <el-table-column label="审核状态" width="108"><template #default="{ row }"><el-tag :type="row.status === 'Verified' ? 'success' : row.status === 'Expiring' ? 'warning' : 'info'" effect="light">{{ row.status }}</el-tag></template></el-table-column>
               <el-table-column label="操作" width="100"><template #default="{ row }"><el-button link type="primary" @click="showToast(`查看 ${row.name}`)">查看</el-button></template></el-table-column>
             </el-table>
           </el-tab-pane>
@@ -213,10 +213,10 @@
         <el-table :data="filteredAreas" class="data-table" row-key="areaId">
           <el-table-column label="社区 / Community" min-width="230"><template #default="{ row }"><div class="muted-stack"><strong>{{ row.community }}</strong><small>{{ row.areaId }}</small><small v-if="row.pendingAction === 'update' && row.pendingData" class="pending-copy">待审核：{{ row.pendingData.community }} · {{ row.pendingData.areaId }}</small></div></template></el-table-column>
           <el-table-column label="Zone" min-width="200"><template #default="{ row }"><div class="muted-stack"><span>{{ row.zone }}</span><small>{{ row.zoneName }}</small></div></template></el-table-column>
-          <el-table-column label="覆盖类型" min-width="140"><template #default="{ row }"><span class="coverage-type" :class="`coverage-type--${row.type.toLowerCase()}`">{{ row.type }}</span></template></el-table-column>
+          <el-table-column label="覆盖类型" width="100"><template #default="{ row }"><span class="coverage-type" :class="`coverage-type--${row.type.toLowerCase()}`">{{ row.type }}</span></template></el-table-column>
           <el-table-column label="适用服务" min-width="200"><template #default="{ row }"><div class="tag-list"><el-tag v-for="service in row.services" :key="service" size="small" effect="plain">{{ service }}</el-tag></div></template></el-table-column>
-          <el-table-column label="服务状态" min-width="130"><template #default="{ row }"><div class="area-service-status"><el-switch :model-value="row.active" :disabled="!row.effective || row.pendingAction === 'enable' || row.pendingAction === 'delete' || (!row.active && row.pendingAction === 'update')" inline-prompt active-text="启" inactive-text="停" @change="toggleAreaStatus(row, Boolean($event))" /><small v-if="!row.effective">审核通过后启用</small></div></template></el-table-column>
-          <el-table-column label="审核状态" min-width="155"><template #default="{ row }"><div class="area-review-status"><el-tag :type="areaReviewTagType(row.reviewStatus)" effect="light">{{ areaReviewLabel(row.reviewStatus) }}</el-tag><small v-if="row.pendingAction">{{ areaActionLabel(row.pendingAction) }}</small><small v-else-if="row.reviewNote" class="rejected-copy">{{ row.reviewNote }}</small></div></template></el-table-column>
+          <el-table-column label="服务状态" width="118"><template #default="{ row }"><div class="area-service-status"><el-switch :model-value="row.active" :disabled="!row.effective || row.pendingAction === 'enable' || row.pendingAction === 'delete' || (!row.active && row.pendingAction === 'update')" inline-prompt active-text="启" inactive-text="停" @change="toggleAreaStatus(row, Boolean($event))" /><small v-if="!row.effective">审核通过后启用</small></div></template></el-table-column>
+          <el-table-column label="审核状态" width="108"><template #default="{ row }"><div class="area-review-status"><el-tag :type="areaReviewTagType(row.reviewStatus)" effect="light">{{ areaReviewLabel(row.reviewStatus) }}</el-tag><small v-if="row.pendingAction">{{ areaActionLabel(row.pendingAction) }}</small><small v-else-if="row.reviewNote" class="rejected-copy">{{ row.reviewNote }}</small></div></template></el-table-column>
           <el-table-column label="操作" width="150" fixed="right"><template #default="{ row }"><el-button link type="primary" :disabled="row.pendingAction === 'enable' || row.pendingAction === 'delete'" @click="openAreaDialog(row)">编辑</el-button><el-button link type="danger" :disabled="row.pendingAction === 'delete'" @click="deleteArea(row)">{{ row.pendingAction === 'create' ? '撤回' : '删除' }}</el-button></template></el-table-column>
         </el-table>
       </el-card>
@@ -249,8 +249,8 @@
           <el-table-column label="联系方式" min-width="160"><template #default="{ row }"><div class="muted-stack"><span>{{ row.mobile }}</span><small>{{ row.language }}</small></div></template></el-table-column>
           <el-table-column label="默认工作时间" min-width="175"><template #default="{ row }"><div class="muted-stack"><span>{{ row.workingDays }}</span><small>{{ row.workingHours }}</small></div></template></el-table-column>
           <el-table-column label="覆盖区域" min-width="150"><template #default="{ row }"><div class="zone-list"><span v-for="zone in row.zones" :key="zone">{{ zone }}</span></div></template></el-table-column>
-          <el-table-column label="证件" width="120"><template #default="{ row }"><el-tag :type="row.docs === 'Verified' ? 'success' : 'warning'" effect="light">{{ row.docs === 'Verified' ? '已验证' : '即将到期' }}</el-tag></template></el-table-column>
-          <el-table-column label="今日状态" width="120"><template #default="{ row }"><span class="status-pill" :class="`status-pill--${row.status}`"><i></i>{{ staffStatusLabel(row.status) }}</span></template></el-table-column>
+          <el-table-column label="证件" width="96"><template #default="{ row }"><el-tag :type="row.docs === 'Verified' ? 'success' : 'warning'" effect="light">{{ row.docs === 'Verified' ? '已验证' : '即将到期' }}</el-tag></template></el-table-column>
+          <el-table-column label="今日状态" width="96"><template #default="{ row }"><span class="status-pill" :class="`status-pill--${row.status}`"><i></i>{{ staffStatusLabel(row.status) }}</span></template></el-table-column>
           <el-table-column label="操作" width="96" align="right"><template #default="{ row }"><el-button link type="primary" @click="showToast(`打开 ${row.name} 的人员档案`)">查看</el-button></template></el-table-column>
         </el-table>
       </el-card>
@@ -308,7 +308,7 @@
           <el-table-column label="服务时间" min-width="170"><template #default="{ row }"><div class="muted-stack"><span>{{ row.date }}</span><small>{{ row.time }}</small></div></template></el-table-column>
           <el-table-column label="执行人员" min-width="150"><template #default="{ row }">{{ row.staff }}</template></el-table-column>
           <el-table-column label="收益快照" min-width="130" align="right"><template #default="{ row }"><strong class="money-value">AED {{ row.cost }}</strong></template></el-table-column>
-          <el-table-column label="状态" width="120"><template #default="{ row }"><span class="order-status" :class="`order-status--${row.status}`">{{ orderStatusLabel(row.status) }}</span></template></el-table-column>
+          <el-table-column label="状态" width="96"><template #default="{ row }"><span class="order-status" :class="`order-status--${row.status}`">{{ orderStatusLabel(row.status) }}</span></template></el-table-column>
           <el-table-column label="" width="80" align="right"><template #default="{ row }"><el-button link type="primary" @click="openOrder(row)">详情</el-button></template></el-table-column>
         </el-table>
       </el-card>
@@ -330,10 +330,10 @@
           <el-table-column label="当前生效价" min-width="135"><template #default="{ row }"><strong v-if="!row.isNew" class="price-value">AED {{ row.price }}</strong><span v-else class="muted-text">—</span></template></el-table-column>
           <el-table-column label="申请价格" min-width="135"><template #default="{ row }"><strong v-if="row.requested" class="requested-price">AED {{ row.requested }}</strong><span v-else class="muted-text">—</span></template></el-table-column>
           <el-table-column label="最低订单" min-width="130"><template #default="{ row }">{{ row.minimum }}</template></el-table-column>
-          <el-table-column label="VAT" width="100"><template #default="{ row }"><el-tag size="small" :type="row.vat === 'Included' ? 'success' : 'info'" effect="plain">{{ row.vat }}</el-tag></template></el-table-column>
+          <el-table-column label="VAT" width="88"><template #default="{ row }"><el-tag size="small" :type="row.vat === 'Included' ? 'success' : 'info'" effect="plain">{{ row.vat }}</el-tag></template></el-table-column>
           <el-table-column label="适用区域" min-width="165"><template #default="{ row }"><div class="zone-list"><span v-for="zone in row.zones" :key="zone">{{ zone }}</span><em v-if="row.moreZones">+{{ row.moreZones }}</em></div></template></el-table-column>
-          <el-table-column label="审核状态" min-width="145"><template #default="{ row }"><el-tag :type="row.review === 'Pending Review' ? 'warning' : 'success'" effect="light">{{ quoteReviewLabel(row.review) }}</el-tag></template></el-table-column>
-          <el-table-column label="生效日" min-width="120" prop="effective" />
+          <el-table-column label="审核状态" width="108"><template #default="{ row }"><el-tag :type="row.review === 'Pending Review' ? 'warning' : 'success'" effect="light">{{ quoteReviewLabel(row.review) }}</el-tag></template></el-table-column>
+          <el-table-column label="生效日" width="110" prop="effective" />
           <el-table-column label="操作" width="110" fixed="right"><template #default="{ row }"><el-button link type="primary" @click="openPriceRequest(row)">{{ row.review === 'Pending Review' ? '详情' : '改价' }}</el-button></template></el-table-column>
         </el-table>
       </el-card>
@@ -369,13 +369,13 @@
               <el-table-column label="订单收益" min-width="125" align="right"><template #default="{ row }">AED {{ row.base }}</template></el-table-column>
               <el-table-column label="调整" min-width="110" align="right"><template #default="{ row }"><span :class="row.adjustment < 0 ? 'negative' : 'muted-text'">{{ row.adjustment ? `- AED ${Math.abs(row.adjustment)}` : '—' }}</span></template></el-table-column>
               <el-table-column label="最终应付" min-width="130" align="right"><template #default="{ row }"><strong class="money-value">AED {{ row.payable }}</strong></template></el-table-column>
-              <el-table-column label="结算状态" min-width="130"><template #default="{ row }"><el-tag :type="row.status === 'Paid' ? 'success' : 'warning'" effect="light">{{ row.status }}</el-tag></template></el-table-column>
+              <el-table-column label="结算状态" width="100"><template #default="{ row }"><el-tag :type="row.status === 'Paid' ? 'success' : 'warning'" effect="light">{{ row.status }}</el-tag></template></el-table-column>
               <el-table-column label="批次" min-width="130" prop="batch" />
             </el-table>
           </el-tab-pane>
           <el-tab-pane label="付款批次" name="payouts">
             <el-table :data="payoutBatches" class="data-table" row-key="batch">
-              <el-table-column label="批次" prop="batch" min-width="150" /><el-table-column label="账期" prop="period" min-width="200" /><el-table-column label="订单数" prop="orders" min-width="120" /><el-table-column label="应付金额" min-width="150"><template #default="{ row }"><strong>AED {{ row.amount }}</strong></template></el-table-column><el-table-column label="付款日" prop="paidAt" min-width="150" /><el-table-column label="状态" min-width="130"><template #default="{ row }"><el-tag :type="row.status === 'Paid' ? 'success' : 'warning'">{{ row.status }}</el-tag></template></el-table-column>
+              <el-table-column label="批次" prop="batch" width="120" /><el-table-column label="账期" prop="period" min-width="160" /><el-table-column label="订单数" prop="orders" width="88" /><el-table-column label="应付金额" width="120"><template #default="{ row }"><strong>AED {{ row.amount }}</strong></template></el-table-column><el-table-column label="付款日" prop="paidAt" width="118" /><el-table-column label="状态" width="88"><template #default="{ row }"><el-tag :type="row.status === 'Paid' ? 'success' : 'warning'">{{ row.status }}</el-tag></template></el-table-column>
             </el-table>
           </el-tab-pane>
         </el-tabs>

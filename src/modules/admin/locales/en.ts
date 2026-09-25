@@ -204,6 +204,7 @@ const en = {
     orders: {
       searchPlaceholder: 'Search by Order ID',
       statusColourKey: 'Order Status colour key:',
+      empty: 'No orders',
       supplierView: {
         readOnly: 'Supplier details are read-only for completed, cancelled and refunded orders.',
         unassigned: 'No supplier assigned',
@@ -233,6 +234,10 @@ const en = {
       },
       actions: {
         search: 'Search',
+        filter: 'Filter',
+        back: 'Orders',
+        prev: 'Prev',
+        next: 'Next',
         reset: 'Clear',
         create: 'Create Order',
         edit: 'Edit',
@@ -420,6 +425,8 @@ const en = {
         adminRemarkPlaceholder: 'Internal note for administrators only',
         supplier: 'Supplier',
         supplierPlaceholder: 'Select a supplier, or clear to unassign',
+        supplierSearch: 'Search suppliers',
+        supplierEmpty: 'No matching suppliers',
         userId: 'User ID',
         userIdPlaceholder: 'Please enter user ID',
         payStatus: 'Payment Status',
@@ -603,7 +610,7 @@ const en = {
         removeLang: 'Remove',
       },
       table: {
-        sort: 'Sort Order',
+        sort: 'Sort',
         name: 'Pricing Rule',
         subcategory: 'Service Type',
         specType: 'Pricing Model',
@@ -740,7 +747,7 @@ const en = {
         removeLang: 'Remove',
       },
       table: {
-        sort: 'Order',
+        sort: 'Sort',
         sortHint: 'Drag to reorder service categories',
         name: 'Name',
         icon: 'Icon',
@@ -809,7 +816,7 @@ const en = {
         removeLang: 'Remove',
       },
       table: {
-        sort: 'Sort Order',
+        sort: 'Sort',
         name: 'Service Type',
         parent: 'Parent Category',
         icon: 'Icon',
@@ -947,7 +954,7 @@ const en = {
         addAddonGroup: '+ Add Add-on Service',
       },
       table: {
-        sort: 'Order',
+        sort: 'Sort',
         sortHint: 'Drag to reorder services',
         image: 'Image',
         name: 'Name',

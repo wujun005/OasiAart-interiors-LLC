@@ -204,6 +204,7 @@ const zh = {
     orders: {
       searchPlaceholder: '搜索订单号',
       statusColourKey: '订单状态颜色说明：',
+      empty: '暂无订单',
       supplierView: {
         readOnly: '已完成、已取消和已退款订单的供应商信息仅供查看。',
         unassigned: '未分配供应商',
@@ -233,6 +234,10 @@ const zh = {
       },
       actions: {
         search: '搜索',
+        filter: '筛选',
+        back: '订单',
+        prev: '上一页',
+        next: '下一页',
         reset: '清除',
         create: '新增订单',
         edit: '编辑',
@@ -420,6 +425,8 @@ const zh = {
         adminRemarkPlaceholder: '仅供后台人员查看的内部备注',
         supplier: '供应商',
         supplierPlaceholder: '请选择供应商，清空则解除分配',
+        supplierSearch: '搜索供应商',
+        supplierEmpty: '没有匹配的供应商',
         userId: '用户ID',
         userIdPlaceholder: '请输入用户ID',
         payStatus: '支付状态',

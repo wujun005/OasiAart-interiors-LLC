@@ -28,7 +28,7 @@
         <el-table-column
           v-if="canSortCategories"
           :label="t('admin.category.table.sort')"
-          width="66"
+          width="64"
           align="center"
           fixed="left"
         >
@@ -54,18 +54,18 @@
             </button>
           </template>
         </el-table-column>
-        <el-table-column :label="t('admin.category.table.name')" min-width="200">
+        <el-table-column :label="t('admin.category.table.name')" min-width="160">
           <template #default="{ row }">
             {{ row.displayName }}
           </template>
         </el-table-column>
-        <el-table-column :label="t('admin.category.table.icon')" width="120">
+        <el-table-column :label="t('admin.category.table.icon')" width="72">
           <template #default="{ row }">
             <img v-if="row.iconUrl" :src="row.iconUrl" alt="" class="icon-thumb" />
             <span v-else>-</span>
           </template>
         </el-table-column>
-        <el-table-column :label="t('admin.category.table.status')" width="140">
+        <el-table-column :label="t('admin.category.table.status')" width="88">
           <template #default="{ row }">
             <el-switch
               v-model="row.enabled"
@@ -76,10 +76,10 @@
             />
           </template>
         </el-table-column>
-        <el-table-column :label="t('admin.category.table.createdAt')" min-width="160">
+        <el-table-column :label="t('admin.category.table.createdAt')" width="148">
           <template #default="{ row }">{{ formatDate(row.createdAt) }}</template>
         </el-table-column>
-        <el-table-column :label="t('admin.category.table.actions')" width="180" fixed="right">
+        <el-table-column :label="t('admin.category.table.actions')" width="132" fixed="right">
           <template #default="{ row }">
             <el-button link type="primary" size="small" @click="openEdit(row)">
               {{ t('admin.category.actions.edit') }}
