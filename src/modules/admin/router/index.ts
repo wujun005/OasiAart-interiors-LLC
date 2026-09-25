@@ -39,13 +39,25 @@ const routes: RouteRecordRaw[] = [
       {
         path: 'supplier-management',
         component: () => import('@/modules/admin/pages/basic/Layout.vue'),
-        redirect: '/admin/supplier-management/profile',
+        redirect: '/admin/supplier-management/overview',
         children: [
+          {
+            path: 'overview',
+            name: 'admin-supplier-overview',
+            component: () => import('@/modules/admin/pages/supplier-management/index.vue'),
+            props: { section: 'overview' },
+          },
           {
             path: 'profile',
             name: 'admin-supplier-profile',
             component: () => import('@/modules/admin/pages/supplier-management/index.vue'),
             props: { section: 'profile' },
+          },
+          {
+            path: 'service-area',
+            name: 'admin-supplier-service-area',
+            component: () => import('@/modules/admin/pages/supplier-management/index.vue'),
+            props: { section: 'service-area' },
           },
           {
             path: 'staff',
@@ -70,6 +82,12 @@ const routes: RouteRecordRaw[] = [
             name: 'admin-supplier-pricing',
             component: () => import('@/modules/admin/pages/supplier-management/index.vue'),
             props: { section: 'pricing' },
+          },
+          {
+            path: 'settlement',
+            name: 'admin-supplier-settlement',
+            component: () => import('@/modules/admin/pages/supplier-management/index.vue'),
+            props: { section: 'settlement' },
           },
         ],
       },
