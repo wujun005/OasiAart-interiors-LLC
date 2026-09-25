@@ -32,6 +32,7 @@ const en = {
       addon: 'Add-on Services',
       spec: 'Pricing Rules',
       supplier: 'Supplier Management',
+      serviceAreas: 'Service Areas',
       supplierPortal: 'HourX Supplier Portal',
       supplierManagement: 'Supplier Workspace',
       supplierOverview: 'Dashboard & Earnings',

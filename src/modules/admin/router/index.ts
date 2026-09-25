@@ -134,6 +134,11 @@ const routes: RouteRecordRaw[] = [
             name: 'admin-basic-suppliers',
             component: () => import('@/modules/admin/pages/supplier/index.vue'),
           },
+          {
+            path: 'service-areas',
+            name: 'admin-basic-service-areas',
+            component: () => import('@/modules/admin/pages/service-area/index.vue'),
+          },
         ],
       },
     ],

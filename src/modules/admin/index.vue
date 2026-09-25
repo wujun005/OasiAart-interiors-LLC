@@ -189,6 +189,7 @@ const resolveMenuIcon = (item: AdminMenuPermissionItem) => {
   if (path.startsWith('/admin/supplier-management/pricing')) return PriceTag;
   if (path.startsWith('/admin/supplier-management/settlement')) return Wallet;
   if (path.startsWith('/admin/supplier-management')) return OfficeBuilding;
+  if (path.startsWith('/admin/basic/service-areas')) return Location;
   if (path.startsWith('/admin/basic/suppliers')) return User;
   if (path.startsWith('/admin/basic/spec-types')) return Ticket;
   if (path.startsWith('/admin/basic/specs')) return Tickets;
@@ -210,6 +211,7 @@ const menuLabelKeyByPath: Record<string, string> = {
   '/admin/basic/addon-categories': 'admin.layout.addonCategory',
   '/admin/basic/addons': 'admin.layout.addon',
   '/admin/basic/suppliers': 'admin.layout.supplier',
+  '/admin/basic/service-areas': 'admin.layout.serviceAreas',
   '/admin/supplier-management': 'admin.layout.supplierManagement',
   '/admin/supplier-management/overview': 'admin.layout.supplierOverview',
   '/admin/supplier-management/profile': 'admin.layout.supplierProfile',

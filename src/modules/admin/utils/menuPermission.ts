@@ -43,6 +43,38 @@ type AdminMenuPermissionState = {
 const ROOT_PATH = '/admin';
 const LOGIN_PATH = '/admin/login';
 const SUPPLIER_MANAGEMENT_PATH = '/admin/supplier-management';
+const SERVICE_AREA_ADMIN_PATH = '/admin/basic/service-areas';
+
+const findMenuByPath = (
+  list: AdminMenuPermissionItem[],
+  path: string,
+): AdminMenuPermissionItem | undefined => {
+  for (const item of list) {
+    if (item.path === path) return item;
+    const child = findMenuByPath(item.children || [], path);
+    if (child) return child;
+  }
+  return undefined;
+};
+
+const attachServiceAreaMenu = (roots: AdminMenuPermissionItem[]) => {
+  if (findMenuByPath(roots, SERVICE_AREA_ADMIN_PATH)) return;
+  const basic = findMenuByPath(roots, '/admin/basic');
+  const item: AdminMenuPermissionItem = {
+    id: 'local-service-areas',
+    name: 'Service Areas',
+    path: SERVICE_AREA_ADMIN_PATH,
+    icon: 'location',
+    parentId: basic?.id || 0,
+    sortOrder: 80,
+    children: [],
+  };
+  if (basic) {
+    basic.children.push(item);
+    return;
+  }
+  roots.push(item);
+};
 
 const createSupplierManagementMenu = (): AdminMenuPermissionItem => ({
   id: 'local-supplier-management',
@@ -297,6 +329,7 @@ const hydrateMenuState = (list: RawMenuItem[]) => {
   if (!hasSupplierManagementMenu) {
     prunedRoots.push(createSupplierManagementMenu());
   }
+  attachServiceAreaMenu(prunedRoots);
   sortMenus(prunedRoots);
 
   const flat = flattenMenus(prunedRoots, []);

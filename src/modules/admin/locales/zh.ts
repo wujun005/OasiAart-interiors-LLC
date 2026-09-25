@@ -32,6 +32,7 @@ const zh = {
       addon: '附加项',
       spec: '计价方式',
       supplier: '供应商管理',
+      serviceAreas: '服务区域',
       supplierPortal: 'HourX 供应商端',
       supplierManagement: '供应商工作台',
       supplierOverview: '数据与收益',

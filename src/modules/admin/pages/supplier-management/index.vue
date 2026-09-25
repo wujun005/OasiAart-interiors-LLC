@@ -4,7 +4,7 @@
       <div>
         <div class="eyebrow">
           <span class="demo-dot"></span>
-          HourX Supplier Portal · Demo
+          HourX Supplier Portal
         </div>
         <h1>{{ meta.title }}</h1>
         <p>{{ meta.description }}</p>
@@ -13,8 +13,8 @@
         <el-button v-if="section === 'orders' || section === 'settlement'" :icon="Download" @click="showToast(section === 'orders' ? '订单清单已生成 Demo 导出任务' : '结算明细已生成 Demo 导出任务')">
           {{ section === 'orders' ? '导出订单' : '导出结算' }}
         </el-button>
-        <el-button v-if="section === 'profile'" @click="showToast('已保存为草稿')">保存草稿</el-button>
-        <el-button v-if="meta.primaryAction" type="primary" :icon="section === 'staff' || section === 'schedule' || section === 'service-area' || section === 'pricing' ? Plus : Check" @click="handlePrimaryAction">
+        <el-button v-if="section === 'profile'" :loading="saving" @click="saveProfile(0)">Save draft</el-button>
+        <el-button v-if="meta.primaryAction" type="primary" :icon="section === 'schedule' || section === 'pricing' ? Plus : section === 'profile' ? Check : undefined" @click="handlePrimaryAction">
           {{ meta.primaryAction }}
         </el-button>
       </div>
@@ -25,12 +25,27 @@
         <div class="supplier-logo">PC</div>
         <div>
           <div class="supplier-label">已登录供应商 / Signed-in supplier</div>
-          <strong class="supplier-name">PrimeCare Home Services LLC</strong>
+          <strong class="supplier-name">{{ companyForm.companyName || '未填写公司名称' }}</strong>
+          <el-select
+            v-if="supplierOptions.length"
+            class="supplier-select"
+            :model-value="supplierRecordId || undefined"
+            filterable
+            placeholder="切换供应商"
+            @change="switchSupplier"
+          >
+            <el-option
+              v-for="item in supplierOptions"
+              :key="item.id"
+              :label="item.companyName || `供应商 ${item.id}`"
+              :value="item.id"
+            />
+          </el-select>
         </div>
       </div>
       <div class="supplier-facts">
-        <div><span>Supplier ID</span><strong>{{ supplierId }}</strong></div>
-        <div><span>账户状态</span><el-tag type="success" effect="light">Active</el-tag></div>
+        <div><span>Supplier ID</span><strong>{{ supplierRecordId || '新建' }}</strong></div>
+        <div><span>入驻状态</span><el-tag :type="onboardingTagType" effect="light">{{ onboardingStatusLabel }}</el-tag></div>
         <div><span>资料完整度</span><strong class="progress-value">82%</strong></div>
         <div class="compact-progress"><i style="width: 82%"></i></div>
       </div>
@@ -77,147 +92,106 @@
     </template>
 
     <template v-else-if="section === 'profile'">
-      <div class="metric-grid metric-grid--profile">
-        <article class="metric-card">
-          <span class="metric-icon metric-icon--blue"><OfficeBuilding /></span>
-          <div><small>已完成字段</small><strong>31 / 38</strong><p>Company & capacity</p></div>
-        </article>
-        <article class="metric-card">
-          <span class="metric-icon metric-icon--green"><CircleCheck /></span>
-          <div><small>证件状态</small><strong>3 已验证</strong><p>1 item expires soon</p></div>
-        </article>
-        <article class="metric-card">
-          <span class="metric-icon metric-icon--purple"><Location /></span>
-          <div><small>已选服务区域</small><strong>{{ coverageTotal }} 社区</strong><p>{{ selectedZones.length }} of 15 zones</p></div>
-        </article>
-        <article class="metric-card">
-          <span class="metric-icon metric-icon--amber"><Tickets /></span>
-          <div><small>服务与报价</small><strong>8 类服务</strong><p>101 price items</p></div>
-        </article>
+      <div class="dossier">
+        <aside class="dossier-rail">
+          <p>Onboarding file</p>
+          <strong>{{ companyForm.companyName || 'Untitled company' }}</strong>
+          <em>{{ ['Draft', 'Submitted', 'Approved', 'Rejected'][onboardingStatus ?? -1] || 'Not created' }}</em>
+          <nav>
+            <a href="#profile-company"><span>01</span>Company</a>
+            <a href="#profile-contact"><span>02</span>Contact</a>
+            <a href="#profile-capacity"><span>03</span>Capacity</a>
+            <a href="#profile-insurance"><span>04</span>Insurance</a>
+          </nav>
+          <small v-if="rejectReason">Rejected: {{ rejectReason }}</small>
+        </aside>
+
+        <div class="dossier-sheet">
+          <section id="profile-company">
+            <header><span>01</span><div><h2>Company</h2><p>Legal name, trade license, and registered office.</p></div></header>
+            <el-form label-position="top" class="dossier-grid">
+              <el-form-item label="Company Name" class="span-2" required><el-input v-model="companyForm.companyName" placeholder="Registered company name" /></el-form-item>
+              <el-form-item label="Trade License No." required><el-input v-model="companyForm.licenseNo" placeholder="CN-0000000" /></el-form-item>
+              <el-form-item label="License Expiry" required><el-date-picker v-model="companyForm.licenseExpiry" type="date" value-format="YYYY-MM-DD" placeholder="YYYY-MM-DD" /></el-form-item>
+              <el-form-item label="VAT / TRN"><el-input v-model="companyForm.trn" placeholder="If applicable" /></el-form-item>
+              <el-form-item label="Years in Business"><el-input-number v-model="companyForm.years" :min="0" controls-position="right" /></el-form-item>
+              <el-form-item label="Office Address" class="span-2" required><el-input v-model="companyForm.address" placeholder="Building, area, Dubai" /></el-form-item>
+            </el-form>
+          </section>
+
+          <section id="profile-contact">
+            <header><span>02</span><div><h2>Contact</h2><p>The person HourX will reach for dispatch.</p></div></header>
+            <el-form label-position="top" class="dossier-grid">
+              <el-form-item label="Contact Person" required><el-input v-model="companyForm.contact" /></el-form-item>
+              <el-form-item label="Email" required><el-input v-model="companyForm.email" /></el-form-item>
+              <el-form-item label="Mobile" required><el-input v-model="companyForm.mobile" placeholder="+971" /></el-form-item>
+              <el-form-item label="WhatsApp" required><el-input v-model="companyForm.whatsapp" placeholder="+971" /></el-form-item>
+            </el-form>
+          </section>
+
+          <section id="profile-capacity">
+            <header><span>03</span><div><h2>Capacity</h2><p>How many jobs the company can take, and when.</p></div></header>
+            <el-form label-position="top" class="dossier-grid dossier-grid--three">
+              <el-form-item label="Total Available Workers"><el-input-number v-model="capacityForm.workers" :min="0" /></el-form-item>
+              <el-form-item label="Max Simultaneous Orders"><el-input-number v-model="capacityForm.concurrent" :min="0" /></el-form-item>
+              <el-form-item label="Monthly Capacity"><el-input-number v-model="capacityForm.monthly" :min="0" /></el-form-item>
+              <el-form-item label="Minimum Lead Time (hours)"><el-input-number v-model="capacityForm.leadTime" :min="0" /></el-form-item>
+              <el-form-item label="Working Hours Start"><el-time-select v-model="capacityForm.start" start="06:00" step="00:30" end="12:00" /></el-form-item>
+              <el-form-item label="Working Hours End"><el-time-select v-model="capacityForm.end" start="14:00" step="00:30" end="23:30" /></el-form-item>
+              <el-form-item label="Female Staff"><el-input-number v-model="femaleStaffCount" :min="0" /></el-form-item>
+              <el-form-item label="Male Staff"><el-input-number v-model="maleStaffCount" :min="0" /></el-form-item>
+            </el-form>
+            <div class="dossier-toggles">
+              <label v-for="item in capacityToggles" :key="item.en"><span>{{ item.en }}</span><el-switch v-model="item.enabled" /></label>
+              <label><span>Own transportation</span><el-switch v-model="ownTransportation" /></label>
+              <label><span>Own equipment</span><el-switch v-model="complianceItems[3].enabled" /></label>
+              <label><span>Tax invoice available</span><el-switch v-model="complianceItems[2].enabled" /></label>
+            </div>
+          </section>
+
+          <section id="profile-insurance">
+            <header><span>04</span><div><h2>Insurance</h2><p>A copy is required when the answer is yes.</p></div></header>
+            <div class="policy-row" v-for="item in complianceItems.filter((entry) => entry.fileKey)" :key="item.key">
+              <div>
+                <strong>{{ item.key === 'public' ? 'Public liability insurance' : 'Employee insurance' }}</strong>
+                <small>{{ item.file || 'No policy file yet' }}</small>
+              </div>
+              <el-switch v-model="item.enabled" />
+              <el-upload :show-file-list="false" :http-request="(options) => uploadInsurance(item.fileKey, options)">
+                <el-button>Upload copy</el-button>
+              </el-upload>
+            </div>
+          </section>
+        </div>
       </div>
-
-      <el-card class="surface-card onboarding-card" shadow="never">
-        <el-tabs v-model="profileTab" class="section-tabs">
-          <el-tab-pane label="公司与地址" name="company">
-            <div class="section-heading">
-              <div><h2>公司与地址</h2><p>Company information & registered address</p></div>
-              <el-tag type="success" effect="plain">Verified</el-tag>
-            </div>
-            <el-form label-position="top" class="form-grid">
-              <el-form-item label="公司名称 / Company Name" class="span-2">
-                <el-input v-model="companyForm.companyName" />
-              </el-form-item>
-              <el-form-item label="营业执照号 / Trade License No.">
-                <el-input v-model="companyForm.licenseNo" />
-              </el-form-item>
-              <el-form-item label="执照到期日 / License Expiry">
-                <el-date-picker v-model="companyForm.licenseExpiry" type="date" value-format="YYYY-MM-DD" style="width: 100%" />
-              </el-form-item>
-              <el-form-item label="VAT / TRN">
-                <el-input v-model="companyForm.trn" />
-              </el-form-item>
-              <el-form-item label="经营年限 / Years in Business">
-                <el-input-number v-model="companyForm.years" :min="0" controls-position="right" style="width: 100%" />
-              </el-form-item>
-              <el-form-item label="公司地址 / Office Address" class="span-2">
-                <el-input v-model="companyForm.address" />
-              </el-form-item>
-              <el-form-item label="联系人 / Contact Person">
-                <el-input v-model="companyForm.contact" />
-              </el-form-item>
-              <el-form-item label="邮箱 / Email">
-                <el-input v-model="companyForm.email" />
-              </el-form-item>
-              <el-form-item label="电话 / Mobile">
-                <el-input v-model="companyForm.mobile" />
-              </el-form-item>
-              <el-form-item label="WhatsApp">
-                <el-input v-model="companyForm.whatsapp" />
-              </el-form-item>
-            </el-form>
-          </el-tab-pane>
-
-          <el-tab-pane label="能力与派单" name="capacity">
-            <div class="section-heading">
-              <div><h2>服务能力与派单条件</h2><p>Capacity, availability & dispatch constraints</p></div>
-              <el-tag effect="plain">来源：02_Capacity_Zones</el-tag>
-            </div>
-            <el-form label-position="top" class="form-grid form-grid--three">
-              <el-form-item label="可派员工数 / Total Workers"><el-input-number v-model="capacityForm.workers" :min="1" /></el-form-item>
-              <el-form-item label="最大同时订单 / Concurrent Orders"><el-input-number v-model="capacityForm.concurrent" :min="1" /></el-form-item>
-              <el-form-item label="月订单容量 / Monthly Capacity"><el-input-number v-model="capacityForm.monthly" :min="1" /></el-form-item>
-              <el-form-item label="最短提前时间 / Minimum Lead Time"><el-input-number v-model="capacityForm.leadTime" :min="0" /><span class="field-suffix">小时</span></el-form-item>
-              <el-form-item label="工作开始时间"><el-time-select v-model="capacityForm.start" start="06:00" step="00:30" end="12:00" /></el-form-item>
-              <el-form-item label="工作结束时间"><el-time-select v-model="capacityForm.end" start="14:00" step="00:30" end="23:30" /></el-form-item>
-            </el-form>
-            <div class="toggle-grid">
-              <label v-for="item in capacityToggles" :key="item.label" class="toggle-item">
-                <span><strong>{{ item.label }}</strong><small>{{ item.en }}</small></span>
-                <el-switch v-model="item.enabled" />
-              </label>
-            </div>
-            <div class="gender-capacity">
-              <div><span>女员工 / Female staff</span><strong>18</strong><small>可接美容、清洁服务</small></div>
-              <div><span>男员工 / Male staff</span><strong>24</strong><small>可接技术、安装服务</small></div>
-              <div><span>自有车辆 / Own transportation</span><strong>11</strong><small>9 辆当日可调度</small></div>
-            </div>
-          </el-tab-pane>
-
-          <el-tab-pane label="银行账户" name="bank">
-            <div class="review-banner"><span><Warning /></span><div><strong>银行账户变更需要平台审核</strong><p>提交后当前收款账户仍然有效，审核通过后才会切换。</p></div><el-tag type="warning">Pending Review</el-tag></div>
-            <div class="section-heading"><div><h2>收款账户</h2><p>Settlement bank details</p></div><el-tag type="success" effect="plain">Verified</el-tag></div>
-            <el-form label-position="top" class="form-grid">
-              <el-form-item label="账户名称 / Account Name"><el-input v-model="bankForm.accountName" /></el-form-item>
-              <el-form-item label="银行名称 / Bank Name"><el-input v-model="bankForm.bankName" /></el-form-item>
-              <el-form-item label="IBAN" class="span-2"><el-input v-model="bankForm.iban" /></el-form-item>
-              <el-form-item label="SWIFT / BIC"><el-input v-model="bankForm.swift" /></el-form-item>
-              <el-form-item label="结算币种 / Currency"><el-select v-model="bankForm.currency"><el-option label="AED" value="AED" /></el-select></el-form-item>
-            </el-form>
-          </el-tab-pane>
-
-          <el-tab-pane label="保险与合规" name="compliance">
-            <div class="section-heading"><div><h2>保险与合规声明</h2><p>Insurance & compliance declarations</p></div><el-tag type="warning" effect="plain">1 即将到期</el-tag></div>
-            <div class="compliance-grid">
-              <label v-for="item in complianceItems" :key="item.label" class="compliance-item"><el-switch v-model="item.enabled" /><span><strong>{{ item.label }}</strong><small>{{ item.hint }}</small></span></label>
-            </div>
-          </el-tab-pane>
-
-          <el-tab-pane label="文件管理" name="documents">
-            <div class="section-heading"><div><h2>资质文件</h2><p>Documents, verification status & expiry</p></div><el-button :icon="Upload" @click="showToast('已打开文件上传入口')">上传文件</el-button></div>
-            <el-table :data="documents" class="data-table" row-key="name">
-              <el-table-column label="文件" min-width="240"><template #default="{ row }"><div class="document-cell"><Document /><span><strong>{{ row.name }}</strong><small>{{ row.file }}</small></span></div></template></el-table-column>
-              <el-table-column label="文件编号" prop="number" min-width="150" />
-              <el-table-column label="到期日" prop="expiry" min-width="140" />
-              <el-table-column label="审核状态" min-width="150"><template #default="{ row }"><el-tag :type="row.status === 'Verified' ? 'success' : row.status === 'Expiring' ? 'warning' : 'info'" effect="light">{{ row.status }}</el-tag></template></el-table-column>
-              <el-table-column label="操作" width="100"><template #default="{ row }"><el-button link type="primary" @click="showToast(`查看 ${row.name}`)">查看</el-button></template></el-table-column>
-            </el-table>
-          </el-tab-pane>
-        </el-tabs>
-      </el-card>
     </template>
 
     <template v-else-if="section === 'service-area'">
       <div class="metric-grid">
-        <article class="metric-card"><span class="metric-icon metric-icon--blue"><Location /></span><div><small>已启用社区</small><strong>{{ activeAreaCount }}</strong><p>当前可接单范围</p></div></article>
-        <article class="metric-card"><span class="metric-icon metric-icon--green"><CircleCheck /></span><div><small>标准区域</small><strong>{{ standardAreaCount }}</strong><p>Standard communities</p></div></article>
-        <article class="metric-card"><span class="metric-icon metric-icon--amber"><Clock /></span><div><small>扩展 / 受限区域</small><strong>{{ extendedAreaCount }}</strong><p>Extended & Restricted</p></div></article>
-        <article class="metric-card"><span class="metric-icon metric-icon--purple"><OfficeBuilding /></span><div><small>覆盖 Zone</small><strong>{{ coveredZoneCount }}</strong><p>of 15 Dubai Zones</p></div></article>
+        <article class="metric-card"><span class="metric-icon metric-icon--blue"><Location /></span><div><small>已勾选区域</small><strong>{{ selectedAreaIds.length }}</strong><p>供应商只勾选区域</p></div></article>
+        <article class="metric-card"><span class="metric-icon metric-icon--green"><CircleCheck /></span><div><small>平台启用区域</small><strong>{{ platformAreas.length }}</strong><p>status = 1</p></div></article>
       </div>
-      <section class="review-banner area-banner"><span><Warning /></span><div><strong>服务区域变更需平台审核</strong><p>新增、编辑、重新启用和删除在审核通过后生效；停用立即生效，审核期间继续使用当前已生效数据。</p></div><el-tag type="warning" effect="light">{{ pendingAreaCount }} 项审核中</el-tag></section>
-      <section class="review-banner area-banner linked-banner"><span><Location /></span><div><strong>Zone 与 Community 已关联</strong><p>先选择 Zone，再从该 Zone 的社区主数据中选择；Area ID 和覆盖类型由系统自动带出。</p></div><el-tag type="success" effect="plain">Master Data Linked</el-tag></section>
-      <el-card class="surface-card" shadow="never">
+      <section class="review-banner area-banner linked-banner"><span><Location /></span><div><strong>服务区域来自平台主数据</strong><p>勾选可服务区域后保存。社区由平台维护，供应商不单独编辑社区。</p></div></section>
+      <el-card class="surface-card" shadow="never" v-loading="areaLoading">
         <div class="table-toolbar">
-          <div class="table-search"><el-input v-model="areaKeyword" :prefix-icon="Search" placeholder="搜索社区或 Area ID" clearable /><el-select v-model="areaZone" placeholder="全部 Zone" clearable><el-option v-for="zone in zones" :key="zone.code" :label="`${zone.code} · ${zone.name}`" :value="zone.code" /></el-select><el-select v-model="areaStatus" placeholder="全部状态" clearable><el-option label="服务中" value="active" /><el-option label="已停用" value="inactive" /><el-option label="审核中" value="pending" /><el-option label="已驳回" value="rejected" /></el-select></div>
-          <div class="result-count">{{ filteredAreas.length }} 个社区</div>
+          <div class="table-search"><el-input v-model="areaKeyword" :prefix-icon="Search" placeholder="搜索区域名称" clearable /></div>
+          <el-button type="primary" :loading="saving" @click="saveAreas">保存服务区域</el-button>
         </div>
-        <el-table :data="filteredAreas" class="data-table" row-key="areaId">
-          <el-table-column label="社区 / Community" min-width="230"><template #default="{ row }"><div class="muted-stack"><strong>{{ row.community }}</strong><small>{{ row.areaId }}</small><small v-if="row.pendingAction === 'update' && row.pendingData" class="pending-copy">待审核：{{ row.pendingData.community }} · {{ row.pendingData.areaId }}</small></div></template></el-table-column>
-          <el-table-column label="Zone" min-width="200"><template #default="{ row }"><div class="muted-stack"><span>{{ row.zone }}</span><small>{{ row.zoneName }}</small></div></template></el-table-column>
-          <el-table-column label="覆盖类型" min-width="140"><template #default="{ row }"><span class="coverage-type" :class="`coverage-type--${row.type.toLowerCase()}`">{{ row.type }}</span></template></el-table-column>
-          <el-table-column label="适用服务" min-width="200"><template #default="{ row }"><div class="tag-list"><el-tag v-for="service in row.services" :key="service" size="small" effect="plain">{{ service }}</el-tag></div></template></el-table-column>
-          <el-table-column label="服务状态" min-width="130"><template #default="{ row }"><div class="area-service-status"><el-switch :model-value="row.active" :disabled="!row.effective || row.pendingAction === 'enable' || row.pendingAction === 'delete' || (!row.active && row.pendingAction === 'update')" inline-prompt active-text="启" inactive-text="停" @change="toggleAreaStatus(row, Boolean($event))" /><small v-if="!row.effective">审核通过后启用</small></div></template></el-table-column>
-          <el-table-column label="审核状态" min-width="155"><template #default="{ row }"><div class="area-review-status"><el-tag :type="areaReviewTagType(row.reviewStatus)" effect="light">{{ areaReviewLabel(row.reviewStatus) }}</el-tag><small v-if="row.pendingAction">{{ areaActionLabel(row.pendingAction) }}</small><small v-else-if="row.reviewNote" class="rejected-copy">{{ row.reviewNote }}</small></div></template></el-table-column>
-          <el-table-column label="操作" width="150" fixed="right"><template #default="{ row }"><el-button link type="primary" :disabled="row.pendingAction === 'enable' || row.pendingAction === 'delete'" @click="openAreaDialog(row)">编辑</el-button><el-button link type="danger" :disabled="row.pendingAction === 'delete'" @click="deleteArea(row)">{{ row.pendingAction === 'create' ? '撤回' : '删除' }}</el-button></template></el-table-column>
+        <el-table :data="filteredPlatformAreas" class="data-table" row-key="id">
+          <el-table-column width="70">
+            <template #default="{ row }">
+              <el-checkbox :model-value="selectedAreaIds.includes(row.id)" @change="toggleArea(row.id, Boolean($event))" />
+            </template>
+          </el-table-column>
+          <el-table-column label="区域" min-width="180" prop="name" />
+          <el-table-column label="区域内的社区" min-width="360">
+            <template #default="{ row }">
+              <div class="community-tags">
+                <el-tag v-for="name in areaCommunities[row.id] || []" :key="name" effect="plain">{{ name }}</el-tag>
+                <span v-if="!(areaCommunities[row.id] || []).length" class="muted-text">暂无社区</span>
+              </div>
+            </template>
+          </el-table-column>
         </el-table>
       </el-card>
     </template>
@@ -290,65 +264,93 @@
     </template>
 
     <template v-else-if="section === 'orders'">
-      <div class="metric-grid">
-        <article class="metric-card"><span class="metric-icon metric-icon--blue"><Document /></span><div><small>进行中订单</small><strong>18</strong><p>6 due today</p></div></article>
-        <article class="metric-card"><span class="metric-icon metric-icon--green"><CircleCheck /></span><div><small>本月完成</small><strong>126</strong><p>96.8% on time</p></div></article>
-        <article class="metric-card"><span class="metric-icon metric-icon--amber"><Clock /></span><div><small>待供应商确认</small><strong>4</strong><p>Oldest: 18 min</p></div></article>
-        <article class="metric-card"><span class="metric-icon metric-icon--purple"><Money /></span><div><small>本月订单收益</small><strong>AED 38.4k</strong><p>Locked earning snapshots</p></div></article>
-      </div>
-      <el-card class="surface-card" shadow="never">
+      <el-card class="surface-card" shadow="never" v-loading="orderLoading">
         <div class="table-toolbar">
-          <div class="table-search"><el-input v-model="orderKeyword" :prefix-icon="Search" placeholder="Web Order、Job ID、服务或区域" clearable /><el-select v-model="orderStatus" placeholder="全部状态" clearable><el-option label="待确认" value="pending" /><el-option label="已确认" value="confirmed" /><el-option label="服务中" value="in_progress" /><el-option label="已完成" value="completed" /></el-select></div>
-          <div class="result-count">{{ filteredOrders.length }} 个订单</div>
+          <div class="table-search">
+            <el-input v-model="orderKeyword" :prefix-icon="Search" placeholder="订单号" clearable @keyup.enter="loadOrders" @clear="loadOrders" />
+            <el-button @click="loadOrders">查询</el-button>
+          </div>
+          <div class="result-count">{{ orderTotal }} 个订单</div>
         </div>
-        <el-table :data="filteredOrders" class="data-table" row-key="orderNo">
-          <el-table-column label="Web Order / Job ID" min-width="190"><template #default="{ row }"><div class="order-id"><strong>{{ row.orderNo }}</strong><small>{{ row.jobId }} · {{ row.created }}</small></div></template></el-table-column>
-          <el-table-column label="服务" min-width="220"><template #default="{ row }"><div class="service-cell"><span class="service-icon">{{ row.serviceIcon }}</span><span><strong>{{ row.service }}</strong><small>{{ row.variant }}</small></span></div></template></el-table-column>
-          <el-table-column label="服务地址" min-width="230"><template #default="{ row }"><div class="muted-stack"><span>{{ row.area }}</span><small>{{ row.zone }} · {{ row.areaId }}</small></div></template></el-table-column>
-          <el-table-column label="服务时间" min-width="170"><template #default="{ row }"><div class="muted-stack"><span>{{ row.date }}</span><small>{{ row.time }}</small></div></template></el-table-column>
-          <el-table-column label="执行人员" min-width="150"><template #default="{ row }">{{ row.staff }}</template></el-table-column>
-          <el-table-column label="收益快照" min-width="130" align="right"><template #default="{ row }"><strong class="money-value">AED {{ row.cost }}</strong></template></el-table-column>
-          <el-table-column label="状态" width="120"><template #default="{ row }"><span class="order-status" :class="`order-status--${row.status}`">{{ orderStatusLabel(row.status) }}</span></template></el-table-column>
-          <el-table-column label="" width="80" align="right"><template #default="{ row }"><el-button link type="primary" @click="openOrder(row)">详情</el-button></template></el-table-column>
+        <el-table :data="supplierOrders" class="data-table" row-key="orderId">
+          <el-table-column label="订单号" min-width="180">
+            <template #default="{ row }"><div class="order-id"><strong>{{ row.orderNo || row.orderId }}</strong><small>{{ row.orderTime || '-' }}</small></div></template>
+          </el-table-column>
+          <el-table-column label="服务" min-width="200">
+            <template #default="{ row }"><div class="muted-stack"><strong>{{ row.productName || '-' }}</strong><small>{{ row.specDesc || '-' }}</small></div></template>
+          </el-table-column>
+          <el-table-column label="服务地址" min-width="220">
+            <template #default="{ row }"><div class="muted-stack"><span>{{ row.serviceAddress || '-' }}</span><small>{{ [row.community, row.building, row.roomNo].filter(Boolean).join(' · ') || '-' }}</small></div></template>
+          </el-table-column>
+          <el-table-column label="服务时间" min-width="180">
+            <template #default="{ row }"><div class="muted-stack"><span>{{ row.serviceTimeDisplay || row.serviceDate || '-' }}</span><small>{{ row.serviceTime || '-' }}</small></div></template>
+          </el-table-column>
+          <el-table-column label="金额" min-width="120" align="right">
+            <template #default="{ row }"><strong class="money-value">{{ row.amountText || '-' }}</strong></template>
+          </el-table-column>
+          <el-table-column label="状态" min-width="120">
+            <template #default="{ row }">{{ row.orderStatusName || '-' }}</template>
+          </el-table-column>
+          <el-table-column label="" width="80" align="right">
+            <template #default="{ row }"><el-button link type="primary" @click="openSupplierOrder(row)">详情</el-button></template>
+          </el-table-column>
         </el-table>
+        <div class="table-toolbar">
+          <el-pagination
+            layout="prev, pager, next"
+            :current-page="orderPage"
+            :page-size="10"
+            :total="orderTotal"
+            @current-change="changeOrderPage"
+          />
+        </div>
       </el-card>
     </template>
 
     <template v-else-if="section === 'pricing'">
       <section class="pricing-health">
-        <div><span class="health-icon pending"><Clock /></span><div><strong>{{ pendingQuoteCount }} 个服务/报价申请正在审核</strong><p>新增服务和单条改价均需平台审核；审核完成前订单继续使用当前生效价。</p></div></div>
-        <el-button type="warning" plain @click="showToast('已打开报价变更记录')">查看审核记录</el-button>
+        <div><span class="health-icon pending"><Clock /></span><div><strong>{{ pendingQuoteCount }} 个服务报价正在审核</strong><p>先勾选可履约服务，再按 SKU 填写报价。待审核期间不能改价，已通过后再改会生成新版本。</p></div></div>
+        <el-button type="primary" :loading="saving" @click="saveSelectedServices">保存可履约服务</el-button>
       </section>
-      <el-card class="surface-card pricing-card" shadow="never">
-        <div class="pricing-toolbar">
-          <div class="pricing-filter"><span>服务分类</span><el-select v-model="quoteCategory"><el-option label="全部服务" value="all" /><el-option v-for="category in quoteCategories" :key="category.value" :label="category.label" :value="category.value" /></el-select><small>共 {{ filteredQuotes.length }} 条服务报价</small></div>
-          <div class="pricing-actions"><el-button :icon="Upload" @click="showToast('已打开 Excel 服务报价导入入口')">批量导入</el-button><el-button type="primary" :icon="Plus" @click="openCreateQuote()">新增服务报价</el-button></div>
-        </div>
-        <el-table :data="filteredQuotes" class="data-table pricing-table" row-key="id">
-          <el-table-column label="服务 / Service" min-width="250"><template #default="{ row }"><div class="quote-service"><span>{{ row.code }}</span><div><strong>{{ row.service }}</strong><small>{{ row.scope }}</small></div></div></template></el-table-column>
-          <el-table-column label="计价单位 / Unit" min-width="150" prop="unit" />
-          <el-table-column label="当前生效价" min-width="135"><template #default="{ row }"><strong v-if="!row.isNew" class="price-value">AED {{ row.price }}</strong><span v-else class="muted-text">—</span></template></el-table-column>
-          <el-table-column label="申请价格" min-width="135"><template #default="{ row }"><strong v-if="row.requested" class="requested-price">AED {{ row.requested }}</strong><span v-else class="muted-text">—</span></template></el-table-column>
-          <el-table-column label="最低订单" min-width="130"><template #default="{ row }">{{ row.minimum }}</template></el-table-column>
-          <el-table-column label="VAT" width="100"><template #default="{ row }"><el-tag size="small" :type="row.vat === 'Included' ? 'success' : 'info'" effect="plain">{{ row.vat }}</el-tag></template></el-table-column>
-          <el-table-column label="适用区域" min-width="165"><template #default="{ row }"><div class="zone-list"><span v-for="zone in row.zones" :key="zone">{{ zone }}</span><em v-if="row.moreZones">+{{ row.moreZones }}</em></div></template></el-table-column>
-          <el-table-column label="审核状态" min-width="145"><template #default="{ row }"><el-tag :type="row.review === 'Pending Review' ? 'warning' : 'success'" effect="light">{{ quoteReviewLabel(row.review) }}</el-tag></template></el-table-column>
-          <el-table-column label="生效日" min-width="120" prop="effective" />
-          <el-table-column label="操作" width="110" fixed="right"><template #default="{ row }"><el-button link type="primary" @click="openPriceRequest(row)">{{ row.review === 'Pending Review' ? '详情' : '改价' }}</el-button></template></el-table-column>
-        </el-table>
-      </el-card>
-      <div class="pricing-bottom-grid">
-        <el-card class="surface-card" shadow="never">
-          <div class="section-heading compact"><div><h2>区域价格规则</h2><p>Zone pricing & dispatch economics</p></div><el-button link type="primary" @click="showToast('已打开区域规则编辑')">编辑规则</el-button></div>
-          <div class="rule-list">
-            <div v-for="rule in priceRules" :key="rule.name"><span class="rule-badge" :class="`rule-badge--${rule.type}`">{{ rule.code }}</span><span><strong>{{ rule.name }}</strong><small>{{ rule.zones }}</small></span><span class="rule-values"><b>{{ rule.min }}h</b><em>{{ rule.fee }}</em></span></div>
+      <el-card class="surface-card" shadow="never" v-loading="catalogLoading">
+        <div class="section-heading compact"><div><h2>可履约服务</h2><p>按一级分类勾选服务</p></div></div>
+        <div v-for="group in serviceCatalogGroups" :key="group.categoryId" class="rule-list">
+          <div>
+            <el-checkbox :model-value="isCategoryChecked(group)" @change="toggleCategory(group, Boolean($event))">{{ group.categoryName }}</el-checkbox>
+            <div class="tag-list">
+              <el-checkbox
+                v-for="service in group.services"
+                :key="service.spuId"
+                :model-value="selectedSpuIds.includes(service.spuId)"
+                @change="toggleSpu(service.spuId, Boolean($event))"
+              >{{ service.spuName }}</el-checkbox>
+            </div>
           </div>
-        </el-card>
-        <el-card class="surface-card" shadow="never">
-          <div class="section-heading compact"><div><h2>商务条款</h2><p>Commercial terms from onboarding form</p></div><el-button link type="primary" @click="showToast('已打开商务条款编辑')">编辑条款</el-button></div>
-          <dl class="terms-list"><div v-for="term in commercialTerms" :key="term.label"><dt>{{ term.label }}</dt><dd>{{ term.value }}</dd></div></dl>
-        </el-card>
-      </div>
+        </div>
+      </el-card>
+      <el-card class="surface-card pricing-card" shadow="never" v-loading="quoteLoading">
+        <div class="section-heading compact"><div><h2>SKU 报价</h2><p>quotePrice 为当前版本，approvedPrice 为生效价</p></div></div>
+        <div v-for="quote in quotes" :key="quote.spuId" class="rule-list">
+          <div>
+            <span><strong>{{ quote.spuName }}</strong><small>版本 {{ quote.versionNo || '-' }} · {{ quoteStatusLabel(quote.status) }}</small></span>
+            <span class="pricing-actions">
+              <el-button size="small" :disabled="quote.status === 1" :loading="saving" @click="saveQuote(quote)">保存草稿</el-button>
+              <el-button size="small" type="primary" :disabled="quote.status === 1" :loading="saving" @click="submitQuoteRow(quote)">提交审核</el-button>
+            </span>
+          </div>
+          <el-table :data="quote.skus" size="small" row-key="skuId">
+            <el-table-column label="SKU" prop="skuCode" min-width="140" />
+            <el-table-column label="平台价" min-width="120"><template #default="{ row }">{{ row.platformPrice ?? '-' }}</template></el-table-column>
+            <el-table-column label="生效报价" min-width="120"><template #default="{ row }">{{ row.approvedPrice ?? '-' }}</template></el-table-column>
+            <el-table-column label="本次报价" min-width="160">
+              <template #default="{ row }">
+                <el-input-number v-model="row.quotePrice" :min="0" :precision="2" :disabled="quote.status === 1 || row.available === false" />
+              </template>
+            </el-table-column>
+          </el-table>
+          <p v-if="quote.rejectReason" class="rejected-copy">拒绝原因：{{ quote.rejectReason }}</p>
+        </div>
+      </el-card>
     </template>
 
     <template v-else-if="section === 'settlement'">
@@ -461,10 +463,24 @@
 </template>
 
 <script setup lang="ts">
-import { computed, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useRouter } from 'vue-router'
 import { DUBAI_AREA_MASTER, DUBAI_ZONE_MASTER } from './dubaiAreaMaster'
+import {
+  onboardingDetail,
+  onboardingPage,
+  onboardingSave,
+  quoteList,
+  saveQuoteDraft,
+  saveServices,
+  serviceAreaList,
+  serviceCommunityPage,
+  serviceCatalog,
+  submitQuote,
+  supplierOrderPage,
+  uploadFile,
+} from '@/modules/admin/api/supplierWorkbench'
 import {
   ArrowLeft,
   ArrowRight,
@@ -493,17 +509,24 @@ const router = useRouter()
 
 const pageMeta = {
   overview: { title: '数据与收益', description: '查看经营表现、收益趋势、服务容量与待处理事项。', primaryAction: '' },
-  profile: { title: '企业资料', description: '维护公司、收款账户、保险合规与资质文件；关键变更需平台审核。', primaryAction: '提交复核' },
-  'service-area': { title: '服务区域', description: '基于 Dubai 地址主数据维护 Zone、Community、适用服务与启用状态。', primaryAction: '新增服务区域' },
+  profile: { title: 'Company Profile', description: 'One page for company details, contact, capacity, and insurance.', primaryAction: 'Submit for review' },
+  'service-area': { title: '服务区域', description: '勾选平台已启用的服务区域。社区由平台维护。', primaryAction: '保存服务区域' },
   staff: { title: '人员管理', description: '维护人员角色、技能、默认工作时间、证件与可派状态。', primaryAction: '新增人员' },
   schedule: { title: '日程管理', description: '按日或周管理工作班次、休假、Block 与订单占用。', primaryAction: '添加班次 / Block' },
   orders: { title: '订单管理', description: '通过 Web Order No. 与 Job ID 跟踪履约、收益和地址快照。', primaryAction: '' },
-  pricing: { title: '服务与报价', description: '新增可提供的服务，并在每条服务数据中单独申请改价。', primaryAction: '新增服务报价' },
+  pricing: { title: '服务与报价', description: '勾选可履约服务，并按 SKU 保存或提交报价。', primaryAction: '保存可履约服务' },
   settlement: { title: '收益与结算', description: '核对订单收益、调整流水和付款批次。', primaryAction: '' },
 } as const
 
 const meta = computed(() => pageMeta[section.value])
-const supplierId = ref('SUP-0001')
+const supplierRecordId = ref<number | null>(null)
+const supplierOptions = ref<Array<{ id: number; companyName: string }>>([])
+const onboardingStatus = ref<number | null>(null)
+const rejectReason = ref('')
+const saving = ref(false)
+const femaleStaffCount = ref(0)
+const maleStaffCount = ref(0)
+const ownTransportation = ref(false)
 const profileTab = ref('company')
 
 const earningRange = ref('6m')
@@ -519,23 +542,23 @@ const recentTransactions = [
 const goTo = (target: Section) => router.push({ path: `/admin/supplier-management/${target}`, query: router.currentRoute.value.query })
 
 const companyForm = reactive({
-  companyName: 'PrimeCare Home Services LLC',
-  licenseNo: 'CN-4587219',
-  licenseExpiry: '2027-02-18',
-  trn: '100589237400003',
-  years: 6,
-  address: 'Office 304, Al Quoz Commercial Building, Dubai',
-  contact: 'Omar Khalid',
-  email: 'operations@primecare.ae',
-  mobile: '+971 50 218 4471',
-  whatsapp: '+971 50 218 4471',
+  companyName: '',
+  licenseNo: '',
+  licenseExpiry: '',
+  trn: '',
+  years: 0,
+  address: '',
+  contact: '',
+  email: '',
+  mobile: '',
+  whatsapp: '',
 })
 
 const complianceItems = reactive([
-  { label: '公众责任保险 / Public Liability', hint: '有效期至 2027-01-31', enabled: true },
-  { label: '员工保险 / Employee Insurance', hint: '保单已上传', enabled: true },
-  { label: '可开具税务发票 / Tax Invoice', hint: 'TRN 已验证', enabled: true },
-  { label: '自有设备 / Own Equipment', hint: '设备清单待复核', enabled: true },
+  { key: 'public', fileKey: 'publicLiabilityInsuranceFile', label: '公众责任保险 / Public Liability', hint: '选择是时必须上传保单', enabled: false, file: '' },
+  { key: 'employee', fileKey: 'employeeInsuranceFile', label: '员工保险 / Employee Insurance', hint: '选择是时必须上传保单', enabled: false, file: '' },
+  { key: 'tax', label: '可开具税务发票 / Tax Invoice', hint: 'VAT / TRN', enabled: false, file: '' },
+  { key: 'equipment', label: '自有设备 / Own Equipment', hint: '是否自有设备', enabled: false, file: '' },
 ])
 
 const bankForm = reactive({
@@ -553,11 +576,11 @@ const documents = [
   { name: 'Bank Confirmation Letter', file: 'bank_letter_sep_2026.pdf', number: 'BNK-19024', expiry: '—', status: 'Pending Review' },
 ]
 
-const capacityForm = reactive({ workers: 42, concurrent: 12, monthly: 380, leadTime: 3, start: '07:00', end: '22:00' })
+const capacityForm = reactive({ workers: 0, concurrent: 0, monthly: 0, leadTime: 0, start: '08:00', end: '18:00' })
 const capacityToggles = reactive([
-  { label: '周末服务', en: 'Weekend service', enabled: true },
-  { label: '公共假期服务', en: 'Public holiday service', enabled: true },
-  { label: '当日预约', en: 'Same-day booking', enabled: true },
+  { label: '周末服务', en: 'Weekend service', enabled: false },
+  { label: '公共假期服务', en: 'Public holiday service', enabled: false },
+  { label: '当日预约', en: 'Same-day booking', enabled: false },
   { label: '紧急服务', en: 'Emergency service', enabled: false },
 ])
 
@@ -794,7 +817,8 @@ const quoteCategory = ref('all')
 const quoteCategories = [
   { label: '清洁', value: 'cleaning', count: 17 }, { label: '空调', value: 'ac', count: 10 }, { label: '维修', value: 'maintenance', count: 8 }, { label: '安装', value: 'installation', count: 15 }, { label: '油漆', value: 'painting', count: 10 }, { label: '房检', value: 'snagging', count: 5 }, { label: '虫控', value: 'pest', count: 9 }, { label: '美容康养', value: 'wellness', count: 27 },
 ]
-const quotes = ref([
+const liveQuotes = ref<any[]>([])
+const demoQuotes = ref([
   { id: 1, category: 'cleaning', code: 'CL-001', service: 'Regular Cleaning', scope: '常规清洁 / Cleaner hour', unit: 'Cleaner / Hour', price: 28, minimum: '2 hours', vat: 'Excluded', zones: ['Z01', 'Z02', 'Z03'], moreZones: 5, active: true },
   { id: 2, category: 'cleaning', code: 'CL-002', service: 'Cleaning Supplies', scope: '基础清洁用品', unit: 'Visit', price: 35, minimum: '—', vat: 'Included', zones: ['All selected'], moreZones: 0, active: true },
   { id: 3, category: 'cleaning', code: 'CL-003', service: 'Deep Cleaning – Studio', scope: '深度清洁 · Studio', unit: 'Job', price: 260, minimum: '1 job', vat: 'Excluded', zones: ['Z01', 'Z02', 'Z04'], moreZones: 4, active: true },
@@ -817,7 +841,8 @@ const quotes = ref([
   isNew: false,
 })))
 const filteredQuotes = computed(() => quoteCategory.value === 'all' ? quotes.value : quotes.value.filter((quote) => quote.category === quoteCategory.value))
-const pendingQuoteCount = computed(() => quotes.value.filter((quote) => quote.review === 'Pending Review').length)
+const pendingQuoteCount = computed(() => liveQuotes.value.filter((quote) => quote.status === 1).length)
+const quotes = liveQuotes
 const quoteReviewLabel = (review: string) => review === 'Pending Review' ? '审核中' : '已生效'
 
 type QuoteRow = (typeof quotes.value)[number]
@@ -921,16 +946,357 @@ const payoutBatches = [
 ]
 
 const showToast = (message: string) => ElMessage.success(message)
+
+const platformAreas = ref<any[]>([])
+const areaCommunities = ref<Record<number, string[]>>({})
+const selectedAreaIds = ref<number[]>([])
+const areaLoading = ref(false)
+const serviceCatalogGroups = ref<any[]>([])
+const catalogLoading = ref(false)
+const selectedSpuIds = ref<number[]>([])
+const quoteLoading = ref(false)
+const supplierOrders = ref<any[]>([])
+const orderLoading = ref(false)
+const orderTotal = ref(0)
+const orderPage = ref(1)
+
+const onboardingStatusLabel = computed(() => {
+  const labels = ['草稿', '已提交', '已通过', '已驳回']
+  return onboardingStatus.value == null ? '未创建' : labels[onboardingStatus.value] || '未知'
+})
+const onboardingTagType = computed(() => {
+  if (onboardingStatus.value === 2) return 'success'
+  if (onboardingStatus.value === 3) return 'danger'
+  if (onboardingStatus.value === 1) return 'warning'
+  return 'info'
+})
+const filteredPlatformAreas = computed(() => {
+  const keyword = areaKeyword.value.trim().toLowerCase()
+  if (!keyword) return platformAreas.value
+  return platformAreas.value.filter((area) => String(area.name || '').toLowerCase().includes(keyword))
+})
+
+const unwrap = (res: any) => (res && typeof res === 'object' && 'data' in res ? res.data : res)
+const bit = (enabled: boolean) => (enabled ? 1 : 0)
+const quoteStatusLabel = (status?: number) => ['草稿', '待审核', '已通过', '已拒绝'][status ?? -1] || '未报价'
+
+const buildProfilePayload = (status?: number, areaIds?: number[]) => ({
+  id: supplierRecordId.value || undefined,
+  companyName: companyForm.companyName,
+  tradeLicenseNo: companyForm.licenseNo,
+  licenseExpiry: companyForm.licenseExpiry,
+  vatTrn: companyForm.trn,
+  officeAddress: companyForm.address,
+  contactPerson: companyForm.contact,
+  mobile: companyForm.mobile,
+  whatsapp: companyForm.whatsapp,
+  email: companyForm.email,
+  yearsInBusiness: companyForm.years,
+  publicLiabilityInsurance: bit(complianceItems[0].enabled),
+  publicLiabilityInsuranceFile: complianceItems[0].file,
+  employeeInsurance: bit(complianceItems[1].enabled),
+  employeeInsuranceFile: complianceItems[1].file,
+  taxInvoiceAvailable: bit(complianceItems[2].enabled),
+  ownEquipment: bit(complianceItems[3].enabled),
+  ownTransportation: ownTransportation.value ? 1 : 0,
+  totalAvailableWorkers: capacityForm.workers,
+  maxSimultaneousOrders: capacityForm.concurrent,
+  monthlyCapacity: capacityForm.monthly,
+  minLeadTimeHours: capacityForm.leadTime,
+  workingHours: capacityForm.start && capacityForm.end ? `${capacityForm.start}-${capacityForm.end}` : '',
+  weekendService: bit(capacityToggles[0].enabled),
+  publicHolidayService: bit(capacityToggles[1].enabled),
+  sameDayBooking: bit(capacityToggles[2].enabled),
+  emergencyService: bit(capacityToggles[3].enabled),
+  femaleStaffAvailable: femaleStaffCount.value > 0 ? 1 : 0,
+  femaleStaffCount: femaleStaffCount.value,
+  maleStaffAvailable: maleStaffCount.value > 0 ? 1 : 0,
+  maleStaffCount: maleStaffCount.value,
+  status,
+  areaIds,
+})
+
+const applyProfile = (detail: any) => {
+  supplierRecordId.value = detail?.id ?? null
+  onboardingStatus.value = detail?.status ?? null
+  rejectReason.value = detail?.rejectReason || ''
+  companyForm.companyName = detail?.companyName || ''
+  companyForm.licenseNo = detail?.tradeLicenseNo || ''
+  companyForm.licenseExpiry = detail?.licenseExpiry || ''
+  companyForm.trn = detail?.vatTrn || ''
+  companyForm.years = detail?.yearsInBusiness || 0
+  companyForm.address = detail?.officeAddress || ''
+  companyForm.contact = detail?.contactPerson || ''
+  companyForm.email = detail?.email || ''
+  companyForm.mobile = detail?.mobile || ''
+  companyForm.whatsapp = detail?.whatsapp || ''
+  capacityForm.workers = detail?.totalAvailableWorkers || 0
+  capacityForm.concurrent = detail?.maxSimultaneousOrders || 0
+  capacityForm.monthly = detail?.monthlyCapacity || 0
+  capacityForm.leadTime = detail?.minLeadTimeHours || 0
+  const hours = String(detail?.workingHours || '').split('-')
+  capacityForm.start = hours[0] || '08:00'
+  capacityForm.end = hours[1] || '18:00'
+  capacityToggles[0].enabled = detail?.weekendService === 1
+  capacityToggles[1].enabled = detail?.publicHolidayService === 1
+  capacityToggles[2].enabled = detail?.sameDayBooking === 1
+  capacityToggles[3].enabled = detail?.emergencyService === 1
+  complianceItems[0].enabled = detail?.publicLiabilityInsurance === 1
+  complianceItems[0].file = detail?.publicLiabilityInsuranceFile || ''
+  complianceItems[1].enabled = detail?.employeeInsurance === 1
+  complianceItems[1].file = detail?.employeeInsuranceFile || ''
+  complianceItems[2].enabled = detail?.taxInvoiceAvailable === 1
+  complianceItems[3].enabled = detail?.ownEquipment === 1
+  ownTransportation.value = detail?.ownTransportation === 1
+  femaleStaffCount.value = detail?.femaleStaffCount || 0
+  maleStaffCount.value = detail?.maleStaffCount || 0
+  selectedAreaIds.value = (detail?.serviceAreas || []).map((area: any) => Number(area.areaId)).filter(Boolean)
+}
+
+const loadSupplierDetail = async (id: number) => {
+  const detail = unwrap(await onboardingDetail(id))
+  applyProfile(detail)
+  await Promise.all([loadCatalog(), loadQuotes(), loadOrders()])
+}
+
+const loadSupplierOptions = async () => {
+  const page = unwrap(await onboardingPage({ pageNum: 1, pageSize: 50 }))
+  const list = page?.list || []
+  supplierOptions.value = list.map((item: any) => ({ id: item.id, companyName: item.companyName }))
+  const queryId = Number(router.currentRoute.value.query.supplierId || 0)
+  const initialId = queryId || supplierOptions.value[0]?.id
+  if (initialId) await loadSupplierDetail(initialId)
+}
+
+const switchSupplier = (id: number) => loadSupplierDetail(id)
+
+const saveProfile = async (status: number) => {
+  saving.value = true
+  try {
+    const id = unwrap(await onboardingSave(buildProfilePayload(status)))
+    if (id) supplierRecordId.value = Number(id)
+    onboardingStatus.value = status
+    ElMessage.success(status === 1 ? '入驻资料已提交' : '草稿已保存')
+    const page = unwrap(await onboardingPage({ pageNum: 1, pageSize: 50 }))
+    supplierOptions.value = (page?.list || []).map((item: any) => ({ id: item.id, companyName: item.companyName }))
+    if (supplierRecordId.value) await loadSupplierDetail(supplierRecordId.value)
+  } catch (error: any) {
+    ElMessage.error(error?.message || '保存失败')
+  } finally {
+    saving.value = false
+  }
+}
+
+const uploadInsurance = async (fileKey: string, options: any) => {
+  try {
+    const url = unwrap(await uploadFile(options.file as File))
+    const target = complianceItems.find((item) => item.fileKey === fileKey)
+    if (target) target.file = typeof url === 'string' ? url : url?.url || ''
+    options.onSuccess?.(url)
+    ElMessage.success('保单已上传')
+  } catch (error: any) {
+    options.onError?.(error)
+    ElMessage.error(error?.message || '上传失败')
+  }
+}
+
+const loadAreas = async () => {
+  areaLoading.value = true
+  try {
+    platformAreas.value = unwrap(await serviceAreaList({ status: 1 })) || []
+    const communityEntries = await Promise.all(
+      platformAreas.value.map(async (area) => {
+        try {
+          const page = unwrap(await serviceCommunityPage({ areaId: area.id, pageNum: 1, pageSize: 200, status: 1 }))
+          return [area.id, (page?.list || []).map((item: any) => item.name)] as const
+        } catch {
+          return [area.id, []] as const
+        }
+      }),
+    )
+    areaCommunities.value = Object.fromEntries(communityEntries)
+  } catch (error: any) {
+    ElMessage.error(error?.message || '服务区域加载失败')
+  } finally {
+    areaLoading.value = false
+  }
+}
+
+const toggleArea = (id: number, checked: boolean) => {
+  selectedAreaIds.value = checked
+    ? [...selectedAreaIds.value, id]
+    : selectedAreaIds.value.filter((item) => item !== id)
+}
+
+const saveAreas = async () => {
+  if (!companyForm.companyName) {
+    ElMessage.warning('请先填写企业资料里的必填项')
+    return
+  }
+  saving.value = true
+  try {
+    const id = unwrap(await onboardingSave(buildProfilePayload(onboardingStatus.value ?? 0, selectedAreaIds.value)))
+    if (id) supplierRecordId.value = Number(id)
+    ElMessage.success('服务区域已保存')
+  } catch (error: any) {
+    ElMessage.error(error?.message || '保存服务区域失败')
+  } finally {
+    saving.value = false
+  }
+}
+
+const loadCatalog = async () => {
+  if (!supplierRecordId.value) return
+  catalogLoading.value = true
+  try {
+    serviceCatalogGroups.value = unwrap(await serviceCatalog(supplierRecordId.value)) || []
+    selectedSpuIds.value = serviceCatalogGroups.value.flatMap((group) =>
+      (group.services || []).filter((service: any) => service.selected).map((service: any) => service.spuId),
+    )
+  } finally {
+    catalogLoading.value = false
+  }
+}
+
+const isCategoryChecked = (group: any) => {
+  const ids = (group.services || []).map((service: any) => service.spuId)
+  return ids.length > 0 && ids.every((id: number) => selectedSpuIds.value.includes(id))
+}
+const toggleSpu = (spuId: number, checked: boolean) => {
+  selectedSpuIds.value = checked
+    ? [...selectedSpuIds.value, spuId]
+    : selectedSpuIds.value.filter((id) => id !== spuId)
+}
+const toggleCategory = (group: any, checked: boolean) => {
+  const ids = (group.services || []).map((service: any) => service.spuId)
+  selectedSpuIds.value = checked
+    ? Array.from(new Set([...selectedSpuIds.value, ...ids]))
+    : selectedSpuIds.value.filter((id) => !ids.includes(id))
+}
+const saveSelectedServices = async () => {
+  if (!supplierRecordId.value) return
+  saving.value = true
+  try {
+    const services = serviceCatalogGroups.value
+      .map((group) => ({
+        categoryId: group.categoryId,
+        spuIds: (group.services || []).map((service: any) => service.spuId).filter((id: number) => selectedSpuIds.value.includes(id)),
+      }))
+      .filter((group) => group.spuIds.length)
+    await saveServices({ supplierId: supplierRecordId.value, services })
+    ElMessage.success('可履约服务已保存')
+    await loadQuotes()
+  } catch (error: any) {
+    ElMessage.error(error?.message || '保存服务失败')
+  } finally {
+    saving.value = false
+  }
+}
+
+const loadQuotes = async () => {
+  if (!supplierRecordId.value) return
+  quoteLoading.value = true
+  try {
+    liveQuotes.value = unwrap(await quoteList(supplierRecordId.value)) || []
+  } finally {
+    quoteLoading.value = false
+  }
+}
+const saveQuote = async (quote: any) => {
+  saving.value = true
+  try {
+    await saveQuoteDraft({
+      supplierId: supplierRecordId.value,
+      spuId: quote.spuId,
+      items: (quote.skus || []).map((sku: any) => ({ skuId: sku.skuId, quotePrice: sku.quotePrice })),
+    })
+    ElMessage.success('报价草稿已保存')
+    await loadQuotes()
+  } catch (error: any) {
+    ElMessage.error(error?.message || '保存报价失败')
+  } finally {
+    saving.value = false
+  }
+}
+const submitQuoteRow = async (quote: any) => {
+  saving.value = true
+  try {
+    await submitQuote({ supplierId: supplierRecordId.value, spuId: quote.spuId })
+    ElMessage.success('报价已提交审核')
+    await loadQuotes()
+  } catch (error: any) {
+    ElMessage.error(error?.message || '提交报价失败')
+  } finally {
+    saving.value = false
+  }
+}
+
+const loadOrders = async () => {
+  if (!supplierRecordId.value) return
+  orderLoading.value = true
+  try {
+    const page = unwrap(await supplierOrderPage({
+      supplierId: supplierRecordId.value,
+      orderNo: orderKeyword.value || undefined,
+      pageNum: orderPage.value,
+      pageSize: 10,
+    }))
+    supplierOrders.value = page?.list || []
+    orderTotal.value = Number(page?.total || 0)
+  } catch (error: any) {
+    ElMessage.error(error?.message || '订单加载失败')
+  } finally {
+    orderLoading.value = false
+  }
+}
+const changeOrderPage = (page: number) => {
+  orderPage.value = page
+  loadOrders()
+}
+const openSupplierOrder = (row: any) => {
+  selectedOrder.value = {
+    orderNo: row.orderNo,
+    jobId: row.orderId,
+    created: row.orderTime,
+    service: row.productName,
+    variant: row.specDesc,
+    status: 'confirmed',
+    date: row.serviceTimeDisplay || row.serviceDate,
+    time: row.serviceTime,
+    staff: '-',
+    cost: row.amountText,
+    area: row.community || row.serviceAddress,
+    address: row.serviceAddress,
+    areaId: row.building || '',
+    zone: row.roomNo || '',
+  } as any
+  orderDrawerVisible.value = true
+}
+
 const handlePrimaryAction = () => {
   if (section.value === 'staff') { staffDialogVisible.value = true; return }
-  if (section.value === 'service-area') { openAreaDialog(); return }
+  if (section.value === 'service-area') { saveAreas(); return }
   if (section.value === 'schedule') { shiftDialogVisible.value = true; return }
-  if (section.value === 'pricing') { openCreateQuote(); return }
-  if (section.value === 'profile') showToast('供应商资料已提交平台复核')
+  if (section.value === 'pricing') { saveSelectedServices(); return }
+  if (section.value === 'profile') saveProfile(1)
 }
+
+onMounted(() => {
+  if (section.value === 'service-area') loadAreas()
+  loadSupplierOptions().catch((error: any) => ElMessage.error(error?.message || '供应商资料加载失败'))
+})
+watch(section, (value) => {
+  if (value === 'orders') loadOrders()
+  if (value === 'pricing') {
+    loadCatalog()
+    loadQuotes()
+  }
+  if (value === 'service-area') loadAreas()
+})
 </script>
 
 <style scoped>
+@import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,520;9..144,620&family=Sora:wght@400;500;600&display=swap');
 .supplier-demo { --ink: #172033; --muted: #768197; --line: #e8ebf2; --purple: #5b55d6; --purple-soft: #eeedff; width: 100%; min-width: 0; box-sizing: border-box; padding: 20px; color: var(--ink); }
 .page-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 24px; margin-bottom: 18px; }
 .page-header h1 { margin: 5px 0 6px; font-size: 25px; line-height: 1.25; letter-spacing: -.5px; }
@@ -938,6 +1304,8 @@ const handlePrimaryAction = () => {
 .eyebrow { display: flex; align-items: center; gap: 7px; color: #6f67d9; font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
 .demo-dot { width: 7px; height: 7px; border-radius: 50%; background: #7067e8; box-shadow: 0 0 0 4px #eceaff; }
 .page-actions { display: flex; gap: 10px; padding-top: 4px; }
+.page-actions :deep(.el-button) { display: inline-flex; align-items: center; gap: 6px; }
+.community-tags { display: flex; flex-wrap: wrap; gap: 6px; }
 .supplier-strip { display: flex; align-items: center; justify-content: space-between; min-height: 78px; padding: 13px 18px; margin-bottom: 16px; background: linear-gradient(105deg, #fff 0%, #fbfbff 62%, #f2f0ff 100%); border: 1px solid #e3e2f5; border-radius: 14px; box-shadow: 0 5px 18px rgba(40, 46, 84, .04); }
 .supplier-identity { display: flex; align-items: center; gap: 12px; }
 .supplier-logo { display: grid; place-items: center; width: 44px; height: 44px; border-radius: 12px; color: #fff; background: linear-gradient(135deg, #252a4a, #625bd3); font-weight: 700; }
@@ -960,6 +1328,33 @@ const handlePrimaryAction = () => {
 .surface-card { border: 1px solid var(--line); border-radius: 14px; box-shadow: 0 5px 18px rgba(28, 36, 62, .04); }
 .surface-card :deep(.el-card__body) { padding: 0; }
 .onboarding-card :deep(.el-card__body) { padding: 0 22px 24px; }
+.dossier { display: grid; grid-template-columns: 220px minmax(0, 1fr); gap: 22px; align-items: start; font-family: "Sora", "Avenir Next", sans-serif; }
+.dossier-rail { position: sticky; top: 16px; padding: 22px 18px; color: #f4efe6; background: #241c16 url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cpath d='M0 139h140M139 0v140' fill='none' stroke='%23ffffff14'/%3E%3C/svg%3E"); border-radius: 18px; }
+.dossier-rail p { margin: 0 0 14px; color: #d7a07a; font-size: 11px; letter-spacing: .16em; text-transform: uppercase; }
+.dossier-rail strong { display: block; font-family: Fraunces, Georgia, serif; font-size: 26px; font-weight: 520; line-height: 1.15; }
+.dossier-rail em { display: inline-block; margin-top: 12px; padding: 4px 8px; border: 1px solid #ffffff2e; border-radius: 999px; color: #f0d7c4; font-style: normal; font-size: 12px; }
+.dossier-rail nav { display: grid; gap: 4px; margin-top: 22px; }
+.dossier-rail a { display: flex; gap: 10px; padding: 8px 0; color: #efe7dc; text-decoration: none; font-size: 14px; }
+.dossier-rail a span { color: #d7a07a; font-family: Fraunces, Georgia, serif; }
+.dossier-rail small { display: block; margin-top: 16px; color: #f0b4a2; line-height: 1.45; }
+.dossier-sheet { display: grid; gap: 0; padding: 8px 8px 28px; background: linear-gradient(180deg, #fffdf8 0%, #f7f1e7 100%); border: 1px solid #e6dccb; border-radius: 22px; box-shadow: 0 18px 40px rgba(48, 32, 18, .06); }
+.dossier-sheet section { padding: 26px 28px 8px; }
+.dossier-sheet section + section { border-top: 1px solid #eadfce; }
+.dossier-sheet header { display: flex; gap: 14px; margin-bottom: 18px; }
+.dossier-sheet header > span { font-family: Fraunces, Georgia, serif; font-size: 28px; color: #9a4e32; line-height: 1; }
+.dossier-sheet h2 { margin: 0; font-family: Fraunces, Georgia, serif; font-size: 28px; font-weight: 520; letter-spacing: -.03em; }
+.dossier-sheet header p { margin: 4px 0 0; color: #7d7368; font-size: 13px; }
+.dossier-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 16px; }
+.dossier-grid--three { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.dossier-grid :deep(.el-form-item__label) { color: #5e564c; font-size: 12px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; }
+.dossier-grid :deep(.el-input__wrapper), .dossier-grid :deep(.el-input-number), .dossier-grid :deep(.el-date-editor) { width: 100%; }
+.dossier-toggles { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin: 4px 0 18px; }
+.dossier-toggles label, .policy-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 58px; padding: 12px 14px; background: #fff; border: 1px solid #eadfce; border-radius: 14px; }
+.dossier-toggles span, .policy-row strong { color: #2b241d; font-size: 14px; }
+.policy-row { margin-bottom: 10px; }
+.policy-row div { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.policy-row small { color: #8a7d70; font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+@media (max-width: 980px) { .dossier, .dossier-grid, .dossier-grid--three, .dossier-toggles { grid-template-columns: 1fr; } .dossier-rail { position: static; } }
 .section-tabs :deep(.el-tabs__header) { margin-bottom: 22px; }.section-tabs :deep(.el-tabs__nav-wrap::after) { height: 1px; background: var(--line); }.section-tabs :deep(.el-tabs__item) { height: 54px; padding: 0 22px; font-weight: 600; }
 .section-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 18px; margin: 2px 0 20px; }.section-heading h2 { margin: 0 0 4px; font-size: 18px; }.section-heading p { margin: 0; color: var(--muted); font-size: 12px; }.section-heading.compact { align-items: center; margin: 0; padding: 18px 20px 14px; border-bottom: 1px solid var(--line); }.section-heading.compact h2 { font-size: 16px; }
 .form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 18px; }.form-grid--three { grid-template-columns: repeat(3, minmax(0, 1fr)); }.span-2 { grid-column: span 2; }.form-grid :deep(.el-form-item) { margin-bottom: 17px; }.form-grid :deep(.el-form-item__label) { padding-bottom: 6px; color: #4e596d; font-size: 12px; font-weight: 600; }.form-grid :deep(.el-input-number), .form-grid :deep(.el-select), .form-grid :deep(.el-time-select) { width: 100%; }
