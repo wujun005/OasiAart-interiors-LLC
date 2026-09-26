@@ -164,8 +164,6 @@
           </section>
         </div>
       </div>
-<<<<<<< HEAD
-=======
 
       <el-card class="surface-card onboarding-card" shadow="never">
         <el-tabs v-model="profileTab" class="section-tabs">
@@ -265,7 +263,6 @@
           </el-tab-pane>
         </el-tabs>
       </el-card>
->>>>>>> dc06666ce223c4df3a505a95b20bed36a99f261d
     </template>
 
     <template v-else-if="section === 'service-area'">
@@ -279,23 +276,6 @@
           <div class="table-search"><el-input v-model="areaKeyword" :prefix-icon="Search" placeholder="搜索区域名称" clearable /></div>
           <el-button type="primary" :loading="saving" @click="saveAreas">保存服务区域</el-button>
         </div>
-<<<<<<< HEAD
-        <el-table :data="filteredPlatformAreas" class="data-table" row-key="id">
-          <el-table-column width="70">
-            <template #default="{ row }">
-              <el-checkbox :model-value="selectedAreaIds.includes(row.id)" @change="toggleArea(row.id, Boolean($event))" />
-            </template>
-          </el-table-column>
-          <el-table-column label="区域" min-width="180" prop="name" />
-          <el-table-column label="区域内的社区" min-width="360">
-            <template #default="{ row }">
-              <div class="community-tags">
-                <el-tag v-for="name in areaCommunities[row.id] || []" :key="name" effect="plain">{{ name }}</el-tag>
-                <span v-if="!(areaCommunities[row.id] || []).length" class="muted-text">暂无社区</span>
-              </div>
-            </template>
-          </el-table-column>
-=======
         <el-table :data="filteredAreas" class="data-table" row-key="areaId">
           <el-table-column label="社区 / Community" min-width="230"><template #default="{ row }"><div class="muted-stack"><strong>{{ row.community }}</strong><small>{{ row.areaId }}</small><small v-if="row.pendingAction === 'update' && row.pendingData" class="pending-copy">待审核：{{ row.pendingData.community }} · {{ row.pendingData.areaId }}</small></div></template></el-table-column>
           <el-table-column label="Zone" min-width="200"><template #default="{ row }"><div class="muted-stack"><span>{{ row.zone }}</span><small>{{ row.zoneName }}</small></div></template></el-table-column>
@@ -304,7 +284,6 @@
           <el-table-column label="服务状态" width="118"><template #default="{ row }"><div class="area-service-status"><el-switch :model-value="row.active" :disabled="!row.effective || row.pendingAction === 'enable' || row.pendingAction === 'delete' || (!row.active && row.pendingAction === 'update')" inline-prompt active-text="启" inactive-text="停" @change="toggleAreaStatus(row, Boolean($event))" /><small v-if="!row.effective">审核通过后启用</small></div></template></el-table-column>
           <el-table-column label="审核状态" width="108"><template #default="{ row }"><div class="area-review-status"><el-tag :type="areaReviewTagType(row.reviewStatus)" effect="light">{{ areaReviewLabel(row.reviewStatus) }}</el-tag><small v-if="row.pendingAction">{{ areaActionLabel(row.pendingAction) }}</small><small v-else-if="row.reviewNote" class="rejected-copy">{{ row.reviewNote }}</small></div></template></el-table-column>
           <el-table-column label="操作" width="150" fixed="right"><template #default="{ row }"><el-button link type="primary" :disabled="row.pendingAction === 'enable' || row.pendingAction === 'delete'" @click="openAreaDialog(row)">编辑</el-button><el-button link type="danger" :disabled="row.pendingAction === 'delete'" @click="deleteArea(row)">{{ row.pendingAction === 'create' ? '撤回' : '删除' }}</el-button></template></el-table-column>
->>>>>>> dc06666ce223c4df3a505a95b20bed36a99f261d
         </el-table>
       </el-card>
     </template>
@@ -385,30 +364,6 @@
           </div>
           <div class="result-count">{{ orderTotal }} 个订单</div>
         </div>
-<<<<<<< HEAD
-        <el-table :data="supplierOrders" class="data-table" row-key="orderId">
-          <el-table-column label="订单号" min-width="180">
-            <template #default="{ row }"><div class="order-id"><strong>{{ row.orderNo || row.orderId }}</strong><small>{{ row.orderTime || '-' }}</small></div></template>
-          </el-table-column>
-          <el-table-column label="服务" min-width="200">
-            <template #default="{ row }"><div class="muted-stack"><strong>{{ row.productName || '-' }}</strong><small>{{ row.specDesc || '-' }}</small></div></template>
-          </el-table-column>
-          <el-table-column label="服务地址" min-width="220">
-            <template #default="{ row }"><div class="muted-stack"><span>{{ row.serviceAddress || '-' }}</span><small>{{ [row.community, row.building, row.roomNo].filter(Boolean).join(' · ') || '-' }}</small></div></template>
-          </el-table-column>
-          <el-table-column label="服务时间" min-width="180">
-            <template #default="{ row }"><div class="muted-stack"><span>{{ row.serviceTimeDisplay || row.serviceDate || '-' }}</span><small>{{ row.serviceTime || '-' }}</small></div></template>
-          </el-table-column>
-          <el-table-column label="金额" min-width="120" align="right">
-            <template #default="{ row }"><strong class="money-value">{{ row.amountText || '-' }}</strong></template>
-          </el-table-column>
-          <el-table-column label="状态" min-width="120">
-            <template #default="{ row }">{{ row.orderStatusName || '-' }}</template>
-          </el-table-column>
-          <el-table-column label="" width="80" align="right">
-            <template #default="{ row }"><el-button link type="primary" @click="openSupplierOrder(row)">详情</el-button></template>
-          </el-table-column>
-=======
         <el-table :data="filteredOrders" class="data-table" row-key="orderNo">
           <el-table-column label="Web Order / Job ID" min-width="190"><template #default="{ row }"><div class="order-id"><strong>{{ row.orderNo }}</strong><small>{{ row.jobId }} · {{ row.created }}</small></div></template></el-table-column>
           <el-table-column label="服务" min-width="220"><template #default="{ row }"><div class="service-cell"><span class="service-icon">{{ row.serviceIcon }}</span><span><strong>{{ row.service }}</strong><small>{{ row.variant }}</small></span></div></template></el-table-column>
@@ -418,7 +373,6 @@
           <el-table-column label="收益快照" min-width="130" align="right"><template #default="{ row }"><strong class="money-value">AED {{ row.cost }}</strong></template></el-table-column>
           <el-table-column label="状态" width="96"><template #default="{ row }"><span class="order-status" :class="`order-status--${row.status}`">{{ orderStatusLabel(row.status) }}</span></template></el-table-column>
           <el-table-column label="" width="80" align="right"><template #default="{ row }"><el-button link type="primary" @click="openOrder(row)">详情</el-button></template></el-table-column>
->>>>>>> dc06666ce223c4df3a505a95b20bed36a99f261d
         </el-table>
         <div class="table-toolbar">
           <el-pagination
@@ -437,21 +391,6 @@
         <div><span class="health-icon pending"><Clock /></span><div><strong>{{ pendingQuoteCount }} 个服务报价正在审核</strong><p>先勾选可履约服务，再按 SKU 填写报价。待审核期间不能改价，已通过后再改会生成新版本。</p></div></div>
         <el-button type="primary" :loading="saving" @click="saveSelectedServices">保存可履约服务</el-button>
       </section>
-<<<<<<< HEAD
-      <el-card class="surface-card" shadow="never" v-loading="catalogLoading">
-        <div class="section-heading compact"><div><h2>可履约服务</h2><p>按一级分类勾选服务</p></div></div>
-        <div v-for="group in serviceCatalogGroups" :key="group.categoryId" class="rule-list">
-          <div>
-            <el-checkbox :model-value="isCategoryChecked(group)" @change="toggleCategory(group, Boolean($event))">{{ group.categoryName }}</el-checkbox>
-            <div class="tag-list">
-              <el-checkbox
-                v-for="service in group.services"
-                :key="service.spuId"
-                :model-value="selectedSpuIds.includes(service.spuId)"
-                @change="toggleSpu(service.spuId, Boolean($event))"
-              >{{ service.spuName }}</el-checkbox>
-            </div>
-=======
       <el-card class="surface-card pricing-card" shadow="never">
         <div class="pricing-toolbar">
           <div class="pricing-filter"><span>服务分类</span><el-select v-model="quoteCategory"><el-option label="全部服务" value="all" /><el-option v-for="category in quoteCategories" :key="category.value" :label="category.label" :value="category.value" /></el-select><small>共 {{ filteredQuotes.length }} 条服务报价</small></div>
@@ -475,7 +414,6 @@
           <div class="section-heading compact"><div><h2>区域价格规则</h2><p>Zone pricing & dispatch economics</p></div><el-button link type="primary" @click="showToast('已打开区域规则编辑')">编辑规则</el-button></div>
           <div class="rule-list">
             <div v-for="rule in priceRules" :key="rule.name"><span class="rule-badge" :class="`rule-badge--${rule.type}`">{{ rule.code }}</span><span><strong>{{ rule.name }}</strong><small>{{ rule.zones }}</small></span><span class="rule-values"><b>{{ rule.min }}h</b><em>{{ rule.fee }}</em></span></div>
->>>>>>> dc06666ce223c4df3a505a95b20bed36a99f261d
           </div>
         </div>
       </el-card>
