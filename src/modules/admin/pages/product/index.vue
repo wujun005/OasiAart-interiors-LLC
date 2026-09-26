@@ -88,7 +88,7 @@
       >
         <el-table-column
           :label="t('admin.product.table.sort')"
-          width="48"
+          width="64"
           align="center"
         >
           <template #default="{ row }">

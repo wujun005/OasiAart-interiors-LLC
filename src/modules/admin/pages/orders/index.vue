@@ -1,6 +1,72 @@
 <template>
-  <div class="page">
-    <el-card>
+  <div class="page" :class="{ 'page--h5': isOrdersH5 }">
+    <section v-if="isOrdersH5" class="orders-h5">
+      <header class="orders-h5__bar">
+        <div class="orders-h5__search">
+          <el-input
+            v-model.trim="query.orderNo"
+            :placeholder="t('admin.orders.filters.orderNo')"
+            clearable
+            @clear="handleSearch"
+            @keyup.enter="handleSearch"
+          />
+          <button type="button" class="orders-h5__filter" @click="handleSearch">
+            {{ t("admin.orders.actions.search") }}
+          </button>
+        </div>
+        <p class="orders-h5__count">{{ total }}</p>
+      </header>
+
+      <p v-if="!tableLoading && !orders.length" class="orders-h5__empty">
+        {{ t("admin.orders.empty") }}
+      </p>
+      <div v-else class="orders-h5__list" v-loading="tableLoading">
+        <div
+          v-for="row in orders"
+          :key="row.id"
+          class="orders-h5__row"
+          :class="orderRowClassName({ row })"
+          role="button"
+          tabindex="0"
+          @click="openOrderDetail(row)"
+          @keydown.enter="openOrderDetail(row)"
+        >
+          <span class="orders-h5__rail" aria-hidden="true"></span>
+          <span class="orders-h5__main">
+            <span class="orders-h5__top">
+              <span class="orders-h5__no">{{ row.orderNo || "-" }}</span>
+              <span class="orders-h5__amount">{{ row.amountText || "-" }}</span>
+            </span>
+            <span class="orders-h5__service">{{ row.productName || "-" }}</span>
+            <span class="orders-h5__sub">
+              {{ row.customerName || "-" }}
+              <span aria-hidden="true">·</span>
+              {{ row.serviceTime || "-" }}
+            </span>
+            <span class="orders-h5__pills">
+              <span class="orders-h5__pill">{{ orderStatusLabel(row.orderStatusCode) }}</span>
+              <span class="orders-h5__pill orders-h5__pill--quiet">{{ row.paymentStatusText }}</span>
+              <span v-if="hasUnreadReschedule(row)" class="orders-h5__pill orders-h5__pill--alert">
+                {{ t("admin.orders.table.rescheduledUnread") }}
+              </span>
+            </span>
+          </span>
+          <span class="orders-h5__chevron" aria-hidden="true">›</span>
+        </div>
+      </div>
+
+      <footer class="orders-h5__pager">
+        <button type="button" :disabled="query.pageNum <= 1" @click="onPageChange(query.pageNum - 1)">
+          {{ t("admin.orders.actions.prev") }}
+        </button>
+        <span>{{ query.pageNum }} / {{ h5PageCount }}</span>
+        <button type="button" :disabled="query.pageNum >= h5PageCount" @click="onPageChange(query.pageNum + 1)">
+          {{ t("admin.orders.actions.next") }}
+        </button>
+      </footer>
+    </section>
+
+    <el-card v-else>
       <div class="toolbar">
         <div class="toolbar-row">
           <el-input
@@ -416,10 +482,10 @@
                 {{ t("admin.orders.actions.copySupplier") }}
               </el-button>
               <el-button
+                v-if="isStripeRefundAllowed(row)"
                 link
                 type="danger"
                 size="small"
-                :disabled="!canStripeRefund(row)"
                 :loading="refundingOrderId === row.orderId"
                 @click="handleStripeRefund(row)"
               >
@@ -470,10 +536,23 @@
 
     <el-drawer
       v-model="detailDrawerVisible"
+      :class="{ 'orders-h5-detail': isOrdersH5 }"
       :title="t('admin.orders.dialog.detailTitle')"
-      size="min(980px, 100%)"
+      :with-header="!isOrdersH5"
+      direction="rtl"
+      :z-index="isOrdersH5 ? 2100 : undefined"
+      :size="isOrdersH5 ? '100%' : 'min(980px, 100%)'"
       @closed="closeOrderDetail"
     >
+      <button
+        v-if="isOrdersH5"
+        type="button"
+        class="h5-nav"
+        @click="detailDrawerVisible = false"
+      >
+        <span aria-hidden="true">‹</span>
+        {{ t("admin.orders.actions.back") }}
+      </button>
       <el-skeleton v-if="detailLoading" :rows="12" animated />
       <div v-else-if="detailRow" class="order-detail">
         <header class="order-detail__hero">
@@ -501,6 +580,7 @@
             {{ t("admin.orders.detail.editOrder") }}
           </el-button>
           <el-button
+            v-if="!isOrdersH5"
             type="primary"
             plain
             :disabled="!detailRow.receiptUrl"
@@ -509,18 +589,19 @@
             {{ t("admin.orders.detail.generateInvoice") }}
           </el-button>
           <el-button
+            v-if="isStripeRefundAllowed(detailRow)"
             type="danger"
             plain
-            :disabled="!canStripeRefund(detailRow)"
             :loading="refundingOrderId === detailRow.orderId"
             @click="handleStripeRefund(detailRow)"
           >
             {{ t("admin.orders.actions.stripeRefund") }}
           </el-button>
-          <el-button @click="printOrderDetail">
+          <el-button v-if="!isOrdersH5" @click="printOrderDetail">
             {{ t("admin.orders.detail.print") }}
           </el-button>
           <el-button
+            v-if="!isOrdersH5"
             circle
             :title="t('admin.orders.detail.notifyCustomer')"
             @click="notifyCustomer"
@@ -535,9 +616,83 @@
             <el-tag :type="paymentStatusTag(detailRow.paymentStatusCode)" round>
               {{ detailRow.paymentStatusText }}
             </el-tag>
-            <el-tag :type="orderStatusTag(detailRow.orderStatusCode)" round>
+            <el-select
+              v-if="isOrdersH5"
+              class="h5-status-select"
+              :model-value="detailRow.orderStatusCode"
+              :disabled="!detailRow.orderId || updatingStatusOrderId !== null"
+              :loading="updatingStatusOrderId === detailRow.id"
+              @change="(value: number) => handleOrderStatusChange(detailRow, value)"
+            >
+              <el-option
+                v-for="item in orderStatusOptions"
+                :key="item.value"
+                :label="item.label"
+                :value="item.value"
+              />
+            </el-select>
+            <el-tag v-else :type="orderStatusTag(detailRow.orderStatusCode)" round>
               {{ detailRow.orderStatusText }}
             </el-tag>
+          </div>
+        </section>
+
+        <div v-if="isOrdersH5" class="h5-actions">
+          <button type="button" @click="openRemarkDialog(detailRow)">
+            {{ t("admin.orders.actions.remark") }}
+          </button>
+          <button
+            type="button"
+            :disabled="copyingOrderId === detailRow.id"
+            @click="copySupplierInfo(detailRow)"
+          >
+            {{ t("admin.orders.actions.copySupplier") }}
+          </button>
+          <button
+            v-if="detailRow.rescheduleChanges.length"
+            type="button"
+            @click="openRescheduleHistory(detailRow)"
+          >
+            {{ t("admin.orders.actions.viewReschedule") }}
+            {{ detailRow.rescheduleChanges.length }}
+          </button>
+        </div>
+
+        <section v-if="isOrdersH5" class="h5-supplier">
+          <div class="h5-supplier__copy">
+            <small>{{ t("admin.orders.table.supplierName") }}</small>
+            <strong>
+              {{
+                detailRow.supplierName ||
+                t("admin.orders.supplierView.unassigned")
+              }}
+            </strong>
+          </div>
+          <div class="h5-supplier__actions">
+            <button
+              v-if="!isSupplierReadOnly(detailRow) && !hasAssignedSupplier(detailRow)"
+              type="button"
+              class="h5-supplier__btn"
+              @click="openAssignDialog(detailRow)"
+            >
+              {{ t("admin.orders.actions.assignSupplier") }}
+            </button>
+            <button
+              v-if="!isSupplierReadOnly(detailRow) && hasAssignedSupplier(detailRow)"
+              type="button"
+              class="h5-supplier__btn"
+              @click="openAssignDialog(detailRow)"
+            >
+              {{ t("admin.orders.actions.assigned") }}
+            </button>
+            <button
+              v-if="isSupplierReadOnly(detailRow)"
+              type="button"
+              class="h5-supplier__btn h5-supplier__btn--ghost"
+              @click="openSupplierView(detailRow)"
+            >
+              {{ t("admin.orders.actions.viewSupplier") }}
+            </button>
           </div>
         </section>
 
@@ -835,7 +990,7 @@
           </dl>
         </section>
       </div>
-      <template #footer>
+      <template v-if="!isOrdersH5" #footer>
         <el-button @click="detailDrawerVisible = false">
           {{ t("admin.orders.actions.close") }}
         </el-button>
@@ -843,6 +998,7 @@
     </el-drawer>
 
     <el-dialog
+      :class="{ 'orders-h5-dialog': isOrdersH5 }"
       v-model="detailEditVisible"
       :title="t('admin.orders.detail.editOrder')"
       class="order-detail-edit-dialog"
@@ -941,6 +1097,7 @@
     </el-dialog>
 
     <el-dialog
+      :class="{ 'orders-h5-dialog': isOrdersH5 }"
       v-model="refundDialogVisible"
       :title="t('admin.orders.dialog.stripeRefundTitle')"
       :close-on-click-modal="false"
@@ -1005,6 +1162,7 @@
     </el-dialog>
 
     <el-dialog
+      :class="{ 'orders-h5-dialog': isOrdersH5 }"
       v-model="remarkDialogVisible"
       :title="t('admin.orders.dialog.remarkTitle')"
       :close-on-click-modal="false"
@@ -1040,6 +1198,7 @@
     </el-dialog>
 
     <el-dialog
+      :class="{ 'orders-h5-dialog': isOrdersH5 }"
       v-model="rescheduleDialogVisible"
       :title="t('admin.orders.dialog.rescheduleHistoryTitle')"
       width="560px"
@@ -1069,14 +1228,35 @@
     </el-dialog>
 
     <el-dialog
+      :class="{ 'orders-h5-dialog': isOrdersH5 }"
+      :modal-class="isOrdersH5 ? 'orders-h5-dialog-mask' : ''"
       v-model="supplierViewVisible"
       :title="t('admin.orders.actions.viewSupplier')"
-      width="520px"
+      :width="isOrdersH5 ? '100%' : '520px'"
       @close="closeSupplierView"
     >
-      <div class="supplier-view">
+      <div class="supplier-view" :class="{ 'supplier-view--h5': isOrdersH5 }">
         <p>{{ t("admin.orders.supplierView.readOnly") }}</p>
-        <el-descriptions :column="1" border>
+        <dl v-if="isOrdersH5" class="h5-supplier-view">
+          <div>
+            <dt>{{ t("admin.orders.table.orderNo") }}</dt>
+            <dd>{{ displayValue(supplierViewOrderNo) }}</dd>
+          </div>
+          <div>
+            <dt>{{ t("admin.supplier.table.supplierName") }}</dt>
+            <dd>
+              {{
+                supplierViewInfo.supplierName ||
+                t("admin.orders.supplierView.unassigned")
+              }}
+            </dd>
+          </div>
+          <div>
+            <dt>{{ t("admin.supplier.table.contactInfo") }}</dt>
+            <dd>{{ displayValue(supplierViewInfo.contactInfo) }}</dd>
+          </div>
+        </dl>
+        <el-descriptions v-else :column="1" border>
           <el-descriptions-item :label="t('admin.orders.table.orderNo')">
             {{ displayValue(supplierViewOrderNo) }}
           </el-descriptions-item>
@@ -1106,7 +1286,61 @@
       </template>
     </el-dialog>
 
+    <el-drawer
+      v-if="isOrdersH5"
+      v-model="assignDialogVisible"
+      class="orders-h5-sheet"
+      direction="btt"
+      size="auto"
+      append-to-body
+      :z-index="5200"
+      :title="assignDialogTitle"
+      :close-on-click-modal="false"
+    >
+      <div class="h5-assign">
+        <p class="h5-assign__order">{{ assignForm.orderNo }}</p>
+        <p
+          v-if="assignTarget && hasAssignedSupplier(assignTarget)"
+          class="h5-assign__current"
+        >
+          {{ assignSupplierPreview.supplierName || assignTarget.supplierName }}
+          <span v-if="assignSupplierPreview.contactInfo">
+            {{ assignSupplierPreview.contactInfo }}
+          </span>
+        </p>
+        <el-select
+          v-model="assignForm.supplierId"
+          filterable
+          clearable
+          :loading="supplierLoading"
+          :placeholder="t('admin.orders.form.supplierPlaceholder')"
+          popper-class="orders-h5-select"
+          style="width: 100%"
+        >
+          <el-option
+            v-for="item in supplierOptions"
+            :key="item.id"
+            :label="item.supplierName"
+            :value="item.id"
+          />
+        </el-select>
+        <div class="h5-assign__footer">
+          <button type="button" @click="assignDialogVisible = false">
+            {{ t("admin.orders.actions.cancel") }}
+          </button>
+          <button
+            type="button"
+            :disabled="assignSubmitting"
+            @click="submitSupplierAssignment"
+          >
+            {{ t("admin.orders.actions.save") }}
+          </button>
+        </div>
+      </div>
+    </el-drawer>
+
     <el-dialog
+      v-if="!isOrdersH5"
       v-model="assignDialogVisible"
       :title="t('admin.orders.dialog.assignSupplierTitle')"
       :close-on-click-modal="false"
@@ -1165,6 +1399,7 @@
 import { computed, onMounted, reactive, ref } from "vue"
 import { ElMessage, ElMessageBox } from "element-plus"
 import { useI18n } from "vue-i18n"
+import { useRoute } from "vue-router"
 import {
   detail as getOrderDetail,
   edit as editOrder,
@@ -1334,6 +1569,8 @@ const paymentStatusNameMap: Record<string, number> = {
 }
 
 const { t, locale } = useI18n({ useScope: "global" })
+const route = useRoute()
+const isOrdersH5 = computed(() => route.name === "admin-orders-h5")
 
 const orderStatusOptions = computed(() => [
   { value: 0, label: t("admin.orders.status.orderDraft") },
@@ -1344,6 +1581,9 @@ const orderStatusOptions = computed(() => [
   { value: 5, label: t("admin.orders.status.orderRefunded") },
   { value: 6, label: t("admin.orders.status.orderRefundRejected") },
 ])
+
+const orderStatusLabel = (code: number | null) =>
+  orderStatusOptions.value.find((item) => item.value === code)?.label || "-"
 
 const orderStatusLegend = computed(() =>
   orderStatusOptions.value.filter((item) =>
@@ -1377,6 +1617,9 @@ const query = reactive({
 
 const orders = ref<OrderRow[]>([])
 const total = ref(0)
+const h5PageCount = computed(() =>
+  Math.max(1, Math.ceil(total.value / Math.max(query.pageSize, 1))),
+)
 const tableLoading = ref(false)
 const exportLoading = ref(false)
 const selectedRows = ref<OrderRow[]>([])
@@ -1453,6 +1696,7 @@ const assignForm = reactive({
   orderNo: "",
   supplierId: null as number | string | null,
 })
+const assignSupplierPreview = ref({ supplierName: "", contactInfo: "" })
 
 const formatDateTime = (value?: string) => {
   const text = String(value || "").trim()
@@ -1541,9 +1785,24 @@ const supplierActionKey = (row: OrderRow) =>
       ? "admin.orders.actions.assigned"
       : "admin.orders.actions.assignSupplier"
 
-const canStripeRefund = (row: OrderRow) =>
+const assignDialogTitle = computed(() => {
+  if (!isOrdersH5.value || bulkAssignMode.value) {
+    return t("admin.orders.dialog.assignSupplierTitle")
+  }
+  const row = assignTarget.value
+  return t(
+    row && hasAssignedSupplier(row)
+      ? "admin.orders.actions.assigned"
+      : "admin.orders.actions.assignSupplier",
+  )
+})
+
+const isStripeRefundAllowed = (row: OrderRow) =>
   Boolean(row.orderId) &&
-  (row.paymentStatusCode === 1 || row.paymentStatusCode === 4) &&
+  (row.paymentStatusCode === 1 || row.paymentStatusCode === 4)
+
+const canStripeRefund = (row: OrderRow) =>
+  isStripeRefundAllowed(row) &&
   (refundingOrderId.value === null || refundingOrderId.value === row.orderId)
 
 const hasOrderRemark = (row: OrderRow) => Boolean(row.adminRemark.trim())
@@ -2943,7 +3202,11 @@ const loadSupplierOptions = async (keyword = "") => {
   supplierLoading.value = true
   try {
     const supplierName = normalizeOptionalParam(keyword)
-    const res = await querySuppliers(supplierName ? { supplierName } : {})
+    const res = await querySuppliers({
+      pageNum: 1,
+      pageSize: 500,
+      ...(supplierName ? { supplierName } : {}),
+    })
     const nextOptions = normalizeSupplierOptions(res)
     const currentOption = supplierOptions.value.find(
       (item) => item.id === assignForm.supplierId,
@@ -3014,12 +3277,28 @@ const openAssignDialog = async (row: OrderRow) => {
   assignForm.orderId = row.orderId
   assignForm.orderNo = row.orderNo
   assignForm.supplierId = row.supplierId
+  assignSupplierPreview.value = {
+    supplierName: row.supplierName || "",
+    contactInfo: "",
+  }
   supplierOptions.value =
     row.supplierId && row.supplierName
       ? [{ id: row.supplierId, supplierName: row.supplierName }]
       : []
   assignDialogVisible.value = true
   await loadSupplierOptions()
+  if (!row.supplierId) return
+  try {
+    assignSupplierPreview.value = normalizeSupplierCopyInfo(
+      await getSupplierDetail(row.supplierId),
+      row.supplierName,
+    )
+  } catch {
+    assignSupplierPreview.value = {
+      supplierName: row.supplierName || "",
+      contactInfo: "",
+    }
+  }
 }
 
 const openBulkAssignDialog = async () => {
@@ -3106,6 +3385,25 @@ const submitSupplierAssignment = async () => {
     }
     assignDialogVisible.value = false
     await fetchOrders()
+    const current = detailRow.value
+    if (
+      current?.orderId &&
+      targets.some((row) => row.orderId === current.orderId)
+    ) {
+      const fresh = orders.value.find((row) => row.orderId === current.orderId)
+      const selected = supplierOptions.value.find(
+        (item) => item.id === supplierId,
+      )
+      detailRow.value = {
+        ...current,
+        supplierId: fresh?.supplierId ?? supplierId,
+        supplierName:
+          fresh?.supplierName ||
+          (supplierId === null
+            ? ""
+            : selected?.supplierName || current.supplierName),
+      }
+    }
   } catch (error: any) {
     ElMessage.error(error?.message || t("admin.orders.message.assignFailed"))
   } finally {
@@ -4126,5 +4424,596 @@ onMounted(() => {
     align-items: flex-start;
     text-align: left;
   }
+}
+
+
+.page--h5 {
+  max-width: 100%;
+  min-height: 100%;
+  overflow-x: hidden;
+  background: #e7ebf0;
+}
+
+.orders-h5 {
+  display: flex;
+  flex-direction: column;
+  min-height: calc(100vh - 48px);
+  min-height: calc(100dvh - 48px);
+  color: #102033;
+}
+
+.orders-h5__bar {
+  position: sticky;
+  top: 0;
+  z-index: 4;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  background: rgba(231, 235, 240, 0.92);
+  backdrop-filter: blur(10px);
+}
+
+.orders-h5__search {
+  flex: 1;
+  display: flex;
+  gap: 8px;
+  min-width: 0;
+}
+
+.orders-h5__filter,
+.orders-h5__pager button,
+.orders-h5__ghost,
+.orders-h5__solid,
+.h5-nav {
+  border: 0;
+  background: transparent;
+  font: inherit;
+}
+
+.orders-h5__filter {
+  flex: 0 0 auto;
+  height: 36px;
+  padding: 0 12px;
+  border-radius: 999px;
+  background: #05152b;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.orders-h5__count {
+  margin: 0;
+  color: #6d7c8f;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.orders-h5__empty {
+  margin: 48px 20px;
+  color: #6d7c8f;
+  text-align: center;
+}
+
+.orders-h5__list {
+  margin: 0 12px;
+  overflow: hidden;
+  border: 1px solid rgba(16, 32, 51, 0.08);
+  border-radius: 18px;
+  background: #fff;
+}
+
+.orders-h5__row {
+  width: 100%;
+  display: grid;
+  grid-template-columns: 4px minmax(0, 1fr) 16px;
+  gap: 12px;
+  align-items: center;
+  padding: 14px 12px 14px 0;
+  border: 0;
+  border-bottom: 1px solid #eef2f6;
+  background: #fff;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.orders-h5__row:last-child {
+  border-bottom: 0;
+}
+
+.orders-h5__row:active {
+  background: #f4f7fb;
+}
+
+.orders-h5__rail {
+  align-self: stretch;
+  border-radius: 0 3px 3px 0;
+  background: #9aabbe;
+}
+
+.orders-h5__row.order-status--action-needed .orders-h5__rail {
+  background: #c9842a;
+}
+
+.orders-h5__row.order-status--completed .orders-h5__rail {
+  background: #1f7a4d;
+}
+
+.orders-h5__row.order-status--closed .orders-h5__rail {
+  background: #8b97a6;
+}
+
+.orders-h5__row.order-row--rescheduled-unread .orders-h5__rail {
+  background: #b42318;
+}
+
+.orders-h5__main {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.orders-h5__top,
+.orders-h5__sub,
+.orders-h5__pills {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.orders-h5__top {
+  justify-content: space-between;
+}
+
+.orders-h5__no {
+  font-size: 15px;
+  font-weight: 750;
+  letter-spacing: -0.02em;
+}
+
+.orders-h5__amount {
+  color: #05152b;
+  font-size: 15px;
+  font-weight: 750;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.orders-h5__service,
+.orders-h5__sub {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.orders-h5__service {
+  color: #24364c;
+  font-size: 14px;
+}
+
+.orders-h5__sub {
+  color: #6d7c8f;
+  font-size: 12px;
+}
+
+.orders-h5__pills {
+  flex-wrap: wrap;
+  margin-top: 4px;
+}
+
+.orders-h5__pill {
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: #eef3f8;
+  color: #24364c;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.orders-h5__pill--quiet {
+  background: transparent;
+  color: #6d7c8f;
+  padding-left: 0;
+}
+
+.orders-h5__pill--alert {
+  background: #fde8e6;
+  color: #b42318;
+}
+
+.orders-h5__chevron {
+  color: #9aabbe;
+  font-size: 22px;
+  line-height: 1;
+}
+
+.orders-h5__pager {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: auto;
+  padding: 12px 16px calc(12px + env(safe-area-inset-bottom));
+  color: #6d7c8f;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+
+.orders-h5__pager button {
+  min-width: 72px;
+  height: 36px;
+  border-radius: 999px;
+  background: #fff;
+  color: #05152b;
+  font-weight: 700;
+}
+
+.orders-h5__pager button:disabled {
+  color: #b7c2ce;
+}
+
+.orders-h5__filters {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding-bottom: 8px;
+}
+
+.orders-h5__filters .el-select,
+.orders-h5__filters .el-date-editor,
+.orders-h5__filters .el-input {
+  width: 100% !important;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+.orders-h5__filter-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 6px;
+}
+
+.orders-h5__ghost,
+.orders-h5__solid {
+  flex: 1;
+  height: 44px;
+  border-radius: 12px;
+  font-size: 15px;
+  font-weight: 750;
+}
+
+.orders-h5__ghost {
+  background: #eef2f6;
+  color: #24364c;
+}
+
+.orders-h5__solid {
+  background: #05152b;
+  color: #fff;
+}
+</style>
+
+<style>
+.orders-h5-detail.el-drawer {
+  background: #eef1f5;
+}
+
+.orders-h5-detail .el-drawer__body {
+  max-width: 100%;
+  overflow-x: hidden;
+  padding: 0 0 28px;
+}
+
+.h5-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin: 0 0 12px;
+}
+
+.h5-actions button {
+  min-height: 40px;
+  padding: 8px 10px;
+  border: 0;
+  border-radius: 12px;
+  background: #fff;
+  color: #05152b;
+  font-size: 13px;
+  font-weight: 750;
+}
+
+.h5-status-select {
+  width: min(148px, 46vw);
+}
+
+.orders-h5-detail .order-detail,
+.orders-h5-detail .order-detail__toolbar,
+.orders-h5-detail .order-detail__list,
+.orders-h5-detail .order-detail__payment-grid,
+.orders-h5-detail .order-detail__refund-grid {
+  max-width: 100%;
+  min-width: 0;
+}
+
+.orders-h5-detail .order-detail__toolbar {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+}
+
+.orders-h5-detail .order-detail__toolbar .el-button {
+  width: 100%;
+  min-width: 0;
+  height: auto;
+  min-height: 40px;
+  margin: 0;
+  white-space: normal;
+}
+
+.h5-nav {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  height: 48px;
+  padding: 0 8px;
+  border: 0;
+  background: rgba(238, 241, 245, 0.94);
+  color: #05152b;
+  font-size: 16px;
+  font-weight: 750;
+  text-align: left;
+}
+
+.h5-nav span {
+  font-size: 28px;
+  line-height: 1;
+}
+
+.h5-supplier {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  margin: 0 0 12px;
+  padding: 14px 16px;
+  border-radius: 16px;
+  background: #fff;
+  color: #05152b;
+}
+
+.h5-supplier__copy {
+  min-width: 0;
+}
+
+.h5-supplier__copy small {
+  display: block;
+  margin-bottom: 4px;
+  color: #6b7c90;
+  font-size: 12px;
+}
+
+.h5-supplier__copy strong {
+  display: block;
+  overflow: hidden;
+  font-size: 16px;
+  font-weight: 750;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.h5-supplier__actions {
+  display: flex;
+  flex: none;
+  gap: 8px;
+}
+
+.h5-supplier__btn {
+  height: 36px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 10px;
+  background: #05152b;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 750;
+}
+
+.h5-supplier__btn--ghost {
+  background: #eef2f6;
+  color: #05152b;
+}
+
+.h5-assign__order,
+.h5-assign__current,
+.h5-assign__hint {
+  margin: 0 0 10px;
+  color: #5d6e82;
+  font-size: 13px;
+}
+
+.h5-assign__current {
+  color: #05152b;
+  font-weight: 750;
+}
+
+.h5-assign__current span {
+  display: block;
+  margin-top: 4px;
+  color: #5d6e82;
+  font-weight: 500;
+}
+
+.h5-assign :deep(.el-select) {
+  width: 100%;
+  margin-top: 8px;
+}
+
+.orders-h5-select {
+  z-index: 5400 !important;
+}
+
+.h5-assign__list button {
+  width: 100%;
+  min-height: 44px;
+  padding: 10px 12px;
+  border: 1px solid #d7e0ea;
+  border-radius: 12px;
+  background: #fff;
+  color: #05152b;
+  font-size: 15px;
+  font-weight: 650;
+  text-align: left;
+}
+
+.h5-assign__list button.is-active {
+  border-color: #05152b;
+  background: #f1f4f7;
+}
+
+.h5-assign__footer {
+  display: flex;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.h5-assign__footer button {
+  flex: 1;
+  height: 44px;
+  border: 0;
+  border-radius: 12px;
+  background: #eef2f6;
+  color: #05152b;
+  font-size: 15px;
+  font-weight: 750;
+}
+
+.h5-assign__footer button:last-child {
+  background: #05152b;
+  color: #fff;
+}
+
+.h5-assign__footer button:disabled {
+  opacity: 0.6;
+}
+
+.h5-supplier-view {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin: 0;
+}
+
+.h5-supplier-view div {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.h5-supplier-view dt {
+  color: #6b7c90;
+  font-size: 12px;
+}
+
+.h5-supplier-view dd {
+  margin: 0;
+  color: #05152b;
+  font-size: 15px;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.orders-h5-dialog-mask {
+  z-index: 5000 !important;
+}
+
+.orders-h5-detail .order-detail {
+  margin: 0 12px;
+}
+
+.orders-h5-detail .order-detail__hero,
+.orders-h5-detail .order-detail__toolbar {
+  border-radius: 16px;
+}
+
+.orders-h5-detail .order-detail__toolbar {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.orders-h5-detail .order-detail__toolbar .el-button {
+  width: 100%;
+  min-width: 0;
+  height: auto;
+  min-height: 40px;
+  margin: 0;
+  white-space: normal;
+}
+
+.el-overlay:has(.orders-h5-dialog) {
+  z-index: 5300 !important;
+}
+
+.el-overlay-dialog:has(.orders-h5-dialog) {
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+}
+
+.orders-h5-dialog.el-dialog {
+  width: 100% !important;
+  max-width: 100%;
+  margin: 0;
+  border-radius: 22px 22px 0 0;
+  max-height: 92dvh;
+  display: flex;
+  flex-direction: column;
+}
+
+.orders-h5-dialog .el-dialog__body {
+  overflow: auto;
+  padding: 4px 16px 12px;
+}
+
+.orders-h5-dialog .el-dialog__footer {
+  display: flex;
+  gap: 8px;
+  padding: 12px 16px calc(12px + env(safe-area-inset-bottom));
+}
+
+.orders-h5-dialog .el-dialog__footer .el-button {
+  flex: 1;
+  height: 42px;
+  margin: 0;
+}
+
+.orders-h5-dialog .el-form-item {
+  display: block;
+}
+
+.orders-h5-dialog .el-form-item__label {
+  width: auto !important;
+  height: auto;
+  justify-content: flex-start;
+  padding: 0 0 6px;
+  line-height: 1.3;
+}
+
+.orders-h5-dialog .el-form-item__content {
+  margin-left: 0 !important;
+}
+
+.orders-h5-sheet.el-drawer {
+  border-radius: 22px 22px 0 0;
+  max-height: 88dvh;
+}
+
+.orders-h5-sheet .el-drawer__body {
+  padding: 0 16px calc(16px + env(safe-area-inset-bottom));
 }
 </style>

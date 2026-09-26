@@ -1541,7 +1541,7 @@ const goOrderConfirm = async () => {
 .product-detail-page {
   min-height: 100%;
   background:
-    radial-gradient(circle at 82% 4%, rgba(19, 163, 109, 0.06), transparent 28%),
+    radial-gradient(circle at 82% 4%, rgba(5, 21, 43, 0.05), transparent 28%),
     linear-gradient(180deg, #f8fbff 0%, #f5f8fc 48%, #f7f9fc 100%);
 }
 
@@ -1648,8 +1648,8 @@ const goOrderConfirm = async () => {
 }
 
 .product-gallery__thumb--active {
-  border-color: #13a36d;
-  box-shadow: 0 0 0 2px rgba(19, 163, 109, 0.14), 0 8px 18px rgba(7, 27, 51, 0.12);
+  border-color: var(--hourx-brand);
+  box-shadow: 0 0 0 2px rgba(5, 21, 43, 0.12), 0 8px 18px rgba(7, 27, 51, 0.12);
   transform: translateY(-1px);
 }
 
@@ -1734,7 +1734,7 @@ const goOrderConfirm = async () => {
   left: 16px;
   height: 24px;
   border-radius: 999px;
-  background: #0b8f62;
+  background: var(--hourx-brand);
   color: #fff;
   display: inline-flex;
   align-items: center;
@@ -1809,7 +1809,7 @@ const goOrderConfirm = async () => {
   height: 20px;
   flex: 0 0 auto;
   fill: none;
-  stroke: #13a36d;
+  stroke: var(--hourx-brand);
   stroke-width: 1.9;
   stroke-linecap: round;
   stroke-linejoin: round;
@@ -1873,8 +1873,8 @@ const goOrderConfirm = async () => {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  color: #07865a;
-  background: #eaf8f2;
+  color: var(--hourx-brand);
+  background: var(--hourx-brand-soft);
 }
 
 .product-section-heading__icon svg {
@@ -1981,8 +1981,8 @@ const goOrderConfirm = async () => {
   width: 16px;
   height: 16px;
   border-radius: 50%;
-  background: #dcfce7;
-  color: #00a63e;
+  background: var(--hourx-brand-soft);
+  color: var(--hourx-brand);
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -2041,7 +2041,7 @@ const goOrderConfirm = async () => {
 }
 
 .product-rich-text :deep(li::marker) {
-  color: #13a36d;
+  color: var(--hourx-brand);
 }
 
 .product-rich-text :deep(p) {
@@ -2183,12 +2183,12 @@ const goOrderConfirm = async () => {
   padding: 26px 26px 22px;
   border-bottom: 1px solid #e9eef5;
   background:
-    radial-gradient(circle at 100% 0, rgba(19, 163, 109, 0.1), transparent 38%),
+    radial-gradient(circle at 100% 0, rgba(5, 21, 43, 0.06), transparent 38%),
     linear-gradient(180deg, #ffffff 0%, #fbfdff 100%);
 }
 
 .booking-card__eyebrow {
-  color: #0b8f62;
+  color: var(--hourx-brand);
   font-size: 10px;
   font-weight: 850;
   letter-spacing: 0.12em;
@@ -2198,8 +2198,8 @@ const goOrderConfirm = async () => {
 .booking-card__hero h1 {
   margin: 8px 0 0;
   color: #071b33;
-  font-size: clamp(24px, 2vw, 32px);
-  line-height: 1.14;
+  font-size: clamp(22px, 1.7vw, 26px);
+  line-height: 1.2;
   font-weight: 900;
   letter-spacing: -0.025em;
 }
@@ -2226,7 +2226,7 @@ const goOrderConfirm = async () => {
 }
 
 .booking-card__rating strong {
-  color: #087653;
+  color: var(--hourx-brand);
   font-size: 12px;
 }
 
@@ -2250,7 +2250,7 @@ const goOrderConfirm = async () => {
   width: 16px;
   height: 16px;
   fill: none;
-  stroke: #13a36d;
+  stroke: var(--hourx-brand);
   stroke-width: 2;
   stroke-linecap: round;
   stroke-linejoin: round;
@@ -2270,8 +2270,8 @@ const goOrderConfirm = async () => {
 }
 
 .booking-card__price strong {
-  color: #0b9b67;
-  font-size: 28px;
+  color: var(--hourx-brand);
+  font-size: 24px;
   line-height: 1;
   font-weight: 900;
   letter-spacing: -0.025em;
@@ -2313,34 +2313,32 @@ const goOrderConfirm = async () => {
 
 .booking-options {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(142px, 1fr));
-  gap: 9px;
+  grid-template-columns: repeat(auto-fit, minmax(112px, 1fr));
+  gap: 6px;
 }
 
 .booking-option {
-  min-height: 52px;
-  padding: 8px 10px;
-  border-radius: 10px;
-  border: 1.5px solid #dfe7f0;
+  min-height: 34px;
+  padding: 4px 8px;
+  border-radius: 8px;
+  border: 1px solid #dfe7f0;
   background: #fff;
   color: #1b3049;
-  font-size: 13px;
-  font-weight: 750;
+  font-size: 12px;
+  font-weight: 700;
   cursor: pointer;
   display: flex;
   flex-direction: column;
   align-items: flex-start;
   justify-content: center;
-  gap: 3px;
+  gap: 1px;
   text-align: left;
-  box-shadow: 0 3px 10px rgba(7, 27, 51, 0.03);
-  transition: border-color 160ms ease, background-color 160ms ease, box-shadow 160ms ease, transform 160ms ease;
+  box-shadow: none;
+  transition: border-color 160ms ease, background-color 160ms ease, box-shadow 160ms ease;
 }
 
 .booking-option:hover {
-  border-color: rgba(19, 163, 109, 0.58);
-  box-shadow: 0 8px 18px rgba(7, 27, 51, 0.07);
-  transform: translateY(-1px);
+  border-color: rgba(5, 21, 43, 0.42);
 }
 
 .booking-option__topline {
@@ -2352,10 +2350,10 @@ const goOrderConfirm = async () => {
 }
 
 .booking-option__topline svg {
-  width: 16px;
-  height: 16px;
+  width: 13px;
+  height: 13px;
   flex: 0 0 auto;
-  fill: #13a36d;
+  fill: var(--hourx-brand);
   stroke: #fff;
   stroke-width: 2;
   stroke-linecap: round;
@@ -2368,22 +2366,22 @@ const goOrderConfirm = async () => {
 }
 
 .booking-option__remark {
-  margin-top: 3px;
+  margin-top: 1px;
   color: #74859a;
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 500;
-  line-height: 1.42;
+  line-height: 1.25;
 }
 
 .booking-option--active {
-  border-color: #13a36d;
-  color: #0b7554;
-  background: #f4fcf8;
-  box-shadow: 0 0 0 2px rgba(19, 163, 109, 0.1), 0 10px 22px rgba(7, 27, 51, 0.06);
+  border-color: var(--hourx-brand);
+  color: var(--hourx-brand);
+  background: var(--hourx-brand-soft);
+  box-shadow: none;
 }
 
 .booking-option--active .booking-option__remark {
-  color: #526c62;
+  color: #5c6d82;
 }
 
 .booking-option--step {
@@ -2508,7 +2506,7 @@ const goOrderConfirm = async () => {
 }
 
 .booking-summary__row--tax span {
-  color: #00a63e;
+  color: var(--hourx-brand);
 }
 
 .booking-summary__row--total {
@@ -2524,8 +2522,8 @@ const goOrderConfirm = async () => {
 }
 
 .booking-summary__row--total strong {
-  color: #0b9b67;
-  font-size: 27px;
+  color: var(--hourx-brand);
+  font-size: 24px;
   font-weight: 900;
 }
 
@@ -2581,10 +2579,10 @@ const goOrderConfirm = async () => {
 
 .booking-submit {
   order: 1;
-  border: 1px solid #079864;
-  background: linear-gradient(135deg, #0aa36c 0%, #0b8f62 100%);
+  border: 1px solid var(--hourx-brand);
+  background: linear-gradient(135deg, var(--hourx-brand-hover) 0%, var(--hourx-brand) 100%);
   color: #fff;
-  box-shadow: 0 12px 24px rgba(11, 143, 98, 0.2);
+  box-shadow: 0 12px 24px rgba(5, 21, 43, 0.18);
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -2609,7 +2607,7 @@ const goOrderConfirm = async () => {
 }
 
 .booking-submit:hover:not(:disabled) {
-  box-shadow: 0 14px 28px rgba(11, 143, 98, 0.28);
+  box-shadow: 0 14px 28px rgba(5, 21, 43, 0.24);
   transform: translateY(-1px);
 }
 
@@ -2738,8 +2736,8 @@ const goOrderConfirm = async () => {
   }
 
   .booking-option {
-    min-height: 56px;
-    font-size: 13px;
+    min-height: 36px;
+    font-size: 12px;
   }
 
   .booking-option--step {
@@ -2758,7 +2756,7 @@ const goOrderConfirm = async () => {
   }
 
   .booking-summary__row--total strong {
-    font-size: 28px;
+    font-size: 24px;
   }
 
   .booking-add-cart,

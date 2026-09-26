@@ -21,11 +21,11 @@
           <template #default="{ row }">{{ row.displayName }}</template>
         </el-table-column>
         <el-table-column prop="categoryName" :label="t('admin.addon.table.category')" min-width="160" />
-        <el-table-column prop="amount" :label="t('admin.addon.table.amount')" width="120" />
-        <el-table-column :label="t('admin.addon.table.updatedAt')" min-width="180">
+        <el-table-column prop="amount" :label="t('admin.addon.table.amount')" width="88" />
+        <el-table-column :label="t('admin.addon.table.updatedAt')" width="156">
           <template #default="{ row }">{{ formatDate(row.updatedAt) }}</template>
         </el-table-column>
-        <el-table-column :label="t('admin.addon.table.actions')" width="180" fixed="right">
+        <el-table-column :label="t('admin.addon.table.actions')" width="132" fixed="right">
           <template #default="{ row }">
             <el-button link type="primary" size="small" @click="openEdit(row)">
               {{ t('admin.addon.actions.edit') }}

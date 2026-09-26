@@ -158,6 +158,7 @@
 import { computed, reactive, ref } from 'vue';
 import { ElMessage } from 'element-plus';
 import { useI18n } from 'vue-i18n';
+import { isNavigationFailure, useRoute } from 'vue-router';
 import { login } from '@/modules/admin/api';
 import router from '@/modules/admin/router';
 import { ADMIN_LOCALE_STORAGE_KEY, type AdminLocale } from '@/modules/admin/locales';
@@ -166,11 +167,13 @@ import {
   setAdminAuthStorageValue,
 } from '@/utils/auth-state';
 import {
+  getFirstAllowedAdminPath,
   loadAdminMenuPermissions,
   resetAdminMenuPermissions,
 } from '@/modules/admin/utils/menuPermission';
 
 const { t, locale } = useI18n({ useScope: 'global' });
+const route = useRoute();
 const currentLocale = ref<AdminLocale>(locale.value === 'en' ? 'en' : 'zh');
 const showPassword = ref(false);
 const submitting = ref(false);
@@ -253,7 +256,20 @@ const submitLogin = async () => {
     resetAdminMenuPermissions();
     await loadAdminMenuPermissions(true);
     ElMessage.success(result?.message || t('admin.login.loginSuccess'));
-    await router.push('/admin');
+    const redirectQuery = Array.isArray(route.query.redirect)
+      ? route.query.redirect[0]
+      : route.query.redirect;
+    const redirectPath =
+      typeof redirectQuery === 'string' &&
+      redirectQuery.startsWith('/admin') &&
+      !redirectQuery.startsWith('/admin/login')
+        ? redirectQuery
+        : getFirstAllowedAdminPath();
+    try {
+      await router.replace(redirectPath || '/admin');
+    } catch (error) {
+      if (!isNavigationFailure(error)) throw error;
+    }
   } catch (error) {
     console.error(error);
     ElMessage.error(t('admin.login.loginFailed'));

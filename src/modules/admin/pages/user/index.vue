@@ -20,11 +20,11 @@
         v-loading="tableLoading"
         row-key="id"
       >
-        <el-table-column prop="id" :label="t('admin.user.table.id')" width="100" />
+        <el-table-column prop="id" :label="t('admin.user.table.id')" width="72" />
         <el-table-column prop="name" :label="t('admin.user.table.name')" width="160" />
         <el-table-column prop="phone" :label="t('admin.user.table.phone')" width="140" />
         <el-table-column prop="email" :label="t('admin.user.table.email')" min-width="180" />
-        <el-table-column :label="t('admin.user.table.createdAt')" min-width="200">
+        <el-table-column :label="t('admin.user.table.createdAt')" width="148">
           <template #default="{ row }">
             <div class="meta">
               <!-- <span>{{ row.creator || '-' }}</span> -->
@@ -32,7 +32,7 @@
             </div>
           </template>
         </el-table-column>
-        <el-table-column :label="t('admin.user.table.updatedAt')" min-width="200">
+        <el-table-column :label="t('admin.user.table.updatedAt')" width="148">
           <template #default="{ row }">
             <div class="meta">
               <!-- <span>{{ row.updater || '-' }}</span> -->

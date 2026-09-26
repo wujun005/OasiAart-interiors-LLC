@@ -1,7 +1,7 @@
 <template>
-  <div class="admin-page">
+  <div class="admin-page" :class="{ 'admin-page--orders-h5': isOrdersH5 }">
     <el-container class="layout">
-      <el-aside width="216px" class="sidebar">
+      <el-aside v-if="!isOrdersH5" width="216px" class="sidebar">
         <div class="logo">{{ brandLabel }}</div>
         <el-menu
           :default-active="activeMenu"
@@ -84,6 +84,7 @@ import {
 } from '@/modules/admin/utils/menuPermission';
 
 const route = useRoute();
+const isOrdersH5 = computed(() => route.name === 'admin-orders-h5');
 const router = useRouter();
 const { t, locale } = useI18n({ useScope: 'global' });
 const currentLocale = ref<AdminLocale>(locale.value === 'en' ? 'en' : 'zh');
@@ -290,5 +291,42 @@ loadAdminMenuPermissions().catch((error) => {
 }
 .content {
   padding: 12px;
+}
+.admin-page--orders-h5 {
+  max-width: 100%;
+  overflow-x: hidden;
+}
+.admin-page--orders-h5 .layout,
+.admin-page--orders-h5 .el-container {
+  max-width: 100%;
+  min-width: 0;
+}
+.admin-page--orders-h5 .header {
+  height: 48px;
+  min-width: 0;
+  padding: 0 12px;
+}
+.admin-page--orders-h5 .breadcrumb {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.admin-page--orders-h5 .actions {
+  flex: none;
+  gap: 6px;
+}
+.admin-page--orders-h5 .lang-switcher {
+  width: 78px;
+}
+.admin-page--orders-h5 .breadcrumb {
+  font-size: 15px;
+}
+.admin-page--orders-h5 .actions .el-button:first-of-type {
+  display: none;
+}
+.admin-page--orders-h5 .content {
+  padding: 0;
+  background: #f4f6f8;
 }
 </style>

@@ -14,17 +14,17 @@
       </div>
 
       <el-table :data="displayList" border stripe row-key="id" v-loading="tableLoading">
-        <el-table-column prop="sort" :label="t('admin.subcategory.table.sort')" width="100" />
+        <el-table-column prop="sort" :label="t('admin.subcategory.table.sort')" width="72" />
         <el-table-column :label="t('admin.subcategory.table.name')" min-width="180">
           <template #default="{ row }">{{ row.displayName }}</template>
         </el-table-column>
-        <el-table-column :label="t('admin.subcategory.table.createdAt')" min-width="160">
+        <el-table-column :label="t('admin.subcategory.table.createdAt')" width="148">
           <template #default="{ row }">{{ formatDate(row.createdAt) }}</template>
         </el-table-column>
         <!-- <el-table-column :label="t('admin.subcategory.table.updateBy')" min-width="140">
           <template #default="{ row }">{{ row.updateBy || '-' }}</template>
         </el-table-column> -->
-        <el-table-column :label="t('admin.subcategory.table.actions')" width="180" fixed="right">
+        <el-table-column :label="t('admin.subcategory.table.actions')" width="132" fixed="right">
           <template #default="{ row }">
             <el-button link type="primary" size="small" @click="openEdit(row)">
               {{ t('admin.subcategory.actions.edit') }}

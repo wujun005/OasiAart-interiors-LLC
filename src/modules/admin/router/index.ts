@@ -9,6 +9,7 @@ import {
   clearAdminAuthState,
   getAdminAuthSnapshot,
 } from '@/utils/auth-state';
+import { isMobileDevice } from '@/utils/device';
 
 const routes: RouteRecordRaw[] = [
   // 管理端：/admin 开头
@@ -24,6 +25,11 @@ const routes: RouteRecordRaw[] = [
       {
         path: 'orders',
         name: 'admin-orders',
+        component: () => import('@/modules/admin/pages/orders/index.vue'),
+      },
+      {
+        path: 'orders/h5',
+        name: 'admin-orders-h5',
         component: () => import('@/modules/admin/pages/orders/index.vue'),
       },
       {
@@ -169,6 +175,16 @@ export const router = createRouter({
 router.beforeEach(async (to) => {
   if (!to.path.startsWith('/admin')) return true;
   if (to.path === '/admin/login') return true;
+
+  const ordersPath = '/admin/orders';
+  const ordersH5Path = '/admin/orders/h5';
+  if (to.path === ordersPath && isMobileDevice()) {
+    return { path: ordersH5Path, query: to.query, replace: true };
+  }
+  if (to.path === ordersH5Path && !isMobileDevice()) {
+    return { path: ordersPath, query: to.query, replace: true };
+  }
+
   if (
     import.meta.env.DEV &&
     to.query.preview === 'supplier' &&
@@ -190,7 +206,9 @@ router.beforeEach(async (to) => {
     return { path: '/admin/login', query: { redirect: to.fullPath } };
   }
 
-  const targetPath = resolveAllowedAdminPath(to.path);
+  const permissionPath = to.path === ordersH5Path ? ordersPath : to.path;
+  const targetPath = resolveAllowedAdminPath(permissionPath);
+  if (to.path === ordersH5Path && targetPath) return true;
   if (targetPath) {
     if (targetPath !== to.path) {
       return { path: targetPath };

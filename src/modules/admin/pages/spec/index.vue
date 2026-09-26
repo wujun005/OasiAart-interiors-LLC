@@ -55,7 +55,7 @@
         <el-table-column
           prop="sort"
           :label="t('admin.spec.table.sort')"
-          width="100"
+          width="72"
         />
         <el-table-column :label="t('admin.spec.table.name')" min-width="160">
           <template #default="{ row }">{{ row.displayName }}</template>
@@ -63,7 +63,7 @@
         <el-table-column
           prop="subCategoryName"
           :label="t('admin.spec.table.subcategory')"
-          min-width="180"
+          min-width="140"
         />
         <el-table-column
           prop="typeName"
@@ -77,7 +77,7 @@
         </el-table-column>
         <el-table-column
           :label="t('admin.spec.table.createdAt')"
-          min-width="160"
+          width="148"
         >
           <template #default="{ row }">{{
             formatDate(row.createdAt)
@@ -85,7 +85,7 @@
         </el-table-column>
         <el-table-column
           :label="t('admin.spec.table.actions')"
-          width="180"
+          width="132"
           fixed="right"
         >
           <template #default="{ row }">

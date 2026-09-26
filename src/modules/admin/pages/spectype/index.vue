@@ -30,13 +30,13 @@
         <el-table-column :label="t('admin.specType.table.name')" min-width="160">
           <template #default="{ row }">{{ row.displayName }}</template>
         </el-table-column>
-        <el-table-column :label="t('admin.specType.table.subcategory')" min-width="180">
+        <el-table-column :label="t('admin.specType.table.subcategory')" min-width="140">
           <template #default="{ row }">{{ row.subCategoryName || '-' }}</template>
         </el-table-column>
-        <el-table-column :label="t('admin.specType.table.createdAt')" min-width="160">
+        <el-table-column :label="t('admin.specType.table.createdAt')" width="148">
           <template #default="{ row }">{{ formatDate(row.createdAt) }}</template>
         </el-table-column>
-        <el-table-column :label="t('admin.specType.table.actions')" width="180" fixed="right">
+        <el-table-column :label="t('admin.specType.table.actions')" width="132" fixed="right">
           <template #default="{ row }">
             <el-button link type="primary" size="small" @click="openEdit(row)">
               {{ t('admin.specType.actions.edit') }}

@@ -17,10 +17,10 @@
         <el-table-column :label="t('admin.addonCategory.table.name')" min-width="160">
           <template #default="{ row }">{{ row.displayName }}</template>
         </el-table-column>
-        <el-table-column :label="t('admin.addonCategory.table.updatedAt')" min-width="180">
+        <el-table-column :label="t('admin.addonCategory.table.updatedAt')" width="156">
           <template #default="{ row }">{{ formatDate(row.updatedAt) }}</template>
         </el-table-column>
-        <el-table-column :label="t('admin.addonCategory.table.actions')" width="180" fixed="right">
+        <el-table-column :label="t('admin.addonCategory.table.actions')" width="132" fixed="right">
           <template #default="{ row }">
             <el-button link type="primary" size="small" @click="openEdit(row)">
               {{ t('admin.addonCategory.actions.edit') }}

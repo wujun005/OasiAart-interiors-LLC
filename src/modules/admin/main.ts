@@ -2,7 +2,7 @@ import { createApp } from 'vue';
 import App from './App.vue';
 import router from './router';
 import '@/modules/client/style/index.scss';
-import ElementPlus from 'element-plus';
+import ElementPlus, { ElSelect } from 'element-plus';
 import 'element-plus/dist/index.css';
 import { createI18n } from 'vue-i18n';
 import {
@@ -25,6 +25,14 @@ const i18n = createI18n({
 });
 
 document.documentElement.lang = locale;
+
+const selectProps = ElSelect.props as Record<string, any>;
+const filterableProp = selectProps?.filterable;
+if (filterableProp === Boolean) {
+  selectProps.filterable = { type: Boolean, default: true };
+} else if (filterableProp && typeof filterableProp === 'object') {
+  filterableProp.default = true;
+}
 
 const bootstrap = async () => {
   clearLegacyAuthState();
