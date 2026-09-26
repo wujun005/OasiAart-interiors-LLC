@@ -1,7 +1,7 @@
 <template>
-  <div class="admin-page" :class="{ 'admin-page--orders-h5': isOrdersH5 }">
+  <div class="admin-page" :class="{ 'admin-page--orders-h5': isOrdersH5, 'admin-page--supplier': isSupplierPortal }">
     <el-container class="layout">
-      <el-aside v-if="!isOrdersH5" width="216px" class="sidebar">
+      <el-aside v-if="!isOrdersH5" width="248px" class="sidebar">
         <div class="logo">{{ brandLabel }}</div>
         <el-menu
           :default-active="activeMenu"
@@ -85,6 +85,7 @@ import {
 
 const route = useRoute();
 const isOrdersH5 = computed(() => route.name === 'admin-orders-h5');
+const isSupplierPortal = computed(() => route.path.startsWith('/admin/supplier-management'));
 const router = useRouter();
 const { t, locale } = useI18n({ useScope: 'global' });
 const currentLocale = ref<AdminLocale>(locale.value === 'en' ? 'en' : 'zh');
@@ -236,30 +237,81 @@ loadAdminMenuPermissions().catch((error) => {
 </script>
 
 <style scoped>
+@import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,520;9..144,620&family=Sora:wght@400;500;600&display=swap');
 .admin-page {
+  --el-color-primary: #05152b;
+  --el-color-primary-light-3: #3a4a60;
+  --el-color-primary-light-5: #6d7b8d;
+  --el-color-primary-light-7: #b7c0cb;
+  --el-color-primary-light-8: #d7dde4;
+  --el-color-primary-light-9: #eef1f4;
+  --el-color-primary-dark-2: #020912;
   min-height: 100vh;
-  background: #f6f7fb;
+  background: #efeae2;
+  color: #05152b;
+  font-family: Sora, "PingFang SC", "Segoe UI", sans-serif;
 }
 .layout {
   height: 100vh;
 }
 .sidebar {
-  background: #1f2d3d;
-  color: #fff;
   display: flex;
   flex-direction: column;
+  color: #f6f1e8;
+  background:
+    radial-gradient(90% 28% at 0% 0%, rgba(232, 194, 122, 0.18), transparent 46%),
+    #05152b;
 }
 .logo {
-  height: 60px;
-  line-height: 60px;
-  text-align: center;
-  font-weight: 600;
-  letter-spacing: 1px;
-  border-bottom: 1px solid #273849;
+  height: auto;
+  padding: 28px 22px 8px;
+  line-height: 1.1;
+  text-align: left;
+  color: #f6f1e8;
+  font-family: Fraunces, Georgia, serif;
+  font-size: 26px;
+  font-weight: 520;
+  letter-spacing: -0.03em;
+  border-bottom: 0;
+}
+.logo::after {
+  content: "";
+  display: block;
+  width: 36px;
+  height: 1px;
+  margin-top: 16px;
+  background: #e8c27a;
 }
 .menu {
-  border-right: none;
   flex: 1;
+  padding: 10px 12px 28px;
+  background: transparent;
+  border-right: 0;
+}
+.admin-page :deep(.el-menu) {
+  background: transparent;
+  border-right: 0;
+}
+.admin-page :deep(.el-menu-item),
+.admin-page :deep(.el-sub-menu__title) {
+  height: 42px;
+  margin: 2px 0;
+  border-radius: 12px;
+  color: #d7d0c4;
+  background: transparent;
+}
+.admin-page :deep(.el-menu-item:hover),
+.admin-page :deep(.el-sub-menu__title:hover) {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.06);
+}
+.admin-page :deep(.el-menu-item.is-active) {
+  color: #05152b;
+  background: #f4efe6;
+  font-weight: 600;
+}
+.admin-page :deep(.el-sub-menu .el-menu) {
+  background: transparent;
 }
 .menu-empty {
   margin: 12px;
@@ -273,24 +325,61 @@ loadAdminMenuPermissions().catch((error) => {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  background: #fff;
-  border-bottom: 1px solid #f0f0f0;
-  padding: 0 20px;
+  height: 64px;
+  padding: 0 22px;
+  background: rgba(247, 243, 236, 0.92);
+  border-bottom: 1px solid #e4d9c8;
+  backdrop-filter: blur(10px);
 }
 .breadcrumb {
-  font-size: 16px;
-  font-weight: 600;
+  color: #05152b;
+  font-family: Fraunces, Georgia, serif;
+  font-size: 26px;
+  font-weight: 520;
+  letter-spacing: -0.03em;
 }
 .actions {
   display: flex;
   align-items: center;
   gap: 10px;
 }
+.actions :deep(.el-button) {
+  color: #05152b;
+  background: transparent;
+  border-color: #d8cbb8;
+  border-radius: 10px;
+}
+.actions :deep(.el-select__wrapper) {
+  background: transparent;
+  box-shadow: 0 0 0 1px #d8cbb8 inset;
+}
 .lang-switcher {
   width: 110px;
 }
 .content {
-  padding: 12px;
+  padding: 18px 22px 28px;
+  background:
+    radial-gradient(80% 40% at 100% 0%, rgba(232, 194, 122, 0.16), transparent 42%),
+    #efeae2;
+}
+.admin-page:not(.admin-page--orders-h5) .content :deep(.el-card) {
+  background: #fffdf8;
+  border: 1px solid #e6dccb;
+  border-radius: 18px;
+  box-shadow: none;
+}
+.admin-page:not(.admin-page--orders-h5) .content :deep(.el-table) {
+  --el-table-header-bg-color: #f7f3ec;
+  --el-table-header-text-color: #74685a;
+  --el-table-row-hover-bg-color: #fbf8f3;
+  --el-table-bg-color: transparent;
+  --el-table-tr-bg-color: transparent;
+  color: #05152b;
+}
+.admin-page:not(.admin-page--orders-h5) .content :deep(.el-button--primary) {
+  color: #f7f1e6;
+  background: #05152b;
+  border-color: #05152b;
 }
 .admin-page--orders-h5 {
   max-width: 100%;
@@ -320,7 +409,16 @@ loadAdminMenuPermissions().catch((error) => {
   width: 78px;
 }
 .admin-page--orders-h5 .breadcrumb {
+  position: static;
+  width: auto;
+  height: auto;
+  overflow: hidden;
+  clip: auto;
+  color: #05152b;
+  font-family: Sora, "PingFang SC", sans-serif;
   font-size: 15px;
+  font-weight: 600;
+  letter-spacing: 0;
 }
 .admin-page--orders-h5 .actions .el-button:first-of-type {
   display: none;
@@ -328,5 +426,18 @@ loadAdminMenuPermissions().catch((error) => {
 .admin-page--orders-h5 .content {
   padding: 0;
   background: #f4f6f8;
+}
+.admin-page--supplier .header {
+  justify-content: flex-end;
+}
+.admin-page--supplier .breadcrumb {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+}
+.admin-page--supplier .content {
+  padding: 0;
 }
 </style>

@@ -69,6 +69,11 @@ const routes: RouteRecordRaw[] = [
     component: () => import('@/modules/client/pages/join-us.vue'),
   },
   {
+    path: '/join-us/apply',
+    name: 'supplier-onboarding',
+    component: () => import('@/modules/client/pages/supplier-onboarding.vue'),
+  },
+  {
     path: '/faq',
     name: 'faq',
     component: () => import('@/modules/client/pages/faq.vue'),

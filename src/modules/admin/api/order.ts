@@ -106,10 +106,10 @@ export function querySuppliers(payload: any) {
   return http.post('/api/supplier/query', payload);
 }
 
-// 更新订单供应商；supplierId 为空时解除分配
+// 更新订单供应商。supplierIds 覆盖本单全部分配，空数组表示解除分配。
 export function updateSupplier(payload: {
   orderId: number;
-  supplierId?: number | string | null;
+  supplierIds: Array<number | string>;
 }) {
   return http.post('/api/orderHeader/updateSupplier', payload);
 }

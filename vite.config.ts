@@ -58,6 +58,7 @@ export default defineConfig(({ mode }) => {
         '/client-api': {
           target: clientProxyTarget,
           changeOrigin: true,
+          prependPath: false,
           rewrite: (path) => path.replace(/^\/client-api/, ''),
         },
         '/api': {

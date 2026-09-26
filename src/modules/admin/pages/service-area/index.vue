@@ -2,8 +2,8 @@
   <div class="area-admin">
     <header class="area-admin__head">
       <div>
-        <h1>服务区域</h1>
-        <p>维护迪拜服务区域和每个区域下的社区。供应商工作台只勾选区域。</p>
+        <h1>服务区域管理</h1>
+        <p>维护迪拜服务区域和每个区域下的社区。供应商工作台只回显并调整已勾选的区域。</p>
       </div>
     </header>
 
@@ -44,7 +44,6 @@
         <div class="pane__bar">
           <strong>{{ currentArea?.name || '请选择左侧区域' }}</strong>
           <div>
-            <el-button :disabled="!currentArea" @click="batchVisible = true">批量新增社区</el-button>
             <el-button type="primary" :disabled="!currentArea" @click="openCommunity()">新增社区</el-button>
           </div>
         </div>
@@ -106,14 +105,6 @@
       </template>
     </el-dialog>
 
-    <el-dialog v-model="batchVisible" title="批量新增社区" width="480px">
-      <p class="hint">一行一个社区名称。同一区域里不能重名。</p>
-      <el-input v-model="batchNames" type="textarea" :rows="8" placeholder="DIFC&#10;Business Bay" />
-      <template #footer>
-        <el-button @click="batchVisible = false">取消</el-button>
-        <el-button type="primary" :loading="saving" @click="submitBatch">保存</el-button>
-      </template>
-    </el-dialog>
   </div>
 </template>
 
@@ -121,7 +112,6 @@
 import { onMounted, reactive, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
-  batchSaveCommunities,
   changeAreaStatus,
   changeCommunityStatus,
   deleteArea,
@@ -143,8 +133,6 @@ const communityTotal = ref(0)
 const saving = ref(false)
 const areaVisible = ref(false)
 const communityVisible = ref(false)
-const batchVisible = ref(false)
-const batchNames = ref('')
 const areaForm = reactive({ id: 0, name: '', sort: 0 })
 const communityForm = reactive({ id: 0, name: '', sort: 0 })
 
@@ -269,25 +257,6 @@ const submitCommunity = async () => {
   }
 }
 
-const submitBatch = async () => {
-  if (!currentArea.value) return
-  const names = batchNames.value.split(/\n/).map((item) => item.trim()).filter(Boolean)
-  if (!names.length) return ElMessage.warning('请至少填写一个社区')
-  saving.value = true
-  try {
-    await batchSaveCommunities({ areaId: currentArea.value.id, names })
-    batchVisible.value = false
-    batchNames.value = ''
-    ElMessage.success('社区已新增')
-    await loadCommunities()
-    await loadAreas()
-  } catch (error: any) {
-    ElMessage.error(error?.message || '批量新增失败')
-  } finally {
-    saving.value = false
-  }
-}
-
 const toggleCommunityStatus = async (row: any, enabled: boolean) => {
   try {
     await changeCommunityStatus({ id: row.id, status: enabled ? 1 : 0 })
@@ -324,6 +293,5 @@ onMounted(loadAreas)
 .pane { padding: 14px; background: #fff; border: 1px solid #e7ebf2; border-radius: 14px; }
 .pane__bar { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 12px; }
 .pane__bar .el-input { width: 180px; }
-.hint { margin: 0 0 10px; color: #6d7686; font-size: 13px; }
 @media (max-width: 980px) { .area-admin__board { grid-template-columns: 1fr; } }
 </style>

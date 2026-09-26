@@ -45,14 +45,9 @@ const routes: RouteRecordRaw[] = [
       {
         path: 'supplier-management',
         component: () => import('@/modules/admin/pages/basic/Layout.vue'),
-        redirect: '/admin/supplier-management/overview',
+        redirect: (to) => ({ path: '/admin/supplier-management/profile', query: to.query }),
         children: [
-          {
-            path: 'overview',
-            name: 'admin-supplier-overview',
-            component: () => import('@/modules/admin/pages/supplier-management/index.vue'),
-            props: { section: 'overview' },
-          },
+          { path: 'overview', redirect: (to) => ({ path: '/admin/supplier-management/profile', query: to.query }) },
           {
             path: 'profile',
             name: 'admin-supplier-profile',
@@ -65,18 +60,8 @@ const routes: RouteRecordRaw[] = [
             component: () => import('@/modules/admin/pages/supplier-management/index.vue'),
             props: { section: 'service-area' },
           },
-          {
-            path: 'staff',
-            name: 'admin-supplier-staff',
-            component: () => import('@/modules/admin/pages/supplier-management/index.vue'),
-            props: { section: 'staff' },
-          },
-          {
-            path: 'schedule',
-            name: 'admin-supplier-schedule',
-            component: () => import('@/modules/admin/pages/supplier-management/index.vue'),
-            props: { section: 'schedule' },
-          },
+          { path: 'staff', redirect: (to) => ({ path: '/admin/supplier-management/profile', query: to.query }) },
+          { path: 'schedule', redirect: (to) => ({ path: '/admin/supplier-management/profile', query: to.query }) },
           {
             path: 'orders',
             name: 'admin-supplier-orders',
@@ -89,12 +74,7 @@ const routes: RouteRecordRaw[] = [
             component: () => import('@/modules/admin/pages/supplier-management/index.vue'),
             props: { section: 'pricing' },
           },
-          {
-            path: 'settlement',
-            name: 'admin-supplier-settlement',
-            component: () => import('@/modules/admin/pages/supplier-management/index.vue'),
-            props: { section: 'settlement' },
-          },
+          { path: 'settlement', redirect: (to) => ({ path: '/admin/supplier-management/profile', query: to.query }) },
         ],
       },
       {

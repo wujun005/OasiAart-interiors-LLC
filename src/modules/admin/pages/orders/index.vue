@@ -414,7 +414,7 @@
         <el-table-column
           prop="supplierName"
           :label="t('admin.orders.table.supplierName')"
-          width="110"
+          min-width="160"
         >
           <template #default="{ row }">
             <div class="supplier-cell">
@@ -1309,9 +1309,12 @@
           </span>
         </p>
         <el-select
-          v-model="assignForm.supplierId"
+          v-model="assignForm.supplierIds"
+          multiple
           filterable
           clearable
+          collapse-tags
+          collapse-tags-tooltip
           :loading="supplierLoading"
           :placeholder="t('admin.orders.form.supplierPlaceholder')"
           popper-class="orders-h5-select"
@@ -1361,10 +1364,13 @@
         </el-form-item>
         <el-form-item :label="t('admin.orders.form.supplier')">
           <el-select
-            v-model="assignForm.supplierId"
+            v-model="assignForm.supplierIds"
+            multiple
             filterable
             remote
             clearable
+            collapse-tags
+            collapse-tags-tooltip
             :remote-method="loadSupplierOptions"
             :loading="supplierLoading"
             :placeholder="t('admin.orders.form.supplierPlaceholder')"
@@ -1466,6 +1472,7 @@ type OrderRow = {
   rescheduleChanges: RescheduleChangeItem[]
   supplierId: number | string | null
   supplierName: string
+  suppliers: SupplierOption[]
   productName: string
   adminRemark: string
   specDescText: string
@@ -1608,7 +1615,7 @@ const query = reactive({
   productIds: [] as number[],
   serviceTimeRange: [] as string[],
   orderStatuses: [] as number[],
-  paymentStatuses: [] as number[],
+  paymentStatuses: (isOrdersH5.value ? [1] : []) as number[],
   rescheduleFilter: "ALL" as RescheduleFilter,
   serviceTimeSort: "" as ServiceTimeSort,
   pageNum: 1,
@@ -1694,7 +1701,7 @@ const supplierOptions = ref<SupplierOption[]>([])
 const assignForm = reactive({
   orderId: null as number | null,
   orderNo: "",
-  supplierId: null as number | string | null,
+  supplierIds: [] as Array<number | string>,
 })
 const assignSupplierPreview = ref({ supplierName: "", contactInfo: "" })
 
@@ -2587,6 +2594,82 @@ const deDuplicateCustomerName = (value: unknown) => {
   return parts.join(" ")
 }
 
+const parseAssignedSupplierList = (value: unknown): SupplierOption[] => {
+  let source = value
+  if (typeof source === "string" && source.trim()) {
+    try {
+      source = JSON.parse(source)
+    } catch {
+      return []
+    }
+  }
+  if (!Array.isArray(source)) return []
+  const seen = new Set<string>()
+  const suppliers: SupplierOption[] = []
+  source.forEach((entry) => {
+    if (!entry || typeof entry !== "object") return
+    const item = entry as Record<string, unknown>
+    const id = item.supplierId ?? item.id
+    if (id === null || id === undefined || id === "") return
+    const key = String(id)
+    if (seen.has(key)) return
+    seen.add(key)
+    suppliers.push({
+      id: id as number | string,
+      supplierName: String(item.supplierName ?? item.name ?? "").trim(),
+    })
+  })
+  return suppliers
+}
+
+const resolveAssignedSuppliers = (
+  order: any,
+  item: any,
+  supplierNameI18n: I18nText,
+) => {
+  const fallbackId =
+    order.supplierId ??
+    item.supplierId ??
+    order.supplier?.id ??
+    item.supplier?.id ??
+    null
+  const fallbackName = pickI18nValue(
+    supplierNameI18n,
+    String(
+      order.supplierName ??
+        item.supplierName ??
+        order.supplier?.supplierName ??
+        item.supplier?.supplierName ??
+        order.supplier?.name ??
+        item.supplier?.name ??
+        "",
+    ).trim(),
+  )
+  const assigned = parseAssignedSupplierList(
+    order.assignedSuppliers ?? item.assignedSuppliers,
+  )
+  const existing = Array.isArray(order.suppliers)
+    ? (order.suppliers as SupplierOption[])
+    : []
+  const suppliers = assigned.length
+    ? assigned
+    : existing.length
+      ? existing
+      : fallbackId
+        ? [{ id: fallbackId, supplierName: fallbackName }]
+        : []
+  const supplierName =
+    suppliers
+      .map((supplier) => supplier.supplierName)
+      .filter(Boolean)
+      .join("、") || fallbackName
+  return {
+    supplierId: suppliers[0]?.id ?? fallbackId ?? null,
+    supplierName,
+    suppliers,
+  }
+}
+
 const parseOrderRow = (item: any): OrderRow => {
   const order = item?.order ?? item?.orderHeader ?? item ?? {}
   const orderId = normalizeOrderId(
@@ -2751,24 +2834,7 @@ const parseOrderRow = (item: any): OrderRow => {
     rescheduleChanges: parseRescheduleChanges(
       order.rescheduleChanges ?? item.rescheduleChanges,
     ),
-    supplierId:
-      order.supplierId ??
-      item.supplierId ??
-      order.supplier?.id ??
-      item.supplier?.id ??
-      null,
-    supplierName: pickI18nValue(
-      supplierNameI18n,
-      String(
-        order.supplierName ??
-          item.supplierName ??
-          order.supplier?.supplierName ??
-          item.supplier?.supplierName ??
-          order.supplier?.name ??
-          item.supplier?.name ??
-          "",
-      ).trim(),
-    ),
+    ...resolveAssignedSuppliers(order, item, supplierNameI18n),
     productName: pickI18nValue(
       productNameI18n,
       String(
@@ -3208,13 +3274,17 @@ const loadSupplierOptions = async (keyword = "") => {
       ...(supplierName ? { supplierName } : {}),
     })
     const nextOptions = normalizeSupplierOptions(res)
-    const currentOption = supplierOptions.value.find(
-      (item) => item.id === assignForm.supplierId,
+    const selectedIds = new Set(assignForm.supplierIds.map((id) => String(id)))
+    const kept = supplierOptions.value.filter((item) =>
+      selectedIds.has(String(item.id)),
     )
-    supplierOptions.value =
-      currentOption && !nextOptions.some((item) => item.id === currentOption.id)
-        ? [currentOption, ...nextOptions]
-        : nextOptions
+    const merged = [...kept]
+    nextOptions.forEach((item) => {
+      if (!merged.some((option) => String(option.id) === String(item.id))) {
+        merged.push(item)
+      }
+    })
+    supplierOptions.value = merged
   } catch (error: any) {
     ElMessage.error(
       error?.message || t("admin.orders.message.supplierFetchFailed"),
@@ -3274,24 +3344,26 @@ const openAssignDialog = async (row: OrderRow) => {
   bulkAssignMode.value = false
   bulkAssignTargets.value = []
   assignTarget.value = row
+  const suppliers = row.suppliers?.length
+    ? row.suppliers
+    : row.supplierId
+      ? [{ id: row.supplierId, supplierName: row.supplierName }]
+      : []
   assignForm.orderId = row.orderId
   assignForm.orderNo = row.orderNo
-  assignForm.supplierId = row.supplierId
+  assignForm.supplierIds = suppliers.map((supplier) => supplier.id)
   assignSupplierPreview.value = {
     supplierName: row.supplierName || "",
     contactInfo: "",
   }
-  supplierOptions.value =
-    row.supplierId && row.supplierName
-      ? [{ id: row.supplierId, supplierName: row.supplierName }]
-      : []
+  supplierOptions.value = suppliers.filter((supplier) => supplier.supplierName)
   assignDialogVisible.value = true
   await loadSupplierOptions()
-  if (!row.supplierId) return
+  if (suppliers.length !== 1 || !suppliers[0]?.id) return
   try {
     assignSupplierPreview.value = normalizeSupplierCopyInfo(
-      await getSupplierDetail(row.supplierId),
-      row.supplierName,
+      await getSupplierDetail(suppliers[0].id),
+      suppliers[0].supplierName,
     )
   } catch {
     assignSupplierPreview.value = {
@@ -3316,7 +3388,7 @@ const openBulkAssignDialog = async () => {
   bulkAssignTargets.value = targets
   assignForm.orderId = null
   assignForm.orderNo = ""
-  assignForm.supplierId = null
+  assignForm.supplierIds = []
   supplierOptions.value = []
   assignDialogVisible.value = true
   await loadSupplierOptions()
@@ -3347,17 +3419,45 @@ const submitSupplierAssignment = async () => {
   }
   assignSubmitting.value = true
   try {
-    const supplierId =
-      assignForm.supplierId === "" ? null : assignForm.supplierId
+    const supplierIds = assignForm.supplierIds
+      .map((id) => Number(id))
+      .filter((id) => Number.isFinite(id))
+    const selectedSuppliers = supplierIds.map((id) => {
+      const matched = supplierOptions.value.find(
+        (item) => Number(item.id) === id,
+      )
+      return {
+        id,
+        supplierName: matched?.supplierName || "",
+      }
+    })
+    const supplierName = selectedSuppliers
+      .map((supplier) => supplier.supplierName)
+      .filter(Boolean)
+      .join("、")
+    const applySelection = (row: OrderRow): OrderRow => ({
+      ...row,
+      supplierId: selectedSuppliers[0]?.id ?? null,
+      supplierName,
+      suppliers: selectedSuppliers,
+    })
     if (bulkAssignMode.value) {
       const results = await Promise.allSettled(
         bulkAssignTargets.value.map((row) =>
-          updateSupplier({ orderId: row.orderId as number, supplierId }),
+          updateSupplier({
+            orderId: row.orderId as number,
+            supplierIds,
+          }),
         ),
       )
-      const failed = results.filter(
-        (result) => result.status === "rejected",
-      ).length
+      const failedIds = new Set(
+        results.flatMap((result, index) =>
+          result.status === "rejected"
+            ? [bulkAssignTargets.value[index]?.orderId]
+            : [],
+        ),
+      )
+      const failed = failedIds.size
       const success = results.length - failed
       if (failed === 0) {
         ElMessage.success(
@@ -3370,38 +3470,47 @@ const submitSupplierAssignment = async () => {
       } else {
         ElMessage.error(t("admin.orders.message.assignFailed"))
       }
+      assignDialogVisible.value = false
+      await fetchOrders()
+      orders.value = orders.value.map((row) =>
+        targets.some((target) => target.orderId === row.orderId) &&
+        !failedIds.has(row.orderId)
+          ? applySelection(row)
+          : row,
+      )
     } else {
       await updateSupplier({
         orderId: assignForm.orderId as number,
-        supplierId,
+        supplierIds,
       })
       ElMessage.success(
         t(
-          supplierId === null
-            ? "admin.orders.message.unassignSuccess"
-            : "admin.orders.message.assignSuccess",
+          supplierIds.length
+            ? "admin.orders.message.assignSuccess"
+            : "admin.orders.message.unassignSuccess",
         ),
       )
+      assignDialogVisible.value = false
+      await fetchOrders()
+      orders.value = orders.value.map((row) =>
+        targets.some((target) => target.orderId === row.orderId)
+          ? applySelection(row)
+          : row,
+      )
     }
-    assignDialogVisible.value = false
-    await fetchOrders()
     const current = detailRow.value
     if (
       current?.orderId &&
       targets.some((row) => row.orderId === current.orderId)
     ) {
       const fresh = orders.value.find((row) => row.orderId === current.orderId)
-      const selected = supplierOptions.value.find(
-        (item) => item.id === supplierId,
-      )
-      detailRow.value = {
-        ...current,
-        supplierId: fresh?.supplierId ?? supplierId,
-        supplierName:
-          fresh?.supplierName ||
-          (supplierId === null
-            ? ""
-            : selected?.supplierName || current.supplierName),
+      if (fresh) {
+        detailRow.value = {
+          ...current,
+          supplierId: fresh.supplierId,
+          supplierName: fresh.supplierName,
+          suppliers: fresh.suppliers,
+        }
       }
     }
   } catch (error: any) {

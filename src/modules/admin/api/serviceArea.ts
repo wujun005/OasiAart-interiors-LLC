@@ -26,10 +26,6 @@ export async function saveCommunity(payload: Record<string, unknown>) {
   return unwrap(await http.post('/api/platform/serviceArea/community/save', payload));
 }
 
-export async function batchSaveCommunities(payload: { areaId: number; names: string[] }) {
-  return unwrap(await http.post('/api/platform/serviceArea/community/batchSave', payload));
-}
-
 export async function changeCommunityStatus(payload: { id: number; status: number }) {
   return unwrap(await http.post('/api/platform/serviceArea/community/changeStatus', payload));
 }

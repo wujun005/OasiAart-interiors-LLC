@@ -43,7 +43,14 @@ type AdminMenuPermissionState = {
 const ROOT_PATH = '/admin';
 const LOGIN_PATH = '/admin/login';
 const SUPPLIER_MANAGEMENT_PATH = '/admin/supplier-management';
+const HIDDEN_SUPPLIER_PATHS = new Set([
+  `${SUPPLIER_MANAGEMENT_PATH}/overview`,
+  `${SUPPLIER_MANAGEMENT_PATH}/staff`,
+  `${SUPPLIER_MANAGEMENT_PATH}/schedule`,
+  `${SUPPLIER_MANAGEMENT_PATH}/settlement`,
+]);
 const SERVICE_AREA_ADMIN_PATH = '/admin/basic/service-areas';
+const SUPPLIER_ADMIN_PATH = '/admin/basic/suppliers';
 
 const findMenuByPath = (
   list: AdminMenuPermissionItem[],
@@ -57,12 +64,31 @@ const findMenuByPath = (
   return undefined;
 };
 
+const attachSupplierAdminMenu = (roots: AdminMenuPermissionItem[]) => {
+  if (findMenuByPath(roots, SUPPLIER_ADMIN_PATH)) return;
+  const basic = findMenuByPath(roots, '/admin/basic');
+  const item: AdminMenuPermissionItem = {
+    id: 'local-basic-suppliers',
+    name: 'Supplier Management',
+    path: SUPPLIER_ADMIN_PATH,
+    icon: 'user',
+    parentId: basic?.id || 0,
+    sortOrder: 70,
+    children: [],
+  };
+  if (basic) {
+    basic.children.push(item);
+    return;
+  }
+  roots.push(item);
+};
+
 const attachServiceAreaMenu = (roots: AdminMenuPermissionItem[]) => {
   if (findMenuByPath(roots, SERVICE_AREA_ADMIN_PATH)) return;
   const basic = findMenuByPath(roots, '/admin/basic');
   const item: AdminMenuPermissionItem = {
     id: 'local-service-areas',
-    name: 'Service Areas',
+    name: 'Service Area Management',
     path: SERVICE_AREA_ADMIN_PATH,
     icon: 'location',
     parentId: basic?.id || 0,
@@ -85,21 +111,12 @@ const createSupplierManagementMenu = (): AdminMenuPermissionItem => ({
   sortOrder: 40,
   children: [
     {
-      id: 'local-supplier-overview',
-      name: 'Dashboard & Earnings',
-      path: `${SUPPLIER_MANAGEMENT_PATH}/overview`,
-      icon: 'data-analysis',
-      parentId: 'local-supplier-management',
-      sortOrder: 1,
-      children: [],
-    },
-    {
       id: 'local-supplier-profile',
       name: 'Company Profile',
       path: `${SUPPLIER_MANAGEMENT_PATH}/profile`,
       icon: 'document',
       parentId: 'local-supplier-management',
-      sortOrder: 2,
+      sortOrder: 1,
       children: [],
     },
     {
@@ -109,24 +126,6 @@ const createSupplierManagementMenu = (): AdminMenuPermissionItem => ({
       icon: 'location',
       parentId: 'local-supplier-management',
       sortOrder: 3,
-      children: [],
-    },
-    {
-      id: 'local-supplier-staff',
-      name: 'Staff',
-      path: `${SUPPLIER_MANAGEMENT_PATH}/staff`,
-      icon: 'user-filled',
-      parentId: 'local-supplier-management',
-      sortOrder: 5,
-      children: [],
-    },
-    {
-      id: 'local-supplier-schedule',
-      name: 'Schedule',
-      path: `${SUPPLIER_MANAGEMENT_PATH}/schedule`,
-      icon: 'calendar',
-      parentId: 'local-supplier-management',
-      sortOrder: 6,
       children: [],
     },
     {
@@ -147,17 +146,19 @@ const createSupplierManagementMenu = (): AdminMenuPermissionItem => ({
       sortOrder: 4,
       children: [],
     },
-    {
-      id: 'local-supplier-settlement',
-      name: 'Earnings & Settlement',
-      path: `${SUPPLIER_MANAGEMENT_PATH}/settlement`,
-      icon: 'wallet',
-      parentId: 'local-supplier-management',
-      sortOrder: 8,
-      children: [],
-    },
   ],
 });
+
+const stripHiddenSupplierMenus = (nodes: AdminMenuPermissionItem[]) => {
+  for (let index = nodes.length - 1; index >= 0; index -= 1) {
+    const node = nodes[index];
+    if (node.path && HIDDEN_SUPPLIER_PATHS.has(node.path)) {
+      nodes.splice(index, 1);
+      continue;
+    }
+    if (node.children?.length) stripHiddenSupplierMenus(node.children);
+  }
+};
 
 export const adminMenuState = reactive<AdminMenuPermissionState>({
   loaded: false,
@@ -330,7 +331,9 @@ const hydrateMenuState = (list: RawMenuItem[]) => {
   if (!hasSupplierManagementMenu) {
     prunedRoots.push(createSupplierManagementMenu());
   }
+  attachSupplierAdminMenu(prunedRoots);
   attachServiceAreaMenu(prunedRoots);
+  stripHiddenSupplierMenus(prunedRoots);
   sortMenus(prunedRoots);
 
   const flat = flattenMenus(prunedRoots, []);

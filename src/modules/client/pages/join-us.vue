@@ -41,6 +41,9 @@
             {{ pageCopy.joinTitleLine2 }}
           </h2>
           <p>{{ pageCopy.joinDesc }}</p>
+          <RouterLink class="join-apply" :to="{ name: 'supplier-onboarding' }">
+            {{ pageCopy.applyCta }}
+          </RouterLink>
           <div class="join-partner__contact">
             <strong>{{ pageCopy.joinContactLabel }}</strong>
             <a :href="`mailto:${joinEmail}`">
@@ -93,6 +96,7 @@ const pageCopy = computed(() =>
       joinTitleLine2: '服务合作伙伴',
       joinDesc:
         '如果您是在迪拜运营、拥有专业自有团队的服务公司，欢迎与 HourX 合作，共同拓展业务。',
+      applyCta: '填写入驻问卷',
       joinContactLabel: '联系 HourX：',
     }
     : {
@@ -111,6 +115,7 @@ const pageCopy = computed(() =>
       joinTitleLine2: 'Service Partner',
       joinDesc:
         'Are you a Dubai-based service company with your own professional team? Partner with HourX and grow your business.',
+      applyCta: 'Start onboarding',
       joinContactLabel: 'Contact HourX:',
     },
 );
@@ -166,12 +171,17 @@ const valueItems = computed<JoinValue[]>(() =>
 
 .join-hero {
   width: 100%;
+  height: clamp(220px, 32vw, 420px);
+  overflow: hidden;
+  background: #05152b;
 }
 
 .join-hero > img {
   display: block;
   width: 100%;
-  height: auto;
+  height: 100%;
+  object-fit: cover;
+  object-position: center 36%;
 }
 
 .join-main {
@@ -305,6 +315,24 @@ const valueItems = computed<JoinValue[]>(() =>
   font-size: 18px;
   line-height: 1.6;
   max-width: 860px;
+}
+
+.join-apply {
+  display: inline-flex;
+  align-items: center;
+  height: 48px;
+  margin-top: 28px;
+  padding: 0 22px;
+  border-radius: 12px;
+  background: var(--hourx-brand);
+  color: #f7f1e6;
+  text-decoration: none;
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.join-apply:hover {
+  background: var(--hourx-brand-hover);
 }
 
 .join-partner__contact {
