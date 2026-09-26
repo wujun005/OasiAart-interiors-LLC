@@ -765,8 +765,8 @@ const removeBannerTags = (idx: number) => {
   transition: color 0.2s, background-color 0.2s, transform 0.2s;
 }
 .category-sort-handle:hover {
-  background: #eef5ff;
-  color: #1769c2;
+  background: var(--hx-ivory-150, #f4eee4);
+  color: var(--hx-champagne-600, #a97b38);
 }
 .category-sort-handle:active {
   cursor: grabbing;
@@ -782,8 +782,8 @@ const removeBannerTags = (idx: number) => {
   fill: currentColor;
 }
 :deep(.el-table__body tr.category-sort-row--target > td.el-table__cell) {
-  background: #eaf4ff !important;
-  box-shadow: inset 0 2px 0 #409eff;
+  background: #f7f0e3 !important;
+  box-shadow: inset 0 2px 0 var(--hx-champagne-500, #cfa45c);
 }
 .icon-thumb {
   width: 40px;

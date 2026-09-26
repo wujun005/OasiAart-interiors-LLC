@@ -4364,7 +4364,7 @@ onMounted(() => {
   font-size: 12px;
 }
 .order-detail__schedule strong {
-  color: #1769c2;
+  color: var(--hx-champagne-600, #a97b38);
   font-size: 15px;
 }
 .order-detail__line-items {

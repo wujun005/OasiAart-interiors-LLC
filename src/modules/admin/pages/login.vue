@@ -1,6 +1,14 @@
 <template>
   <div class="admin-auth" :class="{ 'is-english': currentLocale === 'en' }">
     <aside class="admin-auth__visual">
+      <img
+        class="visual-backdrop"
+        :src="assetCommandCenter"
+        alt=""
+        aria-hidden="true"
+        decoding="async"
+        fetchpriority="high"
+      />
       <div class="visual-grid" aria-hidden="true" />
 
       <div class="brand-lockup">
@@ -185,6 +193,10 @@ const form = reactive({
 });
 
 const assetLogo = '/assets/images/client/hourx-mark.svg';
+const assetCommandCenter = new URL(
+  '@/assets/images/admin/operations-command-center.webp',
+  import.meta.url,
+).href;
 const assetLocale = new URL('@/assets/images/client/Icon (8).png', import.meta.url).href;
 const assetAccount = new URL('@/assets/images/client/Icon (3).png', import.meta.url).href;
 const assetFeature1 = new URL('@/assets/images/client/icon.png', import.meta.url).href;
@@ -292,14 +304,19 @@ const handleLocaleChange = (lang: AdminLocale) => {
 
 <style scoped lang="scss">
 .admin-auth {
-  --auth-ink: #071a32;
-  --auth-muted: #65758b;
-  --auth-line: #dce4ed;
+  --auth-ink: #08182b;
+  --auth-muted: #6d716f;
+  --auth-line: #dfd8cc;
+  --auth-navy: #07192d;
+  --auth-navy-deep: #020b15;
+  --auth-ivory: #f8f4ec;
+  --auth-champagne: #d6b66f;
+  --auth-champagne-light: #efd9a2;
   position: relative;
   min-height: 100vh;
   display: grid;
   grid-template-columns: minmax(500px, 46%) minmax(540px, 54%);
-  background: #f7f9fc;
+  background: var(--auth-ivory);
   color: var(--auth-ink);
   font-family: Inter, Manrope, "SF Pro Display", "Segoe UI", Arial, sans-serif;
 }
@@ -313,49 +330,62 @@ const handleLocaleChange = (lang: AdminLocale) => {
   display: flex;
   flex-direction: column;
   isolation: isolate;
-  color: #fff;
-  background:
-    radial-gradient(circle at 91% 5%, rgba(121, 233, 211, 0.29), transparent 31%),
-    radial-gradient(circle at 2% 96%, rgba(35, 140, 183, 0.23), transparent 34%),
-    linear-gradient(145deg, #0b2b4d 0%, #061c36 43%, #041326 100%);
+  color: #fffaf0;
+  background: var(--auth-navy-deep);
 }
 
 .admin-auth__visual::before,
 .admin-auth__visual::after {
   content: '';
   position: absolute;
-  z-index: -1;
-  border-radius: 999px;
   pointer-events: none;
 }
 
 .admin-auth__visual::before {
-  width: 340px;
-  height: 340px;
-  top: -190px;
-  right: -110px;
-  border: 1px solid rgba(190, 250, 237, 0.28);
-  box-shadow: 0 0 0 54px rgba(190, 250, 237, 0.035), 0 0 0 108px rgba(190, 250, 237, 0.025);
+  z-index: -3;
+  inset: 0;
+  background:
+    radial-gradient(circle at 86% 18%, rgba(219, 183, 111, 0.2), transparent 30%),
+    linear-gradient(90deg, rgba(2, 11, 21, 0.96) 0%, rgba(4, 18, 34, 0.85) 48%, rgba(4, 18, 34, 0.5) 100%),
+    linear-gradient(180deg, rgba(2, 10, 19, 0.14) 0%, rgba(2, 10, 19, 0.56) 100%);
 }
 
 .admin-auth__visual::after {
-  width: 250px;
-  height: 250px;
-  left: -150px;
-  bottom: -120px;
-  background: rgba(127, 231, 211, 0.15);
-  filter: blur(6px);
+  z-index: -1;
+  width: 360px;
+  height: 360px;
+  left: -190px;
+  bottom: -190px;
+  border-radius: 50%;
+  background: rgba(214, 182, 111, 0.14);
+  filter: blur(10px);
+  animation: ambient-pulse 8s ease-in-out infinite alternate;
+}
+
+.visual-backdrop {
+  position: absolute;
+  z-index: -4;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: 69% center;
+  filter: saturate(0.82) contrast(1.06) brightness(0.84);
+  transform: scale(1.04);
+  animation: visual-drift 18s ease-in-out infinite alternate;
+  pointer-events: none;
+  user-select: none;
 }
 
 .visual-grid {
   position: absolute;
   inset: 0;
   z-index: -2;
-  opacity: 0.26;
+  opacity: 0.16;
   background-image:
-    linear-gradient(rgba(255, 255, 255, 0.045) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(255, 255, 255, 0.045) 1px, transparent 1px);
-  background-size: 48px 48px;
+    linear-gradient(rgba(239, 217, 162, 0.09) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(239, 217, 162, 0.09) 1px, transparent 1px);
+  background-size: 56px 56px;
   -webkit-mask-image: linear-gradient(to bottom, #000, transparent 78%);
   mask-image: linear-gradient(to bottom, #000, transparent 78%);
 }
@@ -367,8 +397,8 @@ const handleLocaleChange = (lang: AdminLocale) => {
   right: -6%;
   bottom: -78px;
   height: 270px;
-  opacity: 0.42;
-  background-image: radial-gradient(circle, rgba(85, 232, 216, 0.65) 1px, transparent 1.35px);
+  opacity: 0.3;
+  background-image: radial-gradient(circle, rgba(239, 217, 162, 0.7) 1px, transparent 1.35px);
   background-size: 13px 13px;
   transform: skewY(-5deg);
   -webkit-mask-image: linear-gradient(to bottom, transparent 5%, #000 52%, transparent 96%);
@@ -383,6 +413,8 @@ const handleLocaleChange = (lang: AdminLocale) => {
   line-height: 1;
   font-weight: 760;
   letter-spacing: -0.02em;
+  color: #fffaf0;
+  text-shadow: 0 2px 20px rgba(0, 0, 0, 0.28);
 }
 
 .brand-lockup__mark {
@@ -391,8 +423,9 @@ const handleLocaleChange = (lang: AdminLocale) => {
   border-radius: 13px;
   display: grid;
   place-items: center;
-  background: #fff;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
+  border: 1px solid rgba(239, 217, 162, 0.44);
+  background: #fffaf0;
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.28);
 }
 
 .brand-lockup__mark img {
@@ -411,7 +444,7 @@ const handleLocaleChange = (lang: AdminLocale) => {
   display: inline-flex;
   align-items: center;
   gap: 9px;
-  color: #baf7e9;
+  color: var(--auth-champagne-light);
   font-size: 11px;
   font-weight: 750;
   letter-spacing: 0.15em;
@@ -422,7 +455,8 @@ const handleLocaleChange = (lang: AdminLocale) => {
   width: 30px;
   height: 2px;
   border-radius: 2px;
-  background: #75dec9;
+  background: var(--auth-champagne);
+  box-shadow: 0 0 14px rgba(214, 182, 111, 0.42);
 }
 
 .visual-content h1 {
@@ -432,10 +466,12 @@ const handleLocaleChange = (lang: AdminLocale) => {
   line-height: 1.1;
   font-weight: 780;
   letter-spacing: -0.045em;
+  color: #fffaf0;
+  text-shadow: 0 12px 34px rgba(0, 0, 0, 0.28);
 }
 
 .visual-content h1 span {
-  color: #baf7e9;
+  color: var(--auth-champagne-light);
 }
 
 .admin-auth.is-english .visual-content h1 {
@@ -452,7 +488,7 @@ const handleLocaleChange = (lang: AdminLocale) => {
 
 .visual-content > p {
   margin: 25px 0 0;
-  color: rgba(235, 246, 255, 0.68);
+  color: rgba(255, 250, 240, 0.7);
   font-size: 15px;
   line-height: 1.7;
   letter-spacing: 0.025em;
@@ -480,16 +516,18 @@ const handleLocaleChange = (lang: AdminLocale) => {
   flex: 0 0 46px;
   display: grid;
   place-items: center;
-  border: 1px solid rgba(138, 231, 216, 0.2);
+  border: 1px solid rgba(239, 217, 162, 0.3);
   border-radius: 12px;
-  background: rgba(186, 247, 233, 0.065);
+  background: rgba(255, 250, 240, 0.075);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  backdrop-filter: blur(10px);
 }
 
 .feature-panel__icon img {
   width: 23px;
   height: 23px;
   object-fit: contain;
+  filter: sepia(0.72) saturate(0.74) brightness(1.23);
 }
 
 .feature-panel__copy {
@@ -508,11 +546,12 @@ const handleLocaleChange = (lang: AdminLocale) => {
   font-size: 14px;
   line-height: 1.4;
   font-weight: 730;
+  color: #fffaf0;
 }
 
 .feature-panel small {
   margin-top: 4px;
-  color: rgba(235, 246, 255, 0.56);
+  color: rgba(255, 250, 240, 0.55);
   font-size: 12px;
   line-height: 1.35;
 }
@@ -521,7 +560,7 @@ const handleLocaleChange = (lang: AdminLocale) => {
   display: flex;
   align-items: center;
   gap: 9px;
-  color: rgba(235, 246, 255, 0.45);
+  color: rgba(239, 217, 162, 0.62);
   font-size: 11.5px;
   line-height: 1.5;
 }
@@ -549,8 +588,9 @@ const handleLocaleChange = (lang: AdminLocale) => {
   align-items: center;
   justify-content: center;
   background:
-    linear-gradient(rgba(247, 249, 252, 0.91), rgba(247, 249, 252, 0.91)),
-    radial-gradient(circle at center, #fff 0%, #edf3f9 100%);
+    radial-gradient(circle at 84% 12%, rgba(214, 182, 111, 0.13), transparent 29%),
+    radial-gradient(circle at 14% 88%, rgba(7, 25, 45, 0.07), transparent 34%),
+    linear-gradient(145deg, #fbf8f2 0%, #f2ede4 100%);
 }
 
 .admin-auth__halo {
@@ -561,7 +601,7 @@ const handleLocaleChange = (lang: AdminLocale) => {
   top: 50%;
   transform: translate(-50%, -48%);
   border-radius: 50%;
-  background: radial-gradient(circle, rgba(174, 239, 226, 0.18) 0%, rgba(220, 240, 247, 0.085) 48%, transparent 70%);
+  background: radial-gradient(circle, rgba(225, 198, 139, 0.16) 0%, rgba(255, 252, 246, 0.18) 45%, transparent 70%);
   pointer-events: none;
 }
 
@@ -576,25 +616,25 @@ const handleLocaleChange = (lang: AdminLocale) => {
   height: 42px;
   min-width: 112px;
   padding: 0 15px;
-  border: 1px solid #dce5ed;
+  border: 1px solid #ded5c7;
   border-radius: 999px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 8px;
-  background: rgba(255, 255, 255, 0.86);
-  color: #526277;
+  background: rgba(255, 253, 248, 0.88);
+  color: #4d5660;
   font-size: 13.5px;
   font-weight: 650;
   cursor: pointer;
-  box-shadow: 0 5px 18px rgba(17, 42, 70, 0.05);
+  box-shadow: 0 6px 20px rgba(7, 25, 45, 0.07);
   backdrop-filter: blur(14px);
   transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
 }
 
 .locale-pill:hover {
-  border-color: #bdcad8;
-  box-shadow: 0 8px 24px rgba(17, 42, 70, 0.09);
+  border-color: #c9ad72;
+  box-shadow: 0 9px 26px rgba(7, 25, 45, 0.11);
   transform: translateY(-1px);
 }
 
@@ -619,14 +659,24 @@ const handleLocaleChange = (lang: AdminLocale) => {
   width: min(100%, 540px);
   box-sizing: border-box;
   padding: 34px 40px 28px;
-  border: 1px solid rgba(218, 227, 237, 0.92);
+  overflow: hidden;
+  border: 1px solid rgba(222, 213, 198, 0.94);
   border-radius: 22px;
-  background: rgba(255, 255, 255, 0.92);
+  background: rgba(255, 253, 248, 0.93);
   box-shadow:
-    0 30px 76px rgba(25, 51, 79, 0.085),
-    0 3px 10px rgba(25, 51, 79, 0.04),
-    inset 0 1px 0 #fff;
+    0 34px 82px rgba(7, 25, 45, 0.11),
+    0 4px 12px rgba(7, 25, 45, 0.045),
+    inset 0 1px 0 #fffdf8;
   backdrop-filter: blur(24px);
+  animation: card-enter 0.68s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.login-card::before {
+  content: '';
+  position: absolute;
+  inset: 0 15% auto;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, rgba(214, 182, 111, 0.9), transparent);
 }
 
 .login-card__header {
@@ -642,9 +692,10 @@ const handleLocaleChange = (lang: AdminLocale) => {
   border-radius: 50%;
   display: grid;
   place-items: center;
-  color: #0d5d58;
-  background: linear-gradient(145deg, #ddf8f2 0%, #bcecdf 100%);
-  box-shadow: 0 8px 20px rgba(47, 154, 139, 0.15);
+  border: 1px solid rgba(214, 182, 111, 0.62);
+  color: var(--auth-champagne-light);
+  background: linear-gradient(145deg, #102c49 0%, #06172a 100%);
+  box-shadow: 0 10px 24px rgba(7, 25, 45, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.12);
 }
 
 .login-card__badge svg {
@@ -689,7 +740,7 @@ const handleLocaleChange = (lang: AdminLocale) => {
 .form-field__label {
   display: block;
   margin-bottom: 7px;
-  color: #26384d;
+  color: #243246;
   font-size: 13.5px;
   line-height: 1.4;
   font-weight: 700;
@@ -700,20 +751,20 @@ const handleLocaleChange = (lang: AdminLocale) => {
   height: 54px;
   box-sizing: border-box;
   padding: 0 14px;
-  border: 1px solid #cfd9e4;
+  border: 1px solid #d7d0c5;
   border-radius: 10px;
   display: flex;
   align-items: center;
   gap: 11px;
-  background: #f9fbfd;
-  box-shadow: inset 0 1px 2px rgba(23, 47, 73, 0.02);
+  background: #fbf8f2;
+  box-shadow: inset 0 1px 2px rgba(7, 25, 45, 0.025);
   transition: border-color 0.2s ease, background 0.2s ease, box-shadow 0.2s ease;
 }
 
 .form-field__control:focus-within {
-  border-color: #3d8a85;
-  background: #fff;
-  box-shadow: 0 0 0 4px rgba(71, 158, 150, 0.11);
+  border-color: #b58a3d;
+  background: #fffdf8;
+  box-shadow: 0 0 0 4px rgba(181, 138, 61, 0.12);
 }
 
 .form-field__control > img,
@@ -726,7 +777,7 @@ const handleLocaleChange = (lang: AdminLocale) => {
 
 .form-field__leading {
   fill: none;
-  stroke: #91a6bf;
+  stroke: #9d8d73;
   stroke-width: 1.8;
   stroke-linecap: round;
   stroke-linejoin: round;
@@ -738,13 +789,13 @@ const handleLocaleChange = (lang: AdminLocale) => {
   border: 0;
   outline: 0;
   background: transparent;
-  color: #13263d;
+  color: #12243a;
   font: inherit;
   font-size: 14.5px;
 }
 
 .form-field__control input::placeholder {
-  color: #93a3b6;
+  color: #9b9a95;
 }
 
 .password-toggle {
@@ -757,14 +808,14 @@ const handleLocaleChange = (lang: AdminLocale) => {
   display: grid;
   place-items: center;
   background: transparent;
-  color: #7c8da2;
+  color: #887f73;
   cursor: pointer;
   transition: color 0.2s ease, background 0.2s ease;
 }
 
 .password-toggle:hover {
   color: var(--auth-ink);
-  background: #edf2f7;
+  background: #efe9df;
 }
 
 .password-toggle svg {
@@ -789,7 +840,7 @@ const handleLocaleChange = (lang: AdminLocale) => {
   display: inline-flex;
   align-items: center;
   gap: 7px;
-  color: #287b6e;
+  color: #8b692e;
   font-size: 12.5px;
   font-weight: 600;
 }
@@ -798,15 +849,15 @@ const handleLocaleChange = (lang: AdminLocale) => {
   width: 7px;
   height: 7px;
   border-radius: 50%;
-  background: #31ae8d;
-  box-shadow: 0 0 0 4px rgba(49, 174, 141, 0.1);
+  background: #c39a4f;
+  box-shadow: 0 0 0 4px rgba(195, 154, 79, 0.12);
 }
 
 .text-button {
   border: 0;
   padding: 0;
   background: transparent;
-  color: #123f61;
+  color: #183a5c;
   font-size: 12.5px;
   font-weight: 700;
   cursor: pointer;
@@ -820,7 +871,7 @@ const handleLocaleChange = (lang: AdminLocale) => {
   width: 100%;
   height: 56px;
   margin-top: 27px;
-  border: 0;
+  border: 1px solid rgba(214, 182, 111, 0.34);
   border-radius: 10px;
   padding: 0 20px;
   display: flex;
@@ -830,8 +881,8 @@ const handleLocaleChange = (lang: AdminLocale) => {
   overflow: hidden;
   position: relative;
   color: #fff;
-  background: linear-gradient(135deg, #0b2d4f 0%, #06182d 100%);
-  box-shadow: 0 13px 26px rgba(6, 29, 53, 0.2);
+  background: linear-gradient(135deg, #153a5d 0%, #071a30 52%, #030e1b 100%);
+  box-shadow: 0 14px 28px rgba(3, 17, 33, 0.24), inset 0 1px 0 rgba(255, 255, 255, 0.09);
   font-size: 16px;
   font-weight: 720;
   letter-spacing: 0.02em;
@@ -843,7 +894,7 @@ const handleLocaleChange = (lang: AdminLocale) => {
   content: '';
   position: absolute;
   inset: 0;
-  background: linear-gradient(110deg, transparent 20%, rgba(186, 247, 233, 0.16) 55%, transparent 85%);
+  background: linear-gradient(110deg, transparent 20%, rgba(239, 217, 162, 0.24) 55%, transparent 85%);
   transform: translateX(-100%);
   transition: transform 0.55s ease;
 }
@@ -851,7 +902,7 @@ const handleLocaleChange = (lang: AdminLocale) => {
 .submit-button:hover:not(:disabled) {
   transform: translateY(-1px);
   filter: brightness(1.08);
-  box-shadow: 0 17px 31px rgba(6, 29, 53, 0.24);
+  box-shadow: 0 18px 34px rgba(3, 17, 33, 0.29), 0 0 0 1px rgba(214, 182, 111, 0.12);
 }
 
 .submit-button:hover:not(:disabled)::before {
@@ -895,7 +946,7 @@ const handleLocaleChange = (lang: AdminLocale) => {
 .login-card__footer {
   margin-top: 26px;
   padding-top: 19px;
-  border-top: 1px solid #e8edf2;
+  border-top: 1px solid #ebe4d9;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -911,7 +962,7 @@ const handleLocaleChange = (lang: AdminLocale) => {
   height: 14px;
   flex: 0 0 14px;
   fill: none;
-  stroke: #5d9d91;
+  stroke: #b28a45;
   stroke-width: 1.8;
   stroke-linecap: round;
   stroke-linejoin: round;
@@ -921,7 +972,7 @@ const handleLocaleChange = (lang: AdminLocale) => {
   position: relative;
   z-index: 1;
   margin: 22px 0 0;
-  color: #99a6b5;
+  color: #8d8c87;
   font-size: 10px;
   line-height: 1.5;
   letter-spacing: 0.055em;
@@ -930,6 +981,21 @@ const handleLocaleChange = (lang: AdminLocale) => {
 
 @keyframes spin {
   to { transform: rotate(360deg); }
+}
+
+@keyframes visual-drift {
+  from { transform: scale(1.04) translate3d(-0.4%, 0, 0); }
+  to { transform: scale(1.085) translate3d(0.65%, -0.45%, 0); }
+}
+
+@keyframes ambient-pulse {
+  from { opacity: 0.58; transform: scale(0.94); }
+  to { opacity: 1; transform: scale(1.08); }
+}
+
+@keyframes card-enter {
+  from { opacity: 0; transform: translateY(14px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
 @media (max-width: 1120px) {
@@ -964,12 +1030,16 @@ const handleLocaleChange = (lang: AdminLocale) => {
   .admin-auth {
     display: block;
     min-height: 100vh;
-    background: #f7f9fc;
+    background: var(--auth-ivory);
   }
 
   .admin-auth__visual {
     min-height: 228px;
     padding: 24px 28px 36px;
+  }
+
+  .visual-backdrop {
+    object-position: 70% 57%;
   }
 
   .brand-lockup {
@@ -1031,9 +1101,9 @@ const handleLocaleChange = (lang: AdminLocale) => {
   .locale-pill {
     height: 36px;
     min-width: 92px;
-    border-color: rgba(255, 255, 255, 0.22);
-    background: rgba(255, 255, 255, 0.1);
-    color: #fff;
+    border-color: rgba(239, 217, 162, 0.34);
+    background: rgba(4, 18, 34, 0.42);
+    color: #fffaf0;
     box-shadow: none;
   }
 
@@ -1099,6 +1169,29 @@ const handleLocaleChange = (lang: AdminLocale) => {
 
   .page-signature {
     margin-top: 18px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .visual-backdrop,
+  .admin-auth__visual::after,
+  .login-card,
+  .submit-button__spinner {
+    animation: none;
+  }
+
+  .locale-pill,
+  .form-field__control,
+  .password-toggle,
+  .submit-button,
+  .submit-button::before {
+    transition: none;
+  }
+
+  .locale-pill:hover,
+  .submit-button:hover:not(:disabled),
+  .submit-button:active:not(:disabled) {
+    transform: none;
   }
 }
 </style>

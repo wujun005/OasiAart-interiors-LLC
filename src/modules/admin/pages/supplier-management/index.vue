@@ -1364,7 +1364,6 @@ watch(section, (value) => {
 </script>
 
 <style scoped>
-@import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,520;9..144,620&family=Sora:wght@400;500;600&display=swap');
 .supplier-demo {
   --ink: #05152b;
   --muted: #74685a;

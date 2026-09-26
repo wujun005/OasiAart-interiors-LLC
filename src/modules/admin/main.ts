@@ -1,9 +1,9 @@
 import { createApp } from 'vue';
 import App from './App.vue';
 import router from './router';
-import '@/modules/client/style/index.scss';
 import ElementPlus, { ElSelect } from 'element-plus';
 import 'element-plus/dist/index.css';
+import '@/modules/admin/style/index.scss';
 import { createI18n } from 'vue-i18n';
 import {
   adminMessages,

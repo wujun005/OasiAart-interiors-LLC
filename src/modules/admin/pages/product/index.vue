@@ -2747,8 +2747,8 @@ watch(
   transition: color 0.2s, background-color 0.2s, transform 0.2s;
 }
 .product-sort-handle:hover {
-  background: #eef5ff;
-  color: #1769c2;
+  background: var(--hx-ivory-150, #f4eee4);
+  color: var(--hx-champagne-600, #a97b38);
 }
 .product-sort-handle:active {
   cursor: grabbing;
@@ -2764,8 +2764,8 @@ watch(
   fill: currentColor;
 }
 :deep(.el-table__body tr.product-sort-row--target > td.el-table__cell) {
-  background: #eaf4ff !important;
-  box-shadow: inset 0 2px 0 #409eff;
+  background: #f7f0e3 !important;
+  box-shadow: inset 0 2px 0 var(--hx-champagne-500, #cfa45c);
 }
 .thumbs {
   display: flex;
@@ -2936,8 +2936,8 @@ watch(
   transition: border-color 0.2s, box-shadow 0.2s, opacity 0.2s, transform 0.2s;
 }
 .product-image-card:hover {
-  border-color: #409eff;
-  box-shadow: 0 8px 22px rgba(64, 158, 255, 0.18);
+  border-color: var(--hx-champagne-500, #cfa45c);
+  box-shadow: 0 8px 22px rgba(169, 123, 56, 0.18);
 }
 .product-image-card:active {
   cursor: grabbing;
@@ -2947,8 +2947,8 @@ watch(
   transform: scale(0.96);
 }
 .product-image-card.is-drag-over {
-  border-color: #1769c2;
-  box-shadow: 0 0 0 3px rgba(23, 105, 194, 0.18);
+  border-color: var(--hx-champagne-600, #a97b38);
+  box-shadow: 0 0 0 3px rgba(169, 123, 56, 0.18);
 }
 .product-image-card > img {
   width: 100%;
@@ -2977,7 +2977,8 @@ watch(
 }
 .product-image-card__cover {
   left: 8px;
-  background: #1769c2;
+  color: #fffaf0;
+  background: linear-gradient(135deg, var(--hx-champagne-600, #a97b38), #79521f);
 }
 .product-image-card__order {
   right: 8px;
@@ -3018,7 +3019,7 @@ watch(
 }
 .product-image-card__drag {
   margin-right: auto;
-  color: #1769c2;
+  color: var(--hx-champagne-600, #a97b38);
   font-size: 18px;
   cursor: grab;
 }
@@ -3027,7 +3028,7 @@ watch(
 }
 .product-image-card__actions button:hover:not(:disabled) {
   background: #fff;
-  color: #1769c2;
+  color: var(--hx-champagne-600, #a97b38);
 }
 .product-image-card__actions button.is-remove:hover:not(:disabled) {
   color: #f56c6c;
