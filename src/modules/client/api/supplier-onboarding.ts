@@ -3,37 +3,7 @@ import { getClientLocale } from '@/modules/client/locales';
 
 const clientBase = import.meta.env.VITE_CLIENT_API_BASE_URL || '/client-api';
 
-export type NameI18n = Record<string, string> | null | undefined;
-
-export type OnboardingServiceItem = {
-  spuId: number;
-  spuName: string;
-  nameI18n?: NameI18n;
-  available?: boolean;
-};
-
-export type OnboardingServiceGroup = {
-  categoryId: number;
-  categoryName: string;
-  nameI18n?: NameI18n;
-  available?: boolean;
-  services: OnboardingServiceItem[];
-};
-
-export type OnboardingArea = {
-  id: number;
-  name: string;
-  status?: number;
-};
-
 export type OnboardingApplyPayload = Record<string, unknown>;
-
-export type OnboardingSubmitResult = {
-  id?: number;
-  account: string;
-  password: string;
-  existing: boolean;
-};
 
 const headers = () => ({ language: getClientLocale() });
 
@@ -56,44 +26,11 @@ const readError = (error: unknown) => {
   return error instanceof Error ? error : new Error('Request failed');
 };
 
-export async function fetchOnboardingServices() {
-  try {
-    const { data } = await axios.get(`${clientBase}/client/supplier/onboarding/services`, { headers: headers() });
-    return unwrap<OnboardingServiceGroup[]>(data) || [];
-  } catch (error) {
-    throw readError(error);
-  }
-}
-
-export async function fetchOnboardingAreas() {
-  try {
-    const { data } = await axios.get(`${clientBase}/client/supplier/onboarding/areas`, { headers: headers() });
-    return unwrap<OnboardingArea[]>(data) || [];
-  } catch (error) {
-    throw readError(error);
-  }
-}
-
 export async function submitOnboarding(payload: OnboardingApplyPayload) {
   try {
     const { data } = await axios.post(`${clientBase}/client/supplier/onboarding/submit`, payload, { headers: headers() });
-    const body = unwrap<unknown>(data);
-    if (typeof body === 'number') {
-      return { id: body, account: '', password: '', existing: false };
-    }
-    const result = (body && typeof body === 'object' ? body : {}) as {
-      id?: number;
-      account?: string | null;
-      password?: string | null;
-    };
-    const account = result.account?.trim() || '';
-    const password = result.password?.trim() || '';
-    return {
-      id: result.id,
-      account,
-      password,
-      existing: Boolean(account) && !password,
-    } satisfies OnboardingSubmitResult;
+    const id = unwrap<unknown>(data);
+    return typeof id === 'number' ? id : Number(id) || undefined;
   } catch (error) {
     throw readError(error);
   }

@@ -17,8 +17,8 @@
             @clear="search"
           />
           <el-select v-model="quoteStatus" filterable @change="search">
-            <el-option label="待审核报价" :value="1" />
             <el-option label="全部供应商" value="" />
+            <el-option label="待审核报价" :value="1" />
             <el-option label="报价草稿" :value="0" />
             <el-option label="报价已通过" :value="2" />
             <el-option label="报价已拒绝" :value="3" />
@@ -147,6 +147,12 @@
               <el-table :data="services" row-key="spuId" empty-text="这家供应商还没有勾选服务">
                 <el-table-column label="分类" min-width="120" prop="categoryName" />
                 <el-table-column label="服务" min-width="140" prop="spuName" />
+                <el-table-column label="可提供人数" width="110">
+                  <template #default="{ row }">{{ row.workerCount ?? '—' }}</template>
+                </el-table-column>
+                <el-table-column label="联系电话" min-width="160">
+                  <template #default="{ row }">{{ phoneSummary(row.contactPhones) }}</template>
+                </el-table-column>
                 <el-table-column label="版本" width="70">
                   <template #default="{ row }">{{ row.versionNo || '—' }}</template>
                 </el-table-column>
@@ -194,6 +200,9 @@
                 <div><dt>自有车辆</dt><dd>{{ yesNo(profile.ownTransportation) }}</dd></div>
                 <div><dt>自有设备</dt><dd>{{ yesNo(profile.ownEquipment) }}</dd></div>
                 <div><dt>可开税务发票</dt><dd>{{ yesNo(profile.taxInvoiceAvailable) }}</dd></div>
+                <div><dt>入驻过 Emaar 社区</dt><dd>{{ yesNo(profile.emaarOnboarded) }}</dd></div>
+                <div><dt>入驻过其他社区</dt><dd>{{ yesNo(profile.otherCommunityOnboarded) }}</dd></div>
+                <div><dt>其他社区说明</dt><dd>{{ text(profile.applyRenmark) }}</dd></div>
               </dl>
             </section>
 
@@ -222,23 +231,44 @@
       </div>
     </el-dialog>
 
-    <el-dialog v-model="skuOpen" :title="`${skuTitle} · 报价`" width="min(860px, calc(100vw - 32px))" append-to-body>
-      <p class="sku-meta">{{ quoteStatusLabel(skuStatus) }}<span v-if="skuRejectReason"> · {{ skuRejectReason }}</span></p>
+    <el-dialog v-model="skuOpen" :title="`${skuTitle} · 报价`" width="min(1080px, calc(100vw - 32px))" append-to-body>
+      <p class="sku-meta">
+        {{ quoteStatusLabel(skuStatus) }}
+        · {{ skuQuoteMode === 2 ? '单价计费' : skuQuoteMode === 1 ? '一口价' : '未选择模式' }}
+        <span v-if="skuQuoteMode === 2"> · 每人每小时 {{ moneyText(skuUnitPrice) }}</span>
+        <span v-if="skuRejectReason"> · {{ skuRejectReason }}</span>
+      </p>
       <el-table v-loading="skuLoading" :data="skuRows" row-key="skuId" empty-text="这个服务还没有规格">
-        <el-table-column v-for="column in skuColumns" :key="column.key" :label="column.label" min-width="140">
+        <el-table-column v-for="column in skuColumns" :key="column.key" :label="column.label" min-width="120">
           <template #default="{ row }">{{ row.specs[column.key] || '—' }}</template>
         </el-table-column>
-        <el-table-column v-if="!skuColumns.length" label="SKU" prop="skuCode" min-width="140" />
-        <el-table-column label="客户端价格" width="120">
+        <el-table-column v-if="!skuColumns.length" label="SKU" prop="skuCode" min-width="120" />
+        <el-table-column label="客户端价格" width="110">
           <template #default="{ row }">{{ moneyText(clientPrice(row)) }}</template>
         </el-table-column>
-        <el-table-column label="当前生效价格" width="130">
+        <el-table-column label="当前生效价格" width="120">
           <template #default="{ row }">{{ moneyText(row.approvedPrice) }}</template>
         </el-table-column>
-        <el-table-column label="本次报价" width="120">
+        <el-table-column label="服务人数" width="90">
+          <template #default="{ row }">{{ row.staffCount ?? '—' }}</template>
+        </el-table-column>
+        <el-table-column label="时长(小时)" width="100">
+          <template #default="{ row }">{{ row.serviceHours ?? '—' }}</template>
+        </el-table-column>
+        <el-table-column label="含税报价" width="110">
           <template #default="{ row }">{{ moneyText(row.quotePrice) }}</template>
         </el-table-column>
       </el-table>
+      <section v-if="skuAttaches.length" class="sku-attaches">
+        <h4>附加项</h4>
+        <div v-for="item in skuAttaches" :key="item.attachValueId" class="sku-attach">
+          <div>
+            <strong>{{ item.name }}</strong>
+            <small>{{ item.typeName }} · 平台价格 {{ moneyText(item.platformPrice) }} · 生效 {{ moneyText(item.approvedPrice) }}</small>
+          </div>
+          <span>{{ item.offered ? moneyText(item.quotePrice) : '不能提供' }}</span>
+        </div>
+      </section>
       <template #footer>
         <el-button @click="skuOpen = false">关闭</el-button>
         <el-button v-if="Number(skuStatus) === 1" :loading="saving" @click="approveQuote(skuTarget)">通过</el-button>
@@ -260,7 +290,7 @@
 import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { listBySpu } from '@/modules/admin/api/spu'
+import { listBySpu, listSpuAttachCatalog } from '@/modules/admin/api/spu'
 import { getAdminLocale } from '@/modules/admin/locales'
 import { pickI18nText } from '@/modules/admin/utils/i18n'
 import {
@@ -271,6 +301,7 @@ import {
   platformSupplierQuoteReview,
   platformSupplierQuoteServices,
   platformSupplierQuoteSkus,
+  serviceCatalog,
 } from '@/modules/admin/api/supplierWorkbench'
 
 type ServiceCategory = {
@@ -294,7 +325,7 @@ type SupplierRow = {
 const route = useRoute()
 const router = useRouter()
 const keyword = ref('')
-const quoteStatus = ref<number | ''>(1)
+const quoteStatus = ref<number | ''>('')
 const pageNum = ref(1)
 const pageSize = 10
 const total = ref(0)
@@ -378,6 +409,9 @@ const skuRejectReason = ref('')
 const skuTarget = ref<any>(null)
 const skuColumns = ref<{ key: string; label: string }[]>([])
 const skuRows = ref<any[]>([])
+const skuAttaches = ref<Array<{ attachValueId: number; typeName: string; name: string; platformPrice: unknown; approvedPrice: unknown; offered: boolean; quotePrice: unknown }>>([])
+const skuQuoteMode = ref<number | null>(null)
+const skuUnitPrice = ref<number | null>(null)
 
 const rejectOpen = ref(false)
 const rejectMode = ref<'quote' | 'onboarding'>('quote')
@@ -388,6 +422,11 @@ const unwrap = (res: any) => (res && typeof res === 'object' && 'data' in res ? 
 const quoteStatusLabel = (status?: number) => ['草稿', '待审核', '已通过', '已拒绝'][status ?? -1] || '未报价'
 const quoteTagType = (status?: number) => (Number(status) === 1 ? 'warning' : Number(status) === 2 ? 'success' : Number(status) === 3 ? 'danger' : 'info')
 const onboardingLabel = (status?: number) => ['草稿', '已提交', '已通过', '已驳回'][Number(status)] || '—'
+const phoneSummary = (phones?: string[]) => {
+  const list = (phones || []).map((phone) => String(phone || '').trim()).filter(Boolean)
+  if (!list.length) return '—'
+  return list.length === 1 ? list[0] : `${list[0]} 等 ${list.length} 个`
+}
 const moneyText = (value: unknown) => {
   if (value === null || value === undefined || value === '') return '—'
   const amount = Number(value)
@@ -470,16 +509,30 @@ const changePage = (page: number) => {
 const loadReview = async (supplierId: number) => {
   detailLoading.value = true
   try {
-    const [detail, serviceList] = await Promise.all([
+    const [detail, serviceList, catalog] = await Promise.all([
       onboardingDetail(supplierId),
       platformSupplierQuoteServices(supplierId),
+      serviceCatalog(supplierId).catch(() => null),
     ])
     const nextProfile = unwrap(detail) || {}
     Object.keys(profile).forEach((key) => delete profile[key])
     Object.assign(profile, nextProfile)
     onboarding.status = nextProfile.status
     onboarding.rejectReason = nextProfile.rejectReason || ''
-    services.value = unwrap(serviceList) || []
+    const selection = new Map<number, { workerCount?: number; contactPhones: string[] }>()
+    ;(unwrap(catalog) || []).forEach((group: any) => {
+      ;(group.services || []).forEach((service: any) => {
+        if (!service.selected) return
+        selection.set(Number(service.spuId), {
+          workerCount: service.workerCount,
+          contactPhones: Array.isArray(service.contactPhones) ? service.contactPhones : [],
+        })
+      })
+    })
+    services.value = (unwrap(serviceList) || []).map((row: any) => ({
+      ...row,
+      ...(selection.get(Number(row.spuId)) || {}),
+    }))
     current.value = {
       id: supplierId,
       supplierNo: nextProfile.supplierNo,
@@ -506,14 +559,14 @@ const backToList = () => {
 const approveOnboarding = async () => {
   if (!detailId.value) return
   try {
-    await ElMessageBox.confirm('通过后这家供应商会启用。', '通过入驻')
+    await ElMessageBox.confirm('通过后会启用这家供应商，并按手机号开通后台账号。新账号初始密码为 123456；该手机号已有后台账号时不重置密码。', '通过入驻')
   } catch {
     return
   }
   saving.value = true
   try {
     await onboardingChangeStatus({ id: detailId.value, status: 2 })
-    ElMessage.success('入驻已通过')
+    ElMessage.success('入驻已通过，后台账号已按手机号开通')
     await loadReview(detailId.value)
     await loadSuppliers()
   } catch (error: any) {
@@ -594,17 +647,23 @@ const openSkus = async (row: any) => {
   skuTitle.value = row.spuName || '服务'
   skuStatus.value = row.status
   skuRejectReason.value = row.rejectReason || ''
+  skuQuoteMode.value = null
+  skuUnitPrice.value = null
   skuColumns.value = []
   skuRows.value = []
+  skuAttaches.value = []
   skuOpen.value = true
   skuLoading.value = true
   try {
     const quote = unwrap(await platformSupplierQuoteSkus(detailId.value, row.spuId)) || {}
     skuStatus.value = quote.status ?? row.status
     skuRejectReason.value = quote.rejectReason || row.rejectReason || ''
+    skuQuoteMode.value = quote.quoteMode == null ? null : Number(quote.quoteMode)
+    skuUnitPrice.value = quote.unitPrice == null ? null : Number(quote.unitPrice)
     const quoted = new Map((quote.skus || []).map((sku: any) => [Number(sku.skuId), sku]))
     let columns: { key: string; label: string }[] = []
     let specSkus: any[] = []
+    let catalogAttaches: any[] = []
     try {
       const detail = unwrap(await listBySpu(row.spuId)) || {}
       const specTypes = Array.isArray(detail.specTypes) ? detail.specTypes : []
@@ -613,6 +672,7 @@ const openSkus = async (row: any) => {
         label: spec.specTypeName || specText(spec.nameI18n),
       }))
       specSkus = Array.isArray(detail.skus) ? detail.skus : []
+      catalogAttaches = Array.isArray(detail.attaches) ? detail.attaches : []
     } catch {
       columns = []
       specSkus = []
@@ -628,6 +688,33 @@ const openSkus = async (row: any) => {
         platformPrice: saved.platformPrice ?? sku.price,
         platformOriginalPrice: saved.platformOriginalPrice ?? sku.originalPrice,
         approvedPrice: saved.approvedPrice ?? null,
+        staffCount: saved.staffCount ?? null,
+        serviceHours: saved.serviceHours ?? null,
+        quotePrice: saved.quotePrice ?? null,
+      }
+    })
+    if (!catalogAttaches.length) {
+      try {
+        catalogAttaches = await listSpuAttachCatalog(row.spuId, catalogAttaches)
+      } catch {
+        catalogAttaches = []
+      }
+    }
+    const savedAttaches = new Map((Array.isArray(quote.attaches) ? quote.attaches : []).map((item: any) => [Number(item.attachValueId), item]))
+    const attachSource = catalogAttaches.length ? catalogAttaches : (Array.isArray(quote.attaches) ? quote.attaches : [])
+    skuAttaches.value = attachSource.map((item: any) => {
+      const saved = savedAttaches.get(Number(item.attachValueId)) || {}
+      const localized = (i18n: unknown, plain: unknown) => {
+        const text = specText(i18n)
+        return text !== '—' ? text : (plain ? String(plain) : '—')
+      }
+      return {
+        attachValueId: Number(item.attachValueId),
+        typeName: localized(saved.attachTypeNameI18n || item.attachTypeNameI18n, saved.attachTypeName || item.attachTypeName),
+        name: localized(saved.attachValueNameI18n || item.attachValueNameI18n, saved.attachValueName || item.attachValueName),
+        platformPrice: saved.platformPrice ?? item.platformPrice ?? null,
+        approvedPrice: saved.approvedPrice ?? null,
+        offered: saved.canServe === true,
         quotePrice: saved.quotePrice ?? null,
       }
     })
@@ -659,6 +746,12 @@ onMounted(loadSuppliers)
 .board :deep(.el-pagination) { justify-content: flex-end; margin-top: 12px; }
 .category-tags { display: flex; flex-wrap: wrap; gap: 4px; }
 .sku-meta { margin: 0 0 10px; color: #6d7686; font-size: 13px; }
+.sku-attaches { display: flex; flex-direction: column; gap: 8px; margin-top: 14px; }
+.sku-attaches h4 { margin: 0; font-size: 14px; }
+.sku-attach { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 12px; border: 1px solid #eadfce; border-radius: 10px; background: #fffdf8; }
+.sku-attach div { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.sku-attach small { color: #74685a; font-size: 12px; }
+.sku-attach span { flex: 0 0 auto; font-weight: 700; }
 .order-detail { min-height: 100%; color: #05152b; }
 .order-detail__hero { display: flex; align-items: flex-start; justify-content: space-between; gap: 24px; padding: 4px 2px 8px; }
 .order-detail__eyebrow { margin-bottom: 4px; color: #7a8494; font-size: 12px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; }

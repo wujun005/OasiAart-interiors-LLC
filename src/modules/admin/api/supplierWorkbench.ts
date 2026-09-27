@@ -70,6 +70,14 @@ export function supplierAssignedOrders(payload: Record<string, unknown> = {}) {
   return http.post('/api/orderHeader/supplier/mine', payload);
 }
 
+export function supplierArrive(payload: { orderId: number; photos?: string[]; remark?: string | null }) {
+  return http.post('/api/orderHeader/supplier/arrive', payload);
+}
+
+export function supplierComplete(payload: { orderId: number; photos?: string[]; remark?: string | null }) {
+  return http.post('/api/orderHeader/supplier/complete', payload);
+}
+
 export function uploadFile(file: File) {
   const formData = new FormData();
   formData.append('file', file);

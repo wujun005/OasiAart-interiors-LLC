@@ -379,8 +379,17 @@
           <el-table-column label="生效报价" width="120" align="right">
             <template #default="{ row }"><strong class="money-value">{{ orderMoney(row.quoteAmount) }}</strong></template>
           </el-table-column>
-          <el-table-column label="" width="80" align="right">
-            <template #default="{ row }"><el-button link type="primary" @click="openAssignedOrder(row)">详情</el-button></template>
+          <el-table-column :label="t('admin.supplierOrders.serviceStatus')" width="150">
+            <template #default="{ row }">
+              <el-tag :type="serviceStatusTag(row.serviceStatus)" effect="light">{{ serviceStatusText(row) }}</el-tag>
+            </template>
+          </el-table-column>
+          <el-table-column label="" min-width="220" align="right">
+            <template #default="{ row }">
+              <el-button v-if="Number(row.serviceStatus || 0) === 0" link type="primary" @click="openServiceAction(row, 'arrive')">{{ t('admin.supplierOrders.arriveAction') }}</el-button>
+              <el-button v-else-if="Number(row.serviceStatus) === 1" link type="primary" @click="openServiceAction(row, 'complete')">{{ t('admin.supplierOrders.completeAction') }}</el-button>
+              <el-button link type="primary" @click="openAssignedOrder(row)">详情</el-button>
+            </template>
           </el-table-column>
         </el-table>
         <div class="table-toolbar">
@@ -400,73 +409,199 @@
         <div>
           <span class="health-icon pending"><Clock /></span>
           <div>
-            <strong>{{ pendingQuoteCount }} 个服务报价正在审核</strong>
-            <p>按已勾选的服务报价。点报价填写各规格价格，保存草稿或提交审核。待审核期间不能改价。</p>
+            <strong>{{ t('admin.supplierPricing.pending', { count: pendingQuoteCount }) }}</strong>
+            <p>{{ t('admin.supplierPricing.hint') }}</p>
           </div>
         </div>
       </section>
-      <el-card class="surface-card pricing-card" shadow="never" v-loading="quoteLoading || catalogLoading">
+      <el-card class="surface-card pricing-card" shadow="never" v-loading="catalogLoading || quoteLoading">
         <div class="pricing-toolbar">
           <div class="pricing-filter">
-            <span>服务分类</span>
+            <span>{{ t('admin.supplierPricing.added') }}</span>
             <el-select v-model="quoteCategory" filterable>
-              <el-option label="全部服务" value="all" />
+              <el-option :label="t('admin.supplierPricing.allServices')" value="all" />
               <el-option v-for="category in serviceCategories" :key="category" :label="category" :value="category" />
             </el-select>
-            <small>共 {{ filteredServiceRows.length }} 项服务</small>
+            <el-input v-model="addedKeyword" clearable :placeholder="t('admin.supplierPricing.searchAdded')" />
+            <small>{{ t('admin.supplierPricing.count', { count: filteredServiceRows.length }) }}</small>
+          </div>
+          <div class="pricing-actions">
+            <el-button type="primary" :icon="Plus" :disabled="!supplierRecordId" @click="openServicePicker">{{ t('admin.supplierPricing.addService') }}</el-button>
           </div>
         </div>
-        <el-table :data="filteredServiceRows" class="data-table" row-key="spuId" empty-text="还没有可报价的服务，请先在入驻问卷里勾选服务">
-          <el-table-column label="分类" prop="category" min-width="160" />
-          <el-table-column label="服务" prop="name" min-width="240" />
-          <el-table-column label="人数" width="90">
+        <el-table :data="filteredServiceRows" class="data-table" row-key="spuId" :empty-text="t('admin.supplierPricing.empty')">
+          <el-table-column :label="t('admin.supplierPricing.category')" prop="category" min-width="140" />
+          <el-table-column :label="t('admin.supplierPricing.service')" prop="name" min-width="180" />
+          <el-table-column :label="t('admin.supplierPricing.headcount')" width="110">
             <template #default="{ row }">{{ row.workerCount ?? '—' }}</template>
           </el-table-column>
-          <el-table-column label="审核状态" width="120">
+          <el-table-column :label="t('admin.supplierPricing.phone')" min-width="180">
+            <template #default="{ row }">{{ phoneSummary(row.phones) }}</template>
+          </el-table-column>
+          <el-table-column :label="t('admin.supplierPricing.quoteMode')" width="130">
+            <template #default="{ row }">{{ quoteModeLabel(row.quoteMode) }}</template>
+          </el-table-column>
+          <el-table-column :label="t('admin.supplierPricing.reviewStatus')" width="120">
             <template #default="{ row }">
               <el-tag :type="quoteTagType(row.status)" effect="light">{{ quoteStatusLabel(row.status) }}</el-tag>
             </template>
           </el-table-column>
-          <el-table-column label="操作" width="100" fixed="right">
+          <el-table-column :label="t('admin.supplierPricing.actions')" width="200" fixed="right">
             <template #default="{ row }">
-              <el-button link type="primary" @click="openServiceQuote(row)">报价</el-button>
+              <el-button link type="primary" @click="openServiceQuote(row)">{{ t('admin.supplierPricing.quote') }}</el-button>
+              <el-button link type="primary" @click="openServiceEditor(row)">{{ t('admin.supplierPricing.edit') }}</el-button>
+              <el-button link type="danger" @click="removeAddedService(row)">{{ t('admin.supplierPricing.remove') }}</el-button>
             </template>
           </el-table-column>
         </el-table>
       </el-card>
 
-      <el-dialog v-model="quoteDialog.visible" :title="`${quoteDialog.name || '服务'} · 报价`" width="min(960px, calc(100vw - 32px))" :close-on-click-modal="false">
-        <p class="quote-dialog__meta">{{ quoteDialog.category }} · {{ quoteStatusLabel(quoteDialog.status) }}</p>
-        <p v-if="quoteDialog.rejectReason" class="rejected-copy">拒绝原因：{{ quoteDialog.rejectReason }}</p>
-        <p v-if="quoteLocked" class="pending-copy">待审核期间不能改价。</p>
-        <el-table v-loading="quoteDialog.loading" :data="quoteDialog.rows" class="data-table quote-spec-table" row-key="skuId" empty-text="这个服务还没有规格">
-          <el-table-column v-for="column in quoteDialog.columns" :key="column.key" :label="column.label" min-width="140">
-            <template #default="{ row }">{{ row.specs[column.key] || '—' }}</template>
-          </el-table-column>
-          <el-table-column v-if="!quoteDialog.columns.length" label="SKU" prop="skuCode" min-width="140" />
-          <el-table-column label="平台价" width="110">
-            <template #default="{ row }">{{ moneyText(row.platformPrice) }}</template>
-          </el-table-column>
-          <el-table-column label="生效报价" width="110">
-            <template #default="{ row }">{{ moneyText(row.approvedPrice) }}</template>
-          </el-table-column>
-          <el-table-column label="本次报价" width="170">
-            <template #default="{ row }">
-              <el-input-number
-                v-model="row.quotePrice"
-                :min="0"
-                :precision="2"
-                :disabled="quoteLocked || row.available === false"
-                controls-position="right"
+      <el-dialog v-model="servicePicker.open" :title="t('admin.supplierPricing.addService')" width="min(860px, calc(100vw - 32px))" :close-on-click-modal="false">
+        <p class="picker-note">{{ t('admin.supplierPricing.pickerNote') }}</p>
+        <div class="picker-toolbar">
+          <el-select v-model="servicePicker.categoryId" filterable clearable :placeholder="t('admin.supplierPricing.selectCategory')">
+            <el-option v-for="group in catalogDraft" :key="group.categoryId" :label="group.categoryName" :value="group.categoryId" />
+          </el-select>
+          <el-input v-model="servicePicker.keyword" clearable :placeholder="t('admin.supplierPricing.searchService')" />
+        </div>
+        <p v-if="!pickerReady" class="picker-hint">{{ t('admin.supplierPricing.pickerGate') }}</p>
+        <div v-else class="picker-list">
+          <div class="picker-list__bar">
+            <small>{{ t('admin.supplierPricing.shown', { count: pickerVisible.length }) }}<template v-if="servicePicker.drafts.length"> · {{ t('admin.supplierPricing.selected', { count: servicePicker.drafts.length }) }}</template></small>
+          </div>
+          <p v-if="!pickerVisible.length" class="picker-hint">{{ t('admin.supplierPricing.noMatch') }}</p>
+          <div v-for="service in pickerVisible" :key="pickKey(service)" class="picker-row" :class="{ 'is-added': service.added, 'is-open': draftOf(service) }">
+            <div class="picker-row__head">
+              <el-checkbox
+                :model-value="service.added || Boolean(draftOf(service))"
+                :disabled="service.added"
+                @change="(value) => togglePick(service, Boolean(value))"
               />
-              <small v-if="row.available === false" class="muted-text">停售</small>
-            </template>
-          </el-table-column>
-        </el-table>
+              <span class="picker-row__name">
+                <strong>{{ service.spuName }}</strong>
+                <small>{{ service.categoryName }}<template v-if="!service.available"> · {{ t('admin.supplierPricing.unavailable') }}</template></small>
+              </span>
+              <em v-if="service.added">{{ t('admin.supplierPricing.added') }}</em>
+            </div>
+            <div v-if="draftOf(service)" class="picker-row__fields">
+              <label>
+                <span>{{ t('admin.supplierPricing.headcount') }}</span>
+                <el-input-number v-model="draftOf(service)!.workerCount" :min="1" :precision="0" controls-position="right" />
+              </label>
+              <div class="phone-stack">
+                <span>{{ t('admin.supplierPricing.phone') }}</span>
+                <div v-for="(_phone, index) in draftOf(service)!.phones" :key="`${pickKey(service)}-${index}`" class="phone-row">
+                  <el-input v-model="draftOf(service)!.phones[index]" maxlength="24" placeholder="+971501234567" />
+                  <el-button v-if="draftOf(service)!.phones.length > 1" @click="removePhone(draftOf(service)!, index)">{{ t('admin.supplierPricing.delete') }}</el-button>
+                </div>
+                <el-button v-if="draftOf(service)!.phones.length < 10" link type="primary" @click="addPhone(draftOf(service)!)">{{ t('admin.supplierPricing.addPhone') }}</el-button>
+              </div>
+            </div>
+          </div>
+        </div>
         <template #footer>
-          <el-button @click="quoteDialog.visible = false">关闭</el-button>
-          <el-button :disabled="quoteLocked" :loading="quoteDialog.saving" @click="saveServiceQuote">保存草稿</el-button>
-          <el-button type="primary" :disabled="quoteLocked" :loading="quoteDialog.saving" @click="submitServiceQuote">提交审核</el-button>
+          <el-button @click="servicePicker.open = false">{{ t('admin.supplierPricing.cancel') }}</el-button>
+          <el-button type="primary" :loading="catalogSaving" @click="confirmAddServices">{{ t('admin.supplierPricing.addToList') }}</el-button>
+        </template>
+      </el-dialog>
+
+      <el-dialog v-model="serviceEditor.open" :title="t('admin.supplierPricing.editTitle', { name: serviceEditor.name || t('admin.supplierPricing.serviceFallback') })" width="min(560px, calc(100vw - 32px))" :close-on-click-modal="false">
+        <div class="picker-fields">
+          <label>
+            <span>{{ t('admin.supplierPricing.headcount') }}</span>
+            <el-input-number v-model="serviceEditor.workerCount" :min="1" :precision="0" controls-position="right" />
+          </label>
+          <div class="phone-stack">
+            <span>{{ t('admin.supplierPricing.phone') }}</span>
+            <div v-for="(_phone, index) in serviceEditor.phones" :key="`edit-${index}`" class="phone-row">
+              <el-input v-model="serviceEditor.phones[index]" maxlength="24" placeholder="+971501234567" />
+              <el-button v-if="serviceEditor.phones.length > 1" @click="removePhone(serviceEditor, index)">{{ t('admin.supplierPricing.delete') }}</el-button>
+            </div>
+            <el-button v-if="serviceEditor.phones.length < 10" link type="primary" @click="addPhone(serviceEditor)">{{ t('admin.supplierPricing.addPhone') }}</el-button>
+          </div>
+        </div>
+        <template #footer>
+          <el-button @click="serviceEditor.open = false">{{ t('admin.supplierPricing.cancel') }}</el-button>
+          <el-button type="primary" :loading="catalogSaving" @click="saveServiceEditor">{{ t('admin.supplierPricing.save') }}</el-button>
+        </template>
+      </el-dialog>
+
+      <el-dialog v-model="quoteDialog.visible" class="quote-dialog" :title="t('admin.supplierPricing.quoteTitle', { name: quoteDialog.name || t('admin.supplierPricing.serviceFallback') })" width="min(860px, calc(100vw - 32px))" :close-on-click-modal="false">
+        <p class="quote-dialog__meta">{{ quoteDialog.category }} · {{ quoteStatusLabel(quoteDialog.status) }} · {{ quoteModeLabel(quoteDialog.quoteMode ?? undefined) }}</p>
+        <p v-if="quoteDialog.rejectReason" class="rejected-copy">{{ t('admin.supplierPricing.rejectReason', { reason: quoteDialog.rejectReason }) }}</p>
+        <p v-if="quoteLocked" class="pending-copy">{{ t('admin.supplierPricing.locked') }}</p>
+        <div class="quote-terms">
+          <div>
+            <span>{{ t('admin.supplierPricing.quoteMode') }}</span>
+            <el-radio-group v-model="quoteDialog.quoteMode" :disabled="quoteLocked" @change="onQuoteMode">
+              <el-radio :value="1">{{ t('admin.supplierPricing.fixedPrice') }}</el-radio>
+              <el-radio :value="2">{{ t('admin.supplierPricing.hourlyRate') }}</el-radio>
+            </el-radio-group>
+          </div>
+          <label v-if="quoteDialog.quoteMode === 2" class="quote-terms__price">
+            <span>{{ t('admin.supplierPricing.rateLabel') }}</span>
+            <el-input-number v-model="quoteDialog.unitPrice" :min="0" :precision="2" :disabled="quoteLocked" controls-position="right" />
+            <small>{{ t('admin.supplierPricing.rateFormula') }}</small>
+          </label>
+        </div>
+        <section v-if="quoteDialog.attaches.length" class="quote-attaches">
+          <header>
+            <strong>{{ t('admin.supplierPricing.addons') }}</strong>
+            <small>{{ t('admin.supplierPricing.addonsHint') }}</small>
+          </header>
+          <article v-for="item in quoteDialog.attaches" :key="item.attachValueId" class="quote-attach">
+            <div class="quote-attach__name">
+              <el-checkbox :model-value="item.offered" :disabled="quoteLocked" @change="(value: boolean | string | number) => toggleAttach(item, Boolean(value))">
+                {{ item.name }}
+              </el-checkbox>
+              <small>{{ item.typeName }} · {{ t('admin.supplierPricing.livePrice', { price: moneyText(item.approvedPrice) }) }} · {{ t('admin.supplierPricing.addonPlatform', { price: moneyText(item.platformPrice) }) }}</small>
+            </div>
+            <el-input
+              v-if="item.offered"
+              v-model="item.quotePrice"
+              inputmode="decimal"
+              :disabled="quoteLocked"
+              :placeholder="t('admin.supplierPricing.taxPrice')"
+            />
+          </article>
+        </section>
+        <div v-loading="quoteDialog.loading" class="quote-lines">
+          <p v-if="!quoteDialog.loading && !quoteDialog.rows.length" class="quote-lines__empty">{{ t('admin.supplierPricing.noSpecs') }}</p>
+          <article v-for="row in quoteDialog.rows" :key="row.skuId" class="quote-line" :class="{ 'is-off': row.available === false }">
+            <div class="quote-line__spec">
+              <strong>{{ quoteSpecLabel(row) }}</strong>
+              <small v-if="row.available === false">{{ t('admin.supplierPricing.discontinued') }}</small>
+              <small v-else>{{ t('admin.supplierPricing.livePrice', { price: moneyText(row.approvedPrice) }) }}</small>
+            </div>
+            <label>
+              <span>{{ t('admin.supplierPricing.headcount') }}</span>
+              <el-input-number v-model="row.staffCount" :min="1" :precision="0" :disabled="quoteLocked || row.available === false" controls-position="right" />
+            </label>
+            <label>
+              <span>{{ t('admin.supplierPricing.hours') }}</span>
+              <el-input-number v-model="row.serviceHours" :min="0.01" :precision="2" :step="0.5" :disabled="quoteLocked || row.available === false" controls-position="right" />
+            </label>
+            <label>
+              <span>{{ t('admin.supplierPricing.taxPrice') }}</span>
+              <el-input
+                v-if="quoteDialog.quoteMode === 2"
+                :model-value="skuAmount(row) == null ? '' : String(skuAmount(row))"
+                disabled
+                :placeholder="t('admin.supplierPricing.autoPlaceholder')"
+              />
+              <el-input
+                v-else
+                v-model="row.quotePrice"
+                inputmode="decimal"
+                :disabled="quoteLocked || row.available === false"
+              />
+            </label>
+          </article>
+        </div>
+        <template #footer>
+          <el-button @click="quoteDialog.visible = false">{{ t('admin.supplierPricing.close') }}</el-button>
+          <el-button :disabled="quoteLocked" :loading="quoteDialog.saving" @click="saveServiceQuote">{{ t('admin.supplierPricing.saveDraft') }}</el-button>
+          <el-button type="primary" :disabled="quoteLocked" :loading="quoteDialog.saving" @click="submitServiceQuote">{{ t('admin.supplierPricing.submitReview') }}</el-button>
         </template>
       </el-dialog>
     </template>
@@ -535,7 +670,22 @@
           <div><dt>小区 / 楼栋 / 房号</dt><dd>{{ orderPlaceText(selectedOrder) }}</dd></div>
           <div><dt>用户备注</dt><dd>{{ selectedOrder.remark || '—' }}</dd></div>
           <div><dt>生效报价合计</dt><dd>{{ orderMoney(selectedOrder.quoteAmount) }}</dd></div>
+          <div><dt>{{ t('admin.supplierOrders.serviceStatus') }}</dt><dd>{{ serviceStatusText(selectedOrder) }}</dd></div>
+          <div><dt>{{ t('admin.supplierOrders.arriveNote') }}</dt><dd>{{ selectedOrder.arriveRemark || '—' }}</dd></div>
+          <div><dt>{{ t('admin.supplierOrders.completeNote') }}</dt><dd>{{ selectedOrder.completeRemark || '—' }}</dd></div>
         </dl>
+        <section v-if="orderPhotos(selectedOrder.arrivePhotos).length" class="order-photos">
+          <h3>{{ t('admin.supplierOrders.arrivePhotos') }}</h3>
+          <button v-for="url in orderPhotos(selectedOrder.arrivePhotos)" :key="url" type="button" @click="openFilePreview(url)">
+            <img :src="url" alt="" />
+          </button>
+        </section>
+        <section v-if="orderPhotos(selectedOrder.completePhotos).length" class="order-photos">
+          <h3>{{ t('admin.supplierOrders.completePhotos') }}</h3>
+          <button v-for="url in orderPhotos(selectedOrder.completePhotos)" :key="url" type="button" @click="openFilePreview(url)">
+            <img :src="url" alt="" />
+          </button>
+        </section>
         <el-table :data="selectedOrder.lines || []" row-key="skuId" empty-text="没有服务明细">
           <el-table-column label="服务" min-width="140" prop="spuName" />
           <el-table-column label="SKU" min-width="120" prop="skuCode" />
@@ -549,6 +699,35 @@
         </el-table>
       </template>
     </el-drawer>
+
+    <el-dialog v-model="serviceAction.open" :title="serviceAction.mode === 'arrive' ? t('admin.supplierOrders.arriveTitle') : t('admin.supplierOrders.completeTitle')" width="min(560px, calc(100vw - 32px))" :close-on-click-modal="false">
+      <p class="service-action__order">{{ serviceAction.orderNo }}</p>
+      <label class="service-action__note">
+        <span>{{ t('admin.supplierOrders.remark') }}</span>
+        <el-input v-model="serviceAction.remark" type="textarea" maxlength="512" show-word-limit :rows="3" :placeholder="t('admin.supplierOrders.remarkPlaceholder')" />
+      </label>
+      <div class="service-action__photos">
+        <div>
+          <strong>{{ t('admin.supplierOrders.photos') }}</strong>
+          <small>{{ t('admin.supplierOrders.photosHint') }}</small>
+        </div>
+        <label class="service-action__pick">
+          <input type="file" accept="image/*" multiple :disabled="serviceAction.uploading" @change="addServicePhotos" />
+          {{ t('admin.supplierOrders.addPhoto') }}
+        </label>
+        <ul v-if="serviceAction.photos.length">
+          <li v-for="(photo, index) in serviceAction.photos" :key="photo.url">
+            <button type="button" @click="openFilePreview(photo.url)"><img :src="photo.url" alt="" /></button>
+            <span>{{ photo.name }}</span>
+            <el-button link type="danger" @click="serviceAction.photos.splice(index, 1)">{{ t('admin.supplierPricing.delete') }}</el-button>
+          </li>
+        </ul>
+      </div>
+      <template #footer>
+        <el-button @click="serviceAction.open = false">{{ t('admin.supplierPricing.cancel') }}</el-button>
+        <el-button type="primary" :loading="serviceAction.saving" :disabled="serviceAction.uploading" @click="submitServiceAction">{{ t('admin.supplierOrders.confirm') }}</el-button>
+      </template>
+    </el-dialog>
 
     <el-dialog
       v-model="filePreview.open"
@@ -569,7 +748,8 @@
 
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref, watch } from 'vue'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
+import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 import {
   onboardingDetail,
@@ -577,14 +757,17 @@ import {
   onboardingSave,
   quoteList,
   saveQuoteDraft,
+  saveServices,
   serviceAreaList,
   serviceCommunityPage,
   serviceCatalog,
   submitQuote,
+  supplierArrive,
   supplierAssignedOrders,
+  supplierComplete,
   uploadFile,
 } from '@/modules/admin/api/supplierWorkbench'
-import { listBySpu } from '@/modules/admin/api/spu'
+import { listBySpu, listSpuAttachCatalog } from '@/modules/admin/api/spu'
 import { getAdminLocale } from '@/modules/admin/locales'
 import { pickI18nText } from '@/modules/admin/utils/i18n'
 import {
@@ -611,6 +794,7 @@ type Section = 'overview' | 'profile' | 'service-area' | 'staff' | 'schedule' | 
 const props = withDefaults(defineProps<{ section?: Section }>(), { section: 'overview' })
 const section = computed(() => props.section)
 const router = useRouter()
+const { t } = useI18n({ useScope: 'global' })
 
 const pageMeta = {
   overview: { title: '数据与收益', description: '查看经营表现、收益趋势、服务容量与待处理事项。', primaryAction: '' },
@@ -619,11 +803,13 @@ const pageMeta = {
   staff: { title: '人员管理', description: '维护人员角色、技能、默认工作时间、证件与可派状态。', primaryAction: '新增人员' },
   schedule: { title: '日程管理', description: '按日或周管理工作班次、休假、Block 与订单占用。', primaryAction: '添加班次 / Block' },
   orders: { title: '订单管理', description: '查看分配给当前供应商的订单、服务地点和生效报价。', primaryAction: '' },
-  pricing: { title: '服务与报价', description: '按服务填写各规格报价，保存草稿或提交审核。', primaryAction: '' },
+  pricing: { title: '服务与报价', description: '先添加要提供的服务，再为列表里的服务报价。', primaryAction: '' },
   settlement: { title: '收益与结算', description: '核对订单收益、调整流水和付款批次。', primaryAction: '' },
 } as const
 
-const meta = computed(() => pageMeta[section.value])
+const meta = computed(() => section.value === 'pricing'
+  ? { title: t('admin.supplierPricing.title'), description: t('admin.supplierPricing.description'), primaryAction: '' }
+  : pageMeta[section.value])
 const supplierRecordId = ref<number | null>(null)
 const supplierOptions = ref<Array<{ id: number; companyName: string }>>([])
 const onboardingStatus = ref<number | null>(null)
@@ -836,6 +1022,80 @@ const openAssignedOrder = (row: any) => {
   selectedOrder.value = row
   orderDrawerVisible.value = true
 }
+const serviceStatusText = (row: any) => {
+  const localized = specText(row?.serviceStatusI18n)
+  if (localized !== '—') return localized
+  const status = Number(row?.serviceStatus || 0)
+  if (status === 1) return t('admin.supplierOrders.arrived')
+  if (status === 2) return t('admin.supplierOrders.completed')
+  return t('admin.supplierOrders.notStarted')
+}
+const serviceStatusTag = (status: unknown) => (Number(status) === 2 ? 'success' : Number(status) === 1 ? 'warning' : 'info')
+const orderPhotos = (value: unknown) => (Array.isArray(value) ? value.map((item) => String(item || '').trim()).filter(Boolean) : [])
+const serviceAction = reactive({
+  open: false,
+  mode: 'arrive' as 'arrive' | 'complete',
+  orderId: 0,
+  orderNo: '',
+  remark: '',
+  photos: [] as Array<{ name: string; url: string }>,
+  uploading: false,
+  saving: false,
+})
+const openServiceAction = (row: any, mode: 'arrive' | 'complete') => {
+  serviceAction.mode = mode
+  serviceAction.orderId = Number(row.orderId)
+  serviceAction.orderNo = row.orderNo || ''
+  serviceAction.remark = ''
+  serviceAction.photos = []
+  serviceAction.open = true
+}
+const addServicePhotos = async (event: Event) => {
+  const input = event.target as HTMLInputElement
+  const picked = Array.from(input.files || [])
+  input.value = ''
+  const room = 20 - serviceAction.photos.length
+  if (room <= 0 || picked.length > room) {
+    ElMessage.warning(t('admin.supplierOrders.photoLimit'))
+    if (room <= 0) return
+  }
+  const batch = picked.slice(0, Math.max(room, 0))
+  serviceAction.uploading = true
+  try {
+    for (const file of batch) {
+      const uploaded = unwrap(await uploadFile(file))
+      const url = typeof uploaded === 'string' ? uploaded : uploaded?.url || ''
+      if (url) serviceAction.photos.push({ name: file.name, url })
+    }
+  } catch (error: any) {
+    ElMessage.error(error?.message || t('admin.supplierOrders.actionFailed'))
+  } finally {
+    serviceAction.uploading = false
+  }
+}
+const submitServiceAction = async () => {
+  if (!serviceAction.orderId) return
+  serviceAction.saving = true
+  const payload = {
+    orderId: serviceAction.orderId,
+    photos: serviceAction.photos.map((photo) => photo.url),
+    remark: serviceAction.remark.trim() || null,
+  }
+  try {
+    if (serviceAction.mode === 'arrive') await supplierArrive(payload)
+    else await supplierComplete(payload)
+    ElMessage.success(t(serviceAction.mode === 'arrive' ? 'admin.supplierOrders.arriveSaved' : 'admin.supplierOrders.completeSaved'))
+    serviceAction.open = false
+    await loadOrders()
+    if (Number(selectedOrder.value?.orderId) === serviceAction.orderId) {
+      selectedOrder.value = supplierOrders.value.find((item) => Number(item.orderId) === serviceAction.orderId) || selectedOrder.value
+    }
+  } catch (error: any) {
+    ElMessage.error(error?.message || t('admin.supplierOrders.actionFailed'))
+  } finally {
+    serviceAction.saving = false
+  }
+}
 
 const quoteCategory = ref('all')
 const liveQuotes = ref<any[]>([])
@@ -848,8 +1108,11 @@ const quoteDialog = reactive({
   category: '',
   status: undefined as number | undefined,
   rejectReason: '',
+  quoteMode: null as 1 | 2 | null,
+  unitPrice: null as number | null,
   columns: [] as { key: string; label: string }[],
   rows: [] as any[],
+  attaches: [] as Array<{ attachValueId: number; typeName: string; name: string; platformPrice: unknown; approvedPrice: unknown; offered: boolean; quotePrice: string }>,
 })
 const quoteLocked = computed(() => Number(quoteDialog.status) === 1)
 
@@ -879,41 +1142,190 @@ const editorLoading = ref(false)
 const communitiesByArea = ref<Record<number, string[]>>({})
 const servicesProvided = ref('')
 const dubaiServiceAreas = ref('')
-const serviceCatalogGroups = ref<any[]>([])
+const emaarOnboarded = ref<number | null>(null)
+const otherCommunityOnboarded = ref<number | null>(null)
+const applyRenmark = ref('')
+type CatalogServiceDraft = {
+  spuId: number
+  spuName: string
+  available: boolean
+  selected: boolean
+  workerCount: number | null
+  contactPhones: string[]
+}
+type CatalogGroupDraft = {
+  categoryId: number
+  categoryName: string
+  available: boolean
+  services: CatalogServiceDraft[]
+}
+type SavedService = {
+  spuId: number
+  categoryId: number
+  category: string
+  name: string
+  workerCount: number | null
+  phones: string[]
+}
+type PickerService = CatalogServiceDraft & {
+  categoryId: number
+  categoryName: string
+  added: boolean
+}
+
+const catalogDraft = ref<CatalogGroupDraft[]>([])
+const savedServices = ref<SavedService[]>([])
 const catalogLoading = ref(false)
+const catalogSaving = ref(false)
 const quoteLoading = ref(false)
+const addedKeyword = ref('')
+type PickedDraft = {
+  key: string
+  categoryId: number
+  category: string
+  spuId: number
+  name: string
+  workerCount: number | null
+  phones: string[]
+}
+const servicePicker = reactive({
+  open: false,
+  categoryId: '' as number | '',
+  keyword: '',
+  drafts: [] as PickedDraft[],
+})
+const serviceEditor = reactive({
+  open: false,
+  spuId: 0,
+  categoryId: 0,
+  name: '',
+  workerCount: null as number | null,
+  phones: [''],
+})
+
+const flattenSelected = (groups: CatalogGroupDraft[]): SavedService[] => groups.flatMap((group) =>
+  group.services
+    .filter((service) => service.selected)
+    .map((service) => ({
+      spuId: service.spuId,
+      categoryId: group.categoryId,
+      category: group.categoryName,
+      name: service.spuName,
+      workerCount: service.workerCount,
+      phones: service.contactPhones.map((phone) => phone.trim()).filter(Boolean),
+    })),
+)
+
+const mapCatalog = (groups: any[]): CatalogGroupDraft[] => (groups || []).map((group) => ({
+  categoryId: Number(group.categoryId),
+  categoryName: group.categoryName || t('admin.supplierPricing.uncategorized'),
+  available: group.available !== false,
+  services: (group.services || []).map((service: any) => {
+    const selected = Boolean(service.selected)
+    const phones = Array.isArray(service.contactPhones) ? service.contactPhones.map((phone: unknown) => String(phone || '')) : []
+    return {
+      spuId: Number(service.spuId),
+      spuName: service.spuName || t('admin.supplierPricing.serviceNamed', { id: service.spuId }),
+      available: service.available !== false,
+      selected,
+      workerCount: service.workerCount == null || service.workerCount === '' ? null : Number(service.workerCount),
+      contactPhones: selected && !phones.length ? [''] : phones,
+    }
+  }),
+}))
+
+const rememberCatalog = (groups: CatalogGroupDraft[]) => {
+  catalogDraft.value = groups
+  savedServices.value = flattenSelected(groups)
+}
+
+const serviceCategories = computed(() => Array.from(new Set(savedServices.value.map((service) => service.category).filter(Boolean))))
+const pickKey = (service: { categoryId: number; spuId: number }) => `${service.categoryId}:${service.spuId}`
+const addedKeys = computed(() => new Set(savedServices.value.map((service) => pickKey(service))))
+const pickerCategoryId = computed(() => {
+  const value = servicePicker.categoryId as number | '' | null | undefined
+  return value === '' || value == null ? null : Number(value)
+})
+const pickerReady = computed(() => pickerCategoryId.value != null || servicePicker.keyword.trim().length > 0)
+const pickerVisible = computed(() => {
+  if (!pickerReady.value) return [] as PickerService[]
+  const keyword = servicePicker.keyword.trim().toLowerCase()
+  const rows: PickerService[] = []
+  catalogDraft.value.forEach((group) => {
+    if (pickerCategoryId.value != null && group.categoryId !== pickerCategoryId.value) return
+    group.services.forEach((service) => {
+      if (keyword && !service.spuName.toLowerCase().includes(keyword)) return
+      rows.push({
+        ...service,
+        categoryId: group.categoryId,
+        categoryName: group.categoryName,
+        added: addedKeys.value.has(pickKey({ categoryId: group.categoryId, spuId: service.spuId })),
+      })
+    })
+  })
+  return rows
+})
+const draftOf = (service: { categoryId: number; spuId: number }) => servicePicker.drafts.find((item) => item.key === pickKey(service))
 const serviceRows = computed(() => {
   const quoteBySpu = new Map(liveQuotes.value.map((quote) => [Number(quote.spuId), quote]))
-  const fromCatalog = serviceCatalogGroups.value.flatMap((group) =>
-    (group.services || [])
-      .filter((service: any) => service.selected || quoteBySpu.has(Number(service.spuId)))
-      .map((service: any) => {
-        const quote = quoteBySpu.get(Number(service.spuId))
-        return {
-          spuId: Number(service.spuId),
-          category: group.categoryName || '未分类',
-          name: service.spuName || quote?.spuName || `服务 ${service.spuId}`,
-          workerCount: service.workerCount,
-          status: quote?.status,
-          rejectReason: quote?.rejectReason || '',
-        }
-      }),
-  )
-  if (fromCatalog.length) return fromCatalog
-  return liveQuotes.value.map((quote) => ({
-    spuId: Number(quote.spuId),
-    category: '未分类',
-    name: quote.spuName || `服务 ${quote.spuId}`,
-    workerCount: undefined,
-    status: quote.status,
-    rejectReason: quote.rejectReason || '',
-  }))
+  return savedServices.value.map((service) => {
+    const quote = quoteBySpu.get(service.spuId)
+    return {
+      ...service,
+      status: quote?.status,
+      rejectReason: quote?.rejectReason || '',
+      quoteMode: quote?.quoteMode == null ? undefined : Number(quote.quoteMode),
+      unitPrice: quote?.unitPrice,
+    }
+  })
 })
-const serviceCategories = computed(() => Array.from(new Set(serviceRows.value.map((row) => row.category).filter(Boolean))))
-const filteredServiceRows = computed(() => (
-  quoteCategory.value === 'all' ? serviceRows.value : serviceRows.value.filter((row) => row.category === quoteCategory.value)
-))
+const filteredServiceRows = computed(() => {
+  const keyword = addedKeyword.value.trim().toLowerCase()
+  return serviceRows.value.filter((row) => {
+    if (quoteCategory.value !== 'all' && row.category !== quoteCategory.value) return false
+    if (!keyword) return true
+    return `${row.name} ${row.category} ${row.phones.join(' ')}`.toLowerCase().includes(keyword)
+  })
+})
 const pendingQuoteCount = computed(() => serviceRows.value.filter((row) => Number(row.status) === 1).length)
+const addPhone = (holder: { phones: string[] }) => {
+  if (holder.phones.length >= 10) return
+  holder.phones.push('')
+}
+const removePhone = (holder: { phones: string[] }, index: number) => {
+  holder.phones.splice(index, 1)
+  if (!holder.phones.length) holder.phones.push('')
+}
+const togglePick = (service: PickerService, checked: boolean) => {
+  const key = pickKey(service)
+  if (!checked) {
+    servicePicker.drafts = servicePicker.drafts.filter((item) => item.key !== key)
+    return
+  }
+  if (servicePicker.drafts.some((item) => item.key === key)) return
+  servicePicker.drafts.push({
+    key,
+    categoryId: service.categoryId,
+    category: service.categoryName,
+    spuId: service.spuId,
+    name: service.spuName,
+    workerCount: null,
+    phones: [''],
+  })
+}
+const openServicePicker = () => {
+  servicePicker.categoryId = ''
+  servicePicker.keyword = ''
+  servicePicker.drafts = []
+  servicePicker.open = true
+}
+const phoneSummary = (phones: string[]) => {
+  const list = (phones || []).map((phone) => phone.trim()).filter(Boolean)
+  if (!list.length) return '—'
+  return list.length === 1 ? list[0] : t('admin.supplierPricing.phonesMore', { phone: list[0], count: list.length })
+}
+const quoteModeLabel = (mode?: number) => (mode === 1 ? t('admin.supplierPricing.fixedPrice') : mode === 2 ? t('admin.supplierPricing.hourlyRate') : t('admin.supplierPricing.modeUnset'))
+const phoneOk = (value: string) => /^[1-9]\d{7,14}$/.test(value.replace(/\D/g, ''))
 const supplierOrders = ref<any[]>([])
 const orderLoading = ref(false)
 const orderTotal = ref(0)
@@ -955,7 +1367,7 @@ const communityTotal = computed(() => supplierAreas.value.reduce((sum, area) => 
 
 const unwrap = (res: any) => (res && typeof res === 'object' && 'data' in res ? res.data : res)
 const bit = (enabled: boolean) => (enabled ? 1 : 0)
-const quoteStatusLabel = (status?: number) => ['草稿', '待审核', '已通过', '已拒绝'][status ?? -1] || '未报价'
+const quoteStatusLabel = (status?: number) => [t('admin.supplierPricing.statusDraft'), t('admin.supplierPricing.statusPending'), t('admin.supplierPricing.statusApproved'), t('admin.supplierPricing.statusRejected')][status ?? -1] || t('admin.supplierPricing.statusNone')
 const quoteTagType = (status?: number) => (Number(status) === 1 ? 'warning' : Number(status) === 2 ? 'success' : Number(status) === 3 ? 'danger' : 'info')
 const moneyText = (value: unknown) => {
   if (value === null || value === undefined || value === '') return '—'
@@ -1003,6 +1415,9 @@ const buildProfilePayload = (status?: number, areaIds?: number[]) => ({
   maleStaffCount: maleStaffCount.value,
   servicesProvided: servicesProvided.value || null,
   dubaiServiceAreas: dubaiServiceAreas.value || null,
+  emaarOnboarded: emaarOnboarded.value,
+  otherCommunityOnboarded: otherCommunityOnboarded.value,
+  applyRenmark: otherCommunityOnboarded.value === 1 ? (applyRenmark.value.trim() || null) : null,
   status,
   areaIds,
 })
@@ -1043,6 +1458,9 @@ const applyProfile = (detail: any) => {
   maleStaffCount.value = detail?.maleStaffCount || 0
   servicesProvided.value = detail?.servicesProvided || ''
   dubaiServiceAreas.value = detail?.dubaiServiceAreas || ''
+  emaarOnboarded.value = detail?.emaarOnboarded == null || detail?.emaarOnboarded === '' ? null : Number(detail.emaarOnboarded)
+  otherCommunityOnboarded.value = detail?.otherCommunityOnboarded == null || detail?.otherCommunityOnboarded === '' ? null : Number(detail.otherCommunityOnboarded)
+  applyRenmark.value = detail?.applyRenmark || ''
   supplierAreas.value = (detail?.serviceAreas || [])
     .map((area: any) => ({
       areaId: Number(area.areaId),
@@ -1193,10 +1611,107 @@ const loadCatalog = async () => {
   if (!supplierRecordId.value) return
   catalogLoading.value = true
   try {
-    serviceCatalogGroups.value = unwrap(await serviceCatalog(supplierRecordId.value)) || []
+    rememberCatalog(mapCatalog(unwrap(await serviceCatalog(supplierRecordId.value)) || []))
+  } catch (error: any) {
+    ElMessage.error(error?.message || t('admin.supplierPricing.catalogFailed'))
   } finally {
     catalogLoading.value = false
   }
+}
+
+const cleanPhones = (phones: string[]) => phones.map((phone) => phone.trim()).filter(Boolean)
+const contactProblem = (name: string, workerCount: number | null, phones: string[]) => {
+  const list = cleanPhones(phones)
+  if (!(Number(workerCount) > 0)) return t('admin.supplierPricing.workerRequired', { name })
+  if (!list.length) return t('admin.supplierPricing.phoneRequired', { name })
+  if (list.length > 10) return t('admin.supplierPricing.phoneMax', { name })
+  const invalid = list.find((phone) => !phoneOk(phone))
+  if (invalid) return t('admin.supplierPricing.phoneInvalid', { name, phone: invalid })
+  return ''
+}
+const persistServices = async (rows: SavedService[], success: string) => {
+  if (!supplierRecordId.value) return false
+  const grouped = new Map<number, { categoryId: number; items: Array<{ spuId: number; workerCount: number; contactPhones: string[] }> }>()
+  rows.forEach((row) => {
+    const group = grouped.get(row.categoryId) || { categoryId: row.categoryId, items: [] }
+    group.items.push({
+      spuId: row.spuId,
+      workerCount: Number(row.workerCount),
+      contactPhones: cleanPhones(row.phones),
+    })
+    grouped.set(row.categoryId, group)
+  })
+  catalogSaving.value = true
+  try {
+    await saveServices({ supplierId: supplierRecordId.value, services: [...grouped.values()] })
+    ElMessage.success(success)
+    await Promise.all([loadCatalog(), loadQuotes()])
+    return true
+  } catch (error: any) {
+    ElMessage.error(error?.message || t('admin.supplierPricing.saveServicesFailed'))
+    return false
+  } finally {
+    catalogSaving.value = false
+  }
+}
+const confirmAddServices = async () => {
+  if (!servicePicker.drafts.length) {
+    ElMessage.warning(t('admin.supplierPricing.selectFirst'))
+    return
+  }
+  const problem = servicePicker.drafts.map((draft) => contactProblem(draft.name, draft.workerCount, draft.phones)).find(Boolean)
+  if (problem) {
+    ElMessage.warning(problem)
+    return
+  }
+  const next = [...savedServices.value]
+  servicePicker.drafts.forEach((draft) => {
+    if (addedKeys.value.has(draft.key)) return
+    next.push({
+      spuId: draft.spuId,
+      categoryId: draft.categoryId,
+      category: draft.category,
+      name: draft.name,
+      workerCount: Number(draft.workerCount),
+      phones: cleanPhones(draft.phones),
+    })
+  })
+  const saved = await persistServices(next, t('admin.supplierPricing.addedSuccess', { count: servicePicker.drafts.length }))
+  if (saved) servicePicker.open = false
+}
+const openServiceEditor = (row: SavedService) => {
+  serviceEditor.spuId = row.spuId
+  serviceEditor.categoryId = row.categoryId
+  serviceEditor.name = row.name
+  serviceEditor.workerCount = row.workerCount
+  serviceEditor.phones = row.phones.length ? [...row.phones] : ['']
+  serviceEditor.open = true
+}
+const saveServiceEditor = async () => {
+  const problem = contactProblem(serviceEditor.name || t('admin.supplierPricing.thisService'), serviceEditor.workerCount, serviceEditor.phones)
+  if (problem) {
+    ElMessage.warning(problem)
+    return
+  }
+  const phones = cleanPhones(serviceEditor.phones)
+  const next = savedServices.value.map((service) => (
+    service.spuId === serviceEditor.spuId && service.categoryId === serviceEditor.categoryId
+      ? { ...service, workerCount: Number(serviceEditor.workerCount), phones }
+      : service
+  ))
+  const saved = await persistServices(next, t('admin.supplierPricing.serviceSaved'))
+  if (saved) serviceEditor.open = false
+}
+const removeAddedService = async (row: SavedService) => {
+  try {
+    await ElMessageBox.confirm(t('admin.supplierPricing.removeConfirm', { name: row.name }), t('admin.supplierPricing.removeTitle'), { type: 'warning' })
+  } catch {
+    return
+  }
+  await persistServices(
+    savedServices.value.filter((service) => !(service.spuId === row.spuId && service.categoryId === row.categoryId)),
+    t('admin.supplierPricing.removed'),
+  )
 }
 
 const loadQuotes = async () => {
@@ -1209,14 +1724,146 @@ const loadQuotes = async () => {
   }
 }
 
+const quoteSpecLabel = (row: { specs: Record<string, string>; skuCode: string }) => {
+  const parts = quoteDialog.columns.map((column) => row.specs[column.key]).filter((value) => value && value !== '—')
+  return parts.length ? parts.join(' · ') : (row.skuCode || t('admin.supplierPricing.specFallback'))
+}
+
+const skuAmount = (row: { staffCount?: number | null; serviceHours?: number | null }) => {
+  if (quoteDialog.quoteMode !== 2) return null
+  const unit = Number(quoteDialog.unitPrice)
+  const staff = Number(row.staffCount)
+  const hours = Number(row.serviceHours)
+  if (!(unit > 0) || !(staff > 0) || !(hours > 0)) return null
+  return Math.round((unit * staff * hours + Number.EPSILON) * 100) / 100
+}
+
 const quoteItems = () => quoteDialog.rows
   .filter((row) => row.available !== false)
-  .map((row) => ({
-    skuId: row.skuId,
-    quotePrice: row.quotePrice === null || row.quotePrice === undefined || row.quotePrice === '' ? null : Number(row.quotePrice),
-  }))
+  .map((row) => {
+    const staffCount = row.staffCount == null || row.staffCount === '' ? null : Number(row.staffCount)
+    const serviceHours = row.serviceHours == null || row.serviceHours === '' ? null : Number(row.serviceHours)
+    const quotePrice = quoteDialog.quoteMode === 2
+      ? skuAmount(row)
+      : (row.quotePrice == null || row.quotePrice === '' ? null : Number(row.quotePrice))
+    return { skuId: row.skuId, staffCount, serviceHours, quotePrice }
+  })
 
-const openServiceQuote = async (row: { spuId: number; name: string; category: string; status?: number; rejectReason?: string }) => {
+const draftProblem = () => {
+  if (quoteDialog.quoteMode === 2 && quoteDialog.unitPrice != null && !(Number(quoteDialog.unitPrice) > 0)) {
+    return t('admin.supplierPricing.unitPositive')
+  }
+  for (const item of quoteItems()) {
+    if (item.staffCount != null && !(item.staffCount > 0)) return t('admin.supplierPricing.staffPositive')
+    if (item.serviceHours != null && !(item.serviceHours > 0)) return t('admin.supplierPricing.hoursPositive')
+    if (quoteDialog.quoteMode === 1 && item.quotePrice != null && !(item.quotePrice > 0)) return t('admin.supplierPricing.pricePositive')
+  }
+  if (quoteDialog.attaches.some((item) => item.offered && !addonPriceOk(item.quotePrice))) return t('admin.supplierPricing.addonPriceInvalid')
+  return ''
+}
+
+const addonPriceOk = (value: unknown) => {
+  const text = String(value ?? '').trim()
+  return /^\d+(\.\d{1,2})?$/.test(text) && Number(text) > 0
+}
+
+const attachLabel = (item: any, kind: 'type' | 'value') => {
+  const localized = specText(kind === 'type' ? item?.attachTypeNameI18n : item?.attachValueNameI18n)
+  if (localized !== '—') return localized
+  const plain = kind === 'type' ? item?.attachTypeName : item?.attachValueName
+  return plain ? String(plain) : '—'
+}
+
+const mergeAttaches = (catalog: any[] | undefined, saved: any[] | undefined) => {
+  const savedById = new Map((Array.isArray(saved) ? saved : []).map((item) => [Number(item.attachValueId), item]))
+  const base = Array.isArray(catalog) && catalog.length ? catalog : (Array.isArray(saved) ? saved : [])
+  return mapAttaches(base.map((item) => {
+    const quote = savedById.get(Number(item.attachValueId))
+    if (!quote) return item
+    return {
+      ...item,
+      attachTypeName: quote.attachTypeName || item.attachTypeName,
+      attachTypeNameI18n: quote.attachTypeNameI18n || item.attachTypeNameI18n,
+      attachValueName: quote.attachValueName || item.attachValueName,
+      attachValueNameI18n: quote.attachValueNameI18n || item.attachValueNameI18n,
+      platformPrice: quote.platformPrice ?? item.platformPrice,
+      approvedPrice: quote.approvedPrice ?? null,
+      canServe: quote.canServe,
+      quotePrice: quote.quotePrice,
+    }
+  }))
+}
+
+const mapAttaches = (list: any[]) => (Array.isArray(list) ? list : []).map((item) => ({
+  attachValueId: Number(item.attachValueId),
+  typeName: attachLabel(item, 'type'),
+  name: attachLabel(item, 'value'),
+  platformPrice: item.platformPrice ?? null,
+  approvedPrice: item.approvedPrice ?? null,
+  offered: item.canServe === true || (item.quotePrice != null && item.quotePrice !== ''),
+  quotePrice: item.quotePrice == null || item.quotePrice === '' ? '' : String(item.quotePrice),
+}))
+
+const toggleAttach = (item: { offered: boolean; quotePrice: string }, offered: boolean) => {
+  item.offered = offered
+  if (!offered) item.quotePrice = ''
+}
+
+const submitProblem = () => {
+  if (quoteDialog.quoteMode !== 1 && quoteDialog.quoteMode !== 2) return t('admin.supplierPricing.modeRequired')
+  if (quoteDialog.quoteMode === 2 && !(Number(quoteDialog.unitPrice) > 0)) return t('admin.supplierPricing.hourlyRequired')
+  const items = quoteItems()
+  if (!items.length) return t('admin.supplierPricing.noSellable')
+  if (items.some((item) => !(Number(item.staffCount) > 0) || !(Number(item.serviceHours) > 0) || !(Number(item.quotePrice) > 0))) {
+    return t('admin.supplierPricing.submitIncomplete')
+  }
+  return ''
+}
+
+const quotePayload = () => {
+  const payload: Record<string, unknown> = {
+    supplierId: supplierRecordId.value,
+    spuId: quoteDialog.spuId,
+    items: quoteItems(),
+  }
+  if (quoteDialog.quoteMode === 1 || quoteDialog.quoteMode === 2) payload.quoteMode = quoteDialog.quoteMode
+  if (quoteDialog.quoteMode === 2) payload.unitPrice = quoteDialog.unitPrice == null ? null : Number(quoteDialog.unitPrice)
+  payload.attaches = quoteDialog.attaches
+    .filter((item) => item.offered && addonPriceOk(item.quotePrice))
+    .map((item) => ({ attachValueId: item.attachValueId, quotePrice: Number(item.quotePrice) }))
+  return payload
+}
+
+const applySavedQuote = (saved: any) => {
+  if (!saved) return
+  quoteDialog.status = saved.status ?? quoteDialog.status
+  quoteDialog.rejectReason = saved.rejectReason || ''
+  if (saved.quoteMode != null) quoteDialog.quoteMode = Number(saved.quoteMode) === 2 ? 2 : 1
+  quoteDialog.unitPrice = saved.unitPrice == null || saved.unitPrice === '' ? null : Number(saved.unitPrice)
+  const quoted = new Map((saved.skus || []).map((sku: any) => [Number(sku.skuId), sku]))
+  quoteDialog.rows.forEach((row) => {
+    const next = quoted.get(Number(row.skuId))
+    if (!next) return
+    row.staffCount = next.staffCount == null ? null : Number(next.staffCount)
+    row.serviceHours = next.serviceHours == null ? null : Number(next.serviceHours)
+    row.quotePrice = next.quotePrice == null ? null : Number(next.quotePrice)
+    if (next.approvedPrice != null) row.approvedPrice = next.approvedPrice
+  })
+  if (Array.isArray(saved.attaches)) quoteDialog.attaches = mapAttaches(saved.attaches)
+}
+
+const onQuoteMode = (mode: string | number | boolean | undefined) => {
+  if (Number(mode) !== 1) return
+  quoteDialog.rows.forEach((row) => {
+    if (row.quotePrice != null && row.quotePrice !== '') return
+    const unit = Number(quoteDialog.unitPrice)
+    const staff = Number(row.staffCount)
+    const hours = Number(row.serviceHours)
+    if (unit > 0 && staff > 0 && hours > 0) row.quotePrice = Math.round((unit * staff * hours + Number.EPSILON) * 100) / 100
+  })
+}
+
+const openServiceQuote = async (row: { spuId: number; name: string; category: string; status?: number; rejectReason?: string; quoteMode?: number; unitPrice?: number | null }) => {
   quoteDialog.visible = true
   quoteDialog.loading = true
   quoteDialog.spuId = row.spuId
@@ -1224,8 +1871,11 @@ const openServiceQuote = async (row: { spuId: number; name: string; category: st
   quoteDialog.category = row.category
   quoteDialog.status = row.status
   quoteDialog.rejectReason = row.rejectReason || ''
+  quoteDialog.quoteMode = row.quoteMode === 2 ? 2 : 1
+  quoteDialog.unitPrice = row.unitPrice == null ? null : Number(row.unitPrice)
   quoteDialog.columns = []
   quoteDialog.rows = []
+  quoteDialog.attaches = []
   try {
     const detail = unwrap(await listBySpu(row.spuId)) || {}
     const quote = liveQuotes.value.find((item) => Number(item.spuId) === Number(row.spuId))
@@ -1244,16 +1894,29 @@ const openServiceQuote = async (row: { spuId: number; name: string; category: st
         specs: Object.fromEntries(quoteDialog.columns.map((column) => [column.key, specText(sku[column.key])])),
         platformPrice: saved.platformPrice ?? sku.price,
         approvedPrice: saved.approvedPrice ?? null,
-        available: saved.available !== false,
+        available: saved.available != null ? saved.available !== false : Number(sku.status ?? 1) === 1,
+        staffCount: saved.staffCount == null || saved.staffCount === '' ? null : Number(saved.staffCount),
+        serviceHours: saved.serviceHours == null || saved.serviceHours === '' ? null : Number(saved.serviceHours),
         quotePrice: saved.quotePrice == null || saved.quotePrice === '' ? null : Number(saved.quotePrice),
       }
     })
     if (quote) {
       quoteDialog.status = quote.status
       quoteDialog.rejectReason = quote.rejectReason || ''
+      quoteDialog.quoteMode = Number(quote.quoteMode) === 2 ? 2 : 1
+      quoteDialog.unitPrice = quote.unitPrice == null || quote.unitPrice === '' ? quoteDialog.unitPrice : Number(quote.unitPrice)
     }
+    let catalogAttaches = Array.isArray(detail.attaches) ? detail.attaches : []
+    if (!catalogAttaches.length) {
+      try {
+        catalogAttaches = await listSpuAttachCatalog(row.spuId)
+      } catch {
+        catalogAttaches = []
+      }
+    }
+    quoteDialog.attaches = mergeAttaches(catalogAttaches, quote?.attaches)
   } catch (error: any) {
-    ElMessage.error(error?.message || '规格加载失败')
+    ElMessage.error(error?.message || t('admin.supplierPricing.specsFailed'))
     quoteDialog.visible = false
   } finally {
     quoteDialog.loading = false
@@ -1262,24 +1925,19 @@ const openServiceQuote = async (row: { spuId: number; name: string; category: st
 
 const saveServiceQuote = async () => {
   if (quoteLocked.value || !supplierRecordId.value) return
-  const items = quoteItems()
-  if (items.some((item) => item.quotePrice !== null && !(item.quotePrice > 0))) {
-    ElMessage.warning('报价必须大于 0')
+  const problem = draftProblem()
+  if (problem) {
+    ElMessage.warning(problem)
     return
   }
   quoteDialog.saving = true
   try {
-    const saved = unwrap(await saveQuoteDraft({
-      supplierId: supplierRecordId.value,
-      spuId: quoteDialog.spuId,
-      items,
-    }))
-    quoteDialog.status = saved?.status ?? 0
-    quoteDialog.rejectReason = ''
-    ElMessage.success('报价草稿已保存')
+    const saved = unwrap(await saveQuoteDraft(quotePayload()))
+    applySavedQuote(saved)
+    ElMessage.success(t('admin.supplierPricing.draftSaved'))
     await loadQuotes()
   } catch (error: any) {
-    ElMessage.error(error?.message || '保存报价失败')
+    ElMessage.error(error?.message || t('admin.supplierPricing.saveQuoteFailed'))
   } finally {
     quoteDialog.saving = false
   }
@@ -1287,28 +1945,25 @@ const saveServiceQuote = async () => {
 
 const submitServiceQuote = async () => {
   if (quoteLocked.value || !supplierRecordId.value) return
-  const items = quoteItems()
-  if (!items.length || items.some((item) => !(Number(item.quotePrice) > 0))) {
-    ElMessage.warning('每个在售规格都要填写大于 0 的报价')
+  const problem = submitProblem()
+  if (problem) {
+    ElMessage.warning(problem)
     return
   }
   quoteDialog.saving = true
   try {
-    await saveQuoteDraft({
-      supplierId: supplierRecordId.value,
-      spuId: quoteDialog.spuId,
-      items,
-    })
+    await saveQuoteDraft(quotePayload())
     const submitted = unwrap(await submitQuote({
       supplierId: supplierRecordId.value,
       spuId: quoteDialog.spuId,
     }))
+    applySavedQuote(submitted)
     quoteDialog.status = submitted?.status ?? 1
-    ElMessage.success('报价已提交审核')
+    ElMessage.success(t('admin.supplierPricing.submitted'))
     quoteDialog.visible = false
     await loadQuotes()
   } catch (error: any) {
-    ElMessage.error(error?.message || '提交报价失败')
+    ElMessage.error(error?.message || t('admin.supplierPricing.submitFailed'))
   } finally {
     quoteDialog.saving = false
   }
@@ -1487,12 +2142,68 @@ watch(section, (value) => {
 .mini-metric { display: flex; flex-direction: column; padding: 15px 17px; background: #fffdf8; border: 1px solid var(--line); border-radius: 16px; }.mini-metric strong { margin: 5px 0 2px; color: #05152b; font-family: Fraunces, Georgia, serif; font-size: 26px; font-weight: 520; }.mini-metric small { color: var(--muted); font-size: 10px; }.positive { color: #218367 !important; }.warning-text { color: #bb6d20 !important; }
 .schedule-card { overflow-x: auto; }.schedule-card :deep(.el-card__body) { min-width: 1180px; }.schedule-grid { display: grid; grid-template-columns: 190px repeat(7, minmax(125px, 1fr)); }.schedule-grid--header { border-bottom: 1px solid var(--line); background: #fafbfc; }.staff-column-title, .day-head { display: flex; flex-direction: column; justify-content: center; min-height: 68px; padding: 10px 13px; border-right: 1px solid var(--line); }.staff-column-title { color: var(--muted); font-size: 11px; font-weight: 700; }.day-head { align-items: center; }.day-head span, .day-head small { color: var(--muted); font-size: 10px; }.day-head strong { margin: 2px 0; font-size: 14px; }.day-head.today { color: #8d5a32; background: #f6efe4; }.schedule-row { min-height: 96px; border-bottom: 1px solid var(--line); }.schedule-person { display: flex; align-items: center; gap: 9px; padding: 13px; border-right: 1px solid var(--line); }.schedule-person span { display: flex; flex-direction: column; }.schedule-person strong { font-size: 12px; }.schedule-person small { margin-top: 3px; color: var(--muted); font-size: 10px; }.shift-cell { display: flex; flex-direction: column; justify-content: center; min-width: 0; margin: 7px 5px; padding: 9px; text-align: left; color: #455064; border: 1px solid transparent; border-radius: 8px; cursor: pointer; }.shift-cell strong { margin-bottom: 3px; font-size: 11px; }.shift-cell span, .shift-cell small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 9px; }.shift-cell small { margin-top: 3px; opacity: .72; }.shift-cell.standard { color: #285f72; background: #e9f7fa; border-color: #c6e9ed; }.shift-cell.busy { color: #6d4524; background: #f6efe4; border-color: #e4d3b8; }.shift-cell.leave { color: #7a6570; background: #f6eff2; border-color: #eadce2; }.shift-cell.open { align-items: center; color: #9ba3b0; background: #fff; border-color: #dfe3e9; border-style: dashed; }.add-shift { font-size: 18px !important; }.schedule-legend { display: flex; gap: 20px; padding: 13px 18px; }.schedule-legend span { display: flex; align-items: center; gap: 6px; color: var(--muted); font-size: 10px; }.schedule-legend i { width: 11px; height: 11px; border-radius: 3px; }.shift-standard { background: #c6e9ed; }.shift-busy { background: #d9d2ff; }.shift-leave { background: #eadce2; }.shift-open { border: 1px dashed #c8cdd6; }
 .service-icon { display: grid; place-items: center; flex: 0 0 auto; width: 32px; height: 32px; color: #8d5a32; background: #f6efe4; border-radius: 9px; font-size: 10px; font-weight: 800; }.money-value { color: #263348; font-size: 12px; }.order-status { display: inline-flex; padding: 5px 8px; border-radius: 99px; font-size: 10px; font-weight: 600; }.order-status--pending { color: #9d5f20; background: #fff0da; }.order-status--confirmed { color: #425eb5; background: #e9edff; }.order-status--in_progress { color: #176f69; background: #def5f0; }.order-status--completed { color: #4e5a69; background: #edf0f3; }
+.picker-note, .picker-hint { margin: 0 0 12px; color: var(--muted); font-size: 12px; line-height: 1.5; }
+.picker-fields { display: grid; grid-template-columns: 168px minmax(0, 1fr); gap: 14px; margin-bottom: 14px; }
+.picker-fields label, .phone-stack { display: flex; flex-direction: column; gap: 6px; }
+.picker-fields label > span, .phone-stack > span, .quote-terms span { color: #74685a; font-size: 11px; font-weight: 700; letter-spacing: .04em; }
+.picker-fields :deep(.el-input-number) { width: 100%; }
+.picker-toolbar { display: flex; gap: 10px; margin-bottom: 10px; }
+.picker-toolbar .el-select, .picker-toolbar .el-input { flex: 1; }
+.picker-list { max-height: 480px; overflow: auto; border: 1px solid var(--line); border-radius: 12px; }
+.picker-list__bar { display: flex; align-items: center; justify-content: space-between; padding: 10px 12px; background: #f7f3ec; position: sticky; top: 0; z-index: 1; }
+.picker-list__bar small { color: var(--muted); font-size: 12px; }
+.picker-row { margin: 0; padding: 10px 12px; border-top: 1px solid var(--line); }
+.picker-row.is-added { opacity: .62; }
+.picker-row.is-open { background: #fffdf8; }
+.picker-row__head { display: flex; align-items: flex-start; gap: 10px; }
+.picker-row__name { display: flex; flex: 1; flex-direction: column; gap: 2px; min-width: 0; }
+.picker-row strong { font-size: 13px; }
+.picker-row small, .picker-row em { color: var(--muted); font-size: 11px; font-style: normal; }
+.picker-row__fields { display: grid; grid-template-columns: 160px minmax(0, 1fr); gap: 12px; margin: 10px 0 2px 28px; }
+.picker-row__fields :deep(.el-input-number) { width: 100%; }
+.phone-stack { min-width: 0; }
+.phone-row { display: flex; gap: 8px; }
+.phone-row .el-input { flex: 1; }
+.quote-terms { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 18px 28px; margin-bottom: 14px; padding: 12px 14px; background: #f7f3ec; border-radius: 12px; }
+.quote-terms > div, .quote-terms__price { display: flex; flex-direction: column; gap: 8px; }
+.quote-terms small { color: var(--muted); font-size: 12px; }
+.quote-lines { display: flex; flex-direction: column; gap: 8px; max-height: min(56vh, 560px); overflow: auto; }
+.quote-lines__empty { margin: 28px 0; text-align: center; color: var(--muted); }
+.quote-line { display: grid; grid-template-columns: minmax(148px, 1.2fr) repeat(3, minmax(0, 1fr)); gap: 10px 12px; align-items: end; padding: 12px 14px; background: #fffdf8; border: 1px solid var(--line); border-radius: 12px; }
+.quote-line.is-off { opacity: .55; }
+.quote-line__spec { display: flex; flex-direction: column; gap: 4px; min-width: 0; padding-bottom: 6px; }
+.quote-line__spec strong { color: var(--ink); font-size: 14px; font-weight: 650; line-height: 1.35; }
+.quote-line__spec small { color: var(--muted); font-size: 12px; }
+.quote-line label { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.quote-line :deep(.el-input), .quote-line :deep(.el-input-number) { width: 100%; }
+.quote-attaches { display: flex; flex-direction: column; gap: 8px; margin-top: 14px; }
+.quote-attaches header { display: flex; flex-direction: column; gap: 4px; }
+.quote-attaches header strong { color: var(--ink); font-size: 14px; }
+.quote-attaches header small, .quote-attach small { color: var(--muted); font-size: 12px; }
+.quote-attach { display: grid; grid-template-columns: minmax(180px, 1.4fr) minmax(0, 220px); gap: 10px 12px; align-items: center; padding: 12px 14px; background: #fffdf8; border: 1px solid var(--line); border-radius: 12px; }
+.quote-attach__name { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.service-action__order { margin: 0 0 12px; color: var(--muted); }
+.service-action__note { display: grid; gap: 6px; color: #74685a; font-size: 12px; font-weight: 700; }
+.service-action__photos { display: grid; gap: 8px; margin-top: 14px; }
+.service-action__photos small { display: block; color: var(--muted); font-weight: 500; }
+.service-action__pick { position: relative; display: inline-flex; align-items: center; width: fit-content; height: 34px; padding: 0 12px; border: 1px solid var(--line); border-radius: 8px; cursor: pointer; }
+.service-action__pick input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+.service-action__photos ul { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; }
+.service-action__photos li { display: flex; align-items: center; gap: 10px; }
+.service-action__photos img, .order-photos img { width: 48px; height: 48px; object-fit: cover; border-radius: 8px; }
+.service-action__photos button, .order-photos button { padding: 0; border: 0; background: transparent; cursor: pointer; }
+.order-photos { display: flex; flex-wrap: wrap; gap: 8px; margin: 16px 0; }
+.order-photos h3 { flex: 1 0 100%; margin: 0; font-size: 13px; }
 .pricing-health { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; padding: 15px 18px; background: #ecf8f4; border: 1px solid #cceade; border-radius: 13px; }.pricing-health > div { display: flex; align-items: center; gap: 12px; }.health-icon { display: grid; place-items: center; width: 38px; height: 38px; color: #218365; background: #d4f0e6; border-radius: 50%; }.pricing-health strong { font-size: 13px; }.pricing-health p { margin: 3px 0 0; color: #5f7b72; font-size: 11px; }
 .quote-dialog__meta { margin: 0 0 10px; color: var(--muted); font-size: 12px; }
-.quote-spec-table :deep(.el-input-number) { width: 140px; }
-.quote-spec-table .muted-text { display: block; margin-top: 4px; }
+@media (max-width: 820px) {
+  .quote-line { grid-template-columns: 1fr 1fr; }
+  .quote-line__spec, .quote-line label:last-child { grid-column: 1 / -1; }
+  .quote-attach { grid-template-columns: 1fr; }
+  .quote-line__spec { padding-bottom: 0; }
+}
 .pricing-card { margin-bottom: 14px; }.pricing-toolbar { display: flex; align-items: flex-start; justify-content: space-between; padding: 0 18px; border-bottom: 1px solid var(--line); }.pricing-actions { display: flex; gap: 8px; padding-top: 13px; }.quote-service { display: flex; align-items: center; gap: 10px; }.quote-service > span { padding: 4px 6px; color: #8d5a32; background: #f6efe4; border-radius: 5px; font-size: 9px; font-weight: 700; }.quote-service > div { display: flex; flex-direction: column; gap: 3px; }.quote-service strong { font-size: 12px; }.quote-service small { color: var(--muted); font-size: 10px; }.price-value { color: #27334a; font-size: 13px; }.pricing-table :deep(.el-input-number) { width: 128px; }
-.pricing-filter { display: flex; align-items: center; gap: 10px; min-height: 58px; }.pricing-filter > span { font-size: 12px; font-weight: 700; }.pricing-filter .el-select { width: 170px; }.pricing-filter small { color: var(--muted); font-size: 10px; }
+.pricing-filter { display: flex; align-items: center; gap: 10px; min-height: 58px; }.pricing-filter > span { font-size: 12px; font-weight: 700; }.pricing-filter .el-select { width: 170px; }.pricing-filter .el-input { width: 220px; }.pricing-filter small { color: var(--muted); font-size: 10px; }
 .pricing-bottom-grid { display: grid; grid-template-columns: 1.15fr .85fr; gap: 14px; }.rule-list > div { display: grid; grid-template-columns: 72px minmax(0, 1fr) auto; align-items: center; gap: 12px; padding: 14px 19px; border-bottom: 1px solid var(--line); }.rule-list > div:last-child { border-bottom: 0; }.rule-badge { display: inline-flex; justify-content: center; padding: 5px 7px; border-radius: 6px; font-size: 9px; font-weight: 700; }.rule-badge--standard { color: #4269b5; background: #edf2fd; }.rule-badge--extended { color: #a86723; background: #fff0dc; }.rule-badge--restricted { color: #a94250; background: #fdecef; }.rule-list > div > span:nth-child(2) { display: flex; flex-direction: column; gap: 3px; }.rule-list strong { font-size: 12px; }.rule-list small { color: var(--muted); font-size: 10px; }.rule-values { display: flex; flex-direction: column; align-items: flex-end; gap: 3px; }.rule-values b { font-size: 11px; }.rule-values em { color: var(--muted); font-size: 10px; font-style: normal; }.terms-list { display: grid; grid-template-columns: repeat(2, 1fr); margin: 0; padding: 11px 20px 18px; }.terms-list div { padding: 10px 0; border-bottom: 1px solid #eff1f5; }.terms-list div:nth-last-child(-n + 2) { border-bottom: 0; }.terms-list dt { color: var(--muted); font-size: 10px; }.terms-list dd { margin: 4px 0 0; font-size: 12px; font-weight: 700; }
 .drawer-order-head { display: flex; align-items: flex-start; justify-content: space-between; padding: 0 0 19px; border-bottom: 1px solid var(--line); }.drawer-order-head > div > span { color: #8d5a32; font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }.drawer-order-head h2 { margin: 6px 0 3px; font-size: 19px; }.drawer-order-head p { margin: 0; color: var(--muted); font-size: 12px; }.drawer-section { padding: 20px 0; border-bottom: 1px solid var(--line); }.drawer-section h3 { margin: 0 0 13px; font-size: 13px; }.detail-list { display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px; margin: 0; }.detail-list dt { color: var(--muted); font-size: 10px; }.detail-list dd { margin: 4px 0 0; font-size: 12px; font-weight: 600; }.address-panel { display: flex; gap: 11px; padding: 13px; background: #f7f8fb; border-radius: 10px; }.address-panel > svg { flex: 0 0 auto; width: 19px; color: #8d5a32; }.address-panel div { display: flex; flex-direction: column; gap: 4px; }.address-panel strong { font-size: 12px; }.address-panel p { margin: 0; color: #677186; font-size: 11px; }.address-panel span { color: #969dac; font-size: 10px; }
 .supplier-name { display: block; margin-top: 5px; font-size: 15px; }
@@ -1536,5 +2247,5 @@ watch(section, (value) => {
 </style>
 
 <style scoped>
-@media (max-width: 820px) { .supplier-demo { padding: 14px; } .supplier-demo--profile { padding: 0 0 20px; } .supplier-demo--profile .page-header h1 { font-size: 30px; } .supplier-demo--profile .dossier { padding: 0 12px; }.page-header, .supplier-strip, .table-toolbar, .schedule-toolbar, .pricing-toolbar { align-items: flex-start; flex-direction: column; }.page-header { gap: 12px; }.page-actions { flex-wrap: wrap; }.supplier-strip { gap: 14px; }.supplier-facts { flex-wrap: wrap; gap: 12px 20px; }.metric-grid { grid-template-columns: 1fr; }.overview-grid--bottom, .pricing-bottom-grid { grid-template-columns: 1fr; }.table-search { flex-wrap: wrap; }.table-search .el-input, .table-search .el-select { width: 100%; }.form-grid, .form-grid--three { grid-template-columns: 1fr; }.span-2 { grid-column: span 1; }.pricing-actions { padding-bottom: 13px; }.section-tabs :deep(.el-tabs__item) { padding: 0 10px; }.compliance-grid, .toggle-grid, .gender-capacity { grid-template-columns: 1fr; } }
+@media (max-width: 820px) { .picker-fields, .picker-toolbar { grid-template-columns: 1fr; flex-direction: column; } .pricing-filter .el-input, .pricing-filter .el-select { width: 100%; } .supplier-demo { padding: 14px; } .supplier-demo--profile { padding: 0 0 20px; } .supplier-demo--profile .page-header h1 { font-size: 30px; } .supplier-demo--profile .dossier { padding: 0 12px; }.page-header, .supplier-strip, .table-toolbar, .schedule-toolbar, .pricing-toolbar { align-items: flex-start; flex-direction: column; }.page-header { gap: 12px; }.page-actions { flex-wrap: wrap; }.supplier-strip { gap: 14px; }.supplier-facts { flex-wrap: wrap; gap: 12px 20px; }.metric-grid { grid-template-columns: 1fr; }.overview-grid--bottom, .pricing-bottom-grid { grid-template-columns: 1fr; }.table-search { flex-wrap: wrap; }.table-search .el-input, .table-search .el-select { width: 100%; }.form-grid, .form-grid--three { grid-template-columns: 1fr; }.span-2 { grid-column: span 1; }.pricing-actions { padding-bottom: 13px; }.section-tabs :deep(.el-tabs__item) { padding: 0 10px; }.compliance-grid, .toggle-grid, .gender-capacity { grid-template-columns: 1fr; } }
 </style>
