@@ -69,9 +69,13 @@
                   : t('client.login.password.accountLabel')
               }}
             </span>
-            <div class="form-item__control form-item__control--account">
+            <div
+              class="form-item__control form-item__control--account"
+              :class="{ 'form-item__control--email': isEmailAccount }"
+            >
               <img :src="assetAccount" alt="" />
               <select
+                v-if="!isEmailAccount"
                 v-model="form.countryCode"
                 class="login-country-code"
                 autocomplete="tel-country-code"
@@ -85,7 +89,7 @@
                   {{ item.value }}
                 </option>
               </select>
-              <span class="login-country-code__divider" aria-hidden="true" />
+              <span v-if="!isEmailAccount" class="login-country-code__divider" aria-hidden="true" />
               <input
                 v-model.trim="form.account"
                 type="text"
@@ -203,7 +207,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onBeforeUnmount, reactive, ref } from 'vue';
+import { computed, onBeforeUnmount, reactive, ref, watch } from 'vue';
 import { ElMessage } from 'element-plus';
 import { useI18n } from 'vue-i18n';
 import { useRoute, useRouter } from 'vue-router';
@@ -219,6 +223,7 @@ import {
 } from '@/utils/auth-state';
 import {
   DEFAULT_LOGIN_COUNTRY_CODE,
+  isEmailLoginAccount,
   LOGIN_COUNTRY_CODE_OPTIONS,
   resolveLoginAccount,
 } from '@/utils/login-account';
@@ -255,7 +260,20 @@ const localeLabel = computed(() =>
 );
 const isCodeLogin = computed(() => loginMode.value === 'code');
 const countryCodeOptions = LOGIN_COUNTRY_CODE_OPTIONS;
+const isEmailAccount = computed(() => isEmailLoginAccount(form.account));
+const lastPhoneCountryCode = ref(form.countryCode);
 const resolvedLoginAccount = computed(() => resolveLoginAccount(form.account, form.countryCode));
+
+watch(isEmailAccount, (isEmail) => {
+  if (isEmail) {
+    if (form.countryCode) {
+      lastPhoneCountryCode.value = form.countryCode;
+    }
+    form.countryCode = '';
+    return;
+  }
+  form.countryCode = lastPhoneCountryCode.value || DEFAULT_LOGIN_COUNTRY_CODE;
+});
 const passwordInputType = computed(() => (showPassword.value ? 'text' : 'password'));
 const codeBtnText = computed(() => {
   if (codeCooldown.value > 0) {
@@ -751,6 +769,10 @@ onBeforeUnmount(() => {
   grid-template-columns: 18px 54px 1px minmax(0, 1fr);
   column-gap: 8px;
   overflow: hidden;
+}
+
+.form-item__control--email {
+  grid-template-columns: 18px minmax(0, 1fr);
 }
 
 .form-item__control input::placeholder {
