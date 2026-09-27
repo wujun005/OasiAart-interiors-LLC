@@ -9,7 +9,7 @@
         <el-button v-if="section === 'orders' || section === 'settlement'" :icon="Download" @click="showToast(section === 'orders' ? '订单清单已生成 Demo 导出任务' : '结算明细已生成 Demo 导出任务')">
           {{ section === 'orders' ? '导出订单' : '导出结算' }}
         </el-button>
-        <el-button v-if="section === 'profile'" :loading="saving" @click="saveProfile(0)">Save draft</el-button>
+        <el-button v-if="section === 'profile'" :loading="saving" @click="saveProfile(0)">{{ t('admin.supplierProfile.saveDraft') }}</el-button>
         <el-button v-if="meta.primaryAction" type="primary" :icon="section === 'schedule' ? Plus : section === 'profile' ? Check : undefined" @click="handlePrimaryAction">
           {{ meta.primaryAction }}
         </el-button>
@@ -90,108 +90,108 @@
     <template v-else-if="section === 'profile'">
       <div class="dossier">
         <aside class="dossier-rail">
-          <p>Onboarding file</p>
-          <strong>{{ companyForm.companyName || 'Untitled company' }}</strong>
-          <em>{{ ['Draft', 'Submitted', 'Approved', 'Rejected'][onboardingStatus ?? -1] || 'Not created' }}</em>
+          <p>{{ t('admin.supplierProfile.kicker') }}</p>
+          <strong>{{ companyForm.companyName || t('admin.supplierProfile.untitled') }}</strong>
+          <em>{{ profileStatusLabel }}</em>
           <el-select
             v-if="supplierOptions.length"
             class="dossier-switch"
             :model-value="supplierRecordId || undefined"
             filterable
-            placeholder="Switch supplier"
+            :placeholder="t('admin.supplierProfile.switchSupplier')"
             @change="switchSupplier"
           >
             <el-option
               v-for="item in supplierOptions"
               :key="item.id"
-              :label="item.companyName || `供应商 ${item.id}`"
+              :label="item.companyName || t('admin.supplierProfile.supplierNamed', { id: item.id })"
               :value="item.id"
             />
           </el-select>
           <nav>
-            <button type="button" :class="{ 'is-active': profileAnchor === 'company' }" @click="goProfile('company')"><span>01</span>Company</button>
-            <button type="button" :class="{ 'is-active': profileAnchor === 'contact' }" @click="goProfile('contact')"><span>02</span>Contact</button>
-            <button type="button" :class="{ 'is-active': profileAnchor === 'capacity' }" @click="goProfile('capacity')"><span>03</span>Capacity</button>
-            <button type="button" :class="{ 'is-active': profileAnchor === 'bank' }" @click="goProfile('bank')"><span>04</span>Bank</button>
-            <button type="button" :class="{ 'is-active': profileAnchor === 'insurance' }" @click="goProfile('insurance')"><span>05</span>Insurance</button>
-            <button type="button" :class="{ 'is-active': profileAnchor === 'documents' }" @click="goProfile('documents')"><span>06</span>Documents</button>
+            <button type="button" :class="{ 'is-active': profileAnchor === 'company' }" @click="goProfile('company')"><span>01</span>{{ t('admin.supplierProfile.companyTitle') }}</button>
+            <button type="button" :class="{ 'is-active': profileAnchor === 'contact' }" @click="goProfile('contact')"><span>02</span>{{ t('admin.supplierProfile.contactTitle') }}</button>
+            <button type="button" :class="{ 'is-active': profileAnchor === 'capacity' }" @click="goProfile('capacity')"><span>03</span>{{ t('admin.supplierProfile.capacityTitle') }}</button>
+            <button type="button" :class="{ 'is-active': profileAnchor === 'bank' }" @click="goProfile('bank')"><span>04</span>{{ t('admin.supplierProfile.bankTitle') }}</button>
+            <button type="button" :class="{ 'is-active': profileAnchor === 'insurance' }" @click="goProfile('insurance')"><span>05</span>{{ t('admin.supplierProfile.insuranceTitle') }}</button>
+            <button type="button" :class="{ 'is-active': profileAnchor === 'documents' }" @click="goProfile('documents')"><span>06</span>{{ t('admin.supplierProfile.documentsTitle') }}</button>
           </nav>
-          <small v-if="rejectReason">Rejected: {{ rejectReason }}</small>
+          <small v-if="rejectReason">{{ t('admin.supplierProfile.rejected', { reason: rejectReason }) }}</small>
         </aside>
 
         <div class="dossier-sheet">
           <section id="profile-company">
-            <header><span>01</span><div><h2>Company</h2><p>Legal name, trade license, and registered office.</p></div></header>
+            <header><span>01</span><div><h2>{{ t('admin.supplierProfile.companyTitle') }}</h2><p>{{ t('admin.supplierProfile.companyHint') }}</p></div></header>
             <el-form label-position="top" class="dossier-grid">
-              <el-form-item label="Company Name" class="span-2" required><el-input v-model="companyForm.companyName" placeholder="Registered company name" /></el-form-item>
-              <el-form-item label="Trade License No." required><el-input v-model="companyForm.licenseNo" placeholder="CN-0000000" /></el-form-item>
-              <el-form-item label="License Expiry" required><el-date-picker v-model="companyForm.licenseExpiry" type="date" value-format="YYYY-MM-DD" placeholder="YYYY-MM-DD" /></el-form-item>
-              <el-form-item label="VAT / TRN"><el-input v-model="companyForm.trn" placeholder="If applicable" /></el-form-item>
-              <el-form-item label="Years in Business"><el-input-number v-model="companyForm.years" :min="0" controls-position="right" /></el-form-item>
-              <el-form-item label="Office Address" class="span-2" required><el-input v-model="companyForm.address" placeholder="Building, area, Dubai" /></el-form-item>
+              <el-form-item :label="t('admin.supplierProfile.companyName')" class="span-2" required><el-input v-model="companyForm.companyName" :placeholder="t('admin.supplierProfile.companyNamePlaceholder')" /></el-form-item>
+              <el-form-item :label="t('admin.supplierProfile.licenseNo')" required><el-input v-model="companyForm.licenseNo" placeholder="CN-0000000" /></el-form-item>
+              <el-form-item :label="t('admin.supplierProfile.licenseExpiry')" required><el-date-picker v-model="companyForm.licenseExpiry" type="date" value-format="YYYY-MM-DD" placeholder="YYYY-MM-DD" /></el-form-item>
+              <el-form-item :label="t('admin.supplierProfile.vat')"><el-input v-model="companyForm.trn" :placeholder="t('admin.supplierProfile.vatPlaceholder')" /></el-form-item>
+              <el-form-item :label="t('admin.supplierProfile.years')"><el-input-number v-model="companyForm.years" :min="0" controls-position="right" /></el-form-item>
+              <el-form-item :label="t('admin.supplierProfile.address')" class="span-2" required><el-input v-model="companyForm.address" :placeholder="t('admin.supplierProfile.addressPlaceholder')" /></el-form-item>
             </el-form>
           </section>
 
           <section id="profile-contact">
-            <header><span>02</span><div><h2>Contact</h2><p>The person HourX will reach for dispatch.</p></div></header>
+            <header><span>02</span><div><h2>{{ t('admin.supplierProfile.contactTitle') }}</h2><p>{{ t('admin.supplierProfile.contactHint') }}</p></div></header>
             <el-form label-position="top" class="dossier-grid">
-              <el-form-item label="Contact Person" required><el-input v-model="companyForm.contact" /></el-form-item>
-              <el-form-item label="Email" required><el-input v-model="companyForm.email" /></el-form-item>
-              <el-form-item label="Mobile" required><el-input v-model="companyForm.mobile" placeholder="+971" /></el-form-item>
-              <el-form-item label="WhatsApp" required><el-input v-model="companyForm.whatsapp" placeholder="+971" /></el-form-item>
+              <el-form-item :label="t('admin.supplierProfile.contactPerson')" required><el-input v-model="companyForm.contact" /></el-form-item>
+              <el-form-item :label="t('admin.supplierProfile.email')" required><el-input v-model="companyForm.email" /></el-form-item>
+              <el-form-item :label="t('admin.supplierProfile.mobile')" required><el-input v-model="companyForm.mobile" placeholder="+971" /></el-form-item>
+              <el-form-item :label="t('admin.supplierProfile.whatsapp')" required><el-input v-model="companyForm.whatsapp" placeholder="+971" /></el-form-item>
             </el-form>
           </section>
 
           <section id="profile-capacity">
-            <header><span>03</span><div><h2>Capacity</h2><p>How many jobs the company can take, and when.</p></div></header>
+            <header><span>03</span><div><h2>{{ t('admin.supplierProfile.capacityTitle') }}</h2><p>{{ t('admin.supplierProfile.capacityHint') }}</p></div></header>
             <el-form label-position="top" class="dossier-grid dossier-grid--three">
-              <el-form-item label="Total Available Workers"><el-input-number v-model="capacityForm.workers" :min="0" /></el-form-item>
-              <el-form-item label="Max Simultaneous Orders"><el-input-number v-model="capacityForm.concurrent" :min="0" /></el-form-item>
-              <el-form-item label="Monthly Capacity"><el-input-number v-model="capacityForm.monthly" :min="0" /></el-form-item>
-              <el-form-item label="Minimum Lead Time (hours)"><el-input-number v-model="capacityForm.leadTime" :min="0" /></el-form-item>
-              <el-form-item label="Working Hours Start"><el-time-select v-model="capacityForm.start" start="06:00" step="00:30" end="12:00" /></el-form-item>
-              <el-form-item label="Working Hours End"><el-time-select v-model="capacityForm.end" start="14:00" step="00:30" end="23:30" /></el-form-item>
-              <el-form-item label="Female Staff"><el-input-number v-model="femaleStaffCount" :min="0" /></el-form-item>
-              <el-form-item label="Male Staff"><el-input-number v-model="maleStaffCount" :min="0" /></el-form-item>
+              <el-form-item :label="t('admin.supplierProfile.workers')"><el-input-number v-model="capacityForm.workers" :min="0" /></el-form-item>
+              <el-form-item :label="t('admin.supplierProfile.concurrent')"><el-input-number v-model="capacityForm.concurrent" :min="0" /></el-form-item>
+              <el-form-item :label="t('admin.supplierProfile.monthly')"><el-input-number v-model="capacityForm.monthly" :min="0" /></el-form-item>
+              <el-form-item :label="t('admin.supplierProfile.leadTime')"><el-input-number v-model="capacityForm.leadTime" :min="0" /></el-form-item>
+              <el-form-item :label="t('admin.supplierProfile.workStart')"><el-time-select v-model="capacityForm.start" start="06:00" step="00:30" end="12:00" /></el-form-item>
+              <el-form-item :label="t('admin.supplierProfile.workEnd')"><el-time-select v-model="capacityForm.end" start="14:00" step="00:30" end="23:30" /></el-form-item>
+              <el-form-item :label="t('admin.supplierProfile.femaleStaff')"><el-input-number v-model="femaleStaffCount" :min="0" /></el-form-item>
+              <el-form-item :label="t('admin.supplierProfile.maleStaff')"><el-input-number v-model="maleStaffCount" :min="0" /></el-form-item>
             </el-form>
             <div class="dossier-toggles">
-              <label v-for="item in capacityToggles" :key="item.en"><span><strong>{{ item.label }}</strong><small>{{ item.en }}</small></span><el-switch v-model="item.enabled" /></label>
-              <label><span><strong>自有车辆</strong><small>Own transportation</small></span><el-switch v-model="ownTransportation" /></label>
-              <label><span><strong>自有设备</strong><small>Own equipment</small></span><el-switch v-model="complianceItems[3].enabled" /></label>
-              <label><span><strong>可开税务发票</strong><small>Tax invoice available</small></span><el-switch v-model="complianceItems[2].enabled" /></label>
+              <label v-for="item in capacityToggles" :key="item.key"><span><strong>{{ t(`admin.supplierProfile.${item.key}`) }}</strong></span><el-switch v-model="item.enabled" /></label>
+              <label><span><strong>{{ t('admin.supplierProfile.ownVehicle') }}</strong></span><el-switch v-model="ownTransportation" /></label>
+              <label><span><strong>{{ t('admin.supplierProfile.ownEquipment') }}</strong></span><el-switch v-model="complianceItems[3].enabled" /></label>
+              <label><span><strong>{{ t('admin.supplierProfile.taxInvoice') }}</strong></span><el-switch v-model="complianceItems[2].enabled" /></label>
             </div>
           </section>
 
           <section id="profile-bank">
-            <header><span>04</span><div><h2>Bank</h2><p>Changes stay pending until HourX approves them.</p></div></header>
+            <header><span>04</span><div><h2>{{ t('admin.supplierProfile.bankTitle') }}</h2><p>{{ t('admin.supplierProfile.bankHint') }}</p></div></header>
             <el-form label-position="top" class="dossier-grid">
-              <el-form-item label="Account Name"><el-input v-model="bankForm.accountName" /></el-form-item>
-              <el-form-item label="Bank Name"><el-input v-model="bankForm.bankName" /></el-form-item>
-              <el-form-item label="IBAN" class="span-2"><el-input v-model="bankForm.iban" /></el-form-item>
-              <el-form-item label="SWIFT / BIC"><el-input v-model="bankForm.swift" /></el-form-item>
-              <el-form-item label="Currency"><el-select v-model="bankForm.currency"><el-option label="AED" value="AED" /></el-select></el-form-item>
+              <el-form-item :label="t('admin.supplierProfile.accountName')"><el-input v-model="bankForm.accountName" /></el-form-item>
+              <el-form-item :label="t('admin.supplierProfile.bankName')"><el-input v-model="bankForm.bankName" /></el-form-item>
+              <el-form-item :label="t('admin.supplierProfile.iban')" class="span-2"><el-input v-model="bankForm.iban" /></el-form-item>
+              <el-form-item :label="t('admin.supplierProfile.swift')"><el-input v-model="bankForm.swift" /></el-form-item>
+              <el-form-item :label="t('admin.supplierProfile.currency')"><el-select v-model="bankForm.currency"><el-option label="AED" value="AED" /></el-select></el-form-item>
             </el-form>
           </section>
 
           <section id="profile-insurance">
-            <header><span>05</span><div><h2>Insurance</h2><p>A copy is required when the answer is yes.</p></div></header>
+            <header><span>05</span><div><h2>{{ t('admin.supplierProfile.insuranceTitle') }}</h2><p>{{ t('admin.supplierProfile.insuranceHint') }}</p></div></header>
             <div class="policy-row" v-for="item in complianceItems.filter((entry) => entry.fileKey)" :key="item.key">
               <div>
-                <strong>{{ item.label }}</strong>
-                <small v-if="!item.files.length">{{ item.hint }}</small>
+                <strong>{{ t(`admin.supplierProfile.${item.labelKey}`) }}</strong>
+                <small v-if="!item.files.length">{{ t('admin.supplierProfile.uploadHint') }}</small>
                 <ul v-else class="policy-files">
                   <li v-for="(url, index) in item.files" :key="`${url}-${index}`">
                     <button v-if="fileKind(url) === 'image'" type="button" class="policy-thumb" @click="openFilePreview(url)">
                       <img :src="url" :alt="fileNameFromUrl(url)" />
                     </button>
                     <button type="button" class="policy-name" @click="openFilePreview(url)">{{ fileNameFromUrl(url) }}</button>
-                    <button type="button" class="is-remove" @click="removeInsuranceFile(item.fileKey, index)">Remove</button>
+                    <button type="button" class="is-remove" @click="removeInsuranceFile(item.fileKey, index)">{{ t('admin.supplierProfile.remove') }}</button>
                   </li>
                 </ul>
               </div>
               <el-switch v-model="item.enabled" />
               <el-upload multiple :show-file-list="false" :http-request="(options) => uploadInsurance(item.fileKey, options)">
-                <el-button>Upload copy</el-button>
+                <el-button>{{ t('admin.supplierProfile.uploadCopy') }}</el-button>
               </el-upload>
             </div>
           </section>
@@ -199,9 +199,9 @@
           <section id="profile-documents">
             <header>
               <span>06</span>
-              <div><h2>Documents</h2><p>Preview each uploaded policy copy.</p></div>
+              <div><h2>{{ t('admin.supplierProfile.documentsTitle') }}</h2><p>{{ t('admin.supplierProfile.documentsHint') }}</p></div>
             </header>
-            <p v-if="!policyDocuments.length" class="policy-empty">No policy files uploaded yet.</p>
+            <p v-if="!policyDocuments.length" class="policy-empty">{{ t('admin.supplierProfile.noDocuments') }}</p>
             <div v-else class="doc-list">
               <article v-for="row in policyDocuments" :key="row.key">
                 <button type="button" class="doc-thumb" @click="openFilePreview(row.url)">
@@ -212,7 +212,7 @@
                   <strong>{{ row.label }}</strong>
                   <small>{{ row.name }}</small>
                 </div>
-                <button type="button" class="doc-view" @click="openFilePreview(row.url)">View</button>
+                <button type="button" class="doc-view" @click="openFilePreview(row.url)">{{ t('admin.supplierProfile.view') }}</button>
               </article>
             </div>
           </section>
@@ -435,8 +435,13 @@
           <el-table-column :label="t('admin.supplierPricing.headcount')" width="110">
             <template #default="{ row }">{{ row.workerCount ?? '—' }}</template>
           </el-table-column>
-          <el-table-column :label="t('admin.supplierPricing.phone')" min-width="180">
-            <template #default="{ row }">{{ phoneSummary(row.phones) }}</template>
+          <el-table-column class-name="phone-col" :label="t('admin.supplierPricing.phone')" min-width="180">
+            <template #default="{ row }">
+              <div v-if="listedPhones(row.phones).length" class="phone-list">
+                <span v-for="(phone, index) in listedPhones(row.phones)" :key="`${phone}-${index}`">{{ phone }}</span>
+              </div>
+              <span v-else>—</span>
+            </template>
           </el-table-column>
           <el-table-column :label="t('admin.supplierPricing.quoteMode')" width="130">
             <template #default="{ row }">{{ quoteModeLabel(row.quoteMode) }}</template>
@@ -554,7 +559,7 @@
               <el-checkbox :model-value="item.offered" :disabled="quoteLocked" @change="(value: boolean | string | number) => toggleAttach(item, Boolean(value))">
                 {{ item.name }}
               </el-checkbox>
-              <small>{{ item.typeName }} · {{ t('admin.supplierPricing.livePrice', { price: moneyText(item.approvedPrice) }) }} · {{ t('admin.supplierPricing.addonPlatform', { price: moneyText(item.platformPrice) }) }}</small>
+              <small>{{ item.typeName }} · {{ t('admin.supplierPricing.livePrice', { price: moneyText(item.approvedPrice) }) }}</small>
             </div>
             <el-input
               v-if="item.offered"
@@ -740,7 +745,7 @@
       <div class="policy-preview__stage">
         <img v-if="filePreview.kind === 'image'" :src="filePreview.url" :alt="filePreview.name" />
         <iframe v-else-if="filePreview.kind === 'pdf'" :src="filePreview.url" :title="filePreview.name" />
-        <p v-else>This file cannot be previewed.</p>
+        <p v-else>{{ t('admin.supplierProfile.previewUnsupported') }}</p>
       </div>
     </el-dialog>
   </div>
@@ -807,9 +812,16 @@ const pageMeta = {
   settlement: { title: '收益与结算', description: '核对订单收益、调整流水和付款批次。', primaryAction: '' },
 } as const
 
-const meta = computed(() => section.value === 'pricing'
-  ? { title: t('admin.supplierPricing.title'), description: t('admin.supplierPricing.description'), primaryAction: '' }
-  : pageMeta[section.value])
+const meta = computed(() => {
+  if (section.value === 'pricing') return { title: t('admin.supplierPricing.title'), description: t('admin.supplierPricing.description'), primaryAction: '' }
+  if (section.value === 'profile') return { title: t('admin.supplierProfile.title'), description: t('admin.supplierProfile.description'), primaryAction: t('admin.supplierProfile.submitReview') }
+  return pageMeta[section.value]
+})
+const profileStatusLabel = computed(() => {
+  const keys = ['statusDraft', 'statusSubmitted', 'statusApproved', 'statusRejected']
+  const key = onboardingStatus.value == null ? 'statusNone' : keys[onboardingStatus.value] || 'statusNone'
+  return t(`admin.supplierProfile.${key}`)
+})
 const supplierRecordId = ref<number | null>(null)
 const supplierOptions = ref<Array<{ id: number; companyName: string }>>([])
 const onboardingStatus = ref<number | null>(null)
@@ -858,10 +870,10 @@ const companyForm = reactive({
 })
 
 const complianceItems = reactive([
-  { key: 'public', fileKey: 'publicLiabilityInsuranceFile', label: 'Public Liability Insurance', hint: 'Upload at least one copy when the answer is yes.', enabled: false, files: [] as string[] },
-  { key: 'employee', fileKey: 'employeeInsuranceFile', label: 'Employee Insurance', hint: 'Upload at least one copy when the answer is yes.', enabled: false, files: [] as string[] },
-  { key: 'tax', label: '可开具税务发票 / Tax Invoice', hint: 'VAT / TRN', enabled: false, files: [] as string[] },
-  { key: 'equipment', label: '自有设备 / Own Equipment', hint: '是否自有设备', enabled: false, files: [] as string[] },
+  { key: 'public', fileKey: 'publicLiabilityInsuranceFile', labelKey: 'publicLiability', enabled: false, files: [] as string[] },
+  { key: 'employee', fileKey: 'employeeInsuranceFile', labelKey: 'employeeInsurance', enabled: false, files: [] as string[] },
+  { key: 'tax', labelKey: 'taxInvoice', enabled: false, files: [] as string[] },
+  { key: 'equipment', labelKey: 'ownEquipment', enabled: false, files: [] as string[] },
 ])
 
 const bankForm = reactive({
@@ -916,7 +928,7 @@ const policyDocuments = computed(() => complianceItems
   .filter((item) => item.fileKey)
   .flatMap((item) => item.files.map((url, index) => ({
     key: `${item.key}-${index}-${url}`,
-    label: item.label,
+    label: t(`admin.supplierProfile.${item.labelKey}`),
     name: fileNameFromUrl(url),
     url,
     kind: fileKind(url),
@@ -924,10 +936,10 @@ const policyDocuments = computed(() => complianceItems
 
 const capacityForm = reactive({ workers: 0, concurrent: 0, monthly: 0, leadTime: 0, start: '08:00', end: '18:00' })
 const capacityToggles = reactive([
-  { label: '周末服务', en: 'Weekend service', enabled: false },
-  { label: '公共假期服务', en: 'Public holiday service', enabled: false },
-  { label: '当日预约', en: 'Same-day booking', enabled: false },
-  { label: '紧急服务', en: 'Emergency service', enabled: false },
+  { key: 'weekend', enabled: false },
+  { key: 'publicHoliday', enabled: false },
+  { key: 'sameDay', enabled: false },
+  { key: 'emergency', enabled: false },
 ])
 
 type StaffStatus = 'available' | 'busy' | 'leave'
@@ -1319,11 +1331,7 @@ const openServicePicker = () => {
   servicePicker.drafts = []
   servicePicker.open = true
 }
-const phoneSummary = (phones: string[]) => {
-  const list = (phones || []).map((phone) => phone.trim()).filter(Boolean)
-  if (!list.length) return '—'
-  return list.length === 1 ? list[0] : t('admin.supplierPricing.phonesMore', { phone: list[0], count: list.length })
-}
+const listedPhones = (phones: string[]) => (phones || []).map((phone) => phone.trim()).filter(Boolean)
 const quoteModeLabel = (mode?: number) => (mode === 1 ? t('admin.supplierPricing.fixedPrice') : mode === 2 ? t('admin.supplierPricing.hourlyRate') : t('admin.supplierPricing.modeUnset'))
 const phoneOk = (value: string) => /^[1-9]\d{7,14}$/.test(value.replace(/\D/g, ''))
 const supplierOrders = ref<any[]>([])
@@ -1499,12 +1507,12 @@ const saveProfile = async (status: number) => {
     const id = unwrap(await onboardingSave(buildProfilePayload(status)))
     if (id) supplierRecordId.value = Number(id)
     onboardingStatus.value = status
-    ElMessage.success(status === 1 ? '入驻资料已提交' : '草稿已保存')
+    ElMessage.success(t(status === 1 ? 'admin.supplierProfile.submitted' : 'admin.supplierProfile.draftSaved'))
     const page = unwrap(await onboardingPage({ pageNum: 1, pageSize: 50 }))
     supplierOptions.value = (page?.list || []).map((item: any) => ({ id: item.id, companyName: item.companyName }))
     if (supplierRecordId.value) await loadSupplierDetail(supplierRecordId.value)
   } catch (error: any) {
-    ElMessage.error(error?.message || '保存失败')
+    ElMessage.error(error?.message || t('admin.supplierProfile.saveFailed'))
   } finally {
     saving.value = false
   }
@@ -1519,16 +1527,16 @@ const uploadInsurance = async (fileKey: string | undefined, options: any) => {
   try {
     const target = complianceItems.find((item) => item.fileKey === fileKey)
     if (target && target.files.length >= 20) {
-      throw new Error('每种保险最多 20 份')
+      throw new Error(t('admin.supplierProfile.uploadLimit'))
     }
     const url = unwrap(await uploadFile(options.file as File))
     const fileUrl = typeof url === 'string' ? url : url?.url || ''
     if (target && fileUrl && !target.files.includes(fileUrl)) target.files.push(fileUrl)
     options.onSuccess?.(url)
-    ElMessage.success('保单已上传')
+    ElMessage.success(t('admin.supplierProfile.uploaded'))
   } catch (error: any) {
     options.onError?.(error)
-    ElMessage.error(error?.message || '上传失败')
+    ElMessage.error(error?.message || t('admin.supplierProfile.uploadFailed'))
   }
 }
 
@@ -2234,6 +2242,8 @@ watch(section, (value) => {
 .area-choice { display: flex; flex-direction: column; gap: 4px; align-items: flex-start; }
 .area-choice strong { color: #1c2433; font-weight: 700; }
 .area-choice small { color: #6d7686; font-size: 12px; font-weight: 500; line-height: 1.45; }
+.phone-list { display: flex; flex-direction: column; gap: 2px; line-height: 1.45; }
+.data-table :deep(td.phone-col .cell) { white-space: normal; overflow: visible; text-overflow: clip; }
 @media (max-width: 1200px) { .supplier-facts { gap: 16px; }.metric-grid { grid-template-columns: repeat(2, 1fr); }.zone-grid { grid-template-columns: repeat(2, 1fr); }.form-grid--three { grid-template-columns: repeat(2, 1fr); }.overview-grid { grid-template-columns: 1fr; } }
 </style>
 

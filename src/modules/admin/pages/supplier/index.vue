@@ -150,8 +150,13 @@
                 <el-table-column label="可提供人数" width="110">
                   <template #default="{ row }">{{ row.workerCount ?? '—' }}</template>
                 </el-table-column>
-                <el-table-column label="联系电话" min-width="160">
-                  <template #default="{ row }">{{ phoneSummary(row.contactPhones) }}</template>
+                <el-table-column class-name="phone-col" label="联系电话" min-width="180">
+                  <template #default="{ row }">
+                    <div v-if="listedPhones(row.contactPhones).length" class="phone-list">
+                      <span v-for="(phone, index) in listedPhones(row.contactPhones)" :key="`${phone}-${index}`">{{ phone }}</span>
+                    </div>
+                    <span v-else>—</span>
+                  </template>
                 </el-table-column>
                 <el-table-column label="版本" width="70">
                   <template #default="{ row }">{{ row.versionNo || '—' }}</template>
@@ -422,11 +427,7 @@ const unwrap = (res: any) => (res && typeof res === 'object' && 'data' in res ? 
 const quoteStatusLabel = (status?: number) => ['草稿', '待审核', '已通过', '已拒绝'][status ?? -1] || '未报价'
 const quoteTagType = (status?: number) => (Number(status) === 1 ? 'warning' : Number(status) === 2 ? 'success' : Number(status) === 3 ? 'danger' : 'info')
 const onboardingLabel = (status?: number) => ['草稿', '已提交', '已通过', '已驳回'][Number(status)] || '—'
-const phoneSummary = (phones?: string[]) => {
-  const list = (phones || []).map((phone) => String(phone || '').trim()).filter(Boolean)
-  if (!list.length) return '—'
-  return list.length === 1 ? list[0] : `${list[0]} 等 ${list.length} 个`
-}
+const listedPhones = (phones?: string[]) => (phones || []).map((phone) => String(phone || '').trim()).filter(Boolean)
 const moneyText = (value: unknown) => {
   if (value === null || value === undefined || value === '') return '—'
   const amount = Number(value)
@@ -745,6 +746,8 @@ onMounted(loadSuppliers)
 .board__count { color: #6d7686; font-size: 13px; }
 .board :deep(.el-pagination) { justify-content: flex-end; margin-top: 12px; }
 .category-tags { display: flex; flex-wrap: wrap; gap: 4px; }
+.phone-list { display: flex; flex-direction: column; gap: 2px; line-height: 1.45; }
+.supplier-review :deep(td.phone-col .cell) { white-space: normal; overflow: visible; text-overflow: clip; }
 .sku-meta { margin: 0 0 10px; color: #6d7686; font-size: 13px; }
 .sku-attaches { display: flex; flex-direction: column; gap: 8px; margin-top: 14px; }
 .sku-attaches h4 { margin: 0; font-size: 14px; }
