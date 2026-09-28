@@ -1,4 +1,5 @@
 import { createApp } from 'vue';
+import { createPinia, setActivePinia } from 'pinia';
 import App from './App.vue';
 import router from './router';
 import ElementPlus, { ElSelect } from 'element-plus';
@@ -15,6 +16,9 @@ import {
   clearLegacyAuthState,
   getAdminAuthSnapshot,
 } from '@/utils/auth-state';
+
+const pinia = createPinia();
+setActivePinia(pinia);
 
 const locale = getAdminLocale();
 const i18n = createI18n({
@@ -47,6 +51,7 @@ const bootstrap = async () => {
   }
 
   const app = createApp(App);
+  app.use(pinia);
   app.use(router);
   app.use(i18n);
   app.use(ElementPlus);

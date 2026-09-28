@@ -2,8 +2,8 @@
   <div class="supplier-review">
       <header class="supplier-review__head">
         <div>
-          <h1>供应商管理</h1>
-          <p>审核供应商工作台提交的入驻资料和服务报价。点击供应商编号打开详情。</p>
+          <h1>{{ t('admin.platformSuppliers.title') }}</h1>
+          <p>{{ t('admin.platformSuppliers.description') }}</p>
         </div>
       </header>
 
@@ -11,39 +11,39 @@
         <div class="board__bar">
           <el-input
             v-model.trim="keyword"
-            placeholder="公司、联系人、电话"
+            :placeholder="t('admin.platformSuppliers.searchPlaceholder')"
             clearable
             @keyup.enter="search"
             @clear="search"
           />
-          <el-select v-model="quoteStatus" filterable @change="search">
-            <el-option label="全部供应商" value="" />
-            <el-option label="待审核报价" :value="1" />
-            <el-option label="报价草稿" :value="0" />
-            <el-option label="报价已通过" :value="2" />
-            <el-option label="报价已拒绝" :value="3" />
+          <el-select v-model="quoteStatus" filterable :placeholder="t('admin.platformSuppliers.allSuppliers')" @change="search">
+            <el-option :label="t('admin.platformSuppliers.allSuppliers')" value="" />
+            <el-option :label="t('admin.platformSuppliers.quotePendingFilter')" :value="1" />
+            <el-option :label="t('admin.platformSuppliers.quoteDraftFilter')" :value="0" />
+            <el-option :label="t('admin.platformSuppliers.quoteApprovedFilter')" :value="2" />
+            <el-option :label="t('admin.platformSuppliers.quoteRejectedFilter')" :value="3" />
           </el-select>
-          <el-select v-model="onboardingStatus" clearable placeholder="入驻状态" class="review-filter" @change="search">
-            <el-option label="草稿" :value="0" />
-            <el-option label="待审核" :value="1" />
-            <el-option label="已通过" :value="2" />
-            <el-option label="已驳回" :value="3" />
+          <el-select v-model="onboardingStatus" clearable :placeholder="t('admin.platformSuppliers.onboardingStatus')" class="review-filter" @change="search">
+            <el-option :label="t('admin.platformSuppliers.draft')" :value="0" />
+            <el-option :label="t('admin.platformSuppliers.pending')" :value="1" />
+            <el-option :label="t('admin.platformSuppliers.approved')" :value="2" />
+            <el-option :label="t('admin.platformSuppliers.rejected')" :value="3" />
           </el-select>
-          <el-select v-model="needReview" clearable placeholder="是否需要审核" class="review-filter" @change="search">
-            <el-option label="需要审核" value="yes" />
-            <el-option label="无需审核" value="no" />
+          <el-select v-model="needReview" clearable :placeholder="t('admin.platformSuppliers.needReview')" class="review-filter" @change="search">
+            <el-option :label="t('admin.platformSuppliers.reviewYes')" value="yes" />
+            <el-option :label="t('admin.platformSuppliers.reviewNo')" value="no" />
           </el-select>
-          <span class="board__count">{{ total }} 家</span>
+          <span class="board__count">{{ t('admin.platformSuppliers.supplierCount', { total }) }}</span>
         </div>
 
-        <el-table :data="suppliers" v-loading="loading" row-key="id" empty-text="没有符合条件的供应商">
-          <el-table-column label="供应商编号" min-width="140">
+        <el-table :data="suppliers" v-loading="loading" row-key="id" :empty-text="t('admin.platformSuppliers.empty')">
+          <el-table-column :label="t('admin.platformSuppliers.supplierNo')" min-width="140">
             <template #default="{ row }">
               <el-button link type="primary" @click="openReview(row)">{{ row.supplierNo || row.id }}</el-button>
             </template>
           </el-table-column>
-          <el-table-column label="供应商" min-width="180" prop="supplierName" />
-          <el-table-column label="服务大类" min-width="180">
+          <el-table-column :label="t('admin.platformSuppliers.supplier')" min-width="180" prop="supplierName" />
+          <el-table-column :label="t('admin.platformSuppliers.categories')" min-width="180">
             <template #default="{ row }">
               <div v-if="row.serviceCategories?.length" class="category-tags">
                 <el-tag v-for="cat in row.serviceCategories" :key="cat.categoryId" effect="plain">
@@ -53,29 +53,29 @@
               <span v-else>—</span>
             </template>
           </el-table-column>
-          <el-table-column label="联系人" min-width="120" prop="contactPerson" />
-          <el-table-column label="电话" min-width="140" prop="mobile" />
-          <el-table-column label="已选服务" width="100" prop="serviceCount" />
-          <el-table-column label="入驻状态" width="110">
+          <el-table-column :label="t('admin.platformSuppliers.contact')" min-width="120" prop="contactPerson" />
+          <el-table-column :label="t('admin.platformSuppliers.phone')" min-width="140" prop="mobile" />
+          <el-table-column :label="t('admin.platformSuppliers.serviceCount')" width="130" prop="serviceCount" />
+          <el-table-column :label="t('admin.platformSuppliers.onboarding')" width="140">
             <template #default="{ row }">
               <el-tag :type="quoteTagType(row.onboardingStatus)" effect="light">
                 {{ onboardingText(row.onboardingStatus, row.onboardingStatusI18n) }}
               </el-tag>
             </template>
           </el-table-column>
-          <el-table-column label="是否需要审核" width="130">
+          <el-table-column :label="t('admin.platformSuppliers.pendingReview')" width="140">
             <template #default="{ row }">
-              <el-tag v-if="row.pendingReview === true" type="warning" effect="light">是</el-tag>
-              <el-tag v-else-if="row.pendingReview === false" type="info" effect="light">否</el-tag>
+              <el-tag v-if="row.pendingReview === true" type="warning" effect="light">{{ t('admin.platformSuppliers.yes') }}</el-tag>
+              <el-tag v-else-if="row.pendingReview === false" type="info" effect="light">{{ t('admin.platformSuppliers.no') }}</el-tag>
               <span v-else>—</span>
             </template>
           </el-table-column>
-          <el-table-column label="最近提交" min-width="150">
+          <el-table-column :label="t('admin.platformSuppliers.latestSubmit')" min-width="150">
             <template #default="{ row }">{{ formatTime(row.latestSubmitTime) }}</template>
           </el-table-column>
-          <el-table-column label="操作" width="90" fixed="right">
+          <el-table-column :label="t('admin.platformSuppliers.actions')" width="100" fixed="right">
             <template #default="{ row }">
-              <el-button link type="primary" @click="openReview(row)">审核</el-button>
+              <el-button link type="primary" @click="openReview(row)">{{ t('admin.platformSuppliers.review') }}</el-button>
             </template>
           </el-table-column>
         </el-table>
@@ -92,7 +92,7 @@
     <el-drawer
       class="supplier-detail-drawer"
       :model-value="Boolean(detailId)"
-      :title="profile.companyName || current?.supplierName || '供应商详情'"
+      :title="profile.companyName || current?.supplierName || t('admin.platformSuppliers.detailTitle')"
       direction="rtl"
       size="min(980px, 100%)"
       @update:model-value="(open: boolean) => { if (!open) backToList() }"
@@ -101,37 +101,37 @@
       <div v-else class="order-detail">
         <header class="order-detail__hero">
           <div>
-            <div class="order-detail__eyebrow">供应商编号</div>
+            <div class="order-detail__eyebrow">{{ t('admin.platformSuppliers.supplierNo') }}</div>
             <h2 class="order-detail__title">{{ profile.supplierNo || current?.supplierNo || '—' }}</h2>
             <p class="order-detail__booked-at">{{ profile.companyName || '—' }}</p>
           </div>
           <div class="order-detail__amount">
-            <span>入驻状态</span>
+            <span>{{ t('admin.platformSuppliers.onboarding') }}</span>
             <el-tag :type="quoteTagType(onboarding.status)" effect="light" round>{{ onboardingLabel(onboarding.status) }}</el-tag>
           </div>
         </header>
 
         <div v-if="Number(onboarding.status) === 1" class="order-detail__toolbar">
-          <el-button type="primary" :loading="saving" @click="approveOnboarding">通过入驻</el-button>
-          <el-button type="danger" plain :loading="saving" @click="openReject('onboarding')">驳回入驻</el-button>
+          <el-button type="primary" :loading="saving" @click="approveOnboarding">{{ t('admin.platformSuppliers.approveOnboarding') }}</el-button>
+          <el-button type="danger" plain :loading="saving" @click="openReject('onboarding')">{{ t('admin.platformSuppliers.rejectOnboarding') }}</el-button>
         </div>
-        <p v-if="onboarding.rejectReason" class="reject-note">驳回原因：{{ onboarding.rejectReason }}</p>
+        <p v-if="onboarding.rejectReason" class="reject-note">{{ t('admin.platformSuppliers.rejectReason', { reason: onboarding.rejectReason }) }}</p>
 
         <div class="order-detail__columns">
           <div class="order-detail__stack">
             <section class="order-detail__panel">
-              <h3>公司资料</h3>
+              <h3>{{ t('admin.platformSuppliers.company') }}</h3>
               <dl class="order-detail__list">
-                <div><dt>执照号</dt><dd>{{ text(profile.tradeLicenseNo) }}</dd></div>
-                <div><dt>执照到期</dt><dd>{{ text(profile.licenseExpiry) }}</dd></div>
-                <div><dt>VAT / TRN</dt><dd>{{ text(profile.vatTrn) }}</dd></div>
-                <div><dt>经营年限</dt><dd>{{ text(profile.yearsInBusiness) }}</dd></div>
-                <div><dt>办公地址</dt><dd>{{ text(profile.officeAddress) }}</dd></div>
+                <div><dt>{{ t('admin.platformSuppliers.licenseNo') }}</dt><dd>{{ text(profile.tradeLicenseNo) }}</dd></div>
+                <div><dt>{{ t('admin.platformSuppliers.licenseExpiry') }}</dt><dd>{{ text(profile.licenseExpiry) }}</dd></div>
+                <div><dt>{{ t('admin.platformSuppliers.vat') }}</dt><dd>{{ text(profile.vatTrn) }}</dd></div>
+                <div><dt>{{ t('admin.platformSuppliers.years') }}</dt><dd>{{ text(profile.yearsInBusiness) }}</dd></div>
+                <div><dt>{{ t('admin.platformSuppliers.address') }}</dt><dd>{{ text(profile.officeAddress) }}</dd></div>
               </dl>
             </section>
 
             <section class="order-detail__panel">
-              <h3>证照与保单</h3>
+              <h3>{{ t('admin.platformSuppliers.documents') }}</h3>
               <div v-for="group in documentGroups" :key="group.label" class="doc-group">
                 <div class="doc-group__head">
                   <strong>{{ group.label }}</strong>
@@ -155,19 +155,23 @@
                     <figcaption>{{ file.name }}</figcaption>
                   </figure>
                 </div>
-                <p v-else class="doc-empty">未上传</p>
+                <p v-else class="doc-empty">{{ t('admin.platformSuppliers.notUploaded') }}</p>
               </div>
             </section>
 
             <section class="order-detail__panel">
-              <h3>服务与报价</h3>
-              <el-table :data="services" row-key="spuId" empty-text="这家供应商还没有勾选服务">
-                <el-table-column label="分类" min-width="120" prop="categoryName" />
-                <el-table-column label="服务" min-width="140" prop="spuName" />
-                <el-table-column label="可提供人数" width="110">
+              <h3>{{ t('admin.platformSuppliers.services') }}</h3>
+              <el-table :data="services" row-key="spuId" :empty-text="t('admin.platformSuppliers.noServices')">
+                <el-table-column :label="t('admin.platformSuppliers.category')" min-width="120">
+                  <template #default="{ row }">{{ serviceCategory(row) }}</template>
+                </el-table-column>
+                <el-table-column :label="t('admin.platformSuppliers.service')" min-width="140">
+                  <template #default="{ row }">{{ serviceName(row) }}</template>
+                </el-table-column>
+                <el-table-column :label="t('admin.platformSuppliers.workers')" width="140">
                   <template #default="{ row }">{{ row.workerCount ?? '—' }}</template>
                 </el-table-column>
-                <el-table-column class-name="phone-col" label="联系电话" min-width="180">
+                <el-table-column class-name="phone-col" :label="t('admin.platformSuppliers.phones')" min-width="180">
                   <template #default="{ row }">
                     <div v-if="listedPhones(row.contactPhones).length" class="phone-list">
                       <span v-for="(phone, index) in listedPhones(row.contactPhones)" :key="`${phone}-${index}`">{{ phone }}</span>
@@ -175,19 +179,19 @@
                     <span v-else>—</span>
                   </template>
                 </el-table-column>
-                <el-table-column label="版本" width="70">
+                <el-table-column :label="t('admin.platformSuppliers.version')" width="90">
                   <template #default="{ row }">{{ row.versionNo || '—' }}</template>
                 </el-table-column>
-                <el-table-column label="报价状态" width="100">
+                <el-table-column :label="t('admin.platformSuppliers.quoteStatus')" width="130">
                   <template #default="{ row }">
-                    <el-tag :type="quoteTagType(row.status)" effect="light">{{ quoteStatusLabel(row.status) }}</el-tag>
+                    <el-tag :type="quoteTagType(row.status)" effect="light">{{ quoteStatusLabel(row.status, row.statusI18n) }}</el-tag>
                   </template>
                 </el-table-column>
-                <el-table-column label="操作" width="160" fixed="right">
+                <el-table-column :label="t('admin.platformSuppliers.actions')" width="180" fixed="right">
                   <template #default="{ row }">
-                    <el-button link type="primary" @click="openSkus(row)">报价</el-button>
-                    <el-button v-if="Number(row.status) === 1" link type="primary" :loading="saving" @click="approveQuote(row)">通过</el-button>
-                    <el-button v-if="Number(row.status) === 1" link type="danger" :loading="saving" @click="openReject('quote', row)">拒绝</el-button>
+                    <el-button link type="primary" @click="openSkus(row)">{{ t('admin.platformSuppliers.quote') }}</el-button>
+                    <el-button v-if="Number(row.status) === 1" link type="primary" :loading="saving" @click="approveQuote(row)">{{ t('admin.platformSuppliers.approve') }}</el-button>
+                    <el-button v-if="Number(row.status) === 1" link type="danger" :loading="saving" @click="openReject('quote', row)">{{ t('admin.platformSuppliers.reject') }}</el-button>
                   </template>
                 </el-table-column>
               </el-table>
@@ -196,40 +200,40 @@
 
           <div class="order-detail__stack">
             <section class="order-detail__panel">
-              <h3>联系人</h3>
+              <h3>{{ t('admin.platformSuppliers.contactTitle') }}</h3>
               <dl class="order-detail__list">
-                <div><dt>联系人</dt><dd>{{ text(profile.contactPerson) }}</dd></div>
-                <div><dt>电话</dt><dd>{{ text(profile.mobile) }}</dd></div>
-                <div><dt>WhatsApp</dt><dd>{{ text(profile.whatsapp) }}</dd></div>
-                <div><dt>邮箱</dt><dd>{{ text(profile.email) }}</dd></div>
+                <div><dt>{{ t('admin.platformSuppliers.contact') }}</dt><dd>{{ text(profile.contactPerson) }}</dd></div>
+                <div><dt>{{ t('admin.platformSuppliers.phone') }}</dt><dd>{{ text(profile.mobile) }}</dd></div>
+                <div><dt>{{ t('admin.platformSuppliers.whatsapp') }}</dt><dd>{{ text(profile.whatsapp) }}</dd></div>
+                <div><dt>{{ t('admin.platformSuppliers.email') }}</dt><dd>{{ text(profile.email) }}</dd></div>
               </dl>
             </section>
 
             <section class="order-detail__panel">
-              <h3>服务能力</h3>
+              <h3>{{ t('admin.platformSuppliers.capacity') }}</h3>
               <dl class="order-detail__list">
-                <div><dt>可上岗人数</dt><dd>{{ text(profile.totalAvailableWorkers) }}</dd></div>
-                <div><dt>同时接单</dt><dd>{{ text(profile.maxSimultaneousOrders) }}</dd></div>
-                <div><dt>月产能</dt><dd>{{ text(profile.monthlyCapacity) }}</dd></div>
-                <div><dt>最短提前</dt><dd>{{ profile.minLeadTimeHours == null ? '—' : `${profile.minLeadTimeHours} 小时` }}</dd></div>
-                <div><dt>工作时间</dt><dd>{{ text(profile.workingHours) }}</dd></div>
-                <div><dt>周末服务</dt><dd>{{ yesNo(profile.weekendService) }}</dd></div>
-                <div><dt>公共假期</dt><dd>{{ yesNo(profile.publicHolidayService) }}</dd></div>
-                <div><dt>当日预约</dt><dd>{{ yesNo(profile.sameDayBooking) }}</dd></div>
-                <div><dt>紧急服务</dt><dd>{{ yesNo(profile.emergencyService) }}</dd></div>
-                <div><dt>女性员工</dt><dd>{{ staffText(profile.femaleStaffAvailable, profile.femaleStaffCount) }}</dd></div>
-                <div><dt>男性员工</dt><dd>{{ staffText(profile.maleStaffAvailable, profile.maleStaffCount) }}</dd></div>
-                <div><dt>自有车辆</dt><dd>{{ yesNo(profile.ownTransportation) }}</dd></div>
-                <div><dt>自有设备</dt><dd>{{ yesNo(profile.ownEquipment) }}</dd></div>
-                <div><dt>可开税务发票</dt><dd>{{ yesNo(profile.taxInvoiceAvailable) }}</dd></div>
-                <div><dt>入驻过 Emaar 社区</dt><dd>{{ yesNo(profile.emaarOnboarded) }}</dd></div>
-                <div><dt>入驻过其他社区</dt><dd>{{ yesNo(profile.otherCommunityOnboarded) }}</dd></div>
-                <div><dt>其他社区说明</dt><dd>{{ text(profile.applyRenmark) }}</dd></div>
+                <div><dt>{{ t('admin.platformSuppliers.availableWorkers') }}</dt><dd>{{ text(profile.totalAvailableWorkers) }}</dd></div>
+                <div><dt>{{ t('admin.platformSuppliers.concurrent') }}</dt><dd>{{ text(profile.maxSimultaneousOrders) }}</dd></div>
+                <div><dt>{{ t('admin.platformSuppliers.monthly') }}</dt><dd>{{ text(profile.monthlyCapacity) }}</dd></div>
+                <div><dt>{{ t('admin.platformSuppliers.leadTime') }}</dt><dd>{{ profile.minLeadTimeHours == null ? '—' : t('admin.platformSuppliers.leadHours', { hours: profile.minLeadTimeHours }) }}</dd></div>
+                <div><dt>{{ t('admin.platformSuppliers.workingHours') }}</dt><dd>{{ text(profile.workingHours) }}</dd></div>
+                <div><dt>{{ t('admin.platformSuppliers.weekend') }}</dt><dd>{{ yesNo(profile.weekendService) }}</dd></div>
+                <div><dt>{{ t('admin.platformSuppliers.holiday') }}</dt><dd>{{ yesNo(profile.publicHolidayService) }}</dd></div>
+                <div><dt>{{ t('admin.platformSuppliers.sameDay') }}</dt><dd>{{ yesNo(profile.sameDayBooking) }}</dd></div>
+                <div><dt>{{ t('admin.platformSuppliers.emergency') }}</dt><dd>{{ yesNo(profile.emergencyService) }}</dd></div>
+                <div><dt>{{ t('admin.platformSuppliers.femaleStaff') }}</dt><dd>{{ staffText(profile.femaleStaffAvailable, profile.femaleStaffCount) }}</dd></div>
+                <div><dt>{{ t('admin.platformSuppliers.maleStaff') }}</dt><dd>{{ staffText(profile.maleStaffAvailable, profile.maleStaffCount) }}</dd></div>
+                <div><dt>{{ t('admin.platformSuppliers.ownVehicle') }}</dt><dd>{{ yesNo(profile.ownTransportation) }}</dd></div>
+                <div><dt>{{ t('admin.platformSuppliers.ownEquipment') }}</dt><dd>{{ yesNo(profile.ownEquipment) }}</dd></div>
+                <div><dt>{{ t('admin.platformSuppliers.taxInvoice') }}</dt><dd>{{ yesNo(profile.taxInvoiceAvailable) }}</dd></div>
+                <div><dt>{{ t('admin.platformSuppliers.emaar') }}</dt><dd>{{ yesNo(profile.emaarOnboarded) }}</dd></div>
+                <div><dt>{{ t('admin.platformSuppliers.otherCommunity') }}</dt><dd>{{ yesNo(profile.otherCommunityOnboarded) }}</dd></div>
+                <div><dt>{{ t('admin.platformSuppliers.otherNote') }}</dt><dd>{{ text(profile.applyRenmark) }}</dd></div>
               </dl>
             </section>
 
             <section class="order-detail__panel">
-              <h3>服务区域</h3>
+              <h3>{{ t('admin.platformSuppliers.serviceAreas') }}</h3>
               <p class="area-text">{{ profile.dubaiServiceAreas || areaNames || '—' }}</p>
             </section>
           </div>
@@ -249,60 +253,60 @@
       <div class="policy-preview__stage">
         <img v-if="filePreview.kind === 'image'" :src="filePreview.url" :alt="filePreview.name" />
         <iframe v-else-if="filePreview.kind === 'pdf'" :src="filePreview.url" :title="filePreview.name" />
-        <p v-else>这个文件无法在页面里预览。</p>
+        <p v-else>{{ t('admin.platformSuppliers.previewUnsupported') }}</p>
       </div>
     </el-dialog>
 
-    <el-dialog v-model="skuOpen" :title="`${skuTitle} · 报价`" width="min(1080px, calc(100vw - 32px))" append-to-body>
+    <el-dialog v-model="skuOpen" :title="t('admin.platformSuppliers.quoteTitle', { name: skuTitle })" width="min(1080px, calc(100vw - 32px))" append-to-body>
       <p class="sku-meta">
-        {{ quoteStatusLabel(skuStatus) }}
-        · {{ skuQuoteMode === 2 ? '单价计费' : skuQuoteMode === 1 ? '一口价' : '未选择模式' }}
-        <span v-if="skuQuoteMode === 2"> · 每人每小时 {{ moneyText(skuUnitPrice) }}</span>
+        {{ quoteStatusLabel(skuStatus, skuStatusI18n) }}
+        · {{ skuQuoteMode === 2 ? t('admin.platformSuppliers.unitPrice') : skuQuoteMode === 1 ? t('admin.platformSuppliers.fixedPrice') : t('admin.platformSuppliers.modeUnset') }}
+        <span v-if="skuQuoteMode === 2"> {{ t('admin.platformSuppliers.perHour', { price: moneyText(skuUnitPrice) }) }}</span>
         <span v-if="skuRejectReason"> · {{ skuRejectReason }}</span>
       </p>
-      <el-table v-loading="skuLoading" :data="skuRows" row-key="skuId" empty-text="这个服务还没有规格">
+      <el-table v-loading="skuLoading" :data="skuRows" row-key="skuId" :empty-text="t('admin.platformSuppliers.noSpecs')">
         <el-table-column v-for="column in skuColumns" :key="column.key" :label="column.label" min-width="120">
           <template #default="{ row }">{{ row.specs[column.key] || '—' }}</template>
         </el-table-column>
         <el-table-column v-if="!skuColumns.length" label="SKU" prop="skuCode" min-width="120" />
-        <el-table-column label="客户端价格" width="110">
+        <el-table-column :label="t('admin.platformSuppliers.clientPrice')" width="120">
           <template #default="{ row }">{{ moneyText(clientPrice(row)) }}</template>
         </el-table-column>
-        <el-table-column label="当前生效价格" width="120">
+        <el-table-column :label="t('admin.platformSuppliers.effectivePrice')" width="160">
           <template #default="{ row }">{{ moneyText(row.approvedPrice) }}</template>
         </el-table-column>
-        <el-table-column label="服务人数" width="90">
+        <el-table-column :label="t('admin.platformSuppliers.staffCount')" width="90">
           <template #default="{ row }">{{ row.staffCount ?? '—' }}</template>
         </el-table-column>
-        <el-table-column label="时长(小时)" width="100">
+        <el-table-column :label="t('admin.platformSuppliers.durationHours')" width="100">
           <template #default="{ row }">{{ row.serviceHours ?? '—' }}</template>
         </el-table-column>
-        <el-table-column label="含税报价" width="110">
+        <el-table-column :label="t('admin.platformSuppliers.taxQuote')" width="130">
           <template #default="{ row }">{{ moneyText(row.quotePrice) }}</template>
         </el-table-column>
       </el-table>
       <section v-if="skuAttaches.length" class="sku-attaches">
-        <h4>附加项</h4>
+        <h4>{{ t('admin.platformSuppliers.addons') }}</h4>
         <div v-for="item in skuAttaches" :key="item.attachValueId" class="sku-attach">
           <div>
             <strong>{{ item.name }}</strong>
-            <small>{{ item.typeName }} · 平台价格 {{ moneyText(item.platformPrice) }} · 生效 {{ moneyText(item.approvedPrice) }}</small>
+            <small>{{ t('admin.platformSuppliers.addonMeta', { type: item.typeName, platform: moneyText(item.platformPrice), approved: moneyText(item.approvedPrice) }) }}</small>
           </div>
-          <span>{{ item.offered ? moneyText(item.quotePrice) : '不能提供' }}</span>
+          <span>{{ item.offered ? moneyText(item.quotePrice) : t('admin.platformSuppliers.unavailable') }}</span>
         </div>
       </section>
       <template #footer>
-        <el-button @click="skuOpen = false">关闭</el-button>
-        <el-button v-if="Number(skuStatus) === 1" :loading="saving" @click="approveQuote(skuTarget)">通过</el-button>
-        <el-button v-if="Number(skuStatus) === 1" type="danger" plain :loading="saving" @click="openReject('quote', skuTarget)">拒绝</el-button>
+        <el-button @click="skuOpen = false">{{ t('admin.platformSuppliers.close') }}</el-button>
+        <el-button v-if="Number(skuStatus) === 1" :loading="saving" @click="approveQuote(skuTarget)">{{ t('admin.platformSuppliers.approve') }}</el-button>
+        <el-button v-if="Number(skuStatus) === 1" type="danger" plain :loading="saving" @click="openReject('quote', skuTarget)">{{ t('admin.platformSuppliers.reject') }}</el-button>
       </template>
     </el-dialog>
 
-    <el-dialog v-model="rejectOpen" :title="rejectMode === 'onboarding' ? '驳回入驻' : '拒绝报价'" width="460px" append-to-body>
-      <el-input v-model="rejectReason" type="textarea" :rows="4" maxlength="500" show-word-limit placeholder="请填写原因" />
+    <el-dialog v-model="rejectOpen" :title="rejectMode === 'onboarding' ? t('admin.platformSuppliers.rejectOnboarding') : t('admin.platformSuppliers.rejectQuote')" width="460px" append-to-body>
+      <el-input v-model="rejectReason" type="textarea" :rows="4" maxlength="500" show-word-limit :placeholder="t('admin.platformSuppliers.reasonPlaceholder')" />
       <template #footer>
-        <el-button @click="rejectOpen = false">取消</el-button>
-        <el-button type="danger" :loading="saving" @click="submitReject">确认拒绝</el-button>
+        <el-button @click="rejectOpen = false">{{ t('admin.platformSuppliers.cancel') }}</el-button>
+        <el-button type="danger" :loading="saving" @click="submitReject">{{ t('admin.platformSuppliers.confirmReject') }}</el-button>
       </template>
     </el-dialog>
   </div>
@@ -312,6 +316,7 @@
 import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { useI18n } from 'vue-i18n'
 import { listBySpu, listSpuAttachCatalog } from '@/modules/admin/api/spu'
 import { getAdminLocale } from '@/modules/admin/locales'
 import { pickI18nText } from '@/modules/admin/utils/i18n'
@@ -348,6 +353,7 @@ type SupplierRow = {
 
 const route = useRoute()
 const router = useRouter()
+const { t } = useI18n({ useScope: 'global' })
 const keyword = ref('')
 const quoteStatus = ref<number | ''>('')
 const onboardingStatus = ref<number | '' | null>('')
@@ -380,11 +386,11 @@ const filePreview = reactive({
   kind: 'other' as DocFile['kind'],
 })
 const text = (value: unknown) => (value === null || value === undefined || value === '' ? '—' : String(value))
-const yesNo = (value: unknown) => (Number(value) === 1 ? '是' : Number(value) === 0 ? '否' : '—')
+const yesNo = (value: unknown) => (Number(value) === 1 ? t('admin.platformSuppliers.yes') : Number(value) === 0 ? t('admin.platformSuppliers.no') : '—')
 const staffText = (available: unknown, count: unknown) => {
   if (available === null || available === undefined || available === '') return '—'
   if (Number(available) !== 1 || count === null || count === undefined || count === '') return yesNo(available)
-  return `${yesNo(available)} · ${count} 人`
+  return t('admin.platformSuppliers.staffLine', { answer: yesNo(available), count })
 }
 const asFileList = (value: unknown) => {
   if (Array.isArray(value)) return value.map((item) => String(item).trim()).filter(Boolean)
@@ -405,11 +411,15 @@ const toDocFiles = (value: unknown): DocFile[] =>
   asFileList(value).map((url) => ({ url, name: fileNameFromUrl(url), kind: fileKind(url) }))
 const documentGroups = computed(() => {
   const groups = [
-    { label: '公众责任险', answer: yesNo(profile.publicLiabilityInsurance), files: toDocFiles(profile.publicLiabilityInsuranceFile) },
-    { label: '雇员保险', answer: yesNo(profile.employeeInsurance), files: toDocFiles(profile.employeeInsuranceFile) },
+    { label: t('admin.platformSuppliers.publicLiability'), answer: yesNo(profile.publicLiabilityInsurance), files: toDocFiles(profile.publicLiabilityInsuranceFile) },
+    { label: t('admin.platformSuppliers.employeeInsurance'), answer: yesNo(profile.employeeInsurance), files: toDocFiles(profile.employeeInsuranceFile) },
   ]
   const extra = profile.extra && typeof profile.extra === 'object' ? profile.extra as Record<string, unknown> : {}
-  const extraLabels: Record<string, string> = { tradeLicenseFile: '营业执照', licenseFile: '营业执照', vatFile: 'VAT 证书' }
+  const extraLabels: Record<string, string> = {
+    tradeLicenseFile: t('admin.platformSuppliers.tradeLicense'),
+    licenseFile: t('admin.platformSuppliers.tradeLicense'),
+    vatFile: t('admin.platformSuppliers.vatCertificate'),
+  }
   Object.entries(extra).forEach(([key, value]) => {
     const files = toDocFiles(value).filter((file) => /^https?:\/\//i.test(file.url))
     if (files.length) groups.push({ label: extraLabels[key] || key, answer: '', files })
@@ -438,6 +448,7 @@ const skuRows = ref<any[]>([])
 const skuAttaches = ref<Array<{ attachValueId: number; typeName: string; name: string; platformPrice: unknown; approvedPrice: unknown; offered: boolean; quotePrice: unknown }>>([])
 const skuQuoteMode = ref<number | null>(null)
 const skuUnitPrice = ref<number | null>(null)
+const skuStatusI18n = ref<Record<string, string> | null>(null)
 
 const rejectOpen = ref(false)
 const rejectMode = ref<'quote' | 'onboarding'>('quote')
@@ -445,9 +456,27 @@ const rejectReason = ref('')
 const rejectTarget = ref<any>(null)
 
 const unwrap = (res: any) => (res && typeof res === 'object' && 'data' in res ? res.data : res)
-const quoteStatusLabel = (status?: number) => ['草稿', '待审核', '已通过', '已拒绝'][status ?? -1] || '未报价'
+const quoteStatusLabel = (status?: number, i18n?: Record<string, unknown> | null) => {
+  const localized = specText(i18n)
+  if (localized !== '—') return localized
+  const keys = ['quoteDraft', 'quotePending', 'quoteApproved', 'quoteRejected']
+  const key = keys[Number(status)]
+  return key ? t(`admin.platformSuppliers.${key}`) : t('admin.platformSuppliers.quoteNone')
+}
 const quoteTagType = (status?: number) => (Number(status) === 1 ? 'warning' : Number(status) === 2 ? 'success' : Number(status) === 3 ? 'danger' : 'info')
-const onboardingLabel = (status?: number) => ['草稿', '待审核', '已通过', '已驳回'][Number(status)] || '—'
+const onboardingLabel = (status?: number) => {
+  const keys = ['draft', 'pending', 'approved', 'rejected']
+  const key = keys[Number(status)]
+  return key ? t(`admin.platformSuppliers.${key}`) : '—'
+}
+const serviceName = (row: any) => {
+  const localized = specText(row?.nameI18n)
+  return localized !== '—' ? localized : (row?.spuName || '—')
+}
+const serviceCategory = (row: any) => {
+  const localized = specText(row?.categoryNameI18n)
+  return localized !== '—' ? localized : (row?.categoryName || '—')
+}
 const onboardingText = (status?: number, i18n?: Record<string, unknown> | null) => {
   const localized = specText(i18n)
   return localized !== '—' ? localized : onboardingLabel(status)
@@ -626,7 +655,7 @@ const loadSuppliers = async () => {
     suppliers.value = await attachOnboardingStatus(rows)
     total.value = Number(page.total || 0)
   } catch (error: any) {
-    ElMessage.error(error?.message || '供应商加载失败')
+    ElMessage.error(error?.message || t('admin.platformSuppliers.loadFailed'))
   } finally {
     loading.value = false
   }
@@ -655,7 +684,9 @@ const loadReview = async (supplierId: number) => {
     onboarding.status = nextProfile.status
     onboarding.rejectReason = nextProfile.rejectReason || ''
     const selection = new Map<number, { workerCount?: number; contactPhones: string[] }>()
+    const categoryI18n = new Map<number, Record<string, string>>()
     ;(unwrap(catalog) || []).forEach((group: any) => {
+      if (group?.categoryId && group?.nameI18n) categoryI18n.set(Number(group.categoryId), group.nameI18n)
       ;(group.services || []).forEach((service: any) => {
         if (!service.selected) return
         selection.set(Number(service.spuId), {
@@ -666,6 +697,7 @@ const loadReview = async (supplierId: number) => {
     })
     services.value = (unwrap(serviceList) || []).map((row: any) => ({
       ...row,
+      categoryNameI18n: categoryI18n.get(Number(row.categoryId)),
       ...(selection.get(Number(row.spuId)) || {}),
     }))
     current.value = {
@@ -678,7 +710,7 @@ const loadReview = async (supplierId: number) => {
       onboardingStatus: nextProfile.status,
     }
   } catch (error: any) {
-    ElMessage.error(error?.message || '审核资料加载失败')
+    ElMessage.error(error?.message || t('admin.platformSuppliers.reviewLoadFailed'))
   } finally {
     detailLoading.value = false
   }
@@ -694,18 +726,18 @@ const backToList = () => {
 const approveOnboarding = async () => {
   if (!detailId.value) return
   try {
-    await ElMessageBox.confirm('通过后会启用这家供应商，并按手机号开通后台账号。新账号初始密码为 123456；该手机号已有后台账号时不重置密码。', '通过入驻')
+    await ElMessageBox.confirm(t('admin.platformSuppliers.approveOnboardingConfirm'), t('admin.platformSuppliers.approveOnboardingTitle'))
   } catch {
     return
   }
   saving.value = true
   try {
     await onboardingChangeStatus({ id: detailId.value, status: 2 })
-    ElMessage.success('入驻已通过，后台账号已按手机号开通')
+    ElMessage.success(t('admin.platformSuppliers.approveOnboardingSuccess'))
     await loadReview(detailId.value)
     await loadSuppliers()
   } catch (error: any) {
-    ElMessage.error(error?.message || '通过入驻失败')
+    ElMessage.error(error?.message || t('admin.platformSuppliers.approveOnboardingFailed'))
   } finally {
     saving.value = false
   }
@@ -714,7 +746,10 @@ const approveOnboarding = async () => {
 const approveQuote = async (row: any) => {
   if (!detailId.value || !row?.spuId) return
   try {
-    await ElMessageBox.confirm(`通过「${row.spuName || '这项服务'}」后，这一版报价成为生效价。`, '通过报价')
+    await ElMessageBox.confirm(
+      t('admin.platformSuppliers.approveQuoteConfirm', { name: serviceName(row) || t('admin.platformSuppliers.thisService') }),
+      t('admin.platformSuppliers.approveQuoteTitle'),
+    )
   } catch {
     return
   }
@@ -725,12 +760,12 @@ const approveQuote = async (row: any) => {
       spuId: row.spuId,
       status: 2,
     })
-    ElMessage.success('报价已通过')
+    ElMessage.success(t('admin.platformSuppliers.approveQuoteSuccess'))
     skuStatus.value = 2
     await loadReview(detailId.value)
     await loadSuppliers()
   } catch (error: any) {
-    ElMessage.error(error?.message || '通过报价失败')
+    ElMessage.error(error?.message || t('admin.platformSuppliers.approveQuoteFailed'))
   } finally {
     saving.value = false
   }
@@ -746,7 +781,7 @@ const openReject = (mode: 'quote' | 'onboarding', row?: any) => {
 const submitReject = async () => {
   const reason = rejectReason.value.trim()
   if (!reason) {
-    ElMessage.warning('请填写原因')
+    ElMessage.warning(t('admin.platformSuppliers.reasonRequired'))
     return
   }
   if (!detailId.value) return
@@ -754,7 +789,7 @@ const submitReject = async () => {
   try {
     if (rejectMode.value === 'onboarding') {
       await onboardingChangeStatus({ id: detailId.value, status: 3, rejectReason: reason })
-      ElMessage.success('入驻已驳回')
+      ElMessage.success(t('admin.platformSuppliers.onboardingRejected'))
     } else {
       await platformSupplierQuoteReview({
         supplierId: detailId.value,
@@ -762,7 +797,7 @@ const submitReject = async () => {
         status: 3,
         rejectReason: reason,
       })
-      ElMessage.success('报价已拒绝')
+      ElMessage.success(t('admin.platformSuppliers.quoteRejectedSuccess'))
       skuStatus.value = 3
       skuRejectReason.value = reason
     }
@@ -770,7 +805,7 @@ const submitReject = async () => {
     await loadReview(detailId.value)
     await loadSuppliers()
   } catch (error: any) {
-    ElMessage.error(error?.message || '拒绝失败')
+    ElMessage.error(error?.message || t('admin.platformSuppliers.rejectFailed'))
   } finally {
     saving.value = false
   }
@@ -779,8 +814,9 @@ const submitReject = async () => {
 const openSkus = async (row: any) => {
   if (!detailId.value) return
   skuTarget.value = row
-  skuTitle.value = row.spuName || '服务'
+  skuTitle.value = serviceName(row) || t('admin.platformSuppliers.serviceFallback')
   skuStatus.value = row.status
+  skuStatusI18n.value = row.statusI18n || null
   skuRejectReason.value = row.rejectReason || ''
   skuQuoteMode.value = null
   skuUnitPrice.value = null
@@ -792,6 +828,7 @@ const openSkus = async (row: any) => {
   try {
     const quote = unwrap(await platformSupplierQuoteSkus(detailId.value, row.spuId)) || {}
     skuStatus.value = quote.status ?? row.status
+    skuStatusI18n.value = quote.statusI18n || row.statusI18n || null
     skuRejectReason.value = quote.rejectReason || row.rejectReason || ''
     skuQuoteMode.value = quote.quoteMode == null ? null : Number(quote.quoteMode)
     skuUnitPrice.value = quote.unitPrice == null ? null : Number(quote.unitPrice)
@@ -804,7 +841,10 @@ const openSkus = async (row: any) => {
       const specTypes = Array.isArray(detail.specTypes) ? detail.specTypes : []
       columns = specTypes.map((spec: any) => ({
         key: String(spec.specKey ?? spec.specTypeId),
-        label: spec.specTypeName || specText(spec.nameI18n),
+        label: (() => {
+          const localized = specText(spec.nameI18n)
+          return localized !== '—' ? localized : (spec.specTypeName || localized)
+        })(),
       }))
       specSkus = Array.isArray(detail.skus) ? detail.skus : []
       catalogAttaches = Array.isArray(detail.attaches) ? detail.attaches : []
@@ -854,7 +894,7 @@ const openSkus = async (row: any) => {
       }
     })
   } catch (error: any) {
-    ElMessage.error(error?.message || '报价加载失败')
+    ElMessage.error(error?.message || t('admin.platformSuppliers.quoteLoadFailed'))
     skuOpen.value = false
   } finally {
     skuLoading.value = false
@@ -874,10 +914,10 @@ onMounted(loadSuppliers)
 .supplier-review__head p { margin: 0 0 16px; color: #6d7686; }
 .supplier-review__head--detail .el-button { margin-bottom: 8px; padding-left: 0; }
 .board { padding: 14px; background: #fff; border: 1px solid #e7ebf2; border-radius: 14px; }
-.board__bar { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+.board__bar { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; margin-bottom: 12px; }
 .board__bar .el-input { width: 240px; }
-.board__bar .el-select { width: 160px; }
-.board__bar .review-filter { width: 168px; }
+.board__bar .el-select { width: 220px; }
+.board__bar .review-filter { width: 190px; }
 .board__count { color: #6d7686; font-size: 13px; }
 .board :deep(.el-pagination) { justify-content: flex-end; margin-top: 12px; }
 .category-tags { display: flex; flex-wrap: wrap; gap: 4px; }

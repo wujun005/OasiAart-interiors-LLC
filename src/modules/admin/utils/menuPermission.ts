@@ -1,11 +1,11 @@
 import { reactive } from 'vue';
 import {
   getAdminUserRoleIds,
-  getCurrentAdminUser,
   getCurrentUserRoles,
   listEnabledRoles,
 } from '@/modules/admin/api/user';
 import { getAdminAuthStorageValue } from '@/utils/auth-state';
+import { useAdminSessionStore } from '@/modules/admin/stores/session';
 
 export type AdminMenuPermissionItem = {
   id: number | string;
@@ -181,7 +181,7 @@ const unwrap = (payload: any) => (
 );
 
 const currentUserIsSuperAdmin = async () => {
-  const me = unwrap(await getCurrentAdminUser());
+  const me = await useAdminSessionStore().currentUser();
   const userId = Number(me?.id || 0);
   if (!userId) return false;
   const [roleRes, mineRes] = await Promise.all([

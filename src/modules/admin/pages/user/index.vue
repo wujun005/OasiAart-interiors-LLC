@@ -207,12 +207,12 @@ import apis, {
   assignUserRole,
   getAdminUserRoleIds,
   getAll,
-  getCurrentAdminUser,
   getUserRoles,
   listEnabledRoles,
   updateAdminUserPassword,
   updateAdminUserRoles,
 } from '@/modules/admin/api/user';
+import { useAdminSessionStore } from '@/modules/admin/stores/session';
 
 type AccountRole = {
   id: number;
@@ -648,7 +648,7 @@ const remove = async (row: User) => {
 
 const loadRoleContext = async () => {
   try {
-    const me = unwrap(await getCurrentAdminUser());
+    const me = await useAdminSessionStore().currentUser();
     currentUserId.value = Number(me?.id || 0);
     const [roleRes, mineRes] = await Promise.all([
       listEnabledRoles(),

@@ -198,7 +198,8 @@
 import { computed, onMounted, reactive, ref } from 'vue'
 import { ElMessage } from 'element-plus'
 import { useI18n } from 'vue-i18n'
-import { supplierEventPage, supplierEventSave } from '@/modules/admin/api/supplierWorkbench'
+import { supplierEventSave } from '@/modules/admin/api/supplierWorkbench'
+import { useAdminSessionStore } from '@/modules/admin/stores/session'
 
 type ServiceItem = { spuId: number; serviceName: string }
 type AreaItem = { areaId: number; areaName: string }
@@ -263,8 +264,6 @@ const cursor = ref(new Date())
 const pickedDay = ref('')
 const draft = reactive({ start: '', end: '', concurrent: 0, weekend: false })
 
-const unwrap = (res: any) => (res && typeof res === 'object' && 'data' in res ? res.data : res)
-
 const eventDate = (row: SupplierEvent) => {
   const start = formatDay(row.startDate)
   const end = formatDay(row.endDate)
@@ -287,22 +286,12 @@ const formatDay = (value?: string) => {
   })
 }
 
-const loadEvents = async () => {
+const loadEvents = async (fresh = false) => {
   loading.value = true
   try {
-    const collected: SupplierEvent[] = []
-    let pageNum = 1
-    let totalCount = 0
-    do {
-      const result = unwrap(await supplierEventPage({ pageNum, pageSize: 50 }))
-      const list = Array.isArray(result?.list) ? result.list : []
-      totalCount = Number(result?.total || 0)
-      collected.push(...list)
-      if (!list.length) break
-      pageNum += 1
-    } while (collected.length < totalCount && pageNum <= 8)
-    allEvents.value = collected
-    total.value = totalCount
+    const result = await useAdminSessionStore().supplierEvents(fresh)
+    allEvents.value = result.list
+    total.value = result.total
     loadError.value = ''
   } catch (error: any) {
     allEvents.value = []
@@ -412,7 +401,7 @@ const saveBlock = async () => {
     ElMessage.success(t('admin.supplierAvailability.blockSaved'))
     blockOpen.value = false
     page.value = 1
-    await loadEvents()
+    await loadEvents(true)
   } catch (error: any) {
     ElMessage.error(error?.message || t('admin.supplierAvailability.blockFailed'))
   } finally {

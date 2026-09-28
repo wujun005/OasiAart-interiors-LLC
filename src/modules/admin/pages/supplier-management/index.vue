@@ -845,14 +845,9 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 import {
-  onboardingDetail,
   onboardingSave,
-  quoteList,
   saveQuoteDraft,
   saveServices,
-  serviceAreaList,
-  serviceCommunityPage,
-  serviceCatalog,
   submitQuote,
   supplierArrive,
   supplierAssignedOrderDetail,
@@ -865,7 +860,7 @@ import {
 import { listBySpu, listSpuAttachCatalog } from '@/modules/admin/api/spu'
 import SupplierAvailability from '@/modules/admin/pages/supplier-management/availability.vue'
 import { getAdminLocale } from '@/modules/admin/locales'
-import { getCurrentAdminUser } from '@/modules/admin/api/user'
+import { useAdminSessionStore } from '@/modules/admin/stores/session'
 import { pickI18nText } from '@/modules/admin/utils/i18n'
 import {
   ArrowLeft,
@@ -918,6 +913,7 @@ const profileStatusLabel = computed(() => {
   const key = onboardingStatus.value == null ? 'statusNone' : keys[onboardingStatus.value] || 'statusNone'
   return t(`admin.supplierProfile.${key}`)
 })
+const session = useAdminSessionStore()
 const supplierRecordId = ref<number | null>(null)
 const supplierNo = ref('')
 const onboardingStatus = ref<number | null>(null)
@@ -1670,18 +1666,18 @@ const applyProfile = (detail: any) => {
   loadAreaCommunities(selectedAreaIds.value)
 }
 
-const loadSupplierDetail = async (id: number) => {
-  const detail = unwrap(await onboardingDetail(id))
+const loadSupplierDetail = async (id: number, fresh = false) => {
+  const detail = await session.supplierDetail(id, fresh)
   applyProfile(detail)
   await Promise.all([
-    loadCatalog(),
-    loadQuotes(),
+    loadCatalog(fresh),
+    loadQuotes(fresh),
     section.value === 'orders' ? loadOrders() : Promise.resolve(),
   ])
 }
 
 const loadCurrentSupplier = async () => {
-  const me = unwrap(await getCurrentAdminUser())
+  const me = await session.currentUser()
   supplierNo.value = String(me?.supplierNo || '')
   const supplierId = Number(me?.supplierId || 0)
   if (!supplierId) {
@@ -1707,7 +1703,7 @@ const saveAvailabilityHours = async (next: { start: string; end: string; concurr
     const id = unwrap(await onboardingSave(buildProfilePayload(onboardingStatus.value ?? 0)))
     if (id) supplierRecordId.value = Number(id)
     ElMessage.success(t('admin.supplierAvailability.hoursSaved'))
-    if (supplierRecordId.value) await loadSupplierDetail(supplierRecordId.value)
+    if (supplierRecordId.value) await loadSupplierDetail(supplierRecordId.value, true)
   } catch (error: any) {
     capacityForm.start = previous.start
     capacityForm.end = previous.end
@@ -1761,7 +1757,7 @@ const saveProfile = async (status: number) => {
     if (id) supplierRecordId.value = Number(id)
     onboardingStatus.value = status
     ElMessage.success(t(status === 1 ? 'admin.supplierProfile.submitted' : 'admin.supplierProfile.draftSaved'))
-    if (supplierRecordId.value) await loadSupplierDetail(supplierRecordId.value)
+    if (supplierRecordId.value) await loadSupplierDetail(supplierRecordId.value, true)
   } catch (error: any) {
     ElMessage.error(error?.message || t('admin.supplierProfile.saveFailed'))
   } finally {
@@ -1792,27 +1788,18 @@ const uploadInsurance = async (fileKey: string | undefined, options: any) => {
 }
 
 const loadAreaCommunities = async (areaIds: number[]) => {
-  const missing = [...new Set(areaIds.filter(Boolean))].filter((id) => communitiesByArea.value[id] == null)
+  const ids = [...new Set(areaIds.filter(Boolean))]
+  const missing = ids.filter((id) => communitiesByArea.value[id] == null)
   if (!missing.length) return
-  const loaded = await Promise.all(missing.map(async (areaId) => {
-    try {
-      const names: string[] = []
-      let pageNum = 1
-      let total = Number.POSITIVE_INFINITY
-      while (names.length < total && pageNum <= 5) {
-        const page = unwrap(await serviceCommunityPage({ areaId, pageNum, pageSize: 200, status: 1 }))
-        const list = page?.list || []
-        total = Number(page?.total ?? list.length)
-        names.push(...list.map((item: any) => String(item.name || '')).filter(Boolean))
-        if (!list.length) break
-        pageNum += 1
-      }
-      return [areaId, names] as const
-    } catch {
-      return [areaId, []] as const
+  try {
+    const loaded = await session.communitiesFor(missing)
+    communitiesByArea.value = { ...communitiesByArea.value, ...loaded }
+  } catch {
+    communitiesByArea.value = {
+      ...communitiesByArea.value,
+      ...Object.fromEntries(missing.map((id) => [id, []])),
     }
-  }))
-  communitiesByArea.value = { ...communitiesByArea.value, ...Object.fromEntries(loaded) }
+  }
 }
 
 const openAreaEditor = async () => {
@@ -1825,7 +1812,7 @@ const openAreaEditor = async () => {
   areaEditorVisible.value = true
   editorLoading.value = true
   try {
-    platformAreas.value = unwrap(await serviceAreaList({ status: 1 })) || []
+    platformAreas.value = await session.serviceAreas()
     await loadAreaCommunities(platformAreas.value.map((area) => Number(area.id)))
   } catch (error: any) {
     ElMessage.error(error?.message || t('admin.supplierArea.loadFailed'))
@@ -1858,7 +1845,7 @@ const saveAreas = async () => {
     if (id) supplierRecordId.value = Number(id)
     areaEditorVisible.value = false
     ElMessage.success(t('admin.supplierArea.saved'))
-    if (supplierRecordId.value) await loadSupplierDetail(supplierRecordId.value)
+    if (supplierRecordId.value) await loadSupplierDetail(supplierRecordId.value, true)
   } catch (error: any) {
     ElMessage.error(error?.message || t('admin.supplierArea.saveFailed'))
   } finally {
@@ -1866,11 +1853,11 @@ const saveAreas = async () => {
   }
 }
 
-const loadCatalog = async () => {
+const loadCatalog = async (fresh = false) => {
   if (!supplierRecordId.value) return
   catalogLoading.value = true
   try {
-    rememberCatalog(mapCatalog(unwrap(await serviceCatalog(supplierRecordId.value)) || []))
+    rememberCatalog(mapCatalog(await session.catalog(supplierRecordId.value, fresh) || []))
   } catch (error: any) {
     ElMessage.error(error?.message || t('admin.supplierPricing.catalogFailed'))
   } finally {
@@ -1905,7 +1892,7 @@ const persistServices = async (rows: SavedService[], success: string) => {
   try {
     await saveServices({ supplierId: supplierRecordId.value, services: [...grouped.values()] })
     ElMessage.success(success)
-    await Promise.all([loadCatalog(), loadQuotes()])
+    await Promise.all([loadCatalog(true), loadQuotes(true)])
     return true
   } catch (error: any) {
     ElMessage.error(error?.message || t('admin.supplierPricing.saveServicesFailed'))
@@ -1976,11 +1963,11 @@ const removeAddedService = async (row: SavedService) => {
   )
 }
 
-const loadQuotes = async () => {
+const loadQuotes = async (fresh = false) => {
   if (!supplierRecordId.value) return
   quoteLoading.value = true
   try {
-    liveQuotes.value = unwrap(await quoteList(supplierRecordId.value)) || []
+    liveQuotes.value = await session.supplierQuotes(supplierRecordId.value, fresh) || []
   } finally {
     quoteLoading.value = false
   }
@@ -2197,7 +2184,7 @@ const saveServiceQuote = async () => {
     const saved = unwrap(await saveQuoteDraft(quotePayload()))
     applySavedQuote(saved)
     ElMessage.success(t('admin.supplierPricing.draftSaved'))
-    await loadQuotes()
+    await loadQuotes(true)
   } catch (error: any) {
     ElMessage.error(error?.message || t('admin.supplierPricing.saveQuoteFailed'))
   } finally {
@@ -2223,7 +2210,7 @@ const submitServiceQuote = async () => {
     quoteDialog.status = submitted?.status ?? 1
     ElMessage.success(t('admin.supplierPricing.submitted'))
     quoteDialog.visible = false
-    await loadQuotes()
+    await loadQuotes(true)
   } catch (error: any) {
     ElMessage.error(error?.message || t('admin.supplierPricing.submitFailed'))
   } finally {

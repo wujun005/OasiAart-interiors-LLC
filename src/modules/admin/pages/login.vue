@@ -179,6 +179,7 @@ import {
   loadAdminMenuPermissions,
   resetAdminMenuPermissions,
 } from '@/modules/admin/utils/menuPermission';
+import { useAdminSessionStore } from '@/modules/admin/stores/session';
 
 const { t, locale } = useI18n({ useScope: 'global' });
 const route = useRoute();
@@ -265,6 +266,7 @@ const submitLogin = async () => {
       setAdminAuthStorageValue('expiresAt', Date.now() + Number(expiresIn));
     }
 
+    useAdminSessionStore().reset();
     resetAdminMenuPermissions();
     await loadAdminMenuPermissions(true);
     ElMessage.success(result?.message || t('admin.login.loginSuccess'));

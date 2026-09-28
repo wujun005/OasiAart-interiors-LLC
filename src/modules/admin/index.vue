@@ -116,7 +116,7 @@
         <el-main class="content">
           <RouterView v-slot="{ Component: RouteComponent }">
             <Transition name="admin-route" mode="out-in">
-              <component :is="RouteComponent" :key="route.fullPath" />
+              <component :is="RouteComponent" :key="contentKey" />
             </Transition>
           </RouterView>
         </el-main>
@@ -168,8 +168,11 @@ import {
   resolveAllowedAdminPath,
   type AdminMenuPermissionItem,
 } from '@/modules/admin/utils/menuPermission';
+import { useAdminSessionStore } from '@/modules/admin/stores/session';
 
 const route = useRoute();
+const refreshTick = ref(0);
+const contentKey = computed(() => `${route.matched[1]?.path || route.path}:${refreshTick.value}`);
 const isOrdersH5 = computed(() => route.name === 'admin-orders-h5');
 const isSupplierPortal = computed(() => route.path.startsWith('/admin/supplier-management'));
 const router = useRouter();
@@ -278,12 +281,15 @@ const handleLocaleChange = (lang: AdminLocale) => {
 };
 
 const refresh = () => {
-  router.replace({ path: route.fullPath, query: { ...route.query, t: Date.now() } });
+  useAdminSessionStore().reset();
+  refreshTick.value += 1;
+  router.replace({ path: route.path, query: { ...route.query, t: Date.now() } });
 };
 
 const handleLogout = async () => {
   clearAdminAuthState();
   delete axios.defaults.headers.common.Authorization;
+  useAdminSessionStore().reset();
   resetAdminMenuPermissions();
   ElMessage.success(t('admin.common.logoutSuccess'));
   await router.replace('/admin/login');
