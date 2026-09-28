@@ -287,6 +287,7 @@ const zh = {
         rescheduledUnread: '改期待处理',
         rescheduleChanges: '改期记录',
         supplierName: '供应商名称',
+        serviceProgress: '服务进度',
         serviceTime: '服务时间',
         scheduledTime: '预约时间',
         paymentStatus: '支付状态',
@@ -306,6 +307,16 @@ const zh = {
       },
       copyFields: {
         servicePhone: '服务电话',
+      },
+      serviceProgress: {
+        title: '供应商服务进度',
+        notStarted: '未开始',
+        arrived: '已到达开始服务',
+        completed: '服务已完成',
+        arriveNote: '到达说明',
+        arrivePhotos: '到达照片',
+        completeNote: '完成说明',
+        completePhotos: '完成照片',
       },
       status: {
         orderDraft: '未付款',

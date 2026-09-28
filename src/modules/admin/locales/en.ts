@@ -287,6 +287,7 @@ const en = {
         rescheduledUnread: 'Time changed',
         rescheduleChanges: 'Reschedule Changes',
         supplierName: 'Supplier',
+        serviceProgress: 'Service progress',
         serviceTime: 'Service Date',
         scheduledTime: 'Scheduled Time',
         paymentStatus: 'Payment Status',
@@ -306,6 +307,16 @@ const en = {
       },
       copyFields: {
         servicePhone: 'Service Phone',
+      },
+      serviceProgress: {
+        title: 'Supplier service progress',
+        notStarted: 'Not started',
+        arrived: 'Arrived and started',
+        completed: 'Service completed',
+        arriveNote: 'Arrival note',
+        arrivePhotos: 'Arrival photos',
+        completeNote: 'Completion note',
+        completePhotos: 'Completion photos',
       },
       status: {
         orderDraft: 'Unpaid',

@@ -49,6 +49,13 @@
               <span v-if="hasUnreadReschedule(row)" class="orders-h5__pill orders-h5__pill--alert">
                 {{ t("admin.orders.table.rescheduledUnread") }}
               </span>
+              <span
+                v-for="supplier in trackedSuppliers(row)"
+                :key="supplier.id"
+                class="orders-h5__pill orders-h5__pill--quiet"
+              >
+                {{ supplierProgressLabel(supplier) }}
+              </span>
             </span>
           </span>
           <span class="orders-h5__chevron" aria-hidden="true">›</span>
@@ -414,7 +421,7 @@
         <el-table-column
           prop="supplierName"
           :label="t('admin.orders.table.supplierName')"
-          min-width="160"
+          min-width="200"
         >
           <template #default="{ row }">
             <div class="supplier-cell">
@@ -434,6 +441,18 @@
               <el-tooltip :content="row.supplierName || '-'" placement="top" :show-after="250">
                 <span>{{ row.supplierName || '-' }}</span>
               </el-tooltip>
+              <div v-if="trackedSuppliers(row).length" class="supplier-progress">
+                <span
+                  v-for="supplier in trackedSuppliers(row)"
+                  :key="supplier.id"
+                  class="supplier-progress__line"
+                >
+                  <small v-if="trackedSuppliers(row).length > 1">{{ supplier.supplierName }}</small>
+                  <el-tag :type="supplierProgressTag(supplier.serviceStatus)" effect="light">
+                    {{ supplierProgressLabel(supplier) }}
+                  </el-tag>
+                </span>
+              </div>
             </div>
           </template>
         </el-table-column>
@@ -635,6 +654,40 @@
               {{ detailRow.orderStatusText }}
             </el-tag>
           </div>
+        </section>
+
+        <section v-if="trackedSuppliers(detailRow).length" class="order-detail__panel service-progress">
+          <h3>{{ t("admin.orders.serviceProgress.title") }}</h3>
+          <article v-for="supplier in trackedSuppliers(detailRow)" :key="supplier.id" class="service-progress__supplier">
+            <header>
+              <strong>{{ supplier.supplierName || supplier.supplierNo || "—" }}</strong>
+              <el-tag :type="supplierProgressTag(supplier.serviceStatus)" effect="light">
+                {{ supplierProgressLabel(supplier) }}
+              </el-tag>
+            </header>
+            <p v-if="supplier.arriveRemark"><span>{{ t("admin.orders.serviceProgress.arriveNote") }}</span>{{ supplier.arriveRemark }}</p>
+            <div v-if="supplier.arrivePhotos?.length" class="service-progress__photos">
+              <span>{{ t("admin.orders.serviceProgress.arrivePhotos") }}</span>
+              <el-image
+                v-for="url in supplier.arrivePhotos"
+                :key="url"
+                :src="url"
+                :preview-src-list="supplier.arrivePhotos"
+                fit="cover"
+              />
+            </div>
+            <p v-if="supplier.completeRemark"><span>{{ t("admin.orders.serviceProgress.completeNote") }}</span>{{ supplier.completeRemark }}</p>
+            <div v-if="supplier.completePhotos?.length" class="service-progress__photos">
+              <span>{{ t("admin.orders.serviceProgress.completePhotos") }}</span>
+              <el-image
+                v-for="url in supplier.completePhotos"
+                :key="url"
+                :src="url"
+                :preview-src-list="supplier.completePhotos"
+                fit="cover"
+              />
+            </div>
+          </article>
         </section>
 
         <div v-if="isOrdersH5" class="h5-actions">
@@ -1525,6 +1578,14 @@ type OrderLineItem = {
 type SupplierOption = {
   id: number | string
   supplierName: string
+  supplierNo?: string
+  tracked?: boolean
+  serviceStatus?: number | null
+  serviceStatusText?: string
+  arrivePhotos?: string[]
+  arriveRemark?: string
+  completePhotos?: string[]
+  completeRemark?: string
 }
 
 type RawSpecSelection = {
@@ -2291,6 +2352,33 @@ const getPreferredLangs = () =>
     ? ["zh-CN", "zh", "en", "en-US"]
     : ["en", "en-US", "zh-CN", "zh"]
 
+const photoList = (value: unknown) => {
+  if (Array.isArray(value)) return value.map((item) => String(item || "").trim()).filter(Boolean)
+  if (typeof value === "string" && value.trim()) {
+    try {
+      const parsed = JSON.parse(value)
+      if (Array.isArray(parsed)) return parsed.map((item) => String(item || "").trim()).filter(Boolean)
+    } catch {
+      return [value.trim()]
+    }
+  }
+  return []
+}
+
+const trackedSuppliers = (row?: OrderRow | null) =>
+  (row?.suppliers || []).filter((supplier) => supplier.tracked)
+
+const supplierProgressLabel = (supplier: SupplierOption) => {
+  if (supplier.serviceStatusText) return supplier.serviceStatusText
+  const status = Number(supplier.serviceStatus ?? 0)
+  if (status === 1) return t("admin.orders.serviceProgress.arrived")
+  if (status === 2) return t("admin.orders.serviceProgress.completed")
+  return t("admin.orders.serviceProgress.notStarted")
+}
+
+const supplierProgressTag = (status?: number | null) =>
+  Number(status) === 2 ? "success" : Number(status) === 1 ? "warning" : "info"
+
 const pickI18nValue = (i18n?: I18nText, fallback = ""): string => {
   const valueMap = i18n || {}
   const preferredLangs = getPreferredLangs()
@@ -2614,9 +2702,18 @@ const parseAssignedSupplierList = (value: unknown): SupplierOption[] => {
     const key = String(id)
     if (seen.has(key)) return
     seen.add(key)
+    const status = Number(item.serviceStatus)
     suppliers.push({
       id: id as number | string,
       supplierName: String(item.supplierName ?? item.name ?? "").trim(),
+      supplierNo: String(item.supplierNo ?? "").trim(),
+      tracked: true,
+      serviceStatus: Number.isFinite(status) ? status : 0,
+      serviceStatusText: pickI18nValue(item.serviceStatusI18n as I18nText, ""),
+      arrivePhotos: photoList(item.arrivePhotos),
+      arriveRemark: String(item.arriveRemark ?? "").trim(),
+      completePhotos: photoList(item.completePhotos),
+      completeRemark: String(item.completeRemark ?? "").trim(),
     })
   })
   return suppliers
@@ -2656,7 +2753,7 @@ const resolveAssignedSuppliers = (
     : existing.length
       ? existing
       : fallbackId
-        ? [{ id: fallbackId, supplierName: fallbackName }]
+        ? [{ id: fallbackId, supplierName: fallbackName, arrivePhotos: [], arriveRemark: "", completePhotos: [], completeRemark: "" }]
         : []
   const supplierName =
     suppliers
@@ -4132,6 +4229,75 @@ onMounted(() => {
   font-size: 11px;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+.supplier-progress {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  width: 100%;
+  margin-top: 4px;
+}
+.supplier-progress__line {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+}
+.supplier-progress__line small {
+  overflow: hidden;
+  color: #7a7166;
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.service-progress {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.service-progress__supplier {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  border: 1px solid #efe6d6;
+  border-radius: 12px;
+  background: #fffdf8;
+}
+.service-progress__supplier header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.service-progress__supplier p {
+  margin: 0;
+  color: #3d4a5c;
+  font-size: 13px;
+  line-height: 1.5;
+}
+.service-progress__supplier p span {
+  display: block;
+  margin-bottom: 2px;
+  color: #7a7166;
+  font-size: 12px;
+}
+.service-progress__photos {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.service-progress__photos > span {
+  width: 100%;
+  color: #7a7166;
+  font-size: 12px;
+}
+.service-progress__photos :deep(.el-image) {
+  width: 72px;
+  height: 72px;
+  border-radius: 8px;
+  overflow: hidden;
 }
 .orders-table :deep(.el-tag) {
   height: 22px;
