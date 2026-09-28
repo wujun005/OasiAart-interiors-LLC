@@ -23,6 +23,16 @@
             <el-option label="报价已通过" :value="2" />
             <el-option label="报价已拒绝" :value="3" />
           </el-select>
+          <el-select v-model="onboardingStatus" clearable placeholder="入驻状态" class="review-filter" @change="search">
+            <el-option label="草稿" :value="0" />
+            <el-option label="待审核" :value="1" />
+            <el-option label="已通过" :value="2" />
+            <el-option label="已驳回" :value="3" />
+          </el-select>
+          <el-select v-model="needReview" clearable placeholder="是否需要审核" class="review-filter" @change="search">
+            <el-option label="需要审核" value="yes" />
+            <el-option label="无需审核" value="no" />
+          </el-select>
           <span class="board__count">{{ total }} 家</span>
         </div>
 
@@ -46,11 +56,18 @@
           <el-table-column label="联系人" min-width="120" prop="contactPerson" />
           <el-table-column label="电话" min-width="140" prop="mobile" />
           <el-table-column label="已选服务" width="100" prop="serviceCount" />
-          <el-table-column label="状态" width="110">
+          <el-table-column label="入驻状态" width="110">
             <template #default="{ row }">
               <el-tag :type="quoteTagType(row.onboardingStatus)" effect="light">
-                {{ onboardingLabel(row.onboardingStatus) }}
+                {{ onboardingText(row.onboardingStatus, row.onboardingStatusI18n) }}
               </el-tag>
+            </template>
+          </el-table-column>
+          <el-table-column label="是否需要审核" width="130">
+            <template #default="{ row }">
+              <el-tag v-if="row.pendingReview === true" type="warning" effect="light">是</el-tag>
+              <el-tag v-else-if="row.pendingReview === false" type="info" effect="light">否</el-tag>
+              <span v-else>—</span>
             </template>
           </el-table-column>
           <el-table-column label="最近提交" min-width="150">
@@ -324,6 +341,8 @@ type SupplierRow = {
   serviceCount: number
   serviceCategories?: ServiceCategory[]
   onboardingStatus?: number
+  onboardingStatusI18n?: Record<string, string>
+  pendingReview?: boolean
   latestSubmitTime?: string
 }
 
@@ -331,6 +350,8 @@ const route = useRoute()
 const router = useRouter()
 const keyword = ref('')
 const quoteStatus = ref<number | ''>('')
+const onboardingStatus = ref<number | '' | null>('')
+const needReview = ref<'' | 'yes' | 'no' | null>('')
 const pageNum = ref(1)
 const pageSize = 10
 const total = ref(0)
@@ -426,7 +447,15 @@ const rejectTarget = ref<any>(null)
 const unwrap = (res: any) => (res && typeof res === 'object' && 'data' in res ? res.data : res)
 const quoteStatusLabel = (status?: number) => ['草稿', '待审核', '已通过', '已拒绝'][status ?? -1] || '未报价'
 const quoteTagType = (status?: number) => (Number(status) === 1 ? 'warning' : Number(status) === 2 ? 'success' : Number(status) === 3 ? 'danger' : 'info')
-const onboardingLabel = (status?: number) => ['草稿', '已提交', '已通过', '已驳回'][Number(status)] || '—'
+const onboardingLabel = (status?: number) => ['草稿', '待审核', '已通过', '已驳回'][Number(status)] || '—'
+const onboardingText = (status?: number, i18n?: Record<string, unknown> | null) => {
+  const localized = specText(i18n)
+  return localized !== '—' ? localized : onboardingLabel(status)
+}
+const onboardingStatusParam = () => {
+  const value = onboardingStatus.value
+  return value === '' || value == null ? undefined : Number(value)
+}
 const listedPhones = (phones?: string[]) => (phones || []).map((phone) => String(phone || '').trim()).filter(Boolean)
 const moneyText = (value: unknown) => {
   if (value === null || value === undefined || value === '') return '—'
@@ -455,10 +484,25 @@ const formatTime = (value?: string) => {
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}`
 }
 
+type OnboardingListItem = {
+  id?: number
+  supplierNo?: string
+  companyName?: string
+  contactPerson?: string
+  mobile?: string
+  status?: number
+  pendingReview?: boolean
+  modifyTime?: string
+  services?: ServiceCategory[]
+}
+
+const reviewChoice = () => (needReview.value === 'yes' || needReview.value === 'no' ? needReview.value : '')
+
 const attachOnboardingStatus = async (rows: SupplierRow[]) => {
   if (!rows.length) return rows
   const wanted = new Set(rows.map((row) => Number(row.id)))
   const statusById = new Map<number, number | undefined>()
+  const reviewById = new Map<number, boolean>()
   const statusPageSize = 200
   let statusPage = 1
   let statusTotal = 0
@@ -466,27 +510,117 @@ const attachOnboardingStatus = async (rows: SupplierRow[]) => {
     const result = unwrap(await onboardingPage({ pageNum: statusPage, pageSize: statusPageSize })) || {}
     const list = Array.isArray(result.list) ? result.list : []
     statusTotal = Number(result.total || 0)
-    list.forEach((item: { id?: number; status?: number }) => {
+    list.forEach((item: OnboardingListItem) => {
       const id = Number(item.id)
       if (!wanted.has(id)) return
       const status = Number(item.status)
       statusById.set(id, Number.isFinite(status) ? status : undefined)
+      if (typeof item.pendingReview === 'boolean') reviewById.set(id, item.pendingReview)
     })
     if (statusById.size >= wanted.size || list.length < statusPageSize) break
     statusPage += 1
   } while ((statusPage - 1) * statusPageSize < statusTotal && statusPage <= 5)
-  return rows.map((row) => ({
-    ...row,
-    onboardingStatus: statusById.get(Number(row.id)),
-  }))
+  return rows.map((row) => {
+    const parsed = row.onboardingStatus == null ? NaN : Number(row.onboardingStatus)
+    return {
+      ...row,
+      onboardingStatus: Number.isFinite(parsed) ? parsed : statusById.get(Number(row.id)),
+      pendingReview: reviewById.get(Number(row.id)),
+    }
+  })
+}
+
+const collectOnboarding = async (review: 'yes' | 'no') => {
+  const matched: OnboardingListItem[] = []
+  const scanSize = 100
+  let scanPage = 1
+  let scanTotal = 0
+  const wantReview = review === 'yes'
+  do {
+    const result = unwrap(await onboardingPage({
+      pageNum: scanPage,
+      pageSize: scanSize,
+      ...(keyword.value ? { keyword: keyword.value } : {}),
+      ...(onboardingStatusParam() == null ? {} : { status: onboardingStatusParam() }),
+      pendingReview: wantReview,
+    })) || {}
+    const list = (Array.isArray(result.list) ? result.list : []) as OnboardingListItem[]
+    scanTotal = Number(result.total || 0)
+    list.forEach((item) => {
+      if (item.pendingReview !== wantReview) return
+      matched.push(item)
+    })
+    if (list.length < scanSize) break
+    scanPage += 1
+  } while ((scanPage - 1) * scanSize < scanTotal && scanPage <= 50)
+  return matched
+}
+
+const collectQuoteRows = async () => {
+  const rows: SupplierRow[] = []
+  const scanSize = 100
+  let scanPage = 1
+  let scanTotal = 0
+  do {
+    const payload: Record<string, unknown> = { pageNum: scanPage, pageSize: scanSize }
+    if (keyword.value) payload.keyword = keyword.value
+    if (quoteStatus.value !== '') payload.quoteStatus = quoteStatus.value
+    if (onboardingStatusParam() != null) payload.onboardingStatus = onboardingStatusParam()
+    const result = unwrap(await platformSupplierQuotePage(payload)) || {}
+    const list = (result.list || []) as SupplierRow[]
+    rows.push(...list)
+    scanTotal = Number(result.total || 0)
+    if (list.length < scanSize) break
+    scanPage += 1
+  } while ((scanPage - 1) * scanSize < scanTotal && scanPage <= 50)
+  return rows
+}
+
+const toReviewRow = (item: OnboardingListItem, quote?: SupplierRow): SupplierRow => {
+  const groups = (item.services || []).filter((group) => group.categoryId)
+  const serviceCount = groups.reduce((sum, group) => {
+    const services = (group as { services?: unknown[] }).services
+    return sum + (Array.isArray(services) ? services.length : 0)
+  }, 0)
+  return {
+    id: Number(item.id),
+    supplierNo: quote?.supplierNo || item.supplierNo,
+    supplierName: quote?.supplierName || item.companyName || '',
+    contactPerson: quote?.contactPerson || item.contactPerson || '',
+    mobile: quote?.mobile || item.mobile || '',
+    serviceCount: quote?.serviceCount ?? serviceCount,
+    serviceCategories: quote?.serviceCategories?.length ? quote.serviceCategories : groups,
+    onboardingStatus: quote?.onboardingStatus != null && quote.onboardingStatus !== undefined
+      ? Number(quote.onboardingStatus)
+      : (Number.isFinite(Number(item.status)) ? Number(item.status) : undefined),
+    onboardingStatusI18n: quote?.onboardingStatusI18n,
+    pendingReview: item.pendingReview,
+    latestSubmitTime: quote?.latestSubmitTime || item.modifyTime,
+  }
 }
 
 const loadSuppliers = async () => {
   loading.value = true
   try {
+    const review = reviewChoice()
+    if (review) {
+      const [onboardingRows, quoteRows] = await Promise.all([
+        collectOnboarding(review),
+        collectQuoteRows(),
+      ])
+      const quoteById = new Map(quoteRows.map((row) => [Number(row.id), row]))
+      const merged = onboardingRows
+        .filter((item) => quoteStatus.value === '' || quoteById.has(Number(item.id)))
+        .map((item) => toReviewRow(item, quoteById.get(Number(item.id))))
+      total.value = merged.length
+      const start = (pageNum.value - 1) * pageSize
+      suppliers.value = merged.slice(start, start + pageSize)
+      return
+    }
     const payload: Record<string, unknown> = { pageNum: pageNum.value, pageSize }
     if (keyword.value) payload.keyword = keyword.value
     if (quoteStatus.value !== '') payload.quoteStatus = quoteStatus.value
+    if (onboardingStatusParam() != null) payload.onboardingStatus = onboardingStatusParam()
     const page = unwrap(await platformSupplierQuotePage(payload)) || {}
     const rows = (page.list || []) as SupplierRow[]
     suppliers.value = await attachOnboardingStatus(rows)
@@ -743,6 +877,7 @@ onMounted(loadSuppliers)
 .board__bar { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
 .board__bar .el-input { width: 240px; }
 .board__bar .el-select { width: 160px; }
+.board__bar .review-filter { width: 168px; }
 .board__count { color: #6d7686; font-size: 13px; }
 .board :deep(.el-pagination) { justify-content: flex-end; margin-top: 12px; }
 .category-tags { display: flex; flex-wrap: wrap; gap: 4px; }

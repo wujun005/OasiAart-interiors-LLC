@@ -323,6 +323,7 @@ const resolveMenuIcon = (item: AdminMenuPermissionItem) => {
   if (path.startsWith('/admin/supplier-management/service-area')) return Location;
   if (path.startsWith('/admin/supplier-management/staff')) return UserFilled;
   if (path.startsWith('/admin/supplier-management/schedule')) return Calendar;
+  if (path.startsWith('/admin/supplier-management/availability')) return Calendar;
   if (path.startsWith('/admin/supplier-management/orders')) return List;
   if (path.startsWith('/admin/supplier-management/pricing')) return PriceTag;
   if (path.startsWith('/admin/supplier-management/settlement')) return Wallet;
@@ -356,6 +357,7 @@ const menuLabelKeyByPath: Record<string, string> = {
   '/admin/supplier-management/service-area': 'admin.layout.supplierArea',
   '/admin/supplier-management/staff': 'admin.layout.supplierStaff',
   '/admin/supplier-management/schedule': 'admin.layout.supplierSchedule',
+  '/admin/supplier-management/availability': 'admin.layout.supplierAvailability',
   '/admin/supplier-management/orders': 'admin.layout.supplierOrders',
   '/admin/supplier-management/pricing': 'admin.layout.supplierPricing',
   '/admin/supplier-management/settlement': 'admin.layout.supplierSettlement',

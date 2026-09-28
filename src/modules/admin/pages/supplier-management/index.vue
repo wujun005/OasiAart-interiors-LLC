@@ -6,9 +6,7 @@
         <h1>{{ meta.title }}</h1>
       </div>
       <div class="page-actions">
-        <el-button v-if="section === 'orders' || section === 'settlement'" :icon="Download" @click="showToast(section === 'orders' ? '订单清单已生成 Demo 导出任务' : '结算明细已生成 Demo 导出任务')">
-          {{ section === 'orders' ? '导出订单' : '导出结算' }}
-        </el-button>
+        <el-button v-if="section === 'settlement'" :icon="Download" @click="showToast('结算明细已生成 Demo 导出任务')">导出结算</el-button>
         <el-button v-if="section === 'profile'" :loading="saving" @click="saveProfile(0)">{{ t('admin.supplierProfile.saveDraft') }}</el-button>
         <el-button v-if="meta.primaryAction" type="primary" :icon="section === 'schedule' ? Plus : section === 'profile' ? Check : undefined" @click="handlePrimaryAction">
           {{ meta.primaryAction }}
@@ -20,30 +18,13 @@
       <div class="supplier-identity">
         <div class="supplier-logo">PC</div>
         <div>
-          <div class="supplier-label">已登录供应商 / Signed-in supplier</div>
-          <strong class="supplier-name">{{ companyForm.companyName || '未填写公司名称' }}</strong>
-          <el-select
-            v-if="supplierOptions.length"
-            class="supplier-select"
-            :model-value="supplierRecordId || undefined"
-            filterable
-            placeholder="切换供应商"
-            @change="switchSupplier"
-          >
-            <el-option
-              v-for="item in supplierOptions"
-              :key="item.id"
-              :label="item.companyName || `供应商 ${item.id}`"
-              :value="item.id"
-            />
-          </el-select>
+          <div class="supplier-label">{{ t('admin.supplierOrders.signedIn') }}</div>
+          <strong class="supplier-name">{{ companyForm.companyName || t('admin.supplierOrders.unnamed') }}</strong>
         </div>
       </div>
       <div class="supplier-facts">
-        <div><span>Supplier ID</span><strong>{{ supplierRecordId || '新建' }}</strong></div>
-        <div><span>入驻状态</span><el-tag :type="onboardingTagType" effect="light">{{ onboardingStatusLabel }}</el-tag></div>
-        <div><span>资料完整度</span><strong class="progress-value">82%</strong></div>
-        <div class="compact-progress"><i style="width: 82%"></i></div>
+        <div><span>{{ t('admin.supplierOrders.supplierId') }}</span><strong>{{ supplierNo || supplierRecordId || '—' }}</strong></div>
+        <div><span>{{ t('admin.supplierOrders.onboarding') }}</span><el-tag :type="onboardingTagType" effect="light">{{ profileStatusLabel }}</el-tag></div>
       </div>
     </section>
 
@@ -93,21 +74,6 @@
           <p>{{ t('admin.supplierProfile.kicker') }}</p>
           <strong>{{ companyForm.companyName || t('admin.supplierProfile.untitled') }}</strong>
           <em>{{ profileStatusLabel }}</em>
-          <el-select
-            v-if="supplierOptions.length"
-            class="dossier-switch"
-            :model-value="supplierRecordId || undefined"
-            filterable
-            :placeholder="t('admin.supplierProfile.switchSupplier')"
-            @change="switchSupplier"
-          >
-            <el-option
-              v-for="item in supplierOptions"
-              :key="item.id"
-              :label="item.companyName || t('admin.supplierProfile.supplierNamed', { id: item.id })"
-              :value="item.id"
-            />
-          </el-select>
           <nav>
             <button type="button" :class="{ 'is-active': profileAnchor === 'company' }" @click="goProfile('company')"><span>01</span>{{ t('admin.supplierProfile.companyTitle') }}</button>
             <button type="button" :class="{ 'is-active': profileAnchor === 'contact' }" @click="goProfile('contact')"><span>02</span>{{ t('admin.supplierProfile.contactTitle') }}</button>
@@ -160,6 +126,33 @@
               <label><span><strong>{{ t('admin.supplierProfile.ownEquipment') }}</strong></span><el-switch v-model="complianceItems[3].enabled" /></label>
               <label><span><strong>{{ t('admin.supplierProfile.taxInvoice') }}</strong></span><el-switch v-model="complianceItems[2].enabled" /></label>
             </div>
+            <div class="community-fields">
+              <article>
+                <div>
+                  <strong>{{ t('admin.supplierProfile.emaar') }}</strong>
+                  <small>{{ t('admin.supplierProfile.emaarHint') }}</small>
+                </div>
+                <el-radio-group v-model="emaarOnboarded">
+                  <el-radio-button :value="1">{{ t('admin.supplierProfile.yes') }}</el-radio-button>
+                  <el-radio-button :value="0">{{ t('admin.supplierProfile.no') }}</el-radio-button>
+                </el-radio-group>
+              </article>
+              <article>
+                <div>
+                  <strong>{{ t('admin.supplierProfile.otherCommunity') }}</strong>
+                  <small>{{ t('admin.supplierProfile.otherCommunityHint') }}</small>
+                </div>
+                <el-radio-group v-model="otherCommunityOnboarded" @change="onOtherCommunityChange">
+                  <el-radio-button :value="1">{{ t('admin.supplierProfile.yes') }}</el-radio-button>
+                  <el-radio-button :value="0">{{ t('admin.supplierProfile.no') }}</el-radio-button>
+                </el-radio-group>
+              </article>
+            </div>
+            <el-form v-if="asYesNo(otherCommunityOnboarded) === 1" label-position="top" class="dossier-grid community-note">
+              <el-form-item :label="t('admin.supplierProfile.applyRenmark')" class="span-2" required>
+                <el-input v-model="applyRenmark" type="textarea" :rows="3" maxlength="512" show-word-limit :placeholder="t('admin.supplierProfile.applyRenmarkPlaceholder')" />
+              </el-form-item>
+            </el-form>
           </section>
 
           <section id="profile-bank">
@@ -221,31 +214,31 @@
     </template>
 
     <template v-else-if="section === 'service-area'">
-      <section class="review-banner area-banner linked-banner"><span><Location /></span><div><strong>入驻问卷里的服务区域</strong><p>只回显问卷中已保存的区域，并列出每个区域下的小区。需要调整时，从平台已启用的区域里重新勾选。</p></div></section>
+      <section class="review-banner area-banner linked-banner"><span><Location /></span><div><strong>{{ t('admin.supplierArea.bannerTitle') }}</strong><p>{{ t('admin.supplierArea.bannerBody') }}</p></div></section>
       <el-card class="surface-card" shadow="never">
         <div class="table-toolbar">
-          <div class="result-count">{{ supplierAreas.length }} 个区域 · {{ communityTotal }} 个小区</div>
+          <div class="result-count">{{ t('admin.supplierArea.count', { areas: supplierAreas.length, communities: communityTotal }) }}</div>
         </div>
-        <el-table :data="supplierAreas" class="data-table" row-key="areaId" empty-text="问卷里还没有服务区域">
-          <el-table-column label="区域" min-width="180" prop="areaName" />
-          <el-table-column label="小区" min-width="360">
+        <el-table :data="supplierAreas" class="data-table" row-key="areaId" :empty-text="t('admin.supplierArea.empty')">
+          <el-table-column :label="t('admin.supplierArea.area')" min-width="180" prop="areaName" />
+          <el-table-column :label="t('admin.supplierArea.communities')" min-width="360">
             <template #default="{ row }">
               <div v-if="communityNames(row.areaId).length" class="zone-list">
                 <span v-for="name in communityNames(row.areaId)" :key="name">{{ name }}</span>
               </div>
-              <span v-else-if="communitiesByArea[row.areaId]" class="muted-text">暂无小区</span>
-              <span v-else class="muted-text">加载中</span>
+              <span v-else-if="communitiesByArea[row.areaId]" class="muted-text">{{ t('admin.supplierArea.noCommunities') }}</span>
+              <span v-else class="muted-text">{{ t('admin.supplierArea.loading') }}</span>
             </template>
           </el-table-column>
-          <el-table-column label="状态" width="120">
+          <el-table-column :label="t('admin.supplierArea.status')" width="120">
             <template #default="{ row }">
-              <el-tag :type="row.status === 1 ? 'success' : 'info'" effect="light">{{ row.status === 1 ? '启用' : '停用' }}</el-tag>
+              <el-tag :type="row.status === 1 ? 'success' : 'info'" effect="light">{{ row.status === 1 ? t('admin.supplierArea.enabled') : t('admin.supplierArea.disabled') }}</el-tag>
             </template>
           </el-table-column>
         </el-table>
       </el-card>
-      <el-dialog v-model="areaEditorVisible" title="管理服务区域" width="min(760px, 92vw)" :close-on-click-modal="false">
-        <el-input v-model="areaKeyword" :prefix-icon="Search" placeholder="搜索区域或小区" clearable />
+      <el-dialog v-model="areaEditorVisible" :title="t('admin.supplierArea.dialogTitle')" width="min(760px, 92vw)" :close-on-click-modal="false">
+        <el-input v-model="areaKeyword" :prefix-icon="Search" :placeholder="t('admin.supplierArea.searchPlaceholder')" clearable />
         <div v-loading="editorLoading" class="area-choice-list">
           <el-checkbox
             v-for="area in editorAreas"
@@ -259,10 +252,10 @@
             </span>
           </el-checkbox>
         </div>
-        <p v-if="!editorLoading && !editorAreas.length" class="policy-empty">没有可选择的区域</p>
+        <p v-if="!editorLoading && !editorAreas.length" class="policy-empty">{{ t('admin.supplierArea.noAreas') }}</p>
         <template #footer>
-          <el-button @click="areaEditorVisible = false">取消</el-button>
-          <el-button type="primary" :loading="saving" @click="saveAreas">保存</el-button>
+          <el-button @click="areaEditorVisible = false">{{ t('admin.supplierArea.cancel') }}</el-button>
+          <el-button type="primary" :loading="saving" @click="saveAreas">{{ t('admin.supplierArea.save') }}</el-button>
         </template>
       </el-dialog>
     </template>
@@ -335,64 +328,79 @@
     </template>
 
     <template v-else-if="section === 'orders'">
-      <el-card class="surface-card" shadow="never" v-loading="orderLoading">
-        <div class="table-toolbar">
-          <div class="table-search">
-            <el-input v-model.trim="orderKeyword" :prefix-icon="Search" placeholder="订单号" clearable @keyup.enter="searchOrders" @clear="searchOrders" />
+      <el-card class="surface-card orders-card" shadow="never" v-loading="orderLoading">
+        <div class="order-toolbar">
+          <div class="order-filters">
+            <el-input v-model.trim="orderKeyword" :prefix-icon="Search" :placeholder="t('admin.supplierOrders.searchOrder')" clearable @keyup.enter="searchOrders" @clear="searchOrders" />
+            <el-input v-model.trim="orderServiceKeyword" :placeholder="t('admin.supplierOrders.searchService')" clearable @keyup.enter="searchOrders" @clear="searchOrders" />
+            <el-select v-model="orderCategory" filterable clearable :placeholder="t('admin.supplierOrders.searchCategory')" @change="searchOrders">
+              <el-option v-for="category in orderCategoryOptions" :key="category.id" :label="category.label" :value="category.id" />
+            </el-select>
             <el-date-picker
               v-model="orderDateRange"
               type="daterange"
               value-format="YYYY-MM-DD"
-              start-placeholder="服务开始"
-              end-placeholder="服务结束"
+              :start-placeholder="t('admin.supplierOrders.dateStart')"
+              :end-placeholder="t('admin.supplierOrders.dateEnd')"
               clearable
               @change="searchOrders"
             />
-            <el-button @click="searchOrders">查询</el-button>
+            <el-button @click="searchOrders">{{ t('admin.supplierOrders.search') }}</el-button>
           </div>
-          <div class="result-count">{{ orderTotal }} 个订单</div>
+          <div class="result-count">{{ t('admin.supplierOrders.count', { count: orderTotal }) }}</div>
         </div>
-        <el-table :data="supplierOrders" class="data-table" row-key="orderId" empty-text="还没有分配给你的订单">
-          <el-table-column label="订单号" min-width="160" prop="orderNo" />
-          <el-table-column label="服务" min-width="220">
+        <el-table :data="supplierOrders" class="data-table orders-table" row-key="orderId" :empty-text="t('admin.supplierOrders.empty')">
+          <el-table-column :label="t('admin.supplierOrders.orderNo')" min-width="148">
             <template #default="{ row }">
-              <div class="muted-stack">
-                <strong>{{ orderServiceName(row) }}</strong>
-                <small>{{ orderSkuText(row) }}</small>
+              <button type="button" class="order-no" @click="openAssignedOrder(row)">{{ row.orderNo || '—' }}</button>
+            </template>
+          </el-table-column>
+          <el-table-column class-name="order-wrap" :label="t('admin.supplierOrders.serviceName')" min-width="200">
+            <template #default="{ row }">
+              <div class="order-cell">
+                <strong>{{ orderServiceTitle(row) }}</strong>
+                <small v-if="orderSpecText(row) !== '—'" class="order-clamp">{{ orderSpecText(row) }}</small>
+                <small v-if="orderAddonBrief(row)" class="order-clamp">{{ orderAddonBrief(row) }}</small>
               </div>
             </template>
           </el-table-column>
-          <el-table-column label="服务时间" min-width="170">
-            <template #default="{ row }">{{ row.serviceTime || '—' }}</template>
-          </el-table-column>
-          <el-table-column label="服务地点" min-width="220">
+          <el-table-column class-name="order-wrap" :label="t('admin.supplierOrders.serviceTime')" min-width="168">
             <template #default="{ row }">
-              <div class="muted-stack">
-                <span>{{ row.serviceAddress || '—' }}</span>
-                <small>{{ orderPlaceText(row) }}</small>
+              <div class="order-cell">
+                <strong>{{ row.serviceDate || '—' }}</strong>
+                <small v-if="row.serviceTime">{{ row.serviceTime }}</small>
               </div>
             </template>
           </el-table-column>
-          <el-table-column label="用户备注" min-width="140" show-overflow-tooltip>
-            <template #default="{ row }">{{ row.remark || '—' }}</template>
+          <el-table-column class-name="order-wrap" :label="t('admin.supplierOrders.address')" min-width="200">
+            <template #default="{ row }">
+              <div class="order-cell">
+                <span class="order-clamp">{{ row.serviceAddress || '—' }}</span>
+                <a v-if="row.pinLocation" class="order-pin" :href="row.pinLocation" target="_blank" rel="noopener noreferrer" @click.stop>{{ t('admin.supplierOrders.openMap') }}</a>
+              </div>
+            </template>
           </el-table-column>
-          <el-table-column label="生效报价" width="120" align="right">
-            <template #default="{ row }"><strong class="money-value">{{ orderMoney(row.quoteAmount) }}</strong></template>
+          <el-table-column class-name="order-wrap" :label="t('admin.supplierOrders.price')" width="120" align="right">
+            <template #default="{ row }">
+              <div class="order-cell order-cell--end">
+                <strong class="money-value">{{ orderMoney(row.quotePrice) }}</strong>
+                <small v-if="row.quoteMode != null">{{ orderQuoteMode(row) }}</small>
+              </div>
+            </template>
           </el-table-column>
-          <el-table-column :label="t('admin.supplierOrders.serviceStatus')" width="150">
+          <el-table-column :label="t('admin.supplierOrders.serviceStatus')" width="148">
             <template #default="{ row }">
               <el-tag :type="serviceStatusTag(row.serviceStatus)" effect="light">{{ serviceStatusText(row) }}</el-tag>
             </template>
           </el-table-column>
-          <el-table-column label="" min-width="220" align="right">
+          <el-table-column label="" width="148" align="right">
             <template #default="{ row }">
               <el-button v-if="Number(row.serviceStatus || 0) === 0" link type="primary" @click="openServiceAction(row, 'arrive')">{{ t('admin.supplierOrders.arriveAction') }}</el-button>
               <el-button v-else-if="Number(row.serviceStatus) === 1" link type="primary" @click="openServiceAction(row, 'complete')">{{ t('admin.supplierOrders.completeAction') }}</el-button>
-              <el-button link type="primary" @click="openAssignedOrder(row)">详情</el-button>
             </template>
           </el-table-column>
         </el-table>
-        <div class="table-toolbar">
+        <div class="order-pager">
           <el-pagination
             layout="prev, pager, next"
             :current-page="orderPage"
@@ -402,6 +410,24 @@
           />
         </div>
       </el-card>
+    </template>
+
+    <template v-else-if="section === 'availability'">
+      <SupplierAvailability
+        :enabled="supplierEnabled"
+        :accept-dispatch="supplierAcceptDispatch"
+        :dispatch-saving="dispatchSaving"
+        :can-toggle="Boolean(supplierRecordId)"
+        :start="capacityForm.start"
+        :end="capacityForm.end"
+        :concurrent="capacityForm.concurrent"
+        :weekend="capacityToggles[0].enabled"
+        :saving="saving"
+        :services="availabilityServices"
+        :areas="availabilityAreas"
+        @save-hours="saveAvailabilityHours"
+        @toggle-dispatch="toggleAcceptDispatch"
+      />
     </template>
 
     <template v-else-if="section === 'pricing'">
@@ -420,7 +446,7 @@
             <span>{{ t('admin.supplierPricing.added') }}</span>
             <el-select v-model="quoteCategory" filterable>
               <el-option :label="t('admin.supplierPricing.allServices')" value="all" />
-              <el-option v-for="category in serviceCategories" :key="category" :label="category" :value="category" />
+              <el-option v-for="category in serviceCategoryOptions" :key="category.id" :label="category.label" :value="category.id" />
             </el-select>
             <el-input v-model="addedKeyword" clearable :placeholder="t('admin.supplierPricing.searchAdded')" />
             <small>{{ t('admin.supplierPricing.count', { count: filteredServiceRows.length }) }}</small>
@@ -430,7 +456,9 @@
           </div>
         </div>
         <el-table :data="filteredServiceRows" class="data-table" row-key="spuId" :empty-text="t('admin.supplierPricing.empty')">
-          <el-table-column :label="t('admin.supplierPricing.category')" prop="category" min-width="140" />
+          <el-table-column :label="t('admin.supplierPricing.category')" min-width="140">
+            <template #default="{ row }">{{ localizedCategory(row.category, row.categoryNameI18n) }}</template>
+          </el-table-column>
           <el-table-column :label="t('admin.supplierPricing.service')" prop="name" min-width="180" />
           <el-table-column :label="t('admin.supplierPricing.headcount')" width="110">
             <template #default="{ row }">{{ row.workerCount ?? '—' }}</template>
@@ -451,8 +479,12 @@
               <el-tag :type="quoteTagType(row.status)" effect="light">{{ quoteStatusLabel(row.status) }}</el-tag>
             </template>
           </el-table-column>
-          <el-table-column :label="t('admin.supplierPricing.actions')" width="200" fixed="right">
+          <el-table-column :label="t('admin.supplierPricing.actions')" width="320" fixed="right">
             <template #default="{ row }">
+              <span class="accept-state" :class="{ 'is-off': Number(row.acceptOrder) === 0 }">{{ Number(row.acceptOrder) === 0 ? t('admin.supplierPricing.disabled') : t('admin.supplierPricing.enabled') }}</span>
+              <el-button link :type="Number(row.acceptOrder) === 0 ? 'primary' : 'warning'" :loading="acceptOrderSaving === row.spuId" @click="toggleServiceAccept(row)">
+                {{ Number(row.acceptOrder) === 0 ? t('admin.supplierPricing.enable') : t('admin.supplierPricing.disable') }}
+              </el-button>
               <el-button link type="primary" @click="openServiceQuote(row)">{{ t('admin.supplierPricing.quote') }}</el-button>
               <el-button link type="primary" @click="openServiceEditor(row)">{{ t('admin.supplierPricing.edit') }}</el-button>
               <el-button link type="danger" @click="removeAddedService(row)">{{ t('admin.supplierPricing.remove') }}</el-button>
@@ -465,7 +497,7 @@
         <p class="picker-note">{{ t('admin.supplierPricing.pickerNote') }}</p>
         <div class="picker-toolbar">
           <el-select v-model="servicePicker.categoryId" filterable clearable :placeholder="t('admin.supplierPricing.selectCategory')">
-            <el-option v-for="group in catalogDraft" :key="group.categoryId" :label="group.categoryName" :value="group.categoryId" />
+            <el-option v-for="group in catalogDraft" :key="group.categoryId" :label="localizedCategory(group.categoryName, group.categoryNameI18n)" :value="group.categoryId" />
           </el-select>
           <el-input v-model="servicePicker.keyword" clearable :placeholder="t('admin.supplierPricing.searchService')" />
         </div>
@@ -484,7 +516,7 @@
               />
               <span class="picker-row__name">
                 <strong>{{ service.spuName }}</strong>
-                <small>{{ service.categoryName }}<template v-if="!service.available"> · {{ t('admin.supplierPricing.unavailable') }}</template></small>
+                <small>{{ localizedCategory(service.categoryName, service.categoryNameI18n) }}<template v-if="!service.available"> · {{ t('admin.supplierPricing.unavailable') }}</template></small>
               </span>
               <em v-if="service.added">{{ t('admin.supplierPricing.added') }}</em>
             </div>
@@ -667,42 +699,98 @@
       <template #footer><el-button @click="shiftDialogVisible = false">取消</el-button><el-button type="primary" @click="validateShift">校验并保存</el-button></template>
     </el-dialog>
 
-    <el-drawer v-model="orderDrawerVisible" :title="selectedOrder?.orderNo || '订单详情'" size="640px">
-      <template v-if="selectedOrder">
-        <dl class="detail-list">
-          <div><dt>服务时间</dt><dd>{{ selectedOrder.serviceTime || '—' }}</dd></div>
-          <div><dt>服务地点</dt><dd>{{ selectedOrder.serviceAddress || '—' }}</dd></div>
-          <div><dt>小区 / 楼栋 / 房号</dt><dd>{{ orderPlaceText(selectedOrder) }}</dd></div>
-          <div><dt>用户备注</dt><dd>{{ selectedOrder.remark || '—' }}</dd></div>
-          <div><dt>生效报价合计</dt><dd>{{ orderMoney(selectedOrder.quoteAmount) }}</dd></div>
-          <div><dt>{{ t('admin.supplierOrders.serviceStatus') }}</dt><dd>{{ serviceStatusText(selectedOrder) }}</dd></div>
-          <div><dt>{{ t('admin.supplierOrders.arriveNote') }}</dt><dd>{{ selectedOrder.arriveRemark || '—' }}</dd></div>
-          <div><dt>{{ t('admin.supplierOrders.completeNote') }}</dt><dd>{{ selectedOrder.completeRemark || '—' }}</dd></div>
-        </dl>
-        <section v-if="orderPhotos(selectedOrder.arrivePhotos).length" class="order-photos">
-          <h3>{{ t('admin.supplierOrders.arrivePhotos') }}</h3>
-          <button v-for="url in orderPhotos(selectedOrder.arrivePhotos)" :key="url" type="button" @click="openFilePreview(url)">
-            <img :src="url" alt="" />
-          </button>
-        </section>
-        <section v-if="orderPhotos(selectedOrder.completePhotos).length" class="order-photos">
-          <h3>{{ t('admin.supplierOrders.completePhotos') }}</h3>
-          <button v-for="url in orderPhotos(selectedOrder.completePhotos)" :key="url" type="button" @click="openFilePreview(url)">
-            <img :src="url" alt="" />
-          </button>
-        </section>
-        <el-table :data="selectedOrder.lines || []" row-key="skuId" empty-text="没有服务明细">
-          <el-table-column label="服务" min-width="140" prop="spuName" />
-          <el-table-column label="SKU" min-width="120" prop="skuCode" />
-          <el-table-column label="数量" width="70" prop="quantity" />
-          <el-table-column label="生效单价" width="100">
-            <template #default="{ row }">{{ orderMoney(row.quotePrice) }}</template>
-          </el-table-column>
-          <el-table-column label="小计" width="100">
-            <template #default="{ row }">{{ orderMoney(row.quoteAmount) }}</template>
-          </el-table-column>
-        </el-table>
-      </template>
+    <el-drawer v-model="orderDrawerVisible" class="order-drawer" :title="selectedOrder?.orderNo || t('admin.supplierOrders.detailTitle')" size="640px">
+      <div v-loading="orderDetailLoading" class="order-sheet">
+        <template v-if="selectedOrder">
+          <div class="order-lead">
+            <strong>{{ orderServiceTitle(selectedOrder) }}</strong>
+            <el-tag :type="serviceStatusTag(selectedOrder.serviceStatus)" effect="light">{{ serviceStatusText(selectedOrder) }}</el-tag>
+          </div>
+
+          <section>
+            <h3>{{ t('admin.supplierOrders.serviceBlock') }}</h3>
+            <div class="order-facts">
+              <div class="is-wide"><span>{{ t('admin.supplierOrders.specs') }}</span><strong>{{ orderSpecText(selectedOrder) }}</strong></div>
+              <div class="is-wide"><span>{{ t('admin.supplierOrders.addons') }}</span><strong>{{ orderAddonText(selectedOrder) }}</strong></div>
+              <div class="is-wide"><span>{{ t('admin.supplierOrders.serviceTime') }}</span><strong>{{ orderWhen(selectedOrder) }}</strong></div>
+              <div><span>{{ t('admin.supplierOrders.staffCount') }}</span><strong>{{ selectedOrder.staffCount ?? '—' }}</strong></div>
+              <div><span>{{ t('admin.supplierOrders.serviceHours') }}</span><strong>{{ orderHours(selectedOrder.serviceHours) }}</strong></div>
+            </div>
+          </section>
+
+          <section>
+            <h3>{{ t('admin.supplierOrders.placeBlock') }}</h3>
+            <p class="order-address">{{ selectedOrder.serviceAddress || '—' }}</p>
+            <a v-if="selectedOrder.pinLocation" class="order-map" :href="selectedOrder.pinLocation" target="_blank" rel="noopener noreferrer">{{ t('admin.supplierOrders.openMap') }}</a>
+          </section>
+
+          <section>
+            <h3>{{ t('admin.supplierOrders.quoteBlock') }}</h3>
+            <div class="order-quote">
+              <div>
+                <span>{{ t('admin.supplierOrders.taxPrice') }}</span>
+                <strong>{{ orderMoney(selectedOrder.quotePrice) }}</strong>
+                <small>{{ orderQuoteMode(selectedOrder) }}</small>
+              </div>
+              <div>
+                <span>{{ t('admin.supplierOrders.quoteTotal') }}</span>
+                <strong>{{ orderMoney(selectedOrder.quoteAmount) }}</strong>
+              </div>
+            </div>
+            <div class="order-facts">
+              <div>
+                <span>{{ t('admin.supplierOrders.phones') }}</span>
+                <strong v-if="orderPhones(selectedOrder).length" class="phone-list">
+                  <em v-for="(phone, index) in orderPhones(selectedOrder)" :key="`${phone}-${index}`">{{ phone }}</em>
+                </strong>
+                <strong v-else>—</strong>
+              </div>
+              <div v-if="selectedOrder.customerPhoneTail">
+                <span>{{ t('admin.supplierOrders.customerTail') }}</span>
+                <strong>{{ selectedOrder.customerPhoneTail }}</strong>
+              </div>
+            </div>
+          </section>
+
+          <section v-if="(selectedOrder.lines || []).length > 1">
+            <h3>{{ t('admin.supplierOrders.serviceName') }}</h3>
+            <div class="order-lines">
+              <article v-for="(line, index) in selectedOrder.lines" :key="line.skuId || index">
+                <strong>{{ orderServiceTitle(line) }}</strong>
+                <small>{{ orderSpecText(line) }}</small>
+                <small>{{ t('admin.supplierOrders.staffCount') }} {{ line.staffCount ?? '—' }} · {{ t('admin.supplierOrders.serviceHours') }} {{ orderHours(line.serviceHours) }} · {{ orderMoney(line.quotePrice) }}</small>
+              </article>
+            </div>
+          </section>
+
+          <section v-if="selectedOrder.remark || selectedOrder.arriveRemark || selectedOrder.completeRemark">
+            <h3>{{ t('admin.supplierOrders.notesBlock') }}</h3>
+            <div class="order-facts">
+              <div v-if="selectedOrder.remark" class="is-wide"><span>{{ t('admin.supplierOrders.customerRemark') }}</span><strong>{{ selectedOrder.remark }}</strong></div>
+              <div v-if="selectedOrder.arriveRemark"><span>{{ t('admin.supplierOrders.arriveNote') }}</span><strong>{{ selectedOrder.arriveRemark }}</strong></div>
+              <div v-if="selectedOrder.completeRemark"><span>{{ t('admin.supplierOrders.completeNote') }}</span><strong>{{ selectedOrder.completeRemark }}</strong></div>
+            </div>
+          </section>
+
+          <section v-if="orderPhotos(selectedOrder.arrivePhotos).length" class="order-photos">
+            <h3>{{ t('admin.supplierOrders.arrivePhotos') }}</h3>
+            <button v-for="url in orderPhotos(selectedOrder.arrivePhotos)" :key="url" type="button" @click="openFilePreview(url)">
+              <img :src="url" alt="" />
+            </button>
+          </section>
+          <section v-if="orderPhotos(selectedOrder.completePhotos).length" class="order-photos">
+            <h3>{{ t('admin.supplierOrders.completePhotos') }}</h3>
+            <button v-for="url in orderPhotos(selectedOrder.completePhotos)" :key="url" type="button" @click="openFilePreview(url)">
+              <img :src="url" alt="" />
+            </button>
+          </section>
+
+          <div v-if="Number(selectedOrder.serviceStatus || 0) < 2" class="order-sheet__actions">
+            <el-button v-if="Number(selectedOrder.serviceStatus || 0) === 0" type="primary" @click="openServiceAction(selectedOrder, 'arrive')">{{ t('admin.supplierOrders.arriveAction') }}</el-button>
+            <el-button v-else type="primary" @click="openServiceAction(selectedOrder, 'complete')">{{ t('admin.supplierOrders.completeAction') }}</el-button>
+          </div>
+        </template>
+      </div>
     </el-drawer>
 
     <el-dialog v-model="serviceAction.open" :title="serviceAction.mode === 'arrive' ? t('admin.supplierOrders.arriveTitle') : t('admin.supplierOrders.completeTitle')" width="min(560px, calc(100vw - 32px))" :close-on-click-modal="false">
@@ -758,7 +846,6 @@ import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 import {
   onboardingDetail,
-  onboardingPage,
   onboardingSave,
   quoteList,
   saveQuoteDraft,
@@ -768,12 +855,17 @@ import {
   serviceCatalog,
   submitQuote,
   supplierArrive,
+  supplierAssignedOrderDetail,
   supplierAssignedOrders,
+  supplierChangeAcceptDispatch,
+  supplierChangeAcceptOrder,
   supplierComplete,
   uploadFile,
 } from '@/modules/admin/api/supplierWorkbench'
 import { listBySpu, listSpuAttachCatalog } from '@/modules/admin/api/spu'
+import SupplierAvailability from '@/modules/admin/pages/supplier-management/availability.vue'
 import { getAdminLocale } from '@/modules/admin/locales'
+import { getCurrentAdminUser } from '@/modules/admin/api/user'
 import { pickI18nText } from '@/modules/admin/utils/i18n'
 import {
   ArrowLeft,
@@ -794,20 +886,21 @@ import {
   Warning,
 } from '@element-plus/icons-vue'
 
-type Section = 'overview' | 'profile' | 'service-area' | 'staff' | 'schedule' | 'orders' | 'pricing' | 'settlement'
+type Section = 'overview' | 'profile' | 'service-area' | 'staff' | 'schedule' | 'orders' | 'pricing' | 'settlement' | 'availability'
 
 const props = withDefaults(defineProps<{ section?: Section }>(), { section: 'overview' })
 const section = computed(() => props.section)
 const router = useRouter()
-const { t } = useI18n({ useScope: 'global' })
+const { t, locale } = useI18n({ useScope: 'global' })
 
 const pageMeta = {
   overview: { title: '数据与收益', description: '查看经营表现、收益趋势、服务容量与待处理事项。', primaryAction: '' },
   profile: { title: 'Company Profile', description: 'One page for company details, contact, capacity, and insurance.', primaryAction: 'Submit for review' },
-  'service-area': { title: '服务区域', description: '回显入驻问卷里勾选的服务区域和小区，并可以再调整。', primaryAction: '管理服务区域' },
+  'service-area': { title: 'Service Area', description: 'Areas and communities saved on the onboarding form.', primaryAction: 'Manage service areas' },
   staff: { title: '人员管理', description: '维护人员角色、技能、默认工作时间、证件与可派状态。', primaryAction: '新增人员' },
   schedule: { title: '日程管理', description: '按日或周管理工作班次、休假、Block 与订单占用。', primaryAction: '添加班次 / Block' },
   orders: { title: '订单管理', description: '查看分配给当前供应商的订单、服务地点和生效报价。', primaryAction: '' },
+  availability: { title: '可用时间', description: '可以接单的时间', primaryAction: '' },
   pricing: { title: '服务与报价', description: '先添加要提供的服务，再为列表里的服务报价。', primaryAction: '' },
   settlement: { title: '收益与结算', description: '核对订单收益、调整流水和付款批次。', primaryAction: '' },
 } as const
@@ -815,6 +908,9 @@ const pageMeta = {
 const meta = computed(() => {
   if (section.value === 'pricing') return { title: t('admin.supplierPricing.title'), description: t('admin.supplierPricing.description'), primaryAction: '' }
   if (section.value === 'profile') return { title: t('admin.supplierProfile.title'), description: t('admin.supplierProfile.description'), primaryAction: t('admin.supplierProfile.submitReview') }
+  if (section.value === 'orders') return { title: t('admin.supplierOrders.title'), description: t('admin.supplierOrders.description'), primaryAction: '' }
+  if (section.value === 'availability') return { title: t('admin.supplierAvailability.title'), description: t('admin.supplierAvailability.description'), primaryAction: '' }
+  if (section.value === 'service-area') return { title: t('admin.supplierArea.title'), description: t('admin.supplierArea.description'), primaryAction: t('admin.supplierArea.manage') }
   return pageMeta[section.value]
 })
 const profileStatusLabel = computed(() => {
@@ -823,8 +919,12 @@ const profileStatusLabel = computed(() => {
   return t(`admin.supplierProfile.${key}`)
 })
 const supplierRecordId = ref<number | null>(null)
-const supplierOptions = ref<Array<{ id: number; companyName: string }>>([])
+const supplierNo = ref('')
 const onboardingStatus = ref<number | null>(null)
+const supplierEnabled = ref(false)
+const supplierAcceptDispatch = ref(true)
+const dispatchSaving = ref(false)
+const acceptOrderSaving = ref<number | null>(null)
 const rejectReason = ref('')
 const saving = ref(false)
 const femaleStaffCount = ref(0)
@@ -1013,26 +1113,22 @@ const validateShift = () => {
 }
 
 const orderKeyword = ref('')
+const orderServiceKeyword = ref('')
+const orderCategory = ref<number | null>(null)
 const orderDateRange = ref<string[]>([])
 const orderDrawerVisible = ref(false)
+const orderDetailLoading = ref(false)
 const selectedOrder = ref<any>(null)
 const orderMoney = (value: unknown) => {
   if (value === null || value === undefined || value === '') return '—'
   const amount = Number(value)
   return Number.isFinite(amount) ? amount.toFixed(2) : '—'
 }
-const orderServiceName = (row: any) => {
-  const names = (row.lines || []).map((line: any) => line.spuName).filter(Boolean)
-  return names.length ? names.join('、') : '—'
-}
-const orderSkuText = (row: any) => {
-  const codes = (row.lines || []).map((line: any) => line.skuCode || line.spuCode).filter(Boolean)
-  return codes.length ? codes.join(' · ') : '—'
-}
-const orderPlaceText = (row: any) => [row.community, row.building, row.roomNo].filter(Boolean).join(' · ') || '—'
 const openAssignedOrder = (row: any) => {
   selectedOrder.value = row
   orderDrawerVisible.value = true
+  const orderId = Number(row?.orderId)
+  if (orderId) loadOrderDetail(orderId)
 }
 const serviceStatusText = (row: any) => {
   const localized = specText(row?.serviceStatusI18n)
@@ -1099,8 +1195,8 @@ const submitServiceAction = async () => {
     ElMessage.success(t(serviceAction.mode === 'arrive' ? 'admin.supplierOrders.arriveSaved' : 'admin.supplierOrders.completeSaved'))
     serviceAction.open = false
     await loadOrders()
-    if (Number(selectedOrder.value?.orderId) === serviceAction.orderId) {
-      selectedOrder.value = supplierOrders.value.find((item) => Number(item.orderId) === serviceAction.orderId) || selectedOrder.value
+    if (orderDrawerVisible.value && Number(selectedOrder.value?.orderId) === serviceAction.orderId) {
+      await loadOrderDetail(serviceAction.orderId)
     }
   } catch (error: any) {
     ElMessage.error(error?.message || t('admin.supplierOrders.actionFailed'))
@@ -1154,9 +1250,13 @@ const editorLoading = ref(false)
 const communitiesByArea = ref<Record<number, string[]>>({})
 const servicesProvided = ref('')
 const dubaiServiceAreas = ref('')
-const emaarOnboarded = ref<number | null>(null)
-const otherCommunityOnboarded = ref<number | null>(null)
+const emaarOnboarded = ref<0 | 1>(0)
+const otherCommunityOnboarded = ref<0 | 1>(0)
 const applyRenmark = ref('')
+const asYesNo = (value: unknown): 0 | 1 => (Number(value) === 1 ? 1 : 0)
+const onOtherCommunityChange = (value: string | number | boolean) => {
+  if (Number(value) !== 1) applyRenmark.value = ''
+}
 type CatalogServiceDraft = {
   spuId: number
   spuName: string
@@ -1164,10 +1264,12 @@ type CatalogServiceDraft = {
   selected: boolean
   workerCount: number | null
   contactPhones: string[]
+  acceptOrder: 0 | 1
 }
 type CatalogGroupDraft = {
   categoryId: number
   categoryName: string
+  categoryNameI18n: Record<string, unknown> | null
   available: boolean
   services: CatalogServiceDraft[]
 }
@@ -1175,18 +1277,33 @@ type SavedService = {
   spuId: number
   categoryId: number
   category: string
+  categoryNameI18n: Record<string, unknown> | null
   name: string
   workerCount: number | null
   phones: string[]
+  acceptOrder: 0 | 1
 }
 type PickerService = CatalogServiceDraft & {
   categoryId: number
   categoryName: string
+  categoryNameI18n: Record<string, unknown> | null
   added: boolean
 }
 
 const catalogDraft = ref<CatalogGroupDraft[]>([])
 const savedServices = ref<SavedService[]>([])
+const availabilityServices = computed(() => {
+  const seen = new Set<number>()
+  return savedServices.value.flatMap((service) => {
+    if (seen.has(service.spuId)) return []
+    seen.add(service.spuId)
+    return [{ spuId: service.spuId, name: service.name }]
+  })
+})
+const availabilityAreas = computed(() => supplierAreas.value.map((area) => ({
+  areaId: area.areaId,
+  areaName: area.areaName,
+})))
 const catalogLoading = ref(false)
 const catalogSaving = ref(false)
 const quoteLoading = ref(false)
@@ -1195,6 +1312,7 @@ type PickedDraft = {
   key: string
   categoryId: number
   category: string
+  categoryNameI18n: Record<string, unknown> | null
   spuId: number
   name: string
   workerCount: number | null
@@ -1222,15 +1340,18 @@ const flattenSelected = (groups: CatalogGroupDraft[]): SavedService[] => groups.
       spuId: service.spuId,
       categoryId: group.categoryId,
       category: group.categoryName,
+      categoryNameI18n: group.categoryNameI18n,
       name: service.spuName,
       workerCount: service.workerCount,
       phones: service.contactPhones.map((phone) => phone.trim()).filter(Boolean),
+      acceptOrder: service.acceptOrder === 0 ? 0 : 1,
     })),
 )
 
 const mapCatalog = (groups: any[]): CatalogGroupDraft[] => (groups || []).map((group) => ({
   categoryId: Number(group.categoryId),
   categoryName: group.categoryName || t('admin.supplierPricing.uncategorized'),
+  categoryNameI18n: group.nameI18n && typeof group.nameI18n === 'object' ? group.nameI18n : null,
   available: group.available !== false,
   services: (group.services || []).map((service: any) => {
     const selected = Boolean(service.selected)
@@ -1242,6 +1363,7 @@ const mapCatalog = (groups: any[]): CatalogGroupDraft[] => (groups || []).map((g
       selected,
       workerCount: service.workerCount == null || service.workerCount === '' ? null : Number(service.workerCount),
       contactPhones: selected && !phones.length ? [''] : phones,
+      acceptOrder: Number(service.acceptOrder) === 0 ? 0 : 1,
     }
   }),
 }))
@@ -1251,7 +1373,16 @@ const rememberCatalog = (groups: CatalogGroupDraft[]) => {
   savedServices.value = flattenSelected(groups)
 }
 
-const serviceCategories = computed(() => Array.from(new Set(savedServices.value.map((service) => service.category).filter(Boolean))))
+const localizedCategory = (name: string, i18n?: Record<string, unknown> | null) =>
+  pickI18nText(i18n || undefined, locale.value, '') || name
+const serviceCategoryOptions = computed(() => {
+  const seen = new Set<number>()
+  return savedServices.value.flatMap((service) => {
+    if (seen.has(service.categoryId)) return []
+    seen.add(service.categoryId)
+    return [{ id: service.categoryId, label: localizedCategory(service.category, service.categoryNameI18n) }]
+  })
+})
 const pickKey = (service: { categoryId: number; spuId: number }) => `${service.categoryId}:${service.spuId}`
 const addedKeys = computed(() => new Set(savedServices.value.map((service) => pickKey(service))))
 const pickerCategoryId = computed(() => {
@@ -1271,6 +1402,7 @@ const pickerVisible = computed(() => {
         ...service,
         categoryId: group.categoryId,
         categoryName: group.categoryName,
+        categoryNameI18n: group.categoryNameI18n,
         added: addedKeys.value.has(pickKey({ categoryId: group.categoryId, spuId: service.spuId })),
       })
     })
@@ -1294,9 +1426,10 @@ const serviceRows = computed(() => {
 const filteredServiceRows = computed(() => {
   const keyword = addedKeyword.value.trim().toLowerCase()
   return serviceRows.value.filter((row) => {
-    if (quoteCategory.value !== 'all' && row.category !== quoteCategory.value) return false
+    if (quoteCategory.value !== 'all' && row.categoryId !== Number(quoteCategory.value)) return false
     if (!keyword) return true
-    return `${row.name} ${row.category} ${row.phones.join(' ')}`.toLowerCase().includes(keyword)
+    const category = localizedCategory(row.category, row.categoryNameI18n)
+    return `${row.name} ${category} ${row.category} ${row.phones.join(' ')}`.toLowerCase().includes(keyword)
   })
 })
 const pendingQuoteCount = computed(() => serviceRows.value.filter((row) => Number(row.status) === 1).length)
@@ -1319,6 +1452,7 @@ const togglePick = (service: PickerService, checked: boolean) => {
     key,
     categoryId: service.categoryId,
     category: service.categoryName,
+    categoryNameI18n: service.categoryNameI18n,
     spuId: service.spuId,
     name: service.spuName,
     workerCount: null,
@@ -1339,10 +1473,6 @@ const orderLoading = ref(false)
 const orderTotal = ref(0)
 const orderPage = ref(1)
 
-const onboardingStatusLabel = computed(() => {
-  const labels = ['草稿', '已提交', '已通过', '已驳回']
-  return onboardingStatus.value == null ? '未创建' : labels[onboardingStatus.value] || '未知'
-})
 const onboardingTagType = computed(() => {
   if (onboardingStatus.value === 2) return 'success'
   if (onboardingStatus.value === 3) return 'danger'
@@ -1368,8 +1498,8 @@ const editorAreas = computed(() => {
 const communityNames = (areaId: number) => communitiesByArea.value[areaId] || []
 const communityText = (areaId: number) => {
   const names = communitiesByArea.value[areaId]
-  if (!names) return '小区加载中'
-  return names.length ? names.join('、') : '暂无小区'
+  if (!names) return t('admin.supplierArea.communitiesLoading')
+  return names.length ? names.join(', ') : t('admin.supplierArea.noCommunities')
 }
 const communityTotal = computed(() => supplierAreas.value.reduce((sum, area) => sum + communityNames(area.areaId).length, 0))
 
@@ -1387,6 +1517,64 @@ const specText = (value: unknown) => {
   if (typeof value === 'string' || typeof value === 'number') return String(value)
   if (typeof value === 'object') return pickI18nText(value as Record<string, unknown>, getAdminLocale(), '—') || '—'
   return '—'
+}
+const orderCategoryOptions = computed(() => {
+  locale.value
+  return catalogDraft.value.map((group) => {
+    const text = specText(group.categoryNameI18n)
+    return { id: group.categoryId, label: text !== '—' ? text : group.categoryName }
+  })
+})
+const orderServiceTitle = (row: any) => {
+  const localized = specText(row?.spuNameI18n)
+  if (localized !== '—') return localized
+  if (row?.spuName) return row.spuName
+  const names = (row?.lines || []).map((line: any) => orderServiceTitle(line)).filter((name: string) => name && name !== '—')
+  return names.length ? names.join('、') : '—'
+}
+const orderSpecText = (row: any) => {
+  const specs = Array.isArray(row?.specs) ? row.specs : []
+  const text = specs.map((spec: any) => {
+    const typeName = specText(spec?.typeNameI18n)
+    const valueName = specText(spec?.valueNameI18n)
+    const typeLabel = typeName !== '—' ? typeName : spec?.typeName
+    const valueLabel = valueName !== '—' ? valueName : spec?.valueName
+    return [typeLabel, valueLabel].filter((part) => part && part !== '—').join(': ')
+  }).filter(Boolean)
+  if (text.length) return text.join('; ')
+  return row?.specDescription || '—'
+}
+const orderAddonText = (row: any) => {
+  const attaches = Array.isArray(row?.attaches) ? row.attaches : []
+  if (!attaches.length) {
+    const extra = String(row?.additionalItems || '').trim()
+    return !extra || extra === 'None' ? t('admin.supplierOrders.noAddons') : extra
+  }
+  return attaches.map((item: any) => {
+    const localized = specText(item?.nameI18n)
+    const name = localized !== '—' ? localized : item?.name
+    if (!name) return ''
+    const quantity = Number(item?.quantity)
+    return quantity > 1 ? `${name} × ${quantity}` : name
+  }).filter(Boolean).join(', ') || t('admin.supplierOrders.noAddons')
+}
+const orderAddonBrief = (row: any) => {
+  const text = orderAddonText(row)
+  return !text || text === t('admin.supplierOrders.noAddons') ? '' : text
+}
+const orderWhen = (row: any) => [row?.serviceDate, row?.serviceTime].filter(Boolean).join(', ') || '—'
+const orderPhones = (row: any) => listedPhones((Array.isArray(row?.contactPhones) ? row.contactPhones : []).map((phone: unknown) => String(phone || '')))
+const orderQuoteMode = (row: any) => {
+  const localized = specText(row?.quoteModeI18n)
+  if (localized !== '—') return localized
+  return quoteModeLabel(row?.quoteMode == null ? undefined : Number(row.quoteMode))
+}
+const orderHours = (value: unknown) => {
+  if (value == null || value === '') return '—'
+  const hours = Number(value)
+  if (!Number.isFinite(hours)) return '—'
+  const text = Number.isInteger(hours) ? String(hours) : String(Number(hours.toFixed(2)))
+  return t('admin.supplierOrders.hoursValue', { hours: text })
 }
 
 const buildProfilePayload = (status?: number, areaIds?: number[]) => ({
@@ -1423,9 +1611,9 @@ const buildProfilePayload = (status?: number, areaIds?: number[]) => ({
   maleStaffCount: maleStaffCount.value,
   servicesProvided: servicesProvided.value || null,
   dubaiServiceAreas: dubaiServiceAreas.value || null,
-  emaarOnboarded: emaarOnboarded.value,
-  otherCommunityOnboarded: otherCommunityOnboarded.value,
-  applyRenmark: otherCommunityOnboarded.value === 1 ? (applyRenmark.value.trim() || null) : null,
+  emaarOnboarded: asYesNo(emaarOnboarded.value),
+  otherCommunityOnboarded: asYesNo(otherCommunityOnboarded.value),
+  applyRenmark: asYesNo(otherCommunityOnboarded.value) === 1 ? (applyRenmark.value.trim() || null) : null,
   status,
   areaIds,
 })
@@ -1433,6 +1621,8 @@ const buildProfilePayload = (status?: number, areaIds?: number[]) => ({
 const applyProfile = (detail: any) => {
   supplierRecordId.value = detail?.id ?? null
   onboardingStatus.value = detail?.status ?? null
+  supplierEnabled.value = Number(detail?.enabled) === 1
+  supplierAcceptDispatch.value = detail?.acceptDispatch == null ? true : Number(detail.acceptDispatch) === 1
   rejectReason.value = detail?.rejectReason || ''
   companyForm.companyName = detail?.companyName || ''
   companyForm.licenseNo = detail?.tradeLicenseNo || ''
@@ -1466,9 +1656,9 @@ const applyProfile = (detail: any) => {
   maleStaffCount.value = detail?.maleStaffCount || 0
   servicesProvided.value = detail?.servicesProvided || ''
   dubaiServiceAreas.value = detail?.dubaiServiceAreas || ''
-  emaarOnboarded.value = detail?.emaarOnboarded == null || detail?.emaarOnboarded === '' ? null : Number(detail.emaarOnboarded)
-  otherCommunityOnboarded.value = detail?.otherCommunityOnboarded == null || detail?.otherCommunityOnboarded === '' ? null : Number(detail.otherCommunityOnboarded)
-  applyRenmark.value = detail?.applyRenmark || ''
+  emaarOnboarded.value = asYesNo(detail?.emaarOnboarded)
+  otherCommunityOnboarded.value = asYesNo(detail?.otherCommunityOnboarded)
+  applyRenmark.value = otherCommunityOnboarded.value === 1 ? String(detail?.applyRenmark || '') : ''
   supplierAreas.value = (detail?.serviceAreas || [])
     .map((area: any) => ({
       areaId: Number(area.areaId),
@@ -1490,16 +1680,79 @@ const loadSupplierDetail = async (id: number) => {
   ])
 }
 
-const loadSupplierOptions = async () => {
-  const page = unwrap(await onboardingPage({ pageNum: 1, pageSize: 50 }))
-  const list = page?.list || []
-  supplierOptions.value = list.map((item: any) => ({ id: item.id, companyName: item.companyName }))
-  const queryId = Number(router.currentRoute.value.query.supplierId || 0)
-  const initialId = queryId || supplierOptions.value[0]?.id
-  if (initialId) await loadSupplierDetail(initialId)
+const loadCurrentSupplier = async () => {
+  const me = unwrap(await getCurrentAdminUser())
+  supplierNo.value = String(me?.supplierNo || '')
+  const supplierId = Number(me?.supplierId || 0)
+  if (!supplierId) {
+    ElMessage.warning(t('admin.supplierProfile.noSupplier'))
+    return
+  }
+  await loadSupplierDetail(supplierId)
 }
 
-const switchSupplier = (id: number) => loadSupplierDetail(id)
+const saveAvailabilityHours = async (next: { start: string; end: string; concurrent: number; weekend: boolean }) => {
+  const previous = {
+    start: capacityForm.start,
+    end: capacityForm.end,
+    concurrent: capacityForm.concurrent,
+    weekend: capacityToggles[0].enabled,
+  }
+  capacityForm.start = next.start
+  capacityForm.end = next.end
+  capacityForm.concurrent = next.concurrent
+  capacityToggles[0].enabled = next.weekend
+  saving.value = true
+  try {
+    const id = unwrap(await onboardingSave(buildProfilePayload(onboardingStatus.value ?? 0)))
+    if (id) supplierRecordId.value = Number(id)
+    ElMessage.success(t('admin.supplierAvailability.hoursSaved'))
+    if (supplierRecordId.value) await loadSupplierDetail(supplierRecordId.value)
+  } catch (error: any) {
+    capacityForm.start = previous.start
+    capacityForm.end = previous.end
+    capacityForm.concurrent = previous.concurrent
+    capacityToggles[0].enabled = previous.weekend
+    ElMessage.error(error?.message || t('admin.supplierAvailability.hoursFailed'))
+  } finally {
+    saving.value = false
+  }
+}
+
+const toggleAcceptDispatch = async (next: boolean) => {
+  if (!supplierRecordId.value || dispatchSaving.value) return
+  const previous = supplierAcceptDispatch.value
+  supplierAcceptDispatch.value = next
+  dispatchSaving.value = true
+  try {
+    await supplierChangeAcceptDispatch({ id: supplierRecordId.value, acceptDispatch: next ? 1 : 0 })
+    ElMessage.success(t('admin.supplierAvailability.dispatchSaved'))
+  } catch (error: any) {
+    supplierAcceptDispatch.value = previous
+    ElMessage.error(error?.message || t('admin.supplierAvailability.dispatchFailed'))
+  } finally {
+    dispatchSaving.value = false
+  }
+}
+
+const toggleServiceAccept = async (row: SavedService) => {
+  if (!supplierRecordId.value || acceptOrderSaving.value != null) return
+  const next: 0 | 1 = row.acceptOrder === 0 ? 1 : 0
+  const previous = savedServices.value.map((service) => ({ ...service }))
+  savedServices.value = savedServices.value.map((service) => (
+    service.spuId === row.spuId ? { ...service, acceptOrder: next } : service
+  ))
+  acceptOrderSaving.value = row.spuId
+  try {
+    await supplierChangeAcceptOrder({ supplierId: supplierRecordId.value, spuId: row.spuId, acceptOrder: next })
+    ElMessage.success(t(next === 1 ? 'admin.supplierPricing.acceptEnabled' : 'admin.supplierPricing.acceptDisabled'))
+  } catch (error: any) {
+    savedServices.value = previous
+    ElMessage.error(error?.message || t('admin.supplierPricing.acceptFailed'))
+  } finally {
+    acceptOrderSaving.value = null
+  }
+}
 
 const saveProfile = async (status: number) => {
   saving.value = true
@@ -1508,8 +1761,6 @@ const saveProfile = async (status: number) => {
     if (id) supplierRecordId.value = Number(id)
     onboardingStatus.value = status
     ElMessage.success(t(status === 1 ? 'admin.supplierProfile.submitted' : 'admin.supplierProfile.draftSaved'))
-    const page = unwrap(await onboardingPage({ pageNum: 1, pageSize: 50 }))
-    supplierOptions.value = (page?.list || []).map((item: any) => ({ id: item.id, companyName: item.companyName }))
     if (supplierRecordId.value) await loadSupplierDetail(supplierRecordId.value)
   } catch (error: any) {
     ElMessage.error(error?.message || t('admin.supplierProfile.saveFailed'))
@@ -1566,7 +1817,7 @@ const loadAreaCommunities = async (areaIds: number[]) => {
 
 const openAreaEditor = async () => {
   if (!supplierRecordId.value) {
-    ElMessage.warning('请先保存企业资料')
+    ElMessage.warning(t('admin.supplierArea.saveProfileFirst'))
     return
   }
   draftAreaIds.value = [...selectedAreaIds.value]
@@ -1577,7 +1828,7 @@ const openAreaEditor = async () => {
     platformAreas.value = unwrap(await serviceAreaList({ status: 1 })) || []
     await loadAreaCommunities(platformAreas.value.map((area) => Number(area.id)))
   } catch (error: any) {
-    ElMessage.error(error?.message || '服务区域加载失败')
+    ElMessage.error(error?.message || t('admin.supplierArea.loadFailed'))
   } finally {
     editorLoading.value = false
   }
@@ -1597,7 +1848,7 @@ const areaNameById = (id: number) => {
 
 const saveAreas = async () => {
   if (!companyForm.companyName) {
-    ElMessage.warning('请先填写企业资料里的必填项')
+    ElMessage.warning(t('admin.supplierArea.profileRequired'))
     return
   }
   dubaiServiceAreas.value = draftAreaIds.value.map(areaNameById).filter(Boolean).join(', ')
@@ -1606,10 +1857,10 @@ const saveAreas = async () => {
     const id = unwrap(await onboardingSave(buildProfilePayload(onboardingStatus.value ?? undefined, draftAreaIds.value)))
     if (id) supplierRecordId.value = Number(id)
     areaEditorVisible.value = false
-    ElMessage.success('服务区域已保存')
+    ElMessage.success(t('admin.supplierArea.saved'))
     if (supplierRecordId.value) await loadSupplierDetail(supplierRecordId.value)
   } catch (error: any) {
-    ElMessage.error(error?.message || '保存服务区域失败')
+    ElMessage.error(error?.message || t('admin.supplierArea.saveFailed'))
   } finally {
     saving.value = false
   }
@@ -1639,13 +1890,14 @@ const contactProblem = (name: string, workerCount: number | null, phones: string
 }
 const persistServices = async (rows: SavedService[], success: string) => {
   if (!supplierRecordId.value) return false
-  const grouped = new Map<number, { categoryId: number; items: Array<{ spuId: number; workerCount: number; contactPhones: string[] }> }>()
+  const grouped = new Map<number, { categoryId: number; items: Array<{ spuId: number; workerCount: number; contactPhones: string[]; acceptOrder: 0 | 1 }> }>()
   rows.forEach((row) => {
     const group = grouped.get(row.categoryId) || { categoryId: row.categoryId, items: [] }
     group.items.push({
       spuId: row.spuId,
       workerCount: Number(row.workerCount),
       contactPhones: cleanPhones(row.phones),
+      acceptOrder: row.acceptOrder === 0 ? 0 : 1,
     })
     grouped.set(row.categoryId, group)
   })
@@ -1679,9 +1931,11 @@ const confirmAddServices = async () => {
       spuId: draft.spuId,
       categoryId: draft.categoryId,
       category: draft.category,
+      categoryNameI18n: draft.categoryNameI18n,
       name: draft.name,
       workerCount: Number(draft.workerCount),
       phones: cleanPhones(draft.phones),
+      acceptOrder: 1,
     })
   })
   const saved = await persistServices(next, t('admin.supplierPricing.addedSuccess', { count: servicePicker.drafts.length }))
@@ -1871,12 +2125,12 @@ const onQuoteMode = (mode: string | number | boolean | undefined) => {
   })
 }
 
-const openServiceQuote = async (row: { spuId: number; name: string; category: string; status?: number; rejectReason?: string; quoteMode?: number; unitPrice?: number | null }) => {
+const openServiceQuote = async (row: { spuId: number; name: string; category: string; categoryNameI18n?: Record<string, unknown> | null; status?: number; rejectReason?: string; quoteMode?: number; unitPrice?: number | null }) => {
   quoteDialog.visible = true
   quoteDialog.loading = true
   quoteDialog.spuId = row.spuId
   quoteDialog.name = row.name
-  quoteDialog.category = row.category
+  quoteDialog.category = localizedCategory(row.category, row.categoryNameI18n)
   quoteDialog.status = row.status
   quoteDialog.rejectReason = row.rejectReason || ''
   quoteDialog.quoteMode = row.quoteMode === 2 ? 2 : 1
@@ -1977,12 +2231,24 @@ const submitServiceQuote = async () => {
   }
 }
 
+const loadOrderDetail = async (orderId: number) => {
+  orderDetailLoading.value = true
+  try {
+    selectedOrder.value = unwrap(await supplierAssignedOrderDetail(orderId)) || selectedOrder.value
+  } catch (error: any) {
+    ElMessage.error(error?.message || t('admin.supplierOrders.detailFailed'))
+  } finally {
+    orderDetailLoading.value = false
+  }
+}
 const loadOrders = async () => {
   orderLoading.value = true
   try {
     const [serviceTimeStart, serviceTimeEnd] = orderDateRange.value || []
     const page = unwrap(await supplierAssignedOrders({
       orderNo: orderKeyword.value || undefined,
+      serviceName: orderServiceKeyword.value || undefined,
+      categoryId: orderCategory.value || undefined,
       serviceTimeStart: serviceTimeStart || undefined,
       serviceTimeEnd: serviceTimeEnd || undefined,
       pageNum: orderPage.value,
@@ -1993,7 +2259,7 @@ const loadOrders = async () => {
   } catch (error: any) {
     supplierOrders.value = []
     orderTotal.value = 0
-    ElMessage.error(error?.message || '订单加载失败')
+    ElMessage.error(error?.message || t('admin.supplierOrders.loadFailed'))
   } finally {
     orderLoading.value = false
   }
@@ -2015,7 +2281,7 @@ const handlePrimaryAction = () => {
 }
 
 onMounted(() => {
-  loadSupplierOptions().catch((error: any) => ElMessage.error(error?.message || '供应商资料加载失败'))
+  loadCurrentSupplier().catch((error: any) => ElMessage.error(error?.message || t('admin.supplierProfile.loadFailed')))
 })
 watch(section, (value) => {
   if (value === 'orders') loadOrders()
@@ -2089,9 +2355,6 @@ watch(section, (value) => {
 .dossier-rail p { margin: 0 0 16px; color: #d7b48a; font-size: 11px; letter-spacing: .18em; text-transform: uppercase; }
 .dossier-rail strong { display: block; font-family: Fraunces, Georgia, serif; font-size: 28px; font-weight: 520; line-height: 1.12; }
 .dossier-rail em { display: inline-block; margin-top: 14px; padding: 5px 12px; border-radius: 999px; color: #05152b; background: #e8c27a; font-style: normal; font-size: 12px; font-weight: 700; }
-.dossier-switch { width: 100%; margin-top: 16px; }
-.dossier-switch :deep(.el-select__wrapper) { background: #ffffff12; box-shadow: 0 0 0 1px #ffffff24 inset; }
-.dossier-switch :deep(.el-select__placeholder), .dossier-switch :deep(.el-select__selected-item) { color: #f6f1e8; }
 .dossier-rail nav { display: grid; gap: 2px; margin-top: 26px; }
 .dossier-rail button { position: relative; display: flex; gap: 12px; width: 100%; padding: 9px 0 9px 12px; color: #efe7dc; text-align: left; background: transparent; border: 0; font: inherit; font-size: 14px; cursor: pointer; }
 .dossier-rail button.is-active { color: #e8c27a; }
@@ -2112,7 +2375,12 @@ watch(section, (value) => {
 .dossier-grid :deep(.el-input__wrapper), .dossier-grid :deep(.el-input-number), .dossier-grid :deep(.el-date-editor), .dossier-grid :deep(.el-select) { width: 100%; }
 .dossier-grid :deep(.el-input__wrapper), .dossier-grid :deep(.el-select__wrapper) { background: #fff; border-radius: 8px; box-shadow: 0 0 0 1px #e6dccb inset; }
 .doc-list article > svg { width: 18px; height: 18px; color: #8d5a32; }
-.dossier-toggles { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin: 4px 0 20px; }
+.dossier-toggles { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin: 4px 0 12px; }
+.community-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin: 0 0 18px; }
+.community-fields article { display: flex; align-items: center; justify-content: space-between; gap: 16px; min-height: 76px; padding: 14px 16px; background: #fff; border: 1px solid #eadfce; border-radius: 14px; }
+.community-fields strong { display: block; color: #05152b; font-size: 14px; }
+.community-fields small { display: block; margin-top: 4px; color: #7a7166; font-size: 12px; line-height: 1.4; }
+.community-note { margin-bottom: 8px; }
 .dossier-toggles label, .policy-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 64px; padding: 12px 14px; background: #fff; border: 1px solid #eadfce; border-radius: 14px; }
 .dossier-toggles span, .policy-row > div { display: grid; min-width: 0; }
 .dossier-toggles strong, .policy-row strong { color: #05152b; font-size: 14px; }
@@ -2135,7 +2403,7 @@ watch(section, (value) => {
 .policy-thumb img, .doc-thumb img { width: 100%; height: 100%; object-fit: cover; }
 .doc-thumb svg { width: 18px; height: 18px; color: #8d5a32; }
 .policy-empty { margin: 0; color: #7a7166; font-size: 13px; }
-@media (max-width: 980px) { .dossier, .dossier-grid, .dossier-grid--three, .dossier-toggles { grid-template-columns: 1fr; } .dossier-rail { position: static; } }
+@media (max-width: 980px) { .dossier, .dossier-grid, .dossier-grid--three, .dossier-toggles, .community-fields { grid-template-columns: 1fr; } .dossier-rail { position: static; } }
 .section-tabs :deep(.el-tabs__header) { margin-bottom: 22px; }.section-tabs :deep(.el-tabs__nav-wrap::after) { height: 1px; background: var(--line); }.section-tabs :deep(.el-tabs__item) { height: 54px; padding: 0 22px; font-weight: 600; }
 .section-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 18px; margin: 2px 0 20px; }.section-heading h2 { margin: 0 0 4px; color: #05152b; font-family: Fraunces, Georgia, serif; font-size: 26px; font-weight: 520; letter-spacing: -.03em; }.section-heading p { margin: 0; color: var(--muted); font-size: 12px; }.section-heading.compact { align-items: center; margin: 0; padding: 18px 22px 14px; border-bottom: 1px solid var(--line); }.section-heading.compact h2 { font-size: 22px; }
 .form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 18px; }.form-grid--three { grid-template-columns: repeat(3, minmax(0, 1fr)); }.span-2 { grid-column: span 2; }.form-grid :deep(.el-form-item) { margin-bottom: 17px; }.form-grid :deep(.el-form-item__label) { padding-bottom: 6px; color: #4e596d; font-size: 12px; font-weight: 600; }.form-grid :deep(.el-input-number), .form-grid :deep(.el-select), .form-grid :deep(.el-time-select) { width: 100%; }
@@ -2243,7 +2511,58 @@ watch(section, (value) => {
 .area-choice strong { color: #1c2433; font-weight: 700; }
 .area-choice small { color: #6d7686; font-size: 12px; font-weight: 500; line-height: 1.45; }
 .phone-list { display: flex; flex-direction: column; gap: 2px; line-height: 1.45; }
-.data-table :deep(td.phone-col .cell) { white-space: normal; overflow: visible; text-overflow: clip; }
+.accept-state { margin-right: 8px; color: #1f8a5b; font-size: 12px; font-weight: 700; }
+.accept-state.is-off { color: #8a7d70; }
+.data-table :deep(td.phone-col .cell),
+.data-table :deep(td.order-wrap .cell) { white-space: normal; overflow: visible; text-overflow: clip; }
+.orders-card :deep(.el-card__body) { padding: 0; }
+.order-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 16px 18px; border-bottom: 1px solid var(--line); }
+.order-filters { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; min-width: 0; }
+.order-filters .el-input,
+.order-filters .el-select { width: 168px; }
+.order-filters :deep(.el-date-editor) { width: 248px; }
+.order-pager { display: flex; justify-content: flex-end; padding: 12px 18px 14px; }
+.orders-table :deep(td.el-table__cell) { vertical-align: top; }
+.order-no { padding: 0; border: 0; background: transparent; color: #05152b; font: inherit; font-size: 13px; font-weight: 700; letter-spacing: .01em; text-align: left; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
+.order-no:hover { color: #0b2747; }
+.order-cell { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; min-width: 0; }
+.order-cell--end { align-items: flex-end; }
+.order-cell strong { color: #05152b; font-size: 13px; font-weight: 650; line-height: 1.35; }
+.order-cell small, .order-cell > span { color: #74685a; font-size: 12px; line-height: 1.4; }
+.order-clamp { display: -webkit-box; overflow: hidden; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
+.order-pin, .order-map { color: #05152b; font-size: 12px; font-weight: 650; text-decoration: underline; text-underline-offset: 3px; }
+.order-sheet { min-height: 180px; }
+.order-lead { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+.order-facts span, .order-quote span { display: block; color: #8a7d70; font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; }
+.order-lead strong { color: #05152b; font-size: 20px; font-weight: 650; line-height: 1.35; }
+.order-sheet section { margin-top: 22px; padding-top: 18px; border-top: 1px solid #efe4d4; }
+.order-sheet h3 { margin: 0 0 14px; color: #74685a; font-size: 12px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
+.order-facts { display: grid; grid-template-columns: 1fr 1fr; gap: 14px 20px; }
+.order-facts .is-wide { grid-column: 1 / -1; }
+.order-facts strong { display: block; margin-top: 4px; color: #05152b; font-size: 14px; font-weight: 650; line-height: 1.45; word-break: break-word; }
+.order-facts strong.phone-list { display: flex; flex-direction: column; gap: 4px; font-style: normal; }
+.order-facts .phone-list em { font-style: normal; font-weight: 650; }
+.order-address { margin: 0; color: #05152b; font-size: 15px; font-weight: 650; line-height: 1.5; }
+.order-map { display: inline-flex; margin-top: 10px; font-size: 13px; }
+.order-quote { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px; }
+.order-quote > div { padding: 14px 16px; background: #f7f3ec; border-radius: 14px; }
+.order-quote strong { display: block; margin-top: 6px; color: #05152b; font-family: Fraunces, Georgia, serif; font-size: 28px; font-weight: 520; letter-spacing: -.03em; }
+.order-quote small { display: block; margin-top: 4px; color: #74685a; font-size: 12px; }
+.order-lines { display: flex; flex-direction: column; gap: 10px; margin: 0; }
+.order-lines article { display: flex; flex-direction: column; gap: 4px; padding: 12px 14px; background: #f7f3ec; border-radius: 12px; }
+.order-lines small { color: #74685a; }
+.order-sheet__actions { display: flex; justify-content: flex-end; margin-top: 22px; }
+.order-photos { display: flex; flex-wrap: wrap; gap: 10px; margin: 0; }
+@media (max-width: 820px) {
+  .order-toolbar { align-items: stretch; flex-direction: column; }
+  .order-filters .el-input,
+  .order-filters .el-select,
+  .order-filters :deep(.el-date-editor) { width: 100%; }
+  .order-facts, .order-quote { grid-template-columns: 1fr; }
+}
+.order-photos h3 { flex: 1 0 100%; }
+.order-photos img { width: 72px; height: 72px; object-fit: cover; border-radius: 10px; }
+.order-photos button { padding: 0; border: 0; background: transparent; cursor: pointer; }
 @media (max-width: 1200px) { .supplier-facts { gap: 16px; }.metric-grid { grid-template-columns: repeat(2, 1fr); }.zone-grid { grid-template-columns: repeat(2, 1fr); }.form-grid--three { grid-template-columns: repeat(2, 1fr); }.overview-grid { grid-template-columns: 1fr; } }
 </style>
 
@@ -2254,6 +2573,9 @@ watch(section, (value) => {
 .policy-preview__stage img { max-width: 100%; max-height: 72vh; object-fit: contain; background: #fff; }
 .policy-preview__stage iframe { width: 100%; height: 72vh; border: 0; background: #fff; }
 .policy-preview__stage p { margin: 24px; color: #526070; }
+.order-drawer .el-drawer__header { margin-bottom: 0; padding: 22px 24px 16px; border-bottom: 1px solid #efe4d4; }
+.order-drawer .el-drawer__title { color: #05152b; font-family: Fraunces, Georgia, serif; font-size: 28px; font-weight: 520; letter-spacing: -.03em; }
+.order-drawer .el-drawer__body { padding: 22px 24px 28px; }
 </style>
 
 <style scoped>

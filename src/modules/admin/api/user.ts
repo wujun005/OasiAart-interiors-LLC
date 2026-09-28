@@ -40,8 +40,28 @@ export function getCurrentUserRoles() {
   return http.get('/api/admin/user-menu/current');
 }
 
+export function getCurrentAdminUser() {
+  return http.get('/api/admin-user/me');
+}
+
 export function getAll() {
   return http.get('/api/admin/user-menu/all');
+}
+
+export function listEnabledRoles() {
+  return http.get('/api/admin/role/enabled');
+}
+
+export function getAdminUserRoleIds(adminUserId: number | string) {
+  return http.get(`/api/admin/user-role/user/${adminUserId}`);
+}
+
+export function updateAdminUserRoles(payload: { userId: number; roleIds: number[] }) {
+  return http.post('/api/admin-user/roles', payload);
+}
+
+export function updateAdminUserPassword(payload: { userId?: number; oldPassword?: string; newPassword: string }) {
+  return http.post('/api/admin-user/password', payload);
 }
 
 export default {
@@ -53,5 +73,9 @@ export default {
   assignUserRole,
   getUserRoles,
   getCurrentUserRoles,
-  getAll
+  getAll,
+  listEnabledRoles,
+  getAdminUserRoleIds,
+  updateAdminUserRoles,
+  updateAdminUserPassword,
 };

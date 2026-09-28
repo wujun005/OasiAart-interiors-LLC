@@ -63,6 +63,12 @@ const routes: RouteRecordRaw[] = [
           { path: 'staff', redirect: (to) => ({ path: '/admin/supplier-management/profile', query: to.query }) },
           { path: 'schedule', redirect: (to) => ({ path: '/admin/supplier-management/profile', query: to.query }) },
           {
+            path: 'availability',
+            name: 'admin-supplier-availability',
+            component: () => import('@/modules/admin/pages/supplier-management/index.vue'),
+            props: { section: 'availability' },
+          },
+          {
             path: 'orders',
             name: 'admin-supplier-orders',
             component: () => import('@/modules/admin/pages/supplier-management/index.vue'),

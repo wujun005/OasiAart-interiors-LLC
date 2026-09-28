@@ -1,5 +1,10 @@
 import { reactive } from 'vue';
-import { getCurrentUserRoles } from '@/modules/admin/api/user';
+import {
+  getAdminUserRoleIds,
+  getCurrentAdminUser,
+  getCurrentUserRoles,
+  listEnabledRoles,
+} from '@/modules/admin/api/user';
 import { getAdminAuthStorageValue } from '@/utils/auth-state';
 
 export type AdminMenuPermissionItem = {
@@ -42,122 +47,15 @@ type AdminMenuPermissionState = {
 
 const ROOT_PATH = '/admin';
 const LOGIN_PATH = '/admin/login';
-const SUPPLIER_MANAGEMENT_PATH = '/admin/supplier-management';
-const HIDDEN_SUPPLIER_PATHS = new Set([
-  `${SUPPLIER_MANAGEMENT_PATH}/overview`,
-  `${SUPPLIER_MANAGEMENT_PATH}/staff`,
-  `${SUPPLIER_MANAGEMENT_PATH}/schedule`,
-  `${SUPPLIER_MANAGEMENT_PATH}/settlement`,
-]);
-const SERVICE_AREA_ADMIN_PATH = '/admin/basic/service-areas';
-const SUPPLIER_ADMIN_PATH = '/admin/basic/suppliers';
-
-const findMenuByPath = (
-  list: AdminMenuPermissionItem[],
-  path: string,
-): AdminMenuPermissionItem | undefined => {
-  for (const item of list) {
-    if (item.path === path) return item;
-    const child = findMenuByPath(item.children || [], path);
-    if (child) return child;
-  }
-  return undefined;
-};
-
-const attachSupplierAdminMenu = (roots: AdminMenuPermissionItem[]) => {
-  if (findMenuByPath(roots, SUPPLIER_ADMIN_PATH)) return;
-  const basic = findMenuByPath(roots, '/admin/basic');
-  const item: AdminMenuPermissionItem = {
-    id: 'local-basic-suppliers',
-    name: 'Supplier Management',
-    path: SUPPLIER_ADMIN_PATH,
-    icon: 'user',
-    parentId: basic?.id || 0,
-    sortOrder: 70,
-    children: [],
-  };
-  if (basic) {
-    basic.children.push(item);
-    return;
-  }
-  roots.push(item);
-};
-
-const attachServiceAreaMenu = (roots: AdminMenuPermissionItem[]) => {
-  if (findMenuByPath(roots, SERVICE_AREA_ADMIN_PATH)) return;
-  const basic = findMenuByPath(roots, '/admin/basic');
-  const item: AdminMenuPermissionItem = {
-    id: 'local-service-areas',
-    name: 'Service Area Management',
-    path: SERVICE_AREA_ADMIN_PATH,
-    icon: 'location',
-    parentId: basic?.id || 0,
-    sortOrder: 80,
-    children: [],
-  };
-  if (basic) {
-    basic.children.push(item);
-    return;
-  }
-  roots.push(item);
-};
-
-const createSupplierManagementMenu = (): AdminMenuPermissionItem => ({
-  id: 'local-supplier-management',
-  name: 'Supplier Workspace',
-  path: SUPPLIER_MANAGEMENT_PATH,
-  icon: 'office-building',
-  parentId: 0,
-  sortOrder: 40,
-  children: [
-    {
-      id: 'local-supplier-profile',
-      name: 'Company Profile',
-      path: `${SUPPLIER_MANAGEMENT_PATH}/profile`,
-      icon: 'document',
-      parentId: 'local-supplier-management',
-      sortOrder: 1,
-      children: [],
-    },
-    {
-      id: 'local-supplier-service-area',
-      name: 'Service Area',
-      path: `${SUPPLIER_MANAGEMENT_PATH}/service-area`,
-      icon: 'location',
-      parentId: 'local-supplier-management',
-      sortOrder: 3,
-      children: [],
-    },
-    {
-      id: 'local-supplier-orders',
-      name: 'Orders',
-      path: `${SUPPLIER_MANAGEMENT_PATH}/orders`,
-      icon: 'list',
-      parentId: 'local-supplier-management',
-      sortOrder: 7,
-      children: [],
-    },
-    {
-      id: 'local-supplier-pricing',
-      name: 'Services & Pricing',
-      path: `${SUPPLIER_MANAGEMENT_PATH}/pricing`,
-      icon: 'price-tag',
-      parentId: 'local-supplier-management',
-      sortOrder: 4,
-      children: [],
-    },
-  ],
-});
-
-const stripHiddenSupplierMenus = (nodes: AdminMenuPermissionItem[]) => {
-  for (let index = nodes.length - 1; index >= 0; index -= 1) {
-    const node = nodes[index];
-    if (node.path && HIDDEN_SUPPLIER_PATHS.has(node.path)) {
-      nodes.splice(index, 1);
-      continue;
-    }
-    if (node.children?.length) stripHiddenSupplierMenus(node.children);
-  }
+const FIXED_OVERVIEW_MENU_ID = 'fixed-overview';
+const MENU_PATH_ALIASES: Record<string, string> = {
+  '/admin/supplier': '/admin/supplier-management',
+  '/admin/supplier/profile': '/admin/supplier-management/profile',
+  '/admin/supplier/service-area': '/admin/supplier-management/service-area',
+  '/admin/supplier/availability': '/admin/supplier-management/availability',
+  '/admin/supplier/orders': '/admin/supplier-management/orders',
+  '/admin/supplier/services': '/admin/supplier-management/pricing',
+  '/admin/suppliers': '/admin/basic/suppliers',
 };
 
 export const adminMenuState = reactive<AdminMenuPermissionState>({
@@ -194,7 +92,7 @@ const normalizePath = (rawPath?: unknown): string => {
   if (path.length > 1 && path.endsWith('/')) {
     path = path.slice(0, -1);
   }
-  return path;
+  return MENU_PATH_ALIASES[path] || path;
 };
 
 const parseMenuList = (res: any): RawMenuItem[] => {
@@ -278,7 +176,55 @@ const pruneMenus = (
       return !!item.path && item.path.startsWith(ROOT_PATH) && item.path !== LOGIN_PATH;
     });
 
-const hydrateMenuState = (list: RawMenuItem[]) => {
+const unwrap = (payload: any) => (
+  payload && typeof payload === 'object' && 'data' in payload ? payload.data : payload
+);
+
+const currentUserIsSuperAdmin = async () => {
+  const me = unwrap(await getCurrentAdminUser());
+  const userId = Number(me?.id || 0);
+  if (!userId) return false;
+  const [roleRes, mineRes] = await Promise.all([
+    listEnabledRoles(),
+    getAdminUserRoleIds(userId),
+  ]);
+  const roles = unwrap(roleRes);
+  const mine = unwrap(mineRes);
+  const mineIds = new Set((Array.isArray(mine) ? mine : []).map((id: number) => Number(id)));
+  return (Array.isArray(roles) ? roles : []).some(
+    (role: { id?: number; code?: string }) => mineIds.has(Number(role.id)) && role.code === 'SUPER_ADMIN',
+  );
+};
+
+const hasOverviewLeaf = (nodes: AdminMenuPermissionItem[]): boolean =>
+  nodes.some((node) => (
+    (node.path === ROOT_PATH && node.children.length === 0) || hasOverviewLeaf(node.children)
+  ));
+
+const releaseOverviewPathFromGroups = (nodes: AdminMenuPermissionItem[]) => {
+  nodes.forEach((node) => {
+    if (node.path === ROOT_PATH && node.children.length > 0) {
+      node.path = '';
+    }
+    releaseOverviewPathFromGroups(node.children);
+  });
+};
+
+const pinSuperAdminOverview = (roots: AdminMenuPermissionItem[]) => {
+  releaseOverviewPathFromGroups(roots);
+  if (hasOverviewLeaf(roots)) return;
+  roots.push({
+    id: FIXED_OVERVIEW_MENU_ID,
+    name: '概览',
+    path: ROOT_PATH,
+    icon: 'house',
+    parentId: 0,
+    sortOrder: -1,
+    children: [],
+  });
+};
+
+const hydrateMenuState = (list: RawMenuItem[], pinOverview = false) => {
   const rawFlatItems = flattenRawMenus(list);
   const nodeMap = new Map<string, AdminMenuPermissionItem>();
 
@@ -323,17 +269,8 @@ const hydrateMenuState = (list: RawMenuItem[]) => {
     }
   });
 
+  if (pinOverview) pinSuperAdminOverview(roots);
   const prunedRoots = pruneMenus(roots);
-  const flatBeforeLocalMenus = flattenMenus(prunedRoots, []);
-  const hasSupplierManagementMenu = flatBeforeLocalMenus.some(
-    (item) => item.path === SUPPLIER_MANAGEMENT_PATH,
-  );
-  if (!hasSupplierManagementMenu) {
-    prunedRoots.push(createSupplierManagementMenu());
-  }
-  attachSupplierAdminMenu(prunedRoots);
-  attachServiceAreaMenu(prunedRoots);
-  stripHiddenSupplierMenus(prunedRoots);
   sortMenus(prunedRoots);
 
   const flat = flattenMenus(prunedRoots, []);
@@ -399,7 +336,14 @@ export const loadAdminMenuPermissions = async (force = false) => {
   const task = (async () => {
     const res = await getCurrentUserRoles();
     if (version !== loadVersion) return;
-    hydrateMenuState(parseMenuList(res));
+    let pinOverview = false;
+    try {
+      pinOverview = await currentUserIsSuperAdmin();
+    } catch (error) {
+      console.error('Failed to resolve super admin role for the overview menu:', error);
+    }
+    if (version !== loadVersion) return;
+    hydrateMenuState(parseMenuList(res), pinOverview);
     adminMenuState.lastToken = token;
     adminMenuState.loaded = true;
   })()

@@ -24,6 +24,14 @@
         <el-table-column prop="name" :label="t('admin.user.table.name')" width="160" />
         <el-table-column prop="phone" :label="t('admin.user.table.phone')" width="140" />
         <el-table-column prop="email" :label="t('admin.user.table.email')" min-width="180" />
+        <el-table-column :label="t('admin.user.table.roles')" min-width="180">
+          <template #default="{ row }">
+            <div v-if="row.roles?.length" class="role-tags">
+              <el-tag v-for="role in row.roles" :key="role.id" effect="plain">{{ roleLabel(role) }}</el-tag>
+            </div>
+            <span v-else>—</span>
+          </template>
+        </el-table-column>
         <el-table-column :label="t('admin.user.table.createdAt')" width="148">
           <template #default="{ row }">
             <div class="meta">
@@ -35,15 +43,20 @@
         <el-table-column :label="t('admin.user.table.updatedAt')" width="148">
           <template #default="{ row }">
             <div class="meta">
-              <!-- <span>{{ row.updater || '-' }}</span> -->
-              <span class="time">{{ formatDate(row.updateTime) }}</span>
+              <span class="time">{{ formatDate(row.modifyTime || row.updateTime) }}</span>
             </div>
           </template>
         </el-table-column>
-        <el-table-column :label="t('admin.user.table.actions')" width="240" fixed="right">
+        <el-table-column :label="t('admin.user.table.actions')" width="340" fixed="right">
           <template #default="{ row }">
             <el-button link type="primary" size="small" @click="openEdit(row)">
               {{ t('admin.user.actions.edit') }}
+            </el-button>
+            <el-button link type="primary" size="small" @click="openAssignRole(row)">
+              {{ t('admin.user.actions.assignRole') }}
+            </el-button>
+            <el-button link type="primary" size="small" @click="openPassword(row)">
+              {{ t('admin.user.actions.changePassword') }}
             </el-button>
             <el-button
               link
@@ -95,7 +108,7 @@
         <el-form-item :label="t('admin.user.form.email')" prop="email">
           <el-input v-model="form.email" :placeholder="t('admin.user.form.emailPlaceholder')" />
         </el-form-item>
-        <el-form-item :label="t('admin.user.form.password')" prop="password">
+        <el-form-item v-if="!isEdit" :label="t('admin.user.form.password')" prop="password">
           <el-input
             v-model="form.password"
             :placeholder="t('admin.user.form.passwordPlaceholder')"
@@ -139,19 +152,73 @@
         </el-button>
       </template>
     </el-dialog>
+
+    <el-dialog
+      v-model="roleDialogVisible"
+      :title="t('admin.user.dialog.roleTitle', { name: roleTarget?.name || '' })"
+      :close-on-click-modal="false"
+      width="480px"
+    >
+      <el-form label-width="90px" v-loading="roleLoading">
+        <el-form-item :label="t('admin.user.form.roles')">
+          <el-select v-model="selectedRoleIds" multiple filterable style="width: 100%" :placeholder="t('admin.user.form.rolesPlaceholder')">
+            <el-option v-for="role in assignableRoles" :key="role.id" :label="roleLabel(role)" :value="role.id" />
+          </el-select>
+        </el-form-item>
+        <p v-if="keepsSupplierRole" class="role-note">{{ t('admin.user.form.supplierKept') }}</p>
+      </el-form>
+      <template #footer>
+        <el-button @click="roleDialogVisible = false">{{ t('admin.user.actions.cancel') }}</el-button>
+        <el-button type="primary" :loading="roleSaving" @click="saveRoles">{{ t('admin.user.actions.save') }}</el-button>
+      </template>
+    </el-dialog>
+
+    <el-dialog
+      v-model="passwordDialogVisible"
+      :title="t('admin.user.dialog.passwordTitle', { name: passwordTarget?.name || '' })"
+      :close-on-click-modal="false"
+      width="480px"
+    >
+      <el-form label-width="90px">
+        <el-form-item v-if="changingOwnPassword" :label="t('admin.user.form.oldPassword')">
+          <el-input v-model="passwordForm.oldPassword" type="password" show-password :placeholder="t('admin.user.form.oldPasswordPlaceholder')" />
+        </el-form-item>
+        <el-form-item :label="t('admin.user.form.newPassword')">
+          <el-input v-model="passwordForm.newPassword" type="password" show-password :placeholder="t('admin.user.form.newPasswordPlaceholder')" />
+        </el-form-item>
+        <el-form-item :label="t('admin.user.form.confirmPassword')">
+          <el-input v-model="passwordForm.confirmPassword" type="password" show-password :placeholder="t('admin.user.form.confirmPasswordPlaceholder')" />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="passwordDialogVisible = false">{{ t('admin.user.actions.cancel') }}</el-button>
+        <el-button type="primary" :loading="passwordSaving" @click="savePassword">{{ t('admin.user.actions.save') }}</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
 <script setup lang="ts">
-import { nextTick, onMounted, reactive, ref } from 'vue';
+import { computed, nextTick, onMounted, reactive, ref } from 'vue';
 import type { FormInstance, FormRules, TreeInstance } from 'element-plus';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { useI18n } from 'vue-i18n';
 import apis, {
   assignUserRole,
+  getAdminUserRoleIds,
   getAll,
+  getCurrentAdminUser,
   getUserRoles,
+  listEnabledRoles,
+  updateAdminUserPassword,
+  updateAdminUserRoles,
 } from '@/modules/admin/api/user';
+
+type AccountRole = {
+  id: number;
+  code?: string;
+  name?: string;
+};
 
 type User = {
   id: number;
@@ -159,11 +226,19 @@ type User = {
   phone: string;
   email: string;
   password?: string;
+  roles?: AccountRole[];
   createTime?: string;
   creator?: string;
+  modifyTime?: string;
   updateTime?: string;
   updater?: string;
 };
+
+const PLATFORM_ROLE_CODES = new Set([
+  'PLATFORM_CUSTOMER_SERVICE',
+  'PLATFORM_OPERATIONS',
+  'PLATFORM_FINANCE',
+]);
 
 type MenuPermissionItem = {
   id: number | string;
@@ -217,6 +292,38 @@ const permissionTreeProps = {
   children: 'children',
 };
 const { t } = useI18n({ useScope: 'global' });
+const currentUserId = ref(0);
+const currentRoleCodes = ref<string[]>([]);
+const enabledRoles = ref<AccountRole[]>([]);
+const roleDialogVisible = ref(false);
+const roleLoading = ref(false);
+const roleSaving = ref(false);
+const roleTarget = ref<User | null>(null);
+const selectedRoleIds = ref<number[]>([]);
+const passwordDialogVisible = ref(false);
+const passwordSaving = ref(false);
+const passwordTarget = ref<User | null>(null);
+const passwordForm = reactive({
+  oldPassword: '',
+  newPassword: '',
+  confirmPassword: '',
+});
+const unwrap = (payload: any) => (payload && typeof payload === 'object' && 'data' in payload ? payload.data : payload);
+const isSuperAdmin = computed(() => currentRoleCodes.value.includes('SUPER_ADMIN'));
+const assignableRoles = computed(() => (
+  isSuperAdmin.value
+    ? enabledRoles.value
+    : enabledRoles.value.filter((role) => role.code && PLATFORM_ROLE_CODES.has(role.code))
+));
+const keepsSupplierRole = computed(() => (
+  !isSuperAdmin.value && (roleTarget.value?.roles || []).some((role) => role.code === 'SUPPLIER')
+));
+const changingOwnPassword = computed(() => Number(passwordTarget.value?.id) === currentUserId.value);
+const roleLabel = (role: AccountRole) => {
+  const key = role.code ? `admin.user.roles.${role.code}` : '';
+  const text = key ? t(key) : '';
+  return text && text !== key ? text : (role.name || role.code || '');
+};
 
 const rules: FormRules = {
   name: [
@@ -539,7 +646,110 @@ const remove = async (row: User) => {
   }
 };
 
-onMounted(fetchUsers);
+const loadRoleContext = async () => {
+  try {
+    const me = unwrap(await getCurrentAdminUser());
+    currentUserId.value = Number(me?.id || 0);
+    const [roleRes, mineRes] = await Promise.all([
+      listEnabledRoles(),
+      currentUserId.value ? getAdminUserRoleIds(currentUserId.value) : Promise.resolve([]),
+    ]);
+    const roles = unwrap(roleRes);
+    enabledRoles.value = (Array.isArray(roles) ? roles : []).map((role: AccountRole) => ({
+      id: Number(role.id),
+      code: role.code,
+      name: role.name,
+    }));
+    const mine = unwrap(mineRes);
+    const mineIds = new Set((Array.isArray(mine) ? mine : []).map((id: number) => Number(id)));
+    currentRoleCodes.value = enabledRoles.value
+      .filter((role) => mineIds.has(role.id) && role.code)
+      .map((role) => role.code as string);
+  } catch (error: any) {
+    ElMessage.error(error?.message || t('admin.user.message.roleFetchFailed'));
+  }
+};
+
+const openAssignRole = async (row: User) => {
+  roleTarget.value = row;
+  roleDialogVisible.value = true;
+  roleLoading.value = true;
+  try {
+    if (!enabledRoles.value.length || !currentUserId.value) await loadRoleContext();
+    const allowed = new Set(assignableRoles.value.map((role) => role.id));
+    selectedRoleIds.value = (row.roles || []).map((role) => Number(role.id)).filter((id) => allowed.has(id));
+  } finally {
+    roleLoading.value = false;
+  }
+};
+
+const saveRoles = async () => {
+  const userId = roleTarget.value?.id;
+  if (!userId) return;
+  if (!selectedRoleIds.value.length) {
+    ElMessage.warning(t('admin.user.validation.rolesRequired'));
+    return;
+  }
+  roleSaving.value = true;
+  try {
+    await updateAdminUserRoles({ userId, roleIds: selectedRoleIds.value });
+    ElMessage.success(t('admin.user.message.roleSaveSuccess'));
+    roleDialogVisible.value = false;
+    fetchUsers();
+  } catch (error: any) {
+    ElMessage.error(error?.message || t('admin.user.message.roleSaveFailed'));
+  } finally {
+    roleSaving.value = false;
+  }
+};
+
+const openPassword = (row: User) => {
+  passwordTarget.value = row;
+  passwordForm.oldPassword = '';
+  passwordForm.newPassword = '';
+  passwordForm.confirmPassword = '';
+  passwordDialogVisible.value = true;
+};
+
+const savePassword = async () => {
+  const userId = passwordTarget.value?.id;
+  if (!userId) return;
+  if (changingOwnPassword.value && !passwordForm.oldPassword.trim()) {
+    ElMessage.warning(t('admin.user.validation.oldPasswordRequired'));
+    return;
+  }
+  if (passwordForm.newPassword.trim().length < 6) {
+    ElMessage.warning(t('admin.user.validation.passwordMin'));
+    return;
+  }
+  if (!passwordForm.confirmPassword) {
+    ElMessage.warning(t('admin.user.validation.confirmPasswordRequired'));
+    return;
+  }
+  if (passwordForm.newPassword !== passwordForm.confirmPassword) {
+    ElMessage.warning(t('admin.user.validation.passwordMismatch'));
+    return;
+  }
+  passwordSaving.value = true;
+  try {
+    await updateAdminUserPassword({
+      userId,
+      newPassword: passwordForm.newPassword.trim(),
+      ...(changingOwnPassword.value ? { oldPassword: passwordForm.oldPassword } : {}),
+    });
+    ElMessage.success(t('admin.user.message.passwordSaveSuccess'));
+    passwordDialogVisible.value = false;
+  } catch (error: any) {
+    ElMessage.error(error?.message || t('admin.user.message.passwordSaveFailed'));
+  } finally {
+    passwordSaving.value = false;
+  }
+};
+
+onMounted(() => {
+  fetchUsers();
+  loadRoleContext();
+});
 </script>
 
 <style scoped>
@@ -574,5 +784,16 @@ onMounted(fetchUsers);
   max-height: 420px;
   overflow: auto;
   padding: 6px 0;
+}
+.role-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.role-note {
+  margin: 0 0 0 90px;
+  color: #7a7166;
+  font-size: 12px;
+  line-height: 1.45;
 }
 </style>

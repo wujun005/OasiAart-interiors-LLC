@@ -70,6 +70,26 @@ export function supplierAssignedOrders(payload: Record<string, unknown> = {}) {
   return http.post('/api/orderHeader/supplier/mine', payload);
 }
 
+export function supplierAssignedOrderDetail(orderId: number) {
+  return http.get('/api/orderHeader/supplier/detail', { params: { orderId } });
+}
+
+export function supplierEventPage(payload: Record<string, unknown> = {}) {
+  return http.post('/api/supplier/event/page', payload);
+}
+
+export function supplierEventSave(payload: Record<string, unknown>) {
+  return http.post('/api/supplier/event/save', payload);
+}
+
+export function supplierChangeAcceptDispatch(payload: { id: number; acceptDispatch: 0 | 1 }) {
+  return http.post('/api/supplier/changeAcceptDispatch', payload);
+}
+
+export function supplierChangeAcceptOrder(payload: { supplierId: number; spuId: number; acceptOrder: 0 | 1 }) {
+  return http.post('/api/supplier/tools/services/changeAcceptOrder', payload);
+}
+
 export function supplierArrive(payload: { orderId: number; photos?: string[]; remark?: string | null }) {
   return http.post('/api/orderHeader/supplier/arrive', payload);
 }
