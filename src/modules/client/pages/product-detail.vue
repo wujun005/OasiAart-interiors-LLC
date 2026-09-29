@@ -261,10 +261,6 @@
                   {{ t("client.productDetail.trust.trusted") }}
                 </span>
               </div>
-              <div class="booking-card__price">
-                <span>{{ t("client.productDetail.booking.priceFrom") }}</span>
-                <strong>{{ formatAed(basePrice) }}</strong>
-              </div>
             </div>
 
             <div class="booking-card__section-heading">
@@ -383,11 +379,18 @@
                   {{ t("client.productDetail.booking.selectedService") }}
                   <small v-if="selectedSpecSummary">{{ selectedSpecSummary }}</small>
                 </span>
-                <strong>{{ formatAed(basePrice) }}</strong>
+                <strong>{{ formatAed(selectedServicePrice) }}</strong>
               </div>
               <div v-if="attachTotalPrice > 0" class="booking-summary__row">
                 <span>{{ t("client.productDetail.booking.attachTotal") }}</span>
                 <strong>{{ formatAed(attachTotalPrice) }}</strong>
+              </div>
+              <div
+                v-if="skuPrice"
+                class="booking-summary__row booking-summary__row--tax"
+              >
+                <span>{{ t("client.productDetail.booking.vat") }}</span>
+                <strong>{{ formatAed(vatPrice) }}</strong>
               </div>
               <div class="booking-summary__row booking-summary__row--total">
                 <span>{{ t("client.productDetail.booking.total") }}</span>
@@ -931,6 +934,11 @@ const skuRequestSignature = computed(() => {
 const subtotalPrice = computed(() => {
   const skuSubtotal = resolveOptionalNumber(skuPrice.value?.totalPrice)
   return skuSubtotal ?? basePrice.value
+})
+
+const selectedServicePrice = computed(() => {
+  const sku = resolveOptionalNumber(skuPrice.value?.price)
+  return sku ?? basePrice.value
 })
 
 const attachTotalPrice = computed(() => {
@@ -2254,27 +2262,6 @@ const goOrderConfirm = async () => {
   stroke-width: 2;
   stroke-linecap: round;
   stroke-linejoin: round;
-}
-
-.booking-card__price {
-  margin-top: 18px;
-  display: flex;
-  align-items: baseline;
-  gap: 8px;
-}
-
-.booking-card__price span {
-  color: #67798e;
-  font-size: 13px;
-  font-weight: 700;
-}
-
-.booking-card__price strong {
-  color: var(--hourx-brand);
-  font-size: 24px;
-  line-height: 1;
-  font-weight: 900;
-  letter-spacing: -0.025em;
 }
 
 .booking-card__section-heading {
