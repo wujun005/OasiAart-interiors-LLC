@@ -280,6 +280,9 @@
               </div>
             </article>
           </div>
+          <button v-if="!isLoggedIn" class="profile-signin" type="button" @click="goLogin">
+            {{ t("client.header.auth") }}
+          </button>
         </main>
 
         <aside class="profile-sidebar">
@@ -293,7 +296,7 @@
             </a>
           </section>
 
-          <button type="button" class="logout-button" @click="handleLogout">
+          <button v-if="isLoggedIn" type="button" class="logout-button" @click="handleLogout">
             {{ t("client.profile.logOut") }}
           </button>
         </aside>
@@ -509,7 +512,15 @@ const handleForgotPasswordSuccess = async () => {
   await router.replace({ name: "login" })
 }
 
+const goLogin = () => {
+  router.push({ name: "login", query: { redirect: route.fullPath } })
+}
+
 const toggleSection = (section: ProfileSection) => {
+  if (!isLoggedIn.value && (section === "personal" || section === "addresses" || section === "payments")) {
+    goLogin()
+    return
+  }
   activeSection.value = activeSection.value === section ? "" : section
 }
 
@@ -557,7 +568,9 @@ const applySectionFromRoute = (section: unknown) => {
 onMounted(async () => {
   checkLoginStatus()
   if (!isLoggedIn.value) {
-    await router.replace({ name: "login", query: { redirect: route.fullPath } })
+    if (window.innerWidth > 900) {
+      await router.replace({ name: "login", query: { redirect: route.fullPath } })
+    }
     return
   }
   restoreNotificationPreferences()
@@ -1156,6 +1169,21 @@ watch(
   object-fit: contain;
 }
 
+.profile-signin {
+  display: none;
+  width: calc(100% - 36px);
+  height: 48px;
+  margin: 4px 18px 22px;
+  border: 0;
+  border-radius: 12px;
+  background: #05152b;
+  color: #fff;
+  font: inherit;
+  font-size: 15px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
 .logout-button {
   justify-self: center;
   padding: 8px 16px;
@@ -1169,6 +1197,10 @@ watch(
 }
 
 @media (max-width: 900px) {
+  .profile-signin {
+    display: block;
+  }
+
   .profile-layout {
     grid-template-columns: 1fr;
   }

@@ -1,0 +1,645 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>HourX Supplier Management</title>
+<style>
+:root{--navy:#0d1b2e;--navy2:#132540;--gold:#c99b4a;--cream:#faf5ec;--card:#fff;--text:#20242c;--muted:#7a8090;--line:#e9e2d3;
+--red:#c0392b;--redbg:#fdecea;--green:#2e7d4f;--greenbg:#e8f5ec;--amber:#b6791f;--amberbg:#fdf1de;}
+*{box-sizing:border-box}
+body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;background:var(--cream);color:var(--text)}
+.app{display:flex;min-height:100vh}
+.sidebar{width:250px;background:var(--navy);color:#dfe4ee;flex-shrink:0}
+.brand{display:flex;align-items:center;gap:10px;padding:22px 20px 14px}
+.brand .mark{width:34px;height:34px;border-radius:8px;background:var(--cream);color:var(--navy);display:grid;place-items:center;font-weight:800;font-size:11px}
+.brand b{display:block;font-size:16px;color:#fff}.brand span{font-size:10px;letter-spacing:.06em;color:#9aa4b8}
+.section-label{padding:16px 20px 6px;font-size:11px;letter-spacing:.08em;color:#7c869c;text-transform:uppercase}
+.nav-item{padding:10px 20px;font-size:14px;color:#c7cede}
+.nav-item.active{background:#1a2c48;color:#fff;border-left:3px solid var(--gold);font-weight:600}
+.ob{margin:16px;background:var(--navy2);border-radius:10px;padding:16px}
+.ob .tag{font-size:10px;letter-spacing:.08em;color:#8b93a8;text-transform:uppercase}
+.ob .company{font-family:Georgia,serif;font-size:22px;color:#fff;margin:4px 0 10px}
+.badge{display:inline-block;background:var(--gold);color:#20242c;font-size:12px;font-weight:700;padding:3px 12px;border-radius:14px;margin-bottom:14px}
+.step{display:flex;align-items:center;gap:10px;padding:9px 8px;font-size:13.5px;color:#c7cede;border-radius:6px;cursor:pointer}
+.step:hover{background:#1a2c48}.step.current{background:#1e3557;color:#fff;box-shadow:inset 3px 0 0 var(--gold)}
+.step .num{font-family:Georgia,serif;color:var(--gold);width:18px}.step .name{flex:1}
+.stat{font-size:12px;font-weight:700}.stat.ok{color:#4fd08a}.stat.warn{color:#f2b545}
+.legend-s{padding:0 20px;font-size:11px;color:#8b93a8;line-height:1.7}
+.main{flex:1;display:flex;flex-direction:column;min-width:0}
+.topbar{display:flex;justify-content:flex-end;align-items:center;gap:18px;padding:12px 32px;border-bottom:1px solid var(--line);font-size:13px;color:var(--muted)}
+.topbar b{color:var(--text)}
+.avatar{width:30px;height:30px;border-radius:6px;background:var(--navy);color:#fff;display:grid;place-items:center;font-weight:700}
+.content{padding:24px 32px 40px;max-width:1000px;width:100%}
+/* light-box section header */
+.lightbox{background:#fff;border:1px solid var(--line);border-left:5px solid var(--gold);border-radius:12px;padding:18px 22px;margin-bottom:18px;box-shadow:0 6px 20px rgba(13,27,46,.06);display:flex;justify-content:space-between;align-items:center;gap:14px}
+.lightbox .crumb{font-size:12px;color:var(--muted);letter-spacing:.04em;text-transform:uppercase}
+.lightbox h1{font-family:Georgia,serif;font-size:28px;margin:4px 0 2px}.lightbox h1 .n{color:#b98a3a;font-size:20px;margin-right:8px}
+.lightbox p{margin:0;color:var(--muted);font-size:13.5px}
+.chip{font-size:12px;font-weight:700;padding:5px 12px;border-radius:14px;white-space:nowrap}
+.chip.ok{background:var(--greenbg);color:var(--green)}.chip.warn{background:var(--redbg);color:var(--red)}
+.error-banner{display:none;background:var(--redbg);border:1px solid #f1c3bd;border-left:4px solid var(--red);border-radius:10px;padding:14px 18px;margin-bottom:18px}
+.error-banner b{display:block;font-size:14px;color:var(--red);margin-bottom:8px}
+.error-banner ul{margin:0;padding:0;list-style:none;display:flex;flex-wrap:wrap;gap:8px}
+.error-banner li a{display:inline-block;background:#fff;border:1px solid #f1c3bd;color:var(--red);font-size:12.5px;font-weight:600;padding:6px 12px;border-radius:16px;cursor:pointer}
+.sec-h{display:none;justify-content:space-between;align-items:center;margin-bottom:16px}
+.sec-h h2{font-family:Georgia,serif;font-size:22px;margin:0}.sec-h h2 .n{color:#b98a3a;font-size:16px;margin-right:8px}
+.card.all .sec{display:block;padding-bottom:24px;margin-bottom:24px;border-bottom:1px solid var(--line)}
+.card.all .sec:last-child{border:0;margin:0;padding:0}
+.card.all .sec-h{display:flex}
+.card.all input,.card.all select{border-color:transparent;background:#f8f6f1;pointer-events:none}
+.card.all .sw,.card.all .yn{pointer-events:none}
+.card.all .checkline,.card.all .doc>.btn.up,.card.all .rm,.card.all .err-msg{display:none!important}
+.doc{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+.doc .none{display:none;font-size:12.5px;color:var(--muted)}.card.all .doc .none{display:inline}
+.doc .fn{font-size:12.5px;color:var(--green);font-weight:600;margin-top:4px}
+.card{background:var(--card);border-radius:12px;border:1px solid var(--line);padding:26px 28px}
+.sec{display:none}.sec.show{display:block}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:18px 22px}
+.span2{grid-column:span 2}
+.field label{display:block;font-size:13px;font-weight:600;color:#3a3f4a;margin-bottom:6px}
+.req{color:var(--red)}.q{font-weight:400;color:var(--muted)}
+.field input,.field select,.field textarea{width:100%;padding:10px 12px;border:1px solid #d9d2c2;border-radius:8px;font-size:14px;background:#fff;color:var(--text);font-family:inherit}
+.field input:disabled{background:#f1efe9;color:#6b7080}
+.field.error input,.field.error textarea{border:2px solid var(--red);background:var(--redbg)}
+.err-msg{display:none;color:var(--red);font-size:13px;font-weight:600;margin-top:6px}
+.field.error .err-msg{display:block}
+.flash{animation:flash 1.2s}@keyframes flash{0%,100%{box-shadow:none}30%{box-shadow:0 0 0 4px rgba(192,57,43,.25)}}
+.checkline{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--muted);margin-top:8px}
+.checkline input{width:auto}.checkline label{margin:0;font-weight:400;display:inline}
+.pill-row{display:flex;flex-wrap:wrap;gap:8px}
+.pill{background:#eef0f3;color:#3a3f4a;border:1px solid #dde0e6;padding:6px 12px;border-radius:16px;font-size:13px;font-weight:600}
+.hint{color:var(--muted);font-size:12px;margin-top:6px}
+.toggle-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-top:22px}
+.tc{border:1px solid var(--line);border-radius:10px;padding:14px 16px}
+.tc .row{display:flex;justify-content:space-between;align-items:center;gap:10px}
+.tc b{font-size:14px}
+.sw{width:40px;height:22px;border-radius:12px;background:#e3ddcf;position:relative;flex-shrink:0;cursor:pointer;border:0}
+.sw.on{background:var(--navy)}.sw::after{content:"";position:absolute;top:2px;left:2px;width:18px;height:18px;border-radius:50%;background:#fff;transition:.15s}.sw.on::after{left:20px}
+.yn{flex-shrink:0;display:flex;border:1px solid #d9d2c2;border-radius:8px;overflow:hidden}
+.yn button{border:0;background:#fff;padding:6px 14px;cursor:pointer;font-weight:600;font-size:13px}.yn button.on{background:var(--navy);color:#fff}
+.optnote{display:inline-block;background:var(--amberbg);color:var(--amber);font-size:12px;font-weight:600;padding:4px 10px;border-radius:8px;margin-top:6px}
+.doc{border:1px solid var(--line);border-radius:10px;padding:16px;margin-bottom:12px}
+.doc.error{border:2px solid var(--red);background:#fffafa}
+.doc .top{display:flex;justify-content:space-between;align-items:flex-start;gap:12px}
+.doc b{font-size:15px}.doc .sub{font-size:12.5px;color:var(--muted);margin-top:3px}
+.guide{margin-top:10px;border:1.5px dashed #d6ccb6;border-radius:8px;padding:12px;font-size:12.5px;color:var(--muted);background:#fcfaf5}
+.file{margin-top:10px;display:flex;align-items:center;gap:10px;background:var(--greenbg);border-radius:8px;padding:10px 12px;font-size:13px}
+.file span{flex:1;color:var(--green);font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.file a{font-size:12px;cursor:pointer;color:var(--text);text-decoration:underline}.file a.rm{color:var(--red)}
+.btn{background:#fff;border:1px solid #cfc8b8;padding:10px 18px;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer}
+.btn.up{padding:8px 14px;font-size:13px}
+.btn.gold{background:var(--gold);border-color:var(--gold);color:#20242c}
+.btn.navy{background:var(--navy);border-color:var(--navy);color:#fff}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.footer{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-top:18px;background:#fff;border:1px solid var(--line);border-radius:12px;padding:14px 18px;flex-wrap:wrap}
+.footer .info{font-size:13px;color:var(--muted)}
+.toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--navy);color:#fff;padding:10px 18px;border-radius:8px;font-size:13px;opacity:0;transition:.2s;pointer-events:none}.toast.show{opacity:1}
+@media(max-width:860px){.sidebar{display:none}.grid,.toggle-grid{grid-template-columns:1fr}.span2{grid-column:auto}.content{padding:16px}}
+.nav-item{cursor:pointer}.nav-item:hover{background:#15243c}
+.lightbox h1:only-child,.lightbox h1{word-break:break-word}
+.sv-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:18px}
+.sv-stat{background:#fff;border:1px solid var(--line);border-radius:12px;padding:14px 16px}
+.sv-stat small{color:var(--muted);font-size:12px}.sv-stat b{display:block;font-size:22px;margin-top:2px;font-family:Georgia,serif}
+.sv-bar{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:14px 18px;border-bottom:1px solid var(--line);flex-wrap:wrap}
+.sv-cats{display:flex;gap:6px;flex-wrap:wrap}
+.sv-cats button{border:1px solid var(--line);background:#fff;border-radius:16px;padding:6px 12px;font-size:12.5px;font-weight:600;cursor:pointer;color:#4a4f5a}
+.sv-cats button.on{background:var(--navy);color:#fff;border-color:var(--navy)}
+.sv-search{padding:8px 12px;border:1px solid #d9d2c2;border-radius:8px;font-size:13px;width:220px}
+.sv-t{width:100%;border-collapse:collapse}
+.sv-t th{text-align:left;font-size:11.5px;letter-spacing:.04em;text-transform:uppercase;color:var(--muted);padding:10px 14px;background:#fbf8f1;border-bottom:1px solid var(--line);white-space:nowrap}
+.sv-t td{padding:12px 14px;border-bottom:1px solid #f1ece2;font-size:14px;vertical-align:middle}
+.sv-t tr.off td{color:#a3a8b3}
+.sv-t tr.off td .btn{opacity:.6}
+.sv-t .svname b{display:block}.sv-t .svname small{color:var(--muted);font-size:12px}
+.st{font-size:12px;font-weight:700;padding:4px 10px;border-radius:12px;white-space:nowrap;display:inline-block}
+.st.none{background:#eef0f3;color:#6b7180}.st.draft{background:#eef0f3;color:#3a3f4a}.st.pending{background:var(--amberbg);color:var(--amber)}
+.st.ok{background:var(--greenbg);color:var(--green)}.st.bad{background:var(--redbg);color:var(--red)}
+.qm-bg{position:fixed;inset:0;background:rgba(13,27,46,.45);display:none;align-items:flex-start;justify-content:center;padding:40px 16px;overflow-y:auto;z-index:50}
+.qm-bg.show{display:flex}
+.qm{background:#fff;border-radius:16px;width:100%;max-width:1000px;box-shadow:0 20px 60px rgba(0,0,0,.25);overflow:hidden}
+.qm-h{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;padding:20px 24px;background:linear-gradient(90deg,#fff,var(--cream));border-bottom:1px solid var(--line)}
+.qm-h h2{margin:0;font-family:Georgia,serif;font-size:22px}.qm-meta{font-size:13px;color:var(--muted);margin-top:3px}
+.qm-x{border:0;background:transparent;font-size:18px;cursor:pointer;color:var(--muted)}
+.qm-b{padding:20px 24px}
+.qlabel{font-size:13px;font-weight:700;margin-bottom:10px}
+.qmodes{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.qmode{border:2px solid var(--line);border-radius:12px;padding:12px 14px;cursor:pointer;background:#fcfaf5}
+.qmode.on{border-color:var(--navy);background:#fff}
+.qmode b{display:block;font-size:14px}.qmode small{color:var(--gold);font-weight:600;font-size:12px}
+.qrate{display:flex;gap:18px;align-items:flex-end;margin-top:14px;background:#fcfaf5;border:1px solid var(--line);border-radius:12px;padding:14px;flex-wrap:wrap}
+.qinp{display:flex;border:1px solid #d9d2c2;border-radius:8px;overflow:hidden;background:#fff}
+.qinp span{padding:0 10px;display:grid;place-items:center;background:#f7f5f0;color:var(--muted);font-size:12px}
+.qinp input{border:0;padding:9px 10px;font-size:14px;width:100%;outline:none;min-width:0}
+.qinp.dis,.qinp.dis input{background:#f3f4f6;font-weight:600}
+.qformula{font-size:13px;color:var(--muted);padding-bottom:8px}
+.qn{display:flex;border:1px solid #d9d2c2;border-radius:8px;width:108px;overflow:hidden}
+.qn button{border:0;background:#f7f5f0;width:30px;cursor:pointer;font-size:16px}
+.qn input{border:0;width:48px;text-align:center;font-size:14px;outline:none;padding:7px 0}
+.qsw{width:38px;height:22px;border-radius:12px;background:#d1d5db;position:relative;border:0;cursor:pointer}
+.qsw::after{content:"";position:absolute;top:2px;left:2px;width:18px;height:18px;border-radius:50%;background:#fff;transition:.15s}
+.qsw.on{background:var(--green)}.qsw.on::after{left:18px}
+.q-t tr.off td{opacity:.45}
+.qadd{margin-top:10px;border:1px dashed #cfc7b6;background:transparent;border-radius:8px;padding:8px 14px;cursor:pointer;font-weight:600}
+.qm-f{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:14px 24px;border-top:1px solid var(--line);background:#fcfbf8;flex-wrap:wrap}
+.qm-info{font-size:13px;color:var(--muted)}
+@media(max-width:860px){.sv-stats{grid-template-columns:1fr 1fr}.qmodes{grid-template-columns:1fr}}
+.sv-cats{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px}
+.sv-cats button{border:1px solid var(--line);background:#fff;border-radius:10px;padding:10px 14px;font-size:13.5px;font-weight:600;cursor:pointer;color:#3a3f4a}
+.sv-cats button.on{background:var(--navy);color:#fff;border-color:var(--navy)}
+.sv-cats .cnt{font-size:11px;opacity:.7;margin-left:4px}
+.qsec{margin-bottom:18px}
+.qchips{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.qchip{border:1px solid #d9d2c2;background:#fff;border-radius:16px;padding:6px 12px;font-size:13px;font-weight:600;cursor:pointer;user-select:none}
+.qchip.on{background:var(--navy);color:#fff;border-color:var(--navy)}
+.qchip i{font-style:normal;margin-left:4px;opacity:.6}
+.qaddh{display:inline-flex;gap:6px}.qaddh input{width:80px;padding:6px 8px;border:1px solid #d9d2c2;border-radius:8px}
+.qaddh button{border:1px dashed #cfc7b6;background:#fff;border-radius:8px;padding:6px 10px;font-weight:600;cursor:pointer}
+.qextra{display:flex;justify-content:space-between;align-items:center;gap:12px;border:1px solid var(--line);border-radius:10px;padding:10px 14px;margin-bottom:8px}
+.qextra small{color:var(--muted)}
+.qtxt{padding:7px 9px;border:1px solid #d9d2c2;border-radius:8px;font-size:13px;width:150px}
+.coltime{font-size:11px;font-weight:500;text-transform:none;letter-spacing:0;color:var(--gold)}
+.apr{font-size:11px;color:var(--green);margin-top:3px}
+.vsw{display:flex;background:#f1ece2;border-radius:10px;padding:4px;flex-shrink:0}
+.vsw button{border:0;background:transparent;padding:8px 14px;border-radius:8px;font-weight:600;font-size:13px;cursor:pointer;color:#4a4f5a}
+.vsw button.on{background:var(--navy);color:#fff}
+.brk{font-size:11px;color:var(--muted);margin-top:3px}
+.mg{font-size:12px;font-weight:700;padding:3px 9px;border-radius:12px}
+.mg.ok{background:var(--greenbg);color:var(--green)}.mg.low{background:var(--amberbg);color:var(--amber)}.mg.neg{background:var(--redbg);color:var(--red)}
+.adm-note{background:#fff7d6;border:1px solid #f1d98a;color:#6b5310;border-radius:8px;padding:8px 12px;font-size:12.5px;margin-bottom:14px}
+.act{display:flex;gap:4px}.act button{border:1px solid var(--line);background:#fff;border-radius:6px;padding:4px 10px;cursor:pointer}
+.act .sel-ok{background:var(--green);color:#fff;border-color:var(--green)}.act .sel-bad{background:var(--red);color:#fff;border-color:var(--red)}
+.qarea{width:100%;min-height:64px;border:1px solid #d9d2c2;border-radius:8px;padding:10px;font:inherit}
+.cmpbox{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;background:#fcfaf5;border:1px solid var(--line);border-radius:12px;padding:12px 14px;margin-bottom:14px}
+.cmpbox .brk{display:block}.cmpbox small{display:block;color:var(--muted);font-size:12px}.cmpbox b{font-size:14px}
+.used{font-weight:700}.used i{font-style:normal;font-size:10.5px;color:var(--green);background:var(--greenbg);padding:1px 6px;border-radius:8px;margin-left:4px}
+.alt{color:var(--muted)}
+.content.wide{max-width:none;padding:22px 28px 40px}
+.role{display:flex;flex-direction:column;font-size:11px}.role select{padding:5px 8px;border:1px solid #d9d2c2;border-radius:8px;font-size:12.5px;font-weight:600;background:#fff}
+.ph{margin-bottom:16px}.ph h1{font-family:Georgia,serif;font-size:28px;margin:2px 0}.ph p{margin:0;color:var(--muted);font-size:13.5px}
+.crumb{font-size:11.5px;color:var(--muted);letter-spacing:.05em;text-transform:uppercase}
+.flt{display:flex;gap:8px}.flt select{padding:8px 10px;border:1px solid #d9d2c2;border-radius:8px;font-size:13px;background:#fff}
+.tag{display:inline-block;background:#eef2f8;color:#1f3a63;border:1px solid #d6dfec;border-radius:12px;padding:3px 9px;font-size:11.5px;font-weight:600;margin:2px 4px 2px 0;white-space:nowrap}
+.tag.more{background:#fff;color:var(--muted)}
+.lt td{padding:12px 10px;font-size:13.5px;vertical-align:middle}.lt th{padding:10px 10px}
+.lt td b{display:block}.lt .cats{display:flex;flex-wrap:wrap;gap:4px;max-width:210px}.lt .cats .tag{margin:0}
+.sub{display:block;color:var(--muted);font-size:12px;margin-top:2px}
+.nw{white-space:nowrap}.muted{color:var(--muted)}
+tr.click{cursor:pointer}tr.click:hover td{background:#fcfaf5}
+a.sid{font-weight:700;color:var(--navy);text-decoration:underline;text-underline-offset:3px;cursor:pointer}
+.pg{display:flex;justify-content:space-between;align-items:center;padding:12px 16px;font-size:13px;color:var(--muted);border-top:1px solid var(--line)}
+.pg button{border:1px solid var(--line);background:#fff;border-radius:6px;min-width:30px;height:30px;margin-left:4px;cursor:pointer}.pg button.on{background:var(--navy);color:#fff;border-color:var(--navy)}
+.bc{font-size:13px;color:var(--muted);margin-bottom:14px}.bc a{color:var(--navy);cursor:pointer;text-decoration:underline;text-underline-offset:3px}.bc span{margin:0 8px}.bc b{color:var(--text)}
+.sh{display:flex;gap:16px;align-items:center;background:#fff;border:1px solid var(--line);border-left:5px solid var(--gold);border-radius:12px;padding:18px 22px;margin-bottom:14px;flex-wrap:wrap}
+.sh h1{font-family:Georgia,serif;font-size:26px;margin:2px 0 0}
+.av{width:52px;height:52px;border-radius:12px;background:var(--navy);color:var(--gold);display:grid;place-items:center;font-family:Georgia,serif;font-size:18px;font-weight:700}
+.sh-act{display:flex;gap:8px;align-items:center}
+.tabs{display:flex;gap:4px;border-bottom:1px solid var(--line);margin-bottom:16px;overflow-x:auto}
+.tabs button{border:0;background:none;padding:11px 14px;font-weight:600;font-size:13.5px;color:var(--muted);cursor:pointer;border-bottom:3px solid transparent;white-space:nowrap}
+.tabs button.on{color:var(--navy);border-color:var(--gold)}
+.dcard{background:#fff;border:1px solid var(--line);border-radius:12px;padding:18px 20px;margin-bottom:16px}
+.dcard h3{margin:0 0 14px;font-size:15px;display:flex;justify-content:space-between;align-items:center;gap:10px}
+.dcard.link{cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap;border-left:4px solid var(--navy)}
+.dcard.link:hover{background:#fcfaf5}.qprev{display:flex;gap:6px;flex-wrap:wrap}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px}.grid2 .dcard{margin-bottom:16px}
+.kv{display:grid;grid-template-columns:repeat(2,1fr);gap:14px 20px}
+.kv div small{display:block;font-size:11.5px;color:var(--muted);margin-bottom:3px}.kv div b{font-size:14px;font-weight:600}
+.yes{color:var(--green)}.no{color:var(--muted)}
+.docs{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}
+.docc{display:flex;align-items:center;gap:12px;border:1px solid var(--line);border-radius:10px;padding:12px}
+.docc .ic{width:40px;height:48px;border:1px solid var(--line);border-radius:6px;display:grid;place-items:center;font-size:11px;font-weight:700;background:#fcfaf5}
+.docc b{display:block;font-size:14px}.docc small{color:var(--muted);font-size:12px}.docc .miss{color:var(--red);font-weight:600}
+.lock{display:flex;gap:14px;align-items:center;background:#fcfaf5;border-style:dashed}.lock .lk{font-size:26px}.lock p{margin:4px 0 0;color:var(--muted);font-size:13px}
+.qpage .qm-h h2{font-family:Georgia,serif;font-size:22px;margin:0}
+.btn.up{white-space:nowrap}.btn.sm{padding:6px 10px;font-size:12.5px}.lt .tag{font-size:11px;padding:2px 8px}
+@media(max-width:900px){.grid2,.docs{grid-template-columns:1fr}}
+.sidebar{width:250px}.nav-item.sub{padding:9px 20px 9px 44px;font-size:13px}.nav-item.sub2{padding:9px 20px 9px 32px;font-size:13.5px}.nav-item .car{float:right;opacity:.6}
+.nav-item.sub.active{margin:4px 10px;border-radius:10px;border:1px solid #2b3d5c;border-left:3px solid var(--gold);padding-left:34px}
+.tb2{justify-content:space-between}.tbl{display:flex;gap:14px;align-items:center}.tbt{font-family:Georgia,serif;font-size:22px;font-weight:700;color:var(--text)}
+.ham{width:34px;height:34px;border:1px solid var(--line);background:#fff;border-radius:8px;cursor:pointer}
+.tbr{display:flex;gap:10px;align-items:center}.pillbox{border:1px solid var(--line);background:#fff;border-radius:8px;padding:7px 12px;font-size:13px;color:var(--text)}
+.rsel{border:0;background:transparent;font-size:10.5px;color:var(--muted);padding:0;cursor:pointer}
+.fbar{display:flex;gap:10px;align-items:center;margin-bottom:12px;flex-wrap:wrap}.fbar input,.fbar select{padding:8px 10px;border:1px solid #e0d8c8;border-radius:6px;font-size:13px;background:#fff;color:#6b7080;min-width:200px}
+.ot th{background:#f4ece0;text-transform:none;letter-spacing:0;font-size:12.5px;color:#3a3f4a;font-weight:700}.ot td{font-size:13.5px;padding:12px}
+.pill2{display:inline-block;border:1px solid #cdd6e3;border-radius:14px;padding:3px 9px;font-size:12px;font-weight:600;margin:2px 0;background:#eef2f8}
+.bdg{font-size:12px;font-weight:600;padding:3px 9px;border-radius:12px;border:1px solid transparent}.bdg.ok{background:var(--greenbg);color:var(--green);border-color:#c9e5d3}.bdg.pending{background:var(--amberbg);color:var(--amber);border-color:#f1dcb4}.bdg.bad{background:var(--redbg);color:var(--red)}.bdg.none{background:#f1f2f4;color:#6b7180;border-color:#e2e4e8}
+a.rv{font-weight:700;cursor:pointer;color:var(--text)}
+.pg2{display:flex;justify-content:flex-end;gap:14px;align-items:center;padding:14px 6px 2px;font-size:13px}.pg2 span.on{background:var(--navy);color:#fff;border-radius:8px;padding:5px 10px}
+.bc{display:flex;align-items:center;flex-wrap:wrap}.back,.home{width:34px;height:34px;border:1px solid var(--line);background:#fff;border-radius:8px;cursor:pointer;font-size:16px;margin-right:6px;color:var(--navy)}
+.back:hover,.home:hover{background:var(--navy);color:#fff}.home{margin-right:12px}
+.mt{font-size:11.5px;font-weight:700;padding:3px 9px;border-radius:12px;white-space:nowrap}.mt.hr{background:#e8efff;color:#2455c3}.mt.fx{background:#f3e8ff;color:#7a3db8}.mt.both{background:#e6f5ec;color:var(--green)}</style></head><body>
+<div class="app">
+  <aside class="sidebar">
+    <div class="brand"><div class="mark">HX</div><div><b>HourX</b><span>ADMIN CONSOLE</span></div></div>
+    <div class="section-label">Workspace</div>
+    <div class="nav-item">⌂ Dashboard <span class="car">︿</span></div>
+    <div class="nav-item sub">Order Management</div>
+    <div class="nav-item sub">Services</div>
+    <div class="nav-item sub2">System Configuration <span class="car">︿</span></div>
+    <div class="nav-item sub">Service Categories</div>
+    <div class="nav-item sub">Service Types</div>
+    <div class="nav-item sub">Pricing Rules</div>
+    <div class="nav-item sub">Pricing Models</div>
+    <div class="nav-item sub">Add-on Categories</div>
+    <div class="nav-item sub">Add-on Services</div>
+    <div class="nav-item sub">Service Area Management</div>
+    <div class="nav-item sub active" onclick="go({v:'list'})" style="cursor:pointer">Supplier Management</div>
+  </aside>
+  <div class="main">
+    <div class="topbar tb2">
+      <div class="tbl"><button class="ham">≡</button><div><div class="crumb" style="color:var(--gold)">Operations console</div><div class="tbt">Supplier Management</div></div></div>
+      <div class="tbr">
+      <div style="text-align:right;font-size:11px">TODAY<br><b>Wed 30 Sept</b></div>
+      <div class="pillbox">English ▾</div><div class="pillbox">⟳</div>
+      <div class="pillbox" style="display:flex;gap:8px;align-items:center"><div class="avatar">H</div><div style="font-size:12px;line-height:1.2"><b>HourxCustomerSer…</b><br><select id="role" class="rsel" onchange="ROLE=this.value;render()" title="Demo: switch login role"><option value="super">Super Admin</option><option value="pricing">Pricing Manager</option><option value="ops">Operations Staff</option><option value="cs">Customer Service</option></select></div></div>
+      <div class="pillbox">🔒 Change password</div><div class="pillbox">⏻ Log Out</div></div>
+    </div>
+    <div class="content wide" id="page"></div>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+<!-- hidden stubs used by shared review code -->
+<div id="qm" style="display:none"></div>
+
+<script>
+const $=id=>document.getElementById(id);
+function toast(t){const e=$('toast');e.textContent=t;e.classList.add('show');clearTimeout(e._t);e._t=setTimeout(()=>e.classList.remove('show'),2400)}
+/* ================= SERVICES & PRICING (catalog + prices from hourxhome.com) ================= */
+const WEB={"40": {"Furnished|White|2 BHK": 3528, "Furnished|White|3 BHK": 4263, "Furnished|White|4 BHK": 4704, "Furnished|White|5 BHK": 5880, "Unfurnished|White|2 BHK": 2499, "Unfurnished|White|3 BHK": 3234, "Unfurnished|White|4 BHK": 3675, "Unfurnished|White|5 BHK": 4851}, "41": {"Furnished|White|Studio": 1690.5, "Furnished|White|1 BHK": 2058, "Furnished|White|2 BHK": 2425.5, "Furnished|White|3 BHK": 3013.5, "Furnished|White|4 BHK": 3454.5, "Unfurnished|White|Studio": 661.5, "Unfurnished|White|1 BHK": 1029, "Unfurnished|White|2 BHK": 1396.5, "Unfurnished|White|3 BHK": 1984.5, "Unfurnished|White|4 BHK": 2425.5}, "42": {"Furnished|1 BHK": 939.75, "Furnished|2 BHK": 1254.75, "Furnished|3 BHK": 1606.5, "Furnished|4 BHK": 2110.5, "Furnished|5 BHK": 2446.5, "Furnished|6 BHK": 2824.5, "Unfurnished|1 BHK": 698.25, "Unfurnished|2 BHK": 934.5, "Unfurnished|3 BHK": 1176, "Unfurnished|4 BHK": 1569.75, "Unfurnished|5 BHK": 1863.75, "Unfurnished|6 BHK": 2178.75}, "43": {"Furnished|Studio": 357, "Furnished|1 BHK": 556.5, "Furnished|2 BHK": 740.25, "Furnished|3 BHK": 1008, "Furnished|4 BHK": 1344, "Unfurnished|Studio": 278.25, "Unfurnished|1 BHK": 441, "Unfurnished|2 BHK": 661.5, "Unfurnished|3 BHK": 992.25, "Unfurnished|4 BHK": 1102.5}, "44": {"Without Materials|2|1": 2.63, "Without Materials|2|2": 178.5, "Without Materials|2|3": 262.5, "Without Materials|2|4": 351.75, "Without Materials|3|1": 131.25, "Without Materials|3|2": 262.5, "Without Materials|3|3": 399, "Without Materials|3|4": 530.25, "Without Materials|4|1": 178.5, "Without Materials|4|2": 351.75, "Without Materials|4|3": 530.25, "Without Materials|4|4": 703.5, "Without Materials|5|1": 220.5, "Without Materials|5|2": 441, "Without Materials|5|3": 661.5, "Without Materials|5|4": 882, "Without Materials|6|1": 262.5, "Without Materials|6|2": 530.25, "Without Materials|6|3": 792.75, "Without Materials|6|4": 1060.5, "With Materials|2|1": 105, "With Materials|2|2": 204.75, "With Materials|2|3": 309.75, "With Materials|2|4": 409.5, "With Materials|3|1": 152.25, "With Materials|3|2": 309.75, "With Materials|3|3": 462, "With Materials|3|4": 619.5, "With Materials|4|1": 204.75, "With Materials|4|2": 409.5, "With Materials|4|3": 619.5, "With Materials|4|4": 824.25, "With Materials|5|1": 257.25, "With Materials|5|2": 514.5, "With Materials|5|3": 771.75, "With Materials|5|4": 1029, "With Materials|6|1": 309.75, "With Materials|6|2": 619.5, "With Materials|6|3": 924, "With Materials|6|4": 1233.75}, "45": {"1": 204.75, "2": 514.5, "3": 661.5, "4": 824.25}, "47": {"Basic|1 Unit": 178.5, "Basic|2 Unit": 351.75, "Basic|3 Unit": 530.25, "Basic|4 Unit": 703.5, "Full System|1 Unit": 955.5, "Full System|2 Unit": 1438.5, "Full System|3 Unit": 1869, "Full System|4 Unit": 2262.75}, "56": {"Single|1": 252, "Single|1.5": 294, "Couples|1": 630, "Couples|1.5": 735}, "57": {"Single|1": 367.5, "Single|1.5": 420, "Couples|1": 735, "Couples|1.5": 840}, "58": {"Single|1": 367.5, "Single|1.5": 420, "Couples|1": 735, "Couples|1.5": 840}, "59": {"Single|1": 367.5, "Single|1.5": 420, "Couples|1": 735, "Couples|1.5": 840}, "65": {"Single|1": 252, "Single|1.5": 294, "Couples|1": 630, "Couples|1.5": 735}, "82": {"Polyurethane|Up to 100 sq.ft.": 2047.5, "Polyurethane|101 - 150 sq.ft.": 3071.25, "Polyurethane|151 - 200 sq.ft.": 4095, "Polyurethane|201 - 250 sq.ft.": 5118.75, "Polyurethane|251 - 500 sq.ft.": 10237.5, "Acrylic|Up to 100 sq.ft.": 1512, "Acrylic|101 - 150 sq.ft.": 2268, "Acrylic|151 - 200 sq.ft.": 3024, "Acrylic|201 - 250 sq.ft.": 3780, "Acrylic|251 - 500 sq.ft.": 7560, "Bituminous|Up to 100 sq.ft.": 1365, "Bituminous|101 - 150 sq.ft.": 2047.5, "Bituminous|151 - 200 sq.ft.": 2730, "Bituminous|201 - 250 sq.ft.": 3412.5, "Bituminous|251 - 500 sq.ft.": 6825}};
+WEB['114']={"Split AC|1|1":178.5,"Split AC|2|1":351.75,"Split AC|3|1":530.25,"Split AC|4|1":703.5,"Split AC|1|2":351.75,"Split AC|2|2":703.5,"Split AC|3|2":1060.5,"Split AC|4|2":1412.25,"Duct / Central AC|1|1":204.75,"Duct / Central AC|2|1":409.5,"Duct / Central AC|3|1":619.5,"Duct / Central AC|4|1":824.25,"Duct / Central AC|1|2":409.5,"Duct / Central AC|2|2":824.25,"Duct / Central AC|3|2":1233.75,"Duct / Central AC|4|2":1648.5};
+const TV75={"1|1":483,"1|2":483,"1|3":724.5,"1|4":966,"2|1":966,"2|2":966,"2|3":1449,"2|4":1932,"3|1":1449,"3|2":1449,"3|3":2173.5,"3|4":2898,"4|1":1932,"4|2":1932,"4|3":2898,"4|4":3864};
+const CATS=['AC Cleaning & Maintenance','Home Cleaning','Painting & Wall Finishing','Spa & Wellness at Home','General Maintenance & Repairs'];
+const pk=(s,h)=>({s,h,on:true,p:''});
+const combos=(S,Hs)=>{const a=[];S.forEach(s=>Hs.forEach(h=>a.push(pk(s,h))));return a};
+const hourly=o=>Object.assign({kind:'hourly',mode:'rate',rate:0,offered:false,status:'none'},o);
+const grid=o=>Object.assign({kind:'grid',mode:'fixed',offered:false,status:'none'},o);
+const rowsOf=(names,times)=>names.map((n,i)=>({n,t:(times&&times[i])||'',on:true,p:{}}));
+const MASSAGE_ADD=['Head Massage (15 min)','Abdomen Massage (15 min)','Neck & Shoulder Focus (15 min)','Foot Massage / Reflexology (15 min)','Extra 30 minutes','Aromatherapy Upgrade'];
+const MASSAGE_ADD_WEB=[63,63,63,63,105,42];
+const massage=(id,name)=>hourly({id,cat:'Spa & Wellness at Home',name,word:'therapist',massage:true,pkgs:combos([1,2],[1,1.5]),adds:MASSAGE_ADD.map((n,i)=>({n,p:'',web:MASSAGE_ADD_WEB[i]}))});
+const tech=(id,name,types,base,extra)=>hourly(Object.assign({id,cat:'General Maintenance & Repairs',name,word:'technician',types,typesOn:types.slice(),base,pkgs:combos([1,2],[1,2,3,4])},extra||{}));
+let SVC=[
+ hourly({id:114,cat:'AC Cleaning & Maintenance',name:'AC Repair & Troubleshooting',word:'technician',types:['Split AC','Duct / Central AC'],typesOn:['Split AC','Duct / Central AC'],pkgs:combos([1,2],[1,2,3,4]),offered:true}),
+ hourly({id:45,cat:'AC Cleaning & Maintenance',name:'Split AC Cleaning',kind:'unit',word:'AC unit',pkgs:[1,2,3,4].map(u=>({u,t:u+' hour'+(u>1?'s':''),on:true,p:''}))}),
+ grid({id:47,cat:'AC Cleaning & Maintenance',name:'Duct AC Cleaning',rowLbl:'Units',cols:['Basic','Full System'],colTimes:['Filter & vent · 30–45 mins / unit','Deep clean · 2–3 hours / unit'],rows:rowsOf(['1 Unit','2 Unit','3 Unit','4 Unit']),timeEditable:false,addRowLbl:'+ Add units',adds:[]}),
+ hourly({id:44,cat:'Home Cleaning',name:'Home Care Cleaning',word:'cleaner',pkgs:combos([1,2,3,4],[2,3,4,5,6]),mat:''}),
+ grid({id:43,cat:'Home Cleaning',name:'Apartment Deep Cleaning',rowLbl:'Unit type',cols:['Furnished','Unfurnished'],rows:rowsOf(['Studio','1 BHK','2 BHK','3 BHK','4 BHK']),timeEditable:true,addRowLbl:'+ Add unit type',adds:[{n:'Carpet / Curtain Cleaning (per sqft)',p:'',web:3.15}]}),
+ grid({id:42,cat:'Home Cleaning',name:'Villa Deep Cleaning',rowLbl:'Unit type',cols:['Furnished','Unfurnished'],rows:rowsOf(['1 BHK','2 BHK','3 BHK','4 BHK','5 BHK','6 BHK']),timeEditable:true,addRowLbl:'+ Add unit type',adds:[{n:'Carpet / Curtain Cleaning (per sqft)',p:'',web:3.15}]}),
+ grid({id:41,cat:'Painting & Wall Finishing',name:'Apartment Painting',paint:true,rowLbl:'Unit type',cols:['Furnished','Unfurnished'],rows:rowsOf(['Studio','1 BHK','2 BHK','3 BHK','4 BHK'],['2 painters / 3 hours','From 1 day','From 2 days','From 2 days','From 3 days']),timeEditable:true,addRowLbl:'+ Add unit type',adds:[['Ceiling Painting – Studio',147],['Ceiling Painting – 1 BHK',147],['Ceiling Painting – 2 BHK',294],['Ceiling Painting – 3 BHK',441],['Ceiling Painting – 4 BHK',588]].map(([n,w])=>({n,p:'',web:w}))}),
+ grid({id:40,cat:'Painting & Wall Finishing',name:'Villa Painting',paint:true,rowLbl:'Unit type',cols:['Furnished','Unfurnished'],rows:rowsOf(['2 BHK','3 BHK','4 BHK','5 BHK'],['1 day','1 – 1.5 days','4 painters / 1.5 days','4 painters / 1.5 days']),timeEditable:true,addRowLbl:'+ Add unit type',adds:[['Ceiling Painting – 2 BHK',294],['Ceiling Painting – 3 BHK',441],['Ceiling Painting – 4 BHK',588],['Ceiling Painting – 5 BHK',735]].map(([n,w])=>({n,p:'',web:w}))}),
+ grid({id:82,cat:'Painting & Wall Finishing',name:'Roof Water Proofing',rowLbl:'Roof area',cols:['Polyurethane','Acrylic','Bituminous'],rows:rowsOf(['Up to 100 sq.ft.','101 - 150 sq.ft.','151 - 200 sq.ft.','201 - 250 sq.ft.','251 - 500 sq.ft.']),timeEditable:true,addRowLbl:'+ Add area',adds:[]}),
+ massage(65,'Relaxation Massage'),massage(56,'Deep Tissue Massage'),massage(59,'Sports Massage'),massage(58,'Hot Stone Massage'),massage(57,'Lymphatic Drainage'),
+ tech(116,'TV Installation & Mounting',['Below 55" TV','55" to 75" TV','Above 75" TV','Unmount & Reinstall','TV Technician'],{'Below 55" TV':183.75,'55" to 75" TV':215.25,'Unmount & Reinstall':183.75,'TV Technician':183.75},{offered:true}),
+ tech(115,'Door & Window Lock Repair',['Door Lock Repair','Aluminium Door & Window Lock','Smart Lock Replacement'],{'Door Lock Repair':162.75,'Aluminium Door & Window Lock':220.5,'Smart Lock Replacement':189}),
+ tech(93,'Plumbing Repair & Maintenance',['Blocked Drain','Water Leak','Kitchen Plumbing','Bathroom Plumbing'],{'Blocked Drain':178.5,'Water Leak':178.5,'Kitchen Plumbing':178.5,'Bathroom Plumbing':178.5}),
+ tech(92,'Electrical Repair & Installation',['Switch & Socket Repair','Lighting Installation & Repair','Electrical Wiring','Chandelier Installation'],{'Switch & Socket Repair':162.75,'Lighting Installation & Repair':162.75,'Electrical Wiring':183.75,'Chandelier Installation':183.75},{adds:[['Electrical cable 1.5mm (lighting) · per meter',8.4],['Electrical cable 2.5mm (sockets) · per meter',12.6],['Electrical cable 4mm (AC / heater) · per meter',18.9],['Switch 1-Gang · per piece',36.75],['Switch 2-Gang · per piece',52.5],['Socket 13A Single · per piece',52.5],['Socket 13A Double · per piece',78.75],['Socket USB · per piece',178.5]].map(([n,w])=>({n,p:'',web:w}))}),
+ tech(89,'Home Fix & Installation',['Drilling & Hanging','Furniture Installation','Carpentry','Multi-Technician'],{'Drilling & Hanging':162.75,'Furniture Installation':162.75,'Carpentry':178.5,'Multi-Technician':178.5})
+];
+SVC.forEach(s=>{if(s.kind==='unit'){s.mode='rate'}});
+// demo data for supplier HeHe Wellness
+(()=>{const r=SVC.find(s=>s.id===65);r.offered=true;r.status='ok';r.mode='fixed';r.rate=175;[180,210,440,520].forEach((v,i)=>{r.pkgs[i].p=v;r.pkgs[i].ap=v});r.adds.forEach((a,i)=>a.p=[45,45,45,45,75,30][i]);
+ const d=SVC.find(s=>s.id===56);d.offered=true;d.status='pending';d.mode='rate';d.rate=170;[180,250,350,500].forEach((v,i)=>d.pkgs[i].p=v);d.adds.forEach((a,i)=>a.p=[50,50,50,50,90,35][i]);
+ const t=SVC.find(s=>s.id===116);t.status='pending';t.rate=150;[160,300,440,580,300,580,860,1140].forEach((v,i)=>t.pkgs[i].p=v);t.typesOn=['Below 55" TV','55" to 75" TV','Unmount & Reinstall'];})();
+
+const STAT={none:['none','Not quoted'],draft:['draft','Draft'],pending:['pending','Pending review'],ok:['ok','Approved'],bad:['bad','Changes requested']};
+let svCat=CATS[3],Q=null,qIdx=-1,VIEW='sup',adVar=null;
+const esc=s=>String(s).replace(/"/g,'&quot;');
+const aed=n=>'AED '+(Math.round(n*100)/100).toLocaleString('en-US',{maximumFractionDigits:2});
+const plural=(n,w)=>`${n} ${w}${n>1?'s':''}`;
+const hrs=h=>h<1||h%1?(h*60)+' min':plural(h,'hour');
+
+/* ----- package helpers ----- */
+function pkLabel(s,p){
+ if(s.kind==='unit')return plural(p.u,'AC unit');
+ if(s.massage)return `${p.s===1?'Single':p.s===2?'Couples':p.s+' people'} · ${p.h*60} min`;
+ return `${plural(p.s,s.word)} · ${hrs(p.h)}`;
+}
+function pkPrice(s,p){
+ if(s.mode==='rate')return s.kind==='unit'?(s.rate||0)*p.u:(s.rate||0)*p.s*p.h;
+ return +p.p||0;
+}
+function webPrice(s,p,variant){
+ const W=WEB[s.id];
+ if(s.id===44)return (W||{})[(variant||'Without Materials')+'|'+p.h+'|'+p.s];
+ if(s.id===114)return W[(variant||s.types[0])+'|'+p.h+'|'+p.s];
+ if(s.massage)return W[(p.s===1?'Single':'Couples')+'|'+p.h];
+ if(s.kind==='unit')return W[p.u];
+ if(s.base){const v=variant||s.typesOn[0]||s.types[0];if(v==='Above 75" TV')return TV75[p.s+'|'+p.h];return s.base[v]?s.base[v]*p.s*p.h:null}
+ return null;
+}
+function gridWeb(s,row,col){const W=WEB[s.id];if(!W)return null;return s.paint?W[col+'|White|'+row]:W[col+'|'+row]}
+function supPrice44(s,p,variant){return pkPrice(s,p)+(variant==='With Materials'&&s.mode==='rate'?(+s.mat||0)*p.s*p.h:0)}
+
+/* ----- page ----- */
+function showPage(pg){
+ document.querySelectorAll('.sidebar .nav-item').forEach(n=>n.classList.toggle('active',n.dataset.pg===pg));
+ document.querySelector('.content:not(#pageServices)').style.display=pg==='profile'?'block':'none';
+ $('pageServices').style.display=pg==='services'?'block':'none';
+ document.querySelector('.ob').style.display=pg==='profile'?'block':'none';
+ document.querySelector('.legend-s').style.display=pg==='profile'?'block':'none';
+ if(pg==='services')renderSvc();
+ if(pg!=='profile'&&pg!=='services')toast('Not part of this mockup');
+}
+function setView(v){VIEW=v;$('vSupBtn').classList.toggle('on',v==='sup');$('vAdmBtn').classList.toggle('on',v==='adm');renderSvc()}
+function minPrice(s){
+ if(s.kind==='grid'){const ps=[];s.rows.filter(r=>r.on).forEach(r=>s.cols.forEach(c=>{if(+r.p[c])ps.push(+r.p[c])}));return ps.length?Math.min(...ps):0}
+ const ps=s.pkgs.filter(p=>p.on).map(p=>pkPrice(s,p)).filter(Boolean);return ps.length?Math.min(...ps):0;
+}
+function priceText(s){
+ if(s.kind!=='grid'&&s.mode==='rate'&&s.rate)return `AED ${s.rate} / ${s.kind==='unit'?'unit':s.word+' / hr'}`;
+ const m=minPrice(s);return m?`From ${aed(m)}`:'<span style="color:var(--muted)">Not set</span>';
+}
+function renderSvc(){
+ const adm=VIEW==='adm';
+ $('svHead').innerHTML=adm?'<tr><th>Service</th><th>Supplier</th><th>Supplier price</th><th>Lowest HourX margin</th><th>Status</th><th></th></tr>':'<tr><th style="width:70px">Offer</th><th>Service</th><th>Your price</th><th>Status</th><th></th></tr>';
+ $('svCats').innerHTML=CATS.map(c=>{const n=SVC.filter(s=>s.cat===c).length,o=SVC.filter(s=>s.cat===c&&s.offered).length;
+  return `<button class="${c===svCat?'on':''}" onclick="svCat='${c}';renderSvc()">${c} <span class="cnt">${o}/${n}</span></button>`}).join('');
+ const q=$('svSearch').value.toLowerCase();
+ const list=SVC.map((s,i)=>({s,i})).filter(({s})=>(q?true:s.cat===svCat)&&s.name.toLowerCase().includes(q)&&(!adm||s.offered));
+ $('svRows').innerHTML=list.map(({s,i})=>adm?`
+  <tr><td class="svname"><b>${s.name}</b><small>${s.cat}</small></td><td>HeHe Wellness</td><td>${priceText(s)}</td>
+   <td>${marginBadge(s)}</td><td><span class="st ${STAT[s.status][0]}">${STAT[s.status][1]}</span></td>
+   <td style="text-align:right"><button class="btn up" onclick="openAdm(${i})">Review</button></td></tr>`:`
+  <tr class="${s.offered?'':'off'}">
+   <td><button class="qsw ${s.offered?'on':''}" onclick="SVC[${i}].offered=!SVC[${i}].offered;renderSvc()" aria-label="Offer ${esc(s.name)}"></button></td>
+   <td class="svname"><b>${s.name}</b><small>${s.kind==='grid'?'Fixed price per package':s.kind==='unit'?'Price per AC unit or per package':'Rate per '+s.word+' per hour, or per package'}</small></td>
+   <td>${priceText(s)}</td>
+   <td>${s.offered?`<span class="st ${STAT[s.status][0]}">${STAT[s.status][1]}</span>`:'<span style="color:var(--muted);font-size:12px">Not offered</span>'}</td>
+   <td style="text-align:right"><button class="btn up" onclick="openQ(${i})">✎ Edit</button></td></tr>`).join('')||`<tr><td colspan="6" style="color:var(--muted)">${adm?'No quotes from this supplier in this category':'No services found'}</td></tr>`;
+ const on=SVC.filter(s=>s.offered),cnt=k=>on.filter(s=>s.status===k).length;
+ $('svStats').innerHTML=[['Services offered',on.length],['Approved',cnt('ok')],['Pending review',cnt('pending')],['Not quoted yet',cnt('none')+cnt('draft')]]
+  .map(([l,v])=>`<div class="sv-stat"><small>${l}</small><b>${v}</b></div>`).join('');
+ $('svCatTitle').textContent=q?'Search results':svCat;
+ $('svIntro').textContent=adm?'HourX only: compare each supplier price with the HourX website price before approving.':'Choose a category, switch on the services you offer, then click Edit to set your price.';
+}
+
+/* ----- margin (admin) ----- */
+function compareRows(s,variant){
+ const out=[];
+ if(s.kind==='grid'){s.rows.filter(r=>r.on).forEach(r=>s.cols.forEach(c=>{const sp=+r.p[c]||0,w=gridWeb(s,r.n,c);out.push({lbl:`${r.n} · ${c}`,sp,w})}));}
+ else s.pkgs.filter(p=>p.on).forEach(p=>{const q=s.kind==='unit'?p.u:p.s*p.h,mat=(s.id===44&&variant==='With Materials')?(+s.mat||0):0;
+  const rp=s.rate?(s.rate+(s.kind==='unit'?0:mat))*q:0,fp=(+p.p||0)?(+p.p)+(mat?mat*q:0):0;
+  const sp=s.mode==='rate'?rp:fp;out.push({lbl:pkLabel(s,p),sp,rp,fp,w:webPrice(s,p,variant),p})});
+ return out;
+}
+function marginBadge(s){
+ const rows=compareRows(s,s.id===44?'Without Materials':null).filter(r=>r.sp&&r.w);
+ if(!rows.length)return '<span style="color:var(--muted)">—</span>';
+ const m=Math.min(...rows.map(r=>(r.w-r.sp)/r.w*100));
+ return `<span class="mg ${m<0?'neg':m<15?'low':'ok'}">${m.toFixed(0)}%</span>`;
+}
+
+/* ---------- supplier quote modal ---------- */
+function openQ(i){qIdx=i;Q=JSON.parse(JSON.stringify(SVC[i]));$('qm').classList.add('show');qRender()}
+function closeQ(){$('qm').classList.remove('show')}
+function qFootSup(){$('qFoot').innerHTML=`<div class="qm-info" id="qInfo"></div><div style="display:flex;gap:8px"><button class="btn" onclick="closeQ()">Close</button><button class="btn" onclick="qSave('draft')">Save draft</button><button class="btn navy" id="qSubmit" onclick="qSave('pending')">Submit for review</button></div>`}
+function qRender(){
+ $('qTitle').textContent=Q.name;
+ $('qMeta').textContent=`${Q.cat} · Enter your price in AED, incl. 5% VAT`;
+ const st=STAT[Q.status];$('qStatus').className='st '+st[0];$('qStatus').textContent=st[1];
+ qFootSup();
+ $('qBody').innerHTML=Q.kind==='grid'?gridUI():pkgUI();
+ qCheck();
+}
+function chip(on,label,fn){return `<span class="qchip ${on?'on':''}" onclick="${fn}">${on?'✓ ':''}${label}</span>`}
+function vat(pr){return pr?`<div class="brk">${aed(pr/1.05)} + VAT ${aed(pr-pr/1.05)}</div>`:'<div class="brk">Required if offered</div>'}
+function pkgUI(){
+ const unit=Q.kind==='unit',W=unit?'AC unit':Q.word,rate=Q.mode==='rate';
+ let h=`<div class="qsec"><div class="qlabel">How do you want to charge?</div><div class="qmodes">
+  <div class="qmode ${rate?'on':''}" onclick="Q.mode='rate';qRender()"><b>${unit?'Price per AC unit':`Rate per ${W} per hour`}</b><small>${unit?'e.g. AED 150 × 3 units = AED 450':`e.g. AED 80 × 2 ${W}s × 2 hours = AED 320`}</small></div>
+  <div class="qmode ${rate?'':'on'}" onclick="Q.mode='fixed';qRender()"><b>Fixed price per package</b><small>You set a price for each package</small></div></div></div>`;
+ if(Q.types)h+=`<div class="qsec"><div class="qlabel">Which jobs do you do?</div><div class="qchips">${Q.types.map(x=>chip(Q.typesOn.includes(x),x,`qTogType('${esc(x).replace(/'/g,"\\'")}')`)).join('')}</div></div>`;
+ if(rate)h+=`<div class="qsec"><div class="qrate">
+   <div class="field" style="width:230px;margin:0"><label>${unit?'Price per AC unit':`Rate per ${W} per hour`}</label><div class="qinp"><span>AED</span><input id="qRate" type="number" min="0" placeholder="Enter rate" value="${Q.rate||''}" oninput="Q.rate=+this.value||0;qPk()"></div></div>
+   ${Q.id===44?`<div class="field" style="width:230px;margin:0"><label>Extra if you bring materials</label><div class="qinp"><span>+ AED</span><input type="number" min="0" placeholder="per cleaner per hour" value="${Q.mat||''}" oninput="Q.mat=this.value"></div></div>`:''}
+   <div class="qformula">Package price = <b>${unit?'price × units':`rate × ${W}s × hours`}</b><br><small>Price includes 5% VAT</small></div></div></div>`;
+ else if(Q.id===44)h+=`<div class="qsec"><div class="qrate"><div class="field" style="width:260px;margin:0"><label>Extra if you bring materials (per package)</label><div class="qinp"><span>+ AED</span><input type="number" min="0" value="${Q.mat||''}" oninput="Q.mat=this.value"></div></div></div></div>`;
+ h+=`<div class="qsec"><div class="qlabel">Packages you offer</div><div class="hint" style="margin:-4px 0 10px">Switch off any package you don't offer. You can change the ${unit?'units and time needed':Q.massage?'people and time':W+'s and hours'} for each package.</div>
+  <div style="overflow-x:auto"><table class="sv-t q-t"><thead id="qHead"></thead><tbody id="qRows"></tbody></table></div>
+  <button class="qadd" onclick="qAdd()">+ Add package</button></div>`;
+ if(Q.adds&&Q.adds.length)h+=addsUI();
+ setTimeout(qPk);return h;
+}
+function addsUI(){return `<div class="qsec"><div class="qlabel">Add-ons <small style="font-weight:400;color:var(--muted)">(leave empty if you don't offer it)</small></div>${Q.adds.map((a,i)=>`<div class="qextra"><span>${a.n}</span><div class="qinp" style="width:150px"><span>AED</span><input type="number" value="${a.p}" placeholder="Price" oninput="Q.adds[${i}].p=this.value"></div></div>`).join('')}</div>`}
+function qPk(){
+ if(!$('qRows'))return;
+ const unit=Q.kind==='unit',fixed=Q.mode==='fixed',W=unit?'Units':Q.massage?'People':Q.word[0].toUpperCase()+Q.word.slice(1)+'s';
+ $('qHead').innerHTML=`<tr><th>Offer</th><th>Package</th><th>${W}</th><th>${unit?'Time needed':'Hours'}</th><th>Your price</th><th>Approved price</th></tr>`;
+ $('qRows').innerHTML=Q.pkgs.map((p,i)=>{const pr=pkPrice(Q,p);return `<tr class="${p.on?'':'off'}">
+  <td><button class="qsw ${p.on?'on':''}" onclick="Q.pkgs[${i}].on=!Q.pkgs[${i}].on;qPk();qCheck()"></button></td>
+  <td><b>${pkLabel(Q,p)}</b></td>
+  <td>${step(i,unit?'u':'s',1)}</td>
+  <td>${unit?`<input class="qtxt" style="width:110px" value="${esc(p.t)}" oninput="Q.pkgs[${i}].t=this.value">`:step(i,'h',0.5)}</td>
+  <td><div class="qinp ${fixed?'':'dis'}" style="width:140px"><span>AED</span><input type="number" ${fixed?'':'readonly'} value="${fixed?(p.p??''):pr}" placeholder="Enter price" oninput="Q.pkgs[${i}].p=this.value;qVat(${i});qCheck()"></div><span id="qv${i}">${vat(pr)}</span></td>
+  <td>${p.ap?aed(p.ap):'<span style="color:var(--muted);font-size:12px">Not approved yet</span>'}</td></tr>`}).join('');
+ qCheck();
+}
+function step(i,k,d){const v=Q.pkgs[i][k];return `<div class="qn"><button onclick="qStep(${i},'${k}',-${d})">−</button><input value="${v}" onchange="Q.pkgs[${i}]['${k}']=Math.max(${d},+this.value||${d});qPk()"><button onclick="qStep(${i},'${k}',${d})">+</button></div>`}
+function qStep(i,k,d){const p=Q.pkgs[i];p[k]=Math.max(Math.abs(d),+(p[k]+d).toFixed(1));qPk()}
+function qVat(i){$('qv'+i).innerHTML=vat(pkPrice(Q,Q.pkgs[i]))}
+function qTogType(x){const a=Q.typesOn,i=a.indexOf(x);i>-1?a.splice(i,1):a.push(x);qRender()}
+function qAdd(){Q.pkgs.push(Q.kind==='unit'?{u:(Q.pkgs.at(-1)?.u||0)+1,t:'',on:true,p:''}:{s:1,h:Q.massage?2:5,on:true,p:''});qPk()}
+
+function gridUI(){
+ let h=`<div class="qsec"><div class="qlabel">How do you want to charge?</div><div class="qmodes"><div class="qmode on"><b>Fixed price per package</b><small>This service is priced by ${Q.rowLbl.toLowerCase()}</small></div></div></div>`;
+ if(Q.paint)h+=`<div class="qsec"><div class="qlabel">Paint colours you offer</div><div class="qchips">${['White','Off-White'].map(c=>chip(!(Q.noPaint||[]).includes(c),c,`qTogPaint('${c}')`)).join('')}</div></div>`;
+ h+=`<div class="qsec"><div class="qlabel">Packages you offer</div><div class="hint" style="margin:-4px 0 10px">Switch off any package you don't offer.${Q.timeEditable?' You can change the time needed for each package.':''}</div>
+ <div style="overflow-x:auto"><table class="sv-t q-t"><thead><tr><th>Offer</th><th>${Q.rowLbl}</th>${Q.timeEditable?'<th>Time needed</th>':''}${Q.cols.map((c,j)=>`<th>${c}${Q.colTimes?`<div class="coltime">${Q.colTimes[j]}</div>`:''}</th>`).join('')}</tr></thead><tbody>`;
+ Q.rows.forEach((r,i)=>{h+=`<tr class="${r.on?'':'off'}"><td><button class="qsw ${r.on?'on':''}" onclick="Q.rows[${i}].on=!Q.rows[${i}].on;qRender()"></button></td>
+  <td>${r.custom?`<input class="qtxt" value="${esc(r.n)}" oninput="Q.rows[${i}].n=this.value">`:`<b>${r.n}</b>`}</td>
+  ${Q.timeEditable?`<td><input class="qtxt" value="${esc(r.t)}" placeholder="e.g. 3 hours" oninput="Q.rows[${i}].t=this.value"></td>`:''}
+  ${Q.cols.map(c=>`<td><div class="qinp" style="width:125px"><span>AED</span><input type="number" min="0" value="${r.p[c]??''}" placeholder="Price" oninput="Q.rows[${i}].p['${c}']=this.value;qCheck()"></div>${r.ap&&r.ap[c]?`<div class="apr">Approved: AED ${r.ap[c]}</div>`:''}</td>`).join('')}</tr>`});
+ h+=`</tbody></table></div><div class="brk" style="margin-top:6px">All prices include 5% VAT</div><button class="qadd" onclick="Q.rows.push({n:'',t:'',on:true,p:{},custom:true});qRender()">${Q.addRowLbl}</button></div>`;
+ if(Q.adds.length)h+=addsUI();
+ return h;
+}
+function qTogPaint(c){Q.noPaint=Q.noPaint||[];const i=Q.noPaint.indexOf(c);i>-1?Q.noPaint.splice(i,1):Q.noPaint.push(c);qRender()}
+function qCheck(){
+ if(!$('qSubmit'))return;let ok=true,msg='';
+ if(Q.kind==='grid'){
+  const on=Q.rows.filter(r=>r.on),miss=on.filter(r=>Q.cols.some(c=>!(+r.p[c])));
+  if(!on.length){ok=false;msg='Switch on at least one package'}else if(miss.length){ok=false;msg=`<span style="color:var(--red)">${miss.length} package${miss.length>1?'s':''} missing a price</span>`}else msg=`<b>${on.length}</b> of ${Q.rows.length} packages offered`;
+ }else{
+  const on=Q.pkgs.filter(p=>p.on),miss=on.filter(p=>!pkPrice(Q,p));
+  if(!on.length){ok=false;msg='Switch on at least one package'}else if(miss.length){ok=false;msg=`<b>${on.length}</b> of ${Q.pkgs.length} packages offered · <span style="color:var(--red)">${miss.length} missing a price</span>`}else msg=`<b>${on.length}</b> of ${Q.pkgs.length} packages offered · ✓ all priced`;
+ }
+ $('qInfo').innerHTML=msg;$('qSubmit').disabled=!ok;
+}
+function qSave(st){Q.status=st;Q.offered=true;SVC[qIdx]=Q;closeQ();renderSvc();toast(st==='pending'?'Sent to HourX for review':'Draft saved')}
+
+/* ---------- HourX admin review modal ---------- */
+function openAdm(i){qIdx=i;Q=SVC[i];adVar=Q.id===44?'Without Materials':(Q.typesOn&&Q.typesOn[0])||(Q.types&&Q.types[0])||null;$('qm').classList.add('show');admRender()}
+function admRender(){
+ const s=Q;
+ $('qTitle').textContent='Review · '+s.name;
+ $('qMeta').textContent=`Supplier: HeHe Wellness · ${s.cat} · All prices incl. 5% VAT`;
+ const st=STAT[s.status];$('qStatus').className='st '+st[0];$('qStatus').textContent=st[1];
+ const rows=compareRows(s,adVar);const priced=rows.filter(r=>r.sp&&r.w);
+ const ms=priced.map(r=>(r.w-r.sp)/r.w*100);
+ const avg=ms.length?ms.reduce((a,b)=>a+b,0)/ms.length:0,low=ms.length?Math.min(...ms):0,flag=ms.filter(m=>m<15).length;
+ const method=s.kind==='grid'?'Fixed price per package':s.mode==='rate'?(s.kind==='unit'?`Price per AC unit · AED ${s.rate}`:`Rate · AED ${s.rate} per ${s.word} per hour`):'Fixed price per package';
+ let h=`<div class="adm-note">🔒 HourX only — the supplier never sees the website price or margin.</div>
+ <div class="sv-stats" style="margin-bottom:14px">
+  <div class="sv-stat"><small>Supplier pricing method</small><b style="font-size:14px;font-family:inherit">${method}</b></div>
+  <div class="sv-stat"><small>Average HourX margin</small><b>${ms.length?avg.toFixed(0)+'%':'—'}</b></div>
+  <div class="sv-stat"><small>Lowest margin</small><b style="color:${low<15?'var(--red)':'inherit'}">${ms.length?low.toFixed(0)+'%':'—'}</b></div>
+  <div class="sv-stat"><small>Packages under 15% margin</small><b style="color:${flag?'var(--red)':'inherit'}">${flag}</b></div></div>`;
+ if(s.typesOn&&s.typesOn.length)h+=`<div class="qsec"><div class="qlabel">Jobs the supplier does</div><div class="qchips">${s.types.map(x=>`<span class="qchip ${s.typesOn.includes(x)?'on':''}">${s.typesOn.includes(x)?'✓ ':''}${x}</span>`).join('')}</div></div>`;
+ const vars=s.id===44?['Without Materials','With Materials']:s.id===114?s.types:s.base?s.typesOn:null;
+ if(vars&&vars.length>1)h+=`<div class="qsec"><div class="qlabel">Compare with website price for</div><div class="qchips">${vars.map(v=>`<span class="qchip ${v===adVar?'on':''}" onclick="adVar='${esc(v).replace(/'/g,"\\'")}';admRender()">${v}</span>`).join('')}</div></div>`;
+ const both=s.kind!=='grid',used=s.mode;
+ const cell=(v,on)=>v?`<span class="${on?'used':'alt'}">${aed(v)}${on?' <i>✓ used</i>':''}</span>`:'<span style="color:var(--muted)">Not entered</span>';
+ if(both){const pr=rows.filter(r=>r.rp&&r.fp);const dif=pr.length?pr.reduce((a,r)=>a+(r.fp-r.rp),0)/pr.length:null;
+  const wr=rows.filter(r=>r.w).map(r=>r.w/(s.kind==='unit'?r.p.u:r.p.s*r.p.h));const webRate=wr.length?Math.min(...wr):null;
+  h+=`<div class="cmpbox"><div><small>Supplier hourly rate</small><b>${s.rate?aed(s.rate)+' / '+(s.kind==='unit'?'unit':s.word+' / hr'):'Not entered'}</b></div>
+   <div><small>HourX website rate (lowest)</small><b>${webRate?aed(webRate)+' / '+(s.kind==='unit'?'unit':s.word+' / hr'):'—'}</b></div>
+   <div><small>Fixed vs hourly (average)</small><b style="color:${dif>0?'var(--red)':'var(--green)'}">${dif===null?'—':(dif>0?'+':'−')+aed(Math.abs(dif))}</b><span class="brk">${dif===null?'Supplier entered only one method':dif>0?'Fixed prices are higher than the hourly rate':'Fixed prices are lower than the hourly rate'}</span></div>
+   <div><small>Method the supplier chose</small><b>${used==='rate'?'Hourly rate':'Fixed price'}</b></div></div>`;}
+ h+=`<div style="overflow-x:auto"><table class="sv-t q-t"><thead><tr><th>Package</th>${both?'<th>Hourly rate price</th><th>Fixed price</th><th>Fixed vs hourly</th>':'<th>Supplier price</th>'}<th>HourX website price</th><th>HourX margin</th><th>Decision</th></tr></thead><tbody>
+ ${rows.map((r,i)=>{const m=r.sp&&r.w?(r.w-r.sp)/r.w*100:null;const k='d'+i;const fd=r.rp&&r.fp?r.fp-r.rp:null;return `<tr><td><b>${r.lbl}</b></td>
+  ${both?`<td>${cell(r.rp,used==='rate')}</td><td>${cell(r.fp,used==='fixed')}</td><td>${fd===null?'—':fd===0?'Same':`<b style="color:${fd>0?'var(--red)':'var(--green)'}">${fd>0?'+':'−'}${aed(Math.abs(fd))}</b>`}</td>`:`<td>${r.sp?aed(r.sp):'—'}</td>`}
+  <td>${r.w?aed(r.w):'<span style="color:var(--muted)">Not on website</span>'}${r.w&&r.sp?`<div class="brk" style="color:${r.w-r.sp<0?'var(--red)':'var(--green)'}">${r.w-r.sp<0?'−':'+'}${aed(Math.abs(r.w-r.sp))} vs supplier</div>`:''}</td>
+  <td>${m!==null?`<span class="mg ${m<0?'neg':m<15?'low':'ok'}">${m.toFixed(0)}%</span>`:'—'}</td>
+  <td><div class="act"><button class="${(s.dec||{})[k]==='ok'?'sel-ok':''}" onclick="admDec('${k}','ok')">✓</button><button class="${(s.dec||{})[k]==='bad'?'sel-bad':''}" onclick="admDec('${k}','bad')">✕</button></div></td></tr>`}).join('')}
+ </tbody></table></div>${both?'<div class="brk" style="margin-top:6px">Margin is calculated on the price the supplier chose (✓ used).</div>':''}`;
+ if(s.adds&&s.adds.length)h+=`<div class="qsec" style="margin-top:16px"><div class="qlabel">Add-ons <small style="font-weight:400;color:var(--muted)">(${s.adds.filter(a=>+a.p).length} of ${s.adds.length} chosen by supplier)</small></div><table class="sv-t q-t"><thead><tr><th>Add-on</th><th>Supplier</th><th>Supplier price</th><th>HourX website price</th><th>HourX margin</th></tr></thead><tbody>${s.adds.map(a=>{const on=+a.p;const m=on&&a.web?(a.web-a.p)/a.web*100:null;return `<tr class="${on?'':'off'}"><td>${a.n}</td><td>${on?'<span class="st ok">✓ Offers</span>':'<span class="st none">Not offered</span>'}</td><td>${on?aed(+a.p):'—'}</td><td>${a.web?aed(a.web):'—'}</td><td>${m!==null?`<span class="mg ${m<0?'neg':m<15?'low':'ok'}">${m.toFixed(0)}%</span>`:'—'}</td></tr>`}).join('')}</tbody></table></div>`;
+ h+=`<div class="qsec" style="margin-top:16px"><div class="qlabel">Message to supplier <small style="font-weight:400;color:var(--muted)">(required when requesting changes)</small></div><textarea id="admMsg" class="qarea" placeholder="e.g. Your price for Couples · 90 min is too close to our website price — can you lower it?"></textarea></div>`;
+ $('qBody').innerHTML=h;
+ $('qFoot').innerHTML=`<div class="qm-info">${priced.length} packages compared</div><div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn" style="color:var(--red)" onclick="admAct('reject')">Reject</button><button class="btn" onclick="admAct('changes')">Request changes</button><button class="btn navy" onclick="admAct('approve')">Approve &amp; publish</button></div>`;
+}
+function admDec(k,v){Q.dec=Q.dec||{};Q.dec[k]=Q.dec[k]===v?null:v;admRender()}
+function admAct(a){
+ if(a==='changes'&&!$('admMsg').value.trim()){toast('Add a message so the supplier knows what to change');return}
+ if(a==='approve'){Q.status='ok';if(Q.kind==='grid')Q.rows.forEach(r=>r.ap=Object.assign({},r.p));else Q.pkgs.forEach(p=>{if(p.on)p.ap=pkPrice(Q,p)})}
+ else Q.status=a==='changes'?'bad':'none';
+ closeQ();renderSvc();toast(a==='approve'?'Approved — prices are live':a==='changes'?'Supplier notified':'Quote rejected');
+}
+
+
+/* ===== per-supplier quotes (demo) ===== */
+const BASESVC=JSON.parse(JSON.stringify(SVC)).map(x=>{x.offered=false;x.status='none';x.rate=0;x.mode=x.kind==='grid'?'fixed':'rate';if(x.pkgs)x.pkgs.forEach(p=>{p.p='';delete p.ap});if(x.rows)x.rows.forEach(r=>{r.p={};delete r.ap});if(x.adds)x.adds.forEach(a=>a.p='');x.mat='';return x});
+const r5=v=>Math.round(v/5)*5;
+function mkSup(list){const S=JSON.parse(JSON.stringify(BASESVC));list.forEach(([id,type,st,rate,f,ap])=>{const x=S.find(v=>v.id===id);x.offered=true;x.status=st;f=f||0.75;
+ if(x.kind==='grid'){x.rows.forEach(r=>{x.cols.forEach(c=>{const w=gridWeb(x,r.n,c);if(w)r.p[c]=r5(w*f)})});if(st==='ok')x.rows.forEach(r=>r.ap=Object.assign({},r.p));}
+ else{const q=p=>x.kind==='unit'?p.u:p.s*p.h;
+  if(type!=='fixed')x.rate=rate;
+  if(type!=='rate')x.pkgs.forEach(p=>{const w=webPrice(x,p,x.id===44?'Without Materials':null);p.p=w&&w>10?r5(w*f):r5((rate||100)*q(p)*1.05)});
+  x.mode=type==='fixed'?'fixed':'rate';if(st==='ok')x.pkgs.forEach(p=>p.ap=pkPrice(x,p));
+  if(x.id===44&&type!=='fixed')x.mat=10;}
+ if(x.adds)x.adds.forEach((a,k)=>{a.p=ap?(ap[k]||''):(a.web?(a.web<20?Math.round(a.web*0.8*100)/100:r5(a.web*0.8)):'')});});return S}
+const SUPSVC={
+ VED000054:mkSup([[45,'rate','pending',150],[114,'both','pending',140,0.8],[47,'fixed','ok',0,0.7]]),
+ VED000053:mkSup([[44,'rate','pending',35],[43,'fixed','pending',0,0.72],[42,'fixed','ok',0,0.7]]),
+ VED000052:mkSup([[41,'fixed','pending',0,0.7],[40,'fixed','ok',0,0.72]]),
+ VED000051:mkSup([[41,'fixed','ok',0,0.74],[89,'rate','pending',120]]),
+ VED000050:mkSup([[82,'fixed','pending',0,0.8],[92,'both','pending',125,0.78,[0,9,14,30,0,42,65,0]]]),
+ VED000049:mkSup([[65,'fixed','ok',0,0.72],[56,'both','pending',170,0.72],[59,'rate','pending',260]]),
+ VED000048:mkSup([[40,'fixed','pending',0,0.9]]),
+ VED000047:mkSup([[57,'rate','pending',280]]),
+ VED000046:mkSup([[58,'both','pending',270,0.76]]),
+ VED000045:mkSup([[65,'rate','ok',180]]),
+ VED000044:mkSup([[56,'fixed','pending',0,0.95]]),
+ VED000043:mkSup([])};
+const methodsOf=x=>x.kind==='grid'?'Fixed only':(x.rate&&x.pkgs.some(p=>+p.p))?'Hourly + Fixed':x.rate?'Hourly only':'Fixed only';
+/* ===== Admin console: pages, routing, access ===== */
+const SUP=[
+ {no:'VED000054',name:'CoolBreeze AC Services LLC',contact:'Vikram Nair',phone:'+971550006001',on:'Approved',last:'30 Sep 2026 09:15'},
+ {no:'VED000053',name:'Sparkle Home Cleaning LLC',contact:'Aisha Rahman',phone:'+971520006002',on:'Approved',last:'29 Sep 2026 16:40'},
+ {no:'VED000052',name:'Elite Coat Painting LLC',contact:'Faisal Ahmed',phone:'+971540005004',on:'Approved',last:'29 Sep 2026 11:05'},
+ {no:'VED000051',name:'BrightWall Painting Services LLC',contact:'Imran Khan',phone:'+971520005003',on:'Approved',last:'28 Sep 2026 14:20'},
+ {no:'VED000050',name:'ColorCraft Painting LLC',contact:'Omar Hassan',phone:'+971510005002',on:'Submitted',last:'28 Sep 2026 10:02'},
+ {no:'VED000049',name:'HeHe Wellness',contact:'Sofia',phone:'+971558461101',on:'Approved',last:'30 Sep 2026 10:42'},
+ {no:'VED000048',name:'Dubai Pro Paint Services LLC',contact:'Ahmed Saeed',phone:'+971500005001',on:'Approved',last:'27 Sep 2026 12:30'},
+ {no:'VED000047',name:'Fresh Feet Care Center LLC',contact:'Nadia Hassan',phone:'+971520004105',on:'Approved',last:'27 Sep 2026 09:48'},
+ {no:'VED000046',name:'Royal Pedicure Spa LLC',contact:'Elena George',phone:'+971510004104',on:'Submitted',last:'26 Sep 2026 18:10'},
+ {no:'VED000045',name:'Soft Steps Beauty Lounge LLC',contact:'Reem Ali',phone:'+971500004103',on:'Approved',last:'25 Sep 2026 15:22'},
+ {no:'VED000044',name:'Happy Feet Wellness LLC',contact:'Maria Thomas',phone:'+971580004102',on:'Approved',last:'24 Sep 2026 13:05'},
+ {no:'VED000043',name:'Dubai Foot Care Studio LLC',contact:'Fatima Saeed',phone:'+971560004101',on:'Approved',last:'—'}];
+SUP.forEach(s=>s.demo=true);
+const offeredOf=no=>SUPSVC[no].filter(x=>x.offered);
+const catsOf=no=>[...new Set(offeredOf(no).map(x=>x.cat))];
+const revOf=no=>offeredOf(no).some(x=>x.status==='pending')?'Yes':'No';
+const ONC={Approved:'ok',Submitted:'pending',Rejected:'bad'};
+const ROLES={super:{n:'Super Admin',ov:1,price:1,bank:1,approve:1},pricing:{n:'Pricing Manager',ov:1,price:1,bank:0,approve:0},ops:{n:'Operations Staff',ov:0,price:0,bank:0,approve:1},cs:{n:'Customer Service',ov:0,price:0,bank:0,approve:0}};
+let ROLE='super',R={v:'list'};
+const can=k=>ROLES[ROLE][k];
+function go(r){R=r;render();window.scrollTo(0,0)}
+function render(){
+ 
+ const s=R.no&&SUP.find(x=>x.no===R.no);if(s)SVC=SUPSVC[s.no];
+ $('page').innerHTML=R.v==='list'?listPage():R.v==='supplier'?supplierPage(s):R.v==='quotes'?quotesPage(s):quotePage(s);
+ if(R.v==='list')renderRows();
+ if(R.v==='quote'&&can('price'))adminQuote();
+}
+const crumbs=a=>`<div class="bc"><button class="back" title="Back" onclick='go(${JSON.stringify(a[a.length-2][1])})'>←</button><button class="home" title="Supplier Management" onclick="go({v:'list'})">⌂</button>${a.map((x,i)=>i<a.length-1?`<a onclick='go(${JSON.stringify(x[1])})'>${x[0]}</a><span>›</span>`:`<b>${x[0]}</b>`).join('')}</div>`;
+const locked=(what,who)=>`<div class="dcard lock"><div class="lk">🔒</div><div><b>You don't have access to ${what}</b><p>Only ${who} can see this. Ask a Super Admin if you need access.</p></div></div>`;
+
+/* ---------- list ---------- */
+function listPage(){return `
+ <div class="ph"><h1 style="font-family:Georgia,serif">Supplier Management</h1><p>Review onboarding files and service quotes from the supplier workspace. Open a supplier number to see the details.</p></div>
+ <div class="card" style="padding:14px;overflow-x:auto">
+  <div class="fbar"><input id="sSearch" placeholder="Company, contact, or phone" oninput="renderRows()"><select><option>All suppliers</option></select><select id="fOn" onchange="renderRows()"><option value="">Onboarding status</option><option>Approved</option><option>Submitted</option><option>Rejected</option></select><select id="fRev" onchange="renderRows()"><option value="">Needs review</option><option>Yes</option><option>No</option></select><span class="muted" style="font-size:13px">60</span></div>
+  <table class="sv-t ot"><thead><tr><th>Supplier No.</th><th>Supplier</th><th>Service categories</th><th>Contact</th><th>Phone</th><th>Selected services</th><th>Onboarding</th><th>Needs review</th><th>Last submitted</th><th>Actions</th></tr></thead><tbody id="sRows"></tbody></table>
+  <div class="pg2"><span>‹</span><span>1</span><span>2</span><span class="on">3</span><span>4</span><span>5</span><span>6</span><span>›</span><span class="muted">Total 60</span></div>
+ </div>`}
+function renderRows(){
+ const q=($('sSearch').value||'').toLowerCase(),fo=$('fOn').value,fr=$('fRev').value;
+ $('sRows').innerHTML=SUP.filter(s=>(!q||(s.name+s.contact+s.phone).toLowerCase().includes(q))&&(!fo||s.on===fo)&&(!fr||revOf(s.no)===fr)).map(s=>`<tr class="click" onclick="go({v:'supplier',no:'${s.no}',tab:'default'})">
+  <td><b>${s.no}</b></td><td>${s.name}</td><td>${catsOf(s.no).length?catsOf(s.no).map(c=>`<span class="pill2">${c}</span>`).join('<br>'):'—'}</td>
+  <td>${s.contact}</td><td>${s.phone}</td><td>${offeredOf(s.no).length}</td>
+  <td><span class="bdg ${ONC[s.on]}">${s.on}</span></td><td><span class="bdg ${revOf(s.no)==='Yes'?'pending':'none'}">${revOf(s.no)}</span></td><td>${s.last}</td>
+  <td><a class="rv" onclick="event.stopPropagation();go({v:'supplier',no:'${s.no}',tab:'default'})">Review</a></td></tr>`).join('');
+}
+/* ---------- supplier page ---------- */
+const yn=v=>v?'<b class="yes">Yes</b>':'<b class="no">No</b>';
+const kv=a=>`<div class="kv">${a.map(([k,v])=>`<div><small>${k}</small>${typeof v==='string'&&v.startsWith('<')?v:`<b>${v}</b>`}</div>`).join('')}</div>`;
+function supHead(s){const offered=SVC.filter(x=>x.offered),pend=s.demo?offered.filter(x=>x.status==='pending').length:0;return `
+ <div class="sh"><div class="av">${s.name.split(' ').map(w=>w[0]).slice(0,2).join('')}</div><div style="flex:1"><div class="crumb">Supplier No. ${s.no} · Snapshot v3 · Last submitted ${s.demo?'30 Sep 2026, 10:42':s.last}</div><h1>${s.name}</h1>
+ <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px"><span class="st ${ONC[s.on]}">Onboarding: ${s.on}</span>${pend?`<span class="st pending">${pend} quote${pend>1?'s':''} to review</span>`:''}</div></div>
+ <div class="sh-act">${can('approve')?`<button class="btn up" onclick="toast('Request sent to supplier')">Request changes</button><button class="btn up navy" onclick="toast('Onboarding approved')">Approve onboarding</button>`:'<span class="muted" style="font-size:12px">🔒 View only</span>'}</div></div>`}
+function supplierPage(s){
+ const demo=s.demo;
+ const T=[['overview','Overview',!can('ov')],['company','Company & Contact'],['capacity','Capacity & Areas'],['bank','Bank',!can('bank')],['docs','Documents']];
+ if(R.tab==='default')R.tab=can('ov')?'overview':'company';
+ const tab=R.tab;
+ const offered=SVC.filter(x=>x.offered),pend=offered.filter(x=>x.status==='pending').length,ok=offered.filter(x=>x.status==='ok').length;
+ const company=`<div class="grid2"><div class="dcard"><h3>Company</h3>${kv([['Company name',s.name],['Trade license number',demo?'TL-2034871':'—'],['License expiry date',demo?'01 May 2027':'—'],['VAT / TRN number',demo?'100123456700003':'—'],['Years in business',demo?'3':'—'],['Office address',demo?'Office 204, Al Barsha Business Centre, Dubai':'—']],2)}</div>
+  <div class="dcard"><h3>Contact</h3>${kv([['Contact person',s.contact],['Email',demo?'info@'+s.name.toLowerCase().replace(/ llc/,'').replace(/[^a-z]/g,'')+'.ae':'—'],['Mobile number',s.phone],['WhatsApp number',s.phone+(demo?' (same as mobile)':'')]])}</div></div>`;
+ const capacity=`<div class="dcard"><h3>Services</h3>${catsOf(s.no).length?catsOf(s.no).map(c=>`<span class="tag">${c}</span>`).join(''):'—'}</div>
+  <div class="grid2"><div class="dcard"><h3>Staff & capacity</h3>${kv([['Total staff','4'],['Female / male staff','3 / 1'],['Jobs at the same time','2'],['Jobs per month','54'],['Notice needed before a job','4 hours'],['Working hours','09:00 – 19:00']])}</div>
+  <div class="dcard"><h3>Availability & extras</h3>${kv([['Weekend service',yn(1)],['Public holiday service',yn(0)],['Same-day booking',yn(0)],['Emergency service',yn(1)],['Own transportation',yn(0)],['Own equipment',yn(0)],['Tax invoice available',yn(0)],['Emaar community',yn(0)],['Other communities','<b class="yes">Yes</b><small style="display:block;color:var(--muted)">JVC, Damac Hills</small>']])}</div></div>
+  <div class="dcard"><h3>Service areas</h3>${['Central Dubai','Jumeirah Coast','Barsha & Emirates Living','JVC & Furjan','Hills & Ranches'].map(a=>`<span class="tag">📍 ${a}</span>`).join('')}</div>`;
+ const bank=can('bank')?`<div class="dcard"><h3>Bank details <span class="st none">Changes need HourX approval</span></h3>${kv([['Account name',demo?s.name:'—'],['Bank name',demo?'Emirates NBD':'—'],['IBAN',demo?'AE07 0260 0010 1234 5678 901':'—'],['SWIFT / BIC',demo?'EBILAEAD':'—'],['Currency','AED']])}</div>`:locked('bank details','Super Admins');
+ const doc=(n,f,req)=>`<div class="docc"><div class="ic">${f?'PDF':'—'}</div><div style="flex:1"><b>${n}${req?' <span class="req">*</span>':''}</b>${f?`<small>${f}</small>`:`<small class="${req?'miss':''}">${req?'Missing — required':'Not uploaded'}</small>`}</div>${f?'<button class="btn up" onclick="toast(\'Opening preview…\')">View</button>':''}</div>`;
+ const docs=`<div class="dcard"><h3>Documents</h3><div class="docs">${doc('Company Trade License',demo?'trade-license-2027.pdf':'',1)}${doc('Public Liability Insurance',demo?'public-liability-2026.pdf':'')}${doc('Employee Insurance',demo?'employee-insurance.pdf':'')}${doc('Other Documents','')}</div></div>`;
+ const overview=!can('ov')?locked('the supplier overview','Super Admins and Pricing Managers'):`
+  <div class="sv-stats">${[['Services offered',demo?offered.length:s.svc],['Approved quotes',demo?ok:0],['Quotes to review',demo?pend:0],['Onboarding',s.on]].map(([l,v])=>`<div class="sv-stat"><small>${l}</small><b>${v}</b></div>`).join('')}</div>
+  <div class="dcard link" onclick="go({v:'quotes',no:'${s.no}'})"><div><h3 style="margin:0 0 4px">Services & quotes →</h3><p class="muted" style="margin:0">Supplier prices, pricing method, HourX margin and approvals.</p></div>
+   <div class="qprev">${demo?offered.map(x=>`<span class="st ${STAT[x.status][0]}">${x.name} · ${methodsOf(x)} · ${STAT[x.status][1]}</span>`).join(''):'<span class="muted">No quotes yet</span>'}</div></div>
+  <div class="grid2"><div class="dcard"><h3>Key details</h3>${kv([['Contact person',s.contact],['Phone',s.phone],['Categories',String(catsOf(s.no).length)],['Service areas','5'],['Staff','4'],['Working hours','09:00 – 19:00']])}</div>
+  <div class="dcard"><h3>Documents</h3>${kv([['Trade License',demo?'<b class="yes">Uploaded</b>':'<b style="color:var(--red)">Missing</b>'],['Public Liability Insurance',demo?'<b class="yes">Uploaded</b>':'<b class="no">—</b>'],['Employee Insurance',demo?'<b class="yes">Uploaded</b>':'<b class="no">—</b>'],['License expiry',demo?'01 May 2027':'—']])}</div></div>`;
+ return crumbs([['Supplier Management',{v:'list'}],[s.name]])+supHead(s)+
+  `<div class="tabs">${T.map(([k,l,lk])=>`<button class="${k===tab?'on':''}" onclick="R.tab='${k}';render()">${l}${lk?' 🔒':''}</button>`).join('')}</div>`+
+  ({overview,company,capacity,bank,docs}[tab]);
+}
+
+/* ---------- services & quotes (inner page of overview) ---------- */
+function quotesPage(s){
+ const head=crumbs([['Supplier Management',{v:'list'}],[s.name,{v:'supplier',no:s.no,tab:'overview'}],['Services & quotes']]);
+ if(!can('price'))return head+supHead(s)+locked('services & quotes','Super Admins and Pricing Managers');
+ const list=SVC.map((x,i)=>({x,i})).filter(o=>o.x.offered);
+ return head+supHead(s)+`<div class="dcard"><h3>Services & quotes <span class="muted" style="font-size:12px;font-weight:400">🔒 HourX only — pricing access</span></h3>${list.length?`<table class="sv-t"><thead><tr><th>Service</th><th>Category</th><th>Rates uploaded</th><th>Method chosen</th><th>Supplier price</th><th>Lowest HourX margin</th><th>Status</th><th></th></tr></thead><tbody>
+  ${list.map(({x,i})=>`<tr class="click" onclick="go({v:'quote',no:'${s.no}',i:${i}})"><td><b>${x.name}</b></td><td class="muted">${x.cat}</td><td><span class="mt ${methodsOf(x)==='Hourly + Fixed'?'both':methodsOf(x)==='Hourly only'?'hr':'fx'}">${methodsOf(x)}</span></td><td>${x.kind==='grid'||x.mode==='fixed'?'Fixed price':'Hourly rate'}</td><td class="nw">${priceText(x)}</td><td>${marginBadge(x)}</td><td><span class="st ${STAT[x.status][0]}">${STAT[x.status][1]}</span></td><td style="text-align:right"><button class="btn up ${x.status==='pending'?'navy':''}">Review quote</button></td></tr>`).join('')}</tbody></table>`:'<p class="muted">No quotes submitted yet.</p>'}</div>`;
+}
+
+/* ---------- single quote review page ---------- */
+function quotePage(s){
+ const x=SVC[R.i];
+ const head=crumbs([['Supplier Management',{v:'list'}],[s.name,{v:'supplier',no:s.no,tab:'overview'}],['Services & quotes',{v:'quotes',no:s.no}],[x.name]]);
+ if(!can('price'))return head+locked('quote pricing','Super Admins and Pricing Managers');
+ return head+`<div class="dcard qpage"><div class="qm-h" style="padding:0 0 14px;background:none"><div><h2 id="qTitle"></h2><div class="qm-meta" id="qMeta"></div></div><span class="st" id="qStatus"></span></div>
+  <div id="qBody"></div><div class="qm-f" id="qFoot" style="margin:16px -20px -18px;border-radius:0 0 12px 12px"></div></div>`;
+}
+function adminQuote(){openAdm(R.i)}
+// shared review code hooks
+closeQ=function(){};
+renderSvc=function(){if(R.v==='quote'){go({v:'quotes',no:R.no})}};
+render();
+
+</script></body></html>

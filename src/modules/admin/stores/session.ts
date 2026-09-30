@@ -123,6 +123,11 @@ export const useAdminSessionStore = defineStore('admin-session', {
         if (meRequest === task) meRequest = null;
       }
     },
+    rememberSupplierDetail(detail: any) {
+      const id = detail?.id;
+      if (id == null) return;
+      this.details[String(id)] = detail;
+    },
     async supplierDetail(id: number | string, fresh = false) {
       this.alignToken();
       const key = String(id);

@@ -24,6 +24,11 @@ const routes: RouteRecordRaw[] = [
     component: () => import('../pages/profile.vue'),
   },
   {
+    path: '/join-us/apply',
+    name: 'h5-supplier-onboarding',
+    component: () => import('../pages/supplier-onboarding.vue'),
+  },
+  {
     path: '/profile/security',
     name: 'h5-profile-security',
     component: () => import('../pages/profile-security.vue'),

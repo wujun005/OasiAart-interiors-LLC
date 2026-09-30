@@ -5,6 +5,13 @@ const clientBase = import.meta.env.VITE_CLIENT_API_BASE_URL || '/client-api';
 
 export type OnboardingApplyPayload = Record<string, unknown>;
 
+export type ServiceCategoryOption = {
+  categoryId: string;
+  categoryName?: string;
+  nameI18n?: Record<string, string>;
+  other?: boolean;
+};
+
 const headers = () => ({ language: getClientLocale() });
 
 const unwrap = <T>(payload: unknown): T => {
@@ -25,6 +32,48 @@ const readError = (error: unknown) => {
   }
   return error instanceof Error ? error : new Error('Request failed');
 };
+
+const keepCategoryIds = (payload: string) => payload.replace(/"categoryId"\s*:\s*(-?\d+)/g, '"categoryId":"$1"');
+
+export async function listServiceCategories() {
+  try {
+    const { data } = await axios.get(`${clientBase}/client/supplier/onboarding/service-categories`, {
+      headers: headers(),
+      transformResponse: [(payload) => {
+        if (typeof payload !== 'string' || !payload) return payload;
+        return JSON.parse(keepCategoryIds(payload));
+      }],
+    });
+    const list = unwrap<ServiceCategoryOption[]>(data);
+    if (!Array.isArray(list)) return [];
+    return list
+      .map((item) => ({ ...item, categoryId: item?.categoryId == null ? '' : String(item.categoryId) }))
+      .filter((item) => item.categoryId !== '');
+  } catch (error) {
+    throw readError(error);
+  }
+}
+
+export function isOtherService(option: Pick<ServiceCategoryOption, 'categoryId' | 'other'>) {
+  return option.other === true || String(option.categoryId) === '0';
+}
+
+export function serviceCategoryLabel(option: ServiceCategoryOption, locale: string) {
+  const names = option.nameI18n || {};
+  const keys = locale.startsWith('zh') ? ['zh-CN', 'zh', 'en', 'en-US'] : ['en', 'en-US', 'zh-CN', 'zh'];
+  for (const key of keys) {
+    const text = names[key];
+    if (typeof text === 'string' && text.trim()) return text.trim();
+  }
+  return option.categoryName || option.categoryId;
+}
+
+export function categoryIdPayload(ids: string[]) {
+  return ids.map((id) => {
+    const numeric = Number(id);
+    return Number.isSafeInteger(numeric) ? numeric : id;
+  });
+}
 
 export async function submitOnboarding(payload: OnboardingApplyPayload) {
   try {

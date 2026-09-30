@@ -12,6 +12,14 @@ export function onboardingSave(payload: Record<string, unknown>) {
   return http.post('/api/supplier/onboarding/addOrUpdate', payload);
 }
 
+export function onboardingMine() {
+  return http.get('/api/supplier/onboarding/mine');
+}
+
+export function onboardingResubmit(payload: Record<string, unknown>) {
+  return http.post('/api/supplier/onboarding/resubmit', payload);
+}
+
 export function onboardingChangeStatus(payload: Record<string, unknown>) {
   return http.post('/api/supplier/onboarding/changeStatus', payload);
 }
@@ -88,6 +96,10 @@ export function supplierChangeAcceptDispatch(payload: { id: number; acceptDispat
 
 export function supplierChangeAcceptOrder(payload: { supplierId: number; spuId: number; acceptOrder: 0 | 1 }) {
   return http.post('/api/supplier/tools/services/changeAcceptOrder', payload);
+}
+
+export function supplierDepart(payload: { orderId: number }) {
+  return http.post('/api/orderHeader/supplier/depart', payload);
 }
 
 export function supplierArrive(payload: { orderId: number; photos?: string[]; remark?: string | null }) {

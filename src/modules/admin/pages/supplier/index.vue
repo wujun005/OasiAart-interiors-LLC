@@ -116,6 +116,46 @@
           <el-button type="danger" plain :loading="saving" @click="openReject('onboarding')">{{ t('admin.platformSuppliers.rejectOnboarding') }}</el-button>
         </div>
         <p v-if="onboarding.rejectReason" class="reject-note">{{ t('admin.platformSuppliers.rejectReason', { reason: onboarding.rejectReason }) }}</p>
+        <p v-if="onboarding.snapshotVersion" class="snapshot-note">{{ t('admin.platformSuppliers.snapshotVersion', { version: onboarding.snapshotVersion }) }}</p>
+        <p v-if="onboarding.snapshotVersion && (Number(onboarding.status) === 1 || Number(onboarding.status) === 3)" class="snapshot-note">{{ t('admin.platformSuppliers.snapshotReview') }}</p>
+
+        <section class="order-detail__panel order-detail__services">
+          <h3>{{ t('admin.platformSuppliers.services') }}</h3>
+          <el-table :data="services" row-key="spuId" :empty-text="t('admin.platformSuppliers.noServices')">
+            <el-table-column :label="t('admin.platformSuppliers.category')" min-width="120">
+              <template #default="{ row }">{{ serviceCategory(row) }}</template>
+            </el-table-column>
+            <el-table-column :label="t('admin.platformSuppliers.service')" min-width="140">
+              <template #default="{ row }">{{ serviceName(row) }}</template>
+            </el-table-column>
+            <el-table-column :label="t('admin.platformSuppliers.quoteStatus')" width="130">
+              <template #default="{ row }">
+                <el-tag :type="quoteTagType(row.status)" effect="light">{{ quoteStatusLabel(row.status, row.statusI18n) }}</el-tag>
+              </template>
+            </el-table-column>
+            <el-table-column :label="t('admin.platformSuppliers.workers')" width="120">
+              <template #default="{ row }">{{ row.workerCount ?? '—' }}</template>
+            </el-table-column>
+            <el-table-column class-name="phone-col" :label="t('admin.platformSuppliers.phones')" min-width="160">
+              <template #default="{ row }">
+                <div v-if="listedPhones(row.contactPhones).length" class="phone-list">
+                  <span v-for="(phone, index) in listedPhones(row.contactPhones)" :key="`${phone}-${index}`">{{ phone }}</span>
+                </div>
+                <span v-else>—</span>
+              </template>
+            </el-table-column>
+            <el-table-column :label="t('admin.platformSuppliers.version')" width="80">
+              <template #default="{ row }">{{ row.versionNo || '—' }}</template>
+            </el-table-column>
+            <el-table-column :label="t('admin.platformSuppliers.actions')" width="168">
+              <template #default="{ row }">
+                <el-button link type="primary" @click="openSkus(row)">{{ t('admin.platformSuppliers.quote') }}</el-button>
+                <el-button v-if="Number(row.status) === 1" link type="primary" :loading="saving" @click="approveQuote(row)">{{ t('admin.platformSuppliers.approve') }}</el-button>
+                <el-button v-if="Number(row.status) === 1" link type="danger" :loading="saving" @click="openReject('quote', row)">{{ t('admin.platformSuppliers.reject') }}</el-button>
+              </template>
+            </el-table-column>
+          </el-table>
+        </section>
 
         <div class="order-detail__columns">
           <div class="order-detail__stack">
@@ -158,44 +198,6 @@
                 <p v-else class="doc-empty">{{ t('admin.platformSuppliers.notUploaded') }}</p>
               </div>
             </section>
-
-            <section class="order-detail__panel">
-              <h3>{{ t('admin.platformSuppliers.services') }}</h3>
-              <el-table :data="services" row-key="spuId" :empty-text="t('admin.platformSuppliers.noServices')">
-                <el-table-column :label="t('admin.platformSuppliers.category')" min-width="120">
-                  <template #default="{ row }">{{ serviceCategory(row) }}</template>
-                </el-table-column>
-                <el-table-column :label="t('admin.platformSuppliers.service')" min-width="140">
-                  <template #default="{ row }">{{ serviceName(row) }}</template>
-                </el-table-column>
-                <el-table-column :label="t('admin.platformSuppliers.workers')" width="140">
-                  <template #default="{ row }">{{ row.workerCount ?? '—' }}</template>
-                </el-table-column>
-                <el-table-column class-name="phone-col" :label="t('admin.platformSuppliers.phones')" min-width="180">
-                  <template #default="{ row }">
-                    <div v-if="listedPhones(row.contactPhones).length" class="phone-list">
-                      <span v-for="(phone, index) in listedPhones(row.contactPhones)" :key="`${phone}-${index}`">{{ phone }}</span>
-                    </div>
-                    <span v-else>—</span>
-                  </template>
-                </el-table-column>
-                <el-table-column :label="t('admin.platformSuppliers.version')" width="90">
-                  <template #default="{ row }">{{ row.versionNo || '—' }}</template>
-                </el-table-column>
-                <el-table-column :label="t('admin.platformSuppliers.quoteStatus')" width="130">
-                  <template #default="{ row }">
-                    <el-tag :type="quoteTagType(row.status)" effect="light">{{ quoteStatusLabel(row.status, row.statusI18n) }}</el-tag>
-                  </template>
-                </el-table-column>
-                <el-table-column :label="t('admin.platformSuppliers.actions')" width="180" fixed="right">
-                  <template #default="{ row }">
-                    <el-button link type="primary" @click="openSkus(row)">{{ t('admin.platformSuppliers.quote') }}</el-button>
-                    <el-button v-if="Number(row.status) === 1" link type="primary" :loading="saving" @click="approveQuote(row)">{{ t('admin.platformSuppliers.approve') }}</el-button>
-                    <el-button v-if="Number(row.status) === 1" link type="danger" :loading="saving" @click="openReject('quote', row)">{{ t('admin.platformSuppliers.reject') }}</el-button>
-                  </template>
-                </el-table-column>
-              </el-table>
-            </section>
           </div>
 
           <div class="order-detail__stack">
@@ -229,6 +231,16 @@
                 <div><dt>{{ t('admin.platformSuppliers.emaar') }}</dt><dd>{{ yesNo(profile.emaarOnboarded) }}</dd></div>
                 <div><dt>{{ t('admin.platformSuppliers.otherCommunity') }}</dt><dd>{{ yesNo(profile.otherCommunityOnboarded) }}</dd></div>
                 <div><dt>{{ t('admin.platformSuppliers.otherNote') }}</dt><dd>{{ text(profile.applyRenmark) }}</dd></div>
+                <div>
+                  <dt>{{ t('admin.platformSuppliers.expectedServices') }}</dt>
+                  <dd>
+                    <span v-if="!expectedServiceNames.length" class="service-chips__empty">—</span>
+                    <span v-else class="service-chips">
+                      <em v-for="name in expectedServiceNames" :key="name">{{ name }}</em>
+                    </span>
+                  </dd>
+                </div>
+                <div><dt>{{ t('admin.platformSuppliers.expectedServiceDescription') }}</dt><dd>{{ text(profile.expectedServiceRemark) }}</dd></div>
               </dl>
             </section>
 
@@ -320,6 +332,7 @@ import { useI18n } from 'vue-i18n'
 import { listBySpu, listSpuAttachCatalog } from '@/modules/admin/api/spu'
 import { getAdminLocale } from '@/modules/admin/locales'
 import { pickI18nText } from '@/modules/admin/utils/i18n'
+import { listServiceCategories, serviceCategoryLabel } from '@/modules/client/api/supplier-onboarding'
 import {
   onboardingChangeStatus,
   onboardingDetail,
@@ -373,7 +386,12 @@ const saving = ref(false)
 const current = ref<SupplierRow | null>(null)
 const profile = reactive<Record<string, any>>({})
 const services = ref<any[]>([])
-const onboarding = reactive({ status: undefined as number | undefined, rejectReason: '' })
+const onboarding = reactive({
+  status: undefined as number | undefined,
+  rejectReason: '',
+  snapshotVersion: undefined as number | undefined,
+  reviewKind: undefined as number | undefined,
+})
 const areaNames = computed(() =>
   (profile.serviceAreas || []).map((area: any) => area.areaName).filter(Boolean).join('、'),
 )
@@ -497,6 +515,11 @@ const clientPrice = (row: { platformPrice?: unknown; platformOriginalPrice?: unk
   const original = Number(row.platformOriginalPrice)
   return Number.isFinite(original) ? original : null
 }
+const onboardingCategoryLabels = ref<Record<string, string>>({})
+const expectedServiceNames = computed(() => {
+  const items = Array.isArray(profile.expectedServiceCategoryIds) ? profile.expectedServiceCategoryIds : []
+  return items.map((id: unknown) => onboardingCategoryLabels.value[String(id)] || String(id)).filter(Boolean)
+})
 const categoryName = (category: ServiceCategory) =>
   pickI18nText(category?.nameI18n, getAdminLocale(), category?.categoryName || '') || category?.categoryName || '—'
 const specText = (value: unknown) => {
@@ -681,8 +704,21 @@ const loadReview = async (supplierId: number) => {
     const nextProfile = unwrap(detail) || {}
     Object.keys(profile).forEach((key) => delete profile[key])
     Object.assign(profile, nextProfile)
+    listServiceCategories().then((options) => {
+      const labels: Record<string, string> = {}
+      options.forEach((option) => {
+        labels[option.categoryId] = serviceCategoryLabel(option, getAdminLocale())
+      })
+      onboardingCategoryLabels.value = labels
+    }).catch(() => {})
     onboarding.status = nextProfile.status
     onboarding.rejectReason = nextProfile.rejectReason || ''
+    onboarding.snapshotVersion = nextProfile.snapshotVersion == null || nextProfile.snapshotVersion === ''
+      ? undefined
+      : Number(nextProfile.snapshotVersion)
+    onboarding.reviewKind = nextProfile.reviewKind == null || nextProfile.reviewKind === ''
+      ? undefined
+      : Number(nextProfile.reviewKind)
     const selection = new Map<number, { workerCount?: number; contactPhones: string[] }>()
     const categoryI18n = new Map<number, Record<string, string>>()
     ;(unwrap(catalog) || []).forEach((group: any) => {
@@ -725,15 +761,20 @@ const backToList = () => {
 
 const approveOnboarding = async () => {
   if (!detailId.value) return
+  const firstReview = onboarding.reviewKind !== 2
   try {
-    await ElMessageBox.confirm(t('admin.platformSuppliers.approveOnboardingConfirm'), t('admin.platformSuppliers.approveOnboardingTitle'))
+    await ElMessageBox.confirm(
+      firstReview ? t('admin.platformSuppliers.approveOnboardingConfirm') : '',
+      t('admin.platformSuppliers.approveOnboardingTitle'),
+      firstReview ? undefined : { customClass: 'approve-plain-confirm' },
+    )
   } catch {
     return
   }
   saving.value = true
   try {
     await onboardingChangeStatus({ id: detailId.value, status: 2 })
-    ElMessage.success(t('admin.platformSuppliers.approveOnboardingSuccess'))
+    ElMessage.success(t(firstReview ? 'admin.platformSuppliers.approveOnboardingSuccess' : 'admin.platformSuppliers.approveChangesSuccess'))
     await loadReview(detailId.value)
     await loadSuppliers()
   } catch (error: any) {
@@ -938,6 +979,9 @@ onMounted(loadSuppliers)
 .order-detail__amount { display: flex; flex-direction: column; align-items: flex-end; gap: 5px; color: #7a8494; font-size: 12px; }
 .order-detail__toolbar { display: flex; justify-content: flex-end; gap: 8px; margin: 14px 0; }
 .reject-note { margin: 0 0 14px; color: #c45656; font-size: 13px; }
+.snapshot-note { margin: 0 0 14px; color: #74685a; font-size: 13px; }
+.order-detail__services { margin-bottom: 18px; }
+.order-detail__services :deep(.el-table) { width: 100%; }
 .order-detail__columns { display: grid; grid-template-columns: minmax(0, 3fr) minmax(240px, 2fr); gap: 18px; }
 .order-detail__stack { display: flex; flex-direction: column; gap: 18px; }
 .order-detail__panel { padding: 18px 20px; border: 1px solid #e3e8ef; border-radius: 10px; background: #fff; box-shadow: 0 3px 12px rgb(5 21 43 / 5%); }
@@ -946,6 +990,9 @@ onMounted(loadSuppliers)
 .order-detail__list > div + div { margin-top: 13px; }
 .order-detail__list dt { margin-bottom: 5px; color: #8791a1; font-size: 11px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; }
 .order-detail__list dd { margin: 0; }
+.service-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.service-chips em { min-height: 30px; padding: 3px 12px; display: inline-flex; align-items: center; border-radius: 999px; background: #05152b; color: #f7f1e6; font-style: normal; font-size: 13px; font-weight: 650; }
+.service-chips__empty { color: #697386; }
 .doc-group + .doc-group { margin-top: 16px; }
 .doc-group__head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-bottom: 8px; }
 .doc-group__head span, .doc-empty, .area-text { color: #697386; font-size: 13px; }
@@ -969,4 +1016,6 @@ onMounted(loadSuppliers)
 .policy-preview__stage img { max-width: 100%; max-height: 72vh; object-fit: contain; background: #fff; }
 .policy-preview__stage iframe { width: 100%; height: 72vh; border: 0; background: #fff; }
 .policy-preview__stage p { margin: 24px; color: #526070; }
+.approve-plain-confirm .el-message-box__container { display: none; }
+.approve-plain-confirm .el-message-box__btns { padding-top: 0; }
 </style>

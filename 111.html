@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HourX Company Profile</title>
+<style>
+:root{--navy:#0d1b2e;--navy2:#132540;--gold:#c99b4a;--cream:#faf5ec;--card:#fff;--text:#20242c;--muted:#7a8090;--line:#e9e2d3;
+--red:#c0392b;--redbg:#fdecea;--green:#2e7d4f;--greenbg:#e8f5ec;--amber:#b6791f;--amberbg:#fdf1de;}
+*{box-sizing:border-box}
+body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;background:var(--cream);color:var(--text)}
+.app{display:flex;min-height:100vh}
+.sidebar{width:250px;background:var(--navy);color:#dfe4ee;flex-shrink:0}
+.brand{display:flex;align-items:center;gap:10px;padding:22px 20px 14px}
+.brand .mark{width:34px;height:34px;border-radius:8px;background:var(--cream);color:var(--navy);display:grid;place-items:center;font-weight:800;font-size:11px}
+.brand b{display:block;font-size:16px;color:#fff}.brand span{font-size:10px;letter-spacing:.06em;color:#9aa4b8}
+.section-label{padding:16px 20px 6px;font-size:11px;letter-spacing:.08em;color:#7c869c;text-transform:uppercase}
+.nav-item{padding:10px 20px;font-size:14px;color:#c7cede}
+.nav-item.active{background:#1a2c48;color:#fff;border-left:3px solid var(--gold);font-weight:600}
+.ob{margin:16px;background:var(--navy2);border-radius:10px;padding:16px}
+.ob .tag{font-size:10px;letter-spacing:.08em;color:#8b93a8;text-transform:uppercase}
+.ob .company{font-family:Georgia,serif;font-size:22px;color:#fff;margin:4px 0 10px}
+.badge{display:inline-block;background:var(--gold);color:#20242c;font-size:12px;font-weight:700;padding:3px 12px;border-radius:14px;margin-bottom:14px}
+.step{display:flex;align-items:center;gap:10px;padding:9px 8px;font-size:13.5px;color:#c7cede;border-radius:6px;cursor:pointer}
+.step:hover{background:#1a2c48}.step.current{background:#1e3557;color:#fff;box-shadow:inset 3px 0 0 var(--gold)}
+.step .num{font-family:Georgia,serif;color:var(--gold);width:18px}.step .name{flex:1}
+.stat{font-size:12px;font-weight:700}.stat.ok{color:#4fd08a}.stat.warn{color:#f2b545}
+.legend-s{padding:0 20px;font-size:11px;color:#8b93a8;line-height:1.7}
+.main{flex:1;display:flex;flex-direction:column;min-width:0}
+.topbar{display:flex;justify-content:flex-end;align-items:center;gap:18px;padding:12px 32px;border-bottom:1px solid var(--line);font-size:13px;color:var(--muted)}
+.topbar b{color:var(--text)}
+.avatar{width:30px;height:30px;border-radius:6px;background:var(--navy);color:#fff;display:grid;place-items:center;font-weight:700}
+.content{padding:24px 32px 40px;max-width:1000px;width:100%}
+/* light-box section header */
+.lightbox{background:#fff;border:1px solid var(--line);border-left:5px solid var(--gold);border-radius:12px;padding:18px 22px;margin-bottom:18px;box-shadow:0 6px 20px rgba(13,27,46,.06);display:flex;justify-content:space-between;align-items:center;gap:14px}
+.lightbox .crumb{font-size:12px;color:var(--muted);letter-spacing:.04em;text-transform:uppercase}
+.lightbox h1{font-family:Georgia,serif;font-size:28px;margin:4px 0 2px}.lightbox h1 .n{color:#b98a3a;font-size:20px;margin-right:8px}
+.lightbox p{margin:0;color:var(--muted);font-size:13.5px}
+.chip{font-size:12px;font-weight:700;padding:5px 12px;border-radius:14px;white-space:nowrap}
+.chip.ok{background:var(--greenbg);color:var(--green)}.chip.warn{background:var(--redbg);color:var(--red)}
+.error-banner{display:none;background:var(--redbg);border:1px solid #f1c3bd;border-left:4px solid var(--red);border-radius:10px;padding:14px 18px;margin-bottom:18px}
+.error-banner b{display:block;font-size:14px;color:var(--red);margin-bottom:8px}
+.error-banner ul{margin:0;padding:0;list-style:none;display:flex;flex-wrap:wrap;gap:8px}
+.error-banner li a{display:inline-block;background:#fff;border:1px solid #f1c3bd;color:var(--red);font-size:12.5px;font-weight:600;padding:6px 12px;border-radius:16px;cursor:pointer}
+.sec-h{display:none;justify-content:space-between;align-items:center;margin-bottom:16px}
+.sec-h h2{font-family:Georgia,serif;font-size:22px;margin:0}.sec-h h2 .n{color:#b98a3a;font-size:16px;margin-right:8px}
+.card.all .sec{display:block;padding-bottom:24px;margin-bottom:24px;border-bottom:1px solid var(--line)}
+.card.all .sec:last-child{border:0;margin:0;padding:0}
+.card.all .sec-h{display:flex}
+.card.all input,.card.all select{border-color:transparent;background:#f8f6f1;pointer-events:none}
+.card.all .sw,.card.all .yn{pointer-events:none}
+.card.all .checkline,.card.all .doc>.btn.up,.card.all .rm,.card.all .err-msg{display:none!important}
+.doc{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+.doc .none{display:none;font-size:12.5px;color:var(--muted)}.card.all .doc .none{display:inline}
+.doc .fn{font-size:12.5px;color:var(--green);font-weight:600;margin-top:4px}
+.card{background:var(--card);border-radius:12px;border:1px solid var(--line);padding:26px 28px}
+.sec{display:none}.sec.show{display:block}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:18px 22px}
+.span2{grid-column:span 2}
+.field label{display:block;font-size:13px;font-weight:600;color:#3a3f4a;margin-bottom:6px}
+.req{color:var(--red)}.q{font-weight:400;color:var(--muted)}
+.field input,.field select,.field textarea{width:100%;padding:10px 12px;border:1px solid #d9d2c2;border-radius:8px;font-size:14px;background:#fff;color:var(--text);font-family:inherit}
+.field input:disabled{background:#f1efe9;color:#6b7080}
+.field.error input,.field.error textarea{border:2px solid var(--red);background:var(--redbg)}
+.err-msg{display:none;color:var(--red);font-size:13px;font-weight:600;margin-top:6px}
+.field.error .err-msg{display:block}
+.flash{animation:flash 1.2s}@keyframes flash{0%,100%{box-shadow:none}30%{box-shadow:0 0 0 4px rgba(192,57,43,.25)}}
+.checkline{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--muted);margin-top:8px}
+.checkline input{width:auto}.checkline label{margin:0;font-weight:400;display:inline}
+.pill-row{display:flex;flex-wrap:wrap;gap:8px}
+.pill{background:#eef0f3;color:#3a3f4a;border:1px solid #dde0e6;padding:6px 12px;border-radius:16px;font-size:13px;font-weight:600}
+.hint{color:var(--muted);font-size:12px;margin-top:6px}
+.toggle-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-top:22px}
+.tc{border:1px solid var(--line);border-radius:10px;padding:14px 16px}
+.tc .row{display:flex;justify-content:space-between;align-items:center;gap:10px}
+.tc b{font-size:14px}
+.sw{width:40px;height:22px;border-radius:12px;background:#e3ddcf;position:relative;flex-shrink:0;cursor:pointer;border:0}
+.sw.on{background:var(--navy)}.sw::after{content:"";position:absolute;top:2px;left:2px;width:18px;height:18px;border-radius:50%;background:#fff;transition:.15s}.sw.on::after{left:20px}
+.yn{flex-shrink:0;display:flex;border:1px solid #d9d2c2;border-radius:8px;overflow:hidden}
+.yn button{border:0;background:#fff;padding:6px 14px;cursor:pointer;font-weight:600;font-size:13px}.yn button.on{background:var(--navy);color:#fff}
+.optnote{display:inline-block;background:var(--amberbg);color:var(--amber);font-size:12px;font-weight:600;padding:4px 10px;border-radius:8px;margin-top:6px}
+.doc{border:1px solid var(--line);border-radius:10px;padding:16px;margin-bottom:12px}
+.doc.error{border:2px solid var(--red);background:#fffafa}
+.doc .top{display:flex;justify-content:space-between;align-items:flex-start;gap:12px}
+.doc b{font-size:15px}.doc .sub{font-size:12.5px;color:var(--muted);margin-top:3px}
+.guide{margin-top:10px;border:1.5px dashed #d6ccb6;border-radius:8px;padding:12px;font-size:12.5px;color:var(--muted);background:#fcfaf5}
+.file{margin-top:10px;display:flex;align-items:center;gap:10px;background:var(--greenbg);border-radius:8px;padding:10px 12px;font-size:13px}
+.file span{flex:1;color:var(--green);font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.file a{font-size:12px;cursor:pointer;color:var(--text);text-decoration:underline}.file a.rm{color:var(--red)}
+.btn{background:#fff;border:1px solid #cfc8b8;padding:10px 18px;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer}
+.btn.up{padding:8px 14px;font-size:13px}
+.btn.gold{background:var(--gold);border-color:var(--gold);color:#20242c}
+.btn.navy{background:var(--navy);border-color:var(--navy);color:#fff}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.footer{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-top:18px;background:#fff;border:1px solid var(--line);border-radius:12px;padding:14px 18px;flex-wrap:wrap}
+.footer .info{font-size:13px;color:var(--muted)}
+.toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--navy);color:#fff;padding:10px 18px;border-radius:8px;font-size:13px;opacity:0;transition:.2s;pointer-events:none}.toast.show{opacity:1}
+@media(max-width:860px){.sidebar{display:none}.grid,.toggle-grid{grid-template-columns:1fr}.span2{grid-column:auto}.content{padding:16px}}
+</style>
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar">
+    <div class="brand"><div class="mark">HX</div><div><b>HourX</b><span>HOURX SUPPLIER PORTAL</span></div></div>
+    <div class="section-label">Workspace</div>
+    <div class="nav-item active">📄 Company Profile</div>
+    <div class="nav-item">📍 Service Area</div>
+    <div class="nav-item">📅 Availability</div>
+    <div class="nav-item">🧾 Orders</div>
+    <div class="nav-item">🏷️ Services &amp; Pricing</div>
+    <div class="ob">
+      <div class="tag">Onboarding file</div>
+      <div class="company">HeHe Wellness</div>
+      <span class="badge">Approved</span>
+      <div id="steps"></div>
+    </div>
+    <div class="legend-s"><span style="color:#4fd08a">✓</span> Completed &nbsp; <span style="color:#f2b545">⚠</span> Errors to fix</div>
+  </aside>
+
+  <div class="main">
+    <div class="topbar">
+      <div style="text-align:right">TODAY<br><b>Wed, 30 Sep</b></div>
+      <div>English ▾</div><div class="avatar">S</div><div><b>0559461101</b><br><small>Administrator</small></div>
+      <div>🔒 Change password</div><div>⏻ Log Out</div>
+    </div>
+
+    <div class="content">
+      <div class="lightbox">
+        <div>
+          <div class="crumb" id="lbCrumb"></div>
+          <h1><span class="n" id="lbNum">01</span><span id="lbTitle">Company</span></h1>
+          <p id="lbDesc"></p>
+        </div>
+        <span class="chip" id="lbChip"></span>
+      </div>
+
+      <div class="error-banner" id="errBanner"><b id="errTitle"></b><ul id="errList"></ul></div>
+      <div class="card" id="card">
+        <!-- 01 COMPANY -->
+        <section class="sec" data-sec="0">
+          <div class="grid">
+            <div class="field span2" id="f-name"><label>Company name <span class="req">*</span></label><input value="HeHe Wellness" data-req><div class="err-msg">⚠ Please enter your company name.</div></div>
+            <div class="field" id="f-lic"><label>Trade license number <span class="req">*</span></label><input value="TL-2034871" data-req><div class="err-msg">⚠ Please enter your trade license number.</div></div>
+            <div class="field" id="f-exp"><label>License expiry date <span class="req">*</span></label><input type="date" id="expiry" value="2026-09-01"><div class="err-msg">⚠ Your trade license has expired. Please enter an expiry date after today (30 Sep 2026).</div></div>
+            <div class="field"><label>VAT / TRN number <span class="q">(if you have one)</span></label><input placeholder="e.g. 100123456700003"></div>
+            <div class="field"><label>Years in business</label><input type="number" value="3"></div>
+            <div class="field span2" id="f-addr"><label>Office address <span class="req">*</span></label><input value="Office 204, Al Barsha Business Centre, Al Barsha 1, Dubai" data-req><div class="err-msg">⚠ Please enter your office address.</div></div>
+          </div>
+        </section>
+
+        <!-- 02 CONTACT -->
+        <section class="sec" data-sec="1">
+          <div class="grid">
+            <div class="field" id="f-person"><label>Contact person <span class="req">*</span></label><input value="Sofia" data-req><div class="err-msg">⚠ Please enter a contact name.</div></div>
+            <div class="field" id="f-email"><label>Email <span class="req">*</span></label><input value="hello@hehewellness.ae" data-req><div class="err-msg">⚠ Please enter an email address.</div></div>
+            <div class="field" id="f-mobile"><label>Mobile number <span class="req">*</span></label><input id="mobile" value="+971 55 946 1101" data-req oninput="syncWa()"><div class="err-msg">⚠ Please enter a mobile number.</div></div>
+            <div class="field" id="f-wa"><label>WhatsApp number <span class="req">*</span></label><input id="wa" value="" data-req>
+              <div class="checkline"><input type="checkbox" id="same" onchange="syncWa()"><label for="same">Same as mobile number</label></div>
+              <div class="err-msg">⚠ Please enter a WhatsApp number, or tick "Same as mobile number".</div></div>
+          </div>
+        </section>
+
+        <!-- 03 CAPACITY -->
+        <section class="sec" data-sec="2">
+          <div class="field" style="margin-bottom:22px">
+            <label>Your services</label>
+            <div class="pill-row"><span class="pill">🔒 Home Massage</span><span class="pill">🔒 Beauty Services</span></div>
+            <div class="hint">Taken from <b>Services &amp; Pricing</b>. To change them, go to Services &amp; Pricing.</div>
+          </div>
+          <div class="grid">
+            <div class="field"><label>How many staff do you have in total?</label><input type="number" value="4"></div>
+            <div class="field"><label>How many jobs can you handle at the same time?</label><input type="number" value="2"></div>
+            <div class="field"><label>How many jobs can you do in one month?</label><input type="number" value="54"></div>
+            <div class="field"><label>How many hours' notice do you need before a job?</label><input type="number" value="4"></div>
+            <div class="field"><label>What time do you start work?</label><input type="time" value="09:00"></div>
+            <div class="field"><label>What time do you finish work?</label><input type="time" value="19:00"></div>
+            <div class="field"><label>How many female staff do you have?</label><input type="number" value="3"></div>
+            <div class="field"><label>How many male staff do you have?</label><input type="number" value="1"></div>
+          </div>
+          <div class="toggle-grid">
+            <div class="tc"><div class="row"><b>Do you work on weekends?</b><button class="sw on"></button></div></div>
+            <div class="tc"><div class="row"><b>Do you work on public holidays?</b><button class="sw"></button></div></div>
+            <div class="tc"><div class="row"><b>Can you take same-day bookings?</b><button class="sw"></button></div></div>
+            <div class="tc"><div class="row"><b>Can you take urgent / emergency jobs?</b><button class="sw on"></button></div></div>
+            <div class="tc"><div class="row"><b>Do you have your own transport?</b><button class="sw"></button></div></div>
+            <div class="tc"><div class="row"><b>Do you bring your own equipment?</b><button class="sw"></button></div></div>
+            <div class="tc"><div class="row"><b>Can you give a VAT tax invoice?</b><button class="sw"></button></div></div>
+            <div class="tc"><div class="row"><b>Are you registered with an Emaar community?</b><div class="yn" data-yn="emaar"><button>Yes</button><button class="on">No</button></div></div></div>
+            <div class="tc"><div class="row"><b>Are you registered with other communities?</b><div class="yn" data-yn="other"><button class="on">Yes</button><button>No</button></div></div></div>
+          </div>
+          <div class="field" id="f-comm" style="margin-top:16px"><label>Which other communities? <span class="req">*</span></label><input id="comm" value="Jumeirah Village Circle, Damac Hills"><div class="err-msg">⚠ Please name the communities you're registered with.</div></div>
+        </section>
+
+        <!-- 04 BANK -->
+        <section class="sec" data-sec="3">
+          <div class="grid">
+            <div class="field"><label>Account name</label><input value="HeHe Wellness LLC"></div>
+            <div class="field"><label>Bank name</label><input value="Emirates NBD"></div>
+            <div class="field span2"><label>IBAN</label><input value="AE07 0260 0010 1234 5678 901"></div>
+            <div class="field"><label>SWIFT / BIC</label><input value="EBILAEAD"></div>
+            <div class="field"><label>Currency</label><select><option>AED</option></select></div>
+          </div>
+          <div class="hint" style="margin-top:14px">Bank changes stay pending until HourX approves them.</div>
+        </section>
+
+        <!-- 05 DOCUMENTS -->
+        <section class="sec" data-sec="4">
+          <div id="docs"></div>
+        </section>
+      </div>
+
+      <div class="footer" id="footer">
+        <div><button class="btn" id="prevBtn" onclick="go(cur-1)">← Previous</button><button class="btn" id="backBtn" onclick="backAll()">← Back to full profile</button></div>
+        
+        <div style="display:flex;gap:8px">
+          <button class="btn" onclick="toast('Draft saved')">Save draft</button>
+          <button class="btn navy" id="nextBtn" onclick="go(cur+1)">Next →</button>
+          <button class="btn gold" id="submitBtn" onclick="submit()">✓ Submit for review</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+<input type="file" id="picker" accept=".pdf,.jpg,.jpeg,.png" style="display:none">
+<div class="toast" id="toast"></div>
+
+<script>
+const SECS=[
+ {t:'Company',d:'Your legal company name, trade license and office address.'},
+ {t:'Contact',d:'The person HourX will contact about bookings.'},
+ {t:'Capacity',d:'How much work you can take on, and when.'},
+ {t:'Bank',d:'Where HourX sends your payments.'},
+ {t:'Documents',d:'Upload your company documents.'}];
+const DOCS=[
+ {id:'trade',name:'Company Trade License',req:true,file:null},
+ {id:'pli',name:'Public Liability Insurance',file:'public-liability-2026.pdf'},
+ {id:'emp',name:'Employee Insurance',file:null},
+ {id:'other',name:'Other Documents',file:null}];
+let tried=false,cur=0,target=null,mode='wizard'; // wizard | all | edit
+const today='2026-09-30';
+const $=id=>document.getElementById(id);
+const pad=i=>String(i+1).padStart(2,'0');
+
+document.querySelectorAll('.sec').forEach(sec=>{const i=+sec.dataset.sec;
+ sec.insertAdjacentHTML('afterbegin',`<div class="sec-h"><h2><span class="n">${pad(i)}</span>${SECS[i].t}</h2><button class="btn up" onclick="go(${i})">✎ Edit</button></div>`)});
+
+function renderDocs(){
+ $('docs').innerHTML=DOCS.map(d=>`<div class="doc" id="d-${d.id}">
+  <div><b>${d.name}${d.req?' <span class="req">*</span>':''}</b>${d.file?`<div class="fn">📄 ${d.file} · <a onclick="toast('Opening preview…')" style="cursor:pointer;text-decoration:underline;color:var(--text)">View</a> <a class="rm" onclick="rm('${d.id}')" style="cursor:pointer;text-decoration:underline;color:var(--red);margin-left:6px">Remove</a></div>`:''}</div>
+  ${d.file?'':'<span class="none">Not uploaded</span>'}<button class="btn up" onclick="pick('${d.id}')">${d.file?'Replace':'⬆ Upload'}</button></div>`).join('');
+}
+function pick(id){target=id;$('picker').value='';$('picker').click()}
+$('picker').onchange=e=>{const f=e.target.files[0];if(f){DOCS.find(d=>d.id===target).file=f.name;renderDocs();validate();toast('Uploaded '+f.name)}};
+function rm(id){DOCS.find(d=>d.id===id).file=null;renderDocs();validate()}
+function syncWa(){const s=$('same').checked,w=$('wa');if(s)w.value=$('mobile').value;w.disabled=s;validate()}
+
+document.querySelectorAll('.sw').forEach(b=>b.onclick=()=>b.classList.toggle('on'));
+document.querySelectorAll('.yn').forEach(g=>g.querySelectorAll('button').forEach(b=>b.onclick=()=>{
+ g.querySelectorAll('button').forEach(x=>x.classList.remove('on'));b.classList.add('on');
+ if(g.dataset.yn==='other')$('f-comm').style.display=b.textContent==='Yes'?'block':'none';validate()}));
+document.addEventListener('input',validate);
+
+let errs=[];
+function validate(){
+ errs=[];
+ document.querySelectorAll('.field').forEach(f=>f.classList.remove('error'));
+ document.querySelectorAll('input[data-req]').forEach(i=>{if(!i.value.trim()){const f=i.closest('.field');f.classList.add('error');
+  errs.push({sec:+i.closest('.sec').dataset.sec,el:f.id,label:f.querySelector('label').childNodes[0].textContent.trim()})}});
+ if(!$('expiry').value||$('expiry').value<=today){$('f-exp').classList.add('error');errs.push({sec:0,el:'f-exp',label:'License expiry date'})}
+ if(document.querySelector('[data-yn=other] .on').textContent==='Yes'&&!$('comm').value.trim()){$('f-comm').classList.add('error');errs.push({sec:2,el:'f-comm',label:'Other communities'})}
+ if(!DOCS[0].file)errs.push({sec:4,el:'d-trade',label:'Trade License upload'});
+ errs.sort((a,b)=>a.sec-b.sec);
+ const bad=new Set(errs.map(e=>e.sec));
+ $('steps').innerHTML=SECS.map((s,i)=>`<div class="step ${i===cur&&mode!=='all'?'current':''}" onclick="go(${i})"><span class="num">${pad(i)}</span><span class="name">${s.t}</span><span class="stat ${bad.has(i)?'warn':'ok'}">${bad.has(i)?'⚠':'✓'}</span></div>`).join('');
+ const c=$('lbChip');
+ if(mode==='all'){c.className='chip ok';c.textContent='⏳ Submitted · Under review'}
+ else{c.className='chip '+(bad.has(cur)?'warn':'ok');c.textContent=bad.has(cur)?'⚠ Errors to fix':'✓ Completed'}
+ document.body.classList.toggle('tried',tried);
+ $('d-trade')&&$('d-trade').classList.toggle('error',!DOCS[0].file);
+ if(tried&&errs.length&&mode!=='all'){$('errBanner').style.display='block';
+  $('errTitle').textContent=`⚠ Please fix ${errs.length} item${errs.length>1?'s':''} before submitting`;
+  $('errList').innerHTML=errs.map(e=>`<li><a onclick="jump(${e.sec},'${e.el}')">${pad(e.sec)} ${SECS[e.sec].t} · ${e.label} →</a></li>`).join('')}
+ else $('errBanner').style.display='none';
+}
+function view(){
+ const all=mode==='all';
+ $('card').classList.toggle('all',all);
+ document.querySelectorAll('.sec').forEach(s=>s.classList.toggle('show',all||+s.dataset.sec===cur));
+ if(all){$('lbCrumb').textContent='Company Profile';$('lbNum').textContent='';$('lbTitle').textContent='HeHe Wellness';$('lbDesc').textContent='All sections. Click Edit on any section to change it.'}
+ else{$('lbCrumb').textContent=mode==='edit'?'Company Profile · Editing':`Company Profile · Step ${cur+1} of 5`;$('lbNum').textContent=pad(cur);$('lbTitle').textContent=SECS[cur].t;$('lbDesc').textContent=SECS[cur].d}
+ $('footer').style.display=all?'none':'flex';
+ $('prevBtn').style.display=mode==='wizard'&&cur>0?'inline-block':'none';
+ $('backBtn').style.display=mode==='edit'?'inline-block':'none';
+ $('nextBtn').style.display=mode==='wizard'&&cur<4?'inline-block':'none';
+ $('submitBtn').style.display=(mode==='edit'||cur===4)?'inline-block':'none';
+ $('submitBtn').textContent=mode==='edit'?'✓ Submit changes for review':'✓ Submit for review';
+ validate();window.scrollTo({top:0,behavior:'smooth'});
+}
+function go(i){if(i<0||i>4)return;cur=i;if(mode==='all')mode='edit';view()}
+function backAll(){mode='all';view()}
+function jump(sec,el){go(sec);setTimeout(()=>{const e=$(el);e.scrollIntoView({behavior:'smooth',block:'center'});e.classList.remove('flash');void e.offsetWidth;e.classList.add('flash');const i=e.querySelector('input');i&&!i.disabled&&i.focus()},250)}
+function submit(){tried=true;validate();if(errs.length){window.scrollTo({top:0,behavior:'smooth'});return}tried=false;mode='all';view();toast('Submitted — HourX will review your profile')}
+function toast(t){const e=$('toast');e.textContent=t;e.classList.add('show');clearTimeout(e._t);e._t=setTimeout(()=>e.classList.remove('show'),2400)}
+renderDocs();view();
+</script>
+</body>
+</html>

@@ -2371,13 +2371,14 @@ const trackedSuppliers = (row?: OrderRow | null) =>
 const supplierProgressLabel = (supplier: SupplierOption) => {
   if (supplier.serviceStatusText) return supplier.serviceStatusText
   const status = Number(supplier.serviceStatus ?? 0)
+  if (status === 3) return t("admin.orders.serviceProgress.departed")
   if (status === 1) return t("admin.orders.serviceProgress.arrived")
   if (status === 2) return t("admin.orders.serviceProgress.completed")
   return t("admin.orders.serviceProgress.notStarted")
 }
 
 const supplierProgressTag = (status?: number | null) =>
-  Number(status) === 2 ? "success" : Number(status) === 1 ? "warning" : "info"
+  Number(status) === 2 ? "success" : Number(status) === 1 || Number(status) === 3 ? "warning" : "info"
 
 const pickI18nValue = (i18n?: I18nText, fallback = ""): string => {
   const valueMap = i18n || {}

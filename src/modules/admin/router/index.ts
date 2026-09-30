@@ -43,6 +43,16 @@ const routes: RouteRecordRaw[] = [
         component: () => import('@/modules/admin/pages/user/index.vue'),
       },
       {
+        path: 'notifications',
+        name: 'admin-notifications',
+        component: () => import('@/modules/admin/pages/notification/index.vue'),
+      },
+      {
+        path: 'sys-config',
+        name: 'admin-sys-config',
+        component: () => import('@/modules/admin/pages/sys-config/index.vue'),
+      },
+      {
         path: 'supplier-management',
         component: () => import('@/modules/admin/pages/basic/Layout.vue'),
         redirect: (to) => ({ path: '/admin/supplier-management/profile', query: to.query }),

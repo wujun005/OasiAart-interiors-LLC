@@ -86,8 +86,13 @@
           </div>
         </header>
 
+        <div class="login-modes" role="tablist">
+          <button type="button" :class="{ 'is-on': mode === 'password' }" @click="mode = 'password'">{{ t('admin.login.passwordMode') }}</button>
+          <button type="button" :class="{ 'is-on': mode === 'code' }" @click="mode = 'code'">{{ t('admin.login.codeMode') }}</button>
+        </div>
+
         <form class="login-form" @submit.prevent="submitLogin">
-          <label class="form-field">
+          <label v-if="mode === 'password'" class="form-field">
             <span class="form-field__label">{{ t('admin.login.accountLabel') }}</span>
             <span class="form-field__control">
               <img :src="assetAccount" alt="" />
@@ -100,7 +105,23 @@
             </span>
           </label>
 
-          <label class="form-field">
+          <label v-else class="form-field">
+            <span class="form-field__label">{{ t('admin.login.phoneLabel') }}</span>
+            <span class="form-field__control phone-control">
+              <select v-model="form.dialCode" :aria-label="t('admin.login.phoneLabel')">
+                <option v-for="item in PHONE_DIAL_OPTIONS" :key="item.value" :value="item.value">{{ item.value }}</option>
+              </select>
+              <input
+                v-model.trim="form.phone"
+                inputmode="numeric"
+                maxlength="15"
+                autocomplete="tel"
+                placeholder="501234567"
+              />
+            </span>
+          </label>
+
+          <label v-if="mode === 'password'" class="form-field">
             <span class="form-field__label">{{ t('admin.login.passwordLabel') }}</span>
             <span class="form-field__control">
               <svg class="form-field__leading" viewBox="0 0 24 24" aria-hidden="true">
@@ -130,19 +151,52 @@
             </span>
           </label>
 
+          <template v-else>
+            <label class="form-field">
+              <span class="form-field__label">{{ t('admin.login.codeLabel') }}</span>
+              <span class="form-field__control code-control">
+                <input
+                  v-model.trim="form.code"
+                  inputmode="numeric"
+                  maxlength="6"
+                  autocomplete="one-time-code"
+                  :placeholder="t('admin.login.codePlaceholder')"
+                />
+                <button class="code-button" type="button" :disabled="codeWait > 0 || sendingCode" @click="sendCode">
+                  {{ codeWait > 0 ? t('admin.login.resendIn', { seconds: codeWait }) : t('admin.login.sendCode') }}
+                </button>
+              </span>
+            </label>
+            <label v-if="mode === 'reset'" class="form-field">
+              <span class="form-field__label">{{ t('admin.login.newPassword') }}</span>
+              <span class="form-field__control">
+                <input v-model="form.newPassword" type="password" autocomplete="new-password" :placeholder="t('admin.login.passwordPlaceholder')" />
+              </span>
+            </label>
+            <label v-if="mode === 'reset'" class="form-field">
+              <span class="form-field__label">{{ t('admin.login.confirmPassword') }}</span>
+              <span class="form-field__control">
+                <input v-model="form.confirmPassword" type="password" autocomplete="new-password" :placeholder="t('admin.login.confirmPassword')" />
+              </span>
+            </label>
+          </template>
+
           <div class="form-meta">
             <span class="secure-session">
               <i aria-hidden="true" />
               {{ t('admin.login.secureSession') }}
             </span>
-            <button type="button" class="text-button" @click="handleForgotPassword">
+            <button v-if="mode !== 'reset'" type="button" class="text-button" @click="mode = 'reset'">
               {{ t('admin.login.forgotPassword') }}
+            </button>
+            <button v-else type="button" class="text-button" @click="mode = 'password'">
+              {{ t('admin.login.backToLogin') }}
             </button>
           </div>
 
           <button class="submit-button" type="submit" :disabled="submitting">
             <span v-if="submitting" class="submit-button__spinner" aria-hidden="true" />
-            <span>{{ submitting ? t('admin.login.signingIn') : t('admin.login.submit') }}</span>
+            <span>{{ submitting ? t('admin.login.signingIn') : mode === 'reset' ? t('admin.login.resetMode') : t('admin.login.submit') }}</span>
             <svg v-if="!submitting" viewBox="0 0 24 24" aria-hidden="true">
               <path d="M5 12h14m-5-5 5 5-5 5" />
             </svg>
@@ -163,11 +217,12 @@
 </template>
 
 <script setup lang="ts">
-import { computed, reactive, ref } from 'vue';
+import { computed, onBeforeUnmount, reactive, ref } from 'vue';
 import { ElMessage } from 'element-plus';
 import { useI18n } from 'vue-i18n';
 import { isNavigationFailure, useRoute } from 'vue-router';
-import { login } from '@/modules/admin/api';
+import { login, loginAdminByCode, resetAdminPassword, sendAdminVerifyCode } from '@/modules/admin/api';
+import { DEFAULT_PHONE_DIAL, PHONE_DIAL_OPTIONS, joinPhone } from '@/utils/phone-dial';
 import router from '@/modules/admin/router';
 import { ADMIN_LOCALE_STORAGE_KEY, type AdminLocale } from '@/modules/admin/locales';
 import {
@@ -188,10 +243,29 @@ const showPassword = ref(false);
 const submitting = ref(false);
 const currentYear = new Date().getFullYear();
 
+const mode = ref<'password' | 'code' | 'reset'>('password');
+const sendingCode = ref(false);
+const codeWait = ref(0);
+let codeTimer = 0;
 const form = reactive({
   account: '',
   password: '',
+  dialCode: DEFAULT_PHONE_DIAL,
+  phone: '',
+  code: '',
+  newPassword: '',
+  confirmPassword: '',
 });
+const fullPhone = () => joinPhone(form.dialCode, form.phone);
+const startCodeWait = () => {
+  codeWait.value = 60;
+  window.clearInterval(codeTimer);
+  codeTimer = window.setInterval(() => {
+    codeWait.value -= 1;
+    if (codeWait.value <= 0) window.clearInterval(codeTimer);
+  }, 1000);
+};
+onBeforeUnmount(() => window.clearInterval(codeTimer));
 
 const assetLogo = '/assets/images/client/hourx-mark.svg';
 const assetCommandCenter = new URL(
@@ -231,18 +305,59 @@ const leftFeatures = [
   },
 ];
 
+const sendCode = async () => {
+  const phone = fullPhone();
+  if (!phone) return ElMessage.warning(t('admin.login.phoneRequired'));
+  sendingCode.value = true;
+  try {
+    const result = await sendAdminVerifyCode(phone);
+    ElMessage.success(result?.message || t('admin.login.codeSent'));
+    startCodeWait();
+  } catch (error: any) {
+    ElMessage.error(error?.message || t('admin.login.loginFailed'));
+  } finally {
+    sendingCode.value = false;
+  }
+};
+
 const submitLogin = async () => {
   if (submitting.value) return;
-  if (!form.account) return ElMessage.warning(t('admin.login.accountRequired'));
-  if (!form.password) return ElMessage.warning(t('admin.login.passwordRequired'));
+  if (mode.value === 'password') {
+    if (!form.account) return ElMessage.warning(t('admin.login.accountRequired'));
+    if (!form.password) return ElMessage.warning(t('admin.login.passwordRequired'));
+  } else {
+    if (!fullPhone()) return ElMessage.warning(t('admin.login.phoneRequired'));
+    if (!/^\d{6}$/.test(form.code)) return ElMessage.warning(t('admin.login.codeRequired'));
+  }
+  if (mode.value === 'reset') {
+    const next = form.newPassword.trim();
+    if (next.length < 6) return ElMessage.warning(t('admin.login.passwordMin'));
+    if (next !== form.confirmPassword.trim()) return ElMessage.warning(t('admin.login.passwordMismatch'));
+  }
 
   submitting.value = true;
   try {
-    const result = await login({
-      account: form.account,
-      password: form.password,
-      rememberMe: true,
-    });
+    if (mode.value === 'reset') {
+      const result = await resetAdminPassword({
+        phone: fullPhone(),
+        verifyCode: form.code,
+        newPassword: form.newPassword.trim(),
+      });
+      ElMessage.success(result?.message || t('admin.login.passwordReset'));
+      mode.value = 'password';
+      form.password = '';
+      form.code = '';
+      form.newPassword = '';
+      form.confirmPassword = '';
+      return;
+    }
+    const result = mode.value === 'code'
+      ? await loginAdminByCode({ phone: fullPhone(), code: form.code })
+      : await login({
+        account: form.account,
+        password: form.password,
+        rememberMe: true,
+      });
     const data = result?.data;
     if (!data?.token) throw new Error(t('admin.login.loginFailed'));
 
@@ -290,10 +405,6 @@ const submitLogin = async () => {
   } finally {
     submitting.value = false;
   }
-};
-
-const handleForgotPassword = () => {
-  ElMessage.info(t('admin.login.resetHint'));
 };
 
 const handleLocaleChange = (lang: AdminLocale) => {
@@ -800,6 +911,13 @@ const handleLocaleChange = (lang: AdminLocale) => {
   color: #9b9a95;
 }
 
+.login-modes { display: flex; gap: 8px; margin-bottom: 18px; }
+.login-modes button { flex: 1; height: 36px; border: 1px solid rgba(5, 21, 43, .14); border-radius: 999px; background: transparent; color: #314255; font: inherit; font-size: 13px; font-weight: 700; cursor: pointer; }
+.login-modes button.is-on { background: #05152b; border-color: #05152b; color: #f7f1e6; }
+.phone-control, .code-control { display: flex; align-items: center; gap: 8px; }
+.phone-control select { flex: 0 0 84px; height: 44px; border: 0; background: transparent; color: #05152b; font: inherit; font-weight: 700; }
+.code-button { flex: 0 0 auto; height: 32px; padding: 0 10px; border: 0; border-radius: 999px; background: #05152b; color: #f7f1e6; font: inherit; font-size: 12px; font-weight: 700; cursor: pointer; }
+.code-button:disabled { opacity: .55; cursor: default; }
 .password-toggle {
   width: 28px;
   height: 28px;

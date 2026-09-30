@@ -1,20 +1,19 @@
 <template>
   <div class="supplier-demo" :class="{ 'supplier-demo--profile': section === 'profile' }">
-    <header class="page-header">
+    <header v-if="section !== 'pricing'" class="page-header">
       <div>
         <p class="page-kicker">{{ meta.description }}</p>
         <h1>{{ meta.title }}</h1>
       </div>
       <div class="page-actions">
         <el-button v-if="section === 'settlement'" :icon="Download" @click="showToast('结算明细已生成 Demo 导出任务')">导出结算</el-button>
-        <el-button v-if="section === 'profile'" :loading="saving" @click="saveProfile(0)">{{ t('admin.supplierProfile.saveDraft') }}</el-button>
-        <el-button v-if="meta.primaryAction" type="primary" :icon="section === 'schedule' ? Plus : section === 'profile' ? Check : undefined" @click="handlePrimaryAction">
+        <el-button v-if="meta.primaryAction" type="primary" :icon="section === 'schedule' ? Plus : undefined" @click="handlePrimaryAction">
           {{ meta.primaryAction }}
         </el-button>
       </div>
     </header>
 
-    <section v-if="section !== 'profile'" class="supplier-strip">
+    <section v-if="section !== 'profile' && section !== 'pricing'" class="supplier-strip">
       <div class="supplier-identity">
         <div class="supplier-logo">PC</div>
         <div>
@@ -74,141 +73,222 @@
           <p>{{ t('admin.supplierProfile.kicker') }}</p>
           <strong>{{ companyForm.companyName || t('admin.supplierProfile.untitled') }}</strong>
           <em>{{ profileStatusLabel }}</em>
+          <small v-if="snapshotVersion">{{ t('admin.supplierProfile.snapshotVersion', { version: snapshotVersion }) }}</small>
           <nav>
-            <button type="button" :class="{ 'is-active': profileAnchor === 'company' }" @click="goProfile('company')"><span>01</span>{{ t('admin.supplierProfile.companyTitle') }}</button>
-            <button type="button" :class="{ 'is-active': profileAnchor === 'contact' }" @click="goProfile('contact')"><span>02</span>{{ t('admin.supplierProfile.contactTitle') }}</button>
-            <button type="button" :class="{ 'is-active': profileAnchor === 'capacity' }" @click="goProfile('capacity')"><span>03</span>{{ t('admin.supplierProfile.capacityTitle') }}</button>
-            <button type="button" :class="{ 'is-active': profileAnchor === 'bank' }" @click="goProfile('bank')"><span>04</span>{{ t('admin.supplierProfile.bankTitle') }}</button>
-            <button type="button" :class="{ 'is-active': profileAnchor === 'insurance' }" @click="goProfile('insurance')"><span>05</span>{{ t('admin.supplierProfile.insuranceTitle') }}</button>
-            <button type="button" :class="{ 'is-active': profileAnchor === 'documents' }" @click="goProfile('documents')"><span>06</span>{{ t('admin.supplierProfile.documentsTitle') }}</button>
+            <button
+              v-for="(item, index) in profileSections"
+              :key="item.id"
+              type="button"
+              :class="{ 'is-active': profileView === 'section' && profileSection === index }"
+              @click="openProfileSection(index)"
+            ><span>{{ item.num }}</span>{{ item.title }}</button>
           </nav>
           <small v-if="rejectReason">{{ t('admin.supplierProfile.rejected', { reason: rejectReason }) }}</small>
         </aside>
 
-        <div class="dossier-sheet">
-          <section id="profile-company">
-            <header><span>01</span><div><h2>{{ t('admin.supplierProfile.companyTitle') }}</h2><p>{{ t('admin.supplierProfile.companyHint') }}</p></div></header>
-            <el-form label-position="top" class="dossier-grid">
-              <el-form-item :label="t('admin.supplierProfile.companyName')" class="span-2" required><el-input v-model="companyForm.companyName" :placeholder="t('admin.supplierProfile.companyNamePlaceholder')" /></el-form-item>
-              <el-form-item :label="t('admin.supplierProfile.licenseNo')" required><el-input v-model="companyForm.licenseNo" placeholder="CN-0000000" /></el-form-item>
-              <el-form-item :label="t('admin.supplierProfile.licenseExpiry')" required><el-date-picker v-model="companyForm.licenseExpiry" type="date" value-format="YYYY-MM-DD" placeholder="YYYY-MM-DD" /></el-form-item>
-              <el-form-item :label="t('admin.supplierProfile.vat')"><el-input v-model="companyForm.trn" :placeholder="t('admin.supplierProfile.vatPlaceholder')" /></el-form-item>
-              <el-form-item :label="t('admin.supplierProfile.years')"><el-input-number v-model="companyForm.years" :min="0" controls-position="right" /></el-form-item>
-              <el-form-item :label="t('admin.supplierProfile.address')" class="span-2" required><el-input v-model="companyForm.address" :placeholder="t('admin.supplierProfile.addressPlaceholder')" /></el-form-item>
-            </el-form>
-          </section>
-
-          <section id="profile-contact">
-            <header><span>02</span><div><h2>{{ t('admin.supplierProfile.contactTitle') }}</h2><p>{{ t('admin.supplierProfile.contactHint') }}</p></div></header>
-            <el-form label-position="top" class="dossier-grid">
-              <el-form-item :label="t('admin.supplierProfile.contactPerson')" required><el-input v-model="companyForm.contact" /></el-form-item>
-              <el-form-item :label="t('admin.supplierProfile.email')" required><el-input v-model="companyForm.email" /></el-form-item>
-              <el-form-item :label="t('admin.supplierProfile.mobile')" required><el-input v-model="companyForm.mobile" placeholder="+971" /></el-form-item>
-              <el-form-item :label="t('admin.supplierProfile.whatsapp')" required><el-input v-model="companyForm.whatsapp" placeholder="+971" /></el-form-item>
-            </el-form>
-          </section>
-
-          <section id="profile-capacity">
-            <header><span>03</span><div><h2>{{ t('admin.supplierProfile.capacityTitle') }}</h2><p>{{ t('admin.supplierProfile.capacityHint') }}</p></div></header>
-            <el-form label-position="top" class="dossier-grid dossier-grid--three">
-              <el-form-item :label="t('admin.supplierProfile.workers')"><el-input-number v-model="capacityForm.workers" :min="0" /></el-form-item>
-              <el-form-item :label="t('admin.supplierProfile.concurrent')"><el-input-number v-model="capacityForm.concurrent" :min="0" /></el-form-item>
-              <el-form-item :label="t('admin.supplierProfile.monthly')"><el-input-number v-model="capacityForm.monthly" :min="0" /></el-form-item>
-              <el-form-item :label="t('admin.supplierProfile.leadTime')"><el-input-number v-model="capacityForm.leadTime" :min="0" /></el-form-item>
-              <el-form-item :label="t('admin.supplierProfile.workStart')"><el-time-select v-model="capacityForm.start" start="06:00" step="00:30" end="12:00" /></el-form-item>
-              <el-form-item :label="t('admin.supplierProfile.workEnd')"><el-time-select v-model="capacityForm.end" start="14:00" step="00:30" end="23:30" /></el-form-item>
-              <el-form-item :label="t('admin.supplierProfile.femaleStaff')"><el-input-number v-model="femaleStaffCount" :min="0" /></el-form-item>
-              <el-form-item :label="t('admin.supplierProfile.maleStaff')"><el-input-number v-model="maleStaffCount" :min="0" /></el-form-item>
-            </el-form>
-            <div class="dossier-toggles">
-              <label v-for="item in capacityToggles" :key="item.key"><span><strong>{{ t(`admin.supplierProfile.${item.key}`) }}</strong></span><el-switch v-model="item.enabled" /></label>
-              <label><span><strong>{{ t('admin.supplierProfile.ownVehicle') }}</strong></span><el-switch v-model="ownTransportation" /></label>
-              <label><span><strong>{{ t('admin.supplierProfile.ownEquipment') }}</strong></span><el-switch v-model="complianceItems[3].enabled" /></label>
-              <label><span><strong>{{ t('admin.supplierProfile.taxInvoice') }}</strong></span><el-switch v-model="complianceItems[2].enabled" /></label>
+        <div class="profile-main">
+          <div class="lightbox">
+            <div>
+              <p>{{ lightboxCrumb }}</p>
+              <h2><span v-if="profileView === 'section'">{{ activeProfileSection.num }}</span>{{ lightboxTitle }}</h2>
+              <small>{{ lightboxDesc }}</small>
             </div>
-            <div class="community-fields">
-              <article>
-                <div>
-                  <strong>{{ t('admin.supplierProfile.emaar') }}</strong>
-                  <small>{{ t('admin.supplierProfile.emaarHint') }}</small>
-                </div>
-                <el-radio-group v-model="emaarOnboarded">
-                  <el-radio-button :value="1">{{ t('admin.supplierProfile.yes') }}</el-radio-button>
-                  <el-radio-button :value="0">{{ t('admin.supplierProfile.no') }}</el-radio-button>
-                </el-radio-group>
-              </article>
-              <article>
-                <div>
-                  <strong>{{ t('admin.supplierProfile.otherCommunity') }}</strong>
-                  <small>{{ t('admin.supplierProfile.otherCommunityHint') }}</small>
-                </div>
-                <el-radio-group v-model="otherCommunityOnboarded" @change="onOtherCommunityChange">
-                  <el-radio-button :value="1">{{ t('admin.supplierProfile.yes') }}</el-radio-button>
-                  <el-radio-button :value="0">{{ t('admin.supplierProfile.no') }}</el-radio-button>
-                </el-radio-group>
-              </article>
-            </div>
-            <el-form v-if="asYesNo(otherCommunityOnboarded) === 1" label-position="top" class="dossier-grid community-note">
-              <el-form-item :label="t('admin.supplierProfile.applyRenmark')" class="span-2" required>
-                <el-input v-model="applyRenmark" type="textarea" :rows="3" maxlength="512" show-word-limit :placeholder="t('admin.supplierProfile.applyRenmarkPlaceholder')" />
-              </el-form-item>
-            </el-form>
-          </section>
+            <em :class="lightboxChipClass">{{ lightboxChip }}</em>
+          </div>
 
-          <section id="profile-bank">
-            <header><span>04</span><div><h2>{{ t('admin.supplierProfile.bankTitle') }}</h2><p>{{ t('admin.supplierProfile.bankHint') }}</p></div></header>
-            <el-form label-position="top" class="dossier-grid">
-              <el-form-item :label="t('admin.supplierProfile.accountName')"><el-input v-model="bankForm.accountName" /></el-form-item>
-              <el-form-item :label="t('admin.supplierProfile.bankName')"><el-input v-model="bankForm.bankName" /></el-form-item>
-              <el-form-item :label="t('admin.supplierProfile.iban')" class="span-2"><el-input v-model="bankForm.iban" /></el-form-item>
-              <el-form-item :label="t('admin.supplierProfile.swift')"><el-input v-model="bankForm.swift" /></el-form-item>
-              <el-form-item :label="t('admin.supplierProfile.currency')"><el-select v-model="bankForm.currency"><el-option label="AED" value="AED" /></el-select></el-form-item>
-            </el-form>
-          </section>
+          <div v-if="submitTried && profileIssues.length && profileView === 'section'" class="error-banner">
+            <strong>{{ t('admin.supplierProfile.fixCount', { count: profileIssues.length }) }}</strong>
+            <button v-for="issue in profileIssues" :key="`${issue.section}-${issue.id}`" type="button" @click="jumpProfileField(issue)">
+              {{ profileSections[issue.section].num }} {{ profileSections[issue.section].title }} · {{ issue.label }}
+            </button>
+          </div>
+          <p v-if="!profileEditable" class="review-lock">{{ t('admin.supplierProfile.locked') }}</p>
 
-          <section id="profile-insurance">
-            <header><span>05</span><div><h2>{{ t('admin.supplierProfile.insuranceTitle') }}</h2><p>{{ t('admin.supplierProfile.insuranceHint') }}</p></div></header>
-            <div class="policy-row" v-for="item in complianceItems.filter((entry) => entry.fileKey)" :key="item.key">
-              <div>
-                <strong>{{ t(`admin.supplierProfile.${item.labelKey}`) }}</strong>
-                <small v-if="!item.files.length">{{ t('admin.supplierProfile.uploadHint') }}</small>
-                <ul v-else class="policy-files">
-                  <li v-for="(url, index) in item.files" :key="`${url}-${index}`">
-                    <button v-if="fileKind(url) === 'image'" type="button" class="policy-thumb" @click="openFilePreview(url)">
-                      <img :src="url" :alt="fileNameFromUrl(url)" />
-                    </button>
-                    <button type="button" class="policy-name" @click="openFilePreview(url)">{{ fileNameFromUrl(url) }}</button>
-                    <button type="button" class="is-remove" @click="removeInsuranceFile(item.fileKey, index)">{{ t('admin.supplierProfile.remove') }}</button>
-                  </li>
-                </ul>
+          <div class="dossier-sheet" :class="{ 'is-all': profileView === 'all' }">
+            <section v-show="showProfileSection(0)">
+              <header class="sec-h"><span>01</span><div><h2>{{ t('admin.supplierProfile.companyTitle') }}</h2></div><el-button v-if="profileView === 'all'" @click="openProfileSection(0)">{{ t('admin.supplierProfile.editSection') }}</el-button></header>
+              <div class="dossier-grid">
+                <label id="profile-field-companyName" class="profile-field span-2" :class="{ error: issueOf('companyName') }">
+                  <span>{{ t('admin.supplierProfile.companyName') }} <i>*</i></span>
+                  <el-input v-model="companyForm.companyName" :disabled="profileReadOnly" />
+                  <small v-if="issueOf('companyName')">{{ issueOf('companyName') }}</small>
+                </label>
+                <label id="profile-field-licenseNo" class="profile-field" :class="{ error: issueOf('licenseNo') }">
+                  <span>{{ t('admin.supplierProfile.licenseNo') }} <i>*</i></span>
+                  <el-input v-model="companyForm.licenseNo" :disabled="profileReadOnly" />
+                  <small v-if="issueOf('licenseNo')">{{ issueOf('licenseNo') }}</small>
+                </label>
+                <label id="profile-field-licenseExpiry" class="profile-field" :class="{ error: issueOf('licenseExpiry') }">
+                  <span>{{ t('admin.supplierProfile.licenseExpiry') }} <i>*</i></span>
+                  <el-date-picker v-model="companyForm.licenseExpiry" type="date" value-format="YYYY-MM-DD" placeholder="YYYY-MM-DD" :disabled="profileReadOnly" :disabled-date="disableLicenseDate" />
+                  <small v-if="issueOf('licenseExpiry')">{{ issueOf('licenseExpiry') }}</small>
+                </label>
+                <label class="profile-field"><span>{{ t('admin.supplierProfile.vat') }}</span><el-input v-model="companyForm.trn" :disabled="profileReadOnly" /></label>
+                <label class="profile-field"><span>{{ t('admin.supplierProfile.years') }}</span><input class="plain-count" :value="wholeText(companyForm.years)" inputmode="numeric" :disabled="profileReadOnly" @input="companyForm.years = wholeOrZero(($event.target as HTMLInputElement).value)" /></label>
+                <label id="profile-field-address" class="profile-field span-2" :class="{ error: issueOf('address') }">
+                  <span>{{ t('admin.supplierProfile.address') }} <i>*</i></span>
+                  <el-input v-model="companyForm.address" :disabled="profileReadOnly" />
+                  <small v-if="issueOf('address')">{{ issueOf('address') }}</small>
+                </label>
               </div>
-              <el-switch v-model="item.enabled" />
-              <el-upload multiple :show-file-list="false" :http-request="(options) => uploadInsurance(item.fileKey, options)">
-                <el-button>{{ t('admin.supplierProfile.uploadCopy') }}</el-button>
-              </el-upload>
-            </div>
-          </section>
+            </section>
 
-          <section id="profile-documents">
-            <header>
-              <span>06</span>
-              <div><h2>{{ t('admin.supplierProfile.documentsTitle') }}</h2><p>{{ t('admin.supplierProfile.documentsHint') }}</p></div>
-            </header>
-            <p v-if="!policyDocuments.length" class="policy-empty">{{ t('admin.supplierProfile.noDocuments') }}</p>
-            <div v-else class="doc-list">
-              <article v-for="row in policyDocuments" :key="row.key">
-                <button type="button" class="doc-thumb" @click="openFilePreview(row.url)">
-                  <img v-if="row.kind === 'image'" :src="row.url" :alt="row.name" />
-                  <Document v-else />
-                </button>
-                <div>
-                  <strong>{{ row.label }}</strong>
-                  <small>{{ row.name }}</small>
+            <section v-show="showProfileSection(1)">
+              <header class="sec-h"><span>02</span><div><h2>{{ t('admin.supplierProfile.contactTitle') }}</h2></div><el-button v-if="profileView === 'all'" @click="openProfileSection(1)">{{ t('admin.supplierProfile.editSection') }}</el-button></header>
+              <div class="dossier-grid">
+                <label id="profile-field-contact" class="profile-field" :class="{ error: issueOf('contact') }">
+                  <span>{{ t('admin.supplierProfile.contactPerson') }} <i>*</i></span>
+                  <el-input v-model="companyForm.contact" :disabled="profileReadOnly" />
+                  <small v-if="issueOf('contact')">{{ issueOf('contact') }}</small>
+                </label>
+                <label id="profile-field-email" class="profile-field" :class="{ error: issueOf('email') }">
+                  <span>{{ t('admin.supplierProfile.email') }} <i>*</i></span>
+                  <el-input v-model="companyForm.email" :disabled="profileReadOnly" />
+                  <small v-if="issueOf('email')">{{ issueOf('email') }}</small>
+                </label>
+                <label id="profile-field-mobile" class="profile-field phone-field" :class="{ error: issueOf('mobile') }">
+                  <span>{{ t('admin.supplierProfile.mobile') }} <i>*</i></span>
+                  <el-input v-model="companyForm.mobile" maxlength="15" inputmode="numeric" :disabled="profileReadOnly" :placeholder="t('admin.supplierProfile.phonePlaceholder')">
+                    <template #prepend>
+                      <el-select v-model="companyForm.mobileCode" class="dial-prepend" :disabled="profileReadOnly">
+                        <el-option v-for="item in PHONE_DIAL_OPTIONS" :key="item.value" :label="item.value" :value="item.value">{{ phoneDialLabel(item, locale) }}</el-option>
+                      </el-select>
+                    </template>
+                  </el-input>
+                  <small v-if="issueOf('mobile')">{{ issueOf('mobile') }}</small>
+                </label>
+                <div id="profile-field-whatsapp" class="profile-field phone-field" :class="{ error: issueOf('whatsapp') }">
+                  <span>{{ t('admin.supplierProfile.whatsapp') }} <i>*</i></span>
+                  <el-input v-model="companyForm.whatsapp" maxlength="15" inputmode="numeric" :disabled="profileReadOnly || whatsappSame" :placeholder="t('admin.supplierProfile.phonePlaceholder')">
+                    <template #prepend>
+                      <el-select v-model="companyForm.whatsappCode" class="dial-prepend" :disabled="profileReadOnly || whatsappSame">
+                        <el-option v-for="item in PHONE_DIAL_OPTIONS" :key="`wa-${item.value}`" :label="item.value" :value="item.value">{{ phoneDialLabel(item, locale) }}</el-option>
+                      </el-select>
+                    </template>
+                  </el-input>
+                  <label class="same-line">
+                    <input v-model="whatsappSame" type="checkbox" :disabled="profileReadOnly" @change="syncWhatsapp" />
+                    <span>{{ t('admin.supplierProfile.sameAsMobile') }}</span>
+                  </label>
+                  <small v-if="issueOf('whatsapp')">{{ issueOf('whatsapp') }}</small>
                 </div>
-                <button type="button" class="doc-view" @click="openFilePreview(row.url)">{{ t('admin.supplierProfile.view') }}</button>
-              </article>
+              </div>
+            </section>
+
+            <section v-show="showProfileSection(2)">
+              <header class="sec-h"><span>03</span><div><h2>{{ t('admin.supplierProfile.capacityTitle') }}</h2></div><el-button v-if="profileView === 'all'" @click="openProfileSection(2)">{{ t('admin.supplierProfile.editSection') }}</el-button></header>
+              <div class="service-pills">
+                <strong>{{ t('admin.supplierProfile.yourServices') }}</strong>
+                <div>
+                  <span v-for="name in selectedServiceNames" :key="name">{{ name }}</span>
+                  <em v-if="!selectedServiceNames.length">{{ t('admin.supplierProfile.noSelectedServices') }}</em>
+                </div>
+                <p>{{ t('admin.supplierProfile.servicesFromPricing') }}</p>
+              </div>
+              <div class="dossier-grid align-fields">
+                <label class="profile-field"><span>{{ t('admin.supplierProfile.workers') }}</span><input class="plain-count" :value="wholeText(capacityForm.workers)" inputmode="numeric" :disabled="profileReadOnly" @input="capacityForm.workers = wholeOrZero(($event.target as HTMLInputElement).value)" /></label>
+                <label class="profile-field"><span>{{ t('admin.supplierProfile.concurrent') }}</span><input class="plain-count" :value="wholeText(capacityForm.concurrent)" inputmode="numeric" :disabled="profileReadOnly" @input="capacityForm.concurrent = wholeOrZero(($event.target as HTMLInputElement).value)" /></label>
+                <label class="profile-field"><span>{{ t('admin.supplierProfile.monthly') }}</span><input class="plain-count" :value="wholeText(capacityForm.monthly)" inputmode="numeric" :disabled="profileReadOnly" @input="capacityForm.monthly = wholeOrZero(($event.target as HTMLInputElement).value)" /></label>
+                <label class="profile-field"><span>{{ t('admin.supplierProfile.leadTime') }}</span><input class="plain-count" :value="wholeText(capacityForm.leadTime)" inputmode="numeric" :disabled="profileReadOnly" @input="capacityForm.leadTime = wholeOrZero(($event.target as HTMLInputElement).value)" /></label>
+                <label class="profile-field"><span>{{ t('admin.supplierProfile.workStart') }}</span><el-time-select v-model="capacityForm.start" start="06:00" step="00:30" end="12:00" :disabled="profileReadOnly" /></label>
+                <label class="profile-field"><span>{{ t('admin.supplierProfile.workEnd') }}</span><el-time-select v-model="capacityForm.end" start="14:00" step="00:30" end="23:30" :disabled="profileReadOnly" /></label>
+                <label class="profile-field"><span>{{ t('admin.supplierProfile.femaleStaff') }}</span><input class="plain-count" :value="wholeText(femaleStaffCount)" inputmode="numeric" :disabled="profileReadOnly" @input="femaleStaffCount = wholeOrZero(($event.target as HTMLInputElement).value)" /></label>
+                <label class="profile-field"><span>{{ t('admin.supplierProfile.maleStaff') }}</span><input class="plain-count" :value="wholeText(maleStaffCount)" inputmode="numeric" :disabled="profileReadOnly" @input="maleStaffCount = wholeOrZero(($event.target as HTMLInputElement).value)" /></label>
+              </div>
+              <div class="dossier-toggles">
+                <label v-for="item in capacityToggles" :key="item.key"><span><strong>{{ t(`admin.supplierProfile.${item.key}`) }}</strong></span><el-switch v-model="item.enabled" :disabled="profileReadOnly" /></label>
+                <label><span><strong>{{ t('admin.supplierProfile.ownVehicle') }}</strong></span><el-switch v-model="ownTransportation" :disabled="profileReadOnly" /></label>
+                <label><span><strong>{{ t('admin.supplierProfile.ownEquipment') }}</strong></span><el-switch v-model="complianceItems[3].enabled" :disabled="profileReadOnly" /></label>
+                <label><span><strong>{{ t('admin.supplierProfile.taxInvoice') }}</strong></span><el-switch v-model="complianceItems[2].enabled" :disabled="profileReadOnly" /></label>
+                <label><span><strong>{{ t('admin.supplierProfile.emaar') }}</strong></span>
+                  <el-radio-group v-model="emaarOnboarded" :disabled="profileReadOnly">
+                    <el-radio-button :value="1">{{ t('admin.supplierProfile.yes') }}</el-radio-button>
+                    <el-radio-button :value="0">{{ t('admin.supplierProfile.no') }}</el-radio-button>
+                  </el-radio-group>
+                </label>
+                <label><span><strong>{{ t('admin.supplierProfile.otherCommunity') }}</strong></span>
+                  <el-radio-group v-model="otherCommunityOnboarded" :disabled="profileReadOnly" @change="onOtherCommunityChange">
+                    <el-radio-button :value="1">{{ t('admin.supplierProfile.yes') }}</el-radio-button>
+                    <el-radio-button :value="0">{{ t('admin.supplierProfile.no') }}</el-radio-button>
+                  </el-radio-group>
+                </label>
+              </div>
+              <label v-if="asYesNo(otherCommunityOnboarded) === 1" id="profile-field-communities" class="profile-field" :class="{ error: issueOf('communities') }">
+                <span>{{ t('admin.supplierProfile.applyRenmark') }} <i>*</i></span>
+                <el-input v-model="applyRenmark" type="textarea" :rows="3" maxlength="512" show-word-limit :disabled="profileReadOnly" />
+                <small v-if="issueOf('communities')">{{ issueOf('communities') }}</small>
+              </label>
+            </section>
+
+            <section v-show="showProfileSection(3)">
+              <header class="sec-h"><span>04</span><div><h2>{{ t('admin.supplierProfile.bankTitle') }}</h2></div><el-button v-if="profileView === 'all'" @click="openProfileSection(3)">{{ t('admin.supplierProfile.editSection') }}</el-button></header>
+              <div class="dossier-grid">
+                <label class="profile-field"><span>{{ t('admin.supplierProfile.accountName') }}</span><el-input v-model="bankForm.accountName" :disabled="profileReadOnly" /></label>
+                <label class="profile-field"><span>{{ t('admin.supplierProfile.bankName') }}</span><el-input v-model="bankForm.bankName" :disabled="profileReadOnly" /></label>
+                <label class="profile-field span-2"><span>{{ t('admin.supplierProfile.iban') }}</span><el-input v-model="bankForm.iban" :disabled="profileReadOnly" /></label>
+                <label class="profile-field"><span>{{ t('admin.supplierProfile.swift') }}</span><el-input v-model="bankForm.swift" :disabled="profileReadOnly" /></label>
+                <label class="profile-field"><span>{{ t('admin.supplierProfile.currency') }}</span><el-select v-model="bankForm.currency" :disabled="profileReadOnly"><el-option label="AED" value="AED" /></el-select></label>
+              </div>
+            </section>
+
+            <section v-show="showProfileSection(4)">
+              <header class="sec-h"><span>05</span><div><h2>{{ t('admin.supplierProfile.documentsTitle') }}</h2></div><el-button v-if="profileView === 'all'" @click="openProfileSection(4)">{{ t('admin.supplierProfile.editSection') }}</el-button></header>
+              <div id="profile-field-tradeLicense" class="doc-row" :class="{ error: issueOf('tradeLicense') }">
+                <div>
+                  <strong>{{ t('admin.supplierProfile.tradeLicenseFile') }} <i>*</i></strong>
+                  <p v-for="(url, index) in tradeLicenseFiles" :key="`trade-${url}-${index}`">
+                    <button type="button" @click="openFilePreview(url)">{{ fileNameFromUrl(url) }}</button>
+                    <button v-if="!profileReadOnly" type="button" class="is-remove" @click="removeDocFile('trade', index)">{{ t('admin.supplierProfile.remove') }}</button>
+                  </p>
+                  <small v-if="!tradeLicenseFiles.length">{{ t('admin.supplierProfile.notUploaded') }}</small>
+                  <small v-if="issueOf('tradeLicense')" class="err">{{ issueOf('tradeLicense') }}</small>
+                </div>
+                <el-upload v-if="!profileReadOnly" :show-file-list="false" :http-request="(options) => uploadDocFile('trade', options)">
+                  <el-button>{{ tradeLicenseFiles.length ? t('admin.supplierProfile.replaceFile') : t('admin.supplierProfile.upload') }}</el-button>
+                </el-upload>
+              </div>
+              <div v-for="doc in insuranceDocs" :key="doc.id" class="doc-row">
+                <div>
+                  <strong>{{ doc.label }}</strong>
+                  <p v-for="(url, index) in doc.files" :key="`${doc.id}-${url}-${index}`">
+                    <button type="button" @click="openFilePreview(url)">{{ fileNameFromUrl(url) }}</button>
+                    <button v-if="!profileReadOnly" type="button" class="is-remove" @click="removeDocFile(doc.id, index)">{{ t('admin.supplierProfile.remove') }}</button>
+                  </p>
+                  <small v-if="!doc.files.length">{{ t('admin.supplierProfile.notUploaded') }}</small>
+                </div>
+                <el-upload v-if="!profileReadOnly" :show-file-list="false" :http-request="(options) => uploadDocFile(doc.id, options)">
+                  <el-button>{{ doc.files.length ? t('admin.supplierProfile.replaceFile') : t('admin.supplierProfile.upload') }}</el-button>
+                </el-upload>
+              </div>
+              <div class="doc-row">
+                <div>
+                  <strong>{{ t('admin.supplierProfile.otherDocuments') }}</strong>
+                  <p v-for="(url, index) in otherDocumentFiles" :key="`other-${url}-${index}`">
+                    <button type="button" @click="openFilePreview(url)">{{ fileNameFromUrl(url) }}</button>
+                    <button v-if="!profileReadOnly" type="button" class="is-remove" @click="removeDocFile('other', index)">{{ t('admin.supplierProfile.remove') }}</button>
+                  </p>
+                  <small v-if="!otherDocumentFiles.length">{{ t('admin.supplierProfile.notUploaded') }}</small>
+                </div>
+                <el-upload v-if="!profileReadOnly" :show-file-list="false" :http-request="(options) => uploadDocFile('other', options)">
+                  <el-button>{{ otherDocumentFiles.length ? t('admin.supplierProfile.replaceFile') : t('admin.supplierProfile.upload') }}</el-button>
+                </el-upload>
+              </div>
+            </section>
+          </div>
+
+          <footer v-if="profileView === 'section'" class="profile-footer">
+            <div>
+              <el-button v-if="profileFromAll" @click="backToFullProfile">{{ t('admin.supplierProfile.backToProfile') }}</el-button>
+              <el-button v-else-if="profileSection > 0" @click="moveProfileSection(-1)">{{ t('admin.supplierProfile.previous') }}</el-button>
             </div>
-          </section>
+            <div>
+              <el-button v-if="profileEditable && !needsResubmit" :loading="saving" @click="saveProfile(0)">{{ t('admin.supplierProfile.saveDraft') }}</el-button>
+              <el-button v-if="!profileFromAll && profileSection < 4" type="primary" @click="moveProfileSection(1)">{{ t('admin.supplierProfile.next') }}</el-button>
+              <el-button v-if="profileFromAll || profileSection === 4" type="primary" :loading="saving" @click="submitProfileForm">
+                {{ needsResubmit || profileFromAll ? t('admin.supplierProfile.resubmit') : t('admin.supplierProfile.submitReview') }}
+              </el-button>
+            </div>
+          </footer>
         </div>
       </div>
     </template>
@@ -388,15 +468,16 @@
               </div>
             </template>
           </el-table-column>
-          <el-table-column :label="t('admin.supplierOrders.serviceStatus')" width="148">
+          <el-table-column :label="t('admin.supplierOrders.serviceStatus')" width="168">
             <template #default="{ row }">
               <el-tag :type="serviceStatusTag(row.serviceStatus)" effect="light">{{ serviceStatusText(row) }}</el-tag>
             </template>
           </el-table-column>
-          <el-table-column label="" width="148" align="right">
+          <el-table-column label="" width="132" align="right">
             <template #default="{ row }">
-              <el-button v-if="Number(row.serviceStatus || 0) === 0" link type="primary" @click="openServiceAction(row, 'arrive')">{{ t('admin.supplierOrders.arriveAction') }}</el-button>
-              <el-button v-else-if="Number(row.serviceStatus) === 1" link type="primary" @click="openServiceAction(row, 'complete')">{{ t('admin.supplierOrders.completeAction') }}</el-button>
+              <el-button v-if="serviceStep(row) === 0" link type="primary" @click="departForService(row)">{{ t('admin.supplierOrders.departAction') }}</el-button>
+              <el-button v-else-if="serviceStep(row) === 3" link type="primary" @click="openServiceAction(row, 'arrive')">{{ t('admin.supplierOrders.arriveAction') }}</el-button>
+              <el-button v-else-if="serviceStep(row) === 1" link type="primary" @click="openServiceAction(row, 'complete')">{{ t('admin.supplierOrders.completeAction') }}</el-button>
             </template>
           </el-table-column>
         </el-table>
@@ -431,116 +512,235 @@
     </template>
 
     <template v-else-if="section === 'pricing'">
-      <section class="pricing-health">
-        <div>
-          <span class="health-icon pending"><Clock /></span>
-          <div>
-            <strong>{{ t('admin.supplierPricing.pending', { count: pendingQuoteCount }) }}</strong>
-            <p>{{ t('admin.supplierPricing.hint') }}</p>
-          </div>
-        </div>
-      </section>
-      <el-card class="surface-card pricing-card" shadow="never" v-loading="catalogLoading || quoteLoading">
-        <div class="pricing-toolbar">
-          <div class="pricing-filter">
-            <span>{{ t('admin.supplierPricing.added') }}</span>
-            <el-select v-model="quoteCategory" filterable>
-              <el-option :label="t('admin.supplierPricing.allServices')" value="all" />
-              <el-option v-for="category in serviceCategoryOptions" :key="category.id" :label="category.label" :value="category.id" />
-            </el-select>
-            <el-input v-model="addedKeyword" clearable :placeholder="t('admin.supplierPricing.searchAdded')" />
-            <small>{{ t('admin.supplierPricing.count', { count: filteredServiceRows.length }) }}</small>
-          </div>
-          <div class="pricing-actions">
-            <el-button type="primary" :icon="Plus" :disabled="!supplierRecordId" @click="openServicePicker">{{ t('admin.supplierPricing.addService') }}</el-button>
-          </div>
-        </div>
-        <el-table :data="filteredServiceRows" class="data-table" row-key="spuId" :empty-text="t('admin.supplierPricing.empty')">
-          <el-table-column :label="t('admin.supplierPricing.category')" min-width="140">
-            <template #default="{ row }">{{ localizedCategory(row.category, row.categoryNameI18n) }}</template>
-          </el-table-column>
-          <el-table-column :label="t('admin.supplierPricing.service')" prop="name" min-width="180" />
-          <el-table-column :label="t('admin.supplierPricing.headcount')" width="110">
-            <template #default="{ row }">{{ row.workerCount ?? '—' }}</template>
-          </el-table-column>
-          <el-table-column class-name="phone-col" :label="t('admin.supplierPricing.phone')" min-width="180">
-            <template #default="{ row }">
-              <div v-if="listedPhones(row.phones).length" class="phone-list">
-                <span v-for="(phone, index) in listedPhones(row.phones)" :key="`${phone}-${index}`">{{ phone }}</span>
-              </div>
-              <span v-else>—</span>
-            </template>
-          </el-table-column>
-          <el-table-column :label="t('admin.supplierPricing.quoteMode')" width="130">
-            <template #default="{ row }">{{ quoteModeLabel(row.quoteMode) }}</template>
-          </el-table-column>
-          <el-table-column :label="t('admin.supplierPricing.reviewStatus')" width="120">
-            <template #default="{ row }">
-              <el-tag :type="quoteTagType(row.status)" effect="light">{{ quoteStatusLabel(row.status) }}</el-tag>
-            </template>
-          </el-table-column>
-          <el-table-column :label="t('admin.supplierPricing.actions')" width="320" fixed="right">
-            <template #default="{ row }">
-              <span class="accept-state" :class="{ 'is-off': Number(row.acceptOrder) === 0 }">{{ Number(row.acceptOrder) === 0 ? t('admin.supplierPricing.disabled') : t('admin.supplierPricing.enabled') }}</span>
-              <el-button link :type="Number(row.acceptOrder) === 0 ? 'primary' : 'warning'" :loading="acceptOrderSaving === row.spuId" @click="toggleServiceAccept(row)">
-                {{ Number(row.acceptOrder) === 0 ? t('admin.supplierPricing.enable') : t('admin.supplierPricing.disable') }}
-              </el-button>
-              <el-button link type="primary" @click="openServiceQuote(row)">{{ t('admin.supplierPricing.quote') }}</el-button>
-              <el-button link type="primary" @click="openServiceEditor(row)">{{ t('admin.supplierPricing.edit') }}</el-button>
-              <el-button link type="danger" @click="removeAddedService(row)">{{ t('admin.supplierPricing.remove') }}</el-button>
-            </template>
-          </el-table-column>
-        </el-table>
-      </el-card>
+      <div v-if="!quoteDialog.visible" class="sv-page" v-loading="catalogLoading || quoteLoading">
+        <p class="sv-eyebrow">{{ t('admin.supplierPricing.description') }}</p>
+        <h1 class="sv-title">{{ t('admin.supplierPricing.title') }}</h1>
 
-      <el-dialog v-model="servicePicker.open" :title="t('admin.supplierPricing.addService')" width="min(860px, calc(100vw - 32px))" :close-on-click-modal="false">
-        <p class="picker-note">{{ t('admin.supplierPricing.pickerNote') }}</p>
-        <div class="picker-toolbar">
-          <el-select v-model="servicePicker.categoryId" filterable clearable :placeholder="t('admin.supplierPricing.selectCategory')">
-            <el-option v-for="group in catalogDraft" :key="group.categoryId" :label="localizedCategory(group.categoryName, group.categoryNameI18n)" :value="group.categoryId" />
-          </el-select>
-          <el-input v-model="servicePicker.keyword" clearable :placeholder="t('admin.supplierPricing.searchService')" />
-        </div>
-        <p v-if="!pickerReady" class="picker-hint">{{ t('admin.supplierPricing.pickerGate') }}</p>
-        <div v-else class="picker-list">
-          <div class="picker-list__bar">
-            <small>{{ t('admin.supplierPricing.shown', { count: pickerVisible.length }) }}<template v-if="servicePicker.drafts.length"> · {{ t('admin.supplierPricing.selected', { count: servicePicker.drafts.length }) }}</template></small>
+        <section class="sv-supplier">
+          <div class="sv-avatar">{{ supplierInitials }}</div>
+          <div class="sv-supplier__main">
+            <small>{{ t('admin.supplierOrders.signedIn') }}</small>
+            <strong>{{ companyForm.companyName || t('admin.supplierOrders.unnamed') }}</strong>
+            <p>
+              <span>{{ t('admin.supplierPricing.yourCategories') }}</span>
+              <em v-for="category in serviceCategoryOptions" :key="category.id">{{ category.label }}</em>
+              <em v-if="!serviceCategoryOptions.length">—</em>
+              <button type="button" @click="goTo('profile')">{{ t('admin.supplierPricing.changeInProfile') }}</button>
+            </p>
           </div>
-          <p v-if="!pickerVisible.length" class="picker-hint">{{ t('admin.supplierPricing.noMatch') }}</p>
-          <div v-for="service in pickerVisible" :key="pickKey(service)" class="picker-row" :class="{ 'is-added': service.added, 'is-open': draftOf(service) }">
-            <div class="picker-row__head">
-              <el-checkbox
-                :model-value="service.added || Boolean(draftOf(service))"
-                :disabled="service.added"
-                @change="(value) => togglePick(service, Boolean(value))"
-              />
-              <span class="picker-row__name">
-                <strong>{{ service.spuName }}</strong>
-                <small>{{ localizedCategory(service.categoryName, service.categoryNameI18n) }}<template v-if="!service.available"> · {{ t('admin.supplierPricing.unavailable') }}</template></small>
-              </span>
-              <em v-if="service.added">{{ t('admin.supplierPricing.added') }}</em>
+          <div class="sv-fact"><small>{{ t('admin.supplierOrders.supplierId') }}</small><strong>{{ supplierNo || supplierRecordId || '—' }}</strong></div>
+          <div class="sv-fact"><small>{{ t('admin.supplierOrders.onboarding') }}</small><el-tag :type="onboardingTagType" effect="light">{{ profileStatusLabel }}</el-tag></div>
+        </section>
+
+        <section class="pricing-health">
+          <div>
+            <span class="health-icon pending"><Clock /></span>
+            <div>
+              <strong>{{ t('admin.supplierPricing.pending', { count: pendingQuoteCount }) }}</strong>
+              <p>{{ t('admin.supplierPricing.hint') }}</p>
             </div>
-            <div v-if="draftOf(service)" class="picker-row__fields">
+          </div>
+        </section>
+
+        <section class="sv-board">
+          <div class="pricing-toolbar">
+            <div class="pricing-filter">
+              <span>{{ t('admin.supplierPricing.added') }}</span>
+              <el-select v-model="quoteCategory" filterable>
+                <el-option :label="t('admin.supplierPricing.allServices')" value="all" />
+                <el-option v-for="category in serviceCategoryOptions" :key="category.id" :label="category.label" :value="category.id" />
+              </el-select>
+              <el-input v-model="addedKeyword" clearable :placeholder="t('admin.supplierPricing.searchAdded')" />
+              <small>{{ t('admin.supplierPricing.count', { count: filteredServiceRows.length }) }}</small>
+            </div>
+            <div class="pricing-actions">
+              <el-button type="primary" :icon="Plus" :disabled="!supplierRecordId" @click="openServicePicker">{{ t('admin.supplierPricing.addService') }}</el-button>
+            </div>
+          </div>
+          <el-table :data="filteredServiceRows" class="data-table" row-key="spuId" :empty-text="t('admin.supplierPricing.empty')" @row-click="openServiceQuote">
+            <el-table-column :label="t('admin.supplierPricing.category')" min-width="140">
+              <template #default="{ row }">{{ localizedCategory(row.category, row.categoryNameI18n) }}</template>
+            </el-table-column>
+            <el-table-column :label="t('admin.supplierPricing.service')" prop="name" min-width="180" />
+            <el-table-column :label="t('admin.supplierPricing.quoteMode')" min-width="130">
+              <template #default="{ row }">{{ quoteModeLabel(row.quoteMode) }}</template>
+            </el-table-column>
+            <el-table-column :label="t('admin.supplierPricing.yourPrice')" min-width="180">
+              <template #default="{ row }">{{ yourPriceText(row) }}</template>
+            </el-table-column>
+            <el-table-column :label="t('admin.supplierPricing.reviewStatus')" width="130">
+              <template #default="{ row }">
+                <el-tag :type="quoteTagType(row.status)" effect="light">{{ quoteStatusLabel(row.status) }}</el-tag>
+              </template>
+            </el-table-column>
+            <el-table-column :label="t('admin.supplierPricing.enabled')" width="90" align="center">
+              <template #default="{ row }">
+                <el-switch :model-value="Number(row.acceptOrder) !== 0" :loading="acceptOrderSaving === row.spuId" @click.stop @change="toggleServiceAccept(row)" />
+              </template>
+            </el-table-column>
+            <el-table-column :label="t('admin.supplierPricing.actions')" width="180" align="right">
+              <template #default="{ row }">
+                <el-button link type="primary" @click.stop="openServiceQuote(row)">{{ t('admin.supplierPricing.edit') }}</el-button>
+                <el-button link type="danger" @click.stop="removeAddedService(row)">{{ t('admin.supplierPricing.remove') }}</el-button>
+              </template>
+            </el-table-column>
+          </el-table>
+        </section>
+
+        <section v-if="servicePicker.open" class="sv-add">
+          <header>
+            <div>
+              <strong>{{ t('admin.supplierPricing.addService') }}</strong>
+              <p>{{ t('admin.supplierPricing.onlyCategories') }}</p>
+            </div>
+            <el-button @click="servicePicker.open = false">{{ t('admin.supplierPricing.cancel') }}</el-button>
+          </header>
+          <div class="picker-toolbar">
+            <el-select v-model="servicePicker.categoryId" filterable clearable :placeholder="t('admin.supplierPricing.selectCategory')">
+              <el-option v-for="group in catalogDraft" :key="group.categoryId" :label="localizedCategory(group.categoryName, group.categoryNameI18n)" :value="group.categoryId" />
+            </el-select>
+            <el-input v-model="servicePicker.keyword" clearable :placeholder="t('admin.supplierPricing.searchService')" />
+          </div>
+          <p v-if="!pickerReady" class="picker-hint">{{ t('admin.supplierPricing.pickerGate') }}</p>
+          <div v-else class="picker-list">
+            <div class="picker-list__bar">
+              <small>{{ t('admin.supplierPricing.shown', { count: pickerVisible.length }) }}<template v-if="servicePicker.drafts.length"> · {{ t('admin.supplierPricing.selected', { count: servicePicker.drafts.length }) }}</template></small>
+            </div>
+            <p v-if="!pickerVisible.length" class="picker-hint">{{ t('admin.supplierPricing.noMatch') }}</p>
+            <div v-for="service in pickerVisible" :key="pickKey(service)" class="picker-row" :class="{ 'is-added': service.added, 'is-open': draftOf(service) }">
+              <div class="picker-row__head">
+                <el-checkbox
+                  :model-value="service.added || Boolean(draftOf(service))"
+                  :disabled="service.added"
+                  @change="(value) => togglePick(service, Boolean(value))"
+                />
+                <span class="picker-row__name">
+                  <strong>{{ service.spuName }}</strong>
+                  <small>{{ localizedCategory(service.categoryName, service.categoryNameI18n) }}<template v-if="!service.available"> · {{ t('admin.supplierPricing.unavailable') }}</template></small>
+                </span>
+                <em v-if="service.added">{{ t('admin.supplierPricing.added') }}</em>
+              </div>
+              <div v-if="draftOf(service)" class="picker-row__fields">
+                <label>
+                  <span>{{ t('admin.supplierPricing.headcount') }}</span>
+                  <el-input-number v-model="draftOf(service)!.workerCount" :min="1" :precision="0" controls-position="right" />
+                </label>
+                <div class="phone-stack">
+                  <span>{{ t('admin.supplierPricing.phone') }}</span>
+                  <div v-for="(_phone, index) in draftOf(service)!.phones" :key="`${pickKey(service)}-${index}`" class="phone-row">
+                    <el-input v-model="draftOf(service)!.phones[index]" maxlength="24" placeholder="+971501234567" />
+                    <el-button v-if="draftOf(service)!.phones.length > 1" @click="removePhone(draftOf(service)!, index)">{{ t('admin.supplierPricing.delete') }}</el-button>
+                  </div>
+                  <el-button v-if="draftOf(service)!.phones.length < 10" link type="primary" @click="addPhone(draftOf(service)!)">{{ t('admin.supplierPricing.addPhone') }}</el-button>
+                </div>
+              </div>
+            </div>
+          </div>
+          <footer>
+            <el-button type="primary" :loading="catalogSaving" @click="confirmAddServices">{{ t('admin.supplierPricing.addToList') }}</el-button>
+          </footer>
+        </section>
+      </div>
+
+      <div v-else class="sv-editor">
+        <nav class="sv-crumb">
+          <button type="button" @click="quoteDialog.visible = false">← {{ t('admin.supplierPricing.back') }}</button>
+          <span>{{ t('admin.supplierPricing.title') }}</span>
+          <em>›</em>
+          <strong>{{ quoteDialog.name }}</strong>
+        </nav>
+        <section class="sv-quote" v-loading="quoteDialog.loading">
+          <header class="sv-quote__head">
+            <div>
+              <h2>{{ quoteDialog.name }}</h2>
+              <p>{{ quoteDialog.category }} · {{ t('admin.supplierPricing.priceIntro') }}</p>
+            </div>
+            <el-tag :type="quoteTagType(quoteDialog.status)" effect="light">{{ quoteStatusLabel(quoteDialog.status) }}</el-tag>
+          </header>
+          <p v-if="quoteDialog.rejectReason" class="rejected-copy">{{ t('admin.supplierPricing.rejectReason', { reason: quoteDialog.rejectReason }) }}</p>
+          <p v-if="quoteLocked" class="pending-copy">{{ t('admin.supplierPricing.locked') }}</p>
+          <h3>{{ t('admin.supplierPricing.chargeQuestion') }}</h3>
+          <div class="mode-cards">
+            <button type="button" :class="{ 'is-on': quoteDialog.quoteMode === 2 }" :disabled="quoteLocked" @click="pickQuoteMode(2)">
+              <strong>{{ t('admin.supplierPricing.hourlyRate') }}</strong>
+              <small>{{ t('admin.supplierPricing.hourlyCardHint') }}</small>
+            </button>
+            <button type="button" :class="{ 'is-on': quoteDialog.quoteMode === 1 }" :disabled="quoteLocked" @click="pickQuoteMode(1)">
+              <strong>{{ t('admin.supplierPricing.fixedPrice') }}</strong>
+              <small>{{ t('admin.supplierPricing.fixedCardHint') }}</small>
+            </button>
+          </div>
+          <label v-if="quoteDialog.quoteMode === 2" class="rate-field">
+            <span>{{ t('admin.supplierPricing.rateLabel') }}</span>
+            <el-input-number v-model="quoteDialog.unitPrice" :min="0" :precision="2" :disabled="quoteLocked" controls-position="right" />
+            <small>{{ t('admin.supplierPricing.rateFormula') }}</small>
+          </label>
+          <div class="quote-lines">
+            <p v-if="!quoteDialog.loading && !quoteDialog.rows.length" class="quote-lines__empty">{{ t('admin.supplierPricing.noSpecs') }}</p>
+            <article v-for="row in quoteDialog.rows" :key="row.skuId" class="quote-line" :class="{ 'is-off': row.available === false }">
+              <div class="quote-line__spec">
+                <strong>{{ quoteSpecLabel(row) }}</strong>
+                <small v-if="row.available === false">{{ t('admin.supplierPricing.discontinued') }}</small>
+                <small v-else>{{ t('admin.supplierPricing.livePrice', { price: moneyText(row.approvedPrice) }) }}</small>
+              </div>
               <label>
                 <span>{{ t('admin.supplierPricing.headcount') }}</span>
-                <el-input-number v-model="draftOf(service)!.workerCount" :min="1" :precision="0" controls-position="right" />
+                <el-input-number v-model="row.staffCount" :min="1" :precision="0" :disabled="quoteLocked || row.available === false" controls-position="right" />
               </label>
-              <div class="phone-stack">
-                <span>{{ t('admin.supplierPricing.phone') }}</span>
-                <div v-for="(_phone, index) in draftOf(service)!.phones" :key="`${pickKey(service)}-${index}`" class="phone-row">
-                  <el-input v-model="draftOf(service)!.phones[index]" maxlength="24" placeholder="+971501234567" />
-                  <el-button v-if="draftOf(service)!.phones.length > 1" @click="removePhone(draftOf(service)!, index)">{{ t('admin.supplierPricing.delete') }}</el-button>
-                </div>
-                <el-button v-if="draftOf(service)!.phones.length < 10" link type="primary" @click="addPhone(draftOf(service)!)">{{ t('admin.supplierPricing.addPhone') }}</el-button>
-              </div>
-            </div>
+              <label>
+                <span>{{ t('admin.supplierPricing.hours') }}</span>
+                <el-input-number v-model="row.serviceHours" :min="0.01" :precision="2" :step="0.5" :disabled="quoteLocked || row.available === false" controls-position="right" />
+              </label>
+              <label>
+                <span>{{ t('admin.supplierPricing.taxPrice') }}</span>
+                <el-input
+                  v-if="quoteDialog.quoteMode === 2"
+                  :model-value="skuAmount(row) == null ? '' : String(skuAmount(row))"
+                  disabled
+                  :placeholder="t('admin.supplierPricing.autoPlaceholder')"
+                />
+                <el-input
+                  v-else
+                  v-model="row.quotePrice"
+                  inputmode="decimal"
+                  :disabled="quoteLocked || row.available === false"
+                />
+              </label>
+            </article>
           </div>
-        </div>
-        <template #footer>
-          <el-button @click="servicePicker.open = false">{{ t('admin.supplierPricing.cancel') }}</el-button>
-          <el-button type="primary" :loading="catalogSaving" @click="confirmAddServices">{{ t('admin.supplierPricing.addToList') }}</el-button>
-        </template>
-      </el-dialog>
+          <section v-if="quoteDialog.attaches.length" class="quote-attaches">
+            <header>
+              <strong>{{ t('admin.supplierPricing.addons') }}</strong>
+              <small>{{ t('admin.supplierPricing.addonsHint') }}</small>
+            </header>
+            <article v-for="item in quoteDialog.attaches" :key="item.attachValueId" class="quote-attach">
+              <div class="quote-attach__name">
+                <el-checkbox :model-value="item.offered" :disabled="quoteLocked" @change="(value: boolean | string | number) => toggleAttach(item, Boolean(value))">
+                  {{ item.name }}
+                </el-checkbox>
+                <small>{{ item.typeName }} · {{ t('admin.supplierPricing.livePrice', { price: moneyText(item.approvedPrice) }) }}</small>
+              </div>
+              <el-input
+                v-if="item.offered"
+                v-model="item.quotePrice"
+                inputmode="decimal"
+                :disabled="quoteLocked"
+                :placeholder="t('admin.supplierPricing.taxPrice')"
+              />
+            </article>
+          </section>
+          <footer class="sv-quote__foot">
+            <div>
+              <el-button @click="quoteDialog.visible = false">← {{ t('admin.supplierPricing.back') }}</el-button>
+              <el-button @click="openQuotedServiceEditor">{{ t('admin.supplierPricing.staffPhone') }}</el-button>
+            </div>
+            <div>
+              <el-button :disabled="quoteLocked" :loading="quoteDialog.saving" @click="saveServiceQuote">{{ t('admin.supplierPricing.saveDraft') }}</el-button>
+              <el-button type="primary" :disabled="quoteLocked" :loading="quoteDialog.saving" @click="submitServiceQuote">{{ t('admin.supplierPricing.submitReview') }}</el-button>
+            </div>
+          </footer>
+        </section>
+      </div>
 
       <el-dialog v-model="serviceEditor.open" :title="t('admin.supplierPricing.editTitle', { name: serviceEditor.name || t('admin.supplierPricing.serviceFallback') })" width="min(560px, calc(100vw - 32px))" :close-on-click-modal="false">
         <div class="picker-fields">
@@ -560,85 +760,6 @@
         <template #footer>
           <el-button @click="serviceEditor.open = false">{{ t('admin.supplierPricing.cancel') }}</el-button>
           <el-button type="primary" :loading="catalogSaving" @click="saveServiceEditor">{{ t('admin.supplierPricing.save') }}</el-button>
-        </template>
-      </el-dialog>
-
-      <el-dialog v-model="quoteDialog.visible" class="quote-dialog" :title="t('admin.supplierPricing.quoteTitle', { name: quoteDialog.name || t('admin.supplierPricing.serviceFallback') })" width="min(860px, calc(100vw - 32px))" :close-on-click-modal="false">
-        <p class="quote-dialog__meta">{{ quoteDialog.category }} · {{ quoteStatusLabel(quoteDialog.status) }} · {{ quoteModeLabel(quoteDialog.quoteMode ?? undefined) }}</p>
-        <p v-if="quoteDialog.rejectReason" class="rejected-copy">{{ t('admin.supplierPricing.rejectReason', { reason: quoteDialog.rejectReason }) }}</p>
-        <p v-if="quoteLocked" class="pending-copy">{{ t('admin.supplierPricing.locked') }}</p>
-        <div class="quote-terms">
-          <div>
-            <span>{{ t('admin.supplierPricing.quoteMode') }}</span>
-            <el-radio-group v-model="quoteDialog.quoteMode" :disabled="quoteLocked" @change="onQuoteMode">
-              <el-radio :value="1">{{ t('admin.supplierPricing.fixedPrice') }}</el-radio>
-              <el-radio :value="2">{{ t('admin.supplierPricing.hourlyRate') }}</el-radio>
-            </el-radio-group>
-          </div>
-          <label v-if="quoteDialog.quoteMode === 2" class="quote-terms__price">
-            <span>{{ t('admin.supplierPricing.rateLabel') }}</span>
-            <el-input-number v-model="quoteDialog.unitPrice" :min="0" :precision="2" :disabled="quoteLocked" controls-position="right" />
-            <small>{{ t('admin.supplierPricing.rateFormula') }}</small>
-          </label>
-        </div>
-        <section v-if="quoteDialog.attaches.length" class="quote-attaches">
-          <header>
-            <strong>{{ t('admin.supplierPricing.addons') }}</strong>
-            <small>{{ t('admin.supplierPricing.addonsHint') }}</small>
-          </header>
-          <article v-for="item in quoteDialog.attaches" :key="item.attachValueId" class="quote-attach">
-            <div class="quote-attach__name">
-              <el-checkbox :model-value="item.offered" :disabled="quoteLocked" @change="(value: boolean | string | number) => toggleAttach(item, Boolean(value))">
-                {{ item.name }}
-              </el-checkbox>
-              <small>{{ item.typeName }} · {{ t('admin.supplierPricing.livePrice', { price: moneyText(item.approvedPrice) }) }}</small>
-            </div>
-            <el-input
-              v-if="item.offered"
-              v-model="item.quotePrice"
-              inputmode="decimal"
-              :disabled="quoteLocked"
-              :placeholder="t('admin.supplierPricing.taxPrice')"
-            />
-          </article>
-        </section>
-        <div v-loading="quoteDialog.loading" class="quote-lines">
-          <p v-if="!quoteDialog.loading && !quoteDialog.rows.length" class="quote-lines__empty">{{ t('admin.supplierPricing.noSpecs') }}</p>
-          <article v-for="row in quoteDialog.rows" :key="row.skuId" class="quote-line" :class="{ 'is-off': row.available === false }">
-            <div class="quote-line__spec">
-              <strong>{{ quoteSpecLabel(row) }}</strong>
-              <small v-if="row.available === false">{{ t('admin.supplierPricing.discontinued') }}</small>
-              <small v-else>{{ t('admin.supplierPricing.livePrice', { price: moneyText(row.approvedPrice) }) }}</small>
-            </div>
-            <label>
-              <span>{{ t('admin.supplierPricing.headcount') }}</span>
-              <el-input-number v-model="row.staffCount" :min="1" :precision="0" :disabled="quoteLocked || row.available === false" controls-position="right" />
-            </label>
-            <label>
-              <span>{{ t('admin.supplierPricing.hours') }}</span>
-              <el-input-number v-model="row.serviceHours" :min="0.01" :precision="2" :step="0.5" :disabled="quoteLocked || row.available === false" controls-position="right" />
-            </label>
-            <label>
-              <span>{{ t('admin.supplierPricing.taxPrice') }}</span>
-              <el-input
-                v-if="quoteDialog.quoteMode === 2"
-                :model-value="skuAmount(row) == null ? '' : String(skuAmount(row))"
-                disabled
-                :placeholder="t('admin.supplierPricing.autoPlaceholder')"
-              />
-              <el-input
-                v-else
-                v-model="row.quotePrice"
-                inputmode="decimal"
-                :disabled="quoteLocked || row.available === false"
-              />
-            </label>
-          </article>
-        </div>
-        <template #footer>
-          <el-button @click="quoteDialog.visible = false">{{ t('admin.supplierPricing.close') }}</el-button>
-          <el-button :disabled="quoteLocked" :loading="quoteDialog.saving" @click="saveServiceQuote">{{ t('admin.supplierPricing.saveDraft') }}</el-button>
-          <el-button type="primary" :disabled="quoteLocked" :loading="quoteDialog.saving" @click="submitServiceQuote">{{ t('admin.supplierPricing.submitReview') }}</el-button>
         </template>
       </el-dialog>
     </template>
@@ -785,9 +906,13 @@
             </button>
           </section>
 
-          <div v-if="Number(selectedOrder.serviceStatus || 0) < 2" class="order-sheet__actions">
-            <el-button v-if="Number(selectedOrder.serviceStatus || 0) === 0" type="primary" @click="openServiceAction(selectedOrder, 'arrive')">{{ t('admin.supplierOrders.arriveAction') }}</el-button>
-            <el-button v-else type="primary" @click="openServiceAction(selectedOrder, 'complete')">{{ t('admin.supplierOrders.completeAction') }}</el-button>
+          <div v-if="selectedOrder.departTime" class="order-facts">
+            <div><span>{{ t('admin.supplierOrders.departTime') }}</span><strong>{{ orderClock(selectedOrder.departTime) }}</strong></div>
+          </div>
+          <div v-if="serviceStep(selectedOrder) !== 2" class="order-sheet__actions">
+            <el-button v-if="serviceStep(selectedOrder) === 0" type="primary" @click="departForService(selectedOrder)">{{ t('admin.supplierOrders.departAction') }}</el-button>
+            <el-button v-else-if="serviceStep(selectedOrder) === 3" type="primary" @click="openServiceAction(selectedOrder, 'arrive')">{{ t('admin.supplierOrders.arriveAction') }}</el-button>
+            <el-button v-else-if="serviceStep(selectedOrder) === 1" type="primary" @click="openServiceAction(selectedOrder, 'complete')">{{ t('admin.supplierOrders.completeAction') }}</el-button>
           </div>
         </template>
       </div>
@@ -840,16 +965,19 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref, watch } from 'vue'
+import { computed, nextTick, onMounted, reactive, ref, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 import {
+  onboardingMine,
+  onboardingResubmit,
   onboardingSave,
   saveQuoteDraft,
   saveServices,
   submitQuote,
   supplierArrive,
+  supplierDepart,
   supplierAssignedOrderDetail,
   supplierAssignedOrders,
   supplierChangeAcceptDispatch,
@@ -862,6 +990,8 @@ import SupplierAvailability from '@/modules/admin/pages/supplier-management/avai
 import { getAdminLocale } from '@/modules/admin/locales'
 import { useAdminSessionStore } from '@/modules/admin/stores/session'
 import { pickI18nText } from '@/modules/admin/utils/i18n'
+import { categoryIdPayload, listServiceCategories, serviceCategoryLabel } from '@/modules/client/api/supplier-onboarding'
+import { DEFAULT_PHONE_DIAL, PHONE_DIAL_OPTIONS, joinPhone, nationalNumberOk, phoneDialLabel, splitPhone } from '@/utils/phone-dial'
 import {
   ArrowLeft,
   ArrowRight,
@@ -902,7 +1032,7 @@ const pageMeta = {
 
 const meta = computed(() => {
   if (section.value === 'pricing') return { title: t('admin.supplierPricing.title'), description: t('admin.supplierPricing.description'), primaryAction: '' }
-  if (section.value === 'profile') return { title: t('admin.supplierProfile.title'), description: t('admin.supplierProfile.description'), primaryAction: t('admin.supplierProfile.submitReview') }
+  if (section.value === 'profile') return { title: t('admin.supplierProfile.title'), description: t('admin.supplierProfile.description'), primaryAction: '' }
   if (section.value === 'orders') return { title: t('admin.supplierOrders.title'), description: t('admin.supplierOrders.description'), primaryAction: '' }
   if (section.value === 'availability') return { title: t('admin.supplierAvailability.title'), description: t('admin.supplierAvailability.description'), primaryAction: '' }
   if (section.value === 'service-area') return { title: t('admin.supplierArea.title'), description: t('admin.supplierArea.description'), primaryAction: t('admin.supplierArea.manage') }
@@ -917,6 +1047,28 @@ const session = useAdminSessionStore()
 const supplierRecordId = ref<number | null>(null)
 const supplierNo = ref('')
 const onboardingStatus = ref<number | null>(null)
+const profileEditable = ref(true)
+const snapshotVersion = ref<number | null>(null)
+const profileView = ref<'section' | 'all'>('section')
+const profileSection = ref(0)
+const profileFromAll = ref(false)
+const profileBooted = ref(false)
+const submitTried = ref(false)
+const whatsappSame = ref(false)
+const tradeLicenseFiles = ref<string[]>([])
+const otherDocumentFiles = ref<string[]>([])
+const profileExtra = ref<Record<string, unknown>>({})
+const needsResubmit = computed(() => profileEditable.value && (onboardingStatus.value === 2 || onboardingStatus.value === 3))
+const profileReadOnly = computed(() => !profileEditable.value || profileView.value === 'all')
+const profileSections = computed(() => [
+  { id: 'company', num: '01', title: t('admin.supplierProfile.companyTitle'), desc: t('admin.supplierProfile.companyHint') },
+  { id: 'contact', num: '02', title: t('admin.supplierProfile.contactTitle'), desc: t('admin.supplierProfile.contactHint') },
+  { id: 'capacity', num: '03', title: t('admin.supplierProfile.capacityTitle'), desc: t('admin.supplierProfile.capacityHint') },
+  { id: 'bank', num: '04', title: t('admin.supplierProfile.bankTitle'), desc: t('admin.supplierProfile.bankHint') },
+  { id: 'documents', num: '05', title: t('admin.supplierProfile.documentsTitle'), desc: t('admin.supplierProfile.documentsHint') },
+])
+const activeProfileSection = computed(() => profileSections.value[profileSection.value] || profileSections.value[0])
+const showProfileSection = (index: number) => profileView.value === 'all' || profileSection.value === index
 const supplierEnabled = ref(false)
 const supplierAcceptDispatch = ref(true)
 const dispatchSaving = ref(false)
@@ -925,19 +1077,37 @@ const rejectReason = ref('')
 const saving = ref(false)
 const femaleStaffCount = ref(0)
 const maleStaffCount = ref(0)
+const wholeText = (value: number | null | undefined) => (value == null ? '' : String(value))
+const wholeOrZero = (raw: string) => {
+  const digits = raw.replace(/\D/g, '')
+  return digits ? Number(digits) : 0
+}
 const ownTransportation = ref(false)
-const profileAnchor = ref('company')
-const goProfile = (id: string) => {
-  profileAnchor.value = id
-  const target = document.getElementById(`profile-${id}`)
+const scrollProfileTop = () => {
   const scroller = document.querySelector('.el-main') as HTMLElement | null
-  if (!target || !scroller) return
-  const align = () => {
-    const top = target.getBoundingClientRect().top - scroller.getBoundingClientRect().top + scroller.scrollTop - 16
-    scroller.scrollTo({ top, behavior: 'auto' })
-  }
-  align()
-  window.setTimeout(align, 0)
+  scroller?.scrollTo({ top: 0, behavior: 'smooth' })
+}
+const openProfileSection = (index: number) => {
+  if (profileView.value === 'all') profileFromAll.value = true
+  profileSection.value = index
+  profileView.value = 'section'
+  scrollProfileTop()
+}
+const backToFullProfile = () => {
+  profileFromAll.value = false
+  profileView.value = 'all'
+  scrollProfileTop()
+}
+const moveProfileSection = (step: number) => {
+  const next = profileSection.value + step
+  if (next < 0 || next > 4) return
+  profileSection.value = next
+  scrollProfileTop()
+}
+const syncWhatsapp = () => {
+  if (!whatsappSame.value) return
+  companyForm.whatsappCode = companyForm.mobileCode
+  companyForm.whatsapp = companyForm.mobile
 }
 
 const earningRange = ref('6m')
@@ -961,7 +1131,9 @@ const companyForm = reactive({
   address: '',
   contact: '',
   email: '',
+  mobileCode: DEFAULT_PHONE_DIAL,
   mobile: '',
+  whatsappCode: DEFAULT_PHONE_DIAL,
   whatsapp: '',
 })
 
@@ -973,10 +1145,10 @@ const complianceItems = reactive([
 ])
 
 const bankForm = reactive({
-  accountName: 'PrimeCare Home Services LLC',
-  bankName: 'Emirates NBD',
-  iban: 'AE07 0260 0010 1234 5678 901',
-  swift: 'EBILAEAD',
+  accountName: '',
+  bankName: '',
+  iban: '',
+  swift: '',
   currency: 'AED',
 })
 const fileNameFromUrl = (url: string) => {
@@ -1126,15 +1298,32 @@ const openAssignedOrder = (row: any) => {
   const orderId = Number(row?.orderId)
   if (orderId) loadOrderDetail(orderId)
 }
+const serviceStep = (row: any) => {
+  const status = Number(row?.serviceStatus)
+  return status === 1 || status === 2 || status === 3 ? status : 0
+}
 const serviceStatusText = (row: any) => {
   const localized = specText(row?.serviceStatusI18n)
   if (localized !== '—') return localized
-  const status = Number(row?.serviceStatus || 0)
+  const status = serviceStep(row)
+  if (status === 3) return t('admin.supplierOrders.departed')
   if (status === 1) return t('admin.supplierOrders.arrived')
   if (status === 2) return t('admin.supplierOrders.completed')
   return t('admin.supplierOrders.notStarted')
 }
-const serviceStatusTag = (status: unknown) => (Number(status) === 2 ? 'success' : Number(status) === 1 ? 'warning' : 'info')
+const serviceStatusTag = (status: unknown) => {
+  const step = Number(status)
+  if (step === 2) return 'success'
+  if (step === 1 || step === 3) return 'warning'
+  return 'info'
+}
+const orderClock = (value: unknown) => {
+  if (value == null || value === '') return '—'
+  const date = value instanceof Date ? value : new Date(typeof value === 'number' ? value : String(value))
+  if (Number.isNaN(date.getTime())) return String(value)
+  const pad = (part: number) => String(part).padStart(2, '0')
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}`
+}
 const orderPhotos = (value: unknown) => (Array.isArray(value) ? value.map((item) => String(item || '').trim()).filter(Boolean) : [])
 const serviceAction = reactive({
   open: false,
@@ -1175,6 +1364,29 @@ const addServicePhotos = async (event: Event) => {
     ElMessage.error(error?.message || t('admin.supplierOrders.actionFailed'))
   } finally {
     serviceAction.uploading = false
+  }
+}
+const departForService = async (row: any) => {
+  const orderId = Number(row?.orderId)
+  if (!orderId) return
+  try {
+    await ElMessageBox.confirm(
+      t('admin.supplierOrders.departConfirm', { orderNo: row.orderNo || '—' }),
+      t('admin.supplierOrders.departTitle'),
+    )
+  } catch {
+    return
+  }
+  orderLoading.value = true
+  try {
+    await supplierDepart({ orderId })
+    ElMessage.success(t('admin.supplierOrders.departSaved'))
+    await loadOrders()
+    if (orderDrawerVisible.value && Number(selectedOrder.value?.orderId) === orderId) await loadOrderDetail(orderId)
+  } catch (error: any) {
+    ElMessage.error(error?.message || t('admin.supplierOrders.actionFailed'))
+  } finally {
+    orderLoading.value = false
   }
 }
 const submitServiceAction = async () => {
@@ -1245,6 +1457,32 @@ const areaEditorVisible = ref(false)
 const editorLoading = ref(false)
 const communitiesByArea = ref<Record<number, string[]>>({})
 const servicesProvided = ref('')
+const expectedServiceIds = ref<string[]>([])
+const expectedServicesKnown = ref(false)
+const expectedServiceRemark = ref('')
+const expectedCategoryLabels = ref<Record<string, string>>({})
+const expectedServiceNameList = computed(() =>
+  expectedServiceIds.value.map((id) => expectedCategoryLabels.value[id] || id).filter(Boolean),
+)
+const applyExpectedServices = (detail: any) => {
+  const raw = detail?.expectedServiceCategoryIds
+  if (!Array.isArray(raw)) {
+    expectedServicesKnown.value = false
+    expectedServiceIds.value = []
+    expectedServiceRemark.value = ''
+    return
+  }
+  expectedServicesKnown.value = true
+  expectedServiceIds.value = raw.map((id: unknown) => String(id))
+  expectedServiceRemark.value = String(detail?.expectedServiceRemark || '')
+  listServiceCategories().then((options) => {
+    const labels: Record<string, string> = {}
+    options.forEach((option) => {
+      labels[option.categoryId] = serviceCategoryLabel(option, String(locale.value || 'zh'))
+    })
+    expectedCategoryLabels.value = labels
+  }).catch(() => {})
+}
 const dubaiServiceAreas = ref('')
 const emaarOnboarded = ref<0 | 1>(0)
 const otherCommunityOnboarded = ref<0 | 1>(0)
@@ -1288,6 +1526,7 @@ type PickerService = CatalogServiceDraft & {
 
 const catalogDraft = ref<CatalogGroupDraft[]>([])
 const savedServices = ref<SavedService[]>([])
+watch(() => [companyForm.mobile, companyForm.mobileCode], syncWhatsapp)
 const availabilityServices = computed(() => {
   const seen = new Set<number>()
   return savedServices.value.flatMap((service) => {
@@ -1508,6 +1747,18 @@ const moneyText = (value: unknown) => {
   const amount = Number(value)
   return Number.isFinite(amount) ? amount.toFixed(2) : '—'
 }
+const yourPriceText = (row: { quoteMode?: number; unitPrice?: unknown }) => {
+  if (Number(row.quoteMode) === 2 && row.unitPrice != null && row.unitPrice !== '') {
+    return t('admin.supplierPricing.priceHourly', { price: moneyText(row.unitPrice) })
+  }
+  return Number(row.quoteMode) === 1 ? t('admin.supplierPricing.fixedPrice') : t('admin.supplierPricing.priceNotSet')
+}
+const supplierInitials = computed(() => {
+  const raw = String(companyForm.companyName || '').trim()
+  const parts = raw.split(/\s+/).filter(Boolean)
+  const letters = parts.length > 1 ? parts.slice(0, 2).map((part) => part[0] || '').join('') : raw.slice(0, 2)
+  return letters || 'SP'
+})
 const specText = (value: unknown) => {
   if (value == null || value === '') return '—'
   if (typeof value === 'string' || typeof value === 'number') return String(value)
@@ -1581,13 +1832,13 @@ const buildProfilePayload = (status?: number, areaIds?: number[]) => ({
   vatTrn: companyForm.trn,
   officeAddress: companyForm.address,
   contactPerson: companyForm.contact,
-  mobile: companyForm.mobile,
-  whatsapp: companyForm.whatsapp,
+  mobile: joinPhone(companyForm.mobileCode, companyForm.mobile),
+  whatsapp: joinPhone(companyForm.whatsappCode, companyForm.whatsapp),
   email: companyForm.email,
   yearsInBusiness: companyForm.years,
-  publicLiabilityInsurance: bit(complianceItems[0].enabled),
+  publicLiabilityInsurance: complianceItems[0].files.length ? 1 : 0,
   publicLiabilityInsuranceFile: complianceItems[0].files,
-  employeeInsurance: bit(complianceItems[1].enabled),
+  employeeInsurance: complianceItems[1].files.length ? 1 : 0,
   employeeInsuranceFile: complianceItems[1].files,
   taxInvoiceAvailable: bit(complianceItems[2].enabled),
   ownEquipment: bit(complianceItems[3].enabled),
@@ -1606,17 +1857,34 @@ const buildProfilePayload = (status?: number, areaIds?: number[]) => ({
   maleStaffAvailable: maleStaffCount.value > 0 ? 1 : 0,
   maleStaffCount: maleStaffCount.value,
   servicesProvided: servicesProvided.value || null,
+  ...(expectedServicesKnown.value ? {
+    expectedServiceCategoryIds: categoryIdPayload(expectedServiceIds.value),
+    expectedServiceRemark: expectedServiceRemark.value.trim() || null,
+  } : {}),
   dubaiServiceAreas: dubaiServiceAreas.value || null,
   emaarOnboarded: asYesNo(emaarOnboarded.value),
   otherCommunityOnboarded: asYesNo(otherCommunityOnboarded.value),
   applyRenmark: asYesNo(otherCommunityOnboarded.value) === 1 ? (applyRenmark.value.trim() || null) : null,
   status,
   areaIds,
+  extra: {
+    ...profileExtra.value,
+    bank: { ...bankForm },
+    tradeLicenseFiles: [...tradeLicenseFiles.value],
+    otherDocuments: [...otherDocumentFiles.value],
+  },
 })
 
 const applyProfile = (detail: any) => {
   supplierRecordId.value = detail?.id ?? null
-  onboardingStatus.value = detail?.status ?? null
+  const status = detail?.status == null || detail?.status === '' ? null : Number(detail.status)
+  onboardingStatus.value = Number.isFinite(status) ? status : null
+  if (detail?.editable === false) profileEditable.value = false
+  else if (detail?.editable === true) profileEditable.value = true
+  else profileEditable.value = onboardingStatus.value !== 1
+  snapshotVersion.value = detail?.snapshotVersion == null || detail?.snapshotVersion === ''
+    ? null
+    : Number(detail.snapshotVersion)
   supplierEnabled.value = Number(detail?.enabled) === 1
   supplierAcceptDispatch.value = detail?.acceptDispatch == null ? true : Number(detail.acceptDispatch) === 1
   rejectReason.value = detail?.rejectReason || ''
@@ -1628,8 +1896,31 @@ const applyProfile = (detail: any) => {
   companyForm.address = detail?.officeAddress || ''
   companyForm.contact = detail?.contactPerson || ''
   companyForm.email = detail?.email || ''
-  companyForm.mobile = detail?.mobile || ''
-  companyForm.whatsapp = detail?.whatsapp || ''
+  const mobilePhone = splitPhone(detail?.mobile)
+  const whatsappPhone = splitPhone(detail?.whatsapp)
+  companyForm.mobileCode = mobilePhone.code
+  companyForm.mobile = mobilePhone.local
+  companyForm.whatsappCode = whatsappPhone.code
+  companyForm.whatsapp = whatsappPhone.local
+  whatsappSame.value = Boolean(companyForm.mobile) && companyForm.mobileCode === companyForm.whatsappCode && companyForm.mobile === companyForm.whatsapp
+  const extra = detail?.extra && typeof detail.extra === 'object' ? detail.extra : {}
+  const bank = extra.bank && typeof extra.bank === 'object' ? extra.bank : {}
+  profileExtra.value = { ...extra }
+  bankForm.accountName = String(bank.accountName || '')
+  bankForm.bankName = String(bank.bankName || '')
+  bankForm.iban = String(bank.iban || '')
+  bankForm.swift = String(bank.swift || '')
+  bankForm.currency = String(bank.currency || 'AED')
+  tradeLicenseFiles.value = asFileList(extra.tradeLicenseFiles)
+  otherDocumentFiles.value = asFileList(extra.otherDocuments)
+  if (!profileEditable.value) {
+    profileView.value = 'all'
+    profileFromAll.value = false
+  } else if (!profileBooted.value) {
+    profileView.value = 'section'
+    profileSection.value = 0
+    profileBooted.value = true
+  }
   capacityForm.workers = detail?.totalAvailableWorkers || 0
   capacityForm.concurrent = detail?.maxSimultaneousOrders || 0
   capacityForm.monthly = detail?.monthlyCapacity || 0
@@ -1651,6 +1942,7 @@ const applyProfile = (detail: any) => {
   femaleStaffCount.value = detail?.femaleStaffCount || 0
   maleStaffCount.value = detail?.maleStaffCount || 0
   servicesProvided.value = detail?.servicesProvided || ''
+  applyExpectedServices(detail)
   dubaiServiceAreas.value = detail?.dubaiServiceAreas || ''
   emaarOnboarded.value = asYesNo(detail?.emaarOnboarded)
   otherCommunityOnboarded.value = asYesNo(detail?.otherCommunityOnboarded)
@@ -1676,6 +1968,23 @@ const loadSupplierDetail = async (id: number, fresh = false) => {
   ])
 }
 
+const reloadOwnProfile = async () => {
+  try {
+    const detail = unwrap(await onboardingMine())
+    if (!detail?.id) throw new Error('empty')
+    applyProfile(detail)
+    session.rememberSupplierDetail(detail)
+    await Promise.all([
+      loadCatalog(),
+      loadQuotes(),
+      section.value === 'orders' ? loadOrders() : Promise.resolve(),
+    ])
+  } catch {
+    if (!supplierRecordId.value) throw new Error(t('admin.supplierProfile.loadFailed'))
+    await loadSupplierDetail(supplierRecordId.value, true)
+  }
+}
+
 const loadCurrentSupplier = async () => {
   const me = await session.currentUser()
   supplierNo.value = String(me?.supplierNo || '')
@@ -1684,7 +1993,9 @@ const loadCurrentSupplier = async () => {
     ElMessage.warning(t('admin.supplierProfile.noSupplier'))
     return
   }
-  await loadSupplierDetail(supplierId)
+  supplierRecordId.value = supplierId
+  await reloadOwnProfile()
+  if (section === 'profile') await loadCatalog()
 }
 
 const saveAvailabilityHours = async (next: { start: string; end: string; concurrent: number; weekend: boolean }) => {
@@ -1694,12 +2005,22 @@ const saveAvailabilityHours = async (next: { start: string; end: string; concurr
     concurrent: capacityForm.concurrent,
     weekend: capacityToggles[0].enabled,
   }
+  if (!profileEditable.value) {
+    ElMessage.warning(t('admin.supplierProfile.locked'))
+    return
+  }
   capacityForm.start = next.start
   capacityForm.end = next.end
   capacityForm.concurrent = next.concurrent
   capacityToggles[0].enabled = next.weekend
   saving.value = true
   try {
+    if (onboardingStatus.value === 2 || onboardingStatus.value === 3) {
+      unwrap(await onboardingResubmit(buildProfilePayload(1)))
+      ElMessage.success(t('admin.supplierProfile.resubmitted'))
+      await reloadOwnProfile()
+      return
+    }
     const id = unwrap(await onboardingSave(buildProfilePayload(onboardingStatus.value ?? 0)))
     if (id) supplierRecordId.value = Number(id)
     ElMessage.success(t('admin.supplierAvailability.hoursSaved'))
@@ -1750,7 +2071,134 @@ const toggleServiceAccept = async (row: SavedService) => {
   }
 }
 
+const uaeLocalOk = (value: string) => nationalNumberOk(value)
+const startOfToday = () => {
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  return today
+}
+const disableLicenseDate = (date: Date) => date.getTime() <= startOfToday().getTime()
+const licenseAfterToday = (value: string) => {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value)
+  if (!match) return false
+  const picked = new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]))
+  return picked.getTime() > startOfToday().getTime()
+}
+const profileProblem = (status: number) => {
+  if (status === 1) return profileIssues.value[0]?.message || ''
+  if (companyForm.licenseExpiry && !licenseAfterToday(companyForm.licenseExpiry)) return t('admin.supplierProfile.licenseExpiryHint')
+  if ((companyForm.mobile || companyForm.whatsapp) && (!uaeLocalOk(companyForm.mobile) || !uaeLocalOk(companyForm.whatsapp))) {
+    return t('admin.supplierProfile.phoneInvalid')
+  }
+  return ''
+}
+
+const profileIssues = computed(() => {
+  const issues: Array<{ id: string; section: number; label: string; message: string }> = []
+  const add = (id: string, section: number, label: string, ok: boolean, message: string) => {
+    if (!ok) issues.push({ id, section, label, message })
+  }
+  add('companyName', 0, t('admin.supplierProfile.companyName'), Boolean(companyForm.companyName.trim()), t('admin.supplierProfile.nameRequired'))
+  add('licenseNo', 0, t('admin.supplierProfile.licenseNo'), Boolean(companyForm.licenseNo.trim()), t('admin.supplierProfile.licenseRequired'))
+  add('licenseExpiry', 0, t('admin.supplierProfile.licenseExpiry'), licenseAfterToday(companyForm.licenseExpiry), t('admin.supplierProfile.licenseExpiryHint'))
+  add('address', 0, t('admin.supplierProfile.address'), Boolean(companyForm.address.trim()), t('admin.supplierProfile.addressRequired'))
+  add('contact', 1, t('admin.supplierProfile.contactPerson'), Boolean(companyForm.contact.trim()), t('admin.supplierProfile.contactRequired'))
+  add('email', 1, t('admin.supplierProfile.email'), /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(companyForm.email.trim()), t('admin.supplierProfile.emailRequired'))
+  add('mobile', 1, t('admin.supplierProfile.mobile'), uaeLocalOk(companyForm.mobile), t('admin.supplierProfile.phoneInvalid'))
+  add('whatsapp', 1, t('admin.supplierProfile.whatsapp'), whatsappSame.value ? uaeLocalOk(companyForm.mobile) : uaeLocalOk(companyForm.whatsapp), t('admin.supplierProfile.whatsappRequired'))
+  add('communities', 2, t('admin.supplierProfile.applyRenmark'), asYesNo(otherCommunityOnboarded.value) !== 1 || Boolean(applyRenmark.value.trim()), t('admin.supplierProfile.communityRequired'))
+  add('tradeLicense', 4, t('admin.supplierProfile.tradeLicenseFile'), tradeLicenseFiles.value.length > 0, t('admin.supplierProfile.tradeFileRequired'))
+  return issues
+})
+const issueOf = (id: string) => profileIssues.value.find((item) => item.id === id)?.message || ''
+const sectionHasIssue = (index: number) => profileIssues.value.some((item) => item.section === index)
+const lightboxTitle = computed(() => profileView.value === 'all'
+  ? (companyForm.companyName || t('admin.supplierProfile.untitled'))
+  : activeProfileSection.value.title)
+const lightboxDesc = computed(() => profileView.value === 'all'
+  ? t('admin.supplierProfile.allDesc')
+  : activeProfileSection.value.desc)
+const lightboxCrumb = computed(() => {
+  if (profileView.value === 'all') return t('admin.supplierProfile.title')
+  if (profileFromAll.value) return t('admin.supplierProfile.editingCrumb')
+  return t('admin.supplierProfile.stepOf', { current: profileSection.value + 1, total: 5 })
+})
+const lightboxChip = computed(() => {
+  if (profileView.value === 'all' && !profileEditable.value) return t('admin.supplierProfile.submittedChip')
+  const bad = profileView.value === 'all' ? profileIssues.value.length > 0 : sectionHasIssue(profileSection.value)
+  return bad ? t('admin.supplierProfile.needsFix') : t('admin.supplierProfile.completed')
+})
+const lightboxChipClass = computed(() => {
+  if (profileView.value === 'all' && !profileEditable.value) return 'is-wait'
+  const bad = profileView.value === 'all' ? profileIssues.value.length > 0 : sectionHasIssue(profileSection.value)
+  return bad ? 'is-warn' : 'is-ok'
+})
+const selectedServiceNames = computed(() => [...new Set(savedServices.value.map((service) => service.name).filter(Boolean))])
+const insuranceDocs = computed(() => [
+  { id: 'public' as const, label: t('admin.supplierProfile.publicLiability'), files: complianceItems[0].files },
+  { id: 'employee' as const, label: t('admin.supplierProfile.employeeInsurance'), files: complianceItems[1].files },
+])
+const jumpProfileField = async (issue: { section: number; id: string }) => {
+  profileFromAll.value = false
+  profileView.value = 'section'
+  profileSection.value = issue.section
+  await nextTick()
+  document.getElementById(`profile-field-${issue.id}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+}
+const submitProfileForm = () => {
+  if (!profileEditable.value) {
+    ElMessage.warning(t('admin.supplierProfile.locked'))
+    return
+  }
+  submitTried.value = true
+  if (profileIssues.value.length) {
+    scrollProfileTop()
+    return
+  }
+  if (needsResubmit.value) resubmitProfile()
+  else saveProfile(1)
+}
+const docFiles = (id: 'trade' | 'public' | 'employee' | 'other') => {
+  if (id === 'trade') return tradeLicenseFiles.value
+  if (id === 'other') return otherDocumentFiles.value
+  return id === 'public' ? complianceItems[0].files : complianceItems[1].files
+}
+const removeDocFile = (id: 'trade' | 'public' | 'employee' | 'other', index: number) => {
+  docFiles(id).splice(index, 1)
+}
+
+const resubmitProfile = async () => {
+  if (!profileEditable.value) {
+    ElMessage.warning(t('admin.supplierProfile.locked'))
+    return
+  }
+  const problem = profileProblem(1)
+  if (problem) {
+    ElMessage.warning(problem)
+    return
+  }
+  saving.value = true
+  try {
+    unwrap(await onboardingResubmit(buildProfilePayload(1)))
+    ElMessage.success(t('admin.supplierProfile.resubmitted'))
+    await reloadOwnProfile()
+  } catch (error: any) {
+    ElMessage.error(error?.message || t('admin.supplierProfile.saveFailed'))
+  } finally {
+    saving.value = false
+  }
+}
+
 const saveProfile = async (status: number) => {
+  if (!profileEditable.value) {
+    ElMessage.warning(t('admin.supplierProfile.locked'))
+    return
+  }
+  const problem = profileProblem(status)
+  if (problem) {
+    ElMessage.warning(problem)
+    return
+  }
   saving.value = true
   try {
     const id = unwrap(await onboardingSave(buildProfilePayload(status)))
@@ -1779,6 +2227,21 @@ const uploadInsurance = async (fileKey: string | undefined, options: any) => {
     const url = unwrap(await uploadFile(options.file as File))
     const fileUrl = typeof url === 'string' ? url : url?.url || ''
     if (target && fileUrl && !target.files.includes(fileUrl)) target.files.push(fileUrl)
+    options.onSuccess?.(url)
+    ElMessage.success(t('admin.supplierProfile.uploaded'))
+  } catch (error: any) {
+    options.onError?.(error)
+    ElMessage.error(error?.message || t('admin.supplierProfile.uploadFailed'))
+  }
+}
+
+const uploadDocFile = async (id: 'trade' | 'public' | 'employee' | 'other', options: any) => {
+  try {
+    const files = docFiles(id)
+    if (files.length >= 20) throw new Error(t('admin.supplierProfile.uploadLimit'))
+    const url = unwrap(await uploadFile(options.file as File))
+    const fileUrl = typeof url === 'string' ? url : url?.url || ''
+    if (fileUrl && !files.includes(fileUrl)) files.push(fileUrl)
     options.onSuccess?.(url)
     ElMessage.success(t('admin.supplierProfile.uploaded'))
   } catch (error: any) {
@@ -1834,6 +2297,10 @@ const areaNameById = (id: number) => {
 }
 
 const saveAreas = async () => {
+  if (!profileEditable.value) {
+    ElMessage.warning(t('admin.supplierProfile.locked'))
+    return
+  }
   if (!companyForm.companyName) {
     ElMessage.warning(t('admin.supplierArea.profileRequired'))
     return
@@ -2101,6 +2568,10 @@ const applySavedQuote = (saved: any) => {
   if (Array.isArray(saved.attaches)) quoteDialog.attaches = mapAttaches(saved.attaches)
 }
 
+const openQuotedServiceEditor = () => {
+  const row = savedServices.value.find((service) => service.spuId === quoteDialog.spuId)
+  if (row) openServiceEditor(row)
+}
 const onQuoteMode = (mode: string | number | boolean | undefined) => {
   if (Number(mode) !== 1) return
   quoteDialog.rows.forEach((row) => {
@@ -2110,6 +2581,11 @@ const onQuoteMode = (mode: string | number | boolean | undefined) => {
     const hours = Number(row.serviceHours)
     if (unit > 0 && staff > 0 && hours > 0) row.quotePrice = Math.round((unit * staff * hours + Number.EPSILON) * 100) / 100
   })
+}
+const pickQuoteMode = (mode: 1 | 2) => {
+  if (quoteLocked.value) return
+  quoteDialog.quoteMode = mode
+  onQuoteMode(mode)
 }
 
 const openServiceQuote = async (row: { spuId: number; name: string; category: string; categoryNameI18n?: Record<string, unknown> | null; status?: number; rejectReason?: string; quoteMode?: number; unitPrice?: number | null }) => {
@@ -2264,7 +2740,10 @@ const handlePrimaryAction = () => {
   if (section.value === 'staff') { staffDialogVisible.value = true; return }
   if (section.value === 'service-area') { openAreaEditor(); return }
   if (section.value === 'schedule') { shiftDialogVisible.value = true; return }
-  if (section.value === 'profile') saveProfile(1)
+  if (section.value === 'profile') {
+    if (needsResubmit.value) resubmitProfile()
+    else saveProfile(1)
+  }
 }
 
 onMounted(() => {
@@ -2348,7 +2827,47 @@ watch(section, (value) => {
 .dossier-rail button.is-active::before { content: ""; position: absolute; left: 0; top: 10px; bottom: 10px; width: 2px; background: #e8c27a; }
 .dossier-rail a span, .dossier-rail button span { width: 22px; color: #d7b48a; font-family: Fraunces, Georgia, serif; }
 .dossier-rail small { display: block; margin-top: 18px; color: #f0b4a2; line-height: 1.45; }
+.profile-main { display: grid; gap: 14px; min-width: 0; }
+.lightbox { display: flex; justify-content: space-between; gap: 16px; align-items: center; padding: 18px 22px; background: #fff; border: 1px solid #e9e2d3; border-left: 5px solid #c99b4a; border-radius: 12px; }
+.lightbox p { margin: 0; color: #7a8090; font-size: 12px; letter-spacing: .04em; text-transform: uppercase; }
+.lightbox h2 { margin: 4px 0; font-family: Fraunces, Georgia, serif; font-size: 28px; font-weight: 520; color: #05152b; }
+.lightbox h2 span { margin-right: 8px; color: #b98a3a; }
+.lightbox small { color: #7a8090; }
+.lightbox em { flex: none; padding: 5px 12px; border-radius: 14px; font-style: normal; font-size: 12px; font-weight: 700; }
+.lightbox em.is-ok { background: #e8f5ec; color: #2e7d4f; }
+.lightbox em.is-warn { background: #fdecea; color: #c0392b; }
+.lightbox em.is-wait { background: #fdf1de; color: #b6791f; }
+.error-banner { padding: 14px 18px; background: #fdecea; border: 1px solid #f1c3bd; border-left: 4px solid #c0392b; border-radius: 10px; }
+.error-banner strong { display: block; margin-bottom: 8px; color: #c0392b; }
+.error-banner button { margin: 0 8px 8px 0; padding: 6px 12px; border: 1px solid #f1c3bd; border-radius: 16px; background: #fff; color: #c0392b; font: inherit; font-size: 12px; font-weight: 700; cursor: pointer; }
+.review-lock { margin: 0; padding: 12px 16px; border-radius: 14px; background: #fff4e5; color: #8d5a32; font-weight: 700; }
 .dossier-sheet { overflow: hidden; background: #fffdf8; border: 1px solid #e4d8c6; border-radius: 24px; box-shadow: 0 22px 48px rgba(5, 21, 43, .06); }
+.dossier-sheet .sec-h { display: none; }
+.dossier-sheet.is-all .sec-h { display: flex; }
+.dossier-sheet.is-all section + section { border-top: 1px solid #efe4d4; }
+.profile-field { display: grid; align-content: start; gap: 6px; min-width: 0; max-width: 100%; margin-bottom: 16px; }
+.profile-field > span { color: #3a3f4a; font-size: 13px; font-weight: 700; }
+.profile-field > span i, .doc-row i { color: #c0392b; font-style: normal; }
+.profile-field > small, .doc-row .err { color: #c0392b; font-size: 13px; font-weight: 700; }
+.profile-field.error :deep(.el-input__wrapper),
+.profile-field.error :deep(.el-textarea__inner) { background: #fdecea; box-shadow: 0 0 0 2px #c0392b inset; }
+.profile-field.error :deep(.el-input-group) { border-radius: 8px; box-shadow: 0 0 0 2px #c0392b; }
+.profile-field.error :deep(.el-input-group .el-input__wrapper) { box-shadow: none; background: #fdecea; }
+.profile-field.error :deep(.dial-prepend .el-select__wrapper) { background: transparent; box-shadow: none; }
+.same-line { display: flex; align-items: flex-start; gap: 8px; min-width: 0; max-width: 100%; margin: 2px 0 0; color: #7a7166; font-size: 13px; font-weight: 500; line-height: 1.4; cursor: pointer; }
+.same-line input { width: 16px; height: 16px; margin: 1px 0 0; flex: none; accent-color: #05152b; }
+.same-line span { min-width: 0; }
+.service-pills { margin-bottom: 16px; }
+.service-pills strong { display: block; margin-bottom: 8px; }
+.service-pills div { display: flex; flex-wrap: wrap; gap: 8px; }
+.service-pills span { padding: 6px 12px; border: 1px solid #dde0e6; border-radius: 16px; background: #eef0f3; color: #3a3f4a; font-size: 13px; font-weight: 700; }
+.service-pills em, .service-pills p, .doc-row small { color: #7a7166; font-size: 12px; font-style: normal; }
+.doc-row { display: flex; justify-content: space-between; gap: 12px; align-items: center; margin-bottom: 12px; padding: 16px; border: 1px solid #e9e2d3; border-radius: 10px; background: #fff; }
+.doc-row.error { border: 2px solid #c0392b; background: #fffafa; }
+.doc-row p { display: flex; gap: 8px; margin: 6px 0 0; }
+.doc-row button { padding: 0; border: 0; background: transparent; color: #2e7d4f; font: inherit; font-weight: 700; cursor: pointer; }
+.doc-row .is-remove { color: #c0392b; }
+.profile-footer { display: flex; justify-content: space-between; gap: 12px; padding: 14px 18px; background: #fff; border: 1px solid #e9e2d3; border-radius: 12px; }
 .dossier-sheet section { padding: 28px 32px 12px; }
 .dossier-sheet section + section { border-top: 1px solid #efe4d4; }
 .dossier-sheet header { display: flex; align-items: flex-start; gap: 14px; margin-bottom: 18px; }
@@ -2356,19 +2875,45 @@ watch(section, (value) => {
 .dossier-sheet h2 { margin: 0; font-family: Fraunces, Georgia, serif; font-size: 30px; font-weight: 520; letter-spacing: -.03em; color: #05152b; }
 .dossier-sheet header p { margin: 4px 0 0; color: #7a7166; font-size: 13px; }
 .dossier-sheet header .el-button { margin-left: auto; }
-.dossier-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 16px; }
+.dossier-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px 22px; min-width: 0; align-items: start; }
+.dossier-grid.align-fields .profile-field > span { min-height: 2.7em; }
+.field-hint { margin: 6px 0 0; color: #8a5a2b; font-size: 12px; line-height: 1.45; }
 .dossier-grid--three { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .dossier-grid :deep(.el-form-item__label) { color: #5c564c; font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
-.dossier-grid :deep(.el-input__wrapper), .dossier-grid :deep(.el-input-number), .dossier-grid :deep(.el-date-editor), .dossier-grid :deep(.el-select) { width: 100%; }
-.dossier-grid :deep(.el-input__wrapper), .dossier-grid :deep(.el-select__wrapper) { background: #fff; border-radius: 8px; box-shadow: 0 0 0 1px #e6dccb inset; }
+.dossier-grid :deep(.el-input),
+.dossier-grid :deep(.el-input-number),
+.dossier-grid :deep(.el-date-editor),
+.dossier-grid :deep(.el-select) { width: 100%; max-width: 100%; min-width: 0; }
+.dossier-grid :deep(.el-input__inner) { min-width: 0; }
+.dossier-grid :deep(.el-input-group) { display: flex; width: 100%; min-width: 0; }
+.dossier-grid :deep(.el-input-group__prepend) { flex: 0 0 84px; width: 84px; padding: 0; overflow: hidden; background: #05152b; border-radius: 8px 0 0 8px; box-shadow: none; }
+.dossier-grid :deep(.el-input-group .el-input__wrapper) { flex: 1; min-width: 0; border-radius: 0 8px 8px 0; }
+.dossier-grid :deep(.dial-prepend) { width: 84px; margin: 0; }
+.dossier-grid :deep(.dial-prepend .el-select__wrapper) { min-height: 40px; padding: 0 8px; background: transparent; box-shadow: none; }
+.dossier-grid :deep(.dial-prepend .el-select__selected-item),
+.dossier-grid :deep(.dial-prepend .el-select__placeholder),
+.dossier-grid :deep(.dial-prepend .el-select__caret) { color: #f7f1e6; font-weight: 700; }
+.dossier-grid :deep(.el-input__wrapper),
+.dossier-grid :deep(.el-select__wrapper) { min-height: 40px; background: #fff; border-radius: 8px; box-shadow: 0 0 0 1px #e6dccb inset; }
+.plain-count { width: 100%; height: 40px; padding: 0 12px; border: 0; border-radius: 8px; background: #fff; box-shadow: 0 0 0 1px #e6dccb inset; color: #05152b; font: inherit; font-size: 14px; font-weight: 500; }
+.plain-count:disabled { color: #7a7166; background: #f7f4ee; }
 .doc-list article > svg { width: 18px; height: 18px; color: #8d5a32; }
-.dossier-toggles { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin: 4px 0 12px; }
+.dossier-toggles { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin: 4px 0 12px; }
+@media (min-width: 1500px) { .dossier-toggles { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+.expected-services { display: grid; gap: 8px; margin: 0 0 16px; color: #314255; font-size: 13px; line-height: 1.5; }
+.expected-services p { margin: 0; }
+.expected-services strong { color: #05152b; }
+.expected-services__chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.expected-services__chips span { min-height: 34px; padding: 4px 14px; display: inline-flex; align-items: center; border: 1px solid #05152b; border-radius: 999px; background: #05152b; color: #f7f1e6; font-size: 14px; font-weight: 650; }
+.expected-services__chips em { color: #7a7166; font-style: normal; }
 .community-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin: 0 0 18px; }
 .community-fields article { display: flex; align-items: center; justify-content: space-between; gap: 16px; min-height: 76px; padding: 14px 16px; background: #fff; border: 1px solid #eadfce; border-radius: 14px; }
 .community-fields strong { display: block; color: #05152b; font-size: 14px; }
 .community-fields small { display: block; margin-top: 4px; color: #7a7166; font-size: 12px; line-height: 1.4; }
 .community-note { margin-bottom: 8px; }
 .dossier-toggles label, .policy-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 64px; padding: 12px 14px; background: #fff; border: 1px solid #eadfce; border-radius: 14px; }
+.dossier-toggles :deep(.el-radio-group) { display: inline-flex; flex: none; flex-wrap: nowrap; }
+.dossier-toggles :deep(.el-radio-button__inner) { padding: 6px 14px; }
 .dossier-toggles span, .policy-row > div { display: grid; min-width: 0; }
 .dossier-toggles strong, .policy-row strong { color: #05152b; font-size: 14px; }
 .dossier-toggles small, .policy-row small { color: #7a7166; font-size: 12px; }
@@ -2457,7 +3002,45 @@ watch(section, (value) => {
 .service-action__photos button, .order-photos button { padding: 0; border: 0; background: transparent; cursor: pointer; }
 .order-photos { display: flex; flex-wrap: wrap; gap: 8px; margin: 16px 0; }
 .order-photos h3 { flex: 1 0 100%; margin: 0; font-size: 13px; }
-.pricing-health { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; padding: 15px 18px; background: #ecf8f4; border: 1px solid #cceade; border-radius: 13px; }.pricing-health > div { display: flex; align-items: center; gap: 12px; }.health-icon { display: grid; place-items: center; width: 38px; height: 38px; color: #218365; background: #d4f0e6; border-radius: 50%; }.pricing-health strong { font-size: 13px; }.pricing-health p { margin: 3px 0 0; color: #5f7b72; font-size: 11px; }
+.sv-page, .sv-editor { display: grid; gap: 16px; min-width: 0; }
+.sv-eyebrow { margin: 0; color: #8d5a32; font-size: 13px; font-weight: 650; }
+.sv-title { margin: 0; color: #05152b; font-family: Fraunces, Georgia, serif; font-size: 34px; font-weight: 520; letter-spacing: -.02em; }
+.sv-supplier { display: flex; align-items: center; gap: 16px; padding: 16px 18px; background: #fffdf8; border: 1px solid #e4d8c6; border-radius: 18px; }
+.sv-avatar { display: grid; place-items: center; width: 52px; height: 52px; flex: none; border-radius: 16px; background: #05152b; color: #f7f1e6; font-weight: 750; letter-spacing: .04em; }
+.sv-supplier__main { flex: 1; min-width: 0; }
+.sv-supplier__main small, .sv-fact small { display: block; color: #7a7166; font-size: 12px; }
+.sv-supplier__main strong { display: block; margin: 2px 0 8px; color: #05152b; font-size: 18px; }
+.sv-supplier__main p { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 0; }
+.sv-supplier__main em { padding: 3px 10px; border-radius: 999px; background: #f4f1eb; color: #05152b; font-style: normal; font-size: 12px; font-weight: 700; }
+.sv-supplier__main button { border: 0; background: transparent; color: #8d5a32; font: inherit; font-size: 13px; font-weight: 700; cursor: pointer; text-decoration: underline; }
+.sv-fact { min-width: 120px; }
+.sv-fact strong { color: #05152b; }
+.sv-board, .sv-add, .sv-quote { background: #fffdf8; border: 1px solid #e4d8c6; border-radius: 18px; overflow: hidden; }
+.sv-add { display: grid; gap: 12px; padding: 16px 18px 18px; }
+.sv-add header, .sv-add footer, .sv-quote__foot { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.sv-add header p, .sv-quote__head p { margin: 4px 0 0; color: #7a7166; font-size: 13px; }
+.sv-crumb { display: flex; align-items: center; gap: 8px; color: #7a7166; font-size: 13px; }
+.sv-crumb button { border: 0; background: transparent; color: #05152b; font: inherit; font-weight: 700; cursor: pointer; }
+.sv-crumb strong { color: #05152b; }
+.sv-quote { padding: 8px 0 0; }
+.sv-quote__head, .sv-quote h3, .mode-cards, .rate-field, .quote-lines, .quote-attaches { padding-left: 18px; padding-right: 18px; }
+.sv-quote__head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; padding-top: 16px; }
+.sv-quote__head h2, .sv-quote h3 { margin: 0; color: #05152b; font-family: Fraunces, Georgia, serif; font-weight: 520; }
+.sv-quote h3 { margin-top: 8px; font-family: inherit; font-size: 16px; font-weight: 750; }
+.mode-cards { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin-top: 10px; }
+.mode-cards button { display: grid; gap: 4px; min-height: 84px; padding: 14px; text-align: left; border: 1px solid #eadfce; border-radius: 14px; background: #fff; color: #05152b; cursor: pointer; }
+.mode-cards button.is-on { background: #05152b; color: #f7f1e6; border-color: #05152b; }
+.mode-cards small { color: #7a7166; font-size: 12px; line-height: 1.4; }
+.mode-cards button.is-on small { color: #d9d1c5; }
+.rate-field { display: grid; gap: 6px; max-width: 320px; margin-top: 14px; color: #5c564c; font-size: 13px; font-weight: 700; }
+.sv-quote__foot { padding: 14px 18px; border-top: 1px solid #eadfce; }
+.sv-quote__foot > div { display: flex; flex-wrap: wrap; gap: 8px; }
+@media (max-width: 980px) {
+  .sv-supplier, .mode-cards, .sv-quote__foot { flex-direction: column; align-items: stretch; }
+  .mode-cards { grid-template-columns: 1fr; }
+  .sv-title { font-size: 28px; }
+}
+.pricing-health { display: flex; align-items: center; justify-content: space-between; margin-bottom: 0; padding: 15px 18px; background: #fff8eb; border: 1px solid #f0dbb5; border-radius: 16px; }.pricing-health > div { display: flex; align-items: center; gap: 12px; }.health-icon { display: grid; place-items: center; width: 38px; height: 38px; color: #218365; background: #d4f0e6; border-radius: 50%; }.pricing-health strong { font-size: 13px; }.pricing-health p { margin: 3px 0 0; color: #5f7b72; font-size: 11px; }
 .quote-dialog__meta { margin: 0 0 10px; color: var(--muted); font-size: 12px; }
 @media (max-width: 820px) {
   .quote-line { grid-template-columns: 1fr 1fr; }

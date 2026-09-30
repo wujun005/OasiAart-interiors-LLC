@@ -181,19 +181,26 @@
         </div>
       </section>
 
+      <button v-if="!isLoggedIn" class="h5-profile-signin" type="button" @click="goLogin">
+        {{ t('h5.profile.signIn') }}
+      </button>
+
       <section class="h5-profile-card h5-profile-card--partner">
         <div class="h5-profile-card__title">
           <img :src="joinIconUrl" alt="" />
           <span>{{ t('h5.profile.partner.title') }}</span>
         </div>
         <p class="h5-profile-card__desc">{{ t('h5.profile.partner.desc') }}</p>
+        <button class="h5-profile-apply" type="button" @click="router.push({ name: 'h5-supplier-onboarding' })">
+          {{ t('h5.profile.partner.apply') }}
+        </button>
         <button class="h5-profile-mail" type="button" @click="openPartnerMail">
           <img :src="mailIconUrl" alt="" />
           <span>{{ partnerEmail }}</span>
         </button>
       </section>
 
-      <button class="h5-profile-logout" type="button" @click="handleLogout">
+      <button v-if="isLoggedIn" class="h5-profile-logout" type="button" @click="handleLogout">
         {{ t('h5.profile.logOut') }}
       </button>
     </main>
@@ -327,6 +334,13 @@ const saveProfile = async () => {
   } finally { profileSubmitting.value = false; }
 };
 
+const goLogin = () => {
+  router.push({
+    name: 'h5-login',
+    query: { redirect: route.fullPath },
+  });
+};
+
 const ensureLogin = async () => {
   checkLoginStatus();
   if (isLoggedIn.value) return true;
@@ -337,7 +351,11 @@ const ensureLogin = async () => {
   return false;
 };
 
-const toggleSection = (section: ProfileSection) => {
+const toggleSection = async (section: ProfileSection) => {
+  if (!isLoggedIn.value && (section === 'personal' || section === 'addresses' || section === 'payments')) {
+    goLogin();
+    return;
+  }
   activeSection.value = activeSection.value === section ? '' : section;
 };
 
@@ -383,8 +401,8 @@ watch(bookingNotifications, (value) => localStorage.setItem(bookingNotificationK
 watch(offerNotifications, (value) => localStorage.setItem(offerNotificationKey, String(value)));
 
 onMounted(async () => {
-  const loggedIn = await ensureLogin();
-  if (!loggedIn) return;
+  checkLoginStatus();
+  if (!isLoggedIn.value) return;
   bookingNotifications.value = localStorage.getItem(bookingNotificationKey) !== 'false';
   offerNotifications.value = localStorage.getItem(offerNotificationKey) === 'true';
   await loadProfile();
@@ -865,6 +883,25 @@ onMounted(async () => {
 .h5-profile-mail img {
   width: 16px;
   height: 16px;
+}
+
+.h5-profile-signin,
+.h5-profile-apply {
+  width: calc(100% - 32px);
+  height: 46px;
+  margin: 14px 16px 0;
+  border: 0;
+  border-radius: 12px;
+  background: #05152b;
+  color: #fff;
+  font: inherit;
+  font-size: 15px;
+  font-weight: 800;
+}
+
+.h5-profile-apply {
+  width: 100%;
+  margin: 14px 0 0;
 }
 
 .h5-profile-logout {

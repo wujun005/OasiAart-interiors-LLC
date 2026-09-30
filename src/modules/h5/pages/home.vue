@@ -347,7 +347,10 @@
             >
               {{ t("client.header.nav.orders") }}
             </a>
-            <a href="/join-us">{{ t("client.header.nav.joinUs") }}</a>
+            <a
+              href="/h5/#/join-us/apply"
+              @click.prevent="router.push({ name: 'h5-supplier-onboarding' })"
+            >{{ t("client.header.nav.joinUs") }}</a>
             <a href="/faq">{{ t("client.footer.faq") }}</a>
           </section>
         </div>

@@ -103,6 +103,15 @@
               </span>
             </div>
             <el-button
+              class="password-button"
+              :aria-label="t('admin.common.changePassword')"
+              :title="t('admin.common.changePassword')"
+              @click="openPasswordDialog"
+            >
+              <el-icon><Lock /></el-icon>
+              <span>{{ t('admin.common.changePassword') }}</span>
+            </el-button>
+            <el-button
               class="logout-button"
               :aria-label="t('admin.common.logout')"
               :title="t('admin.common.logout')"
@@ -113,6 +122,69 @@
             </el-button>
           </div>
         </el-header>
+        <el-dialog
+          v-model="passwordVisible"
+          class="own-password-dialog"
+          :title="t('admin.common.changePassword')"
+          width="min(420px, calc(100vw - 32px))"
+          append-to-body
+        >
+          <el-form label-position="top" @submit.prevent="saveOwnPassword">
+            <el-radio-group v-model="passwordForm.method" class="password-method">
+              <el-radio-button value="old">{{ t('admin.login.useOldPassword') }}</el-radio-button>
+              <el-radio-button value="code">{{ t('admin.login.useVerifyCode') }}</el-radio-button>
+            </el-radio-group>
+            <el-form-item v-if="passwordForm.method === 'old'" :label="t('admin.user.form.oldPassword')" required>
+              <el-input
+                v-model="passwordForm.oldPassword"
+                type="password"
+                show-password
+                autocomplete="current-password"
+                :placeholder="t('admin.user.form.oldPasswordPlaceholder')"
+              />
+            </el-form-item>
+            <template v-else>
+              <el-form-item :label="t('admin.login.phoneLabel')" required>
+                <div class="password-phone">
+                  <el-select v-model="passwordForm.dialCode" class="dial-prepend">
+                    <el-option v-for="item in PHONE_DIAL_OPTIONS" :key="item.value" :label="item.value" :value="item.value" />
+                  </el-select>
+                  <el-input v-model="passwordForm.phone" maxlength="15" inputmode="numeric" placeholder="501234567" />
+                </div>
+              </el-form-item>
+              <el-form-item :label="t('admin.login.codeLabel')" required>
+                <div class="password-phone">
+                  <el-input v-model="passwordForm.code" maxlength="6" inputmode="numeric" :placeholder="t('admin.login.codePlaceholder')" />
+                  <el-button :disabled="passwordCodeWait > 0 || passwordSending" @click="sendOwnCode">
+                    {{ passwordCodeWait > 0 ? t('admin.login.resendIn', { seconds: passwordCodeWait }) : t('admin.login.sendCode') }}
+                  </el-button>
+                </div>
+              </el-form-item>
+            </template>
+            <el-form-item :label="t('admin.user.form.newPassword')" required>
+              <el-input
+                v-model="passwordForm.newPassword"
+                type="password"
+                show-password
+                autocomplete="new-password"
+                :placeholder="t('admin.user.form.newPasswordPlaceholder')"
+              />
+            </el-form-item>
+            <el-form-item :label="t('admin.user.form.confirmPassword')" required>
+              <el-input
+                v-model="passwordForm.confirmPassword"
+                type="password"
+                show-password
+                autocomplete="new-password"
+                :placeholder="t('admin.user.form.confirmPasswordPlaceholder')"
+              />
+            </el-form-item>
+          </el-form>
+          <template #footer>
+            <el-button @click="passwordVisible = false">{{ t('admin.user.actions.cancel') }}</el-button>
+            <el-button type="primary" :loading="passwordSaving" @click="saveOwnPassword">{{ t('admin.user.actions.save') }}</el-button>
+          </template>
+        </el-dialog>
         <el-main class="content">
           <RouterView v-slot="{ Component: RouteComponent }">
             <Transition name="admin-route" mode="out-in">
@@ -126,7 +198,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref, type Component } from 'vue';
+import { computed, onBeforeUnmount, onMounted, reactive, ref, type Component } from 'vue';
 import axios from 'axios';
 import { ElMessage } from 'element-plus';
 import { useRoute, useRouter } from 'vue-router';
@@ -152,6 +224,9 @@ import {
   Fold,
   Expand,
   Refresh,
+  Lock,
+  Bell,
+  Setting,
   SwitchButton,
   Menu as MenuIcon,
 } from '@element-plus/icons-vue';
@@ -169,6 +244,9 @@ import {
   type AdminMenuPermissionItem,
 } from '@/modules/admin/utils/menuPermission';
 import { useAdminSessionStore } from '@/modules/admin/stores/session';
+import { updateAdminUserPassword } from '@/modules/admin/api/user'
+import { resetAdminPassword, sendAdminVerifyCode } from '@/modules/admin/api'
+import { DEFAULT_PHONE_DIAL, PHONE_DIAL_OPTIONS, joinPhone, splitPhone } from '@/utils/phone-dial';
 
 const route = useRoute();
 const refreshTick = ref(0);
@@ -261,7 +339,10 @@ const handleViewportResize = () => {
 };
 
 onMounted(() => window.addEventListener('resize', handleViewportResize, { passive: true }));
-onBeforeUnmount(() => window.removeEventListener('resize', handleViewportResize));
+onBeforeUnmount(() => {
+  window.removeEventListener('resize', handleViewportResize);
+  window.clearInterval(passwordCodeTimer);
+});
 
 const handleSelect = (path: string) => {
   if (!path || !path.startsWith('/')) return;
@@ -284,6 +365,116 @@ const refresh = () => {
   useAdminSessionStore().reset();
   refreshTick.value += 1;
   router.replace({ path: route.path, query: { ...route.query, t: Date.now() } });
+};
+
+const passwordVisible = ref(false);
+const passwordSaving = ref(false);
+const passwordSending = ref(false);
+const passwordCodeWait = ref(0);
+let passwordCodeTimer = 0;
+const passwordForm = reactive({
+  method: 'old' as 'old' | 'code',
+  oldPassword: '',
+  newPassword: '',
+  confirmPassword: '',
+  dialCode: DEFAULT_PHONE_DIAL,
+  phone: '',
+  code: '',
+});
+
+const openPasswordDialog = async () => {
+  passwordForm.method = 'old';
+  passwordForm.oldPassword = '';
+  passwordForm.newPassword = '';
+  passwordForm.confirmPassword = '';
+  passwordForm.dialCode = DEFAULT_PHONE_DIAL;
+  passwordForm.phone = '';
+  passwordForm.code = '';
+  passwordVisible.value = true;
+  try {
+    const me = await useAdminSessionStore().currentUser();
+    const parts = splitPhone(me?.phone);
+    passwordForm.dialCode = parts.code;
+    passwordForm.phone = parts.local;
+  } catch {
+    passwordForm.dialCode = DEFAULT_PHONE_DIAL;
+  }
+};
+
+const sendOwnCode = async () => {
+  const phone = joinPhone(passwordForm.dialCode, passwordForm.phone);
+  if (!phone) {
+    ElMessage.warning(t('admin.login.phoneRequired'));
+    return;
+  }
+  passwordSending.value = true;
+  try {
+    const result = await sendAdminVerifyCode(phone);
+    ElMessage.success(result?.message || t('admin.login.codeSent'));
+    passwordCodeWait.value = 60;
+    window.clearInterval(passwordCodeTimer);
+    passwordCodeTimer = window.setInterval(() => {
+      passwordCodeWait.value -= 1;
+      if (passwordCodeWait.value <= 0) window.clearInterval(passwordCodeTimer);
+    }, 1000);
+  } catch (error: any) {
+    ElMessage.error(error?.message || t('admin.user.message.passwordSaveFailed'));
+  } finally {
+    passwordSending.value = false;
+  }
+};
+
+const saveOwnPassword = async () => {
+  const newPassword = passwordForm.newPassword.trim();
+  if (newPassword.length < 6) {
+    ElMessage.warning(t('admin.user.validation.passwordMin'));
+    return;
+  }
+  if (newPassword !== passwordForm.confirmPassword.trim()) {
+    ElMessage.warning(t('admin.user.validation.passwordMismatch'));
+    return;
+  }
+  if (passwordForm.method === 'old') {
+    const oldPassword = passwordForm.oldPassword.trim();
+    if (!oldPassword) {
+      ElMessage.warning(t('admin.user.validation.oldPasswordRequired'));
+      return;
+    }
+    if (newPassword === oldPassword) {
+      ElMessage.warning(t('admin.common.passwordSame'));
+      return;
+    }
+    passwordSaving.value = true;
+    try {
+      await updateAdminUserPassword({ oldPassword, newPassword });
+      ElMessage.success(t('admin.user.message.passwordSaveSuccess'));
+      passwordVisible.value = false;
+    } catch (error: any) {
+      ElMessage.error(error?.message || t('admin.user.message.passwordSaveFailed'));
+    } finally {
+      passwordSaving.value = false;
+    }
+    return;
+  }
+  const phone = joinPhone(passwordForm.dialCode, passwordForm.phone);
+  if (!phone) {
+    ElMessage.warning(t('admin.login.phoneRequired'));
+    return;
+  }
+  if (!/^\d{6}$/.test(passwordForm.code.trim())) {
+    ElMessage.warning(t('admin.login.codeRequired'));
+    return;
+  }
+  passwordSaving.value = true;
+  try {
+    await resetAdminPassword({ phone, verifyCode: passwordForm.code.trim(), newPassword });
+    ElMessage.success(t('admin.login.passwordReset'));
+    passwordVisible.value = false;
+  } catch (error: any) {
+    ElMessage.error(error?.message || t('admin.user.message.passwordSaveFailed'));
+  } finally {
+    passwordSaving.value = false;
+  }
 };
 
 const handleLogout = async () => {
@@ -313,6 +504,8 @@ const iconMap: Record<string, Component> = {
   dataanalysis: DataAnalysis,
   location: Location,
   wallet: Wallet,
+  bell: Bell,
+  setting: Setting,
 };
 
 const resolveMenuIcon = (item: AdminMenuPermissionItem) => {
@@ -334,6 +527,8 @@ const resolveMenuIcon = (item: AdminMenuPermissionItem) => {
   if (path.startsWith('/admin/supplier-management/pricing')) return PriceTag;
   if (path.startsWith('/admin/supplier-management/settlement')) return Wallet;
   if (path.startsWith('/admin/supplier-management')) return OfficeBuilding;
+  if (path.startsWith('/admin/notifications')) return Bell;
+  if (path.startsWith('/admin/sys-config')) return Setting;
   if (path.startsWith('/admin/basic/service-areas')) return Location;
   if (path.startsWith('/admin/basic/suppliers')) return User;
   if (path.startsWith('/admin/basic/spec-types')) return Ticket;
@@ -357,6 +552,8 @@ const menuLabelKeyByPath: Record<string, string> = {
   '/admin/basic/addons': 'admin.layout.addon',
   '/admin/basic/suppliers': 'admin.layout.supplier',
   '/admin/basic/service-areas': 'admin.layout.serviceAreas',
+  '/admin/notifications': 'admin.layout.notifications',
+  '/admin/sys-config': 'admin.layout.sysConfig',
   '/admin/supplier-management': 'admin.layout.supplierManagement',
   '/admin/supplier-management/overview': 'admin.layout.supplierOverview',
   '/admin/supplier-management/profile': 'admin.layout.supplierProfile',
@@ -852,6 +1049,11 @@ loadAdminMenuPermissions().catch((error) => {
   font-size: 9.5px;
 }
 
+.password-method { margin-bottom: 16px; }
+.password-phone { display: flex; gap: 8px; width: 100%; }
+.password-phone .el-select { width: 110px; }
+
+.password-button,
 .logout-button {
   padding: 0 14px;
   color: #5e5040;
@@ -949,11 +1151,13 @@ loadAdminMenuPermissions().catch((error) => {
   min-height: 34px;
 }
 
+.admin-page--orders-h5 .password-button,
 .admin-page--orders-h5 .logout-button {
   width: 36px;
   padding: 0;
 }
 
+.admin-page--orders-h5 .password-button span,
 .admin-page--orders-h5 .logout-button span {
   display: none;
 }
@@ -1013,6 +1217,7 @@ loadAdminMenuPermissions().catch((error) => {
   }
 
   .page-heading__eyebrow,
+  .password-button span,
   .logout-button span {
     display: none;
   }
@@ -1024,6 +1229,7 @@ loadAdminMenuPermissions().catch((error) => {
     font-weight: 720;
   }
 
+  .password-button,
   .logout-button {
     width: 40px;
     padding: 0;
