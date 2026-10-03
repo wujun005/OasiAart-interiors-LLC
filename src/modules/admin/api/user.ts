@@ -64,6 +64,10 @@ export function updateAdminUserPassword(payload: { userId?: number; oldPassword?
   return http.post('/api/admin-user/password', payload);
 }
 
+export function setInitialAdminPassword(payload: { newPassword: string; confirmPassword: string }) {
+  return http.post('/api/admin-user/initial-password', payload);
+}
+
 export default {
   getPage,
   getInfo,

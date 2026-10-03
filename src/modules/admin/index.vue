@@ -185,10 +185,36 @@
             <el-button type="primary" :loading="passwordSaving" @click="saveOwnPassword">{{ t('admin.user.actions.save') }}</el-button>
           </template>
         </el-dialog>
+        <el-dialog
+          v-model="passwordGateRequired"
+          class="password-gate"
+          width="440px"
+          align-center
+          :title="t('admin.passwordGate.title')"
+          :close-on-click-modal="false"
+          :close-on-press-escape="false"
+          :show-close="false"
+          append-to-body
+        >
+          <p class="password-gate__note">{{ t('admin.passwordGate.desc') }}</p>
+          <el-form label-position="top" @submit.prevent>
+            <el-form-item :label="t('admin.login.newPassword')">
+              <el-input v-model="passwordGateForm.password" type="password" show-password autocomplete="new-password" />
+            </el-form-item>
+            <el-form-item :label="t('admin.login.confirmPassword')">
+              <el-input v-model="passwordGateForm.confirm" type="password" show-password autocomplete="new-password" />
+            </el-form-item>
+          </el-form>
+          <template #footer>
+            <el-button type="primary" :loading="passwordGateSaving" @click="submitInitialPassword">
+              {{ t('admin.user.actions.save') }}
+            </el-button>
+          </template>
+        </el-dialog>
         <el-main class="content">
           <RouterView v-slot="{ Component: RouteComponent }">
             <Transition name="admin-route" mode="out-in">
-              <component :is="RouteComponent" :key="contentKey" />
+              <component v-if="!passwordGatePending && !passwordGateRequired" :is="RouteComponent" :key="contentKey" />
             </Transition>
           </RouterView>
         </el-main>
@@ -244,7 +270,7 @@ import {
   type AdminMenuPermissionItem,
 } from '@/modules/admin/utils/menuPermission';
 import { useAdminSessionStore } from '@/modules/admin/stores/session';
-import { updateAdminUserPassword } from '@/modules/admin/api/user'
+import { setInitialAdminPassword, updateAdminUserPassword } from '@/modules/admin/api/user'
 import { resetAdminPassword, sendAdminVerifyCode } from '@/modules/admin/api'
 import { DEFAULT_PHONE_DIAL, PHONE_DIAL_OPTIONS, joinPhone, splitPhone } from '@/utils/phone-dial';
 
@@ -575,6 +601,55 @@ const resolveMenuLabel = (item: AdminMenuPermissionItem) => {
 loadAdminMenuPermissions().catch((error) => {
   console.error('Failed to load admin menu permissions:', error);
 });
+
+const passwordGatePending = ref(true);
+const passwordGateRequired = ref(false);
+const passwordGateSaving = ref(false);
+const passwordGateForm = reactive({
+  password: '',
+  confirm: '',
+});
+
+const needsInitialPassword = (me: { mustChangePassword?: boolean | number } | null) =>
+  me?.mustChangePassword === true || me?.mustChangePassword === 1;
+
+const syncPasswordGate = async () => {
+  try {
+    const me = await useAdminSessionStore().currentUser(true);
+    passwordGateRequired.value = needsInitialPassword(me);
+  } catch {
+    passwordGateRequired.value = false;
+  } finally {
+    passwordGatePending.value = false;
+  }
+};
+
+const submitInitialPassword = async () => {
+  const next = passwordGateForm.password.trim();
+  if (next.length < 6) {
+    ElMessage.warning(t('admin.login.passwordMin'));
+    return;
+  }
+  if (next !== passwordGateForm.confirm.trim()) {
+    ElMessage.warning(t('admin.login.passwordMismatch'));
+    return;
+  }
+  passwordGateSaving.value = true;
+  try {
+    await setInitialAdminPassword({ newPassword: next, confirmPassword: passwordGateForm.confirm.trim() });
+    passwordGateForm.password = '';
+    passwordGateForm.confirm = '';
+    passwordGateRequired.value = false;
+    await useAdminSessionStore().currentUser(true);
+    ElMessage.success(t('admin.passwordGate.saved'));
+  } catch (error: any) {
+    ElMessage.error(error?.message || t('admin.login.loginFailed'));
+  } finally {
+    passwordGateSaving.value = false;
+  }
+};
+
+syncPasswordGate();
 </script>
 
 <style scoped>
@@ -1273,5 +1348,13 @@ loadAdminMenuPermissions().catch((error) => {
   .sidebar-foot__signal i {
     animation: none;
   }
+}
+</style>
+
+<style>
+.password-gate__note {
+  margin: 0 0 16px;
+  color: #5c6b7a;
+  line-height: 1.55;
 }
 </style>

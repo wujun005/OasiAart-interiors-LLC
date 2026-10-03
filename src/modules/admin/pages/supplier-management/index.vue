@@ -118,6 +118,23 @@
                   <el-input v-model="companyForm.licenseNo" :disabled="profileReadOnly" />
                   <small v-if="issueOf('licenseNo')">{{ issueOf('licenseNo') }}</small>
                 </label>
+                <label id="profile-field-licenseIssuedBy" class="profile-field" :class="{ error: issueOf('licenseIssuedBy') || issueOf('licenseIssuedByOther') }">
+                  <span>{{ t('admin.supplierProfile.licenseIssuedBy') }} <i>*</i></span>
+                  <el-select v-model="companyForm.licenseIssuedBy" filterable :disabled="profileReadOnly" :placeholder="t('admin.supplierProfile.licenseIssuedByPlaceholder')" @change="onLicenseAuthorityChange">
+                    <el-option-group v-for="group in licenseAuthorities" :key="group.emirate" :label="group.emirate">
+                      <el-option v-for="item in group.items" :key="item" :label="item" :value="item" />
+                    </el-option-group>
+                  </el-select>
+                  <el-input
+                    v-if="companyForm.licenseIssuedBy === LICENSE_AUTHORITY_OTHER"
+                    id="profile-field-licenseIssuedByOther"
+                    v-model="companyForm.licenseIssuedByOther"
+                    :disabled="profileReadOnly"
+                    :placeholder="t('admin.supplierProfile.licenseIssuedByOtherPlaceholder')"
+                  />
+                  <small v-if="issueOf('licenseIssuedBy')">{{ issueOf('licenseIssuedBy') }}</small>
+                  <small v-if="issueOf('licenseIssuedByOther')">{{ issueOf('licenseIssuedByOther') }}</small>
+                </label>
                 <label id="profile-field-licenseExpiry" class="profile-field" :class="{ error: issueOf('licenseExpiry') }">
                   <span>{{ t('admin.supplierProfile.licenseExpiry') }} <i>*</i></span>
                   <el-date-picker v-model="companyForm.licenseExpiry" type="date" value-format="YYYY-MM-DD" placeholder="YYYY-MM-DD" :disabled="profileReadOnly" :disabled-date="disableLicenseDate" />
@@ -317,7 +334,7 @@
           </el-table-column>
         </el-table>
       </el-card>
-      <el-dialog v-model="areaEditorVisible" :title="t('admin.supplierArea.dialogTitle')" width="min(760px, 92vw)" :close-on-click-modal="false">
+      <el-dialog v-model="areaEditorVisible" class="supplier-form-dialog" :title="t('admin.supplierArea.dialogTitle')" width="min(760px, calc(100vw - 32px))" :close-on-click-modal="false" append-to-body>
         <el-input v-model="areaKeyword" :prefix-icon="Search" :placeholder="t('admin.supplierArea.searchPlaceholder')" clearable />
         <div v-loading="editorLoading" class="area-choice-list">
           <el-checkbox
@@ -408,79 +425,149 @@
     </template>
 
     <template v-else-if="section === 'orders'">
+      <section class="orders-command" aria-labelledby="orders-command-title">
+        <div class="orders-command__copy">
+          <span>{{ t('admin.supplierOrders.assignedOrder') }}</span>
+          <h2 id="orders-command-title">{{ t('admin.supplierOrders.queueTitle') }}</h2>
+          <p>{{ t('admin.supplierOrders.queueHint') }}</p>
+        </div>
+        <div class="orders-command__metrics">
+          <article>
+            <span>{{ t('admin.supplierOrders.visibleNow') }}</span>
+            <strong>{{ visibleOrderCount }}</strong>
+            <small>{{ orderPageRange }}</small>
+          </article>
+          <article>
+            <span>{{ t('admin.supplierOrders.activeNow') }}</span>
+            <strong>{{ activeOrdersOnPage }}</strong>
+            <small>{{ t('admin.supplierOrders.serviceStatus') }}</small>
+          </article>
+          <article>
+            <span>{{ t('admin.supplierOrders.completedNow') }}</span>
+            <strong>{{ completedOrdersOnPage }}</strong>
+            <small>{{ t('admin.supplierOrders.visibleNow') }}</small>
+          </article>
+        </div>
+      </section>
+
       <el-card class="surface-card orders-card" shadow="never" v-loading="orderLoading">
         <div class="order-toolbar">
-          <div class="order-filters">
-            <el-input v-model.trim="orderKeyword" :prefix-icon="Search" :placeholder="t('admin.supplierOrders.searchOrder')" clearable @keyup.enter="searchOrders" @clear="searchOrders" />
-            <el-input v-model.trim="orderServiceKeyword" :placeholder="t('admin.supplierOrders.searchService')" clearable @keyup.enter="searchOrders" @clear="searchOrders" />
-            <el-select v-model="orderCategory" filterable clearable :placeholder="t('admin.supplierOrders.searchCategory')" @change="searchOrders">
-              <el-option v-for="category in orderCategoryOptions" :key="category.id" :label="category.label" :value="category.id" />
-            </el-select>
-            <el-date-picker
-              v-model="orderDateRange"
-              type="daterange"
-              value-format="YYYY-MM-DD"
-              :start-placeholder="t('admin.supplierOrders.dateStart')"
-              :end-placeholder="t('admin.supplierOrders.dateEnd')"
-              clearable
-              @change="searchOrders"
-            />
-            <el-button @click="searchOrders">{{ t('admin.supplierOrders.search') }}</el-button>
+          <div class="order-toolbar__head">
+            <div>
+              <strong>{{ t('admin.supplierOrders.queueTitle') }}</strong>
+              <span>{{ t('admin.supplierOrders.count', { count: orderTotal }) }}</span>
+            </div>
+            <el-button v-if="hasOrderFilters" link @click="resetOrderFilters">{{ t('admin.supplierOrders.resetFilters') }}</el-button>
           </div>
-          <div class="result-count">{{ t('admin.supplierOrders.count', { count: orderTotal }) }}</div>
+          <div class="order-filters">
+            <label class="order-filter">
+              <span>{{ t('admin.supplierOrders.orderNo') }}</span>
+              <el-input v-model.trim="orderKeyword" :prefix-icon="Search" :placeholder="t('admin.supplierOrders.searchOrder')" clearable @keyup.enter="searchOrders" @clear="searchOrders" />
+            </label>
+            <label class="order-filter">
+              <span>{{ t('admin.supplierOrders.serviceName') }}</span>
+              <el-input v-model.trim="orderServiceKeyword" :placeholder="t('admin.supplierOrders.searchService')" clearable @keyup.enter="searchOrders" @clear="searchOrders" />
+            </label>
+            <label class="order-filter">
+              <span>{{ t('admin.supplierOrders.searchCategory') }}</span>
+              <el-select v-model="orderCategory" filterable clearable :placeholder="t('admin.supplierOrders.searchCategory')" @change="searchOrders">
+                <el-option v-for="category in orderCategoryOptions" :key="category.id" :label="category.label" :value="category.id" />
+              </el-select>
+            </label>
+            <label class="order-filter order-filter--date">
+              <span>{{ t('admin.supplierOrders.serviceTime') }}</span>
+              <el-date-picker
+                v-model="orderDateRange"
+                type="daterange"
+                value-format="YYYY-MM-DD"
+                :start-placeholder="t('admin.supplierOrders.dateStart')"
+                :end-placeholder="t('admin.supplierOrders.dateEnd')"
+                clearable
+                @change="searchOrders"
+              />
+            </label>
+            <el-button class="order-search" type="primary" :icon="Search" @click="searchOrders">{{ t('admin.supplierOrders.search') }}</el-button>
+          </div>
         </div>
-        <el-table :data="supplierOrders" class="data-table orders-table" row-key="orderId" :empty-text="t('admin.supplierOrders.empty')">
-          <el-table-column :label="t('admin.supplierOrders.orderNo')" min-width="148">
-            <template #default="{ row }">
+        <div class="orders-table-shell">
+          <el-table :data="supplierOrders" class="data-table orders-table" row-key="orderId" :empty-text="t('admin.supplierOrders.empty')">
+            <el-table-column :label="t('admin.supplierOrders.orderNo')" min-width="154">
+              <template #default="{ row }">
+                <button type="button" class="order-no" @click="openAssignedOrder(row)">{{ row.orderNo || '—' }}</button>
+              </template>
+            </el-table-column>
+            <el-table-column class-name="order-wrap" :label="t('admin.supplierOrders.serviceName')" min-width="220">
+              <template #default="{ row }">
+                <div class="order-cell">
+                  <strong>{{ orderServiceTitle(row) }}</strong>
+                  <small v-if="orderSpecText(row) !== '—'" class="order-clamp">{{ orderSpecText(row) }}</small>
+                  <small v-if="orderAddonBrief(row)" class="order-clamp">{{ orderAddonBrief(row) }}</small>
+                </div>
+              </template>
+            </el-table-column>
+            <el-table-column class-name="order-wrap" :label="t('admin.supplierOrders.serviceTime')" min-width="172">
+              <template #default="{ row }">
+                <div class="order-cell">
+                  <strong>{{ row.serviceDate || '—' }}</strong>
+                  <small v-if="orderStartTime(row.serviceTime)">{{ orderStartTime(row.serviceTime) }}</small>
+                </div>
+              </template>
+            </el-table-column>
+            <el-table-column class-name="order-wrap" :label="t('admin.supplierOrders.address')" min-width="220">
+              <template #default="{ row }">
+                <div class="order-cell">
+                  <span class="order-clamp">{{ row.serviceAddress || '—' }}</span>
+                  <a v-if="row.pinLocation" class="order-pin" :href="row.pinLocation" target="_blank" rel="noopener noreferrer" @click.stop>{{ t('admin.supplierOrders.openMap') }}</a>
+                </div>
+              </template>
+            </el-table-column>
+            <el-table-column class-name="order-wrap" :label="t('admin.supplierOrders.price')" width="126" align="right">
+              <template #default="{ row }">
+                <div class="order-cell order-cell--end">
+                  <strong class="money-value"><small>AED</small>{{ orderMoney(row.quotePrice) }}</strong>
+                  <small v-if="row.quoteMode != null">{{ orderQuoteMode(row) }}</small>
+                </div>
+              </template>
+            </el-table-column>
+            <el-table-column class-name="order-status-col" :label="t('admin.supplierOrders.serviceStatus')" width="178">
+              <template #default="{ row }">
+                <el-tag :type="serviceStatusTag(row.serviceStatus)" effect="light">{{ serviceStatusText(row) }}</el-tag>
+              </template>
+            </el-table-column>
+            <el-table-column :label="t('admin.supplierOrders.detail')" width="188" align="right">
+              <template #default="{ row }">
+                <div class="order-row-actions">
+                  <el-button link @click="openAssignedOrder(row)">{{ t('admin.supplierOrders.viewDetail') }}</el-button>
+                  <el-button v-if="serviceStep(row) === 0" link type="primary" @click="departForService(row)">{{ t('admin.supplierOrders.departAction') }}</el-button>
+                  <el-button v-else-if="serviceStep(row) === 3" link type="primary" @click="openServiceAction(row, 'arrive')">{{ t('admin.supplierOrders.arriveAction') }}</el-button>
+                  <el-button v-else-if="serviceStep(row) === 1" link type="primary" @click="openServiceAction(row, 'complete')">{{ t('admin.supplierOrders.completeAction') }}</el-button>
+                </div>
+              </template>
+            </el-table-column>
+          </el-table>
+        </div>
+        <div class="orders-mobile" :aria-label="t('admin.supplierOrders.queueTitle')">
+          <article v-for="row in supplierOrders" :key="`mobile-${row.orderId}`" class="order-mobile-card">
+            <header>
               <button type="button" class="order-no" @click="openAssignedOrder(row)">{{ row.orderNo || '—' }}</button>
-            </template>
-          </el-table-column>
-          <el-table-column class-name="order-wrap" :label="t('admin.supplierOrders.serviceName')" min-width="200">
-            <template #default="{ row }">
-              <div class="order-cell">
-                <strong>{{ orderServiceTitle(row) }}</strong>
-                <small v-if="orderSpecText(row) !== '—'" class="order-clamp">{{ orderSpecText(row) }}</small>
-                <small v-if="orderAddonBrief(row)" class="order-clamp">{{ orderAddonBrief(row) }}</small>
-              </div>
-            </template>
-          </el-table-column>
-          <el-table-column class-name="order-wrap" :label="t('admin.supplierOrders.serviceTime')" min-width="168">
-            <template #default="{ row }">
-              <div class="order-cell">
-                <strong>{{ row.serviceDate || '—' }}</strong>
-                <small v-if="row.serviceTime">{{ row.serviceTime }}</small>
-              </div>
-            </template>
-          </el-table-column>
-          <el-table-column class-name="order-wrap" :label="t('admin.supplierOrders.address')" min-width="200">
-            <template #default="{ row }">
-              <div class="order-cell">
-                <span class="order-clamp">{{ row.serviceAddress || '—' }}</span>
-                <a v-if="row.pinLocation" class="order-pin" :href="row.pinLocation" target="_blank" rel="noopener noreferrer" @click.stop>{{ t('admin.supplierOrders.openMap') }}</a>
-              </div>
-            </template>
-          </el-table-column>
-          <el-table-column class-name="order-wrap" :label="t('admin.supplierOrders.price')" width="120" align="right">
-            <template #default="{ row }">
-              <div class="order-cell order-cell--end">
-                <strong class="money-value">{{ orderMoney(row.quotePrice) }}</strong>
-                <small v-if="row.quoteMode != null">{{ orderQuoteMode(row) }}</small>
-              </div>
-            </template>
-          </el-table-column>
-          <el-table-column :label="t('admin.supplierOrders.serviceStatus')" width="168">
-            <template #default="{ row }">
               <el-tag :type="serviceStatusTag(row.serviceStatus)" effect="light">{{ serviceStatusText(row) }}</el-tag>
-            </template>
-          </el-table-column>
-          <el-table-column label="" width="132" align="right">
-            <template #default="{ row }">
-              <el-button v-if="serviceStep(row) === 0" link type="primary" @click="departForService(row)">{{ t('admin.supplierOrders.departAction') }}</el-button>
-              <el-button v-else-if="serviceStep(row) === 3" link type="primary" @click="openServiceAction(row, 'arrive')">{{ t('admin.supplierOrders.arriveAction') }}</el-button>
-              <el-button v-else-if="serviceStep(row) === 1" link type="primary" @click="openServiceAction(row, 'complete')">{{ t('admin.supplierOrders.completeAction') }}</el-button>
-            </template>
-          </el-table-column>
-        </el-table>
+            </header>
+            <h3>{{ orderServiceTitle(row) }}</h3>
+            <p v-if="orderSpecText(row) !== '—'">{{ orderSpecText(row) }}</p>
+            <dl>
+              <div><dt>{{ t('admin.supplierOrders.serviceTime') }}</dt><dd>{{ orderWhen(row) }}</dd></div>
+              <div><dt>{{ t('admin.supplierOrders.price') }}</dt><dd>AED {{ orderMoney(row.quotePrice) }}</dd></div>
+              <div class="is-wide"><dt>{{ t('admin.supplierOrders.address') }}</dt><dd>{{ row.serviceAddress || '—' }}</dd></div>
+            </dl>
+            <footer>
+              <el-button @click="openAssignedOrder(row)">{{ t('admin.supplierOrders.viewDetail') }}</el-button>
+              <el-button v-if="serviceStep(row) === 0" type="primary" @click="departForService(row)">{{ t('admin.supplierOrders.departAction') }}</el-button>
+              <el-button v-else-if="serviceStep(row) === 3" type="primary" @click="openServiceAction(row, 'arrive')">{{ t('admin.supplierOrders.arriveAction') }}</el-button>
+              <el-button v-else-if="serviceStep(row) === 1" type="primary" @click="openServiceAction(row, 'complete')">{{ t('admin.supplierOrders.completeAction') }}</el-button>
+            </footer>
+          </article>
+          <el-empty v-if="!orderLoading && !supplierOrders.length" :description="t('admin.supplierOrders.empty')" />
+        </div>
         <div class="order-pager">
           <el-pagination
             layout="prev, pager, next"
@@ -513,60 +600,78 @@
 
     <template v-else-if="section === 'pricing'">
       <div v-if="!quoteDialog.visible" class="sv-page" v-loading="catalogLoading || quoteLoading">
-        <p class="sv-eyebrow">{{ t('admin.supplierPricing.description') }}</p>
-        <h1 class="sv-title">{{ t('admin.supplierPricing.title') }}</h1>
-
-        <section class="sv-supplier">
-          <div class="sv-avatar">{{ supplierInitials }}</div>
-          <div class="sv-supplier__main">
-            <small>{{ t('admin.supplierOrders.signedIn') }}</small>
-            <strong>{{ companyForm.companyName || t('admin.supplierOrders.unnamed') }}</strong>
-            <p>
-              <span>{{ t('admin.supplierPricing.yourCategories') }}</span>
+        <section class="pricing-command">
+          <div class="pricing-command__copy">
+            <span>{{ t('admin.supplierPricing.workspaceTitle') }}</span>
+            <h1>{{ t('admin.supplierPricing.title') }}</h1>
+            <p>{{ t('admin.supplierPricing.workspaceHint') }}</p>
+            <div class="pricing-command__supplier">
+              <span class="pricing-command__avatar">{{ supplierInitials }}</span>
+              <span>
+                <small>{{ t('admin.supplierOrders.signedIn') }}</small>
+                <strong>{{ companyForm.companyName || t('admin.supplierOrders.unnamed') }}</strong>
+              </span>
+              <el-tag :type="onboardingTagType" effect="light">{{ profileStatusLabel }}</el-tag>
+            </div>
+            <div class="pricing-command__categories">
+              <small>{{ t('admin.supplierPricing.yourCategories') }}</small>
               <em v-for="category in serviceCategoryOptions" :key="category.id">{{ category.label }}</em>
               <em v-if="!serviceCategoryOptions.length">—</em>
               <button type="button" @click="goTo('profile')">{{ t('admin.supplierPricing.changeInProfile') }}</button>
-            </p>
-          </div>
-          <div class="sv-fact"><small>{{ t('admin.supplierOrders.supplierId') }}</small><strong>{{ supplierNo || supplierRecordId || '—' }}</strong></div>
-          <div class="sv-fact"><small>{{ t('admin.supplierOrders.onboarding') }}</small><el-tag :type="onboardingTagType" effect="light">{{ profileStatusLabel }}</el-tag></div>
-        </section>
-
-        <section class="pricing-health">
-          <div>
-            <span class="health-icon pending"><Clock /></span>
-            <div>
-              <strong>{{ t('admin.supplierPricing.pending', { count: pendingQuoteCount }) }}</strong>
-              <p>{{ t('admin.supplierPricing.hint') }}</p>
             </div>
+          </div>
+          <div class="pricing-command__metrics">
+            <article>
+              <small>{{ t('admin.supplierPricing.servicesMetric') }}</small>
+              <strong>{{ serviceRows.length }}</strong>
+              <span>{{ t('admin.supplierPricing.count', { count: serviceRows.length }) }}</span>
+            </article>
+            <article :class="{ 'is-pending': pendingQuoteCount > 0 }">
+              <small>{{ t('admin.supplierPricing.pendingMetric') }}</small>
+              <strong>{{ pendingQuoteCount }}</strong>
+              <span>{{ t('admin.supplierPricing.pending', { count: pendingQuoteCount }) }}</span>
+            </article>
+            <article>
+              <small>{{ t('admin.supplierPricing.enabledMetric') }}</small>
+              <strong>{{ enabledServiceCount }}</strong>
+              <span>{{ t('admin.supplierPricing.acceptEnabled') }}</span>
+            </article>
           </div>
         </section>
 
         <section class="sv-board">
           <div class="pricing-toolbar">
             <div class="pricing-filter">
-              <span>{{ t('admin.supplierPricing.added') }}</span>
+              <span class="pricing-filter__title">
+                <strong>{{ t('admin.supplierPricing.added') }}</strong>
+                <small>{{ t('admin.supplierPricing.listHint') }}</small>
+              </span>
               <el-select v-model="quoteCategory" filterable>
                 <el-option :label="t('admin.supplierPricing.allServices')" value="all" />
                 <el-option v-for="category in serviceCategoryOptions" :key="category.id" :label="category.label" :value="category.id" />
               </el-select>
               <el-input v-model="addedKeyword" clearable :placeholder="t('admin.supplierPricing.searchAdded')" />
-              <small>{{ t('admin.supplierPricing.count', { count: filteredServiceRows.length }) }}</small>
+              <el-button v-if="quoteCategory !== 'all' || addedKeyword" link @click="resetPricingFilters">{{ t('admin.supplierPricing.clearFilters') }}</el-button>
             </div>
             <div class="pricing-actions">
+              <small>{{ t('admin.supplierPricing.count', { count: filteredServiceRows.length }) }}</small>
               <el-button type="primary" :icon="Plus" :disabled="!supplierRecordId" @click="openServicePicker">{{ t('admin.supplierPricing.addService') }}</el-button>
             </div>
           </div>
-          <el-table :data="filteredServiceRows" class="data-table" row-key="spuId" :empty-text="t('admin.supplierPricing.empty')" @row-click="openServiceQuote">
-            <el-table-column :label="t('admin.supplierPricing.category')" min-width="140">
-              <template #default="{ row }">{{ localizedCategory(row.category, row.categoryNameI18n) }}</template>
+          <el-table :data="filteredServiceRows" class="data-table pricing-data-table" row-key="spuId" :empty-text="t('admin.supplierPricing.empty')" @row-click="openServiceQuote">
+            <el-table-column :label="t('admin.supplierPricing.service')" min-width="260">
+              <template #default="{ row }">
+                <div class="pricing-service-cell">
+                  <span>{{ String(serviceTitle(row.name, row.spuNameI18n) || 'S').slice(0, 1).toUpperCase() }}</span>
+                  <div><strong>{{ serviceTitle(row.name, row.spuNameI18n) }}</strong><small>{{ localizedCategory(row.category, row.categoryNameI18n) }}</small></div>
+                </div>
+              </template>
             </el-table-column>
-            <el-table-column :label="t('admin.supplierPricing.service')" prop="name" min-width="180" />
             <el-table-column :label="t('admin.supplierPricing.quoteMode')" min-width="130">
-              <template #default="{ row }">{{ quoteModeLabel(row.quoteMode) }}</template>
+              <template #default="{ row }"><span class="quote-mode-pill">{{ quoteModeLabel(row.quoteMode) }}</span></template>
             </el-table-column>
             <el-table-column :label="t('admin.supplierPricing.yourPrice')" min-width="180">
-              <template #default="{ row }">{{ yourPriceText(row) }}</template>
+              <template #default="{ row }"><strong class="pricing-price">{{ yourPriceText(row) }}</strong></template>
             </el-table-column>
             <el-table-column :label="t('admin.supplierPricing.reviewStatus')" width="130">
               <template #default="{ row }">
@@ -578,67 +683,37 @@
                 <el-switch :model-value="Number(row.acceptOrder) !== 0" :loading="acceptOrderSaving === row.spuId" @click.stop @change="toggleServiceAccept(row)" />
               </template>
             </el-table-column>
-            <el-table-column :label="t('admin.supplierPricing.actions')" width="180" align="right">
+            <el-table-column :label="t('admin.supplierPricing.actions')" width="250" align="right">
               <template #default="{ row }">
+                <el-button link @click.stop="openServiceEditor(row)">{{ t('admin.supplierPricing.staffPhone') }}</el-button>
                 <el-button link type="primary" @click.stop="openServiceQuote(row)">{{ t('admin.supplierPricing.edit') }}</el-button>
                 <el-button link type="danger" @click.stop="removeAddedService(row)">{{ t('admin.supplierPricing.remove') }}</el-button>
               </template>
             </el-table-column>
           </el-table>
-        </section>
-
-        <section v-if="servicePicker.open" class="sv-add">
-          <header>
-            <div>
-              <strong>{{ t('admin.supplierPricing.addService') }}</strong>
-              <p>{{ t('admin.supplierPricing.onlyCategories') }}</p>
-            </div>
-            <el-button @click="servicePicker.open = false">{{ t('admin.supplierPricing.cancel') }}</el-button>
-          </header>
-          <div class="picker-toolbar">
-            <el-select v-model="servicePicker.categoryId" filterable clearable :placeholder="t('admin.supplierPricing.selectCategory')">
-              <el-option v-for="group in catalogDraft" :key="group.categoryId" :label="localizedCategory(group.categoryName, group.categoryNameI18n)" :value="group.categoryId" />
-            </el-select>
-            <el-input v-model="servicePicker.keyword" clearable :placeholder="t('admin.supplierPricing.searchService')" />
-          </div>
-          <p v-if="!pickerReady" class="picker-hint">{{ t('admin.supplierPricing.pickerGate') }}</p>
-          <div v-else class="picker-list">
-            <div class="picker-list__bar">
-              <small>{{ t('admin.supplierPricing.shown', { count: pickerVisible.length }) }}<template v-if="servicePicker.drafts.length"> · {{ t('admin.supplierPricing.selected', { count: servicePicker.drafts.length }) }}</template></small>
-            </div>
-            <p v-if="!pickerVisible.length" class="picker-hint">{{ t('admin.supplierPricing.noMatch') }}</p>
-            <div v-for="service in pickerVisible" :key="pickKey(service)" class="picker-row" :class="{ 'is-added': service.added, 'is-open': draftOf(service) }">
-              <div class="picker-row__head">
-                <el-checkbox
-                  :model-value="service.added || Boolean(draftOf(service))"
-                  :disabled="service.added"
-                  @change="(value) => togglePick(service, Boolean(value))"
-                />
-                <span class="picker-row__name">
-                  <strong>{{ service.spuName }}</strong>
-                  <small>{{ localizedCategory(service.categoryName, service.categoryNameI18n) }}<template v-if="!service.available"> · {{ t('admin.supplierPricing.unavailable') }}</template></small>
-                </span>
-                <em v-if="service.added">{{ t('admin.supplierPricing.added') }}</em>
-              </div>
-              <div v-if="draftOf(service)" class="picker-row__fields">
-                <label>
-                  <span>{{ t('admin.supplierPricing.headcount') }}</span>
-                  <el-input-number v-model="draftOf(service)!.workerCount" :min="1" :precision="0" controls-position="right" />
-                </label>
-                <div class="phone-stack">
-                  <span>{{ t('admin.supplierPricing.phone') }}</span>
-                  <div v-for="(_phone, index) in draftOf(service)!.phones" :key="`${pickKey(service)}-${index}`" class="phone-row">
-                    <el-input v-model="draftOf(service)!.phones[index]" maxlength="24" placeholder="+971501234567" />
-                    <el-button v-if="draftOf(service)!.phones.length > 1" @click="removePhone(draftOf(service)!, index)">{{ t('admin.supplierPricing.delete') }}</el-button>
-                  </div>
-                  <el-button v-if="draftOf(service)!.phones.length < 10" link type="primary" @click="addPhone(draftOf(service)!)">{{ t('admin.supplierPricing.addPhone') }}</el-button>
+          <div class="pricing-mobile-list">
+            <p v-if="!filteredServiceRows.length" class="pricing-mobile-empty">{{ t('admin.supplierPricing.empty') }}</p>
+            <article v-for="row in filteredServiceRows" :key="`mobile-${row.categoryId}-${row.spuId}`" @click="openServiceQuote(row)">
+              <header>
+                <div class="pricing-service-cell">
+                  <span>{{ String(serviceTitle(row.name, row.spuNameI18n) || 'S').slice(0, 1).toUpperCase() }}</span>
+                  <div><strong>{{ serviceTitle(row.name, row.spuNameI18n) }}</strong><small>{{ localizedCategory(row.category, row.categoryNameI18n) }}</small></div>
                 </div>
-              </div>
-            </div>
+                <el-tag :type="quoteTagType(row.status)" effect="light">{{ quoteStatusLabel(row.status) }}</el-tag>
+              </header>
+              <dl>
+                <div><dt>{{ t('admin.supplierPricing.quoteMode') }}</dt><dd>{{ quoteModeLabel(row.quoteMode) }}</dd></div>
+                <div><dt>{{ t('admin.supplierPricing.yourPrice') }}</dt><dd>{{ yourPriceText(row) }}</dd></div>
+              </dl>
+              <footer @click.stop>
+                <span><el-switch :model-value="Number(row.acceptOrder) !== 0" :loading="acceptOrderSaving === row.spuId" @change="toggleServiceAccept(row)" /> {{ Number(row.acceptOrder) !== 0 ? t('admin.supplierPricing.enabled') : t('admin.supplierPricing.disabled') }}</span>
+                <div>
+                  <el-button link @click="openServiceEditor(row)">{{ t('admin.supplierPricing.staffPhone') }}</el-button>
+                  <el-button link type="primary" @click="openServiceQuote(row)">{{ t('admin.supplierPricing.edit') }}</el-button>
+                </div>
+              </footer>
+            </article>
           </div>
-          <footer>
-            <el-button type="primary" :loading="catalogSaving" @click="confirmAddServices">{{ t('admin.supplierPricing.addToList') }}</el-button>
-          </footer>
         </section>
       </div>
 
@@ -649,90 +724,157 @@
           <em>›</em>
           <strong>{{ quoteDialog.name }}</strong>
         </nav>
+        <section class="pricing-editor-hero">
+          <div>
+            <span>{{ t('admin.supplierPricing.editorKicker') }}</span>
+            <h1>{{ quoteDialog.name }}</h1>
+            <p>{{ quoteDialog.category }} · {{ t('admin.supplierPricing.editorHint') }}</p>
+          </div>
+          <el-tag :type="quoteTagType(quoteDialog.status)" effect="dark">{{ quoteStatusLabel(quoteDialog.status) }}</el-tag>
+        </section>
         <section class="sv-quote" v-loading="quoteDialog.loading">
-          <header class="sv-quote__head">
+          <div v-if="quoteDialog.rejectReason" class="pricing-editor-alert is-rejected">
+            <span>!</span>
             <div>
-              <h2>{{ quoteDialog.name }}</h2>
-              <p>{{ quoteDialog.category }} · {{ t('admin.supplierPricing.priceIntro') }}</p>
+              <strong>{{ t('admin.supplierPricing.statusRejected') }}</strong>
+              <p>{{ t('admin.supplierPricing.rejectReason', { reason: quoteDialog.rejectReason }) }}</p>
             </div>
-            <el-tag :type="quoteTagType(quoteDialog.status)" effect="light">{{ quoteStatusLabel(quoteDialog.status) }}</el-tag>
-          </header>
-          <p v-if="quoteDialog.rejectReason" class="rejected-copy">{{ t('admin.supplierPricing.rejectReason', { reason: quoteDialog.rejectReason }) }}</p>
-          <p v-if="quoteLocked" class="pending-copy">{{ t('admin.supplierPricing.locked') }}</p>
-          <h3>{{ t('admin.supplierPricing.chargeQuestion') }}</h3>
-          <div class="mode-cards">
-            <button type="button" :class="{ 'is-on': quoteDialog.quoteMode === 2 }" :disabled="quoteLocked" @click="pickQuoteMode(2)">
-              <strong>{{ t('admin.supplierPricing.hourlyRate') }}</strong>
-              <small>{{ t('admin.supplierPricing.hourlyCardHint') }}</small>
-            </button>
-            <button type="button" :class="{ 'is-on': quoteDialog.quoteMode === 1 }" :disabled="quoteLocked" @click="pickQuoteMode(1)">
-              <strong>{{ t('admin.supplierPricing.fixedPrice') }}</strong>
-              <small>{{ t('admin.supplierPricing.fixedCardHint') }}</small>
-            </button>
           </div>
-          <label v-if="quoteDialog.quoteMode === 2" class="rate-field">
-            <span>{{ t('admin.supplierPricing.rateLabel') }}</span>
-            <el-input-number v-model="quoteDialog.unitPrice" :min="0" :precision="2" :disabled="quoteLocked" controls-position="right" />
-            <small>{{ t('admin.supplierPricing.rateFormula') }}</small>
-          </label>
-          <div class="quote-lines">
-            <p v-if="!quoteDialog.loading && !quoteDialog.rows.length" class="quote-lines__empty">{{ t('admin.supplierPricing.noSpecs') }}</p>
-            <article v-for="row in quoteDialog.rows" :key="row.skuId" class="quote-line" :class="{ 'is-off': row.available === false }">
-              <div class="quote-line__spec">
-                <strong>{{ quoteSpecLabel(row) }}</strong>
-                <small v-if="row.available === false">{{ t('admin.supplierPricing.discontinued') }}</small>
-                <small v-else>{{ t('admin.supplierPricing.livePrice', { price: moneyText(row.approvedPrice) }) }}</small>
-              </div>
-              <label>
-                <span>{{ t('admin.supplierPricing.headcount') }}</span>
-                <el-input-number v-model="row.staffCount" :min="1" :precision="0" :disabled="quoteLocked || row.available === false" controls-position="right" />
-              </label>
-              <label>
-                <span>{{ t('admin.supplierPricing.hours') }}</span>
-                <el-input-number v-model="row.serviceHours" :min="0.01" :precision="2" :step="0.5" :disabled="quoteLocked || row.available === false" controls-position="right" />
-              </label>
-              <label>
-                <span>{{ t('admin.supplierPricing.taxPrice') }}</span>
-                <el-input
-                  v-if="quoteDialog.quoteMode === 2"
-                  :model-value="skuAmount(row) == null ? '' : String(skuAmount(row))"
-                  disabled
-                  :placeholder="t('admin.supplierPricing.autoPlaceholder')"
-                />
-                <el-input
-                  v-else
-                  v-model="row.quotePrice"
-                  inputmode="decimal"
-                  :disabled="quoteLocked || row.available === false"
-                />
-              </label>
-            </article>
-          </div>
-          <section v-if="quoteDialog.attaches.length" class="quote-attaches">
-            <header>
-              <strong>{{ t('admin.supplierPricing.addons') }}</strong>
-              <small>{{ t('admin.supplierPricing.addonsHint') }}</small>
-            </header>
-            <article v-for="item in quoteDialog.attaches" :key="item.attachValueId" class="quote-attach">
-              <div class="quote-attach__name">
-                <el-checkbox :model-value="item.offered" :disabled="quoteLocked" @change="(value: boolean | string | number) => toggleAttach(item, Boolean(value))">
-                  {{ item.name }}
-                </el-checkbox>
-                <small>{{ item.typeName }} · {{ t('admin.supplierPricing.livePrice', { price: moneyText(item.approvedPrice) }) }}</small>
-              </div>
-              <el-input
-                v-if="item.offered"
-                v-model="item.quotePrice"
-                inputmode="decimal"
-                :disabled="quoteLocked"
-                :placeholder="t('admin.supplierPricing.taxPrice')"
-              />
-            </article>
-          </section>
-          <footer class="sv-quote__foot">
+          <div v-if="quoteLocked" class="pricing-editor-alert is-locked">
+            <Clock />
             <div>
-              <el-button @click="quoteDialog.visible = false">← {{ t('admin.supplierPricing.back') }}</el-button>
-              <el-button @click="openQuotedServiceEditor">{{ t('admin.supplierPricing.staffPhone') }}</el-button>
+              <strong>{{ t('admin.supplierPricing.reviewNoticeTitle') }}</strong>
+              <p>{{ t('admin.supplierPricing.locked') }}</p>
+            </div>
+          </div>
+
+          <div class="pricing-editor-layout">
+            <div class="pricing-editor-main">
+              <section class="pricing-editor-section">
+                <header class="pricing-section-head">
+                  <span>01</span>
+                  <div>
+                    <h2>{{ t('admin.supplierPricing.billingStep') }}</h2>
+                    <p>{{ t('admin.supplierPricing.billingStepHint') }}</p>
+                  </div>
+                </header>
+                <div class="mode-cards">
+                  <button type="button" :aria-pressed="quoteDialog.quoteMode === 2" :class="{ 'is-on': quoteDialog.quoteMode === 2 }" :disabled="quoteLocked" @click="pickQuoteMode(2)">
+                    <span class="mode-card__mark">{{ quoteDialog.quoteMode === 2 ? '✓' : '01' }}</span>
+                    <strong>{{ t('admin.supplierPricing.hourlyRate') }}</strong>
+                    <small>{{ t('admin.supplierPricing.hourlyCardHint') }}</small>
+                  </button>
+                  <button type="button" :aria-pressed="quoteDialog.quoteMode === 1" :class="{ 'is-on': quoteDialog.quoteMode === 1 }" :disabled="quoteLocked" @click="pickQuoteMode(1)">
+                    <span class="mode-card__mark">{{ quoteDialog.quoteMode === 1 ? '✓' : '02' }}</span>
+                    <strong>{{ t('admin.supplierPricing.fixedPrice') }}</strong>
+                    <small>{{ t('admin.supplierPricing.fixedCardHint') }}</small>
+                  </button>
+                </div>
+                <div v-if="quoteDialog.quoteMode === 2" class="rate-card">
+                  <label class="rate-field">
+                    <span>{{ t('admin.supplierPricing.rateLabel') }}</span>
+                    <span class="currency-input">
+                      <b>AED</b>
+                      <el-input-number v-model="quoteDialog.unitPrice" :min="0" :precision="2" :disabled="quoteLocked" controls-position="right" />
+                    </span>
+                  </label>
+                  <div class="rate-formula">
+                    <small>{{ t('admin.supplierPricing.formulaTitle') }}</small>
+                    <strong>{{ t('admin.supplierPricing.rateFormula') }}</strong>
+                    <p>{{ t('admin.supplierPricing.formulaHint') }}</p>
+                  </div>
+                </div>
+              </section>
+
+              <section class="pricing-editor-section">
+                <header class="pricing-section-head">
+                  <span>02</span>
+                  <div>
+                    <h2>{{ t('admin.supplierPricing.specStep') }}</h2>
+                    <p>{{ t('admin.supplierPricing.specStepHint') }}</p>
+                  </div>
+                  <em>{{ quoteDialog.rows.length }}</em>
+                </header>
+                <div class="quote-lines">
+                  <p v-if="!quoteDialog.loading && !quoteDialog.rows.length" class="quote-lines__empty">{{ t('admin.supplierPricing.noSpecs') }}</p>
+                  <article v-for="(row, index) in quoteDialog.rows" :key="row.skuId" class="quote-line" :class="{ 'is-off': row.available === false }">
+                    <div class="quote-line__spec">
+                      <span>{{ String(index + 1).padStart(2, '0') }}</span>
+                      <div>
+                        <strong>{{ quoteSpecLabel(row) }}</strong>
+                        <small v-if="row.available === false">{{ t('admin.supplierPricing.discontinued') }}</small>
+                        <small v-else>{{ t('admin.supplierPricing.livePrice', { price: moneyText(row.approvedPrice) }) }}</small>
+                      </div>
+                    </div>
+                    <label>
+                      <span>{{ t('admin.supplierPricing.headcount') }}</span>
+                      <el-input-number v-model="row.staffCount" :min="1" :precision="0" :disabled="quoteLocked || row.available === false" controls-position="right" />
+                    </label>
+                    <label>
+                      <span>{{ t('admin.supplierPricing.hours') }}</span>
+                      <el-input-number v-model="row.serviceHours" :min="0.01" :precision="2" :step="0.5" :disabled="quoteLocked || row.available === false" controls-position="right" />
+                    </label>
+                    <label class="quote-line__price">
+                      <span>{{ t('admin.supplierPricing.taxPrice') }}</span>
+                      <span v-if="quoteDialog.quoteMode === 2" class="auto-price">
+                        <small>AED</small>
+                        <strong>{{ skuAmount(row) == null ? '—' : moneyText(skuAmount(row)) }}</strong>
+                      </span>
+                      <el-input v-else v-model="row.quotePrice" inputmode="decimal" :disabled="quoteLocked || row.available === false">
+                        <template #prepend>AED</template>
+                      </el-input>
+                      <small v-if="quoteDialog.quoteMode === 2" class="field-help">{{ t('admin.supplierPricing.readonlyPriceHint') }}</small>
+                    </label>
+                  </article>
+                </div>
+              </section>
+
+              <section v-if="quoteDialog.attaches.length" class="pricing-editor-section">
+                <header class="pricing-section-head">
+                  <span>03</span>
+                  <div>
+                    <h2>{{ t('admin.supplierPricing.addonStep') }}</h2>
+                    <p>{{ t('admin.supplierPricing.addonStepHint') }}</p>
+                  </div>
+                  <em>{{ selectedAttachCount }}/{{ quoteDialog.attaches.length }}</em>
+                </header>
+                <div class="quote-attaches">
+                  <article v-for="item in quoteDialog.attaches" :key="item.attachValueId" class="quote-attach" :class="{ 'is-selected': item.offered }">
+                    <div class="quote-attach__name">
+                      <el-checkbox :model-value="item.offered" :disabled="quoteLocked" @change="(value: boolean | string | number) => toggleAttach(item, Boolean(value))">
+                        {{ item.name }}
+                      </el-checkbox>
+                      <small>{{ item.typeName }} · {{ t('admin.supplierPricing.livePrice', { price: moneyText(item.approvedPrice) }) }}</small>
+                    </div>
+                    <el-input v-if="item.offered" v-model="item.quotePrice" inputmode="decimal" :disabled="quoteLocked" :placeholder="t('admin.supplierPricing.taxPrice')">
+                      <template #prepend>AED</template>
+                    </el-input>
+                  </article>
+                </div>
+              </section>
+            </div>
+
+            <aside class="pricing-review-panel">
+              <span>{{ t('admin.supplierPricing.reviewNoticeTitle') }}</span>
+              <h3>{{ t('admin.supplierPricing.reviewNoticeHint') }}</h3>
+              <dl>
+                <div><dt>{{ t('admin.supplierPricing.reviewStatus') }}</dt><dd><el-tag :type="quoteTagType(quoteDialog.status)" effect="light">{{ quoteStatusLabel(quoteDialog.status) }}</el-tag></dd></div>
+                <div><dt>{{ t('admin.supplierPricing.quoteMode') }}</dt><dd>{{ quoteModeLabel(quoteDialog.quoteMode) }}</dd></div>
+                <div><dt>{{ t('admin.supplierPricing.package') }}</dt><dd>{{ quoteDialog.rows.length }}</dd></div>
+                <div><dt>{{ t('admin.supplierPricing.addons') }}</dt><dd>{{ selectedAttachCount }}</dd></div>
+              </dl>
+              <button type="button" @click="openQuotedServiceEditor">
+                <span>{{ t('admin.supplierPricing.serviceSetupTitle') }}</span>
+                <small>{{ t('admin.supplierPricing.serviceSetupHint') }}</small>
+                <b>→</b>
+              </button>
+            </aside>
+          </div>
+
+          <footer class="sv-quote__foot">
+            <div class="sv-quote__foot-note">
+              <span>{{ quoteStatusLabel(quoteDialog.status) }}</span>
+              <small>{{ t('admin.supplierPricing.priceIntro') }}</small>
             </div>
             <div>
               <el-button :disabled="quoteLocked" :loading="quoteDialog.saving" @click="saveServiceQuote">{{ t('admin.supplierPricing.saveDraft') }}</el-button>
@@ -742,7 +884,61 @@
         </section>
       </div>
 
-      <el-dialog v-model="serviceEditor.open" :title="t('admin.supplierPricing.editTitle', { name: serviceEditor.name || t('admin.supplierPricing.serviceFallback') })" width="min(560px, calc(100vw - 32px))" :close-on-click-modal="false">
+      <el-dialog v-model="servicePicker.open" class="supplier-form-dialog sv-add-dialog" :title="t('admin.supplierPricing.addService')" width="min(760px, calc(100vw - 32px))" :close-on-click-modal="false" append-to-body>
+        <p class="sv-add__note">{{ t('admin.supplierPricing.onlyCategories') }}</p>
+        <div class="picker-toolbar">
+          <el-select v-model="servicePicker.categoryId" filterable clearable :placeholder="t('admin.supplierPricing.selectCategory')">
+            <el-option v-for="group in pickerCategories" :key="group.categoryId" :label="localizedCategory(group.categoryName, group.categoryNameI18n)" :value="group.categoryId" />
+          </el-select>
+          <el-input v-model="servicePicker.keyword" clearable :placeholder="t('admin.supplierPricing.searchService')" />
+        </div>
+        <p v-if="!pickerReady" class="picker-hint">{{ t('admin.supplierPricing.pickerGate') }}</p>
+        <div v-else class="picker-list">
+          <div class="picker-list__bar">
+            <small>{{ t('admin.supplierPricing.shown', { count: pickerVisible.length }) }}<template v-if="servicePicker.drafts.length"> · {{ t('admin.supplierPricing.selected', { count: servicePicker.drafts.length }) }}</template></small>
+          </div>
+          <p v-if="!pickerVisible.length" class="picker-hint">{{ t('admin.supplierPricing.noMatch') }}</p>
+          <div v-for="service in pickerVisible" :key="pickKey(service)" class="picker-row" :class="{ 'is-added': service.added, 'is-open': draftOf(service) }">
+            <div class="picker-row__head">
+              <el-checkbox
+                :model-value="service.added || Boolean(draftOf(service))"
+                :disabled="service.added"
+                @change="(value) => togglePick(service, Boolean(value))"
+              />
+              <span class="picker-row__name">
+                <strong>{{ serviceTitle(service.spuName, service.spuNameI18n) }}</strong>
+                <small>{{ localizedCategory(service.categoryName, service.categoryNameI18n) }}<template v-if="!service.available"> · {{ t('admin.supplierPricing.unavailable') }}</template></small>
+              </span>
+              <em v-if="service.added">{{ t('admin.supplierPricing.added') }}</em>
+            </div>
+            <div v-if="draftOf(service)" class="picker-row__fields">
+              <label>
+                <span>{{ t('admin.supplierPricing.headcount') }}</span>
+                <el-input-number v-model="draftOf(service)!.workerCount" :min="1" :precision="0" controls-position="right" />
+              </label>
+              <div class="phone-stack">
+                <span>{{ t('admin.supplierPricing.phone') }}</span>
+                <div v-for="(_phone, index) in draftOf(service)!.phones" :key="`${pickKey(service)}-${index}`" class="phone-row">
+                  <el-input v-model="draftOf(service)!.phones[index]" maxlength="24" placeholder="+971501234567" />
+                  <el-button v-if="draftOf(service)!.phones.length > 1" @click="removePhone(draftOf(service)!, index)">{{ t('admin.supplierPricing.delete') }}</el-button>
+                </div>
+                <el-button v-if="draftOf(service)!.phones.length < 10" link type="primary" @click="addPhone(draftOf(service)!)">{{ t('admin.supplierPricing.addPhone') }}</el-button>
+              </div>
+            </div>
+          </div>
+        </div>
+        <template #footer>
+          <el-button @click="servicePicker.open = false">{{ t('admin.supplierPricing.cancel') }}</el-button>
+          <el-button type="primary" :loading="catalogSaving" @click="confirmAddServices">{{ t('admin.supplierPricing.addToList') }}</el-button>
+        </template>
+      </el-dialog>
+
+      <el-dialog v-model="serviceEditor.open" class="supplier-form-dialog" :title="t('admin.supplierPricing.editTitle', { name: serviceEditor.name || t('admin.supplierPricing.serviceFallback') })" width="min(560px, calc(100vw - 32px))" :close-on-click-modal="false" append-to-body>
+        <div class="service-editor-intro">
+          <span>{{ t('admin.supplierPricing.serviceSetupTitle') }}</span>
+          <strong>{{ serviceEditor.name }}</strong>
+          <p>{{ t('admin.supplierPricing.serviceSetupHint') }}</p>
+        </div>
         <div class="picker-fields">
           <label>
             <span>{{ t('admin.supplierPricing.headcount') }}</span>
@@ -751,6 +947,7 @@
           <div class="phone-stack">
             <span>{{ t('admin.supplierPricing.phone') }}</span>
             <div v-for="(_phone, index) in serviceEditor.phones" :key="`edit-${index}`" class="phone-row">
+              <small>{{ t('admin.supplierPricing.phoneEntry', { index: index + 1 }) }}</small>
               <el-input v-model="serviceEditor.phones[index]" maxlength="24" placeholder="+971501234567" />
               <el-button v-if="serviceEditor.phones.length > 1" @click="removePhone(serviceEditor, index)">{{ t('admin.supplierPricing.delete') }}</el-button>
             </div>
@@ -795,7 +992,7 @@
       </el-card>
     </template>
 
-    <el-dialog v-model="staffDialogVisible" title="新增供应商人员 / Add Staff" width="620px" :close-on-click-modal="false">
+    <el-dialog v-model="staffDialogVisible" class="supplier-form-dialog" title="新增供应商人员 / Add Staff" width="min(620px, calc(100vw - 32px))" :close-on-click-modal="false" append-to-body>
       <el-form label-position="top" class="form-grid">
         <el-form-item label="姓名 / Full Name"><el-input v-model="newStaff.name" placeholder="例如：Amina Noor" /></el-form-item>
         <el-form-item label="员工编号 / Staff ID"><el-input v-model="newStaff.id" /></el-form-item>
@@ -808,7 +1005,7 @@
     </el-dialog>
 
 
-    <el-dialog v-model="shiftDialogVisible" title="添加班次 / Block" width="620px" :close-on-click-modal="false">
+    <el-dialog v-model="shiftDialogVisible" class="supplier-form-dialog" title="添加班次 / Block" width="min(620px, calc(100vw - 32px))" :close-on-click-modal="false" append-to-body>
       <el-form label-position="top" class="form-grid">
         <el-form-item label="人员"><el-select v-model="shiftForm.staff"><el-option v-for="person in schedulePeople" :key="person.id" :label="person.name" :value="person.id" /></el-select></el-form-item>
         <el-form-item label="动作"><el-select v-model="shiftForm.type"><el-option label="工作班次" value="shift" /><el-option label="不可用 Block" value="block" /><el-option label="休假" value="leave" /></el-select></el-form-item>
@@ -820,16 +1017,26 @@
       <template #footer><el-button @click="shiftDialogVisible = false">取消</el-button><el-button type="primary" @click="validateShift">校验并保存</el-button></template>
     </el-dialog>
 
-    <el-drawer v-model="orderDrawerVisible" class="order-drawer" :title="selectedOrder?.orderNo || t('admin.supplierOrders.detailTitle')" size="640px">
+    <el-drawer v-model="orderDrawerVisible" class="order-drawer" :title="t('admin.supplierOrders.detailTitle')" size="min(760px, 100vw)" append-to-body>
       <div v-loading="orderDetailLoading" class="order-sheet">
         <template v-if="selectedOrder">
-          <div class="order-lead">
-            <strong>{{ orderServiceTitle(selectedOrder) }}</strong>
-            <el-tag :type="serviceStatusTag(selectedOrder.serviceStatus)" effect="light">{{ serviceStatusText(selectedOrder) }}</el-tag>
-          </div>
+          <header class="order-lead">
+            <div class="order-lead__topline">
+              <span>{{ t('admin.supplierOrders.assignedOrder') }}</span>
+              <el-tag :type="serviceStatusTag(selectedOrder.serviceStatus)" effect="light">{{ serviceStatusText(selectedOrder) }}</el-tag>
+            </div>
+            <strong class="order-lead__number">{{ selectedOrder.orderNo || '—' }}</strong>
+            <h2>{{ orderServiceTitle(selectedOrder) }}</h2>
+            <p>{{ t('admin.supplierOrders.detailHint') }}</p>
+            <div class="order-lead__summary">
+              <div><Calendar /><span><small>{{ t('admin.supplierOrders.serviceTime') }}</small><strong>{{ orderWhen(selectedOrder) }}</strong></span></div>
+              <div><Money /><span><small>{{ t('admin.supplierOrders.quoteTotal') }}</small><strong>AED {{ orderMoney(selectedOrder.quoteAmount ?? selectedOrder.quotePrice) }}</strong></span></div>
+            </div>
+          </header>
 
-          <section>
-            <h3>{{ t('admin.supplierOrders.serviceBlock') }}</h3>
+          <div class="order-detail-grid">
+          <section class="order-panel order-panel--wide">
+            <h3><span>01</span>{{ t('admin.supplierOrders.serviceBlock') }}</h3>
             <div class="order-facts">
               <div class="is-wide"><span>{{ t('admin.supplierOrders.specs') }}</span><strong>{{ orderSpecText(selectedOrder) }}</strong></div>
               <div class="is-wide"><span>{{ t('admin.supplierOrders.addons') }}</span><strong>{{ orderAddonText(selectedOrder) }}</strong></div>
@@ -839,25 +1046,29 @@
             </div>
           </section>
 
-          <section>
-            <h3>{{ t('admin.supplierOrders.placeBlock') }}</h3>
+          <section class="order-panel">
+            <h3><span>02</span>{{ t('admin.supplierOrders.placeBlock') }}</h3>
             <p class="order-address">{{ selectedOrder.serviceAddress || '—' }}</p>
             <a v-if="selectedOrder.pinLocation" class="order-map" :href="selectedOrder.pinLocation" target="_blank" rel="noopener noreferrer">{{ t('admin.supplierOrders.openMap') }}</a>
           </section>
 
-          <section>
-            <h3>{{ t('admin.supplierOrders.quoteBlock') }}</h3>
+          <section class="order-panel">
+            <h3><span>03</span>{{ t('admin.supplierOrders.quoteBlock') }}</h3>
             <div class="order-quote">
               <div>
                 <span>{{ t('admin.supplierOrders.taxPrice') }}</span>
-                <strong>{{ orderMoney(selectedOrder.quotePrice) }}</strong>
+                <strong><small>AED</small>{{ orderMoney(selectedOrder.quotePrice) }}</strong>
                 <small>{{ orderQuoteMode(selectedOrder) }}</small>
               </div>
               <div>
                 <span>{{ t('admin.supplierOrders.quoteTotal') }}</span>
-                <strong>{{ orderMoney(selectedOrder.quoteAmount) }}</strong>
+                <strong><small>AED</small>{{ orderMoney(selectedOrder.quoteAmount) }}</strong>
               </div>
             </div>
+          </section>
+
+          <section class="order-panel order-panel--wide">
+            <h3><span>04</span>{{ t('admin.supplierOrders.contactBlock') }}</h3>
             <div class="order-facts">
               <div>
                 <span>{{ t('admin.supplierOrders.phones') }}</span>
@@ -873,53 +1084,62 @@
             </div>
           </section>
 
-          <section v-if="(selectedOrder.lines || []).length > 1">
-            <h3>{{ t('admin.supplierOrders.serviceName') }}</h3>
+          <section v-if="(selectedOrder.lines || []).length > 1" class="order-panel order-panel--wide">
+            <h3><span>05</span>{{ t('admin.supplierOrders.serviceName') }}</h3>
             <div class="order-lines">
               <article v-for="(line, index) in selectedOrder.lines" :key="line.skuId || index">
-                <strong>{{ orderServiceTitle(line) }}</strong>
-                <small>{{ orderSpecText(line) }}</small>
-                <small>{{ t('admin.supplierOrders.staffCount') }} {{ line.staffCount ?? '—' }} · {{ t('admin.supplierOrders.serviceHours') }} {{ orderHours(line.serviceHours) }} · {{ orderMoney(line.quotePrice) }}</small>
+                <div><strong>{{ orderServiceTitle(line) }}</strong><small>{{ orderSpecText(line) }}</small></div>
+                <dl>
+                  <div><dt>{{ t('admin.supplierOrders.staffCount') }}</dt><dd>{{ line.staffCount ?? '—' }}</dd></div>
+                  <div><dt>{{ t('admin.supplierOrders.serviceHours') }}</dt><dd>{{ orderHours(line.serviceHours) }}</dd></div>
+                  <div><dt>{{ t('admin.supplierOrders.price') }}</dt><dd>AED {{ orderMoney(line.quotePrice) }}</dd></div>
+                </dl>
               </article>
             </div>
           </section>
 
-          <section v-if="selectedOrder.remark || selectedOrder.arriveRemark || selectedOrder.completeRemark">
-            <h3>{{ t('admin.supplierOrders.notesBlock') }}</h3>
+          <section v-if="selectedOrder.departTime || selectedOrder.remark || selectedOrder.arriveRemark || selectedOrder.completeRemark" class="order-panel order-panel--wide">
+            <h3><span>06</span>{{ t('admin.supplierOrders.executionBlock') }}</h3>
             <div class="order-facts">
+              <div v-if="selectedOrder.departTime"><span>{{ t('admin.supplierOrders.departTime') }}</span><strong>{{ orderClock(selectedOrder.departTime) }}</strong></div>
               <div v-if="selectedOrder.remark" class="is-wide"><span>{{ t('admin.supplierOrders.customerRemark') }}</span><strong>{{ selectedOrder.remark }}</strong></div>
               <div v-if="selectedOrder.arriveRemark"><span>{{ t('admin.supplierOrders.arriveNote') }}</span><strong>{{ selectedOrder.arriveRemark }}</strong></div>
               <div v-if="selectedOrder.completeRemark"><span>{{ t('admin.supplierOrders.completeNote') }}</span><strong>{{ selectedOrder.completeRemark }}</strong></div>
             </div>
           </section>
 
-          <section v-if="orderPhotos(selectedOrder.arrivePhotos).length" class="order-photos">
-            <h3>{{ t('admin.supplierOrders.arrivePhotos') }}</h3>
-            <button v-for="url in orderPhotos(selectedOrder.arrivePhotos)" :key="url" type="button" @click="openFilePreview(url)">
-              <img :src="url" alt="" />
+          <section v-if="orderPhotos(selectedOrder.arrivePhotos).length" class="order-panel order-panel--wide order-photos">
+            <h3><span>07</span>{{ t('admin.supplierOrders.arrivePhotos') }}</h3>
+            <button v-for="(url, index) in orderPhotos(selectedOrder.arrivePhotos)" :key="url" type="button" :aria-label="`${t('admin.supplierOrders.arrivePhotos')} ${index + 1}`" @click="openFilePreview(url)">
+              <img :src="url" :alt="`${t('admin.supplierOrders.arrivePhotos')} ${index + 1}`" />
             </button>
           </section>
-          <section v-if="orderPhotos(selectedOrder.completePhotos).length" class="order-photos">
-            <h3>{{ t('admin.supplierOrders.completePhotos') }}</h3>
-            <button v-for="url in orderPhotos(selectedOrder.completePhotos)" :key="url" type="button" @click="openFilePreview(url)">
-              <img :src="url" alt="" />
+          <section v-if="orderPhotos(selectedOrder.completePhotos).length" class="order-panel order-panel--wide order-photos">
+            <h3><span>08</span>{{ t('admin.supplierOrders.completePhotos') }}</h3>
+            <button v-for="(url, index) in orderPhotos(selectedOrder.completePhotos)" :key="url" type="button" :aria-label="`${t('admin.supplierOrders.completePhotos')} ${index + 1}`" @click="openFilePreview(url)">
+              <img :src="url" :alt="`${t('admin.supplierOrders.completePhotos')} ${index + 1}`" />
             </button>
           </section>
-
-          <div v-if="selectedOrder.departTime" class="order-facts">
-            <div><span>{{ t('admin.supplierOrders.departTime') }}</span><strong>{{ orderClock(selectedOrder.departTime) }}</strong></div>
-          </div>
-          <div v-if="serviceStep(selectedOrder) !== 2" class="order-sheet__actions">
-            <el-button v-if="serviceStep(selectedOrder) === 0" type="primary" @click="departForService(selectedOrder)">{{ t('admin.supplierOrders.departAction') }}</el-button>
-            <el-button v-else-if="serviceStep(selectedOrder) === 3" type="primary" @click="openServiceAction(selectedOrder, 'arrive')">{{ t('admin.supplierOrders.arriveAction') }}</el-button>
-            <el-button v-else-if="serviceStep(selectedOrder) === 1" type="primary" @click="openServiceAction(selectedOrder, 'complete')">{{ t('admin.supplierOrders.completeAction') }}</el-button>
           </div>
         </template>
       </div>
+      <template #footer>
+        <div v-if="selectedOrder" class="order-drawer-footer">
+          <div><span>{{ t('admin.supplierOrders.serviceStatus') }}</span><strong>{{ serviceStatusText(selectedOrder) }}</strong></div>
+          <el-button v-if="serviceStep(selectedOrder) === 0" type="primary" @click="departForService(selectedOrder)">{{ t('admin.supplierOrders.departAction') }}</el-button>
+          <el-button v-else-if="serviceStep(selectedOrder) === 3" type="primary" @click="openServiceAction(selectedOrder, 'arrive')">{{ t('admin.supplierOrders.arriveAction') }}</el-button>
+          <el-button v-else-if="serviceStep(selectedOrder) === 1" type="primary" @click="openServiceAction(selectedOrder, 'complete')">{{ t('admin.supplierOrders.completeAction') }}</el-button>
+          <span v-else class="order-drawer-footer__done"><CircleCheck />{{ t('admin.supplierOrders.noAction') }}</span>
+        </div>
+      </template>
     </el-drawer>
 
-    <el-dialog v-model="serviceAction.open" :title="serviceAction.mode === 'arrive' ? t('admin.supplierOrders.arriveTitle') : t('admin.supplierOrders.completeTitle')" width="min(560px, calc(100vw - 32px))" :close-on-click-modal="false">
-      <p class="service-action__order">{{ serviceAction.orderNo }}</p>
+    <el-dialog v-model="serviceAction.open" class="supplier-form-dialog service-action-dialog" :title="serviceAction.mode === 'arrive' ? t('admin.supplierOrders.arriveTitle') : t('admin.supplierOrders.completeTitle')" width="min(600px, calc(100vw - 32px))" :close-on-click-modal="false" append-to-body>
+      <div class="service-action__intro">
+        <span>{{ t('admin.supplierOrders.assignedOrder') }}</span>
+        <strong>{{ serviceAction.orderNo }}</strong>
+        <p>{{ t('admin.supplierOrders.evidenceHint') }}</p>
+      </div>
       <label class="service-action__note">
         <span>{{ t('admin.supplierOrders.remark') }}</span>
         <el-input v-model="serviceAction.remark" type="textarea" maxlength="512" show-word-limit :rows="3" :placeholder="t('admin.supplierOrders.remarkPlaceholder')" />
@@ -935,7 +1155,7 @@
         </label>
         <ul v-if="serviceAction.photos.length">
           <li v-for="(photo, index) in serviceAction.photos" :key="photo.url">
-            <button type="button" @click="openFilePreview(photo.url)"><img :src="photo.url" alt="" /></button>
+            <button type="button" :aria-label="photo.name" @click="openFilePreview(photo.url)"><img :src="photo.url" :alt="photo.name" /></button>
             <span>{{ photo.name }}</span>
             <el-button link type="danger" @click="serviceAction.photos.splice(index, 1)">{{ t('admin.supplierPricing.delete') }}</el-button>
           </li>
@@ -1125,6 +1345,8 @@ const goTo = (target: Section) => router.push({ path: `/admin/supplier-managemen
 const companyForm = reactive({
   companyName: '',
   licenseNo: '',
+  licenseIssuedBy: '',
+  licenseIssuedByOther: '',
   licenseExpiry: '',
   trn: '',
   years: 0,
@@ -1287,6 +1509,7 @@ const orderDateRange = ref<string[]>([])
 const orderDrawerVisible = ref(false)
 const orderDetailLoading = ref(false)
 const selectedOrder = ref<any>(null)
+let orderDetailRequest = 0
 const orderMoney = (value: unknown) => {
   if (value === null || value === undefined || value === '') return '—'
   const amount = Number(value)
@@ -1431,6 +1654,7 @@ const quoteDialog = reactive({
   attaches: [] as Array<{ attachValueId: number; typeName: string; name: string; platformPrice: unknown; approvedPrice: unknown; offered: boolean; quotePrice: string }>,
 })
 const quoteLocked = computed(() => Number(quoteDialog.status) === 1)
+const selectedAttachCount = computed(() => quoteDialog.attaches.filter((item) => item.offered).length)
 
 const settlementTab = ref('transactions')
 const settlementRows = [
@@ -1491,9 +1715,102 @@ const asYesNo = (value: unknown): 0 | 1 => (Number(value) === 1 ? 1 : 0)
 const onOtherCommunityChange = (value: string | number | boolean) => {
   if (Number(value) !== 1) applyRenmark.value = ''
 }
+const LICENSE_AUTHORITY_OTHER = 'Other (type the authority name)'
+const LICENSE_AUTHORITIES = [
+  {
+    emirate: 'Abu Dhabi',
+    items: [
+      'Abu Dhabi Department of Economic Development',
+      'Abu Dhabi Global Market',
+      'Khalifa Economic Zones Abu Dhabi',
+      'Masdar City Free Zone',
+      'twofour54 (Abu Dhabi media zone)',
+      'Abu Dhabi Airports Free Zone',
+    ],
+  },
+  {
+    emirate: 'Dubai',
+    items: [
+      'Dubai Department of Economy and Tourism (formerly DED)',
+      'Dubai Multi Commodities Centre',
+      'Jebel Ali Free Zone',
+      'Dubai Airport Freezone',
+      'Dubai Silicon Oasis',
+      'Dubai CommerCity',
+      'International Free Zone Authority',
+      'Meydan Free Zone',
+      'Dubai South Free Zone',
+      'Dubai World Trade Centre Free Zone',
+      'Dubai International Financial Centre',
+      'Dubai Healthcare City Authority',
+      'Dubai Development Authority (TECOM free zones)',
+      'Dubai Maritime City',
+      'International Humanitarian City',
+      'Expo City Dubai Free Zone',
+      'Jebel Ali Free Zone Offshore',
+    ],
+  },
+  {
+    emirate: 'Sharjah',
+    items: [
+      'Sharjah Economic Development Department',
+      'Sharjah Airport International Free Zone',
+      'Hamriyah Free Zone',
+      'Sharjah Media City',
+      'Sharjah Publishing City Free Zone',
+      'Sharjah Research, Technology and Innovation Park',
+      'Sharjah Healthcare City',
+    ],
+  },
+  {
+    emirate: 'Ajman',
+    items: [
+      'Ajman Department of Economic Development',
+      'Ajman Free Zone',
+      'Ajman Media City Free Zone',
+      'Ajman NuVentures Centre Free Zone',
+    ],
+  },
+  {
+    emirate: 'Umm Al Quwain',
+    items: [
+      'Umm Al Quwain Department of Economic Development',
+      'Umm Al Quwain Free Trade Zone',
+    ],
+  },
+  {
+    emirate: 'Ras Al Khaimah',
+    items: [
+      'Ras Al Khaimah Department of Economic Development',
+      'Ras Al Khaimah Economic Zone',
+      'RAK Digital Assets Oasis',
+      'RAK Maritime City Free Zone',
+      'RAK International Corporate Centre',
+    ],
+  },
+  {
+    emirate: 'Fujairah',
+    items: [
+      'Fujairah Department of Industry and Economy',
+      'Fujairah Free Zone',
+      'Fujairah Creative City Free Zone',
+    ],
+  },
+  {
+    emirate: 'Other',
+    items: [LICENSE_AUTHORITY_OTHER],
+  },
+]
+const licenseAuthorities = LICENSE_AUTHORITIES
+const licenseAuthorityValues = new Set(LICENSE_AUTHORITIES.flatMap((group) => group.items))
+const onLicenseAuthorityChange = () => {
+  if (companyForm.licenseIssuedBy !== LICENSE_AUTHORITY_OTHER) companyForm.licenseIssuedByOther = ''
+}
+
 type CatalogServiceDraft = {
   spuId: number
   spuName: string
+  spuNameI18n: Record<string, unknown> | null
   available: boolean
   selected: boolean
   workerCount: number | null
@@ -1513,6 +1830,7 @@ type SavedService = {
   category: string
   categoryNameI18n: Record<string, unknown> | null
   name: string
+  spuNameI18n: Record<string, unknown> | null
   workerCount: number | null
   phones: string[]
   acceptOrder: 0 | 1
@@ -1550,6 +1868,7 @@ type PickedDraft = {
   categoryNameI18n: Record<string, unknown> | null
   spuId: number
   name: string
+  spuNameI18n: Record<string, unknown> | null
   workerCount: number | null
   phones: string[]
 }
@@ -1577,6 +1896,7 @@ const flattenSelected = (groups: CatalogGroupDraft[]): SavedService[] => groups.
       category: group.categoryName,
       categoryNameI18n: group.categoryNameI18n,
       name: service.spuName,
+      spuNameI18n: service.spuNameI18n,
       workerCount: service.workerCount,
       phones: service.contactPhones.map((phone) => phone.trim()).filter(Boolean),
       acceptOrder: service.acceptOrder === 0 ? 0 : 1,
@@ -1594,6 +1914,7 @@ const mapCatalog = (groups: any[]): CatalogGroupDraft[] => (groups || []).map((g
     return {
       spuId: Number(service.spuId),
       spuName: service.spuName || t('admin.supplierPricing.serviceNamed', { id: service.spuId }),
+      spuNameI18n: service.nameI18n && typeof service.nameI18n === 'object' ? service.nameI18n : null,
       available: service.available !== false,
       selected,
       workerCount: service.workerCount == null || service.workerCount === '' ? null : Number(service.workerCount),
@@ -1610,6 +1931,14 @@ const rememberCatalog = (groups: CatalogGroupDraft[]) => {
 
 const localizedCategory = (name: string, i18n?: Record<string, unknown> | null) =>
   pickI18nText(i18n || undefined, locale.value, '') || name
+const serviceTitle = (name: string, i18n?: Record<string, unknown> | null) =>
+  pickI18nText(i18n || undefined, locale.value, '') || name
+const serviceHaystack = (name: string, i18n?: Record<string, unknown> | null) => {
+  const extra = i18n
+    ? Object.values(i18n).filter((value): value is string => typeof value === 'string').join(' ')
+    : ''
+  return `${name} ${serviceTitle(name, i18n)} ${extra}`.toLowerCase()
+}
 const serviceCategoryOptions = computed(() => {
   const seen = new Set<number>()
   return savedServices.value.flatMap((service) => {
@@ -1625,14 +1954,19 @@ const pickerCategoryId = computed(() => {
   return value === '' || value == null ? null : Number(value)
 })
 const pickerReady = computed(() => pickerCategoryId.value != null || servicePicker.keyword.trim().length > 0)
+const pickerCategories = computed(() => catalogDraft.value.filter((group) => (
+  group.available !== false && group.services.some((service) => service.available)
+)))
 const pickerVisible = computed(() => {
   if (!pickerReady.value) return [] as PickerService[]
   const keyword = servicePicker.keyword.trim().toLowerCase()
   const rows: PickerService[] = []
   catalogDraft.value.forEach((group) => {
+    if (group.available === false) return
     if (pickerCategoryId.value != null && group.categoryId !== pickerCategoryId.value) return
     group.services.forEach((service) => {
-      if (keyword && !service.spuName.toLowerCase().includes(keyword)) return
+      if (!service.available) return
+      if (keyword && !serviceHaystack(service.spuName, service.spuNameI18n).includes(keyword)) return
       rows.push({
         ...service,
         categoryId: group.categoryId,
@@ -1664,10 +1998,15 @@ const filteredServiceRows = computed(() => {
     if (quoteCategory.value !== 'all' && row.categoryId !== Number(quoteCategory.value)) return false
     if (!keyword) return true
     const category = localizedCategory(row.category, row.categoryNameI18n)
-    return `${row.name} ${category} ${row.category} ${row.phones.join(' ')}`.toLowerCase().includes(keyword)
+    return `${serviceHaystack(row.name, row.spuNameI18n)} ${category} ${row.category} ${row.phones.join(' ')}`.includes(keyword)
   })
 })
 const pendingQuoteCount = computed(() => serviceRows.value.filter((row) => Number(row.status) === 1).length)
+const enabledServiceCount = computed(() => serviceRows.value.filter((row) => Number(row.acceptOrder) !== 0).length)
+const resetPricingFilters = () => {
+  quoteCategory.value = 'all'
+  addedKeyword.value = ''
+}
 const addPhone = (holder: { phones: string[] }) => {
   if (holder.phones.length >= 10) return
   holder.phones.push('')
@@ -1690,6 +2029,7 @@ const togglePick = (service: PickerService, checked: boolean) => {
     categoryNameI18n: service.categoryNameI18n,
     spuId: service.spuId,
     name: service.spuName,
+    spuNameI18n: service.spuNameI18n,
     workerCount: null,
     phones: [''],
   })
@@ -1707,6 +2047,27 @@ const supplierOrders = ref<any[]>([])
 const orderLoading = ref(false)
 const orderTotal = ref(0)
 const orderPage = ref(1)
+const visibleOrderCount = computed(() => supplierOrders.value.length)
+const activeOrdersOnPage = computed(() => supplierOrders.value.filter((order) => serviceStep(order) !== 2).length)
+const completedOrdersOnPage = computed(() => supplierOrders.value.filter((order) => serviceStep(order) === 2).length)
+const orderPageRange = computed(() => {
+  const from = visibleOrderCount.value ? ((orderPage.value - 1) * 10) + 1 : 0
+  const to = visibleOrderCount.value ? Math.min(from + visibleOrderCount.value - 1, orderTotal.value) : 0
+  return t('admin.supplierOrders.pageRange', { from, to, total: orderTotal.value })
+})
+const hasOrderFilters = computed(() => Boolean(
+  orderKeyword.value
+  || orderServiceKeyword.value
+  || orderCategory.value
+  || orderDateRange.value.length,
+))
+const resetOrderFilters = () => {
+  orderKeyword.value = ''
+  orderServiceKeyword.value = ''
+  orderCategory.value = null
+  orderDateRange.value = []
+  searchOrders()
+}
 
 const onboardingTagType = computed(() => {
   if (onboardingStatus.value === 2) return 'success'
@@ -1809,7 +2170,14 @@ const orderAddonBrief = (row: any) => {
   const text = orderAddonText(row)
   return !text || text === t('admin.supplierOrders.noAddons') ? '' : text
 }
-const orderWhen = (row: any) => [row?.serviceDate, row?.serviceTime].filter(Boolean).join(', ') || '—'
+const orderStartTime = (value?: string) => {
+  const text = String(value || '').trim()
+  const matched = text.match(/^(\d{1,2}:\d{2})\s*[-~–—～]\s*\d{1,2}:\d{2}$/)
+  if (!matched) return text
+  const [hour, minute] = matched[1].split(':')
+  return `${hour.padStart(2, '0')}:${minute}`
+}
+const orderWhen = (row: any) => [row?.serviceDate, orderStartTime(row?.serviceTime)].filter(Boolean).join(', ') || '—'
 const orderPhones = (row: any) => listedPhones((Array.isArray(row?.contactPhones) ? row.contactPhones : []).map((phone: unknown) => String(phone || '')))
 const orderQuoteMode = (row: any) => {
   const localized = specText(row?.quoteModeI18n)
@@ -1869,6 +2237,10 @@ const buildProfilePayload = (status?: number, areaIds?: number[]) => ({
   areaIds,
   extra: {
     ...profileExtra.value,
+    licenseIssuedBy: companyForm.licenseIssuedBy || null,
+    licenseIssuedByOther: companyForm.licenseIssuedBy === LICENSE_AUTHORITY_OTHER
+      ? (companyForm.licenseIssuedByOther.trim() || null)
+      : null,
     bank: { ...bankForm },
     tradeLicenseFiles: [...tradeLicenseFiles.value],
     otherDocuments: [...otherDocumentFiles.value],
@@ -1890,6 +2262,15 @@ const applyProfile = (detail: any) => {
   rejectReason.value = detail?.rejectReason || ''
   companyForm.companyName = detail?.companyName || ''
   companyForm.licenseNo = detail?.tradeLicenseNo || ''
+  const savedAuthority = String((detail?.extra && detail.extra.licenseIssuedBy) || '')
+  const savedAuthorityOther = String((detail?.extra && detail.extra.licenseIssuedByOther) || '')
+  if (savedAuthority === LICENSE_AUTHORITY_OTHER || (savedAuthority && !licenseAuthorityValues.has(savedAuthority))) {
+    companyForm.licenseIssuedBy = LICENSE_AUTHORITY_OTHER
+    companyForm.licenseIssuedByOther = savedAuthority === LICENSE_AUTHORITY_OTHER ? savedAuthorityOther : savedAuthority
+  } else {
+    companyForm.licenseIssuedBy = savedAuthority
+    companyForm.licenseIssuedByOther = ''
+  }
   companyForm.licenseExpiry = detail?.licenseExpiry || ''
   companyForm.trn = detail?.vatTrn || ''
   companyForm.years = detail?.yearsInBusiness || 0
@@ -2100,6 +2481,8 @@ const profileIssues = computed(() => {
   }
   add('companyName', 0, t('admin.supplierProfile.companyName'), Boolean(companyForm.companyName.trim()), t('admin.supplierProfile.nameRequired'))
   add('licenseNo', 0, t('admin.supplierProfile.licenseNo'), Boolean(companyForm.licenseNo.trim()), t('admin.supplierProfile.licenseRequired'))
+  add('licenseIssuedBy', 0, t('admin.supplierProfile.licenseIssuedBy'), Boolean(companyForm.licenseIssuedBy.trim()), t('admin.supplierProfile.licenseIssuedByRequired'))
+  add('licenseIssuedByOther', 0, t('admin.supplierProfile.licenseIssuedBy'), companyForm.licenseIssuedBy !== LICENSE_AUTHORITY_OTHER || Boolean(companyForm.licenseIssuedByOther.trim()), t('admin.supplierProfile.licenseIssuedByOtherRequired'))
   add('licenseExpiry', 0, t('admin.supplierProfile.licenseExpiry'), licenseAfterToday(companyForm.licenseExpiry), t('admin.supplierProfile.licenseExpiryHint'))
   add('address', 0, t('admin.supplierProfile.address'), Boolean(companyForm.address.trim()), t('admin.supplierProfile.addressRequired'))
   add('contact', 1, t('admin.supplierProfile.contactPerson'), Boolean(companyForm.contact.trim()), t('admin.supplierProfile.contactRequired'))
@@ -2123,17 +2506,25 @@ const lightboxCrumb = computed(() => {
   if (profileFromAll.value) return t('admin.supplierProfile.editingCrumb')
   return t('admin.supplierProfile.stepOf', { current: profileSection.value + 1, total: 5 })
 })
+const bankComplete = computed(() => Boolean(
+  bankForm.accountName.trim() && bankForm.bankName.trim() && bankForm.iban.trim(),
+))
+const sectionIncomplete = (index: number) => index === 3 ? !bankComplete.value : sectionHasIssue(index)
 const lightboxChip = computed(() => {
   if (profileView.value === 'all' && !profileEditable.value) return t('admin.supplierProfile.submittedChip')
-  const bad = profileView.value === 'all' ? profileIssues.value.length > 0 : sectionHasIssue(profileSection.value)
+  const bad = profileView.value === 'all'
+    ? profileIssues.value.length > 0 || !bankComplete.value
+    : sectionIncomplete(profileSection.value)
   return bad ? t('admin.supplierProfile.needsFix') : t('admin.supplierProfile.completed')
 })
 const lightboxChipClass = computed(() => {
   if (profileView.value === 'all' && !profileEditable.value) return 'is-wait'
-  const bad = profileView.value === 'all' ? profileIssues.value.length > 0 : sectionHasIssue(profileSection.value)
+  const bad = profileView.value === 'all'
+    ? profileIssues.value.length > 0 || !bankComplete.value
+    : sectionIncomplete(profileSection.value)
   return bad ? 'is-warn' : 'is-ok'
 })
-const selectedServiceNames = computed(() => [...new Set(savedServices.value.map((service) => service.name).filter(Boolean))])
+const selectedServiceNames = computed(() => [...new Set(savedServices.value.map((service) => serviceTitle(service.name, service.spuNameI18n)).filter(Boolean))])
 const insuranceDocs = computed(() => [
   { id: 'public' as const, label: t('admin.supplierProfile.publicLiability'), files: complianceItems[0].files },
   { id: 'employee' as const, label: t('admin.supplierProfile.employeeInsurance'), files: complianceItems[1].files },
@@ -2387,6 +2778,7 @@ const confirmAddServices = async () => {
       category: draft.category,
       categoryNameI18n: draft.categoryNameI18n,
       name: draft.name,
+      spuNameI18n: draft.spuNameI18n,
       workerCount: Number(draft.workerCount),
       phones: cleanPhones(draft.phones),
       acceptOrder: 1,
@@ -2398,7 +2790,7 @@ const confirmAddServices = async () => {
 const openServiceEditor = (row: SavedService) => {
   serviceEditor.spuId = row.spuId
   serviceEditor.categoryId = row.categoryId
-  serviceEditor.name = row.name
+  serviceEditor.name = serviceTitle(row.name, row.spuNameI18n)
   serviceEditor.workerCount = row.workerCount
   serviceEditor.phones = row.phones.length ? [...row.phones] : ['']
   serviceEditor.open = true
@@ -2420,7 +2812,7 @@ const saveServiceEditor = async () => {
 }
 const removeAddedService = async (row: SavedService) => {
   try {
-    await ElMessageBox.confirm(t('admin.supplierPricing.removeConfirm', { name: row.name }), t('admin.supplierPricing.removeTitle'), { type: 'warning' })
+    await ElMessageBox.confirm(t('admin.supplierPricing.removeConfirm', { name: serviceTitle(row.name, row.spuNameI18n) }), t('admin.supplierPricing.removeTitle'), { type: 'warning' })
   } catch {
     return
   }
@@ -2528,6 +2920,9 @@ const toggleAttach = (item: { offered: boolean; quotePrice: string }, offered: b
 const submitProblem = () => {
   if (quoteDialog.quoteMode !== 1 && quoteDialog.quoteMode !== 2) return t('admin.supplierPricing.modeRequired')
   if (quoteDialog.quoteMode === 2 && !(Number(quoteDialog.unitPrice) > 0)) return t('admin.supplierPricing.hourlyRequired')
+  if (quoteDialog.attaches.some((item) => item.offered && !addonPriceOk(item.quotePrice))) {
+    return t('admin.supplierPricing.addonPriceInvalid')
+  }
   const items = quoteItems()
   if (!items.length) return t('admin.supplierPricing.noSellable')
   if (items.some((item) => !(Number(item.staffCount) > 0) || !(Number(item.serviceHours) > 0) || !(Number(item.quotePrice) > 0))) {
@@ -2591,8 +2986,10 @@ const pickQuoteMode = (mode: 1 | 2) => {
 const openServiceQuote = async (row: { spuId: number; name: string; category: string; categoryNameI18n?: Record<string, unknown> | null; status?: number; rejectReason?: string; quoteMode?: number; unitPrice?: number | null }) => {
   quoteDialog.visible = true
   quoteDialog.loading = true
+  await nextTick()
+  scrollProfileTop()
   quoteDialog.spuId = row.spuId
-  quoteDialog.name = row.name
+  quoteDialog.name = serviceTitle(row.name, row.spuNameI18n)
   quoteDialog.category = localizedCategory(row.category, row.categoryNameI18n)
   quoteDialog.status = row.status
   quoteDialog.rejectReason = row.rejectReason || ''
@@ -2695,13 +3092,17 @@ const submitServiceQuote = async () => {
 }
 
 const loadOrderDetail = async (orderId: number) => {
+  const requestId = ++orderDetailRequest
   orderDetailLoading.value = true
   try {
-    selectedOrder.value = unwrap(await supplierAssignedOrderDetail(orderId)) || selectedOrder.value
+    const detail = unwrap(await supplierAssignedOrderDetail(orderId))
+    if (requestId !== orderDetailRequest || Number(selectedOrder.value?.orderId) !== orderId) return
+    selectedOrder.value = detail || selectedOrder.value
   } catch (error: any) {
+    if (requestId !== orderDetailRequest) return
     ElMessage.error(error?.message || t('admin.supplierOrders.detailFailed'))
   } finally {
-    orderDetailLoading.value = false
+    if (requestId === orderDetailRequest) orderDetailLoading.value = false
   }
 }
 const loadOrders = async () => {
@@ -2957,7 +3358,8 @@ watch(section, (value) => {
 .picker-fields :deep(.el-input-number) { width: 100%; }
 .picker-toolbar { display: flex; gap: 10px; margin-bottom: 10px; }
 .picker-toolbar .el-select, .picker-toolbar .el-input { flex: 1; }
-.picker-list { max-height: 480px; overflow: auto; border: 1px solid var(--line); border-radius: 12px; }
+.picker-list { max-height: min(420px, 46vh); overflow: auto; border: 1px solid var(--line); border-radius: 12px; }
+.sv-add__note { margin: 0 0 14px; color: #7a7166; font-size: 13px; line-height: 1.5; }
 .picker-list__bar { display: flex; align-items: center; justify-content: space-between; padding: 10px 12px; background: #f7f3ec; position: sticky; top: 0; z-index: 1; }
 .picker-list__bar small { color: var(--muted); font-size: 12px; }
 .picker-row { margin: 0; padding: 10px 12px; border-top: 1px solid var(--line); }
@@ -2990,18 +3392,23 @@ watch(section, (value) => {
 .quote-attaches header small, .quote-attach small { color: var(--muted); font-size: 12px; }
 .quote-attach { display: grid; grid-template-columns: minmax(180px, 1.4fr) minmax(0, 220px); gap: 10px 12px; align-items: center; padding: 12px 14px; background: #fffdf8; border: 1px solid var(--line); border-radius: 12px; }
 .quote-attach__name { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
-.service-action__order { margin: 0 0 12px; color: var(--muted); }
-.service-action__note { display: grid; gap: 6px; color: #74685a; font-size: 12px; font-weight: 700; }
-.service-action__photos { display: grid; gap: 8px; margin-top: 14px; }
-.service-action__photos small { display: block; color: var(--muted); font-weight: 500; }
-.service-action__pick { position: relative; display: inline-flex; align-items: center; width: fit-content; height: 34px; padding: 0 12px; border: 1px solid var(--line); border-radius: 8px; cursor: pointer; }
+.service-action__intro { min-width: 0; margin-bottom: 18px; padding: 18px 20px; overflow: hidden; color: #f7f1e6; background-color: #05152b; background-image: linear-gradient(90deg, rgba(5, 21, 43, .98), rgba(5, 21, 43, .62)), url("../../../../assets/images/admin/supplier-order-network.webp"); background-position: center right; background-size: cover; border-radius: 14px; }
+.service-action__intro > span { color: #e8c27a; font-size: 9px; font-weight: 750; letter-spacing: .16em; text-transform: uppercase; }
+.service-action__intro strong { display: block; margin-top: 7px; color: #fffdf8; font-family: Fraunces, Georgia, serif; font-size: 25px; font-weight: 520; line-height: 1.1; overflow-wrap: anywhere; }
+.service-action__intro p { max-width: 440px; margin: 9px 0 0; color: rgba(247, 241, 230, .7); font-size: 11px; line-height: 1.55; }
+.service-action__note { display: grid; gap: 7px; min-width: 0; color: #74685a; font-size: 12px; font-weight: 700; }
+.service-action__note :deep(.el-textarea__inner) { min-height: 104px !important; border-radius: 10px; }
+.service-action__photos { display: grid; gap: 10px; min-width: 0; margin-top: 18px; padding-top: 16px; border-top: 1px solid #efe4d4; }
+.service-action__photos > div { min-width: 0; }
+.service-action__photos small { display: block; color: #8a7d70; font-weight: 500; line-height: 1.45; }
+.service-action__pick { position: relative; display: inline-flex; align-items: center; justify-content: center; width: fit-content; min-height: 38px; padding: 0 14px; overflow: hidden; color: #05152b; border: 1px solid #d9cbb7; border-radius: 9px; background: #fffdf8; font-size: 12px; font-weight: 700; cursor: pointer; }
 .service-action__pick input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
-.service-action__photos ul { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; }
-.service-action__photos li { display: flex; align-items: center; gap: 10px; }
+.service-action__photos ul { display: grid; gap: 7px; max-height: min(300px, 36vh); margin: 0; padding: 2px 4px 2px 0; overflow: auto; list-style: none; }
+.service-action__photos li { display: grid; grid-template-columns: 48px minmax(0, 1fr) auto; align-items: center; gap: 10px; min-width: 0; padding: 7px; background: #f8f4ed; border: 1px solid #eee2d2; border-radius: 10px; }
+.service-action__photos li > span { min-width: 0; overflow: hidden; color: #27374c; font-size: 12px; font-weight: 650; white-space: nowrap; text-overflow: ellipsis; }
+.service-action__photos li > .el-button { flex: 0 0 auto; margin-left: 0; }
 .service-action__photos img, .order-photos img { width: 48px; height: 48px; object-fit: cover; border-radius: 8px; }
 .service-action__photos button, .order-photos button { padding: 0; border: 0; background: transparent; cursor: pointer; }
-.order-photos { display: flex; flex-wrap: wrap; gap: 8px; margin: 16px 0; }
-.order-photos h3 { flex: 1 0 100%; margin: 0; font-size: 13px; }
 .sv-page, .sv-editor { display: grid; gap: 16px; min-width: 0; }
 .sv-eyebrow { margin: 0; color: #8d5a32; font-size: 13px; font-weight: 650; }
 .sv-title { margin: 0; color: #05152b; font-family: Fraunces, Georgia, serif; font-size: 34px; font-weight: 520; letter-spacing: -.02em; }
@@ -3015,10 +3422,9 @@ watch(section, (value) => {
 .sv-supplier__main button { border: 0; background: transparent; color: #8d5a32; font: inherit; font-size: 13px; font-weight: 700; cursor: pointer; text-decoration: underline; }
 .sv-fact { min-width: 120px; }
 .sv-fact strong { color: #05152b; }
-.sv-board, .sv-add, .sv-quote { background: #fffdf8; border: 1px solid #e4d8c6; border-radius: 18px; overflow: hidden; }
-.sv-add { display: grid; gap: 12px; padding: 16px 18px 18px; }
-.sv-add header, .sv-add footer, .sv-quote__foot { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
-.sv-add header p, .sv-quote__head p { margin: 4px 0 0; color: #7a7166; font-size: 13px; }
+.sv-board, .sv-quote { background: #fffdf8; border: 1px solid #e4d8c6; border-radius: 18px; overflow: hidden; }
+.sv-quote__foot { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.sv-quote__head p { margin: 4px 0 0; color: #7a7166; font-size: 13px; }
 .sv-crumb { display: flex; align-items: center; gap: 8px; color: #7a7166; font-size: 13px; }
 .sv-crumb button { border: 0; background: transparent; color: #05152b; font: inherit; font-weight: 700; cursor: pointer; }
 .sv-crumb strong { color: #05152b; }
@@ -3083,57 +3489,357 @@ watch(section, (value) => {
 .phone-list { display: flex; flex-direction: column; gap: 2px; line-height: 1.45; }
 .accept-state { margin-right: 8px; color: #1f8a5b; font-size: 12px; font-weight: 700; }
 .accept-state.is-off { color: #8a7d70; }
-.data-table :deep(td.phone-col .cell),
-.data-table :deep(td.order-wrap .cell) { white-space: normal; overflow: visible; text-overflow: clip; }
+.data-table :deep(td.phone-col .cell) { white-space: normal; overflow: visible; text-overflow: clip; }
+.data-table :deep(td.order-wrap .cell) { white-space: normal; overflow: hidden; text-overflow: clip; }
+.orders-command { position: relative; isolation: isolate; display: grid; grid-template-columns: minmax(0, 1fr) minmax(420px, .9fr); gap: 28px; align-items: end; min-width: 0; min-height: 206px; margin-bottom: 18px; padding: 28px 30px; overflow: hidden; color: #f7f1e6; background-color: #05152b; background-image: linear-gradient(90deg, rgba(5, 21, 43, .98) 0%, rgba(5, 21, 43, .9) 44%, rgba(5, 21, 43, .38) 100%), url("../../../../assets/images/admin/supplier-order-network.webp"); background-position: center right; background-size: cover; border: 1px solid rgba(232, 194, 122, .26); border-radius: 22px; box-shadow: 0 24px 54px rgba(5, 21, 43, .16); animation: order-reveal .42s ease-out both; }
+.orders-command::after { position: absolute; z-index: -1; inset: auto -8% -68% 40%; height: 180px; content: ""; background: radial-gradient(circle, rgba(232, 194, 122, .16), transparent 66%); pointer-events: none; }
+.orders-command__copy { min-width: 0; }
+.orders-command__copy > span { color: #e8c27a; font-size: 10px; font-weight: 700; letter-spacing: .2em; text-transform: uppercase; }
+.orders-command__copy h2 { margin: 8px 0 8px; font-family: Fraunces, Georgia, serif; font-size: clamp(30px, 3.2vw, 44px); font-weight: 520; line-height: 1; letter-spacing: -.035em; }
+.orders-command__copy p { max-width: 520px; margin: 0; color: rgba(247, 241, 230, .72); font-size: 13px; line-height: 1.6; }
+.orders-command__metrics { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; min-width: 0; }
+.orders-command__metrics article { min-width: 0; padding: 15px 16px; background: rgba(5, 21, 43, .68); border: 1px solid rgba(255, 255, 255, .14); border-radius: 15px; backdrop-filter: blur(12px); }
+.orders-command__metrics span, .orders-command__metrics small { display: block; overflow: hidden; color: rgba(247, 241, 230, .62); font-size: 10px; white-space: nowrap; text-overflow: ellipsis; }
+.orders-command__metrics span { color: #d8c19a; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
+.orders-command__metrics strong { display: block; margin: 8px 0 4px; color: #fffdf8; font-family: Fraunces, Georgia, serif; font-size: 28px; font-weight: 520; line-height: 1; }
 .orders-card :deep(.el-card__body) { padding: 0; }
-.order-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 16px 18px; border-bottom: 1px solid var(--line); }
-.order-filters { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; min-width: 0; }
-.order-filters .el-input,
-.order-filters .el-select { width: 168px; }
-.order-filters :deep(.el-date-editor) { width: 248px; }
+.order-toolbar { display: grid; gap: 15px; padding: 18px 20px 20px; border-bottom: 1px solid var(--line); }
+.order-toolbar__head { display: flex; align-items: center; justify-content: space-between; gap: 16px; min-width: 0; }
+.order-toolbar__head > div { display: flex; align-items: baseline; gap: 10px; min-width: 0; }
+.order-toolbar__head strong { color: #05152b; font-size: 15px; }
+.order-toolbar__head span { color: #8a7d70; font-size: 12px; }
+.order-filters { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 10px; min-width: 0; }
+.order-filter { display: grid; flex: 1 1 160px; gap: 6px; min-width: 0; color: #74685a; font-size: 10px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; }
+.order-filter--date { flex: 1.45 1 270px; }
+.order-filter .el-input, .order-filter .el-select, .order-filter :deep(.el-date-editor) { width: 100%; min-width: 0; }
+.order-filter :deep(.el-input__wrapper), .order-filter :deep(.el-select__wrapper), .order-filter :deep(.el-date-editor) { min-height: 40px; border-radius: 10px; box-shadow: 0 0 0 1px #e6dccb inset; }
+.order-search { flex: 0 0 auto; min-width: 94px; height: 40px; }
+.orders-table-shell { min-width: 0; overflow-x: auto; }
+.orders-table { min-width: 1180px; }
 .order-pager { display: flex; justify-content: flex-end; padding: 12px 18px 14px; }
 .orders-table :deep(td.el-table__cell) { vertical-align: top; }
+.orders-table :deep(.order-status-col .cell) { white-space: nowrap; }
 .order-no { padding: 0; border: 0; background: transparent; color: #05152b; font: inherit; font-size: 13px; font-weight: 700; letter-spacing: .01em; text-align: left; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
 .order-no:hover { color: #0b2747; }
 .order-cell { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; min-width: 0; }
 .order-cell--end { align-items: flex-end; }
-.order-cell strong { color: #05152b; font-size: 13px; font-weight: 650; line-height: 1.35; }
+.order-cell strong { max-width: 100%; color: #05152b; font-size: 13px; font-weight: 650; line-height: 1.35; overflow-wrap: anywhere; }
 .order-cell small, .order-cell > span { color: #74685a; font-size: 12px; line-height: 1.4; }
 .order-clamp { display: -webkit-box; overflow: hidden; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
 .order-pin, .order-map { color: #05152b; font-size: 12px; font-weight: 650; text-decoration: underline; text-underline-offset: 3px; }
-.order-sheet { min-height: 180px; }
-.order-lead { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+.money-value { display: inline-flex; align-items: baseline; justify-content: flex-end; gap: 4px; white-space: nowrap; }
+.money-value > small { color: #8d5a32; font-size: 9px; letter-spacing: .08em; }
+.order-row-actions { display: flex; flex-direction: column; align-items: flex-end; gap: 3px; white-space: nowrap; }
+.order-row-actions :deep(.el-button + .el-button) { margin-left: 0; }
+.orders-mobile { display: none; }
+.order-sheet { min-width: 0; min-height: 180px; }
+.order-lead { position: relative; isolation: isolate; min-width: 0; padding: 26px; overflow: hidden; color: #f7f1e6; background-color: #05152b; background-image: linear-gradient(90deg, rgba(5, 21, 43, .98), rgba(5, 21, 43, .74) 60%, rgba(5, 21, 43, .42)), url("../../../../assets/images/admin/supplier-order-network.webp"); background-position: center right; background-size: cover; border-radius: 20px; }
+.order-lead::after { position: absolute; z-index: -1; right: -30px; bottom: -90px; width: 260px; height: 180px; content: ""; background: radial-gradient(circle, rgba(232, 194, 122, .2), transparent 68%); }
+.order-lead__topline { display: flex; align-items: center; justify-content: space-between; gap: 16px; min-width: 0; }
+.order-lead__topline > span { color: #e8c27a; font-size: 10px; font-weight: 700; letter-spacing: .18em; text-transform: uppercase; }
+.order-lead__number { display: block; margin-top: 20px; color: #e8c27a !important; font-size: 12px !important; letter-spacing: .08em; text-transform: uppercase; }
+.order-lead h2 { max-width: 560px; margin: 7px 0 7px; color: #fffdf8; font-family: Fraunces, Georgia, serif; font-size: clamp(26px, 4vw, 38px); font-weight: 520; line-height: 1.1; letter-spacing: -.035em; overflow-wrap: anywhere; }
+.order-lead > p { margin: 0; color: rgba(247, 241, 230, .66); font-size: 12px; }
+.order-lead__summary { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; max-width: 560px; margin-top: 24px; }
+.order-lead__summary > div { display: flex; align-items: center; gap: 10px; min-width: 0; padding: 12px 14px; background: rgba(5, 21, 43, .62); border: 1px solid rgba(255, 255, 255, .12); border-radius: 12px; backdrop-filter: blur(10px); }
+.order-lead__summary svg { flex: 0 0 auto; width: 17px; color: #e8c27a; }
+.order-lead__summary span { min-width: 0; }
+.order-lead__summary small, .order-lead__summary strong { display: block; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.order-lead__summary small { color: rgba(247, 241, 230, .58); font-size: 9px; letter-spacing: .08em; text-transform: uppercase; }
+.order-lead__summary strong { margin-top: 4px; color: #fffdf8; font-size: 12px; }
+.order-detail-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin-top: 14px; min-width: 0; }
+.order-panel { min-width: 0; padding: 18px; background: #fffdf8; border: 1px solid #e9decd; border-radius: 16px; }
+.order-panel--wide { grid-column: 1 / -1; }
 .order-facts span, .order-quote span { display: block; color: #8a7d70; font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; }
-.order-lead strong { color: #05152b; font-size: 20px; font-weight: 650; line-height: 1.35; }
-.order-sheet section { margin-top: 22px; padding-top: 18px; border-top: 1px solid #efe4d4; }
-.order-sheet h3 { margin: 0 0 14px; color: #74685a; font-size: 12px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
-.order-facts { display: grid; grid-template-columns: 1fr 1fr; gap: 14px 20px; }
+.order-sheet h3 { display: flex; align-items: center; gap: 9px; margin: 0 0 16px; color: #74685a; font-size: 11px; font-weight: 750; letter-spacing: .08em; text-transform: uppercase; }
+.order-sheet h3 > span { display: grid; place-items: center; flex: 0 0 auto; width: 25px; height: 25px; color: #8d5a32; background: #f5ecdf; border-radius: 8px; font-family: Fraunces, Georgia, serif; font-size: 11px; letter-spacing: 0; }
+.order-facts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px 20px; min-width: 0; }
+.order-facts > div { min-width: 0; }
 .order-facts .is-wide { grid-column: 1 / -1; }
-.order-facts strong { display: block; margin-top: 4px; color: #05152b; font-size: 14px; font-weight: 650; line-height: 1.45; word-break: break-word; }
+.order-facts strong { display: block; margin-top: 4px; color: #05152b; font-size: 14px; font-weight: 650; line-height: 1.45; overflow-wrap: anywhere; }
 .order-facts strong.phone-list { display: flex; flex-direction: column; gap: 4px; font-style: normal; }
 .order-facts .phone-list em { font-style: normal; font-weight: 650; }
-.order-address { margin: 0; color: #05152b; font-size: 15px; font-weight: 650; line-height: 1.5; }
+.order-address { margin: 0; color: #05152b; font-size: 15px; font-weight: 650; line-height: 1.55; overflow-wrap: anywhere; }
 .order-map { display: inline-flex; margin-top: 10px; font-size: 13px; }
-.order-quote { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px; }
-.order-quote > div { padding: 14px 16px; background: #f7f3ec; border-radius: 14px; }
-.order-quote strong { display: block; margin-top: 6px; color: #05152b; font-family: Fraunces, Georgia, serif; font-size: 28px; font-weight: 520; letter-spacing: -.03em; }
-.order-quote small { display: block; margin-top: 4px; color: #74685a; font-size: 12px; }
+.order-quote { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.order-quote > div { min-width: 0; padding: 14px; background: #f7f3ec; border-radius: 13px; }
+.order-quote strong { display: flex; align-items: baseline; gap: 5px; margin-top: 6px; color: #05152b; font-family: Fraunces, Georgia, serif; font-size: 25px; font-weight: 520; letter-spacing: -.03em; overflow-wrap: anywhere; }
+.order-quote strong > small { color: #8d5a32; font-family: Sora, "PingFang SC", sans-serif; font-size: 9px; letter-spacing: .08em; }
+.order-quote small { display: block; margin-top: 4px; color: #74685a; font-size: 11px; }
 .order-lines { display: flex; flex-direction: column; gap: 10px; margin: 0; }
-.order-lines article { display: flex; flex-direction: column; gap: 4px; padding: 12px 14px; background: #f7f3ec; border-radius: 12px; }
+.order-lines article { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(280px, .85fr); gap: 16px; align-items: center; padding: 14px; background: #f7f3ec; border-radius: 12px; }
+.order-lines article > div { display: grid; gap: 4px; min-width: 0; }
 .order-lines small { color: #74685a; }
-.order-sheet__actions { display: flex; justify-content: flex-end; margin-top: 22px; }
-.order-photos { display: flex; flex-wrap: wrap; gap: 10px; margin: 0; }
-@media (max-width: 820px) {
-  .order-toolbar { align-items: stretch; flex-direction: column; }
-  .order-filters .el-input,
-  .order-filters .el-select,
-  .order-filters :deep(.el-date-editor) { width: 100%; }
-  .order-facts, .order-quote { grid-template-columns: 1fr; }
-}
+.order-lines dl { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin: 0; }
+.order-lines dt { color: #8a7d70; font-size: 9px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; }
+.order-lines dd { margin: 4px 0 0; color: #05152b; font-size: 12px; font-weight: 700; overflow-wrap: anywhere; }
+.order-photos { display: flex; flex-wrap: wrap; align-content: flex-start; gap: 10px; margin: 0; }
 .order-photos h3 { flex: 1 0 100%; }
-.order-photos img { width: 72px; height: 72px; object-fit: cover; border-radius: 10px; }
-.order-photos button { padding: 0; border: 0; background: transparent; cursor: pointer; }
+.order-photos img { width: 76px; height: 76px; object-fit: cover; border-radius: 11px; transition: transform .2s ease, box-shadow .2s ease; }
+.order-photos button { padding: 0; overflow: hidden; border: 0; border-radius: 11px; background: transparent; cursor: pointer; }
+.order-photos button:hover img { transform: scale(1.035); box-shadow: 0 8px 22px rgba(5, 21, 43, .18); }
+.order-drawer-footer { display: flex; align-items: center; justify-content: space-between; gap: 18px; min-width: 0; }
+.order-drawer-footer > div { display: grid; min-width: 0; }
+.order-drawer-footer > div span { color: #8a7d70; font-size: 9px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
+.order-drawer-footer > div strong { margin-top: 3px; color: #05152b; font-size: 13px; overflow-wrap: anywhere; }
+.order-drawer-footer__done { display: inline-flex; align-items: center; gap: 7px; color: #28785f; font-size: 12px; font-weight: 700; }
+.order-drawer-footer__done svg { width: 17px; }
+@keyframes order-reveal { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+@media (prefers-reduced-motion: reduce) { .orders-command { animation: none; } .order-photos img { transition: none; } }
+@media (max-width: 1180px) {
+  .orders-command { grid-template-columns: minmax(0, 1fr); }
+  .orders-command__metrics { max-width: 560px; }
+}
+@media (max-width: 760px) {
+  .orders-command { min-height: 0; padding: 22px; background-position: 66% center; }
+  .orders-command__metrics { grid-template-columns: repeat(3, minmax(96px, 1fr)); max-width: none; overflow-x: auto; }
+  .orders-command__metrics article { padding: 13px; }
+  .order-toolbar__head { align-items: flex-start; }
+  .order-toolbar__head > div { align-items: flex-start; flex-direction: column; gap: 3px; }
+  .order-filter, .order-filter--date { flex: 1 1 100%; }
+  .order-search { width: 100%; }
+  .orders-table-shell { display: none; }
+  .orders-mobile { display: grid; gap: 10px; padding: 12px; background: #f7f3ec; }
+  .order-mobile-card { min-width: 0; padding: 16px; background: #fffdf8; border: 1px solid #e6dccb; border-radius: 15px; }
+  .order-mobile-card header { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+  .order-mobile-card h3 { margin: 14px 0 5px; color: #05152b; font-family: Fraunces, Georgia, serif; font-size: 21px; font-weight: 520; line-height: 1.25; overflow-wrap: anywhere; }
+  .order-mobile-card > p { margin: 0; color: #74685a; font-size: 12px; line-height: 1.5; }
+  .order-mobile-card dl { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 13px; margin: 18px 0 0; padding-top: 14px; border-top: 1px solid #efe4d4; }
+  .order-mobile-card dl .is-wide { grid-column: 1 / -1; }
+  .order-mobile-card dt { color: #8a7d70; font-size: 9px; font-weight: 700; letter-spacing: .07em; text-transform: uppercase; }
+  .order-mobile-card dd { margin: 4px 0 0; color: #05152b; font-size: 12px; font-weight: 650; line-height: 1.45; overflow-wrap: anywhere; }
+  .order-mobile-card footer { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; margin-top: 16px; }
+  .order-mobile-card footer :deep(.el-button + .el-button) { margin-left: 0; }
+  .order-pager { justify-content: center; }
+  .order-lead { padding: 20px; }
+  .order-lead__topline { align-items: flex-start; }
+  .order-lead__summary, .order-detail-grid, .order-facts, .order-quote { grid-template-columns: minmax(0, 1fr); }
+  .order-panel--wide { grid-column: auto; }
+  .order-facts .is-wide { grid-column: auto; }
+  .order-lines article { grid-template-columns: minmax(0, 1fr); }
+  .order-lines dl { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 480px) {
+  .supplier-demo { padding-right: 12px; padding-left: 12px; }
+  .orders-command { padding: 19px; border-radius: 18px; }
+  .orders-command__copy h2 { font-size: 30px; }
+  .orders-command__metrics { grid-template-columns: repeat(3, 102px); margin-right: -19px; padding-right: 19px; }
+  .order-toolbar { padding: 16px; }
+  .order-lead__summary { grid-template-columns: minmax(0, 1fr); }
+  .order-drawer-footer { align-items: stretch; flex-direction: column; }
+  .order-drawer-footer :deep(.el-button), .order-drawer-footer__done { width: 100%; justify-content: center; }
+}
 @media (max-width: 1200px) { .supplier-facts { gap: 16px; }.metric-grid { grid-template-columns: repeat(2, 1fr); }.zone-grid { grid-template-columns: repeat(2, 1fr); }.form-grid--three { grid-template-columns: repeat(2, 1fr); }.overview-grid { grid-template-columns: 1fr; } }
+
+/* Services & pricing workspace */
+.pricing-command { position: relative; isolation: isolate; display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(390px, .75fr); gap: 32px; align-items: end; min-width: 0; min-height: 244px; padding: 30px; overflow: hidden; color: #f7f1e6; background-color: #05152b; background-image: linear-gradient(90deg, rgba(5, 21, 43, .99) 0%, rgba(5, 21, 43, .93) 48%, rgba(5, 21, 43, .38) 100%), url("../../../../assets/images/admin/supplier-pricing-matrix.webp"); background-position: center right; background-size: cover; border: 1px solid rgba(232, 194, 122, .26); border-radius: 22px; box-shadow: 0 24px 54px rgba(5, 21, 43, .16); animation: pricing-reveal .42s ease-out both; }
+.pricing-command::after { position: absolute; z-index: -1; inset: auto -8% -58% 42%; height: 190px; content: ""; background: radial-gradient(circle, rgba(232, 194, 122, .18), transparent 68%); pointer-events: none; }
+.pricing-command__copy { min-width: 0; }
+.pricing-command__copy > span, .pricing-editor-hero > div > span { color: #e8c27a; font-size: 10px; font-weight: 750; letter-spacing: .19em; text-transform: uppercase; }
+.pricing-command h1, .pricing-editor-hero h1 { max-width: 720px; margin: 9px 0 8px; color: #fffdf8; font-family: Fraunces, Georgia, serif; font-size: clamp(34px, 4vw, 50px); font-weight: 520; letter-spacing: -.035em; line-height: 1.04; overflow-wrap: anywhere; }
+.pricing-command__copy > p { max-width: 680px; margin: 0; color: rgba(247, 241, 230, .72); font-size: 13px; line-height: 1.65; }
+.pricing-command__supplier { display: flex; align-items: center; gap: 10px; min-width: 0; margin-top: 20px; }
+.pricing-command__avatar { display: grid; flex: 0 0 40px; place-items: center; width: 40px; height: 40px; color: #05152b; background: linear-gradient(145deg, #f5dba9, #c89447); border-radius: 12px; box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .32); font-size: 11px; font-weight: 800; }
+.pricing-command__supplier > span:nth-child(2) { display: grid; min-width: 0; }
+.pricing-command__supplier small { color: rgba(247, 241, 230, .55); font-size: 9px; letter-spacing: .08em; text-transform: uppercase; }
+.pricing-command__supplier strong { margin-top: 2px; overflow: hidden; color: #fffdf8; font-size: 13px; text-overflow: ellipsis; white-space: nowrap; }
+.pricing-command__supplier :deep(.el-tag) { margin-left: 4px; border-color: rgba(255, 255, 255, .22); }
+.pricing-command__categories { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 13px; }
+.pricing-command__categories small { color: rgba(247, 241, 230, .55); font-size: 10px; }
+.pricing-command__categories em { max-width: 210px; padding: 4px 9px; overflow: hidden; color: #f7f1e6; background: rgba(255, 255, 255, .1); border: 1px solid rgba(255, 255, 255, .1); border-radius: 999px; font-size: 10px; font-style: normal; font-weight: 700; text-overflow: ellipsis; white-space: nowrap; }
+.pricing-command__categories button { padding: 3px 0; color: #e8c27a; border: 0; border-bottom: 1px solid currentColor; background: transparent; font: inherit; font-size: 10px; font-weight: 700; cursor: pointer; }
+.pricing-command__metrics { display: grid; grid-template-columns: repeat(3, minmax(104px, 1fr)); gap: 9px; min-width: 0; }
+.pricing-command__metrics article { min-width: 0; min-height: 112px; padding: 14px; background: rgba(8, 28, 51, .64); border: 1px solid rgba(255, 255, 255, .12); border-radius: 16px; backdrop-filter: blur(10px); }
+.pricing-command__metrics article.is-pending { border-color: rgba(232, 194, 122, .5); box-shadow: inset 0 2px 0 rgba(232, 194, 122, .42); }
+.pricing-command__metrics small, .pricing-command__metrics span { display: block; overflow: hidden; text-overflow: ellipsis; }
+.pricing-command__metrics small { color: rgba(247, 241, 230, .58); font-size: 9px; font-weight: 700; letter-spacing: .07em; text-transform: uppercase; white-space: nowrap; }
+.pricing-command__metrics strong { display: block; margin: 10px 0 5px; color: #fffdf8; font-family: Fraunces, Georgia, serif; font-size: 30px; font-weight: 520; line-height: 1; }
+.pricing-command__metrics span { color: rgba(247, 241, 230, .62); font-size: 9px; line-height: 1.35; }
+.sv-board { box-shadow: 0 14px 38px rgba(5, 21, 43, .07); }
+.pricing-toolbar { align-items: center; gap: 16px; padding: 15px 18px; }
+.pricing-filter { display: grid; grid-template-columns: minmax(145px, auto) 170px minmax(220px, 300px) auto; flex: 1; gap: 10px; min-width: 0; }
+.pricing-filter__title { display: grid; align-content: center; min-width: 0; }
+.pricing-filter__title strong { color: #05152b; font-size: 12px; }
+.pricing-filter__title small { margin-top: 2px; color: #8a7d70; font-size: 9px; font-weight: 500; line-height: 1.3; }
+.pricing-filter .el-select, .pricing-filter .el-input { width: 100%; min-width: 0; }
+.pricing-actions { align-items: center; flex: 0 0 auto; padding: 0; }
+.pricing-actions > small { color: #8a7d70; font-size: 10px; white-space: nowrap; }
+.pricing-service-cell { display: flex; align-items: center; gap: 11px; min-width: 0; }
+.pricing-service-cell > span { display: grid; flex: 0 0 36px; place-items: center; width: 36px; height: 36px; color: #8d5a32; background: linear-gradient(145deg, #f8efe1, #efe0ca); border-radius: 11px; font-size: 11px; font-weight: 800; }
+.pricing-service-cell > div { display: grid; min-width: 0; gap: 3px; }
+.pricing-service-cell strong { overflow: hidden; color: #05152b; font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
+.pricing-service-cell small { overflow: hidden; color: #8a7d70; font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
+.quote-mode-pill { display: inline-flex; padding: 5px 8px; color: #5d4930; background: #f5ecdf; border-radius: 999px; font-size: 10px; font-weight: 700; }
+.pricing-price { color: #23354b; font-size: 12px; font-weight: 750; }
+.pricing-data-table :deep(.el-table__row) { cursor: pointer; }
+.pricing-mobile-list { display: none; }
+
+.sv-crumb { min-width: 0; overflow: hidden; white-space: nowrap; }
+.sv-crumb > * { flex: 0 0 auto; }
+.sv-crumb strong { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pricing-editor-hero { position: relative; isolation: isolate; display: flex; align-items: flex-end; justify-content: space-between; gap: 24px; min-width: 0; min-height: 176px; padding: 28px 30px; overflow: hidden; color: #f7f1e6; background-color: #05152b; background-image: linear-gradient(90deg, rgba(5, 21, 43, .99) 0%, rgba(5, 21, 43, .9) 50%, rgba(5, 21, 43, .36) 100%), url("../../../../assets/images/admin/supplier-pricing-matrix.webp"); background-position: center right; background-size: cover; border: 1px solid rgba(232, 194, 122, .26); border-radius: 20px; box-shadow: 0 20px 48px rgba(5, 21, 43, .14); animation: pricing-reveal .38s ease-out both; }
+.pricing-editor-hero > div { min-width: 0; }
+.pricing-editor-hero h1 { max-width: 820px; margin-top: 8px; font-size: clamp(30px, 3.6vw, 45px); }
+.pricing-editor-hero p { margin: 0; color: rgba(247, 241, 230, .68); font-size: 12px; line-height: 1.55; overflow-wrap: anywhere; }
+.pricing-editor-hero :deep(.el-tag) { flex: 0 0 auto; border-color: rgba(255, 255, 255, .2); }
+.sv-quote { padding: 0; overflow: visible; background: transparent; border: 0; border-radius: 0; }
+.pricing-editor-alert { display: flex; align-items: flex-start; gap: 12px; margin-bottom: 12px; padding: 14px 16px; color: #725122; background: #fff7e8; border: 1px solid #efd8ad; border-radius: 14px; }
+.pricing-editor-alert > span, .pricing-editor-alert > svg { display: grid; flex: 0 0 30px; place-items: center; width: 30px; height: 30px; color: #9b6124; background: #ffe6bd; border-radius: 9px; font-weight: 800; }
+.pricing-editor-alert > svg { padding: 6px; }
+.pricing-editor-alert div { min-width: 0; }
+.pricing-editor-alert strong { font-size: 12px; }
+.pricing-editor-alert p { margin: 3px 0 0; font-size: 11px; line-height: 1.5; overflow-wrap: anywhere; }
+.pricing-editor-alert.is-rejected { color: #8e3944; background: #fff0f1; border-color: #efcbd0; }
+.pricing-editor-alert.is-rejected > span { color: #9f3f4b; background: #f9dfe3; }
+.pricing-editor-layout { display: grid; grid-template-columns: minmax(0, 1fr) 286px; gap: 16px; align-items: start; min-width: 0; }
+.pricing-editor-main { display: grid; gap: 14px; min-width: 0; }
+.pricing-editor-section { min-width: 0; padding: 20px; background: #fffdf8; border: 1px solid #e4d8c6; border-radius: 18px; box-shadow: 0 12px 34px rgba(5, 21, 43, .05); }
+.pricing-section-head { display: grid; grid-template-columns: 34px minmax(0, 1fr) auto; gap: 12px; align-items: start; margin-bottom: 16px; }
+.pricing-section-head > span { display: grid; place-items: center; width: 34px; height: 34px; color: #8d5a32; background: #f5ecdf; border-radius: 10px; font-family: Fraunces, Georgia, serif; font-size: 12px; font-weight: 650; }
+.pricing-section-head > div { min-width: 0; }
+.pricing-section-head h2 { margin: 0; color: #05152b; font-family: Fraunces, Georgia, serif; font-size: 22px; font-weight: 520; letter-spacing: -.02em; }
+.pricing-section-head p { margin: 4px 0 0; color: #7a7166; font-size: 11px; line-height: 1.5; }
+.pricing-section-head > em { align-self: center; min-width: 30px; padding: 5px 8px; color: #6e5c45; background: #f4eee5; border-radius: 999px; font-size: 10px; font-style: normal; font-weight: 800; text-align: center; }
+.pricing-editor-section .mode-cards, .pricing-editor-section .quote-lines, .pricing-editor-section .quote-attaches { padding-right: 0; padding-left: 0; }
+.pricing-editor-section .mode-cards { margin: 0; }
+.mode-cards button { position: relative; grid-template-columns: 32px minmax(0, 1fr); grid-template-rows: auto auto; gap: 4px 10px; min-width: 0; min-height: 104px; padding: 16px; font: inherit; transition: transform .18s ease, border-color .18s ease, box-shadow .18s ease, background .18s ease; }
+.mode-cards button:hover:not(:disabled) { transform: translateY(-2px); border-color: #c8a66d; box-shadow: 0 10px 24px rgba(5, 21, 43, .08); }
+.mode-cards button:focus-visible { outline: 3px solid rgba(200, 148, 71, .26); outline-offset: 2px; }
+.mode-cards button:disabled { cursor: not-allowed; opacity: .68; }
+.mode-card__mark { display: grid; grid-row: 1 / 3; place-items: center; width: 30px; height: 30px; color: #8d5a32; background: #f5ecdf; border-radius: 9px; font-family: Fraunces, Georgia, serif; font-size: 11px; font-weight: 700; }
+.mode-cards button.is-on { background: linear-gradient(145deg, #071a31, #0e2b46); border-color: #163c5a; box-shadow: 0 14px 28px rgba(5, 21, 43, .14); }
+.mode-cards button.is-on .mode-card__mark { color: #071a31; background: #e8c27a; }
+.mode-cards button strong, .mode-cards button small { min-width: 0; overflow-wrap: anywhere; }
+.rate-card { display: grid; grid-template-columns: minmax(230px, .7fr) minmax(0, 1.3fr); gap: 14px; align-items: stretch; margin-top: 14px; padding: 14px; background: #f7f3ec; border: 1px solid #eadfce; border-radius: 14px; }
+.rate-field { display: grid; align-content: start; gap: 7px; max-width: none; margin: 0; padding: 0; }
+.rate-field > span:first-child { color: #5c564c; font-size: 11px; font-weight: 750; }
+.currency-input { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: stretch; min-width: 0; overflow: hidden; background: #fff; border: 1px solid #dfd4c4; border-radius: 10px; }
+.currency-input > b { display: flex; align-items: center; padding: 0 11px; color: #6f5b40; background: #f3eadc; border-right: 1px solid #dfd4c4; font-size: 10px; letter-spacing: .04em; }
+.currency-input :deep(.el-input-number) { width: 100%; }
+.currency-input :deep(.el-input__wrapper) { box-shadow: none; }
+.rate-formula { display: grid; align-content: center; gap: 4px; min-width: 0; padding: 12px 14px; color: #f7f1e6; background: #05152b; border-radius: 12px; }
+.rate-formula small { color: #e8c27a; font-size: 9px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
+.rate-formula strong { color: #fffdf8; font-size: 12px; line-height: 1.45; overflow-wrap: anywhere; }
+.rate-formula p { margin: 0; color: rgba(247, 241, 230, .58); font-size: 10px; line-height: 1.45; }
+.pricing-editor-section .quote-lines { gap: 10px; max-height: none; overflow: visible; }
+.quote-line { grid-template-columns: minmax(190px, 1.2fr) minmax(112px, .65fr) minmax(112px, .65fr) minmax(160px, .9fr); gap: 12px; align-items: start; padding: 14px; background: #fcfaf6; border-color: #e9decd; border-radius: 14px; transition: border-color .18s ease, box-shadow .18s ease; }
+.quote-line:hover { border-color: #d7c4a8; box-shadow: 0 8px 20px rgba(5, 21, 43, .045); }
+.quote-line__spec { display: grid; grid-template-columns: 30px minmax(0, 1fr); gap: 10px; align-items: start; min-width: 0; padding: 3px 0 0; }
+.quote-line__spec > span { display: grid; place-items: center; width: 28px; height: 28px; color: #8d5a32; background: #f4eadb; border-radius: 8px; font-size: 9px; font-weight: 800; }
+.quote-line__spec > div { display: grid; min-width: 0; gap: 4px; }
+.quote-line__spec strong, .quote-attach__name :deep(.el-checkbox__label) { overflow-wrap: anywhere; }
+.quote-line label > span:first-child { min-height: 16px; color: #74685a; font-size: 10px; font-weight: 750; }
+.quote-line :deep(.el-input-number), .quote-line :deep(.el-input) { min-width: 0; }
+.quote-line :deep(.el-input-group__prepend), .quote-attach :deep(.el-input-group__prepend) { padding: 0 9px; color: #705a3f; background: #f4ecdf; font-size: 9px; font-weight: 800; }
+.quote-line__price { min-width: 0; }
+.auto-price { display: flex; align-items: baseline; gap: 7px; min-width: 0; min-height: 32px; padding: 7px 10px; color: #205f50; background: #eaf6f1; border: 1px solid #cae8dc; border-radius: 8px; }
+.auto-price small { color: #42806f; font-size: 9px; font-weight: 800; }
+.auto-price strong { min-width: 0; overflow: hidden; font-size: 13px; text-overflow: ellipsis; white-space: nowrap; }
+.field-help { color: #8a7d70; font-size: 9px; line-height: 1.35; }
+.pricing-editor-section .quote-attaches { gap: 9px; margin-top: 0; }
+.quote-attach { grid-template-columns: minmax(0, 1fr) minmax(180px, 240px); padding: 13px 14px; background: #fcfaf6; border-color: #eadfce; transition: border-color .18s ease, background .18s ease; }
+.quote-attach.is-selected { background: #f9f5ed; border-color: #cfb384; box-shadow: inset 3px 0 0 #c89447; }
+.quote-attach__name { overflow: hidden; }
+.quote-attach__name :deep(.el-checkbox) { height: auto; min-width: 0; margin-right: 0; white-space: normal; }
+.quote-attach__name :deep(.el-checkbox__label) { min-width: 0; line-height: 1.4; white-space: normal; }
+.pricing-review-panel { position: sticky; top: 16px; display: grid; min-width: 0; padding: 19px; color: #f7f1e6; background: linear-gradient(155deg, #071a31, #0c2944); border: 1px solid rgba(232, 194, 122, .25); border-radius: 18px; box-shadow: 0 18px 42px rgba(5, 21, 43, .16); }
+.pricing-review-panel > span { color: #e8c27a; font-size: 9px; font-weight: 750; letter-spacing: .12em; text-transform: uppercase; }
+.sv-quote .pricing-review-panel h3 { margin: 8px 0 15px; padding: 0; color: #fffdf8; font-family: Fraunces, Georgia, serif; font-size: 22px; font-weight: 520; line-height: 1.2; }
+.pricing-review-panel dl { display: grid; gap: 0; margin: 0; }
+.pricing-review-panel dl > div { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-width: 0; padding: 11px 0; border-top: 1px solid rgba(255, 255, 255, .1); }
+.pricing-review-panel dt { color: rgba(247, 241, 230, .55); font-size: 10px; }
+.pricing-review-panel dd { min-width: 0; margin: 0; color: #fffdf8; font-size: 11px; font-weight: 750; text-align: right; overflow-wrap: anywhere; }
+.pricing-review-panel button { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 3px 10px; align-items: center; margin-top: 14px; padding: 13px; color: #05152b; text-align: left; background: linear-gradient(145deg, #f6ddb0, #d9ab65); border: 0; border-radius: 12px; cursor: pointer; }
+.pricing-review-panel button span, .pricing-review-panel button small { min-width: 0; overflow-wrap: anywhere; }
+.pricing-review-panel button span { font-size: 11px; font-weight: 800; }
+.pricing-review-panel button small { color: #745a35; font-size: 9px; line-height: 1.4; }
+.pricing-review-panel button b { grid-column: 2; grid-row: 1 / 3; font-size: 17px; }
+.sv-quote__foot { position: sticky; z-index: 5; bottom: 0; min-width: 0; margin-top: 14px; padding: 13px 16px; background: rgba(255, 253, 248, .94); border: 1px solid #e1d3bf; border-radius: 15px; box-shadow: 0 -12px 32px rgba(5, 21, 43, .09); backdrop-filter: blur(14px); }
+.sv-quote__foot > .sv-quote__foot-note { display: grid; min-width: 0; }
+.sv-quote__foot-note span { color: #05152b; font-size: 11px; font-weight: 800; }
+.sv-quote__foot-note small { margin-top: 2px; color: #8a7d70; font-size: 9px; overflow-wrap: anywhere; }
+.service-editor-intro { display: grid; gap: 4px; min-width: 0; margin-bottom: 18px; padding: 17px 18px; color: #f7f1e6; background-color: #05152b; background-image: linear-gradient(90deg, rgba(5, 21, 43, .98), rgba(5, 21, 43, .68)), url("../../../../assets/images/admin/supplier-pricing-matrix.webp"); background-position: right center; background-size: cover; border-radius: 14px; }
+.service-editor-intro span { color: #e8c27a; font-size: 9px; font-weight: 750; letter-spacing: .12em; text-transform: uppercase; }
+.service-editor-intro strong { color: #fffdf8; font-family: Fraunces, Georgia, serif; font-size: 23px; font-weight: 520; line-height: 1.2; overflow-wrap: anywhere; }
+.service-editor-intro p { margin: 2px 0 0; color: rgba(247, 241, 230, .65); font-size: 10px; line-height: 1.5; }
+.picker-fields .phone-row { align-items: center; min-width: 0; }
+.picker-fields .phone-row > small { flex: 0 0 26px; color: #8a7d70; font-size: 9px; font-weight: 700; }
+.phone-row .el-input { min-width: 0; }
+@keyframes pricing-reveal { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+@media (prefers-reduced-motion: reduce) { .pricing-command, .pricing-editor-hero { animation: none; } .mode-cards button, .quote-line { transition: none; } }
+@media (max-width: 1180px) {
+  .pricing-command { grid-template-columns: minmax(0, 1fr); }
+  .pricing-command__metrics { max-width: 560px; }
+  .pricing-filter { grid-template-columns: minmax(145px, auto) minmax(150px, .7fr) minmax(190px, 1fr); }
+  .pricing-filter > .el-button { grid-column: 2 / -1; justify-self: start; }
+  .quote-line { grid-template-columns: minmax(0, 1fr) minmax(140px, .55fr); }
+  .quote-line__spec, .quote-line__price { grid-column: auto; }
+}
+@media (max-width: 920px) {
+  .pricing-editor-layout { grid-template-columns: minmax(0, 1fr); }
+  .pricing-review-panel { position: static; grid-row: 1; }
+  .pricing-review-panel dl { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+  .pricing-review-panel dl > div { align-items: flex-start; flex-direction: column; padding: 10px; border: 1px solid rgba(255, 255, 255, .1); border-radius: 10px; }
+  .pricing-review-panel dd { text-align: left; }
+  .pricing-review-panel button { max-width: 360px; }
+}
+@media (max-width: 760px) {
+  .pricing-command { min-height: 0; padding: 22px; background-position: 66% center; }
+  .pricing-command__metrics { grid-template-columns: repeat(3, minmax(100px, 1fr)); max-width: none; overflow-x: auto; }
+  .pricing-command__metrics article { min-height: 102px; padding: 13px; }
+  .pricing-toolbar { align-items: stretch; }
+  .pricing-filter { grid-template-columns: minmax(0, 1fr); width: 100%; }
+  .pricing-filter > .el-button { grid-column: auto; justify-self: start; }
+  .pricing-actions { justify-content: space-between; width: 100%; padding: 0; }
+  .pricing-data-table { display: none; }
+  .pricing-mobile-list { display: grid; gap: 10px; padding: 12px; background: #f7f3ec; }
+  .pricing-mobile-list > article { min-width: 0; padding: 15px; background: #fffdf8; border: 1px solid #e6dccb; border-radius: 15px; box-shadow: 0 8px 20px rgba(5, 21, 43, .04); }
+  .pricing-mobile-list > article > header { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
+  .pricing-mobile-list > article > header :deep(.el-tag) { flex: 0 0 auto; }
+  .pricing-mobile-list dl { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin: 14px 0 0; padding-top: 12px; border-top: 1px solid #efe4d4; }
+  .pricing-mobile-list dt { color: #8a7d70; font-size: 9px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; }
+  .pricing-mobile-list dd { margin: 4px 0 0; color: #05152b; font-size: 11px; font-weight: 700; overflow-wrap: anywhere; }
+  .pricing-mobile-list footer { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; margin-top: 14px; }
+  .pricing-mobile-list footer > span { display: flex; align-items: center; gap: 7px; color: #74685a; font-size: 10px; }
+  .pricing-mobile-list footer > div { display: flex; flex-wrap: wrap; justify-content: flex-end; }
+  .pricing-mobile-empty { margin: 24px 12px; color: #8a7d70; font-size: 12px; text-align: center; }
+  .picker-row__fields { grid-template-columns: minmax(0, 1fr); margin-left: 0; }
+  .pricing-editor-hero { min-height: 150px; padding: 22px; }
+  .pricing-editor-hero { align-items: flex-start; flex-direction: column; }
+  .pricing-editor-hero h1 { font-size: 32px; }
+  .pricing-editor-section { padding: 16px; }
+  .rate-card { grid-template-columns: minmax(0, 1fr); }
+  .quote-line { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .quote-line__spec, .quote-line__price { grid-column: 1 / -1; }
+  .pricing-review-panel dl { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .sv-quote__foot { align-items: stretch; flex-direction: column; }
+  .sv-quote__foot > div:last-child { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .sv-quote__foot :deep(.el-button) { width: 100%; margin-left: 0; }
+}
+@media (max-width: 520px) {
+  .pricing-command { padding: 19px; border-radius: 18px; }
+  .pricing-command h1 { font-size: 32px; }
+  .pricing-command__supplier { flex-wrap: wrap; }
+  .pricing-command__metrics { grid-template-columns: repeat(3, 104px); margin-right: -19px; padding-right: 19px; }
+  .pricing-actions { align-items: stretch; flex-direction: column-reverse; }
+  .pricing-actions :deep(.el-button) { width: 100%; }
+  .pricing-editor-hero { padding: 19px; border-radius: 17px; }
+  .pricing-editor-hero h1 { font-size: 29px; }
+  .pricing-section-head { grid-template-columns: 30px minmax(0, 1fr) auto; gap: 9px; }
+  .pricing-section-head > span { width: 30px; height: 30px; }
+  .pricing-section-head h2 { font-size: 20px; }
+  .mode-cards { grid-template-columns: minmax(0, 1fr); }
+  .quote-line { grid-template-columns: minmax(0, 1fr); }
+  .quote-line__spec, .quote-line__price { grid-column: auto; }
+  .quote-attach { grid-template-columns: minmax(0, 1fr); }
+  .pricing-review-panel dl { grid-template-columns: minmax(0, 1fr); }
+  .pricing-review-panel button { max-width: none; }
+  .sv-quote__foot > div:last-child { grid-template-columns: minmax(0, 1fr); }
+  .picker-fields { grid-template-columns: minmax(0, 1fr); }
+  .picker-fields .phone-row { align-items: stretch; flex-wrap: wrap; }
+  .picker-fields .phone-row > small { flex: 1 0 100%; }
+  .picker-fields .phone-row .el-input { flex: 1 1 180px; }
+}
 </style>
 
 <style>
@@ -3143,9 +3849,30 @@ watch(section, (value) => {
 .policy-preview__stage img { max-width: 100%; max-height: 72vh; object-fit: contain; background: #fff; }
 .policy-preview__stage iframe { width: 100%; height: 72vh; border: 0; background: #fff; }
 .policy-preview__stage p { margin: 24px; color: #526070; }
-.order-drawer .el-drawer__header { margin-bottom: 0; padding: 22px 24px 16px; border-bottom: 1px solid #efe4d4; }
-.order-drawer .el-drawer__title { color: #05152b; font-family: Fraunces, Georgia, serif; font-size: 28px; font-weight: 520; letter-spacing: -.03em; }
-.order-drawer .el-drawer__body { padding: 22px 24px 28px; }
+.order-drawer.el-drawer { width: min(760px, 100vw) !important; max-width: 100vw; background: #f7f3ec; }
+.order-drawer .el-drawer__header { flex: 0 0 auto; margin-bottom: 0; padding: 18px 24px; background: #fffdf8; border-bottom: 1px solid #e7dac7; }
+.order-drawer .el-drawer__title { min-width: 0; color: #05152b; font-family: Fraunces, Georgia, serif; font-size: 24px; font-weight: 520; letter-spacing: -.025em; overflow-wrap: anywhere; }
+.order-drawer .el-drawer__close-btn { flex: 0 0 auto; width: 38px; height: 38px; margin: -5px -7px -5px 12px; border-radius: 10px; }
+.order-drawer .el-drawer__close-btn:hover { color: #05152b; background: #f3eadc; }
+.order-drawer .el-drawer__body { min-height: 0; padding: 16px 18px 20px; overflow: auto; }
+.order-drawer .el-drawer__footer { flex: 0 0 auto; padding: 14px 18px; background: rgba(255, 253, 248, .96); border-top: 1px solid #e4d6c2; box-shadow: 0 -10px 28px rgba(5, 21, 43, .06); backdrop-filter: blur(12px); }
+.supplier-form-dialog.el-dialog { --el-color-primary: #8d5a32; --el-color-primary-light-3: #aa7b55; --el-color-primary-light-5: #c6a68a; --el-color-primary-light-7: #dfcfc0; --el-color-primary-light-8: #eadfd6; --el-color-primary-light-9: #f5efea; --el-color-primary-dark-2: #714827; display: flex; flex-direction: column; max-width: calc(100vw - 32px); max-height: calc(100dvh - 32px); margin-top: 16px !important; margin-bottom: 16px; overflow: hidden; border-radius: 18px; background: #fffdf8; box-shadow: 0 28px 80px rgba(5, 21, 43, .24); }
+.supplier-form-dialog .el-dialog__header { flex: 0 0 auto; margin-right: 0; padding: 20px 64px 16px 22px; border-bottom: 1px solid #eadfce; }
+.supplier-form-dialog .el-dialog__title { color: #05152b; font-family: Fraunces, Georgia, serif; font-size: 24px; font-weight: 520; line-height: 1.25; overflow-wrap: anywhere; }
+.supplier-form-dialog .el-dialog__headerbtn { top: 12px; right: 14px; width: 40px; height: 40px; border-radius: 10px; }
+.supplier-form-dialog .el-dialog__headerbtn:hover { background: #f3eadc; }
+.supplier-form-dialog .el-dialog__body { flex: 1 1 auto; min-height: 0; padding: 20px 22px; overflow: auto; }
+.supplier-form-dialog .el-dialog__footer { flex: 0 0 auto; padding: 14px 22px 16px; background: #fffdf8; border-top: 1px solid #eadfce; }
+@media (max-width: 600px) {
+  .order-drawer .el-drawer__header { padding: 15px 16px; }
+  .order-drawer .el-drawer__body { padding: 12px; }
+  .order-drawer .el-drawer__footer { padding: 12px; }
+  .supplier-form-dialog.el-dialog { max-width: calc(100vw - 16px); max-height: calc(100dvh - 16px); margin-top: 8px !important; margin-bottom: 8px; border-radius: 14px; }
+  .supplier-form-dialog .el-dialog__header { padding: 17px 58px 14px 17px; }
+  .supplier-form-dialog .el-dialog__title { font-size: 21px; }
+  .supplier-form-dialog .el-dialog__body { padding: 16px 17px; }
+  .supplier-form-dialog .el-dialog__footer { padding: 12px 17px 14px; }
+}
 </style>
 
 <style scoped>

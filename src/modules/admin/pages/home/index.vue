@@ -45,6 +45,21 @@
       </div>
     </section>
 
+    <button
+      v-if="pendingOnboarding.value != null && pendingOnboarding.value > 0"
+      class="review-alert"
+      type="button"
+      @click="openPendingSuppliers"
+    >
+      <Bell class="review-alert__bell" aria-hidden="true" />
+      <strong>{{ numberFormatter.format(pendingOnboarding.value) }}</strong>
+      <span>
+        <b>{{ t('admin.home.pendingReview.title') }}</b>
+        <small>{{ t('admin.home.pendingReview.desc') }}</small>
+      </span>
+      <ArrowRight class="review-alert__arrow" aria-hidden="true" />
+    </button>
+
     <section class="metric-grid" aria-live="polite">
       <article
         v-for="(metric, index) in metrics"
@@ -202,6 +217,7 @@ import { useI18n } from 'vue-i18n';
 import { useRoute, useRouter } from 'vue-router';
 import {
   ArrowRight,
+  Bell,
   Calendar,
   CircleCheck,
   Collection,
@@ -218,6 +234,7 @@ import {
   Wallet,
 } from '@element-plus/icons-vue';
 import { page as getOrdersPage } from '@/modules/admin/api/order';
+import { onboardingPage } from '@/modules/admin/api/supplierWorkbench';
 import { page as getProductsPage } from '@/modules/admin/api/spu';
 import { getPage as getUsersPage } from '@/modules/admin/api/user';
 import operationsCommandCenter from '@/assets/images/admin/operations-command-center.webp';
@@ -235,6 +252,7 @@ const summary = reactive<Record<SummaryKey, SummaryState>>({
   services: { value: null, loading: true, failed: false },
   users: { value: null, loading: true, failed: false },
 });
+const pendingOnboarding = reactive<SummaryState>({ value: null, loading: true, failed: false });
 
 const toLocalDateKey = (date: Date) => {
   const year = date.getFullYear();
@@ -286,6 +304,21 @@ const loadSummary = async () => {
     users: () => getUsersPage({ pageNum: 1, pageSize: 1 }),
   };
 
+  pendingOnboarding.loading = true;
+  pendingOnboarding.failed = false;
+  void onboardingPage({ pageNum: 1, pageSize: 1, status: 1 }).then((payload) => {
+    if (requestId !== summaryRequestId) return;
+    const total = extractTotal(payload);
+    pendingOnboarding.value = total == null ? 0 : total;
+  }).catch((error) => {
+    if (requestId !== summaryRequestId) return;
+    pendingOnboarding.value = null;
+    pendingOnboarding.failed = true;
+    console.warn('Failed to load pending supplier reviews', error);
+  }).finally(() => {
+    if (requestId === summaryRequestId) pendingOnboarding.loading = false;
+  });
+
   await Promise.all((Object.keys(requests) as SummaryKey[]).map(async (key) => {
     try {
       const total = extractTotal(await requests[key]());
@@ -311,6 +344,10 @@ watch(
 
 const goTo = (path: string) => {
   if (route.path !== path) void router.push(path);
+};
+
+const openPendingSuppliers = () => {
+  void router.push({ path: '/admin/basic/suppliers', query: { onboardingStatus: '1' } });
 };
 
 const formattedDate = computed(() => new Intl.DateTimeFormat(
@@ -831,6 +868,43 @@ const systemItems = computed(() => [
 }
 
 .metric-card:hover .metric-card__arrow { color: var(--metric-accent); transform: translateX(2px); }
+
+.review-alert {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  margin-top: 16px;
+  padding: 14px 16px;
+  color: #05152b;
+  text-align: left;
+  background: #fff7ea;
+  border: 1px solid #ead7b0;
+  border-left: 5px solid #05152b;
+  border-radius: 16px;
+  cursor: pointer;
+}
+
+.review-alert__bell { width: 22px; height: 22px; flex: none; }
+
+.review-alert strong {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  min-width: 32px;
+  height: 32px;
+  padding: 0 8px;
+  border-radius: 999px;
+  background: #05152b;
+  color: #fff;
+  font-size: 15px;
+}
+
+.review-alert span { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.review-alert b { font-size: 15px; font-weight: 700; }
+.review-alert small { color: #6d6256; font-size: 12px; line-height: 1.4; }
+.review-alert__arrow { width: 16px; height: 16px; margin-left: auto; flex: none; color: #8a7d70; }
 
 .dashboard-grid { display: grid; gap: 16px; margin-top: 16px; }
 .dashboard-grid--primary { grid-template-columns: minmax(0, 1.25fr) minmax(340px, 0.75fr); }

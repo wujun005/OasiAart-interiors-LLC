@@ -163,7 +163,8 @@
       </template>
     </el-dialog>
 
-    <el-dialog v-model="calendarOpen" :title="t('admin.supplierAvailability.calendar')" width="min(720px, calc(100vw - 32px))">
+    <el-dialog v-model="calendarOpen" :title="t('admin.supplierAvailability.calendarTitle')" width="min(720px, calc(100vw - 32px))">
+      <p class="cal-hint">{{ t('admin.supplierAvailability.calendarHint') }}</p>
       <div class="cal-nav">
         <el-button @click="shiftMonth(-1)">‹</el-button>
         <strong>{{ monthLabel }}</strong>
@@ -494,6 +495,7 @@ onMounted(loadEvents)
 .hours-form__switch strong, .hours-form__switch small { display: block; }
 .hours-form__switch strong { color: #05152b; font-size: 14px; }
 .hours-form__switch small { margin-top: 4px; color: #74685a; font-size: 12px; font-weight: 500; }
+.cal-hint { margin: 0 0 14px; color: #74685a; font-size: 13px; line-height: 1.5; }
 .cal-nav { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
 .cal-nav strong { color: #05152b; font-family: Fraunces, Georgia, serif; font-size: 22px; font-weight: 520; }
 .cal-week, .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; }

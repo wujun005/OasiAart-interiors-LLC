@@ -31,6 +31,12 @@
     </div>
 
     <el-table v-loading="loading" :data="items" row-key="code" border>
+      <el-table-column :label="t('admin.notifications.actions')" width="132" fixed="left">
+        <template #default="{ row }">
+          <el-button v-if="testOf(row.code)" link type="primary" @click="openTest(row)">{{ t('admin.notifications.test') }}</el-button>
+          <span v-else class="empty-note">{{ t('admin.notifications.noTest') }}</span>
+        </template>
+      </el-table-column>
       <el-table-column type="expand">
         <template #default="{ row }">
           <el-table :data="row.variables || []" size="small">
@@ -61,12 +67,6 @@
           <el-tag :type="row.wired ? 'success' : 'warning'" effect="light">
             {{ row.wired ? t('admin.notifications.wiredYes') : t('admin.notifications.wiredNo') }}
           </el-tag>
-        </template>
-      </el-table-column>
-      <el-table-column :label="t('admin.notifications.actions')" width="120" fixed="right">
-        <template #default="{ row }">
-          <el-button v-if="testOf(row.code)" link type="primary" @click="openTest(row)">{{ t('admin.notifications.test') }}</el-button>
-          <span v-else class="empty-note">{{ t('admin.notifications.noTest') }}</span>
         </template>
       </el-table-column>
     </el-table>
@@ -292,8 +292,9 @@ onMounted(load)
 </script>
 
 <style scoped>
-.catalog-page { display: grid; gap: 16px; color: #05152b; }
+.catalog-page { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; width: 100%; min-width: 0; color: #05152b; }
 .page-header { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; }
+.page-header .el-button { flex: none; }
 .page-header p { margin: 0 0 4px; color: #74685a; font-size: 13px; }
 .page-header h1 { margin: 0; font-size: 28px; }
 .test-hint { margin: 0 0 14px; color: #74685a; font-size: 13px; line-height: 1.5; }

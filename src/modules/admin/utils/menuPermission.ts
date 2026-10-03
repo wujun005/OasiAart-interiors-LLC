@@ -224,28 +224,6 @@ const pinSuperAdminOverview = (roots: AdminMenuPermissionItem[]) => {
   });
 };
 
-const menuHasPath = (nodes: AdminMenuPermissionItem[], path: string): boolean =>
-  nodes.some((node) => node.path === path || menuHasPath(node.children, path));
-
-const pinSuperAdminTools = (roots: AdminMenuPermissionItem[]) => {
-  const tools = [
-    { id: 'fixed-notifications', name: '系统通知', path: '/admin/notifications', icon: 'bell', sortOrder: 80 },
-    { id: 'fixed-sys-config', name: '系统配置', path: '/admin/sys-config', icon: 'setting', sortOrder: 81 },
-  ];
-  tools.forEach((tool) => {
-    if (menuHasPath(roots, tool.path)) return;
-    roots.push({
-      id: tool.id,
-      name: tool.name,
-      path: tool.path,
-      icon: tool.icon,
-      parentId: 0,
-      sortOrder: tool.sortOrder,
-      children: [],
-    });
-  });
-};
-
 const hydrateMenuState = (list: RawMenuItem[], pinOverview = false) => {
   const rawFlatItems = flattenRawMenus(list);
   const nodeMap = new Map<string, AdminMenuPermissionItem>();
@@ -293,7 +271,6 @@ const hydrateMenuState = (list: RawMenuItem[], pinOverview = false) => {
 
   if (pinOverview) {
     pinSuperAdminOverview(roots);
-    pinSuperAdminTools(roots);
   }
   const prunedRoots = pruneMenus(roots);
   sortMenus(prunedRoots);

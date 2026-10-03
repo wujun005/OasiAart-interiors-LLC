@@ -1,0 +1,585 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HourX Supplier Portal — Service Area (Zone + Community selection)</title>
+<style>
+  :root{
+    --navy:#0f1b2d;
+    --navy-light:#16273f;
+    --navy-lighter:#1d3151;
+    --gold:#c9a227;
+    --gold-light:#e8c96b;
+    --cream:#f7f3ea;
+    --card:#ffffff;
+    --border:#e6ded0;
+    --text:#1f2530;
+    --muted:#7c8494;
+    --green:#2e7d32;
+    --green-bg:#eafaf0;
+    --red:#b3261e;
+    --red-bg:#fdecea;
+    --amber:#b45309;
+    --amber-bg:#fff1e0;
+    --slate:#475569;
+    --slate-bg:#eef1f5;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;
+    background:var(--cream);
+    color:var(--text);
+  }
+  .app{display:flex;min-height:100vh;}
+
+  /* Sidebar */
+  .sidebar{
+    width:260px;
+    background:var(--navy);
+    color:#cfd6e2;
+    display:flex;
+    flex-direction:column;
+    padding:26px 0;
+    flex-shrink:0;
+  }
+  .brand{display:flex;align-items:center;gap:12px;padding:0 22px 24px;border-bottom:1px solid rgba(255,255,255,0.08);margin-bottom:18px;}
+  .brand .mark{width:38px;height:38px;border-radius:8px;background:var(--gold);color:var(--navy);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:13px;}
+  .brand .name{font-family:Georgia,"Times New Roman",serif;font-size:20px;font-weight:700;color:#fff;line-height:1.1;}
+  .brand .tag{font-size:9px;letter-spacing:1px;color:var(--gold-light);text-transform:uppercase;margin-top:2px;}
+
+  .nav-section-label{font-size:11px;letter-spacing:1.5px;color:#7d879a;text-transform:uppercase;padding:4px 22px;margin-bottom:6px;font-weight:700;}
+  .nav-group{padding:0 12px;margin-bottom:6px;}
+  .nav-parent{display:flex;align-items:center;justify-content:space-between;padding:10px 10px;font-size:14px;color:#dfe4ec;font-weight:600;cursor:default;}
+  .nav-items{display:flex;flex-direction:column;gap:2px;margin-top:2px;}
+  .nav-item{
+    display:flex;align-items:center;justify-content:space-between;
+    padding:10px 14px 10px 34px;
+    border-radius:8px;
+    font-size:14px;
+    color:#b7c0d1;
+    cursor:pointer;
+    transition:background .15s;
+  }
+  .nav-item:hover{background:rgba(255,255,255,0.05);}
+  .nav-item.active{background:var(--navy-lighter);color:var(--gold-light);font-weight:700;}
+  .nav-status{width:18px;height:18px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;flex-shrink:0;}
+  .nav-status.done{background:var(--green-bg);color:var(--green);}
+  .nav-status.pending{border:1.5px solid #4a5568;color:#4a5568;}
+  .nav-status.error{background:var(--red-bg);color:var(--red);}
+
+  .sidebar-footer{margin-top:auto;padding:16px 22px 0;display:flex;align-items:center;gap:10px;font-size:12px;color:#8a93a6;}
+  .sidebar-footer .dot{width:8px;height:8px;border-radius:50%;background:#31c48d;}
+
+  /* Main */
+  .main{flex:1;display:flex;flex-direction:column;min-width:0;}
+  .topbar{
+    display:flex;align-items:center;justify-content:flex-end;gap:14px;
+    padding:18px 36px;background:#fbf9f3;border-bottom:1px solid var(--border);
+  }
+  .topbar .today{margin-right:auto;font-size:13px;color:var(--muted);}
+  .topbar .today strong{display:block;color:var(--text);font-size:14px;}
+  .pill-btn{background:#fff;border:1px solid var(--border);border-radius:8px;padding:9px 16px;font-size:13px;color:var(--text);cursor:pointer;}
+  .avatar-chip{display:flex;align-items:center;gap:8px;background:#fff;border:1px solid var(--border);border-radius:10px;padding:6px 12px;font-size:13px;}
+  .avatar-chip .av{width:28px;height:28px;border-radius:50%;background:var(--navy);color:var(--gold-light);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:12px;}
+
+  .content{padding:34px 44px 70px;max-width:1240px;}
+
+  .error-banner{
+    display:none;
+    align-items:flex-start;gap:12px;
+    background:var(--red-bg);border:1px solid #f3b9b3;border-radius:10px;
+    padding:14px 18px;margin-bottom:22px;color:#7a1913;font-size:13.5px;
+  }
+  .error-banner.show{display:flex;}
+  .error-banner .ico{font-size:16px;line-height:1.2;}
+  .error-banner b{display:block;margin-bottom:2px;font-size:14px;}
+
+  .eyebrow{font-size:11.5px;letter-spacing:1px;color:var(--muted);text-transform:uppercase;margin-bottom:10px;font-weight:600;}
+
+  .page-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:22px;}
+  .page-head h1{font-family:Georgia,"Times New Roman",serif;font-size:34px;margin:0;color:var(--navy);}
+  .btn-primary{background:var(--navy);color:#fff;border:none;border-radius:9px;padding:13px 20px;font-size:14px;font-weight:600;cursor:pointer;}
+  .btn-primary:hover{background:var(--navy-lighter);}
+
+  .supplier-card{
+    background:var(--card);border:1px solid var(--border);border-radius:12px;
+    padding:22px 26px;display:flex;align-items:center;justify-content:space-between;margin-bottom:22px;
+  }
+  .supplier-card .who{display:flex;align-items:center;gap:14px;}
+  .supplier-card .logo{width:46px;height:46px;border-radius:10px;background:var(--navy);color:var(--gold-light);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:14px;}
+  .supplier-card .who .label{font-size:11px;letter-spacing:1px;color:var(--muted);text-transform:uppercase;margin-bottom:3px;}
+  .supplier-card .who .val{font-size:17px;font-weight:700;color:var(--text);}
+  .supplier-card .meta{display:flex;gap:34px;}
+  .supplier-card .meta .label{font-size:11px;letter-spacing:1px;color:var(--muted);text-transform:uppercase;margin-bottom:5px;}
+  .supplier-card .meta .val{font-size:15px;font-weight:700;color:var(--text);}
+  .badge-approved{background:var(--green-bg);color:var(--green);font-size:12px;font-weight:700;padding:4px 10px;border-radius:20px;}
+
+  .info-banner{
+    display:flex;gap:14px;background:#eaf1ff;border:1px solid #cfdcf7;border-radius:12px;
+    padding:18px 22px;margin-bottom:22px;
+  }
+  .info-banner .ico{font-size:18px;}
+  .info-banner b{display:block;font-size:14.5px;color:#1e3a6d;margin-bottom:3px;}
+  .info-banner p{margin:0;font-size:13.5px;color:#345080;line-height:1.55;}
+
+  .table-card{background:var(--card);border:1px solid var(--border);border-radius:12px;overflow:hidden;}
+  .table-summary{padding:16px 26px;font-size:13.5px;color:var(--muted);border-bottom:1px solid var(--border);font-weight:600;}
+  .table-summary strong{color:var(--text);}
+  table{width:100%;border-collapse:collapse;}
+  thead th{
+    text-align:left;font-size:11px;letter-spacing:1px;text-transform:uppercase;color:var(--muted);
+    padding:12px 26px;border-bottom:1px solid var(--border);font-weight:700;
+  }
+  tbody td{padding:20px 26px;border-bottom:1px solid var(--border);vertical-align:top;}
+  tbody tr:last-child td{border-bottom:none;}
+  .area-name{font-size:16px;font-weight:700;color:var(--text);margin-bottom:4px;}
+  .tier-badge{display:inline-block;font-size:10.5px;font-weight:700;letter-spacing:.4px;padding:2px 8px;border-radius:12px;text-transform:uppercase;}
+  .tier-badge.Standard{background:var(--green-bg);color:var(--green);}
+  .tier-badge.Extended{background:var(--amber-bg);color:var(--amber);}
+  .tier-badge.Restricted{background:var(--slate-bg);color:var(--slate);}
+  .coverage-pill{font-size:12.5px;font-weight:700;color:var(--text);}
+  .coverage-pill.partial{color:var(--amber);}
+  .chips{display:flex;flex-wrap:wrap;gap:8px;}
+  .chip{background:#f1eee6;color:#4a4f58;font-size:12.5px;padding:5px 11px;border-radius:20px;}
+  .chip.all-note{background:transparent;color:var(--muted);font-style:italic;padding:5px 0;}
+  .chip.special{background:var(--amber-bg);color:var(--amber);}
+
+  /* Modal */
+  .modal-overlay{
+    display:none;position:fixed;inset:0;background:rgba(15,27,45,0.55);
+    align-items:flex-start;justify-content:center;padding:40px 20px;z-index:50;
+  }
+  .modal-overlay.show{display:flex;}
+  .modal{
+    background:#fff;border-radius:14px;width:100%;max-width:760px;max-height:88vh;
+    display:flex;flex-direction:column;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,0.3);
+  }
+  .modal-header{padding:22px 26px 16px;border-bottom:1px solid var(--border);position:relative;}
+  .modal-header h2{margin:0;font-size:19px;color:var(--navy);}
+  .modal-close{position:absolute;right:20px;top:18px;background:none;border:none;font-size:18px;color:var(--muted);cursor:pointer;}
+  .modal-body{padding:18px 26px;overflow-y:auto;flex:1;}
+  .search-input{
+    width:100%;padding:11px 14px;border:1px solid var(--border);border-radius:9px;font-size:14px;margin-bottom:8px;
+  }
+  .search-note{display:flex;gap:7px;align-items:flex-start;font-size:12.5px;color:var(--muted);background:#f7f9fc;border:1px dashed #d7deea;border-radius:8px;padding:9px 12px;margin-bottom:16px;line-height:1.5;}
+  .search-note .ico{flex-shrink:0;}
+
+  .zone-card{
+    border:1.5px solid var(--border);border-radius:10px;
+    margin-bottom:10px;overflow:hidden;transition:.15s;
+  }
+  .zone-card.checked{border-color:var(--gold);}
+  .zone-card.dim{opacity:0.35;}
+  .zone-card.match-highlight{border-color:var(--navy);box-shadow:0 0 0 2px rgba(15,27,45,0.08);}
+  .zone-head{
+    display:flex;gap:12px;align-items:flex-start;
+    padding:14px 16px;cursor:pointer;background:#fff;
+  }
+  .zone-head:hover{background:#fbfbfa;}
+  .zone-card.checked .zone-head{background:#fdf8ea;}
+  .zone-head input[type=checkbox]{margin-top:2px;width:17px;height:17px;flex-shrink:0;accent-color:var(--navy);}
+  .zone-head .z-main{flex:1;min-width:0;}
+  .zone-head .z-title-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:3px;}
+  .zone-head .z-name{font-weight:700;font-size:14.5px;color:var(--text);}
+  .zone-head .z-sub{font-size:12.3px;color:var(--muted);}
+  .zone-head .z-count{font-size:12px;font-weight:700;color:var(--gold);white-space:nowrap;}
+  .zone-head .chevron{font-size:12px;color:var(--muted);margin-top:4px;transition:transform .15s;flex-shrink:0;}
+  .zone-card.expanded .chevron{transform:rotate(90deg);}
+  .zone-card mark{background:var(--gold-light);color:var(--navy);border-radius:3px;padding:0 2px;}
+
+  .community-list{display:none;padding:4px 16px 14px 45px;background:#fcfbf8;border-top:1px dashed var(--border);}
+  .zone-card.expanded .community-list{display:block;}
+  .community-grid{display:grid;grid-template-columns:1fr 1fr;gap:4px 18px;margin-top:10px;}
+  .community-row{
+    display:flex;align-items:flex-start;gap:9px;padding:6px 8px;border-radius:7px;font-size:13.2px;cursor:pointer;
+  }
+  .community-row:hover{background:#f1eee6;}
+  .community-row input{margin-top:2.5px;width:14.5px;height:14.5px;flex-shrink:0;accent-color:var(--navy);}
+  .community-row.excluded{color:var(--muted);}
+  .community-row .c-name{flex:1;}
+  .community-row .warn-ico{color:var(--amber);font-size:11.5px;cursor:help;}
+  .zone-actions{display:flex;gap:14px;margin-top:2px;}
+  .zone-actions a{font-size:12px;color:var(--navy);font-weight:600;cursor:pointer;text-decoration:underline;}
+
+  .modal-footer{
+    display:flex;align-items:center;justify-content:space-between;
+    padding:16px 26px;border-top:1px solid var(--border);background:#fbfaf7;
+  }
+  .selected-count{font-size:13px;color:var(--text);font-weight:600;}
+  .selected-count span{color:var(--gold);}
+  .footer-btns{display:flex;gap:10px;}
+  .btn-secondary{background:#fff;border:1px solid var(--border);border-radius:9px;padding:11px 18px;font-size:14px;cursor:pointer;color:var(--text);}
+  .btn-save{background:var(--navy);color:#fff;border:none;border-radius:9px;padding:11px 20px;font-size:14px;font-weight:700;cursor:pointer;}
+  .btn-save:hover{background:var(--navy-lighter);}
+
+  .change-tag{
+    display:inline-block;font-size:10px;font-weight:800;letter-spacing:.4px;
+    background:var(--gold);color:var(--navy);border-radius:5px;padding:2px 6px;margin-left:8px;vertical-align:middle;
+  }
+</style>
+</head>
+<body>
+
+<div class="app">
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="mark">HX</div>
+      <div>
+        <div class="name">HourX</div>
+        <div class="tag">Hourx Supplier Portal</div>
+      </div>
+    </div>
+
+    <div class="nav-section-label">Workspace</div>
+    <div class="nav-group">
+      <div class="nav-parent">Supplier Workspace</div>
+      <div class="nav-items">
+        <div class="nav-item">
+          <span>Company Profile</span>
+          <span class="nav-status done">✓</span>
+        </div>
+        <div class="nav-item active">
+          <span>Service Area</span>
+          <span class="nav-status done" id="navServiceAreaStatus">✓</span>
+        </div>
+        <div class="nav-item">
+          <span>Availability</span>
+          <span class="nav-status pending">○</span>
+        </div>
+        <div class="nav-item">
+          <span>Orders</span>
+        </div>
+        <div class="nav-item">
+          <span>Services &amp; Pricing</span>
+          <span class="nav-status pending">○</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="sidebar-footer">
+      <span class="dot"></span>
+      <div>Secure session connected<br><span style="opacity:.7">Secure operations</span></div>
+    </div>
+  </aside>
+
+  <!-- Main -->
+  <div class="main">
+    <div class="topbar">
+      <div class="today">TODAY<strong>Fri, 02 Oct</strong></div>
+      <div class="pill-btn">English ▾</div>
+      <div class="pill-btn">⟳</div>
+      <div class="avatar-chip"><span class="av">S</span> Sofia</div>
+      <div class="pill-btn">🔒 Change password</div>
+      <div class="pill-btn">⏻ Log Out</div>
+    </div>
+
+    <div class="content">
+
+      <!-- Error banner: only shows if 0 communities selected -->
+      <div class="error-banner" id="errorBanner">
+        <div class="ico">⚠</div>
+        <div>
+          <b>Please select at least 1 community</b>
+          Your profile currently has none enabled — you will not receive any orders until you enable at least one community below.
+        </div>
+      </div>
+
+      <div class="eyebrow">Areas and communities saved on the onboarding form. You can change the selection at any time.</div>
+
+      <div class="page-head">
+        <h1>Service Area</h1>
+        <button class="btn-primary" onclick="openModal()">Manage service areas</button>
+      </div>
+
+      <div class="supplier-card">
+        <div class="who">
+          <div class="logo">PC</div>
+          <div>
+            <div class="label">Signed-in supplier</div>
+            <div class="val">Stellar Touch Home SPA</div>
+          </div>
+        </div>
+        <div class="meta">
+          <div>
+            <div class="label">Supplier ID</div>
+            <div class="val">VED000010</div>
+          </div>
+          <div>
+            <div class="label">Onboarding</div>
+            <div class="val"><span class="badge-approved">APPROVED</span></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="info-banner">
+        <div class="ico">📍</div>
+        <div>
+          <b>Service areas from onboarding <span class="change-tag">UPDATED</span></b>
+          <p>These are the areas saved on the form. <strong>Only areas enabled here will receive new orders.</strong> You can now enable a whole area at once, or open it to uncheck the specific communities you don't want to cover — the platform only assigns jobs based on what's checked below.</p>
+        </div>
+      </div>
+
+      <div class="table-card">
+        <div class="table-summary" id="tableSummary"></div>
+        <table>
+          <thead>
+            <tr>
+              <th style="width:22%">Area</th>
+              <th style="width:12%">Coverage</th>
+              <th>Included communities</th>
+            </tr>
+          </thead>
+          <tbody id="tableBody"></tbody>
+        </table>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- Modal -->
+<div class="modal-overlay" id="modalOverlay">
+  <div class="modal">
+    <div class="modal-header">
+      <h2>Manage service areas</h2>
+      <button class="modal-close" onclick="closeModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <input type="text" class="search-input" id="searchInput" placeholder="Search areas or communities" oninput="onSearch()">
+      <div class="search-note">
+        <span class="ico">ℹ️</span>
+        <span>Checking an area's box includes <strong>all</strong> its communities. Click an area to expand it and uncheck any individual communities you don't want to serve — the area checkbox will show a dash (–) when it's only partially selected.</span>
+      </div>
+      <div id="zoneList"></div>
+    </div>
+    <div class="modal-footer">
+      <div class="selected-count"><span id="selectedCount">0</span> areas &middot; <span id="selectedCommCount">0</span> communities selected</div>
+      <div class="footer-btns">
+        <button class="btn-secondary" onclick="closeModal()">Cancel</button>
+        <button class="btn-save" onclick="saveModal()">Save</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const DATA = [{"code": "Z01", "name": "Central Dubai", "tier": "Standard", "communities": [{"id": "DXB-0001", "name": "Downtown Dubai", "special": false, "note": "High-density core", "included": true}, {"id": "DXB-0002", "name": "Business Bay", "special": false, "note": "High-density core", "included": true}, {"id": "DXB-0003", "name": "DIFC", "special": false, "note": "Parking/access buffer", "included": true}, {"id": "DXB-0004", "name": "City Walk", "special": false, "note": "", "included": true}, {"id": "DXB-0005", "name": "Dubai Design District", "special": false, "note": "", "included": true}, {"id": "DXB-0006", "name": "Za'abeel 1", "special": false, "note": "", "included": true}, {"id": "DXB-0007", "name": "Za'abeel 2", "special": false, "note": "", "included": true}, {"id": "DXB-0008", "name": "Al Satwa", "special": false, "note": "", "included": true}, {"id": "DXB-0009", "name": "Trade Centre 1", "special": false, "note": "", "included": true}, {"id": "DXB-0010", "name": "Trade Centre 2", "special": false, "note": "", "included": true}, {"id": "DXB-0011", "name": "Al Jaddaf", "special": false, "note": "", "included": true}, {"id": "DXB-0012", "name": "Dubai Healthcare City", "special": false, "note": "", "included": true}, {"id": "DXB-0013", "name": "Oud Metha", "special": false, "note": "Border with Z10", "included": true}, {"id": "DXB-0014", "name": "Al Kifaf", "special": false, "note": "", "included": true}, {"id": "DXB-0015", "name": "Madinat Dubai Al Melaheyah", "special": false, "note": "DLD new-name mapping for Al Mina", "included": true}, {"id": "DXB-0235", "name": "Dubai International Financial Centre", "special": false, "note": "Normalize to DIFC", "included": true}]}, {"code": "Z02", "name": "Jumeirah & Al Wasl", "tier": "Standard", "communities": [{"id": "DXB-0016", "name": "Jumeirah 1", "special": false, "note": "", "included": false}, {"id": "DXB-0017", "name": "Jumeirah 2", "special": false, "note": "", "included": false}, {"id": "DXB-0018", "name": "Jumeirah 3", "special": false, "note": "", "included": false}, {"id": "DXB-0019", "name": "Al Wasl", "special": false, "note": "", "included": false}, {"id": "DXB-0020", "name": "Al Safa 1", "special": false, "note": "", "included": false}, {"id": "DXB-0021", "name": "Al Safa 2", "special": false, "note": "", "included": false}, {"id": "DXB-0022", "name": "Al Manara", "special": false, "note": "", "included": false}, {"id": "DXB-0023", "name": "Umm Suqeim 1", "special": false, "note": "", "included": false}, {"id": "DXB-0024", "name": "Umm Suqeim 2", "special": false, "note": "", "included": false}, {"id": "DXB-0025", "name": "Umm Suqeim 3", "special": false, "note": "", "included": false}, {"id": "DXB-0026", "name": "Al Quoz 1", "special": false, "note": "", "included": false}, {"id": "DXB-0027", "name": "Al Quoz 2", "special": false, "note": "", "included": false}, {"id": "DXB-0028", "name": "Al Quoz 3", "special": false, "note": "", "included": false}, {"id": "DXB-0029", "name": "Al Quoz 4", "special": false, "note": "", "included": false}, {"id": "DXB-0030", "name": "Al Quoz Industrial Area 1", "special": false, "note": "", "included": false}, {"id": "DXB-0031", "name": "Al Quoz Industrial Area 2", "special": false, "note": "", "included": false}, {"id": "DXB-0032", "name": "Al Quoz Industrial Area 3", "special": false, "note": "", "included": false}, {"id": "DXB-0033", "name": "Al Quoz Industrial Area 4", "special": false, "note": "", "included": false}, {"id": "DXB-0232", "name": "Jumeirah Bay Island", "special": false, "note": "Access buffer", "included": false}]}, {"code": "Z03", "name": "Marina, Palm & Tecom", "tier": "Standard", "communities": [{"id": "DXB-0034", "name": "Dubai Marina", "special": false, "note": "", "included": false}, {"id": "DXB-0035", "name": "Jumeirah Beach Residence", "special": false, "note": "", "included": false}, {"id": "DXB-0036", "name": "Bluewaters Island", "special": false, "note": "", "included": false}, {"id": "DXB-0037", "name": "Dubai Harbour", "special": false, "note": "", "included": false}, {"id": "DXB-0038", "name": "Palm Jumeirah", "special": false, "note": "Access time buffer", "included": false}, {"id": "DXB-0039", "name": "Dubai Media City", "special": false, "note": "", "included": false}, {"id": "DXB-0040", "name": "Dubai Internet City", "special": false, "note": "", "included": false}, {"id": "DXB-0041", "name": "Dubai Knowledge Park", "special": false, "note": "", "included": false}, {"id": "DXB-0042", "name": "Al Sufouh 1", "special": false, "note": "", "included": false}, {"id": "DXB-0043", "name": "Al Sufouh 2", "special": false, "note": "", "included": false}, {"id": "DXB-0044", "name": "Barsha Heights", "special": false, "note": "", "included": false}, {"id": "DXB-0233", "name": "The World Islands", "special": true, "note": "Manual logistics check", "included": false}]}, {"code": "Z04", "name": "Barsha & Emirates Living", "tier": "Standard", "communities": [{"id": "DXB-0045", "name": "Al Barsha 1", "special": false, "note": "", "included": false}, {"id": "DXB-0046", "name": "Al Barsha 2", "special": false, "note": "", "included": false}, {"id": "DXB-0047", "name": "Al Barsha 3", "special": false, "note": "", "included": false}, {"id": "DXB-0048", "name": "Al Barsha South 1", "special": false, "note": "", "included": false}, {"id": "DXB-0049", "name": "Al Barsha South 2", "special": false, "note": "", "included": false}, {"id": "DXB-0050", "name": "Al Barsha South 3", "special": false, "note": "", "included": false}, {"id": "DXB-0051", "name": "The Greens", "special": false, "note": "", "included": false}, {"id": "DXB-0052", "name": "The Views", "special": false, "note": "", "included": false}, {"id": "DXB-0053", "name": "The Lakes", "special": false, "note": "", "included": false}, {"id": "DXB-0054", "name": "The Springs", "special": false, "note": "", "included": false}, {"id": "DXB-0055", "name": "The Meadows", "special": false, "note": "", "included": false}, {"id": "DXB-0056", "name": "Emirates Hills", "special": false, "note": "", "included": false}, {"id": "DXB-0057", "name": "The Hills", "special": false, "note": "", "included": false}, {"id": "DXB-0058", "name": "Al Thanyah 1", "special": false, "note": "", "included": false}, {"id": "DXB-0059", "name": "Al Thanyah 2", "special": false, "note": "", "included": false}, {"id": "DXB-0060", "name": "Al Thanyah 3", "special": false, "note": "", "included": false}, {"id": "DXB-0061", "name": "Al Thanyah 4", "special": false, "note": "", "included": false}, {"id": "DXB-0062", "name": "Al Thanyah 5", "special": false, "note": "", "included": false}]}, {"code": "Z05", "name": "JVC, Sports City & Furjan", "tier": "Standard", "communities": [{"id": "DXB-0063", "name": "Jumeirah Village Circle", "special": false, "note": "", "included": true}, {"id": "DXB-0064", "name": "Jumeirah Village Triangle", "special": false, "note": "", "included": true}, {"id": "DXB-0065", "name": "Dubai Production City", "special": false, "note": "", "included": true}, {"id": "DXB-0066", "name": "Dubai Sports City", "special": false, "note": "", "included": true}, {"id": "DXB-0067", "name": "Motor City", "special": false, "note": "", "included": true}, {"id": "DXB-0068", "name": "Studio City", "special": false, "note": "", "included": true}, {"id": "DXB-0069", "name": "Discovery Gardens", "special": false, "note": "", "included": true}, {"id": "DXB-0070", "name": "The Gardens", "special": false, "note": "", "included": true}, {"id": "DXB-0071", "name": "Al Furjan", "special": false, "note": "", "included": true}, {"id": "DXB-0072", "name": "Green Community", "special": false, "note": "Border E02", "included": true}, {"id": "DXB-0073", "name": "Me'aisem 1", "special": false, "note": "", "included": true}, {"id": "DXB-0074", "name": "Me'aisem 2", "special": false, "note": "", "included": true}, {"id": "DXB-0075", "name": "Al Hebiah 1", "special": false, "note": "", "included": true}, {"id": "DXB-0076", "name": "Al Hebiah 2", "special": false, "note": "", "included": true}, {"id": "DXB-0077", "name": "Al Hebiah 3", "special": false, "note": "", "included": true}, {"id": "DXB-0078", "name": "Al Hebiah 4", "special": false, "note": "", "included": true}, {"id": "DXB-0079", "name": "Al Hebiah 5", "special": false, "note": "", "included": true}, {"id": "DXB-0080", "name": "Al Hebiah 6", "special": false, "note": "", "included": true}]}, {"code": "Z06", "name": "Hills, Ranches & South-West Villas", "tier": "Standard", "communities": [{"id": "DXB-0081", "name": "Dubai Hills Estate", "special": false, "note": "", "included": true}, {"id": "DXB-0082", "name": "Arabian Ranches 1", "special": false, "note": "", "included": true}, {"id": "DXB-0083", "name": "Arabian Ranches 2", "special": false, "note": "", "included": true}, {"id": "DXB-0084", "name": "Arabian Ranches 3", "special": false, "note": "", "included": true}, {"id": "DXB-0085", "name": "DAMAC Hills", "special": false, "note": "", "included": true}, {"id": "DXB-0086", "name": "Mudon", "special": false, "note": "", "included": true}, {"id": "DXB-0087", "name": "Remraam", "special": false, "note": "", "included": true}, {"id": "DXB-0088", "name": "The Sustainable City", "special": false, "note": "", "included": true}, {"id": "DXB-0089", "name": "Town Square Dubai", "special": false, "note": "", "included": true}, {"id": "DXB-0090", "name": "Tilal Al Ghaf", "special": false, "note": "", "included": true}, {"id": "DXB-0091", "name": "Dubai Polo & Equestrian Club Area", "special": false, "note": "", "included": true}, {"id": "DXB-0092", "name": "Wadi Al Safa 5", "special": false, "note": "", "included": true}, {"id": "DXB-0093", "name": "Wadi Al Safa 6", "special": false, "note": "", "included": true}, {"id": "DXB-0094", "name": "Wadi Al Safa 7", "special": false, "note": "", "included": true}]}, {"code": "Z07", "name": "Dubailand Central", "tier": "Standard", "communities": [{"id": "DXB-0095", "name": "Majan", "special": false, "note": "", "included": true}, {"id": "DXB-0096", "name": "Liwan", "special": false, "note": "", "included": true}, {"id": "DXB-0097", "name": "Queue Point", "special": false, "note": "", "included": true}, {"id": "DXB-0098", "name": "Dubai Land Residence Complex", "special": false, "note": "", "included": true}, {"id": "DXB-0099", "name": "The Villa", "special": false, "note": "", "included": true}, {"id": "DXB-0100", "name": "Falcon City of Wonders", "special": false, "note": "", "included": true}, {"id": "DXB-0101", "name": "Villanova", "special": false, "note": "", "included": true}, {"id": "DXB-0102", "name": "Serena", "special": false, "note": "", "included": true}, {"id": "DXB-0103", "name": "Al Barari", "special": false, "note": "", "included": true}, {"id": "DXB-0104", "name": "Living Legends", "special": false, "note": "", "included": true}, {"id": "DXB-0105", "name": "City of Arabia", "special": false, "note": "", "included": true}, {"id": "DXB-0106", "name": "Global Village", "special": false, "note": "", "included": true}, {"id": "DXB-0107", "name": "Wadi Al Safa 2", "special": false, "note": "", "included": true}, {"id": "DXB-0108", "name": "Wadi Al Safa 3", "special": false, "note": "", "included": true}, {"id": "DXB-0109", "name": "Wadi Al Safa 4", "special": false, "note": "", "included": true}, {"id": "DXB-0110", "name": "Nad Al Sheba 4", "special": false, "note": "Border Z08", "included": true}]}, {"code": "Z08", "name": "Meydan, Nad Al Sheba & Silicon", "tier": "Standard", "communities": [{"id": "DXB-0111", "name": "Meydan", "special": false, "note": "", "included": true}, {"id": "DXB-0112", "name": "Mohammed Bin Rashid City", "special": false, "note": "", "included": true}, {"id": "DXB-0113", "name": "District One", "special": false, "note": "", "included": true}, {"id": "DXB-0114", "name": "Sobha Hartland", "special": false, "note": "", "included": true}, {"id": "DXB-0115", "name": "Sobha Hartland II", "special": false, "note": "", "included": true}, {"id": "DXB-0116", "name": "Nad Al Sheba 1", "special": false, "note": "", "included": true}, {"id": "DXB-0117", "name": "Nad Al Sheba 2", "special": false, "note": "", "included": true}, {"id": "DXB-0118", "name": "Nad Al Sheba 3", "special": false, "note": "", "included": true}, {"id": "DXB-0119", "name": "Dubai Silicon Oasis", "special": false, "note": "", "included": true}, {"id": "DXB-0120", "name": "Dubai Academic City", "special": false, "note": "", "included": true}, {"id": "DXB-0121", "name": "Nadd Hessa", "special": false, "note": "", "included": true}, {"id": "DXB-0122", "name": "Ras Al Khor Industrial Area 1", "special": false, "note": "Border Z09", "included": false}, {"id": "DXB-0123", "name": "Ras Al Khor Industrial Area 2", "special": false, "note": "Border Z09", "included": false}, {"id": "DXB-0124", "name": "Ras Al Khor Industrial Area 3", "special": false, "note": "Border Z09", "included": false}]}, {"code": "Z09", "name": "Creek, Mirdif & East Dubai", "tier": "Standard", "communities": [{"id": "DXB-0125", "name": "Dubai Creek Harbour", "special": false, "note": "", "included": true}, {"id": "DXB-0126", "name": "Dubai Festival City", "special": false, "note": "", "included": true}, {"id": "DXB-0127", "name": "Al Kheeran", "special": false, "note": "DLD current name", "included": true}, {"id": "DXB-0128", "name": "International City", "special": false, "note": "", "included": true}, {"id": "DXB-0129", "name": "Warsan 1", "special": false, "note": "", "included": true}, {"id": "DXB-0130", "name": "Warsan 2", "special": false, "note": "", "included": true}, {"id": "DXB-0131", "name": "Warsan 3", "special": false, "note": "", "included": true}, {"id": "DXB-0132", "name": "Warsan 4", "special": false, "note": "", "included": true}, {"id": "DXB-0133", "name": "Mirdif", "special": false, "note": "", "included": true}, {"id": "DXB-0134", "name": "Al Warqa 1", "special": false, "note": "", "included": true}, {"id": "DXB-0135", "name": "Al Warqa 2", "special": false, "note": "", "included": true}, {"id": "DXB-0136", "name": "Al Warqa 3", "special": false, "note": "", "included": true}, {"id": "DXB-0137", "name": "Al Warqa 4", "special": false, "note": "", "included": true}, {"id": "DXB-0138", "name": "Al Warqa 5", "special": false, "note": "", "included": true}, {"id": "DXB-0139", "name": "Nad Al Hamar", "special": false, "note": "", "included": true}, {"id": "DXB-0140", "name": "Ras Al Khor", "special": false, "note": "", "included": true}, {"id": "DXB-0141", "name": "Al Rashidiya", "special": false, "note": "", "included": true}, {"id": "DXB-0142", "name": "Umm Ramool", "special": false, "note": "", "included": true}, {"id": "DXB-0234", "name": "Culture Village", "special": false, "note": "", "included": true}]}, {"code": "Z10", "name": "Old Dubai & North", "tier": "Standard", "communities": [{"id": "DXB-0143", "name": "Bur Dubai", "special": false, "note": "", "included": false}, {"id": "DXB-0144", "name": "Al Karama", "special": false, "note": "", "included": false}, {"id": "DXB-0145", "name": "Al Mankhool", "special": false, "note": "", "included": false}, {"id": "DXB-0146", "name": "Al Raffa", "special": false, "note": "", "included": false}, {"id": "DXB-0147", "name": "Al Hamriya", "special": false, "note": "", "included": false}, {"id": "DXB-0148", "name": "Al Souq Al Kabeer", "special": false, "note": "DLD current spelling", "included": false}, {"id": "DXB-0149", "name": "Umm Hurair 1", "special": false, "note": "", "included": false}, {"id": "DXB-0150", "name": "Umm Hurair 2", "special": false, "note": "", "included": false}, {"id": "DXB-0151", "name": "Deira", "special": false, "note": "", "included": false}, {"id": "DXB-0152", "name": "Al Rigga", "special": false, "note": "", "included": false}, {"id": "DXB-0153", "name": "Al Muraqqabat", "special": false, "note": "", "included": false}, {"id": "DXB-0154", "name": "Al Muteena", "special": false, "note": "", "included": false}, {"id": "DXB-0155", "name": "Naif", "special": false, "note": "", "included": false}, {"id": "DXB-0156", "name": "Al Murar", "special": false, "note": "", "included": false}, {"id": "DXB-0157", "name": "Al Baraha", "special": false, "note": "", "included": false}, {"id": "DXB-0158", "name": "Abu Hail", "special": false, "note": "", "included": false}, {"id": "DXB-0159", "name": "Hor Al Anz", "special": false, "note": "", "included": false}, {"id": "DXB-0160", "name": "Hor Al Anz East", "special": false, "note": "", "included": false}, {"id": "DXB-0161", "name": "Al Mamzar", "special": false, "note": "", "included": false}, {"id": "DXB-0162", "name": "Al Garhoud", "special": false, "note": "", "included": false}, {"id": "DXB-0163", "name": "Al Twar 1", "special": false, "note": "", "included": false}, {"id": "DXB-0164", "name": "Al Twar 2", "special": false, "note": "", "included": false}, {"id": "DXB-0165", "name": "Al Twar 3", "special": false, "note": "", "included": false}, {"id": "DXB-0166", "name": "Al Qusais 1", "special": false, "note": "", "included": false}, {"id": "DXB-0167", "name": "Al Qusais 2", "special": false, "note": "", "included": false}, {"id": "DXB-0168", "name": "Al Qusais 3", "special": false, "note": "", "included": false}, {"id": "DXB-0169", "name": "Al Qusais Industrial Area 1", "special": false, "note": "", "included": false}, {"id": "DXB-0170", "name": "Al Qusais Industrial Area 2", "special": false, "note": "", "included": false}, {"id": "DXB-0171", "name": "Al Qusais Industrial Area 3", "special": false, "note": "", "included": false}, {"id": "DXB-0172", "name": "Al Qusais Industrial Area 4", "special": false, "note": "", "included": false}, {"id": "DXB-0173", "name": "Al Qusais Industrial Area 5", "special": false, "note": "", "included": false}, {"id": "DXB-0174", "name": "Muhaisnah 1", "special": false, "note": "", "included": false}, {"id": "DXB-0175", "name": "Muhaisnah 2", "special": false, "note": "", "included": false}, {"id": "DXB-0176", "name": "Muhaisnah 3", "special": false, "note": "", "included": false}, {"id": "DXB-0177", "name": "Muhaisnah 4", "special": false, "note": "", "included": false}, {"id": "DXB-0178", "name": "Al Nahda 1", "special": false, "note": "", "included": false}, {"id": "DXB-0179", "name": "Al Nahda 2", "special": false, "note": "", "included": false}]}, {"code": "E01", "name": "Dubai South & Expo", "tier": "Extended", "communities": [{"id": "DXB-0180", "name": "Dubai South", "special": false, "note": "", "included": false}, {"id": "DXB-0181", "name": "Expo City Dubai", "special": false, "note": "", "included": false}, {"id": "DXB-0182", "name": "Emaar South", "special": false, "note": "", "included": false}, {"id": "DXB-0183", "name": "Madinat Al Mataar", "special": false, "note": "", "included": false}, {"id": "DXB-0184", "name": "Dubai Logistics City", "special": false, "note": "", "included": false}, {"id": "DXB-0185", "name": "Residential District Dubai South", "special": false, "note": "", "included": false}]}, {"code": "E02", "name": "Jebel Ali & DIP", "tier": "Extended", "communities": [{"id": "DXB-0186", "name": "Dubai Investment Park 1", "special": false, "note": "", "included": false}, {"id": "DXB-0187", "name": "Dubai Investment Park 2", "special": false, "note": "", "included": false}, {"id": "DXB-0188", "name": "Jebel Ali 1", "special": false, "note": "", "included": false}, {"id": "DXB-0189", "name": "Jebel Ali 2", "special": false, "note": "", "included": false}, {"id": "DXB-0190", "name": "Jebel Ali 3", "special": false, "note": "", "included": false}, {"id": "DXB-0191", "name": "Jebel Ali Village", "special": false, "note": "", "included": false}, {"id": "DXB-0192", "name": "Jebel Ali Industrial Area 1", "special": false, "note": "", "included": false}, {"id": "DXB-0193", "name": "Jebel Ali Industrial Area 2", "special": false, "note": "", "included": false}, {"id": "DXB-0194", "name": "Jebel Ali Industrial Area 3", "special": false, "note": "", "included": false}, {"id": "DXB-0195", "name": "JAFZA", "special": false, "note": "B2B rules may differ", "included": false}, {"id": "DXB-0196", "name": "Palm Jebel Ali", "special": false, "note": "", "included": false}, {"id": "DXB-0197", "name": "Dubai Industrial City", "special": false, "note": "", "included": false}]}, {"code": "E03", "name": "Outer Dubailand", "tier": "Extended", "communities": [{"id": "DXB-0198", "name": "DAMAC Hills 2", "special": false, "note": "", "included": false}, {"id": "DXB-0199", "name": "The Valley", "special": false, "note": "", "included": false}, {"id": "DXB-0200", "name": "Dubai Outlet Mall Area", "special": false, "note": "", "included": false}, {"id": "DXB-0201", "name": "Al Yufrah 1", "special": false, "note": "", "included": false}, {"id": "DXB-0202", "name": "Al Yufrah 2", "special": false, "note": "", "included": false}, {"id": "DXB-0203", "name": "Al Yufrah 3", "special": false, "note": "", "included": false}, {"id": "DXB-0204", "name": "Al Yelayiss 1", "special": false, "note": "", "included": false}, {"id": "DXB-0205", "name": "Al Yelayiss 2", "special": false, "note": "", "included": false}, {"id": "DXB-0206", "name": "Al Yelayiss 3", "special": false, "note": "", "included": false}, {"id": "DXB-0207", "name": "Al Yelayiss 4", "special": false, "note": "", "included": false}, {"id": "DXB-0208", "name": "Al Yelayiss 5", "special": false, "note": "", "included": false}, {"id": "DXB-0209", "name": "Madinat Hind 1", "special": false, "note": "", "included": false}, {"id": "DXB-0210", "name": "Madinat Hind 2", "special": false, "note": "", "included": false}, {"id": "DXB-0211", "name": "Madinat Hind 3", "special": false, "note": "", "included": false}, {"id": "DXB-0212", "name": "Madinat Hind 4", "special": false, "note": "", "included": false}, {"id": "DXB-0213", "name": "Al Lisaili", "special": false, "note": "", "included": false}, {"id": "DXB-0214", "name": "Margham", "special": false, "note": "", "included": false}, {"id": "DXB-0215", "name": "Lahbab", "special": false, "note": "", "included": false}]}, {"code": "E04", "name": "North-East Villas & Al Awir", "tier": "Extended", "communities": [{"id": "DXB-0216", "name": "Al Khawaneej 1", "special": false, "note": "", "included": false}, {"id": "DXB-0217", "name": "Al Khawaneej 2", "special": false, "note": "", "included": false}, {"id": "DXB-0218", "name": "Al Ttay", "special": false, "note": "DLD current name", "included": false}, {"id": "DXB-0219", "name": "Al Mizhar 1", "special": false, "note": "", "included": false}, {"id": "DXB-0220", "name": "Al Mizhar 2", "special": false, "note": "", "included": false}, {"id": "DXB-0221", "name": "Al Awir 1", "special": false, "note": "", "included": false}, {"id": "DXB-0222", "name": "Al Awir 2", "special": false, "note": "", "included": false}, {"id": "DXB-0223", "name": "Al Khawaneej", "special": false, "note": "Use numbered community where available", "included": false}, {"id": "DXB-0224", "name": "Wadi Al Amardi", "special": false, "note": "", "included": false}, {"id": "DXB-0225", "name": "Al Ruwayyah 1", "special": false, "note": "", "included": false}, {"id": "DXB-0226", "name": "Al Ruwayyah 2", "special": false, "note": "", "included": false}]}, {"code": "E05", "name": "Remote Dubai / Hatta", "tier": "Restricted", "communities": [{"id": "DXB-0227", "name": "Hatta", "special": false, "note": "Manual/dedicated supplier", "included": false}, {"id": "DXB-0228", "name": "Saih Al Salam", "special": false, "note": "Manual/dedicated supplier", "included": false}, {"id": "DXB-0229", "name": "Nazwah", "special": false, "note": "Manual/dedicated supplier", "included": false}, {"id": "DXB-0230", "name": "Al Faqa", "special": false, "note": "Manual/dedicated supplier", "included": false}, {"id": "DXB-0231", "name": "Al Marmoom", "special": false, "note": "Manual/dedicated supplier", "included": false}]}];
+
+// draft is a deep-cloned working copy used while the modal is open
+let draft = null;
+let expandedSet = new Set();
+
+function cloneData(){
+  return DATA.map(z => ({
+    code:z.code, name:z.name, tier:z.tier,
+    communities:z.communities.map(c=>({...c}))
+  }));
+}
+draft = cloneData();
+
+function zoneIncludedCount(zone){
+  return zone.communities.filter(c=>c.included).length;
+}
+function zoneState(zone){
+  const n = zoneIncludedCount(zone);
+  if(n === 0) return 'none';
+  if(n === zone.communities.length) return 'all';
+  return 'partial';
+}
+
+function renderTable(){
+  const activeZones = DATA.filter(z => zoneIncludedCount(z) > 0);
+  const totalCommunities = DATA.reduce((sum,z)=>sum+zoneIncludedCount(z),0);
+  document.getElementById('tableSummary').innerHTML =
+    `<strong>${activeZones.length}</strong> areas &middot; <strong>${totalCommunities}</strong> communities included`;
+
+  const tbody = document.getElementById('tableBody');
+  if(activeZones.length === 0){
+    tbody.innerHTML = `<tr><td colspan="3" style="text-align:center;color:var(--muted);padding:34px;">No service areas enabled yet. Click "Manage service areas" to add one.</td></tr>`;
+  } else {
+    tbody.innerHTML = activeZones.map(z => {
+      const total = z.communities.length;
+      const inc = zoneIncludedCount(z);
+      const state = zoneState(z);
+      const coverageHtml = state === 'all'
+        ? `<span class="coverage-pill">All ${total}</span>`
+        : `<span class="coverage-pill partial">${inc} of ${total}</span>`;
+      const commHtml = state === 'all'
+        ? `<div class="chip all-note">All communities in this area are included</div>`
+        : `<div class="chips">${z.communities.filter(c=>c.included).map(c=>`<span class="chip${c.special?' special':''}">${c.name}${c.special?' ⚠':''}</span>`).join('')}</div>`;
+      return `
+        <tr>
+          <td>
+            <div class="area-name">${z.name}</div>
+            <span class="tier-badge ${z.tier}">${z.tier}</span>
+          </td>
+          <td>${coverageHtml}</td>
+          <td>${commHtml}</td>
+        </tr>
+      `;
+    }).join('');
+  }
+
+  const errBanner = document.getElementById('errorBanner');
+  const navStatus = document.getElementById('navServiceAreaStatus');
+  if(totalCommunities === 0){
+    errBanner.classList.add('show');
+    navStatus.className = 'nav-status error';
+    navStatus.textContent = '!';
+  } else {
+    errBanner.classList.remove('show');
+    navStatus.className = 'nav-status done';
+    navStatus.textContent = '✓';
+  }
+}
+
+function openModal(){
+  draft = cloneData();
+  expandedSet = new Set();
+  document.getElementById('searchInput').value = '';
+  renderZoneList('');
+  updateFooterCounts();
+  document.getElementById('modalOverlay').classList.add('show');
+}
+function closeModal(){
+  document.getElementById('modalOverlay').classList.remove('show');
+}
+
+function highlight(text, q){
+  if(!q) return text;
+  const re = new RegExp('('+q.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+')','ig');
+  return text.replace(re, '<mark>$1</mark>');
+}
+
+function renderZoneList(query){
+  const list = document.getElementById('zoneList');
+  const q = query.trim().toLowerCase();
+
+  list.innerHTML = draft.map((z, zi) => {
+    const nameMatch = q && z.name.toLowerCase().includes(q);
+    const matchedCommunities = q ? z.communities.filter(c => c.name.toLowerCase().includes(q)) : [];
+    const hasMatch = !q || nameMatch || matchedCommunities.length>0;
+    const isExpanded = expandedSet.has(zi) || (q && matchedCommunities.length>0);
+
+    const state = zoneState(z);
+    const inc = zoneIncludedCount(z);
+
+    const classes = ['zone-card'];
+    if(state==='all') classes.push('checked');
+    if(q && !hasMatch) classes.push('dim');
+    if(q && hasMatch) classes.push('match-highlight');
+    if(isExpanded) classes.push('expanded');
+
+    const nameHtml = (q && nameMatch) ? highlight(z.name, q) : z.name;
+
+    const commRows = z.communities.map((c, ci) => {
+      const rowMatch = q && c.name.toLowerCase().includes(q);
+      const nameH = rowMatch ? highlight(c.name, q) : c.name;
+      return `
+        <label class="community-row${c.included?'':' excluded'}" data-zi="${zi}" data-ci="${ci}">
+          <input type="checkbox" ${c.included?'checked':''} onchange="toggleCommunity(${zi},${ci})">
+          <span class="c-name">${nameH}</span>
+          ${c.special ? `<span class="warn-ico" title="${c.note || 'Needs manual logistics check'}">⚠</span>` : ''}
+        </label>
+      `;
+    }).join('');
+
+    return `
+      <div class="${classes.join(' ')}" data-zi="${zi}">
+        <div class="zone-head" onclick="handleZoneHeadClick(event, ${zi})">
+          <input type="checkbox" ${state==='all'?'checked':''} data-indeterminate="${state==='partial'}" onclick="event.stopPropagation()" onchange="toggleZone(${zi})">
+          <div class="z-main">
+            <div class="z-title-row">
+              <span class="z-name">${nameHtml}</span>
+              <span class="tier-badge ${z.tier}">${z.tier}</span>
+            </div>
+            <div class="z-sub">${z.communities.length} communities</div>
+          </div>
+          <div class="z-count">${inc}/${z.communities.length}</div>
+          <div class="chevron" onclick="toggleExpand(event, ${zi})">▶</div>
+        </div>
+        <div class="community-list">
+          <div class="zone-actions">
+            <a onclick="setAllCommunities(${zi}, true)">Select all</a>
+            <a onclick="setAllCommunities(${zi}, false)">Clear all</a>
+          </div>
+          <div class="community-grid">${commRows}</div>
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  // apply indeterminate state (can't be set via HTML attribute)
+  list.querySelectorAll('.zone-head > input[type=checkbox]').forEach(cb=>{
+    cb.indeterminate = cb.getAttribute('data-indeterminate') === 'true';
+  });
+
+  if(q){
+    const target = list.querySelector('.match-highlight');
+    if(target && typeof target.scrollIntoView === 'function') target.scrollIntoView({block:'nearest', behavior:'smooth'});
+  }
+}
+
+function handleZoneHeadClick(evt, zi){
+  // clicking anywhere on the head row (except the checkbox / chevron, handled separately) expands/collapses
+  toggleExpand(evt, zi);
+}
+
+function toggleExpand(evt, zi){
+  evt.stopPropagation();
+  if(expandedSet.has(zi)) expandedSet.delete(zi);
+  else expandedSet.add(zi);
+  renderZoneList(document.getElementById('searchInput').value);
+}
+
+function toggleZone(zi){
+  const z = draft[zi];
+  const state = zoneState(z);
+  const newVal = state !== 'all'; // if not fully on, turn everything on; if fully on, turn everything off
+  z.communities.forEach(c => c.included = newVal);
+  renderZoneList(document.getElementById('searchInput').value);
+  updateFooterCounts();
+}
+
+function toggleCommunity(zi, ci){
+  draft[zi].communities[ci].included = !draft[zi].communities[ci].included;
+  renderZoneList(document.getElementById('searchInput').value);
+  updateFooterCounts();
+}
+
+function setAllCommunities(zi, val){
+  draft[zi].communities.forEach(c => c.included = val);
+  if(val) expandedSet.add(zi);
+  renderZoneList(document.getElementById('searchInput').value);
+  updateFooterCounts();
+}
+
+function updateFooterCounts(){
+  const zonesOn = draft.filter(z => zoneIncludedCount(z) > 0).length;
+  const commsOn = draft.reduce((sum,z)=>sum+zoneIncludedCount(z),0);
+  document.getElementById('selectedCount').textContent = zonesOn;
+  document.getElementById('selectedCommCount').textContent = commsOn;
+}
+
+function onSearch(){
+  renderZoneList(document.getElementById('searchInput').value);
+}
+
+function saveModal(){
+  draft.forEach((z, zi) => {
+    z.communities.forEach((c, ci) => {
+      DATA[zi].communities[ci].included = c.included;
+    });
+  });
+  closeModal();
+  renderTable();
+}
+
+renderTable();
+</script>
+
+</body>
+</html>

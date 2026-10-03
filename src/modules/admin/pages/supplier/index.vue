@@ -45,15 +45,17 @@
           <el-table-column :label="t('admin.platformSuppliers.supplier')" min-width="180" prop="supplierName" />
           <el-table-column :label="t('admin.platformSuppliers.categories')" min-width="180">
             <template #default="{ row }">
-              <div v-if="row.serviceCategories?.length" class="category-tags">
-                <el-tag v-for="cat in row.serviceCategories" :key="cat.categoryId" effect="plain">
-                  {{ categoryName(cat) }}
+              <div v-if="displayCategories(row).length" class="category-tags">
+                <el-tag v-for="cat in displayCategories(row)" :key="cat.key" effect="plain">
+                  {{ cat.label }}
                 </el-tag>
               </div>
               <span v-else>—</span>
             </template>
           </el-table-column>
-          <el-table-column :label="t('admin.platformSuppliers.contact')" min-width="120" prop="contactPerson" />
+          <el-table-column :label="t('admin.platformSuppliers.contact')" min-width="120">
+            <template #default="{ row }">{{ text(row.contactPerson) }}</template>
+          </el-table-column>
           <el-table-column :label="t('admin.platformSuppliers.phone')" min-width="140" prop="mobile" />
           <el-table-column :label="t('admin.platformSuppliers.serviceCount')" width="130" prop="serviceCount" />
           <el-table-column :label="t('admin.platformSuppliers.onboarding')" width="140">
@@ -121,7 +123,12 @@
 
         <section class="order-detail__panel order-detail__services">
           <h3>{{ t('admin.platformSuppliers.services') }}</h3>
-          <el-table :data="services" row-key="spuId" :empty-text="t('admin.platformSuppliers.noServices')">
+          <p v-if="!services.length" class="snapshot-note">{{ t('admin.platformSuppliers.noServicesHint') }}</p>
+          <div v-if="!services.length && expectedServiceNames.length" class="category-tags expected-categories">
+            <span>{{ t('admin.platformSuppliers.submittedCategories') }}</span>
+            <el-tag v-for="name in expectedServiceNames" :key="name" effect="plain">{{ name }}</el-tag>
+          </div>
+          <el-table v-else :data="services" row-key="spuId" :empty-text="t('admin.platformSuppliers.noServices')">
             <el-table-column :label="t('admin.platformSuppliers.category')" min-width="120">
               <template #default="{ row }">{{ serviceCategory(row) }}</template>
             </el-table-column>
@@ -163,6 +170,7 @@
               <h3>{{ t('admin.platformSuppliers.company') }}</h3>
               <dl class="order-detail__list">
                 <div><dt>{{ t('admin.platformSuppliers.licenseNo') }}</dt><dd>{{ text(profile.tradeLicenseNo) }}</dd></div>
+                <div><dt>{{ t('admin.platformSuppliers.licenseIssuedBy') }}</dt><dd>{{ licenseIssuerText(profile) }}</dd></div>
                 <div><dt>{{ t('admin.platformSuppliers.licenseExpiry') }}</dt><dd>{{ text(profile.licenseExpiry) }}</dd></div>
                 <div><dt>{{ t('admin.platformSuppliers.vat') }}</dt><dd>{{ text(profile.vatTrn) }}</dd></div>
                 <div><dt>{{ t('admin.platformSuppliers.years') }}</dt><dd>{{ text(profile.yearsInBusiness) }}</dd></div>
@@ -358,6 +366,7 @@ type SupplierRow = {
   mobile: string
   serviceCount: number
   serviceCategories?: ServiceCategory[]
+  expectedCategoryIds?: string[]
   onboardingStatus?: number
   onboardingStatusI18n?: Record<string, string>
   pendingReview?: boolean
@@ -366,10 +375,14 @@ type SupplierRow = {
 
 const route = useRoute()
 const router = useRouter()
-const { t } = useI18n({ useScope: 'global' })
+const { t, locale } = useI18n({ useScope: 'global' })
 const keyword = ref('')
 const quoteStatus = ref<number | ''>('')
-const onboardingStatus = ref<number | '' | null>('')
+const readStatusQuery = () => {
+  const status = Number(route.query.onboardingStatus)
+  return status === 0 || status === 1 || status === 2 || status === 3 ? status : ''
+}
+const onboardingStatus = ref<number | '' | null>(readStatusQuery())
 const needReview = ref<'' | 'yes' | 'no' | null>('')
 const pageNum = ref(1)
 const pageSize = 10
@@ -404,6 +417,14 @@ const filePreview = reactive({
   kind: 'other' as DocFile['kind'],
 })
 const text = (value: unknown) => (value === null || value === undefined || value === '' ? '—' : String(value))
+const LICENSE_AUTHORITY_OTHER = 'Other (type the authority name)'
+const licenseIssuerText = (record: Record<string, any>) => {
+  const extra = record?.extra && typeof record.extra === 'object' ? record.extra : {}
+  const issued = String(extra.licenseIssuedBy || '').trim()
+  const other = String(extra.licenseIssuedByOther || '').trim()
+  if (issued === LICENSE_AUTHORITY_OTHER) return other || '—'
+  return issued || '—'
+}
 const yesNo = (value: unknown) => (Number(value) === 1 ? t('admin.platformSuppliers.yes') : Number(value) === 0 ? t('admin.platformSuppliers.no') : '—')
 const staffText = (available: unknown, count: unknown) => {
   if (available === null || available === undefined || available === '') return '—'
@@ -546,15 +567,25 @@ type OnboardingListItem = {
   pendingReview?: boolean
   modifyTime?: string
   services?: ServiceCategory[]
+  expectedServiceCategoryIds?: Array<number | string>
 }
 
 const reviewChoice = () => (needReview.value === 'yes' || needReview.value === 'no' ? needReview.value : '')
+
+const categoryIdsOf = (item: OnboardingListItem) => (
+  Array.isArray(item.expectedServiceCategoryIds)
+    ? item.expectedServiceCategoryIds.map((id) => String(id)).filter((id) => id !== '')
+    : []
+)
 
 const attachOnboardingStatus = async (rows: SupplierRow[]) => {
   if (!rows.length) return rows
   const wanted = new Set(rows.map((row) => Number(row.id)))
   const statusById = new Map<number, number | undefined>()
   const reviewById = new Map<number, boolean>()
+  const contactById = new Map<number, string>()
+  const mobileById = new Map<number, string>()
+  const expectedById = new Map<number, string[]>()
   const statusPageSize = 200
   let statusPage = 1
   let statusTotal = 0
@@ -568,16 +599,26 @@ const attachOnboardingStatus = async (rows: SupplierRow[]) => {
       const status = Number(item.status)
       statusById.set(id, Number.isFinite(status) ? status : undefined)
       if (typeof item.pendingReview === 'boolean') reviewById.set(id, item.pendingReview)
+      const contact = String(item.contactPerson || '').trim()
+      const mobile = String(item.mobile || '').trim()
+      if (contact) contactById.set(id, contact)
+      if (mobile) mobileById.set(id, mobile)
+      const expected = categoryIdsOf(item)
+      if (expected.length) expectedById.set(id, expected)
     })
     if (statusById.size >= wanted.size || list.length < statusPageSize) break
     statusPage += 1
   } while ((statusPage - 1) * statusPageSize < statusTotal && statusPage <= 5)
   return rows.map((row) => {
     const parsed = row.onboardingStatus == null ? NaN : Number(row.onboardingStatus)
+    const id = Number(row.id)
     return {
       ...row,
-      onboardingStatus: Number.isFinite(parsed) ? parsed : statusById.get(Number(row.id)),
-      pendingReview: reviewById.get(Number(row.id)),
+      contactPerson: String(row.contactPerson || '').trim() || contactById.get(id) || '',
+      mobile: String(row.mobile || '').trim() || mobileById.get(id) || '',
+      expectedCategoryIds: expectedById.get(id) || [],
+      onboardingStatus: Number.isFinite(parsed) ? parsed : statusById.get(id),
+      pendingReview: reviewById.get(id),
     }
   })
 }
@@ -647,13 +688,42 @@ const toReviewRow = (item: OnboardingListItem, quote?: SupplierRow): SupplierRow
       : (Number.isFinite(Number(item.status)) ? Number(item.status) : undefined),
     onboardingStatusI18n: quote?.onboardingStatusI18n,
     pendingReview: item.pendingReview,
+    expectedCategoryIds: categoryIdsOf(item),
     latestSubmitTime: quote?.latestSubmitTime || item.modifyTime,
   }
+}
+
+const ensureCategoryLabels = async () => {
+  try {
+    const options = await listServiceCategories()
+    const labels: Record<string, string> = {}
+    options.forEach((option) => {
+      labels[option.categoryId] = serviceCategoryLabel(option, String(locale.value || 'zh'))
+    })
+    onboardingCategoryLabels.value = labels
+  } catch {
+    onboardingCategoryLabels.value = {}
+  }
+}
+
+const displayCategories = (row: SupplierRow) => {
+  void locale.value
+  if (row.serviceCategories?.length) {
+    return row.serviceCategories.map((cat) => ({
+      key: String(cat.categoryId),
+      label: categoryName(cat),
+    }))
+  }
+  return (row.expectedCategoryIds || []).map((id) => ({
+    key: id,
+    label: onboardingCategoryLabels.value[id] || id,
+  }))
 }
 
 const loadSuppliers = async () => {
   loading.value = true
   try {
+    await ensureCategoryLabels()
     const review = reviewChoice()
     if (review) {
       const [onboardingRows, quoteRows] = await Promise.all([
@@ -760,17 +830,8 @@ const backToList = () => {
 }
 
 const approveOnboarding = async () => {
-  if (!detailId.value) return
+  if (!detailId.value || saving.value) return
   const firstReview = onboarding.reviewKind !== 2
-  try {
-    await ElMessageBox.confirm(
-      firstReview ? t('admin.platformSuppliers.approveOnboardingConfirm') : '',
-      t('admin.platformSuppliers.approveOnboardingTitle'),
-      firstReview ? undefined : { customClass: 'approve-plain-confirm' },
-    )
-  } catch {
-    return
-  }
   saving.value = true
   try {
     await onboardingChangeStatus({ id: detailId.value, status: 2 })
@@ -946,6 +1007,15 @@ watch(detailId, (id) => {
   if (id) loadReview(id)
 }, { immediate: true })
 
+watch(() => route.query.onboardingStatus, (value) => {
+  if (value == null || value === '') return
+  const next = readStatusQuery()
+  if (next === '' || next === onboardingStatus.value) return
+  onboardingStatus.value = next
+  pageNum.value = 1
+  if (!detailId.value) loadSuppliers()
+})
+
 onMounted(loadSuppliers)
 </script>
 
@@ -962,6 +1032,8 @@ onMounted(loadSuppliers)
 .board__count { color: #6d7686; font-size: 13px; }
 .board :deep(.el-pagination) { justify-content: flex-end; margin-top: 12px; }
 .category-tags { display: flex; flex-wrap: wrap; gap: 4px; }
+.expected-categories { align-items: center; margin: 0 0 8px; }
+.expected-categories > span { width: 100%; color: #74685a; font-size: 12px; }
 .phone-list { display: flex; flex-direction: column; gap: 2px; line-height: 1.45; }
 .supplier-review :deep(td.phone-col .cell) { white-space: normal; overflow: visible; text-overflow: clip; }
 .sku-meta { margin: 0 0 10px; color: #6d7686; font-size: 13px; }
