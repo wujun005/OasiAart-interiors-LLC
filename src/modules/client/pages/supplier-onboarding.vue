@@ -113,8 +113,8 @@
               <strong>{{ item.label }}<i class="req">*</i></strong>
             </div>
             <div class="yes-no">
-              <button type="button" :class="{ 'is-on': form[item.key] === 1 }" @click="form[item.key] = 1">{{ copy.yes }}</button>
-              <button type="button" :class="{ 'is-on': form[item.key] === 0 }" @click="form[item.key] = 0">{{ copy.no }}</button>
+              <button type="button" :class="{ 'is-on': form[item.key] === 1 }" @click="setCapacity(item.key, 1)">{{ copy.yes }}</button>
+              <button type="button" :class="{ 'is-on': form[item.key] === 0 }" @click="setCapacity(item.key, 0)">{{ copy.no }}</button>
             </div>
           </article>
           <article>
@@ -193,7 +193,8 @@ const form = reactive({
   minLeadTimeHours: null as number | null,
   workStart: '08:00',
   workEnd: '20:00',
-  weekendService: 1 as Bit,
+  saturdayService: 1 as Bit,
+  sundayService: 1 as Bit,
   publicHolidayService: 1 as Bit,
   emergencyService: null as Bit,
   emaarOnboarded: null as Bit,
@@ -250,8 +251,8 @@ const copy = computed(() =>
         applyRenmarkPlaceholder: '请填写入驻过的其他社区，最多 512 字',
         submit: '提交审核',
         saving: '提交中',
-        doneTitle: '申请提交成功',
-        doneBody: '感谢提交申请。申请正在审核。审核通过后，将为您创建服务伙伴账号。账号信息和登录方式会发送到申请中填写的邮箱。',
+        doneTitle: 'Application Submitted Successfully',
+        doneBody: "Thank you! Your application is under review. Once approved, we'll email your login details. Please check your inbox and spam folder.",
         backJoin: '返回合作页',
         requiredHint: '标有 * 的为必填，其余为选填。',
         optional: '选填',
@@ -312,7 +313,7 @@ const copy = computed(() =>
         submit: 'Submit for review',
         saving: 'Submitting',
         doneTitle: 'Application Submitted Successfully',
-        doneBody: 'Thank you for submitting your application. Your application is now under review. Once approved, your service partner account will be created. Your account details and login credentials will be shared with you via the email address provided in your application.',
+        doneBody: "Thank you! Your application is under review. Once approved, we'll email your login details. Please check your inbox and spam folder.",
         backJoin: 'Back to Partners',
         requiredHint: 'Fields marked with * are required. All other fields are optional.',
         optional: 'Optional',
@@ -340,10 +341,14 @@ const copy = computed(() =>
 );
 
 const capacityChoices = computed(() => [
-  { key: 'weekendService' as const, label: isZh.value ? '您周末工作吗？' : 'Do you work on weekends?' },
+  { key: 'saturdayService' as const, label: isZh.value ? '您周六提供服务吗？' : 'Do you provide service on Saturdays?' },
+  { key: 'sundayService' as const, label: isZh.value ? '您周日提供服务吗？' : 'Do you provide service on Sundays?' },
   { key: 'publicHolidayService' as const, label: isZh.value ? '您公共假期工作吗？' : 'Do you work on public holidays?' },
   { key: 'emergencyService' as const, label: isZh.value ? '您可以接紧急订单吗？' : 'Can you take urgent / emergency jobs?' },
 ]);
+const setCapacity = (key: 'saturdayService' | 'sundayService' | 'publicHolidayService' | 'emergencyService', value: Bit) => {
+  form[key] = value
+}
 
 const setOtherCommunity = (value: Bit) => {
   form.otherCommunityOnboarded = value
@@ -431,7 +436,9 @@ const submit = async () => {
       totalAvailableWorkers: form.totalAvailableWorkers,
       maxSimultaneousOrders: form.maxSimultaneousOrders,
       workingHours: `${form.workStart}-${form.workEnd}`,
-      weekendService: form.weekendService,
+      weekendService: form.saturdayService === 1 || form.sundayService === 1 ? 1 : 0,
+      saturdayService: form.saturdayService,
+      sundayService: form.sundayService,
       publicHolidayService: form.publicHolidayService,
       emergencyService: form.emergencyService,
       minLeadTimeHours: form.minLeadTimeHours,

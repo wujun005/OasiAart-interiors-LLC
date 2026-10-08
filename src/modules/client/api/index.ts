@@ -48,6 +48,7 @@ export interface OrderListRecord {
   roomNo?: string;
   community?: string;
   remark?: string;
+  additionalNotes?: string;
   cancelReason?: string;
   cancellationReason?: string;
   serviceDateTime?: string;

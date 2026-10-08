@@ -29,7 +29,7 @@
       <div class="hour-grid">
         <article>
           <span>{{ t('admin.supplierAvailability.workingDays') }}</span>
-          <strong>{{ weekend ? t('admin.supplierAvailability.daysAll') : t('admin.supplierAvailability.daysWeek') }}</strong>
+          <strong>{{ workingDaysText }}</strong>
         </article>
         <article>
           <span>{{ t('admin.supplierAvailability.workingHours') }}</span>
@@ -61,11 +61,14 @@
         <el-table-column :label="t('admin.supplierAvailability.time')" min-width="140">
           <template #default="{ row }">{{ eventTime(row) }}</template>
         </el-table-column>
+        <el-table-column :label="t('admin.supplierAvailability.weekdays')" min-width="160">
+          <template #default="{ row }">{{ weekdayText(row) }}</template>
+        </el-table-column>
         <el-table-column :label="t('admin.supplierAvailability.service')" min-width="180">
           <template #default="{ row }">
             <div class="tag-row">
               <em v-if="!row.services?.length">{{ t('admin.supplierAvailability.allServices') }}</em>
-              <em v-for="service in row.services" v-else :key="service.spuId">{{ service.serviceName || service.spuId }}</em>
+              <em v-for="service in row.services" v-else :key="service.spuId">{{ serviceLabel(service) }}</em>
             </div>
           </template>
         </el-table-column>
@@ -97,6 +100,23 @@
           <span>{{ t('admin.supplierAvailability.date') }}</span>
           <el-date-picker v-model="blockForm.dates" type="daterange" value-format="YYYY-MM-DD" :start-placeholder="t('admin.supplierAvailability.date')" :end-placeholder="t('admin.supplierAvailability.date')" />
         </label>
+        <div class="weekday-field">
+          <span>{{ t('admin.supplierAvailability.weekdays') }}</span>
+          <small>{{ t('admin.supplierAvailability.weekdaysHint') }}</small>
+          <div class="weekday-picks">
+            <button
+              v-for="day in weekdayChoices"
+              :key="day.code"
+              type="button"
+              :class="{ 'is-on': blockForm.weekdays.includes(day.code) }"
+              :aria-pressed="blockForm.weekdays.includes(day.code)"
+              @click="toggleWeekday(day.code)"
+            >
+              <i class="weekday-check" aria-hidden="true"></i>
+              {{ day.label }}
+            </button>
+          </div>
+        </div>
         <label class="hours-form__switch">
           <span>
             <strong>{{ t('admin.supplierAvailability.allDay') }}</strong>
@@ -151,10 +171,17 @@
         </label>
         <label class="hours-form__switch">
           <span>
-            <strong>{{ t('admin.supplierAvailability.weekend') }}</strong>
-            <small>{{ t('admin.supplierAvailability.weekendHint') }}</small>
+            <strong>{{ t('admin.supplierAvailability.saturday') }}</strong>
+            <small>{{ t('admin.supplierAvailability.saturdayHint') }}</small>
           </span>
-          <el-switch v-model="draft.weekend" />
+          <el-switch v-model="draft.saturday" />
+        </label>
+        <label class="hours-form__switch">
+          <span>
+            <strong>{{ t('admin.supplierAvailability.sunday') }}</strong>
+            <small>{{ t('admin.supplierAvailability.sundayHint') }}</small>
+          </span>
+          <el-switch v-model="draft.sunday" />
         </label>
       </div>
       <template #footer>
@@ -188,7 +215,7 @@
       <ul v-if="pickedEvents.length" class="cal-list">
         <li v-for="event in pickedEvents" :key="event.id">
           <strong>{{ eventTime(event) }}</strong>
-          <span>{{ event.reason || eventDate(event) }}</span>
+          <span>{{ [weekdayText(event), event.reason || eventDate(event)].filter(Boolean).join(' · ') }}</span>
         </li>
       </ul>
     </el-dialog>
@@ -211,10 +238,12 @@ type SupplierEvent = {
   fullDay: number
   startTime?: string
   endTime?: string
+  weekdays?: Array<number | string>
   services: ServiceItem[]
   areas: AreaItem[]
   reason?: string
 }
+const ALL_WEEKDAYS = [1, 2, 3, 4, 5, 6, 7]
 
 const props = defineProps<{
   enabled: boolean
@@ -224,20 +253,27 @@ const props = defineProps<{
   start: string
   end: string
   concurrent: number
-  weekend: boolean
+  saturday: boolean
+  sunday: boolean
   saving: boolean
   services?: { spuId: number; name: string }[]
   areas?: { areaId: number; areaName: string }[]
 }>()
 
 const emit = defineEmits<{
-  'save-hours': [payload: { start: string; end: string; concurrent: number; weekend: boolean }]
+  'save-hours': [payload: { start: string; end: string; concurrent: number; saturday: boolean; sunday: boolean }]
   'toggle-dispatch': [value: boolean]
 }>()
 
 const { t, locale } = useI18n({ useScope: 'global' })
 const accepting = computed(() => props.acceptDispatch)
 const hourText = computed(() => (props.start && props.end ? `${props.start} – ${props.end}` : '—'))
+const workingDaysText = computed(() => {
+  if (props.saturday && props.sunday) return t('admin.supplierAvailability.daysAll')
+  if (props.saturday) return t('admin.supplierAvailability.daysWithSaturday')
+  if (props.sunday) return t('admin.supplierAvailability.daysWithSunday')
+  return t('admin.supplierAvailability.daysWeek')
+})
 
 const loading = ref(false)
 const loadError = ref('')
@@ -256,6 +292,7 @@ const blockForm = reactive({
   fullDay: false,
   startTime: '',
   endTime: '',
+  weekdays: [] as number[],
   spuIds: [] as number[],
   areaIds: [] as number[],
   reason: '',
@@ -263,7 +300,7 @@ const blockForm = reactive({
 const calendarOpen = ref(false)
 const cursor = ref(new Date())
 const pickedDay = ref('')
-const draft = reactive({ start: '', end: '', concurrent: 0, weekend: false })
+const draft = reactive({ start: '', end: '', concurrent: 0, saturday: false, sunday: false })
 
 const eventDate = (row: SupplierEvent) => {
   const start = formatDay(row.startDate)
@@ -275,6 +312,50 @@ const eventDate = (row: SupplierEvent) => {
 const eventTime = (row: SupplierEvent) => {
   if (Number(row.fullDay) === 1 || (!row.startTime && !row.endTime)) return t('admin.supplierAvailability.allDay')
   return [row.startTime, row.endTime].filter(Boolean).join(' – ')
+}
+const normalizeWeekdays = (value?: Array<number | string>) => {
+  const codes = [...new Set((value || []).map((item) => Number(item)).filter((code) => code >= 1 && code <= 7))].sort((a, b) => a - b)
+  return !codes.length || codes.length === 7 ? [...ALL_WEEKDAYS] : codes
+}
+const weekdayChoices = computed(() => {
+  const base = new Date(2024, 0, 1)
+  return ALL_WEEKDAYS.map((code, index) => {
+    const day = new Date(base)
+    day.setDate(base.getDate() + index)
+    return {
+      code,
+      label: day.toLocaleDateString(locale.value === 'zh' ? 'zh-CN' : 'en-US', { weekday: 'short' }),
+    }
+  })
+})
+const weekdayText = (row: SupplierEvent) => {
+  const codes = normalizeWeekdays(row.weekdays)
+  if (codes.length === 7) return t('admin.supplierAvailability.weekdaysEvery')
+  const labels = new Map(weekdayChoices.value.map((day) => [day.code, day.label]))
+  return codes.map((code) => labels.get(code) || String(code)).join(locale.value === 'zh' ? '、' : ', ')
+}
+const toggleWeekday = (code: number) => {
+  const next = new Set(blockForm.weekdays)
+  if (next.has(code)) next.delete(code)
+  else next.add(code)
+  blockForm.weekdays = [...next].sort((a, b) => a - b)
+}
+const isoWeekday = (key: string) => {
+  const [year, month, day] = key.split('-').map(Number)
+  if (!year || !month || !day) return 0
+  const date = new Date(year, month - 1, day)
+  return date.getDay() === 0 ? 7 : date.getDay()
+}
+const rangeHasWeekday = (start: string, end: string, codes: number[]) => {
+  const cursor = new Date(`${start}T00:00:00`)
+  const last = new Date(`${end}T00:00:00`)
+  if (Number.isNaN(cursor.getTime()) || Number.isNaN(last.getTime())) return false
+  for (let index = 0; index < 7 && cursor <= last; index += 1) {
+    const code = cursor.getDay() === 0 ? 7 : cursor.getDay()
+    if (codes.includes(code)) return true
+    cursor.setDate(cursor.getDate() + 1)
+  }
+  return false
 }
 const formatDay = (value?: string) => {
   if (!value) return ''
@@ -316,7 +397,8 @@ const openHours = () => {
   draft.start = props.start || '08:00'
   draft.end = props.end || '20:00'
   draft.concurrent = props.concurrent || 0
-  draft.weekend = props.weekend
+  draft.saturday = props.saturday
+  draft.sunday = props.sunday
   hoursOpen.value = true
 }
 const saveHours = () => {
@@ -328,7 +410,8 @@ const saveHours = () => {
     start: draft.start,
     end: draft.end,
     concurrent: Number(draft.concurrent || 0),
-    weekend: draft.weekend,
+    saturday: draft.saturday,
+    sunday: draft.sunday,
   })
   hoursOpen.value = false
 }
@@ -339,6 +422,11 @@ const serviceChoices = computed(() => {
   for (const service of extraServices.value) if (!map.has(service.spuId)) map.set(service.spuId, service.name)
   return [...map.entries()].map(([spuId, name]) => ({ spuId, name }))
 })
+const serviceLabel = (service: ServiceItem) => (
+  serviceChoices.value.find((item) => item.spuId === Number(service.spuId))?.name
+  || service.serviceName
+  || String(service.spuId)
+)
 const areaChoices = computed(() => {
   const map = new Map<number, string>()
   for (const area of props.areas || []) map.set(area.areaId, area.areaName)
@@ -358,6 +446,7 @@ const openBlock = (row?: SupplierEvent) => {
   blockForm.fullDay = Number(row?.fullDay) === 1
   blockForm.startTime = row?.startTime || ''
   blockForm.endTime = row?.endTime || ''
+  blockForm.weekdays = row ? normalizeWeekdays(row.weekdays) : []
   blockForm.spuIds = (row?.services || []).map((service) => service.spuId)
   blockForm.areaIds = (row?.areas || []).map((area) => area.areaId)
   blockForm.reason = row?.reason || ''
@@ -371,6 +460,14 @@ const saveBlock = async () => {
   }
   if (endDate < startDate) {
     ElMessage.warning(t('admin.supplierAvailability.dateInvalid'))
+    return
+  }
+  if (!blockForm.weekdays.length) {
+    ElMessage.warning(t('admin.supplierAvailability.weekdaysRequired'))
+    return
+  }
+  if (blockForm.weekdays.length < 7 && !rangeHasWeekday(startDate, endDate, blockForm.weekdays)) {
+    ElMessage.warning(t('admin.supplierAvailability.weekdaysOutOfRange'))
     return
   }
   if (!blockForm.fullDay && (!blockForm.startTime || !blockForm.endTime)) {
@@ -395,6 +492,7 @@ const saveBlock = async () => {
       fullDay: blockForm.fullDay ? 1 : 0,
       startTime: blockForm.fullDay ? null : blockForm.startTime,
       endTime: blockForm.fullDay ? null : blockForm.endTime,
+      weekdays: [...blockForm.weekdays],
       spuIds: blockForm.spuIds,
       areaIds: blockForm.areaIds,
       reason: reason || null,
@@ -427,7 +525,9 @@ const dayKey = (date: Date) => {
 const covers = (event: SupplierEvent, key: string) => {
   const start = event.startDate || key
   const end = event.endDate || start
-  return key >= start && key <= end
+  if (key < start || key > end) return false
+  const codes = normalizeWeekdays(event.weekdays)
+  return codes.length === 7 || codes.includes(isoWeekday(key))
 }
 const calendarDays = computed(() => {
   const year = cursor.value.getFullYear()
@@ -495,6 +595,15 @@ onMounted(loadEvents)
 .hours-form__switch strong, .hours-form__switch small { display: block; }
 .hours-form__switch strong { color: #05152b; font-size: 14px; }
 .hours-form__switch small { margin-top: 4px; color: #74685a; font-size: 12px; font-weight: 500; }
+.weekday-field { display: flex; flex-direction: column; gap: 8px; }
+.weekday-field > span { color: #74685a; font-size: 12px; font-weight: 700; }
+.weekday-field small { color: #74685a; font-size: 12px; line-height: 1.45; }
+.weekday-picks { display: flex; flex-wrap: wrap; gap: 8px; }
+.weekday-picks button { display: inline-flex; align-items: center; gap: 8px; min-height: 40px; padding: 6px 12px 6px 6px; border: 1px solid #e6dccb; border-radius: 12px; background: #fff; color: #5c564c; font: inherit; font-size: 14px; font-weight: 700; cursor: pointer; }
+.weekday-check { display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 26px; border: 1.5px solid #cfc3b2; border-radius: 8px; background: #fff; flex: none; }
+.weekday-picks button.is-on { border-color: #05152b; background: #eef1f4; color: #05152b; }
+.weekday-picks button.is-on .weekday-check { border-color: #05152b; background: #05152b; }
+.weekday-picks button.is-on .weekday-check::after { content: ''; width: 6px; height: 11px; margin-top: -2px; border: solid #fff; border-width: 0 2.5px 2.5px 0; transform: rotate(45deg); }
 .cal-hint { margin: 0 0 14px; color: #74685a; font-size: 13px; line-height: 1.5; }
 .cal-nav { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
 .cal-nav strong { color: #05152b; font-family: Fraunces, Georgia, serif; font-size: 22px; font-weight: 520; }

@@ -48,6 +48,10 @@ type AdminMenuPermissionState = {
 const ROOT_PATH = '/admin';
 const LOGIN_PATH = '/admin/login';
 const FIXED_OVERVIEW_MENU_ID = 'fixed-overview';
+const FIXED_DEVELOPER_MENU_ID = 'fixed-developer-tools';
+const FIXED_WHITELIST_MENU_ID = 'fixed-supplier-registration-whitelist';
+const DEVELOPER_PATH = '/admin/developer';
+const WHITELIST_PATH = '/admin/developer/supplier-registration-whitelist';
 const MENU_PATH_ALIASES: Record<string, string> = {
   '/admin/supplier': '/admin/supplier-management',
   '/admin/supplier/profile': '/admin/supplier-management/profile',
@@ -201,6 +205,9 @@ const hasOverviewLeaf = (nodes: AdminMenuPermissionItem[]): boolean =>
     (node.path === ROOT_PATH && node.children.length === 0) || hasOverviewLeaf(node.children)
   ));
 
+const hasMenuPath = (nodes: AdminMenuPermissionItem[], path: string): boolean =>
+  nodes.some((node) => node.path === path || hasMenuPath(node.children, path));
+
 const releaseOverviewPathFromGroups = (nodes: AdminMenuPermissionItem[]) => {
   nodes.forEach((node) => {
     if (node.path === ROOT_PATH && node.children.length > 0) {
@@ -212,16 +219,36 @@ const releaseOverviewPathFromGroups = (nodes: AdminMenuPermissionItem[]) => {
 
 const pinSuperAdminOverview = (roots: AdminMenuPermissionItem[]) => {
   releaseOverviewPathFromGroups(roots);
-  if (hasOverviewLeaf(roots)) return;
-  roots.push({
-    id: FIXED_OVERVIEW_MENU_ID,
-    name: '概览',
-    path: ROOT_PATH,
-    icon: 'house',
-    parentId: 0,
-    sortOrder: -1,
-    children: [],
-  });
+  if (!hasOverviewLeaf(roots)) {
+    roots.push({
+      id: FIXED_OVERVIEW_MENU_ID,
+      name: '概览',
+      path: ROOT_PATH,
+      icon: 'house',
+      parentId: 0,
+      sortOrder: -1,
+      children: [],
+    });
+  }
+  if (!hasMenuPath(roots, WHITELIST_PATH)) {
+    roots.push({
+      id: FIXED_DEVELOPER_MENU_ID,
+      name: '开发工具',
+      path: DEVELOPER_PATH,
+      icon: 'setting',
+      parentId: 0,
+      sortOrder: 90,
+      children: [{
+        id: FIXED_WHITELIST_MENU_ID,
+        name: '供应商注册白名单',
+        path: WHITELIST_PATH,
+        icon: 'setting',
+        parentId: FIXED_DEVELOPER_MENU_ID,
+        sortOrder: 1,
+        children: [],
+      }],
+    });
+  }
 };
 
 const hydrateMenuState = (list: RawMenuItem[], pinOverview = false) => {
@@ -376,6 +403,9 @@ export const resolveAllowedAdminPath = (path: string) => {
   if (!normalized) return '';
   if (normalized === LOGIN_PATH) return LOGIN_PATH;
   if (!normalized.startsWith(ROOT_PATH)) return normalized;
+  if (normalized === '/admin/review-notices') {
+    return adminMenuState.allowedPaths.includes('/admin/basic/suppliers') ? normalized : '';
+  }
 
   if (adminMenuState.allowedPaths.includes(normalized)) {
     return normalized;

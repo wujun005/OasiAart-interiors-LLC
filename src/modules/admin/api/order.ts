@@ -76,6 +76,10 @@ export function edit(payload: OrderAdminEditPayload) {
   return http.post('/api/orderHeader/edit', payload);
 }
 
+export function serviceTimeRanges() {
+  return http.get('/api/orderHeader/serviceTimeRanges');
+}
+
 // /api/orderHeader/updateAdminRemark 订单备注
 export function updateAdminRemark(payload: any) {
   return http.post('/api/orderHeader/updateAdminRemark', payload);

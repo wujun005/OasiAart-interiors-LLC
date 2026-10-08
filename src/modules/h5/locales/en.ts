@@ -247,7 +247,8 @@ const en = {
     leadTime: 'How many hours\' notice do you need before a job?',
     workStart: 'What time do you start work?',
     workEnd: 'What time do you finish work?',
-    weekend: 'Do you work on weekends?',
+    saturday: 'Do you provide service on Saturdays?',
+    sunday: 'Do you provide service on Sundays?',
     holiday: 'Do you work on public holidays?',
     emergency: 'Can you take urgent / emergency jobs?',
     emaar: 'Are you registered with an Emaar community?',
@@ -271,7 +272,7 @@ const en = {
     serviceNotePlaceholder: 'Describe the other services you can provide. Up to 512 characters.',
     serviceNoteError: 'Please describe the other services',
     doneTitle: 'Application Submitted Successfully',
-    doneBody: 'Thank you for submitting your application. Your application is now under review. Once approved, your service partner account will be created. Your account details and login credentials will be shared with you via the email address provided in your application.',
+    doneBody: "Thank you! Your application is under review. Once approved, we'll email your login details. Please check your inbox and spam folder.",
     back: 'Back to Partners',
   },
 }

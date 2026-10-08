@@ -44,8 +44,27 @@
               {{ row.serviceTime || "-" }}
             </span>
             <span class="orders-h5__pills">
-              <span class="orders-h5__pill">{{ orderStatusLabel(row.orderStatusCode) }}</span>
+              <span class="orders-h5__status-wrap" @click.stop @keydown.enter.stop>
+                <el-select
+                  class="orders-h5__status"
+                  :class="`order-status-select--${orderStatusTone(row.orderStatusCode)}`"
+                  :model-value="row.orderStatusCode"
+                  :disabled="!row.orderId || updatingStatusOrderId !== null"
+                  :loading="updatingStatusOrderId === row.id"
+                  @change="(value: number) => handleOrderStatusChange(row, value)"
+                >
+                  <el-option
+                    v-for="item in orderStatusOptions"
+                    :key="item.value"
+                    :label="item.label"
+                    :value="item.value"
+                  />
+                </el-select>
+              </span>
               <span class="orders-h5__pill orders-h5__pill--quiet">{{ row.paymentStatusText }}</span>
+              <span v-if="showsNoRefundNote(row)" class="orders-h5__pill orders-h5__pill--alert">
+                {{ t("admin.orders.table.noRefund") }}
+              </span>
               <span v-if="hasUnreadReschedule(row)" class="orders-h5__pill orders-h5__pill--alert">
                 {{ t("admin.orders.table.rescheduledUnread") }}
               </span>
@@ -363,7 +382,30 @@
               <el-tooltip :content="formatServiceAddress(row)" placement="top" :show-after="250">
                 <span class="table-stack__ellipsis">{{ formatServiceAddress(row) }}</span>
               </el-tooltip>
+              <el-tooltip
+                v-if="row.additionalNotes"
+                :content="row.additionalNotes"
+                placement="top"
+                :show-after="250"
+              >
+                <small class="table-stack__ellipsis">{{ t('admin.orders.detail.additionalNotes') }}: {{ row.additionalNotes }}</small>
+              </el-tooltip>
             </div>
+          </template>
+        </el-table-column>
+        <el-table-column
+          :label="t('admin.orders.table.bookingNotes')"
+          min-width="160"
+        >
+          <template #default="{ row }">
+            <el-tooltip
+              :content="row.customerRemark || '-'"
+              placement="top"
+              :show-after="250"
+              :disabled="!row.customerRemark"
+            >
+              <span class="table-stack__ellipsis order-remark-text">{{ row.customerRemark || "-" }}</span>
+            </el-tooltip>
           </template>
         </el-table-column>
         <el-table-column
@@ -388,12 +430,15 @@
         />
         <el-table-column
           :label="t('admin.orders.table.paymentStatus')"
-          width="86"
+          width="108"
         >
           <template #default="{ row }">
-            <el-tag :type="paymentStatusTag(row.paymentStatusCode)">
-              {{ row.paymentStatusText }}
-            </el-tag>
+            <div class="payment-status-cell">
+              <el-tag :type="paymentStatusTag(row.paymentStatusCode)">
+                {{ row.paymentStatusText }}
+              </el-tag>
+              <small v-if="showsNoRefundNote(row)">{{ t("admin.orders.table.noRefund") }}</small>
+            </div>
           </template>
         </el-table-column>
         <el-table-column
@@ -632,9 +677,12 @@
         <section class="order-detail__status-bar">
           <strong>{{ t("admin.orders.detail.statusControl") }}</strong>
           <div class="order-detail__tags">
-            <el-tag :type="paymentStatusTag(detailRow.paymentStatusCode)" round>
-              {{ detailRow.paymentStatusText }}
-            </el-tag>
+            <span class="payment-status-cell">
+              <el-tag :type="paymentStatusTag(detailRow.paymentStatusCode)" round>
+                {{ detailRow.paymentStatusText }}
+              </el-tag>
+              <small v-if="showsNoRefundNote(detailRow)">{{ t("admin.orders.table.noRefund") }}</small>
+            </span>
             <el-select
               v-if="isOrdersH5"
               class="h5-status-select"
@@ -834,6 +882,14 @@
               </div>
               <div class="order-detail__note">
                 {{ displayValue(detailRow.customerRemark) }}
+              </div>
+            </section>
+            <section v-if="detailRow.additionalNotes" class="order-detail__panel">
+              <div class="order-detail__panel-title">
+                <h3>{{ t("admin.orders.detail.additionalNotes") }}</h3>
+              </div>
+              <div class="order-detail__note">
+                {{ detailRow.additionalNotes }}
               </div>
             </section>
 
@@ -1466,6 +1522,7 @@ import {
   getRefundReasons,
   page,
   querySuppliers,
+  serviceTimeRanges,
   stripeRefund as requestStripeRefund,
   updateOrderStatus,
   updateAdminRemark,
@@ -1513,6 +1570,7 @@ type OrderRow = {
   contactEmail: string
   userEmail: string
   customerRemark: string
+  additionalNotes: string
   cancelReason: string
   cancelReasonRemark: string
   cancelledAt: string
@@ -1650,9 +1708,6 @@ const orderStatusOptions = computed(() => [
   { value: 6, label: t("admin.orders.status.orderRefundRejected") },
 ])
 
-const orderStatusLabel = (code: number | null) =>
-  orderStatusOptions.value.find((item) => item.value === code)?.label || "-"
-
 const orderStatusLegend = computed(() =>
   orderStatusOptions.value.filter((item) =>
     [0, 1, 2, 3, 5].includes(item.value),
@@ -1728,7 +1783,7 @@ const detailEditForm = reactive({
   timeRange: null as number | null,
   remark: "",
 })
-const serviceTimeRangeOptions = [
+const fallbackTimeRanges = [
   { value: 1, label: "09:00-11:00" },
   { value: 2, label: "11:00-13:00" },
   { value: 3, label: "13:00-15:00" },
@@ -1736,6 +1791,26 @@ const serviceTimeRangeOptions = [
   { value: 5, label: "17:00-19:00" },
   { value: 6, label: "19:00-21:00" },
 ]
+const serviceTimeRangeOptions = ref([...fallbackTimeRanges])
+const loadServiceTimeRanges = async () => {
+  try {
+    const payload: any = await serviceTimeRanges()
+    const list = Array.isArray(payload)
+      ? payload
+      : Array.isArray(payload?.data)
+        ? payload.data
+        : []
+    const options = list
+      .map((item: any) => ({
+        value: Number(item?.value),
+        label: String(item?.name || "").trim(),
+      }))
+      .filter((item: { value: number; label: string }) => Number.isFinite(item.value) && item.label)
+    if (options.length) serviceTimeRangeOptions.value = options
+  } catch {
+    if (!serviceTimeRangeOptions.value.length) serviceTimeRangeOptions.value = [...fallbackTimeRanges]
+  }
+}
 const remarkDialogVisible = ref(false)
 const remarkSubmitting = ref(false)
 const remarkForm = reactive({
@@ -1876,6 +1951,21 @@ const canStripeRefund = (row: OrderRow) =>
 const hasOrderRemark = (row: OrderRow) => Boolean(row.adminRemark.trim())
 
 const isCustomerCancelled = (row: OrderRow) => row.orderStatusCode === 3
+
+const refundAmountIsPositive = (text: string) => {
+  const numeric = Number(String(text || "").replace(/[^\d.-]/g, ""))
+  return Number.isFinite(numeric) && numeric > 0
+}
+
+const showsNoRefundNote = (row: OrderRow) => {
+  if (row.orderStatusCode !== 3 || row.paymentStatusCode !== 1) return false
+  const info = row.refundInfo
+  if (!info) return true
+  return (
+    !refundAmountIsPositive(info.refundedAmountText) &&
+    !refundAmountIsPositive(info.requestedRefundAmountText)
+  )
+}
 
 const cancellationReasonText = (row: OrderRow) =>
   row.cancelReason ||
@@ -2022,7 +2112,19 @@ const openDetailEdit = () => {
     timeRange: row.timeRange,
     remark: row.customerRemark,
   })
+  const keepCurrentSlot = () => {
+    if (
+      row.timeRange == null ||
+      serviceTimeRangeOptions.value.some((item) => item.value === row.timeRange)
+    ) return
+    serviceTimeRangeOptions.value = [
+      ...serviceTimeRangeOptions.value,
+      { value: row.timeRange, label: String(row.timeRange) },
+    ]
+  }
+  keepCurrentSlot()
   detailEditVisible.value = true
+  void loadServiceTimeRanges().finally(keepCurrentSlot)
 }
 
 const submitDetailEdit = async () => {
@@ -2882,6 +2984,9 @@ const parseOrderRow = (item: any): OrderRow => {
         order.remark ??
         item.remark ??
         "",
+    ).trim(),
+    additionalNotes: String(
+      order.additionalNotes ?? item.additionalNotes ?? "",
     ).trim(),
     cancelReason: pickI18nValue(
       cancellationReasonI18n,
@@ -3954,6 +4059,7 @@ const onSizeChange = (pageSize: number) => {
 }
 
 onMounted(() => {
+  void loadServiceTimeRanges()
   void loadServiceOptions()
   void fetchOrders()
 })
@@ -4002,6 +4108,22 @@ onMounted(() => {
 }
 .table-stack .spec-remark-text {
   color: #8a5b12;
+}
+.order-remark-text {
+  color: #05152b;
+  font-weight: 600;
+}
+.payment-status-cell {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+}
+.payment-status-cell small {
+  color: #8a5a2b;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.2;
 }
 .reschedule-compact {
   display: inline-flex;
@@ -4877,6 +4999,20 @@ onMounted(() => {
 .orders-h5__pills {
   flex-wrap: wrap;
   margin-top: 4px;
+}
+
+.orders-h5__status-wrap {
+  display: inline-flex;
+}
+
+.orders-h5__status {
+  width: 132px;
+}
+
+.orders-h5__status :deep(.el-select__wrapper) {
+  min-height: 28px;
+  border-radius: 999px;
+  font-size: 12px;
 }
 
 .orders-h5__pill {

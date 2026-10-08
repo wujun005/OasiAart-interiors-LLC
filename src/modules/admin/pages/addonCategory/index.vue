@@ -31,6 +31,18 @@
           </template>
         </el-table-column>
       </el-table>
+
+      <div class="pager">
+        <el-pagination
+          v-model:current-page="query.pageNum"
+          v-model:page-size="query.pageSize"
+          layout="prev, pager, next, jumper, ->, total, sizes"
+          :total="total"
+          :page-sizes="[5, 10, 20, 50]"
+          @current-change="onPageChange"
+          @size-change="onSizeChange"
+        />
+      </div>
     </el-card>
 
     <el-dialog
@@ -120,6 +132,18 @@ const handleSearch = () => {
 };
 const reset = () => {
   query.nameKeyword = '';
+  query.pageNum = 1;
+  query.pageSize = 10;
+  fetchList();
+};
+
+const onPageChange = (page: number) => {
+  query.pageNum = page;
+  fetchList();
+};
+
+const onSizeChange = (size: number) => {
+  query.pageSize = size;
   query.pageNum = 1;
   fetchList();
 };
@@ -245,5 +269,11 @@ watch(
   display: flex;
   gap: 10px;
   margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+.pager {
+  margin-top: 16px;
+  display: flex;
+  justify-content: flex-end;
 }
 </style>

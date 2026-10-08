@@ -48,9 +48,26 @@ const routes: RouteRecordRaw[] = [
         component: () => import('@/modules/admin/pages/notification/index.vue'),
       },
       {
+        path: 'review-notices',
+        name: 'admin-review-notices',
+        component: () => import('@/modules/admin/pages/review-notice/index.vue'),
+      },
+      {
         path: 'sys-config',
         name: 'admin-sys-config',
         component: () => import('@/modules/admin/pages/sys-config/index.vue'),
+      },
+      {
+        path: 'developer',
+        component: () => import('@/modules/admin/pages/basic/Layout.vue'),
+        redirect: '/admin/developer/supplier-registration-whitelist',
+        children: [
+          {
+            path: 'supplier-registration-whitelist',
+            name: 'admin-supplier-registration-whitelist',
+            component: () => import('@/modules/admin/pages/supplier-registration-whitelist/index.vue'),
+          },
+        ],
       },
       {
         path: 'supplier-management',

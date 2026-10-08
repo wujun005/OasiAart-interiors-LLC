@@ -160,7 +160,7 @@ import { categoryIdPayload, isOtherService, listServiceCategories, serviceCatego
 import { DEFAULT_PHONE_DIAL, PHONE_DIAL_OPTIONS, joinPhone, nationalNumberOk, phoneDialLabel } from '@/utils/phone-dial';
 
 type Bit = 0 | 1 | null;
-type ChoiceKey = 'weekendService' | 'publicHolidayService' | 'emergencyService' | 'emaarOnboarded' | 'otherCommunityOnboarded';
+type ChoiceKey = 'saturdayService' | 'sundayService' | 'publicHolidayService' | 'emergencyService' | 'emaarOnboarded' | 'otherCommunityOnboarded';
 
 const { t, locale } = useI18n({ useScope: 'global' });
 const router = useRouter();
@@ -193,7 +193,8 @@ const form = reactive({
   minLeadTimeHours: null as number | null,
   workStart: '08:00',
   workEnd: '20:00',
-  weekendService: 1 as Bit,
+  saturdayService: 1 as Bit,
+  sundayService: 1 as Bit,
   publicHolidayService: 1 as Bit,
   emergencyService: null as Bit,
   emaarOnboarded: null as Bit,
@@ -209,7 +210,8 @@ const syncWhatsapp = () => {
 };
 watch(() => [form.mobile, form.mobileCode], syncWhatsapp);
 const choices = computed(() => [
-  { key: 'weekendService' as const, label: t('h5.supplierOnboarding.weekend') },
+  { key: 'saturdayService' as const, label: t('h5.supplierOnboarding.saturday') },
+  { key: 'sundayService' as const, label: t('h5.supplierOnboarding.sunday') },
   { key: 'publicHolidayService' as const, label: t('h5.supplierOnboarding.holiday') },
   { key: 'emergencyService' as const, label: t('h5.supplierOnboarding.emergency') },
   { key: 'emaarOnboarded' as const, label: t('h5.supplierOnboarding.emaar') },
@@ -318,7 +320,9 @@ const submit = async () => {
       monthlyCapacity: form.monthlyCapacity,
       minLeadTimeHours: form.minLeadTimeHours,
       workingHours: `${form.workStart}-${form.workEnd}`,
-      weekendService: form.weekendService,
+      weekendService: form.saturdayService === 1 || form.sundayService === 1 ? 1 : 0,
+      saturdayService: form.saturdayService,
+      sundayService: form.sundayService,
       publicHolidayService: form.publicHolidayService,
       emergencyService: form.emergencyService,
       emaarOnboarded: form.emaarOnboarded,

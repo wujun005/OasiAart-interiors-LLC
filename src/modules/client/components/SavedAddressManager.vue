@@ -51,95 +51,129 @@
   </section>
 
   <Teleport to="body">
-    <div v-if="editorVisible" class="address-editor" role="dialog" aria-modal="true" :aria-label="editorTitle" @click.self="closeEditor">
+    <div v-if="editorVisible" class="address-editor" role="dialog" aria-modal="true" aria-labelledby="address-editor-title">
         <form class="address-editor__panel" @submit.prevent="saveAddress">
           <header>
-            <div>
+            <div class="address-editor__heading">
               <span>HOURX HOME</span>
-              <h3>{{ editorTitle }}</h3>
+              <h3 id="address-editor-title">{{ editorTitle }}</h3>
             </div>
-            <button type="button" :disabled="saving" aria-label="Close" @click="closeEditor">×</button>
+            <div ref="savedAddressSearchTarget" class="address-editor__header-search" />
+            <button type="button" :disabled="saving" :aria-label="locale === 'zh' ? '关闭' : 'Close'" @click="closeEditor">×</button>
           </header>
 
-          <div class="address-editor__categories">
-            <button v-for="item in categoryOptions" :key="item.value" type="button" :class="{ 'is-active': form.category === item.value }" @click="form.category = item.value">
-              <AddressCategoryIcon :category="item.value" />
-              <span>{{ item.label }}</span>
-            </button>
-          </div>
+          <div class="address-editor__stage" :class="{ 'is-expanded': addressDetailsExpanded }">
+            <GoogleAddressPicker
+              class="address-editor__map"
+              :locale="String(locale)"
+              :latitude="form.latitude"
+              :longitude="form.longitude"
+              :locating="locating"
+              :status-text="locationStatus"
+              :status-type="locationStatusType"
+              :mobile-search-target="savedAddressSearchTarget"
+              mobile-fullscreen
+              @select="applyGoogleAddress"
+              @locate="fillWithCurrentLocation(true)"
+              @adjust="collapseAddressDetails"
+            />
 
-          <GoogleAddressPicker
-            :locale="String(locale)"
-            :latitude="form.latitude"
-            :longitude="form.longitude"
-            @select="applyGoogleAddress"
-          />
+            <div class="address-editor__details" :class="{ 'is-expanded': addressDetailsExpanded }">
+              <button
+                class="address-editor__details-toggle"
+                type="button"
+                :aria-expanded="addressDetailsExpanded"
+                @click="toggleAddressDetails"
+              >
+                <span class="address-editor__handle" aria-hidden="true" />
+                <span class="address-editor__details-intro">
+                  <strong>{{ locale === 'zh' ? '完善地址详情' : 'Complete address details' }}</strong>
+                  <small>{{ locale === 'zh' ? '地图定位完成后，点击这里补充门牌与联系人信息。' : 'Once the pin is set, tap here to add unit and contact details.' }}</small>
+                </span>
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m7 10 5 5 5-5" /></svg>
+              </button>
 
-          <div class="address-editor__location" :class="`is-${locationStatusType}`">
-            <button type="button" :disabled="locating" @click="fillWithCurrentLocation(true)">
-              <svg viewBox="0 0 24 24" aria-hidden="true">
-                <circle cx="12" cy="12" r="3" />
-                <circle cx="12" cy="12" r="7" />
-                <path d="M12 2v3M12 19v3M2 12h3M19 12h3" />
-              </svg>
-              {{ locating ? t('client.orderConfirm.location.locating') : t('client.orderConfirm.location.useCurrent') }}
-            </button>
-            <span role="status">{{ locationStatus }}</span>
-          </div>
+              <div
+                class="address-editor__details-scroll"
+                :inert="isMobileEditorViewport && !addressDetailsExpanded ? true : undefined"
+                :aria-hidden="isMobileEditorViewport && !addressDetailsExpanded"
+              >
 
-          <div class="address-editor__grid">
-            <div class="address-editor__section-title is-wide">
-              <span aria-hidden="true">⌖</span>
-              <div>
-                <strong>{{ locale === 'zh' ? '地址详情' : 'Address Details' }}</strong>
-                <small>{{ locale === 'zh' ? '请输入您的迪拜地址' : 'Enter your Dubai address.' }}</small>
-              </div>
+            <div class="address-editor__categories" role="radiogroup" :aria-label="locale === 'zh' ? '地址类型' : 'Address type'">
+              <button
+                v-for="item in categoryOptions"
+                :key="item.value"
+                type="button"
+                role="radio"
+                :aria-checked="form.category === item.value"
+                :class="{ 'is-active': form.category === item.value }"
+                @click="form.category = item.value"
+              >
+                <AddressCategoryIcon :category="item.value" />
+                <span>{{ item.label }}</span>
+              </button>
             </div>
-            <label class="is-wide"><span>{{ t('client.orderConfirm.fields.areaCommunity') }} *</span><input v-model.trim="form.community" type="text" maxlength="128" :placeholder="t('client.orderConfirm.placeholders.areaCommunity')" /></label>
-            <label class="is-wide"><span>{{ t('client.orderConfirm.fields.street') }} *</span><input v-model.trim="form.address" type="text" maxlength="128" autocomplete="street-address" :placeholder="t('client.orderConfirm.placeholders.street')" /></label>
-            <label class="is-wide"><span>{{ t('client.orderConfirm.fields.buildingVilla') }} *</span><input v-model.trim="form.building" type="text" maxlength="128" :placeholder="t('client.orderConfirm.placeholders.buildingVilla')" /></label>
-            <label class="is-wide"><span>{{ t('client.orderConfirm.fields.apartmentUnitFloor') }} *</span><input v-model.trim="form.roomNo" type="text" maxlength="128" :placeholder="t('client.orderConfirm.placeholders.apartmentUnitFloor')" /></label>
 
-            <div class="address-editor__section-title is-wide">
-              <span aria-hidden="true">♙</span>
-              <div>
-                <strong>{{ locale === 'zh' ? '联系人信息' : 'Contact Details' }}</strong>
-                <small>{{ locale === 'zh' ? '我们应该联系谁？' : 'Who should we deliver to?' }}</small>
+            <div class="address-editor__grid">
+              <div class="address-editor__section-title is-wide">
+                <span aria-hidden="true">⌖</span>
+                <div>
+                  <strong>{{ locale === 'zh' ? '地址详情' : 'Address Details' }}</strong>
+                  <small>{{ locale === 'zh' ? '请输入您的迪拜地址' : 'Enter your Dubai address.' }}</small>
+                </div>
               </div>
+              <label class="is-wide"><span>{{ t('client.orderConfirm.fields.areaCommunity') }} *</span><input v-model.trim="form.community" type="text" maxlength="128" :placeholder="t('client.orderConfirm.placeholders.areaCommunity')" /></label>
+              <label class="is-wide"><span>{{ t('client.orderConfirm.fields.street') }} *</span><input v-model.trim="form.address" type="text" maxlength="128" autocomplete="street-address" :placeholder="t('client.orderConfirm.placeholders.street')" /></label>
+              <label class="is-wide"><span>{{ t('client.orderConfirm.fields.buildingVilla') }} *</span><input v-model.trim="form.building" type="text" maxlength="128" :placeholder="t('client.orderConfirm.placeholders.buildingVilla')" /></label>
+              <label class="is-wide"><span>{{ t('client.orderConfirm.fields.apartmentUnitFloor') }} *</span><input v-model.trim="form.roomNo" type="text" maxlength="128" :placeholder="t('client.orderConfirm.placeholders.apartmentUnitFloor')" /></label>
+
+              <div class="address-editor__section-title is-wide">
+                <span aria-hidden="true">♙</span>
+                <div>
+                  <strong>{{ locale === 'zh' ? '联系人信息' : 'Contact Details' }}</strong>
+                  <small>{{ locale === 'zh' ? '我们应该联系谁？' : 'Who should we deliver to?' }}</small>
+                </div>
+              </div>
+              <label class="is-wide"><span>{{ t('client.orderConfirm.fields.fullName') }} *</span><input v-model.trim="form.fullName" type="text" autocomplete="name" :placeholder="t('client.orderConfirm.placeholders.fullName')" /></label>
+              <label class="is-wide">
+                <span>{{ t('client.orderConfirm.fields.phone') }} *</span>
+                <div class="address-editor__phone">
+                  <select v-model="form.phoneCountryCode" autocomplete="tel-country-code">
+                    <option v-for="item in countryCodes" :key="item" :value="item">{{ item }}</option>
+                  </select>
+                  <input v-model.trim="form.phone" type="tel" autocomplete="tel-national" />
+                </div>
+              </label>
+              <div class="address-editor__section-title is-wide">
+                <span aria-hidden="true">✎</span>
+                <div>
+                  <strong>{{ t('client.orderConfirm.fields.remark') }}</strong>
+                </div>
+              </div>
+              <label class="is-wide"><textarea v-model.trim="form.additionalNotes" rows="3" :aria-label="t('client.orderConfirm.fields.remark')" :placeholder="t('client.orderConfirm.placeholders.remark')" /></label>
             </div>
-            <label class="is-wide"><span>{{ t('client.orderConfirm.fields.fullName') }} *</span><input v-model.trim="form.fullName" type="text" autocomplete="name" :placeholder="t('client.orderConfirm.placeholders.fullName')" /></label>
-            <label class="is-wide">
-              <span>{{ t('client.orderConfirm.fields.phone') }} *</span>
-              <div class="address-editor__phone">
-                <select v-model="form.phoneCountryCode" autocomplete="tel-country-code">
-                  <option v-for="item in countryCodes" :key="item" :value="item">{{ item }}</option>
-                </select>
-                <input v-model.trim="form.phone" type="tel" autocomplete="tel-national" />
+
+                <p v-if="formError" class="address-editor__error" role="alert">{{ formError }}</p>
               </div>
-            </label>
-            <div class="address-editor__section-title is-wide">
-              <span aria-hidden="true">✎</span>
-              <div>
-                <strong>{{ t('client.orderConfirm.fields.remark') }}</strong>
-              </div>
+
+              <footer
+                :inert="isMobileEditorViewport && !addressDetailsExpanded ? true : undefined"
+                :aria-hidden="isMobileEditorViewport && !addressDetailsExpanded"
+              >
+                <button type="button" :disabled="saving" @click="closeEditor">{{ t('client.orderConfirm.addressBook.cancel') }}</button>
+                <button class="is-primary" type="submit" :disabled="saving">
+                  {{ saving ? (locale === 'zh' ? '保存中…' : 'Saving…') : (editingId ? t('client.orderConfirm.addressBook.saveChanges') : t('client.orderConfirm.addressBook.save')) }}
+                </button>
+              </footer>
             </div>
-            <label class="is-wide"><textarea v-model.trim="form.additionalNotes" rows="3" :aria-label="t('client.orderConfirm.fields.remark')" :placeholder="t('client.orderConfirm.placeholders.remark')" /></label>
           </div>
-
-          <p v-if="formError" class="address-editor__error" role="alert">{{ formError }}</p>
-          <footer>
-            <button type="button" :disabled="saving" @click="closeEditor">{{ t('client.orderConfirm.addressBook.cancel') }}</button>
-            <button class="is-primary" type="submit" :disabled="saving">
-              {{ saving ? (locale === 'zh' ? '保存中…' : 'Saving…') : (editingId ? t('client.orderConfirm.addressBook.saveChanges') : t('client.orderConfirm.addressBook.save')) }}
-            </button>
-          </footer>
         </form>
     </div>
   </Teleport>
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref } from 'vue';
+import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import {
   addClientAddress,
@@ -190,7 +224,12 @@ const messageType = ref<'success' | 'error'>('success');
 const locating = ref(false);
 const locationStatus = ref('');
 const locationStatusType = ref<'info' | 'success' | 'error'>('info');
+const savedAddressSearchTarget = ref<HTMLElement | null>(null);
+const addressDetailsExpanded = ref(false);
+const isMobileEditorViewport = ref(false);
 let locationRequestId = 0;
+let previousBodyOverflow = '';
+let editorViewportQuery: MediaQueryList | null = null;
 const form = reactive({
   fullName: '',
   phoneCountryCode: '+971',
@@ -265,6 +304,21 @@ const locationErrorKeyMap: Record<LocationLookupErrorCode, string> = {
   LOOKUP_FAILED: 'lookupFailed',
 };
 
+const toggleAddressDetails = () => {
+  addressDetailsExpanded.value = isMobileEditorViewport.value
+    ? !addressDetailsExpanded.value
+    : true;
+};
+
+const collapseAddressDetails = () => {
+  if (isMobileEditorViewport.value) addressDetailsExpanded.value = false;
+};
+
+const handleEditorViewportChange = (event: MediaQueryListEvent) => {
+  isMobileEditorViewport.value = event.matches;
+  if (editorVisible.value) addressDetailsExpanded.value = !event.matches;
+};
+
 const fillWithCurrentLocation = async (overwrite = false) => {
   if (locating.value) return;
   const requestId = ++locationRequestId;
@@ -310,6 +364,7 @@ const openCreate = (prefill: AddressEditorPrefill = {}) => {
   formError.value = '';
   locationStatus.value = '';
   locationStatusType.value = 'info';
+  addressDetailsExpanded.value = !isMobileEditorViewport.value;
   editorVisible.value = true;
 };
 
@@ -347,6 +402,7 @@ const openEdit = (item: ClientAddressRecord) => {
   });
   formError.value = '';
   locationStatus.value = '';
+  addressDetailsExpanded.value = !isMobileEditorViewport.value;
   editorVisible.value = true;
 };
 const closeEditor = () => {
@@ -373,7 +429,11 @@ const validate = () => {
 
 const saveAddress = async () => {
   formError.value = validate();
-  if (formError.value || saving.value) return;
+  if (formError.value) {
+    addressDetailsExpanded.value = true;
+    return;
+  }
+  if (saving.value) return;
   saving.value = true;
   try {
     const payload = {
@@ -414,6 +474,7 @@ const saveAddress = async () => {
     emit('saved', { id: savedId, record: savedRecord });
   } catch (error: any) {
     formError.value = error?.message || (locale.value === 'zh' ? '地址保存失败，请重试。' : 'Failed to save address. Please try again.');
+    addressDetailsExpanded.value = true;
   } finally {
     saving.value = false;
   }
@@ -440,7 +501,24 @@ const removeAddress = async (item: ClientAddressRecord) => {
 defineExpose({ openCreate });
 
 onMounted(() => {
+  editorViewportQuery = window.matchMedia('(max-width: 700px)');
+  isMobileEditorViewport.value = editorViewportQuery.matches;
+  editorViewportQuery.addEventListener('change', handleEditorViewportChange);
   if (!props.editorOnly) void loadAddresses();
+});
+
+watch(editorVisible, (visible) => {
+  if (visible) {
+    previousBodyOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return;
+  }
+  document.body.style.overflow = previousBodyOverflow;
+});
+
+onBeforeUnmount(() => {
+  editorViewportQuery?.removeEventListener('change', handleEditorViewportChange);
+  if (editorVisible.value) document.body.style.overflow = previousBodyOverflow;
 });
 </script>
 
@@ -474,21 +552,27 @@ onMounted(() => {
 .address-manager__actions .is-danger { color: #dc2626; }
 .address-manager__actions button:disabled { opacity: .5; cursor: wait; }
 .address-editor { position: fixed; inset: 0; z-index: 3000; padding: 24px; display: grid; place-items: center; background: rgb(5 21 43 / 58%); backdrop-filter: blur(5px); }
-.address-editor__panel { width: min(680px, 100%); max-height: calc(100dvh - 48px); overflow: auto; border-radius: 20px; background: #fff; box-shadow: 0 28px 80px rgb(5 21 43 / 30%); }
-.address-editor__panel header { padding: 20px 22px 16px; display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 1px solid #eef2f7; }
+.address-editor__panel { width: min(680px, 100%); max-height: calc(100dvh - 48px); overflow: auto; overscroll-behavior: contain; scroll-padding-bottom: 96px; border-radius: 20px; background: #f6f8fb; box-shadow: 0 28px 80px rgb(5 21 43 / 30%); }
+.address-editor__panel header { position: sticky; top: 0; z-index: 8; padding: 20px 22px 16px; display: flex; justify-content: space-between; align-items: flex-start; gap: 14px; border-bottom: 1px solid #eef2f7; background: rgb(255 255 255 / 96%); backdrop-filter: blur(14px); }
+.address-editor__heading { min-width: 0; }
 .address-editor__panel header span { color: #1769c2; font-size: 10px; font-weight: 900; letter-spacing: .14em; }
 .address-editor__panel header h3 { margin: 5px 0 0; color: #05152b; font-size: 20px; }
+.address-editor__header-search { min-width: 0; display: none; }
 .address-editor__panel header button { width: 34px; height: 34px; border: 0; border-radius: 50%; background: #f1f5f9; color: #334155; font-size: 22px; cursor: pointer; }
-.address-editor__categories { padding: 18px 22px 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
-.address-editor__categories button { min-width: 0; min-height: 68px; padding: 8px 12px; border: 1px solid #dbe3ec; border-radius: 14px; background: #fff; color: #64748b; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; font-weight: 800; cursor: pointer; transition: border-color .18s ease, background-color .18s ease, box-shadow .18s ease; }
-.address-editor__categories button :deep(.address-category-icon) { font-size: 22px; }
+.address-editor__stage { position: relative; }
+.address-editor__map { margin-top: 16px; }
+.address-editor__details { position: relative; margin-top: 16px; border-radius: 22px 22px 0 0; background: #fff; box-shadow: 0 -8px 28px rgb(5 21 43 / 6%); }
+.address-editor__details-toggle { width: 100%; padding: 0; display: block; border: 0; background: transparent; text-align: left; }
+.address-editor__details-toggle > svg { display: none; }
+.address-editor__handle { display: none; }
+.address-editor__details-intro { padding: 20px 22px 0; display: grid; gap: 4px; }
+.address-editor__details-intro strong { color: #05152b; font-size: 15px; }
+.address-editor__details-intro small { color: #7a899d; font-size: 11px; line-height: 1.5; }
+.address-editor__details-scroll { min-height: 0; }
+.address-editor__categories { padding: 16px 22px 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.address-editor__categories button { min-width: 0; min-height: 54px; padding: 8px 12px; border: 1px solid #dbe3ec; border-radius: 13px; background: #fff; color: #64748b; display: flex; align-items: center; justify-content: center; gap: 7px; font-weight: 800; cursor: pointer; transition: border-color .18s ease, background-color .18s ease, box-shadow .18s ease; }
+.address-editor__categories button :deep(.address-category-icon) { font-size: 19px; }
 .address-editor__categories button.is-active { border-color: #1769c2; background: #eff6ff; color: #1769c2; box-shadow: inset 0 0 0 1px #1769c2; }
-.address-editor__location { margin: 16px 22px 0; padding: 11px 12px; display: flex; align-items: center; gap: 12px; border: 1px solid #dbeafe; border-radius: 11px; background: #f8fbff; color: #526176; font-size: 12px; line-height: 1.45; }
-.address-editor__location > button { min-height: 34px; flex: 0 0 auto; padding: 0 12px; display: inline-flex; align-items: center; gap: 7px; border: 1px solid #1769c2; border-radius: 9px; background: #1769c2; color: #fff; font-weight: 800; cursor: pointer; }
-.address-editor__location > button:disabled { opacity: .62; cursor: wait; }
-.address-editor__location svg { width: 17px; height: 17px; fill: none; stroke: currentColor; stroke-linecap: round; stroke-linejoin: round; stroke-width: 1.7; }
-.address-editor__location.is-success { border-color: #bbf7d0; background: #f0fdf4; color: #047857; }
-.address-editor__location.is-error { border-color: #fecaca; background: #fef2f2; color: #b91c1c; }
 .address-editor__grid { padding: 18px 22px; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 15px; }
 .address-editor__section-title { margin-top: 2px; padding-top: 4px; display: flex; align-items: center; gap: 10px; }
 .address-editor__section-title:not(:first-child) { margin-top: 6px; padding-top: 18px; border-top: 1px solid #eef2f7; }
@@ -504,18 +588,48 @@ onMounted(() => {
 .address-editor__grid input:focus, .address-editor__grid select:focus, .address-editor__grid textarea:focus { border-color: #1769c2; box-shadow: 0 0 0 3px rgb(23 105 194 / 12%); }
 .address-editor__phone { display: grid; grid-template-columns: 92px 1fr; gap: 8px; }
 .address-editor__error { margin: 0 22px 16px; padding: 10px 12px; border-radius: 9px; background: #fef2f2; color: #b91c1c; font-size: 12px; }
-.address-editor__panel footer { padding: 16px 22px 20px; display: flex; justify-content: flex-end; gap: 10px; border-top: 1px solid #eef2f7; }
+.address-editor__panel footer { position: sticky; bottom: 0; z-index: 8; padding: 14px 22px 18px; display: flex; justify-content: flex-end; gap: 10px; border-top: 1px solid #e8edf3; background: rgb(255 255 255 / 96%); box-shadow: 0 -10px 24px rgb(5 21 43 / 8%); backdrop-filter: blur(14px); }
 .address-editor__panel footer button { min-height: 40px; padding: 0 18px; border: 1px solid #dbe3ec; border-radius: 10px; background: #fff; color: #475569; font-weight: 800; cursor: pointer; }
-.address-editor__panel footer .is-primary { border-color: #1769c2; background: #1769c2; color: #fff; }
+.address-editor__panel footer .is-primary { min-width: 150px; border-color: #05152b; background: #05152b; color: #fff; }
 .address-editor__panel footer button:disabled { opacity: .55; cursor: wait; }
 @media (max-width: 700px) {
   .address-manager__header { align-items: stretch; flex-direction: column; }
   .address-manager__add { width: 100%; }
   .address-manager__list, .address-editor__grid { grid-template-columns: 1fr; }
-  .address-editor { padding: 10px; align-items: end; }
-  .address-editor__panel { max-height: calc(100dvh - 10px); border-radius: 20px 20px 0 0; }
-  .address-editor__location { align-items: stretch; flex-direction: column; }
-  .address-editor__location > button { justify-content: center; }
+  .address-editor { padding: 0; display: block; background: #fff; backdrop-filter: none; }
+  .address-editor__panel { width: 100%; height: 100dvh; max-height: 100dvh; display: flex; flex-direction: column; overflow: hidden; border-radius: 0; box-shadow: none; }
+  .address-editor__panel header { min-height: 56px; padding: calc(8px + env(safe-area-inset-top)) 12px 8px; grid-template-columns: auto minmax(0, 1fr) 38px; gap: 8px; }
+  .address-editor__panel header { position: relative; flex: 0 0 auto; display: grid; align-items: center; overflow: visible; background: rgb(239 247 255 / 97%); }
+  .address-editor__heading { display: flex; flex-direction: column; }
+  .address-editor__header-search { position: relative; z-index: 1; display: block; min-width: 0; overflow: visible; }
+  .address-editor__panel header span { display: none; }
+  .address-editor__panel header h3 { margin: 0; font-size: 14px; white-space: nowrap; }
+  .address-editor__panel header button { width: 38px; height: 38px; }
+  .address-editor__stage { --address-drawer-peek: 116px; position: relative; flex: 1 1 auto; min-height: 0; overflow: hidden; }
+  .address-editor__map { margin: 0; border: 0; border-radius: 0; box-shadow: none; }
+  .address-editor__details { position: absolute; z-index: 6; top: clamp(24px, 8dvh, 72px); right: 0; bottom: 0; left: 0; min-height: 0; margin: 0; display: grid; grid-template-rows: auto minmax(0, 1fr) auto; overflow: hidden; border-radius: 24px 24px 0 0; box-shadow: 0 -10px 30px rgb(5 21 43 / 14%); transform: translateY(calc(100% - var(--address-drawer-peek))); transition: transform .24s cubic-bezier(.2, .8, .2, 1); }
+  .address-editor__details.is-expanded { transform: translateY(0); }
+  .address-editor__details-toggle { position: relative; min-height: var(--address-drawer-peek); padding: 0 52px 14px 16px; cursor: pointer; }
+  .address-editor__details-toggle > svg { position: absolute; top: 50px; right: 18px; width: 22px; height: 22px; display: block; fill: none; stroke: #526176; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; transition: transform .2s ease; }
+  .address-editor__details.is-expanded .address-editor__details-toggle > svg { transform: rotate(180deg); }
+  .address-editor__handle { width: 42px; height: 15px; margin: 0 auto; display: block; border-radius: 999px; background: linear-gradient(to bottom, transparent 10px, #cbd3dd 10px, #cbd3dd 15px); }
+  .address-editor__details-scroll { min-height: 0; overflow-y: auto; overscroll-behavior: contain; scroll-padding-bottom: 20px; }
+  .address-editor__details-intro { padding: 12px 0 0; }
+  .address-editor__details-intro strong { font-size: 16px; }
+  .address-editor__details-intro small { font-size: 12px; }
+  .address-editor__categories { padding: 16px 16px 0; }
+  .address-editor__categories button { min-height: 48px; padding: 7px 8px; border-radius: 12px; font-size: 13px; }
+  .address-editor__categories button :deep(.address-category-icon) { font-size: 18px; }
+  .address-editor__grid { padding: 18px 16px 20px; gap: 14px; }
   .address-editor__grid label.is-wide { grid-column: auto; }
+  .address-editor__grid label { gap: 8px; font-size: 13px; }
+  .address-editor__grid input, .address-editor__grid select { height: 48px; padding: 0 13px; font-size: 16px; }
+  .address-editor__grid textarea { min-height: 88px; padding: 12px 13px; font-size: 16px; }
+  .address-editor__phone { grid-template-columns: 104px minmax(0, 1fr); }
+  .address-editor__error { margin: 0 16px 16px; }
+  .address-editor__panel footer { position: static; padding: 12px 16px calc(12px + env(safe-area-inset-bottom)); }
+  .address-editor__panel footer button { min-height: 48px; }
+  .address-editor__panel footer button:first-child { flex: 0 0 88px; }
+  .address-editor__panel footer .is-primary { flex: 1 1 auto; min-width: 0; }
 }
 </style>

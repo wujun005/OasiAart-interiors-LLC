@@ -49,7 +49,13 @@
         </div>
         <el-table :data="communities" v-loading="communityLoading" row-key="id" height="640">
           <el-table-column :label="t('admin.platformServiceAreas.community')" min-width="180" prop="name" />
-          <el-table-column :label="t('admin.platformServiceAreas.sort')" width="80" prop="sort" />
+          <el-table-column width="80" prop="sort">
+            <template #header>
+              <el-tooltip :content="t('admin.platformServiceAreas.sortHint')" placement="top">
+                <span>{{ t('admin.platformServiceAreas.sort') }}</span>
+              </el-tooltip>
+            </template>
+          </el-table-column>
           <el-table-column :label="t('admin.platformServiceAreas.status')" width="90">
             <template #default="{ row }">
               <el-switch
@@ -82,6 +88,7 @@
         </el-form-item>
         <el-form-item :label="t('admin.platformServiceAreas.sort')">
           <el-input-number v-model="areaForm.sort" :min="0" />
+          <p class="sort-hint">{{ t('admin.platformServiceAreas.sortHint') }}</p>
         </el-form-item>
       </el-form>
       <template #footer>
@@ -97,6 +104,7 @@
         </el-form-item>
         <el-form-item :label="t('admin.platformServiceAreas.sort')">
           <el-input-number v-model="communityForm.sort" :min="0" />
+          <p class="sort-hint">{{ t('admin.platformServiceAreas.sortHint') }}</p>
         </el-form-item>
       </el-form>
       <template #footer>
@@ -295,5 +303,6 @@ onMounted(loadAreas)
 .pane { padding: 14px; background: #fff; border: 1px solid #e7ebf2; border-radius: 14px; }
 .pane__bar { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 12px; }
 .pane__bar .el-input { width: 180px; }
+.sort-hint { margin: 8px 0 0; color: #6d7686; font-size: 12px; line-height: 1.5; }
 @media (max-width: 980px) { .area-admin__board { grid-template-columns: 1fr; } }
 </style>

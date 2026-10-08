@@ -40,6 +40,34 @@ export function platformSupplierQuoteReview(payload: Record<string, unknown>) {
   return http.post('/api/platform/supplierQuote/review', payload);
 }
 
+export type ReviewNoticeItem = {
+  kind?: string
+  bizId?: number
+  supplierId?: number
+  spuId?: number
+  supplierNo?: string
+  supplierName?: string
+  title?: string
+  titleEn?: string
+  status?: number
+  submitTime?: string
+  reviewTime?: string
+  reviewerName?: string
+}
+
+export async function platformReviewNotice() {
+  const raw = await http.get('/api/platform/reviewNotice') as {
+    pending?: ReviewNoticeItem[]
+    records?: ReviewNoticeItem[]
+    data?: { pending?: ReviewNoticeItem[]; records?: ReviewNoticeItem[] }
+  }
+  const board = raw && typeof raw === 'object' && raw.data && !Array.isArray(raw.data) ? raw.data : raw
+  return {
+    pending: Array.isArray(board?.pending) ? board.pending : [],
+    records: Array.isArray(board?.records) ? board.records : [],
+  }
+}
+
 export function serviceCatalog(supplierId?: number | string) {
   return http.get('/api/supplier/tools/services', {
     params: supplierId ? { supplierId } : {},

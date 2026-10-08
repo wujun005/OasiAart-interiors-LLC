@@ -131,6 +131,13 @@
                 >
               </button>
               <button
+                class="h5-address-picker__manage h5-address-picker__manage--edit"
+                type="button"
+                @click="openEditAddressPopup(selectedAddress)"
+              >
+                {{ locale === "zh" ? "编辑当前地址" : "Edit selected address" }}
+              </button>
+              <button
                 class="h5-address-picker__manage"
                 type="button"
                 @click="openAddAddressPopup"
@@ -316,10 +323,10 @@
 
     <van-popup
       v-model:show="addAddressPopupVisible"
-      round
+      class="h5-add-address-popup"
       position="bottom"
-      :close-on-click-overlay="!addressAdding"
-      :style="{ maxHeight: '90vh' }"
+      :close-on-click-overlay="false"
+      :style="{ height: '100dvh', maxHeight: '100dvh' }"
     >
       <div class="h5-add-address-sheet">
         <div class="h5-add-address-sheet__header">
@@ -330,182 +337,198 @@
                 : t("client.orderConfirm.addressBook.addTitle")
             }}
           </h3>
+          <div ref="addressEditorSearchTarget" class="h5-add-address-sheet__header-search" />
           <button
             type="button"
             :disabled="addressAdding"
+            :aria-label="locale === 'zh' ? '关闭' : 'Close'"
             @click="addAddressPopupVisible = false"
           >
             <van-icon name="cross" />
           </button>
         </div>
-        <div class="h5-add-address-sheet__categories">
-          <button
-            v-for="item in addressCategoryOptions"
-            :key="item.value"
-            type="button"
-            :class="{ 'is-active': addAddressForm.category === item.value }"
-            @click="addAddressForm.category = item.value"
-          >
-            <AddressCategoryIcon :category="item.value" />
-            <span>{{ item.label }}</span>
-          </button>
-        </div>
-        <GoogleAddressPicker
+        <div class="h5-add-address-sheet__stage" :class="{ 'is-expanded': addressEditorDetailsExpanded }">
+          <GoogleAddressPicker
           v-if="addAddressPopupVisible"
           class="h5-add-address-sheet__google-map"
           :locale="String(locale)"
           :latitude="addAddressForm.latitude"
           :longitude="addAddressForm.longitude"
+          :locating="addressEditorLocating"
+          :status-text="addressEditorStatus"
+          :status-type="addressEditorStatusType"
+          :mobile-search-target="addressEditorSearchTarget"
+          mobile-fullscreen
           @select="applyGoogleAddressToEditor"
+          @locate="fillAddressEditorWithCurrentLocation"
+          @adjust="addressEditorDetailsExpanded = false"
         />
-        <div class="h5-add-address-sheet__location">
+          <div class="h5-add-address-sheet__details" :class="{ 'is-expanded': addressEditorDetailsExpanded }">
           <button
+            class="h5-add-address-sheet__details-toggle"
             type="button"
-            :disabled="addressEditorLocating"
-            @click="fillAddressEditorWithCurrentLocation"
+            :aria-expanded="addressEditorDetailsExpanded"
+            @click="addressEditorDetailsExpanded = !addressEditorDetailsExpanded"
           >
-            <van-icon name="aim" />
+            <span class="h5-add-address-sheet__handle" aria-hidden="true" />
+            <span class="h5-add-address-sheet__intro">
+              <strong>{{ locale === "zh" ? "完善地址详情" : "Complete address details" }}</strong>
+              <small>{{ locale === "zh" ? "地图定位完成后，点击这里补充门牌与联系人信息。" : "Once the pin is set, tap here to add unit and contact details." }}</small>
+            </span>
+            <van-icon :name="addressEditorDetailsExpanded ? 'arrow-down' : 'arrow-up'" aria-hidden="true" />
+          </button>
+          <div
+            class="h5-add-address-sheet__details-scroll"
+            :inert="!addressEditorDetailsExpanded"
+            :aria-hidden="!addressEditorDetailsExpanded"
+          >
+          <div class="h5-add-address-sheet__categories" role="radiogroup" :aria-label="locale === 'zh' ? '地址类型' : 'Address type'">
+            <button
+              v-for="item in addressCategoryOptions"
+              :key="item.value"
+              type="button"
+              role="radio"
+              :aria-checked="addAddressForm.category === item.value"
+              :class="{ 'is-active': addAddressForm.category === item.value }"
+              @click="addAddressForm.category = item.value"
+            >
+              <AddressCategoryIcon :category="item.value" />
+              <span>{{ item.label }}</span>
+            </button>
+          </div>
+          <div class="h5-add-address-sheet__section">
+            <van-icon name="location-o" />
+            <div>
+              <strong>{{
+                locale === "zh" ? "地址详情" : "Address Details"
+              }}</strong>
+              <small>{{
+                locale === "zh"
+                  ? "请输入您的迪拜地址"
+                  : "Enter your Dubai address."
+              }}</small>
+            </div>
+          </div>
+          <label class="h5-add-address-field">
+            <span>{{ t("client.orderConfirm.fields.areaCommunity") }} *</span>
+            <input
+              v-model="addAddressForm.community"
+              type="text"
+              maxlength="128"
+              :placeholder="t('client.orderConfirm.placeholders.areaCommunity')"
+            />
+          </label>
+          <label class="h5-add-address-field">
+            <span>{{ t("client.orderConfirm.fields.street") }} *</span>
+            <input
+              v-model="addAddressForm.address"
+              type="text"
+              maxlength="128"
+              :placeholder="t('client.orderConfirm.placeholders.street')"
+            />
+            <span
+              v-if="addressEditorLocating"
+              class="h5-add-address-field__locating"
+            >
+              {{ t("client.orderConfirm.location.locating") }}
+            </span>
+          </label>
+          <label class="h5-add-address-field">
+            <span>{{ t("client.orderConfirm.fields.buildingVilla") }} *</span>
+            <input
+              v-model="addAddressForm.building"
+              type="text"
+              maxlength="128"
+              :placeholder="t('client.orderConfirm.placeholders.buildingVilla')"
+            />
+          </label>
+          <label class="h5-add-address-field">
+            <span
+              >{{ t("client.orderConfirm.fields.apartmentUnitFloor") }} *</span
+            >
+            <input
+              v-model="addAddressForm.roomNo"
+              type="text"
+              maxlength="128"
+              :placeholder="
+                t('client.orderConfirm.placeholders.apartmentUnitFloor')
+              "
+            />
+          </label>
+
+          <div class="h5-add-address-sheet__section">
+            <van-icon name="contact-o" />
+            <div>
+              <strong>{{
+                locale === "zh" ? "联系人信息" : "Contact Details"
+              }}</strong>
+              <small>{{
+                locale === "zh" ? "我们应该联系谁？" : "Who should we deliver to?"
+              }}</small>
+            </div>
+          </div>
+          <label class="h5-add-address-field">
+            <span>{{ t("client.orderConfirm.fields.fullName") }} *</span>
+            <input
+              v-model="addAddressForm.fullName"
+              type="text"
+              autocomplete="name"
+              :placeholder="t('client.orderConfirm.placeholders.fullName')"
+            />
+          </label>
+          <label class="h5-add-address-field">
+            <span>{{ t("client.orderConfirm.fields.phone") }} *</span>
+            <div class="h5-add-address-field__phone">
+              <select v-model="addAddressForm.phoneCountryCode">
+                <option
+                  v-for="item in countryCodeOptions"
+                  :key="item.value"
+                  :value="item.value"
+                >
+                  {{ item.label }}
+                </option>
+              </select>
+              <input
+                v-model="addAddressForm.phone"
+                type="tel"
+                :placeholder="t('client.login.register.phoneNumberPlaceholder')"
+              />
+            </div>
+          </label>
+          <div class="h5-add-address-sheet__section">
+            <van-icon name="records-o" />
+            <div>
+              <strong>{{ t("client.orderConfirm.fields.remark") }}</strong>
+            </div>
+          </div>
+          <label class="h5-add-address-field">
+            <textarea
+              v-model="addAddressForm.additionalNotes"
+              rows="2"
+              :aria-label="t('client.orderConfirm.fields.remark')"
+              :placeholder="t('client.orderConfirm.placeholders.remark')"
+            />
+          </label>
+          </div>
+          <button
+            class="h5-add-address-sheet__submit"
+            type="button"
+            :disabled="addressAdding"
+            :inert="!addressEditorDetailsExpanded ? true : undefined"
+            :aria-hidden="!addressEditorDetailsExpanded"
+            :tabindex="addressEditorDetailsExpanded ? 0 : -1"
+            @click="submitAddressEditor"
+          >
             {{
-              addressEditorLocating
-                ? t("client.orderConfirm.location.locating")
-                : t("client.orderConfirm.location.useCurrent")
+              addressAdding
+                ? t("client.orderConfirm.addressBook.saving")
+                : editingAddressId
+                  ? t("client.orderConfirm.addressBook.saveChanges")
+                  : t("client.orderConfirm.addressBook.save")
             }}
           </button>
-          <p>
-            {{
-              locale === "zh"
-                ? "当前位置将自动填写区域和街道，请补充其余地址信息。"
-                : "Current location will auto-fill the area and street. Please enter the remaining details."
-            }}
-          </p>
-        </div>
-        <div class="h5-add-address-sheet__section">
-          <van-icon name="location-o" />
-          <div>
-            <strong>{{
-              locale === "zh" ? "地址详情" : "Address Details"
-            }}</strong>
-            <small>{{
-              locale === "zh"
-                ? "请输入您的迪拜地址"
-                : "Enter your Dubai address."
-            }}</small>
           </div>
         </div>
-        <label class="h5-add-address-field">
-          <span>{{ t("client.orderConfirm.fields.areaCommunity") }} *</span>
-          <input
-            v-model="addAddressForm.community"
-            type="text"
-            maxlength="128"
-            :placeholder="t('client.orderConfirm.placeholders.areaCommunity')"
-          />
-        </label>
-        <label class="h5-add-address-field">
-          <span>{{ t("client.orderConfirm.fields.street") }} *</span>
-          <input
-            v-model="addAddressForm.address"
-            type="text"
-            maxlength="128"
-            :placeholder="t('client.orderConfirm.placeholders.street')"
-          />
-          <span
-            v-if="addressEditorLocating"
-            class="h5-add-address-field__locating"
-          >
-            {{ t("client.orderConfirm.location.locating") }}
-          </span>
-        </label>
-        <label class="h5-add-address-field">
-          <span>{{ t("client.orderConfirm.fields.buildingVilla") }} *</span>
-          <input
-            v-model="addAddressForm.building"
-            type="text"
-            maxlength="128"
-            :placeholder="t('client.orderConfirm.placeholders.buildingVilla')"
-          />
-        </label>
-        <label class="h5-add-address-field">
-          <span
-            >{{ t("client.orderConfirm.fields.apartmentUnitFloor") }} *</span
-          >
-          <input
-            v-model="addAddressForm.roomNo"
-            type="text"
-            maxlength="128"
-            :placeholder="
-              t('client.orderConfirm.placeholders.apartmentUnitFloor')
-            "
-          />
-        </label>
-
-        <div class="h5-add-address-sheet__section">
-          <van-icon name="contact-o" />
-          <div>
-            <strong>{{
-              locale === "zh" ? "联系人信息" : "Contact Details"
-            }}</strong>
-            <small>{{
-              locale === "zh" ? "我们应该联系谁？" : "Who should we deliver to?"
-            }}</small>
-          </div>
-        </div>
-        <label class="h5-add-address-field">
-          <span>{{ t("client.orderConfirm.fields.fullName") }} *</span>
-          <input
-            v-model="addAddressForm.fullName"
-            type="text"
-            autocomplete="name"
-            :placeholder="t('client.orderConfirm.placeholders.fullName')"
-          />
-        </label>
-        <label class="h5-add-address-field">
-          <span>{{ t("client.orderConfirm.fields.phone") }} *</span>
-          <div class="h5-add-address-field__phone">
-            <select v-model="addAddressForm.phoneCountryCode">
-              <option
-                v-for="item in countryCodeOptions"
-                :key="item.value"
-                :value="item.value"
-              >
-                {{ item.label }}
-              </option>
-            </select>
-            <input
-              v-model="addAddressForm.phone"
-              type="tel"
-              :placeholder="t('client.login.register.phoneNumberPlaceholder')"
-            />
-          </div>
-        </label>
-        <div class="h5-add-address-sheet__section">
-          <van-icon name="records-o" />
-          <div>
-            <strong>{{ t("client.orderConfirm.fields.remark") }}</strong>
-          </div>
-        </div>
-        <label class="h5-add-address-field">
-          <textarea
-            v-model="addAddressForm.additionalNotes"
-            rows="2"
-            :aria-label="t('client.orderConfirm.fields.remark')"
-            :placeholder="t('client.orderConfirm.placeholders.remark')"
-          />
-        </label>
-        <button
-          class="h5-add-address-sheet__submit"
-          type="button"
-          :disabled="addressAdding"
-          @click="submitAddressEditor"
-        >
-          {{
-            addressAdding
-              ? t("client.orderConfirm.addressBook.saving")
-              : editingAddressId
-                ? t("client.orderConfirm.addressBook.saveChanges")
-                : t("client.orderConfirm.addressBook.save")
-          }}
-        </button>
       </div>
     </van-popup>
 
@@ -752,6 +775,10 @@ const addAddressPopupVisible = ref(false)
 const addressAdding = ref(false)
 const addressDeletingId = ref<number | null>(null)
 const addressEditorLocating = ref(false)
+const addressEditorStatus = ref("")
+const addressEditorStatusType = ref<"info" | "success" | "error">("info")
+const addressEditorSearchTarget = ref<HTMLElement | null>(null)
+const addressEditorDetailsExpanded = ref(false)
 const editingAddressId = ref<number | null>(null)
 let isApplyingSavedAddress = false
 const addAddressForm = reactive({
@@ -949,6 +976,10 @@ const loadAddressBook = async (preferredId?: number | null) => {
 
 const openAddAddressPopup = () => {
   editingAddressId.value = null
+  addressPickerExpanded.value = false
+  addressEditorDetailsExpanded.value = false
+  addressEditorStatus.value = ""
+  addressEditorStatusType.value = "info"
   Object.assign(addAddressForm, {
     fullName: formatContactName(form.firstName, form.lastName),
     phoneCountryCode: form.countryCode || DEFAULT_COUNTRY_CODE,
@@ -981,11 +1012,19 @@ const applyGoogleAddressToEditor = (selection: GoogleAddressSelection) => {
   }
   addAddressForm.latitude = selection.latitude
   addAddressForm.longitude = selection.longitude
+  addressEditorStatusType.value = "success"
+  addressEditorStatus.value = locale.value === "zh"
+    ? "位置已确认，请核对并补充楼栋、房间或楼层信息。"
+    : "Location confirmed. Check it and add the building, unit, or floor."
 }
 
 const fillAddressEditorWithCurrentLocation = async () => {
   if (addressEditorLocating.value) return
   addressEditorLocating.value = true
+  addressEditorStatusType.value = "info"
+  addressEditorStatus.value = locale.value === "zh"
+    ? "正在获取当前位置并识别地址…"
+    : "Finding your current location and address…"
   try {
     const result = await locateCurrentAddress(locale.value)
     if (!addAddressPopupVisible.value) return
@@ -995,17 +1034,31 @@ const fillAddressEditorWithCurrentLocation = async () => {
     addAddressForm.address = result.street || result.address
     addAddressForm.latitude = result.latitude
     addAddressForm.longitude = result.longitude
+    addressEditorStatusType.value = "success"
+    addressEditorStatus.value = locale.value === "zh"
+      ? "已定位当前位置，请补充楼栋、房间或楼层信息。"
+      : "Current location found. Add the building, unit, or floor."
   } catch (error) {
     const code =
       error instanceof LocationLookupError ? error.code : "LOOKUP_FAILED"
+    addressEditorStatusType.value = "error"
+    addressEditorStatus.value = t(
+      `client.orderConfirm.location.errors.${locationErrorKeyMap[code]}`,
+    )
+    showFailToast(addressEditorStatus.value)
     console.warn("auto locate for address editor failed:", code)
   } finally {
     addressEditorLocating.value = false
   }
 }
 
-const openEditAddressPopup = (item: ClientAddressRecord) => {
+const openEditAddressPopup = (item: ClientAddressRecord | null) => {
+  if (!item) return
   editingAddressId.value = item.id
+  addressPickerExpanded.value = false
+  addressEditorDetailsExpanded.value = false
+  addressEditorStatus.value = ""
+  addressEditorStatusType.value = "info"
   Object.assign(addAddressForm, {
     fullName: getAddressFullName(item),
     phoneCountryCode:
@@ -1075,6 +1128,7 @@ const getAddAddressValidationMessage = () => {
 const submitAddressEditor = async () => {
   const validationMessage = getAddAddressValidationMessage()
   if (validationMessage) {
+    addressEditorDetailsExpanded.value = true
     showFailToast(validationMessage)
     return
   }
@@ -2838,6 +2892,11 @@ onMounted(async () => {
   font-weight: 800;
 }
 
+.h5-address-picker__manage--edit {
+  border-top: 1px solid #edf1f5;
+  color: #42526a;
+}
+
 .h5-address-card {
   position: relative;
   flex: 0 0 auto;
@@ -3062,18 +3121,19 @@ onMounted(async () => {
 
 .h5-add-address-sheet__categories button {
   min-width: 0;
-  height: 68px;
-  border-radius: 14px;
+  height: 48px;
+  border-radius: 12px;
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
   align-items: center;
   justify-content: center;
-  gap: 6px;
+  gap: 7px;
   padding: 0 8px;
+  font-size: 13px;
 }
 
 .h5-add-address-sheet__categories button :deep(.address-category-icon) {
-  font-size: 22px;
+  font-size: 18px;
 }
 
 .h5-add-address-sheet__categories button.is-active {
@@ -3232,30 +3292,51 @@ onMounted(async () => {
   font-size: 8px;
 }
 
+.h5-add-address-popup {
+  overflow: hidden;
+  background: #f6f8fb;
+}
+
 .h5-add-address-sheet {
-  max-height: 90vh;
-  overflow-y: auto;
-  padding: 20px 18px calc(22px + env(safe-area-inset-bottom));
+  height: 100%;
+  max-height: none;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  padding: 0;
+  background: #f6f8fb;
 }
 
 .h5-add-address-sheet__header {
-  position: sticky;
-  top: -20px;
-  z-index: 2;
-  margin: -20px -18px 0;
-  padding: 20px 18px 14px;
-  background: #fff;
-  display: flex;
+  position: relative;
+  z-index: 10;
+  flex: 0 0 auto;
+  margin: 0;
+  min-height: 56px;
+  padding: calc(10px + env(safe-area-inset-top)) 18px 10px;
+  border-bottom: 1px solid #edf1f5;
+  background: rgba(239, 247, 255, 0.97);
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) 36px;
   align-items: center;
-  justify-content: space-between;
-  gap: 12px;
+  gap: 8px;
+  backdrop-filter: blur(14px);
 }
 
 .h5-add-address-sheet__header h3 {
   margin: 0;
   color: #05152b;
-  font-size: 18px;
+  font-size: 14px;
   font-weight: 900;
+  white-space: nowrap;
+}
+
+.h5-add-address-sheet__header-search {
+  position: relative;
+  z-index: 1;
+  min-width: 0;
+  overflow: visible;
 }
 
 .h5-add-address-sheet__header button {
@@ -3269,54 +3350,104 @@ onMounted(async () => {
 }
 
 .h5-add-address-sheet__categories {
-  margin: 3px 0 18px;
-  overflow-x: auto;
-  scrollbar-width: none;
+  margin: 16px 0 0;
 }
 
 .h5-add-address-sheet__categories::-webkit-scrollbar {
   display: none;
 }
 
+.h5-add-address-sheet__stage {
+  --address-drawer-peek: 116px;
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+}
+
 .h5-add-address-sheet__google-map {
-  margin: 0 0 16px;
-}
-
-.h5-add-address-sheet__location {
-  margin-bottom: 16px;
-  padding: 12px;
-  border: 1px solid #bdebd1;
-  border-radius: 12px;
-  background: #f0fbf5;
-  display: grid;
-  gap: 9px;
-}
-
-.h5-add-address-sheet__location button {
-  min-height: 42px;
-  border: 0;
-  border-radius: 9px;
-  background: #1769c2;
-  color: #fff;
-  font-size: 13px;
-  font-weight: 800;
-}
-
-.h5-add-address-sheet__location button:disabled {
-  opacity: 0.65;
-}
-
-.h5-add-address-sheet__location p {
   margin: 0;
-  color: #27704d;
-  font-size: 10px;
-  line-height: 1.45;
+  border-right: 0;
+  border-left: 0;
+  border-radius: 0;
+  box-shadow: none;
 }
 
-.h5-add-address-sheet__grid {
+.h5-add-address-sheet__details {
+  position: absolute;
+  z-index: 6;
+  top: clamp(24px, 8dvh, 72px);
+  right: 0;
+  bottom: 0;
+  left: 0;
+  min-height: 0;
+  margin: 0;
+  padding: 0;
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  overflow: hidden;
+  border-radius: 24px 24px 0 0;
+  background: #fff;
+  box-shadow: 0 -10px 30px rgba(5, 21, 43, 0.14);
+  transform: translateY(calc(100% - var(--address-drawer-peek)));
+  transition: transform 0.24s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.h5-add-address-sheet__details.is-expanded {
+  transform: translateY(0);
+}
+
+.h5-add-address-sheet__details-toggle {
+  position: relative;
+  width: 100%;
+  min-height: var(--address-drawer-peek);
+  padding: 0 52px 14px 18px;
+  border: 0;
+  background: transparent;
+  text-align: left;
+}
+
+.h5-add-address-sheet__details-toggle > :deep(.van-icon) {
+  position: absolute;
+  top: 49px;
+  right: 19px;
+  color: #526176;
+  font-size: 18px;
+}
+
+.h5-add-address-sheet__handle {
+  width: 42px;
+  height: 15px;
+  margin: 0 auto;
+  display: block;
+  border-radius: 999px;
+  background: linear-gradient(to bottom, transparent 10px, #cbd3dd 10px, #cbd3dd 15px);
+}
+
+.h5-add-address-sheet__intro {
+  padding-top: 12px;
+  display: grid;
+  gap: 4px;
+}
+
+.h5-add-address-sheet__intro strong {
+  color: #05152b;
+  font-size: 16px;
+  font-weight: 900;
+}
+
+.h5-add-address-sheet__intro small {
+  color: #7a899d;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.h5-add-address-sheet__details-scroll {
+  min-height: 0;
+  padding: 0 18px 24px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scroll-padding-bottom: 24px;
 }
 
 .h5-add-address-sheet__section {
@@ -3364,10 +3495,6 @@ onMounted(async () => {
   gap: 7px;
 }
 
-.h5-add-address-sheet__grid .h5-add-address-field {
-  margin-top: 0;
-}
-
 .h5-add-address-field > span {
   color: #05152b;
   font-size: 12px;
@@ -3392,7 +3519,7 @@ onMounted(async () => {
   background: #f8fafc;
   color: #27364b;
   padding: 0 12px;
-  font-size: 13px;
+  font-size: 16px;
   box-sizing: border-box;
 }
 
@@ -3417,18 +3544,18 @@ onMounted(async () => {
 }
 
 .h5-add-address-sheet__submit {
-  position: sticky;
-  bottom: -22px;
-  margin-top: 20px;
-  width: 100%;
-  height: 48px;
+  position: static;
+  z-index: 6;
+  margin: 10px 18px calc(12px + env(safe-area-inset-bottom));
+  width: calc(100% - 36px);
+  height: 52px;
   border: 0;
   border-radius: 12px;
   background: #05152b;
   color: #fff;
   font-size: 15px;
   font-weight: 900;
-  box-shadow: 0 -8px 18px rgba(255, 255, 255, 0.92);
+  box-shadow: 0 10px 24px rgba(5, 21, 43, 0.2), 0 -12px 22px rgba(246, 248, 251, 0.96);
 }
 
 .h5-add-address-sheet__submit:disabled {
@@ -3517,7 +3644,6 @@ onMounted(async () => {
     grid-template-columns: 1fr;
   }
 
-  .h5-add-address-sheet__grid,
   .h5-add-address-field__phone {
     grid-template-columns: 1fr;
   }

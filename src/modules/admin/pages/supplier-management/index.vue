@@ -15,7 +15,7 @@
 
     <section v-if="section !== 'profile' && section !== 'pricing'" class="supplier-strip">
       <div class="supplier-identity">
-        <div class="supplier-logo">PC</div>
+        <div class="supplier-logo">{{ supplierInitials }}</div>
         <div>
           <div class="supplier-label">{{ t('admin.supplierOrders.signedIn') }}</div>
           <strong class="supplier-name">{{ companyForm.companyName || t('admin.supplierOrders.unnamed') }}</strong>
@@ -72,7 +72,7 @@
         <aside class="dossier-rail">
           <p>{{ t('admin.supplierProfile.kicker') }}</p>
           <strong>{{ companyForm.companyName || t('admin.supplierProfile.untitled') }}</strong>
-          <em>{{ profileStatusLabel }}</em>
+          <em class="profile-status-pill" :class="profileStatusClass">{{ profileStatusLabel }}</em>
           <small v-if="snapshotVersion">{{ t('admin.supplierProfile.snapshotVersion', { version: snapshotVersion }) }}</small>
           <nav>
             <button
@@ -87,6 +87,12 @@
         </aside>
 
         <div class="profile-main">
+          <div class="profile-status" :class="profileStatusClass" role="status">
+            <span>{{ t('admin.supplierProfile.statusLabel') }}</span>
+            <strong>{{ profileStatusLabel }}</strong>
+            <p v-if="onboardingStatus === 1">{{ t('admin.supplierProfile.locked') }}</p>
+            <p v-else-if="onboardingStatus === 3 && rejectReason">{{ t('admin.supplierProfile.rejected', { reason: rejectReason }) }}</p>
+          </div>
           <div class="lightbox">
             <div>
               <p>{{ lightboxCrumb }}</p>
@@ -213,7 +219,12 @@
                 <label class="profile-field"><span>{{ t('admin.supplierProfile.maleStaff') }}</span><input class="plain-count" :value="wholeText(maleStaffCount)" inputmode="numeric" :disabled="profileReadOnly" @input="maleStaffCount = wholeOrZero(($event.target as HTMLInputElement).value)" /></label>
               </div>
               <div class="dossier-toggles">
-                <label v-for="item in capacityToggles" :key="item.key"><span><strong>{{ t(`admin.supplierProfile.${item.key}`) }}</strong></span><el-switch v-model="item.enabled" :disabled="profileReadOnly" /></label>
+                <template v-for="item in capacityToggles" :key="item.key">
+                  <label v-if="item.key !== 'weekend'">
+                    <span><strong>{{ t(`admin.supplierProfile.${item.key}`) }}</strong></span>
+                    <el-switch :model-value="item.enabled" :disabled="profileReadOnly" @change="(value: boolean) => onCapacityToggle(item.key, value)" />
+                  </label>
+                </template>
                 <label><span><strong>{{ t('admin.supplierProfile.ownVehicle') }}</strong></span><el-switch v-model="ownTransportation" :disabled="profileReadOnly" /></label>
                 <label><span><strong>{{ t('admin.supplierProfile.ownEquipment') }}</strong></span><el-switch v-model="complianceItems[3].enabled" :disabled="profileReadOnly" /></label>
                 <label><span><strong>{{ t('admin.supplierProfile.taxInvoice') }}</strong></span><el-switch v-model="complianceItems[2].enabled" :disabled="profileReadOnly" /></label>
@@ -311,48 +322,104 @@
     </template>
 
     <template v-else-if="section === 'service-area'">
-      <section class="review-banner area-banner linked-banner"><span><Location /></span><div><strong>{{ t('admin.supplierArea.bannerTitle') }}</strong><p>{{ t('admin.supplierArea.bannerBody') }}</p></div></section>
-      <el-card class="surface-card" shadow="never">
-        <div class="table-toolbar">
-          <div class="result-count">{{ t('admin.supplierArea.count', { areas: supplierAreas.length, communities: communityTotal }) }}</div>
+      <section v-if="areaSelectionEmpty" class="area-alert">
+        <strong>{{ t('admin.supplierArea.noneTitle') }}</strong>
+        <p>{{ t('admin.supplierArea.noneBody') }}</p>
+      </section>
+      <section class="area-note">
+        <strong>{{ t('admin.supplierArea.bannerTitle') }}</strong>
+        <p>{{ t('admin.supplierArea.bannerBody') }}</p>
+      </section>
+      <section class="area-board" v-loading="editorLoading && !areaCatalogReady">
+        <header>
+          <span>{{ coverageSummary(coverageRows.length, coveredCommunityCount) }}</span>
+        </header>
+        <table>
+          <thead>
+            <tr>
+              <th>{{ t('admin.supplierArea.area') }}</th>
+              <th>{{ t('admin.supplierArea.coverage') }}</th>
+              <th>{{ t('admin.supplierArea.included') }}</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-if="areaCatalogReady && !coverageRows.length">
+              <td colspan="3">{{ t('admin.supplierArea.empty') }}</td>
+            </tr>
+            <tr v-for="row in coverageRows" :key="row.id">
+              <td><strong>{{ row.name }}</strong></td>
+              <td>{{ coverageLabel(row) }}</td>
+              <td>
+                <p v-if="!row.communities.length">{{ t('admin.supplierArea.zoneOnly') }}</p>
+                <p v-else-if="row.picked.length === row.communities.length" class="area-all">{{ t('admin.supplierArea.allIncluded') }}</p>
+                <div v-else class="zone-list">
+                  <span v-for="community in row.picked" :key="community.id">{{ community.name }}</span>
+                </div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+      <el-dialog v-model="areaEditorVisible" class="supplier-form-dialog area-manage-dialog" :title="t('admin.supplierArea.dialogTitle')" width="min(820px, calc(100vw - 32px))" :close-on-click-modal="false" append-to-body>
+        <div class="area-manage-tools">
+          <el-input v-model="areaKeyword" :prefix-icon="Search" clearable :placeholder="t('admin.supplierArea.searchPlaceholder')" />
+          <div>
+            <el-button @click="selectAllAreas">{{ t('admin.supplierArea.selectAll') }}</el-button>
+            <el-button @click="clearAllAreas">{{ t('admin.supplierArea.clearAll') }}</el-button>
+          </div>
         </div>
-        <el-table :data="supplierAreas" class="data-table" row-key="areaId" :empty-text="t('admin.supplierArea.empty')">
-          <el-table-column :label="t('admin.supplierArea.area')" min-width="180" prop="areaName" />
-          <el-table-column :label="t('admin.supplierArea.communities')" min-width="360">
-            <template #default="{ row }">
-              <div v-if="communityNames(row.areaId).length" class="zone-list">
-                <span v-for="name in communityNames(row.areaId)" :key="name">{{ name }}</span>
-              </div>
-              <span v-else-if="communitiesByArea[row.areaId]" class="muted-text">{{ t('admin.supplierArea.noCommunities') }}</span>
-              <span v-else class="muted-text">{{ t('admin.supplierArea.loading') }}</span>
-            </template>
-          </el-table-column>
-          <el-table-column :label="t('admin.supplierArea.status')" width="120">
-            <template #default="{ row }">
-              <el-tag :type="row.status === 1 ? 'success' : 'info'" effect="light">{{ row.status === 1 ? t('admin.supplierArea.enabled') : t('admin.supplierArea.disabled') }}</el-tag>
-            </template>
-          </el-table-column>
-        </el-table>
-      </el-card>
-      <el-dialog v-model="areaEditorVisible" class="supplier-form-dialog" :title="t('admin.supplierArea.dialogTitle')" width="min(760px, calc(100vw - 32px))" :close-on-click-modal="false" append-to-body>
-        <el-input v-model="areaKeyword" :prefix-icon="Search" :placeholder="t('admin.supplierArea.searchPlaceholder')" clearable />
-        <div v-loading="editorLoading" class="area-choice-list">
-          <el-checkbox
-            v-for="area in editorAreas"
-            :key="area.id"
-            :model-value="draftAreaIds.includes(area.id)"
-            @change="toggleDraftArea(area.id, Boolean($event))"
-          >
-            <span class="area-choice">
-              <strong>{{ area.name }}</strong>
-              <small>{{ communityText(area.id) }}</small>
-            </span>
-          </el-checkbox>
+        <p class="area-manage-note">{{ t('admin.supplierArea.searchNote') }}</p>
+        <div v-loading="editorLoading" class="area-zone-list">
+          <article v-for="area in editorZones" :key="area.id" class="area-zone" :class="{ 'is-open': expandedAreaIds.includes(area.id) }">
+            <header>
+              <input
+                :ref="(el) => bindZoneBox(el as Element | null, area.id)"
+                type="checkbox"
+                :checked="zoneMode(area.id) === 'all'"
+                @change="toggleZone(area.id)"
+              />
+              <button type="button" @click="toggleExpanded(area.id)">
+                <strong>
+                  <template v-for="(part, index) in highlight(area.name)" :key="`${area.id}-${index}`">
+                    <mark v-if="part.hit">{{ part.text }}</mark><template v-else>{{ part.text }}</template>
+                  </template>
+                </strong>
+                <small>{{ t('admin.supplierArea.communityCount', { count: (communitiesByArea[area.id] || []).length }) }}</small>
+              </button>
+              <button type="button" class="area-zone__chevron" :aria-expanded="expandedAreaIds.includes(area.id)" @click="toggleExpanded(area.id)">
+                {{ expandedAreaIds.includes(area.id) ? '▾' : '▸' }}
+              </button>
+            </header>
+            <div v-if="expandedAreaIds.includes(area.id)" class="area-communities">
+              <p v-if="!(communitiesByArea[area.id] || []).length">{{ t('admin.supplierArea.noCommunities') }}</p>
+              <label
+                v-for="community in communitiesByArea[area.id] || []"
+                :key="community.id"
+                :class="{ 'is-dim': communityDim(area.name, community.name) }"
+              >
+                <input
+                  type="checkbox"
+                  :checked="draftCommunityIds.includes(community.id)"
+                  @change="onCommunityToggle(community.id, $event)"
+                />
+                <span>
+                  <template v-for="(part, index) in highlight(community.name)" :key="`${community.id}-${index}`">
+                    <mark v-if="part.hit">{{ part.text }}</mark><template v-else>{{ part.text }}</template>
+                  </template>
+                </span>
+              </label>
+            </div>
+          </article>
+          <p v-if="!editorLoading && !editorZones.length" class="policy-empty">{{ t('admin.supplierArea.noAreas') }}</p>
         </div>
-        <p v-if="!editorLoading && !editorAreas.length" class="policy-empty">{{ t('admin.supplierArea.noAreas') }}</p>
         <template #footer>
-          <el-button @click="areaEditorVisible = false">{{ t('admin.supplierArea.cancel') }}</el-button>
-          <el-button type="primary" :loading="saving" @click="saveAreas">{{ t('admin.supplierArea.save') }}</el-button>
+          <div class="area-dialog-foot">
+            <span>{{ t('admin.supplierArea.selectedSummary', { summary: coverageSummary(draftSummary.areas, draftSummary.communities) }) }}</span>
+            <div>
+              <el-button @click="areaEditorVisible = false">{{ t('admin.supplierArea.cancel') }}</el-button>
+              <el-button type="primary" :loading="saving" @click="saveAreas">{{ t('admin.supplierArea.save') }}</el-button>
+            </div>
+          </div>
         </template>
       </el-dialog>
     </template>
@@ -517,7 +584,15 @@
               <template #default="{ row }">
                 <div class="order-cell">
                   <span class="order-clamp">{{ row.serviceAddress || '—' }}</span>
+                  <small v-if="row.additionalNotes" class="order-clamp">{{ t('admin.supplierOrders.additionalNotes') }}: {{ row.additionalNotes }}</small>
                   <a v-if="row.pinLocation" class="order-pin" :href="row.pinLocation" target="_blank" rel="noopener noreferrer" @click.stop>{{ t('admin.supplierOrders.openMap') }}</a>
+                </div>
+              </template>
+            </el-table-column>
+            <el-table-column class-name="order-wrap" :label="t('admin.supplierOrders.customerRemark')" min-width="180">
+              <template #default="{ row }">
+                <div class="order-cell">
+                  <span class="order-clamp order-remark-text">{{ row.remark || '—' }}</span>
                 </div>
               </template>
             </el-table-column>
@@ -558,6 +633,8 @@
               <div><dt>{{ t('admin.supplierOrders.serviceTime') }}</dt><dd>{{ orderWhen(row) }}</dd></div>
               <div><dt>{{ t('admin.supplierOrders.price') }}</dt><dd>AED {{ orderMoney(row.quotePrice) }}</dd></div>
               <div class="is-wide"><dt>{{ t('admin.supplierOrders.address') }}</dt><dd>{{ row.serviceAddress || '—' }}</dd></div>
+              <div v-if="row.additionalNotes" class="is-wide"><dt>{{ t('admin.supplierOrders.additionalNotes') }}</dt><dd>{{ row.additionalNotes }}</dd></div>
+              <div class="is-wide"><dt>{{ t('admin.supplierOrders.customerRemark') }}</dt><dd>{{ row.remark || '—' }}</dd></div>
             </dl>
             <footer>
               <el-button @click="openAssignedOrder(row)">{{ t('admin.supplierOrders.viewDetail') }}</el-button>
@@ -589,7 +666,8 @@
         :start="capacityForm.start"
         :end="capacityForm.end"
         :concurrent="capacityForm.concurrent"
-        :weekend="capacityToggles[0].enabled"
+        :saturday="capacityToggles[1].enabled"
+        :sunday="capacityToggles[2].enabled"
         :saving="saving"
         :services="availabilityServices"
         :areas="availabilityAreas"
@@ -722,13 +800,13 @@
           <button type="button" @click="quoteDialog.visible = false">← {{ t('admin.supplierPricing.back') }}</button>
           <span>{{ t('admin.supplierPricing.title') }}</span>
           <em>›</em>
-          <strong>{{ quoteDialog.name }}</strong>
-        </nav>
+            <strong>{{ quoteDialogTitle }}</strong>
+          </nav>
         <section class="pricing-editor-hero">
           <div>
             <span>{{ t('admin.supplierPricing.editorKicker') }}</span>
-            <h1>{{ quoteDialog.name }}</h1>
-            <p>{{ quoteDialog.category }} · {{ t('admin.supplierPricing.editorHint') }}</p>
+            <h1>{{ quoteDialogTitle }}</h1>
+            <p>{{ quoteDialogCategory }} · {{ t('admin.supplierPricing.editorHint') }}</p>
           </div>
           <el-tag :type="quoteTagType(quoteDialog.status)" effect="dark">{{ quoteStatusLabel(quoteDialog.status) }}</el-tag>
         </section>
@@ -740,14 +818,6 @@
               <p>{{ t('admin.supplierPricing.rejectReason', { reason: quoteDialog.rejectReason }) }}</p>
             </div>
           </div>
-          <div v-if="quoteLocked" class="pricing-editor-alert is-locked">
-            <Clock />
-            <div>
-              <strong>{{ t('admin.supplierPricing.reviewNoticeTitle') }}</strong>
-              <p>{{ t('admin.supplierPricing.locked') }}</p>
-            </div>
-          </div>
-
           <div class="pricing-editor-layout">
             <div class="pricing-editor-main">
               <section class="pricing-editor-section">
@@ -759,12 +829,12 @@
                   </div>
                 </header>
                 <div class="mode-cards">
-                  <button type="button" :aria-pressed="quoteDialog.quoteMode === 2" :class="{ 'is-on': quoteDialog.quoteMode === 2 }" :disabled="quoteLocked" @click="pickQuoteMode(2)">
+                  <button type="button" :aria-pressed="quoteDialog.quoteMode === 2" :class="{ 'is-on': quoteDialog.quoteMode === 2 }" @click="pickQuoteMode(2)">
                     <span class="mode-card__mark">{{ quoteDialog.quoteMode === 2 ? '✓' : '01' }}</span>
                     <strong>{{ t('admin.supplierPricing.hourlyRate') }}</strong>
                     <small>{{ t('admin.supplierPricing.hourlyCardHint') }}</small>
                   </button>
-                  <button type="button" :aria-pressed="quoteDialog.quoteMode === 1" :class="{ 'is-on': quoteDialog.quoteMode === 1 }" :disabled="quoteLocked" @click="pickQuoteMode(1)">
+                  <button type="button" :aria-pressed="quoteDialog.quoteMode === 1" :class="{ 'is-on': quoteDialog.quoteMode === 1 }" @click="pickQuoteMode(1)">
                     <span class="mode-card__mark">{{ quoteDialog.quoteMode === 1 ? '✓' : '02' }}</span>
                     <strong>{{ t('admin.supplierPricing.fixedPrice') }}</strong>
                     <small>{{ t('admin.supplierPricing.fixedCardHint') }}</small>
@@ -775,14 +845,9 @@
                     <span>{{ t('admin.supplierPricing.rateLabel') }}</span>
                     <span class="currency-input">
                       <b>AED</b>
-                      <el-input-number v-model="quoteDialog.unitPrice" :min="0" :precision="2" :disabled="quoteLocked" controls-position="right" />
+                      <el-input-number v-model="quoteDialog.unitPrice" :min="0" :precision="2" controls-position="right" />
                     </span>
                   </label>
-                  <div class="rate-formula">
-                    <small>{{ t('admin.supplierPricing.formulaTitle') }}</small>
-                    <strong>{{ t('admin.supplierPricing.rateFormula') }}</strong>
-                    <p>{{ t('admin.supplierPricing.formulaHint') }}</p>
-                  </div>
                 </div>
               </section>
 
@@ -791,13 +856,17 @@
                   <span>02</span>
                   <div>
                     <h2>{{ t('admin.supplierPricing.specStep') }}</h2>
-                    <p>{{ t('admin.supplierPricing.specStepHint') }}</p>
+                    <p class="spec-step-hint">{{ t('admin.supplierPricing.specStepHint') }}</p>
                   </div>
                   <em>{{ quoteDialog.rows.length }}</em>
                 </header>
                 <div class="quote-lines">
                   <p v-if="!quoteDialog.loading && !quoteDialog.rows.length" class="quote-lines__empty">{{ t('admin.supplierPricing.noSpecs') }}</p>
-                  <article v-for="(row, index) in quoteDialog.rows" :key="row.skuId" class="quote-line" :class="{ 'is-off': row.available === false }">
+                  <article v-for="(row, index) in quoteDialog.rows" :key="row.skuId" class="quote-line" :class="{ 'is-off': row.available === false || !row.enabled }">
+                    <label class="quote-line__switch">
+                      <span>{{ t('admin.supplierPricing.skuSwitch') }}</span>
+                      <el-switch v-model="row.enabled" :disabled="row.available === false" />
+                    </label>
                     <div class="quote-line__spec">
                       <span>{{ String(index + 1).padStart(2, '0') }}</span>
                       <div>
@@ -808,11 +877,11 @@
                     </div>
                     <label>
                       <span>{{ t('admin.supplierPricing.headcount') }}</span>
-                      <el-input-number v-model="row.staffCount" :min="1" :precision="0" :disabled="quoteLocked || row.available === false" controls-position="right" />
+                      <el-input-number v-model="row.staffCount" :min="1" :precision="0" :disabled="row.available === false || !row.enabled" controls-position="right" />
                     </label>
                     <label>
                       <span>{{ t('admin.supplierPricing.hours') }}</span>
-                      <el-input-number v-model="row.serviceHours" :min="0.01" :precision="2" :step="0.5" :disabled="quoteLocked || row.available === false" controls-position="right" />
+                      <el-input-number v-model="row.serviceHours" :min="0.01" :precision="2" :step="0.5" :disabled="row.available === false || !row.enabled" controls-position="right" />
                     </label>
                     <label class="quote-line__price">
                       <span>{{ t('admin.supplierPricing.taxPrice') }}</span>
@@ -820,7 +889,7 @@
                         <small>AED</small>
                         <strong>{{ skuAmount(row) == null ? '—' : moneyText(skuAmount(row)) }}</strong>
                       </span>
-                      <el-input v-else v-model="row.quotePrice" inputmode="decimal" :disabled="quoteLocked || row.available === false">
+                      <el-input v-else v-model="row.quotePrice" inputmode="decimal" :disabled="row.available === false || !row.enabled">
                         <template #prepend>AED</template>
                       </el-input>
                       <small v-if="quoteDialog.quoteMode === 2" class="field-help">{{ t('admin.supplierPricing.readonlyPriceHint') }}</small>
@@ -841,12 +910,12 @@
                 <div class="quote-attaches">
                   <article v-for="item in quoteDialog.attaches" :key="item.attachValueId" class="quote-attach" :class="{ 'is-selected': item.offered }">
                     <div class="quote-attach__name">
-                      <el-checkbox :model-value="item.offered" :disabled="quoteLocked" @change="(value: boolean | string | number) => toggleAttach(item, Boolean(value))">
-                        {{ item.name }}
+                      <el-checkbox :model-value="item.offered" @change="(value: boolean | string | number) => toggleAttach(item, Boolean(value))">
+                        {{ attachDisplay(item, 'name') }}
                       </el-checkbox>
-                      <small>{{ item.typeName }} · {{ t('admin.supplierPricing.livePrice', { price: moneyText(item.approvedPrice) }) }}</small>
+                      <small>{{ attachDisplay(item, 'type') }} · {{ t('admin.supplierPricing.livePrice', { price: moneyText(item.approvedPrice) }) }}</small>
                     </div>
-                    <el-input v-if="item.offered" v-model="item.quotePrice" inputmode="decimal" :disabled="quoteLocked" :placeholder="t('admin.supplierPricing.taxPrice')">
+                    <el-input v-if="item.offered" v-model="item.quotePrice" inputmode="decimal" :placeholder="t('admin.supplierPricing.taxPrice')">
                       <template #prepend>AED</template>
                     </el-input>
                   </article>
@@ -877,8 +946,8 @@
               <small>{{ t('admin.supplierPricing.priceIntro') }}</small>
             </div>
             <div>
-              <el-button :disabled="quoteLocked" :loading="quoteDialog.saving" @click="saveServiceQuote">{{ t('admin.supplierPricing.saveDraft') }}</el-button>
-              <el-button type="primary" :disabled="quoteLocked" :loading="quoteDialog.saving" @click="submitServiceQuote">{{ t('admin.supplierPricing.submitReview') }}</el-button>
+              <el-button :loading="quoteDialog.saving" @click="saveServiceQuote">{{ t('admin.supplierPricing.saveDraft') }}</el-button>
+              <el-button type="primary" :loading="quoteDialog.saving" @click="submitServiceQuote">{{ t('admin.supplierPricing.submitReview') }}</el-button>
             </div>
           </footer>
         </section>
@@ -933,10 +1002,10 @@
         </template>
       </el-dialog>
 
-      <el-dialog v-model="serviceEditor.open" class="supplier-form-dialog" :title="t('admin.supplierPricing.editTitle', { name: serviceEditor.name || t('admin.supplierPricing.serviceFallback') })" width="min(560px, calc(100vw - 32px))" :close-on-click-modal="false" append-to-body>
+      <el-dialog v-model="serviceEditor.open" class="supplier-form-dialog" :title="t('admin.supplierPricing.editTitle', { name: serviceEditorTitle })" width="min(560px, calc(100vw - 32px))" :close-on-click-modal="false" append-to-body>
         <div class="service-editor-intro">
           <span>{{ t('admin.supplierPricing.serviceSetupTitle') }}</span>
-          <strong>{{ serviceEditor.name }}</strong>
+          <strong>{{ serviceEditorTitle }}</strong>
           <p>{{ t('admin.supplierPricing.serviceSetupHint') }}</p>
         </div>
         <div class="picker-fields">
@@ -1049,6 +1118,8 @@
           <section class="order-panel">
             <h3><span>02</span>{{ t('admin.supplierOrders.placeBlock') }}</h3>
             <p class="order-address">{{ selectedOrder.serviceAddress || '—' }}</p>
+            <p class="order-address">{{ t('admin.supplierOrders.customerRemark') }}: {{ selectedOrder.remark || '—' }}</p>
+            <p v-if="selectedOrder.additionalNotes" class="order-address">{{ t('admin.supplierOrders.additionalNotes') }}: {{ selectedOrder.additionalNotes }}</p>
             <a v-if="selectedOrder.pinLocation" class="order-map" :href="selectedOrder.pinLocation" target="_blank" rel="noopener noreferrer">{{ t('admin.supplierOrders.openMap') }}</a>
           </section>
 
@@ -1098,11 +1169,11 @@
             </div>
           </section>
 
-          <section v-if="selectedOrder.departTime || selectedOrder.remark || selectedOrder.arriveRemark || selectedOrder.completeRemark" class="order-panel order-panel--wide">
+          <section v-if="selectedOrder.departTime || selectedOrder.additionalNotes || selectedOrder.arriveRemark || selectedOrder.completeRemark" class="order-panel order-panel--wide">
             <h3><span>06</span>{{ t('admin.supplierOrders.executionBlock') }}</h3>
             <div class="order-facts">
               <div v-if="selectedOrder.departTime"><span>{{ t('admin.supplierOrders.departTime') }}</span><strong>{{ orderClock(selectedOrder.departTime) }}</strong></div>
-              <div v-if="selectedOrder.remark" class="is-wide"><span>{{ t('admin.supplierOrders.customerRemark') }}</span><strong>{{ selectedOrder.remark }}</strong></div>
+              <div v-if="selectedOrder.additionalNotes" class="is-wide"><span>{{ t('admin.supplierOrders.additionalNotes') }}</span><strong>{{ selectedOrder.additionalNotes }}</strong></div>
               <div v-if="selectedOrder.arriveRemark"><span>{{ t('admin.supplierOrders.arriveNote') }}</span><strong>{{ selectedOrder.arriveRemark }}</strong></div>
               <div v-if="selectedOrder.completeRemark"><span>{{ t('admin.supplierOrders.completeNote') }}</span><strong>{{ selectedOrder.completeRemark }}</strong></div>
             </div>
@@ -1193,6 +1264,7 @@ import {
   onboardingMine,
   onboardingResubmit,
   onboardingSave,
+  serviceCommunityPage,
   saveQuoteDraft,
   saveServices,
   submitQuote,
@@ -1207,7 +1279,6 @@ import {
 } from '@/modules/admin/api/supplierWorkbench'
 import { listBySpu, listSpuAttachCatalog } from '@/modules/admin/api/spu'
 import SupplierAvailability from '@/modules/admin/pages/supplier-management/availability.vue'
-import { getAdminLocale } from '@/modules/admin/locales'
 import { useAdminSessionStore } from '@/modules/admin/stores/session'
 import { pickI18nText } from '@/modules/admin/utils/i18n'
 import { categoryIdPayload, listServiceCategories, serviceCategoryLabel } from '@/modules/client/api/supplier-onboarding'
@@ -1262,6 +1333,13 @@ const profileStatusLabel = computed(() => {
   const keys = ['statusDraft', 'statusSubmitted', 'statusApproved', 'statusRejected']
   const key = onboardingStatus.value == null ? 'statusNone' : keys[onboardingStatus.value] || 'statusNone'
   return t(`admin.supplierProfile.${key}`)
+})
+const profileStatusClass = computed(() => {
+  if (onboardingStatus.value === 1) return 'is-review'
+  if (onboardingStatus.value === 2) return 'is-approved'
+  if (onboardingStatus.value === 3) return 'is-rejected'
+  if (onboardingStatus.value === 0) return 'is-draft'
+  return 'is-none'
 })
 const session = useAdminSessionStore()
 const supplierRecordId = ref<number | null>(null)
@@ -1427,10 +1505,26 @@ const policyDocuments = computed(() => complianceItems
 const capacityForm = reactive({ workers: 0, concurrent: 0, monthly: 0, leadTime: 0, start: '08:00', end: '18:00' })
 const capacityToggles = reactive([
   { key: 'weekend', enabled: false },
+  { key: 'saturday', enabled: true },
+  { key: 'sunday', enabled: true },
   { key: 'publicHoliday', enabled: false },
   { key: 'sameDay', enabled: false },
   { key: 'emergency', enabled: false },
 ])
+const onCapacityToggle = (key: string, enabled: boolean) => {
+  const item = capacityToggles.find((row) => row.key === key)
+  if (!item) return
+  item.enabled = enabled
+  if (key === 'saturday' || key === 'sunday') {
+    capacityToggles[0].enabled = capacityToggles[1].enabled || capacityToggles[2].enabled
+    return
+  }
+  if (key !== 'weekend') return
+  const saturday = capacityToggles.find((row) => row.key === 'saturday')
+  const sunday = capacityToggles.find((row) => row.key === 'sunday')
+  if (saturday) saturday.enabled = enabled
+  if (sunday) sunday.enabled = enabled
+}
 
 type StaffStatus = 'available' | 'busy' | 'leave'
 type StaffRow = { id: string; name: string; gender: string; role: string; employment: string; workingDays: string; workingHours: string; mobile: string; language: string; skills: string[]; zones: string[]; docs: string; status: StaffStatus; color: string }
@@ -1644,16 +1738,17 @@ const quoteDialog = reactive({
   saving: false,
   spuId: 0,
   name: '',
+  nameI18n: null as Record<string, unknown> | null,
   category: '',
+  categoryI18n: null as Record<string, unknown> | null,
   status: undefined as number | undefined,
   rejectReason: '',
   quoteMode: null as 1 | 2 | null,
   unitPrice: null as number | null,
-  columns: [] as { key: string; label: string }[],
+  columns: [] as { key: string; nameI18n: Record<string, unknown> | null; fallback: string }[],
   rows: [] as any[],
-  attaches: [] as Array<{ attachValueId: number; typeName: string; name: string; platformPrice: unknown; approvedPrice: unknown; offered: boolean; quotePrice: string }>,
+  attaches: [] as Array<{ attachValueId: number; typeName: string; typeNameI18n?: Record<string, unknown> | null; name: string; nameI18n?: Record<string, unknown> | null; platformPrice: unknown; approvedPrice: unknown; offered: boolean; quotePrice: string }>,
 })
-const quoteLocked = computed(() => Number(quoteDialog.status) === 1)
 const selectedAttachCount = computed(() => quoteDialog.attaches.filter((item) => item.offered).length)
 
 const settlementTab = ref('transactions')
@@ -1672,14 +1767,20 @@ const payoutBatches = [
 const showToast = (message: string) => ElMessage.success(message)
 
 type SupplierArea = { areaId: number; areaName: string; status?: number }
+type AreaCommunity = { id: number; name: string }
+type AreaZone = { id: number; name: string }
 const platformAreas = ref<any[]>([])
 const supplierAreas = ref<SupplierArea[]>([])
 const selectedAreaIds = ref<number[]>([])
-const draftAreaIds = ref<number[]>([])
+const coveredCommunityIds = ref<number[] | null>(null)
+const draftCommunityIds = ref<number[]>([])
+const draftBareAreaIds = ref<number[]>([])
+const expandedAreaIds = ref<number[]>([])
 const areaKeyword = ref('')
 const areaEditorVisible = ref(false)
 const editorLoading = ref(false)
-const communitiesByArea = ref<Record<number, string[]>>({})
+const areaCatalogReady = ref(false)
+const communitiesByArea = ref<Record<number, AreaCommunity[]>>({})
 const servicesProvided = ref('')
 const expectedServiceIds = ref<string[]>([])
 const expectedServicesKnown = ref(false)
@@ -1846,12 +1947,18 @@ const catalogDraft = ref<CatalogGroupDraft[]>([])
 const savedServices = ref<SavedService[]>([])
 watch(() => [companyForm.mobile, companyForm.mobileCode], syncWhatsapp)
 const availabilityServices = computed(() => {
-  const seen = new Set<number>()
-  return savedServices.value.flatMap((service) => {
-    if (seen.has(service.spuId)) return []
-    seen.add(service.spuId)
-    return [{ spuId: service.spuId, name: service.name }]
-  })
+  const byId = new Map<number, { spuId: number; name: string }>()
+  for (const quote of liveQuotes.value || []) {
+    const spuId = Number(quote?.spuId)
+    if (!spuId) continue
+    const i18n = quote?.nameI18n && typeof quote.nameI18n === 'object' ? quote.nameI18n : null
+    byId.set(spuId, { spuId, name: pickI18nText(i18n, locale.value, '') || String(quote?.spuName || '') })
+  }
+  for (const service of savedServices.value) {
+    if (byId.has(service.spuId)) continue
+    byId.set(service.spuId, { spuId: service.spuId, name: pickI18nText(service.spuNameI18n, locale.value, '') || service.name })
+  }
+  return [...byId.values()]
 })
 const availabilityAreas = computed(() => supplierAreas.value.map((area) => ({
   areaId: area.areaId,
@@ -1883,6 +1990,7 @@ const serviceEditor = reactive({
   spuId: 0,
   categoryId: 0,
   name: '',
+  nameI18n: null as Record<string, unknown> | null,
   workerCount: null as number | null,
   phones: [''],
 })
@@ -2075,29 +2183,155 @@ const onboardingTagType = computed(() => {
   if (onboardingStatus.value === 1) return 'warning'
   return 'info'
 })
-const editorAreas = computed(() => {
-  const map = new Map<number, { id: number; name: string }>()
+const areaCatalog = computed(() => {
+  const map = new Map<number, AreaZone>()
   platformAreas.value.forEach((area) => {
     const id = Number(area.id)
-    if (id) map.set(id, { id, name: area.name || `Area ${id}` })
+    if (id) map.set(id, { id, name: String(area.name || `Area ${id}`) })
   })
   supplierAreas.value.forEach((area) => {
-    if (!map.has(area.areaId)) map.set(area.areaId, { id: area.areaId, name: area.areaName })
+    if (!map.has(area.areaId)) map.set(area.areaId, { id: area.areaId, name: area.areaName || `Area ${area.areaId}` })
   })
+  return [...map.values()]
+})
+const savedCoverage = computed(() => {
+  const included = new Set<number>()
+  const bare: number[] = []
+  const explicit = coveredCommunityIds.value
+  const selected = new Set(selectedAreaIds.value)
+  areaCatalog.value.forEach((area) => {
+    const communities = communitiesByArea.value[area.id] || []
+    if (!communities.length) {
+      if (selected.has(area.id)) bare.push(area.id)
+      return
+    }
+    communities.forEach((community) => {
+      if (explicit ? explicit.includes(community.id) : selected.has(area.id)) included.add(community.id)
+    })
+  })
+  return { included: [...included], bare }
+})
+const coverageRows = computed(() => {
+  const included = new Set(savedCoverage.value.included)
+  const bare = new Set(savedCoverage.value.bare)
+  return areaCatalog.value.map((area) => {
+    const communities = communitiesByArea.value[area.id] || []
+    return {
+      ...area,
+      communities,
+      picked: communities.filter((community) => included.has(community.id)),
+      bare: bare.has(area.id),
+    }
+  }).filter((row) => row.picked.length || row.bare)
+})
+const coveredCommunityCount = computed(() => savedCoverage.value.included.length)
+const coverageSummary = (areas: number, communities: number) => t('admin.supplierArea.count', {
+  areas: t(areas === 1 ? 'admin.supplierArea.oneArea' : 'admin.supplierArea.manyAreas', { count: areas }),
+  communities: t(communities === 1 ? 'admin.supplierArea.oneCommunity' : 'admin.supplierArea.manyCommunities', { count: communities }),
+})
+const areaSelectionEmpty = computed(() => areaCatalogReady.value && !coverageRows.value.length)
+const coverageLabel = (row: { communities: AreaCommunity[]; picked: AreaCommunity[] }) => {
+  if (!row.communities.length) return t('admin.supplierArea.zoneOnly')
+  if (row.picked.length === row.communities.length) return t('admin.supplierArea.allCoverage', { total: row.communities.length })
+  return t('admin.supplierArea.partialCoverage', { count: row.picked.length, total: row.communities.length })
+}
+const editorZones = computed(() => {
   const keyword = areaKeyword.value.trim().toLowerCase()
-  return [...map.values()].filter((area) => {
+  return areaCatalog.value.filter((area) => {
     if (!keyword) return true
-    const communities = (communitiesByArea.value[area.id] || []).join(' ')
-    return `${area.name} ${communities}`.toLowerCase().includes(keyword)
+    if (area.name.toLowerCase().includes(keyword)) return true
+    return (communitiesByArea.value[area.id] || []).some((community) => community.name.toLowerCase().includes(keyword))
   })
 })
-const communityNames = (areaId: number) => communitiesByArea.value[areaId] || []
-const communityText = (areaId: number) => {
-  const names = communitiesByArea.value[areaId]
-  if (!names) return t('admin.supplierArea.communitiesLoading')
-  return names.length ? names.join(', ') : t('admin.supplierArea.noCommunities')
+const draftSummary = computed(() => {
+  const picked = new Set(draftCommunityIds.value)
+  let areas = draftBareAreaIds.value.length
+  let communities = 0
+  areaCatalog.value.forEach((area) => {
+    const count = (communitiesByArea.value[area.id] || []).filter((community) => picked.has(community.id)).length
+    if (!count) return
+    areas += 1
+    communities += count
+  })
+  return { areas, communities }
+})
+const zoneMode = (areaId: number) => {
+  const communities = communitiesByArea.value[areaId] || []
+  if (!communities.length) return draftBareAreaIds.value.includes(areaId) ? 'all' : 'none'
+  const picked = communities.filter((community) => draftCommunityIds.value.includes(community.id)).length
+  if (!picked) return 'none'
+  return picked === communities.length ? 'all' : 'partial'
 }
-const communityTotal = computed(() => supplierAreas.value.reduce((sum, area) => sum + communityNames(area.areaId).length, 0))
+const bindZoneBox = (el: Element | null, areaId: number) => {
+  if (el instanceof HTMLInputElement) el.indeterminate = zoneMode(areaId) === 'partial'
+}
+const highlight = (text: string) => {
+  const keyword = areaKeyword.value.trim()
+  if (!keyword) return [{ text, hit: false }]
+  const lower = text.toLowerCase()
+  const query = keyword.toLowerCase()
+  const parts: { text: string; hit: boolean }[] = []
+  let cursor = 0
+  while (cursor < text.length) {
+    const at = lower.indexOf(query, cursor)
+    if (at < 0) {
+      parts.push({ text: text.slice(cursor), hit: false })
+      break
+    }
+    if (at > cursor) parts.push({ text: text.slice(cursor, at), hit: false })
+    parts.push({ text: text.slice(at, at + keyword.length), hit: true })
+    cursor = at + keyword.length
+  }
+  return parts.length ? parts : [{ text, hit: false }]
+}
+const communityDim = (areaName: string, communityName: string) => {
+  const keyword = areaKeyword.value.trim().toLowerCase()
+  if (!keyword || areaName.toLowerCase().includes(keyword)) return false
+  return !communityName.toLowerCase().includes(keyword)
+}
+const toggleExpanded = (areaId: number) => {
+  expandedAreaIds.value = expandedAreaIds.value.includes(areaId)
+    ? expandedAreaIds.value.filter((id) => id !== areaId)
+    : [...expandedAreaIds.value, areaId]
+}
+const toggleZone = (areaId: number) => {
+  const communities = communitiesByArea.value[areaId] || []
+  if (!communities.length) {
+    draftBareAreaIds.value = draftBareAreaIds.value.includes(areaId)
+      ? draftBareAreaIds.value.filter((id) => id !== areaId)
+      : [...draftBareAreaIds.value, areaId]
+    return
+  }
+  if (zoneMode(areaId) === 'all') {
+    const drop = new Set(communities.map((community) => community.id))
+    draftCommunityIds.value = draftCommunityIds.value.filter((id) => !drop.has(id))
+    return
+  }
+  const next = new Set(draftCommunityIds.value)
+  communities.forEach((community) => next.add(community.id))
+  draftCommunityIds.value = [...next]
+}
+const onCommunityToggle = (id: number, event: Event) => {
+  const checked = event.target instanceof HTMLInputElement && event.target.checked
+  draftCommunityIds.value = checked
+    ? Array.from(new Set([...draftCommunityIds.value, id]))
+    : draftCommunityIds.value.filter((item) => item !== id)
+}
+const selectAllAreas = () => {
+  const communities: number[] = []
+  const bare: number[] = []
+  areaCatalog.value.forEach((area) => {
+    const rows = communitiesByArea.value[area.id] || []
+    if (!rows.length) bare.push(area.id)
+    else rows.forEach((community) => communities.push(community.id))
+  })
+  draftCommunityIds.value = communities
+  draftBareAreaIds.value = bare
+}
+const clearAllAreas = () => {
+  draftCommunityIds.value = []
+  draftBareAreaIds.value = []
+}
 
 const unwrap = (res: any) => (res && typeof res === 'object' && 'data' in res ? res.data : res)
 const bit = (enabled: boolean) => (enabled ? 1 : 0)
@@ -2121,11 +2355,30 @@ const supplierInitials = computed(() => {
   return letters || 'SP'
 })
 const specText = (value: unknown) => {
+  locale.value
   if (value == null || value === '') return '—'
   if (typeof value === 'string' || typeof value === 'number') return String(value)
-  if (typeof value === 'object') return pickI18nText(value as Record<string, unknown>, getAdminLocale(), '—') || '—'
-  return '—'
+  if (typeof value !== 'object') return '—'
+  const record = { ...(value as Record<string, unknown>) }
+  delete record.remarkI18n
+  const nested = record.nameI18n
+  const source = nested && typeof nested === 'object' ? nested as Record<string, unknown> : record
+  return pickI18nText(source, locale.value, '—') || '—'
 }
+const localizedName = (i18n: unknown, plain?: unknown) => {
+  const text = specText(i18n)
+  if (text !== '—') return text
+  const fallback = plain == null ? '' : String(plain).trim()
+  return fallback || '—'
+}
+const quoteDialogTitle = computed(() => localizedName(quoteDialog.nameI18n, quoteDialog.name))
+const quoteDialogCategory = computed(() => localizedName(quoteDialog.categoryI18n, quoteDialog.category))
+const serviceEditorTitle = computed(() => localizedName(serviceEditor.nameI18n, serviceEditor.name) === '—'
+  ? t('admin.supplierPricing.serviceFallback')
+  : localizedName(serviceEditor.nameI18n, serviceEditor.name))
+const attachDisplay = (item: { name?: string; nameI18n?: unknown; typeName?: string; typeNameI18n?: unknown }, kind: 'name' | 'type') => (
+  kind === 'name' ? localizedName(item.nameI18n, item.name) : localizedName(item.typeNameI18n, item.typeName)
+)
 const orderCategoryOptions = computed(() => {
   locale.value
   return catalogDraft.value.map((group) => {
@@ -2216,10 +2469,12 @@ const buildProfilePayload = (status?: number, areaIds?: number[]) => ({
   monthlyCapacity: capacityForm.monthly,
   minLeadTimeHours: capacityForm.leadTime,
   workingHours: capacityForm.start && capacityForm.end ? `${capacityForm.start}-${capacityForm.end}` : '',
-  weekendService: bit(capacityToggles[0].enabled),
-  publicHolidayService: bit(capacityToggles[1].enabled),
-  sameDayBooking: bit(capacityToggles[2].enabled),
-  emergencyService: bit(capacityToggles[3].enabled),
+  weekendService: bit(capacityToggles[1].enabled || capacityToggles[2].enabled),
+  saturdayService: bit(capacityToggles[1].enabled),
+  sundayService: bit(capacityToggles[2].enabled),
+  publicHolidayService: bit(capacityToggles[3].enabled),
+  sameDayBooking: bit(capacityToggles[4].enabled),
+  emergencyService: bit(capacityToggles[5].enabled),
   femaleStaffAvailable: femaleStaffCount.value > 0 ? 1 : 0,
   femaleStaffCount: femaleStaffCount.value,
   maleStaffAvailable: maleStaffCount.value > 0 ? 1 : 0,
@@ -2309,10 +2564,19 @@ const applyProfile = (detail: any) => {
   const hours = String(detail?.workingHours || '').split('-')
   capacityForm.start = hours[0] || '08:00'
   capacityForm.end = hours[1] || '18:00'
-  capacityToggles[0].enabled = detail?.weekendService === 1
-  capacityToggles[1].enabled = detail?.publicHolidayService === 1
-  capacityToggles[2].enabled = detail?.sameDayBooking === 1
-  capacityToggles[3].enabled = detail?.emergencyService === 1
+  const legacyWeekend = detail?.weekendService == null || detail?.weekendService === ''
+    ? true
+    : Number(detail.weekendService) === 1
+  capacityToggles[1].enabled = detail?.saturdayService == null || detail?.saturdayService === ''
+    ? legacyWeekend
+    : Number(detail.saturdayService) === 1
+  capacityToggles[2].enabled = detail?.sundayService == null || detail?.sundayService === ''
+    ? legacyWeekend
+    : Number(detail.sundayService) === 1
+  capacityToggles[0].enabled = capacityToggles[1].enabled || capacityToggles[2].enabled
+  capacityToggles[3].enabled = detail?.publicHolidayService === 1
+  capacityToggles[4].enabled = detail?.sameDayBooking === 1
+  capacityToggles[5].enabled = detail?.emergencyService === 1
   complianceItems[0].enabled = detail?.publicLiabilityInsurance === 1
   complianceItems[0].files = asFileList(detail?.publicLiabilityInsuranceFile)
   complianceItems[1].enabled = detail?.employeeInsurance === 1
@@ -2336,7 +2600,11 @@ const applyProfile = (detail: any) => {
     }))
     .filter((area: SupplierArea) => area.areaId)
   selectedAreaIds.value = supplierAreas.value.map((area) => area.areaId)
-  loadAreaCommunities(selectedAreaIds.value)
+  const savedCoverage = extra?.coveredCommunityIds
+  coveredCommunityIds.value = Array.isArray(savedCoverage)
+    ? savedCoverage.map((id: unknown) => Number(id)).filter((id: number) => Number.isFinite(id) && id > 0)
+    : null
+  if (section.value === 'service-area') ensureAreaCatalog()
 }
 
 const loadSupplierDetail = async (id: number, fresh = false) => {
@@ -2379,12 +2647,13 @@ const loadCurrentSupplier = async () => {
   if (section === 'profile') await loadCatalog()
 }
 
-const saveAvailabilityHours = async (next: { start: string; end: string; concurrent: number; weekend: boolean }) => {
+const saveAvailabilityHours = async (next: { start: string; end: string; concurrent: number; saturday: boolean; sunday: boolean }) => {
   const previous = {
     start: capacityForm.start,
     end: capacityForm.end,
     concurrent: capacityForm.concurrent,
-    weekend: capacityToggles[0].enabled,
+    saturday: capacityToggles[1].enabled,
+    sunday: capacityToggles[2].enabled,
   }
   if (!profileEditable.value) {
     ElMessage.warning(t('admin.supplierProfile.locked'))
@@ -2393,7 +2662,9 @@ const saveAvailabilityHours = async (next: { start: string; end: string; concurr
   capacityForm.start = next.start
   capacityForm.end = next.end
   capacityForm.concurrent = next.concurrent
-  capacityToggles[0].enabled = next.weekend
+  capacityToggles[1].enabled = next.saturday
+  capacityToggles[2].enabled = next.sunday
+  capacityToggles[0].enabled = next.saturday || next.sunday
   saving.value = true
   try {
     if (onboardingStatus.value === 2 || onboardingStatus.value === 3) {
@@ -2410,7 +2681,9 @@ const saveAvailabilityHours = async (next: { start: string; end: string; concurr
     capacityForm.start = previous.start
     capacityForm.end = previous.end
     capacityForm.concurrent = previous.concurrent
-    capacityToggles[0].enabled = previous.weekend
+    capacityToggles[1].enabled = previous.saturday
+    capacityToggles[2].enabled = previous.sunday
+    capacityToggles[0].enabled = previous.saturday || previous.sunday
     ElMessage.error(error?.message || t('admin.supplierAvailability.hoursFailed'))
   } finally {
     saving.value = false
@@ -2641,19 +2914,58 @@ const uploadDocFile = async (id: 'trade' | 'public' | 'employee' | 'other', opti
   }
 }
 
-const loadAreaCommunities = async (areaIds: number[]) => {
-  const ids = [...new Set(areaIds.filter(Boolean))]
-  const missing = ids.filter((id) => communitiesByArea.value[id] == null)
-  if (!missing.length) return
-  try {
-    const loaded = await session.communitiesFor(missing)
-    communitiesByArea.value = { ...communitiesByArea.value, ...loaded }
-  } catch {
-    communitiesByArea.value = {
-      ...communitiesByArea.value,
-      ...Object.fromEntries(missing.map((id) => [id, []])),
-    }
+const loadCommunityRecords = async (areaId: number) => {
+  const rows: AreaCommunity[] = []
+  let pageNum = 1
+  let total = Number.POSITIVE_INFINITY
+  while (rows.length < total && pageNum <= 8) {
+    const page = unwrap(await serviceCommunityPage({ areaId, pageNum, pageSize: 200, status: 1 }))
+    const list = Array.isArray(page?.list) ? page.list : []
+    total = Number(page?.total ?? list.length)
+    rows.push(...list.map((item: any) => ({ id: Number(item.id), name: String(item.name || '') })).filter((item: AreaCommunity) => item.id))
+    if (!list.length) break
+    pageNum += 1
   }
+  return rows
+}
+
+let areaCatalogChain: Promise<void> = Promise.resolve()
+const loadMissingAreas = async () => {
+  editorLoading.value = true
+  try {
+    if (!platformAreas.value.length) platformAreas.value = await session.serviceAreas()
+    const wanted = new Set<number>()
+    platformAreas.value.forEach((area) => {
+      const id = Number(area.id)
+      if (id) wanted.add(id)
+    })
+    supplierAreas.value.forEach((area) => {
+      if (area.areaId) wanted.add(area.areaId)
+    })
+    const missing = [...wanted].filter((id) => communitiesByArea.value[id] == null)
+    if (missing.length) {
+      const loaded = await Promise.all(missing.map(async (areaId) => [areaId, await loadCommunityRecords(areaId)] as const))
+      const next = { ...communitiesByArea.value }
+      loaded.forEach(([areaId, communities]) => {
+        next[areaId] = communities
+      })
+      communitiesByArea.value = next
+    }
+    areaCatalogReady.value = true
+  } catch (error: any) {
+    ElMessage.error(error?.message || t('admin.supplierArea.loadFailed'))
+  } finally {
+    editorLoading.value = false
+  }
+}
+const ensureAreaCatalog = () => {
+  areaCatalogChain = areaCatalogChain.then(loadMissingAreas, loadMissingAreas)
+  return areaCatalogChain
+}
+
+const seedAreaDraft = () => {
+  draftCommunityIds.value = [...savedCoverage.value.included]
+  draftBareAreaIds.value = [...savedCoverage.value.bare]
 }
 
 const openAreaEditor = async () => {
@@ -2661,24 +2973,11 @@ const openAreaEditor = async () => {
     ElMessage.warning(t('admin.supplierArea.saveProfileFirst'))
     return
   }
-  draftAreaIds.value = [...selectedAreaIds.value]
   areaKeyword.value = ''
+  expandedAreaIds.value = []
   areaEditorVisible.value = true
-  editorLoading.value = true
-  try {
-    platformAreas.value = await session.serviceAreas()
-    await loadAreaCommunities(platformAreas.value.map((area) => Number(area.id)))
-  } catch (error: any) {
-    ElMessage.error(error?.message || t('admin.supplierArea.loadFailed'))
-  } finally {
-    editorLoading.value = false
-  }
-}
-
-const toggleDraftArea = (id: number, checked: boolean) => {
-  draftAreaIds.value = checked
-    ? Array.from(new Set([...draftAreaIds.value, id]))
-    : draftAreaIds.value.filter((item) => item !== id)
+  await ensureAreaCatalog()
+  seedAreaDraft()
 }
 
 const areaNameById = (id: number) => {
@@ -2687,24 +2986,38 @@ const areaNameById = (id: number) => {
   return supplierAreas.value.find((area) => area.areaId === id)?.areaName || ''
 }
 
+const chosenAreaIds = () => {
+  const picked = new Set(draftCommunityIds.value)
+  return areaCatalog.value.filter((area) => {
+    const communities = communitiesByArea.value[area.id] || []
+    if (!communities.length) return draftBareAreaIds.value.includes(area.id)
+    return communities.some((community) => picked.has(community.id))
+  }).map((area) => area.id)
+}
+
 const saveAreas = async () => {
-  if (!profileEditable.value) {
-    ElMessage.warning(t('admin.supplierProfile.locked'))
-    return
-  }
   if (!companyForm.companyName) {
     ElMessage.warning(t('admin.supplierArea.profileRequired'))
     return
   }
-  dubaiServiceAreas.value = draftAreaIds.value.map(areaNameById).filter(Boolean).join(', ')
+  const areaIds = chosenAreaIds()
+  const previousAreas = dubaiServiceAreas.value
+  const previousExtra = profileExtra.value
+  const previousCovered = coveredCommunityIds.value
+  dubaiServiceAreas.value = areaIds.map(areaNameById).filter(Boolean).join(', ')
+  profileExtra.value = { ...profileExtra.value, coveredCommunityIds: [...draftCommunityIds.value] }
+  coveredCommunityIds.value = [...draftCommunityIds.value]
   saving.value = true
   try {
-    const id = unwrap(await onboardingSave(buildProfilePayload(onboardingStatus.value ?? undefined, draftAreaIds.value)))
+    const id = unwrap(await onboardingSave(buildProfilePayload(onboardingStatus.value ?? undefined, areaIds)))
     if (id) supplierRecordId.value = Number(id)
     areaEditorVisible.value = false
     ElMessage.success(t('admin.supplierArea.saved'))
     if (supplierRecordId.value) await loadSupplierDetail(supplierRecordId.value, true)
   } catch (error: any) {
+    dubaiServiceAreas.value = previousAreas
+    profileExtra.value = previousExtra
+    coveredCommunityIds.value = previousCovered
     ElMessage.error(error?.message || t('admin.supplierArea.saveFailed'))
   } finally {
     saving.value = false
@@ -2790,13 +3103,14 @@ const confirmAddServices = async () => {
 const openServiceEditor = (row: SavedService) => {
   serviceEditor.spuId = row.spuId
   serviceEditor.categoryId = row.categoryId
-  serviceEditor.name = serviceTitle(row.name, row.spuNameI18n)
+  serviceEditor.name = row.name
+  serviceEditor.nameI18n = row.spuNameI18n
   serviceEditor.workerCount = row.workerCount
   serviceEditor.phones = row.phones.length ? [...row.phones] : ['']
   serviceEditor.open = true
 }
 const saveServiceEditor = async () => {
-  const problem = contactProblem(serviceEditor.name || t('admin.supplierPricing.thisService'), serviceEditor.workerCount, serviceEditor.phones)
+  const problem = contactProblem(serviceEditorTitle.value || t('admin.supplierPricing.thisService'), serviceEditor.workerCount, serviceEditor.phones)
   if (problem) {
     ElMessage.warning(problem)
     return
@@ -2832,8 +3146,11 @@ const loadQuotes = async (fresh = false) => {
   }
 }
 
-const quoteSpecLabel = (row: { specs: Record<string, string>; skuCode: string }) => {
-  const parts = quoteDialog.columns.map((column) => row.specs[column.key]).filter((value) => value && value !== '—')
+const quoteSpecLabel = (row: { specs: Record<string, unknown>; skuCode: string }) => {
+  const parts = quoteDialog.columns.map((column) => {
+    const text = specText(row.specs[column.key])
+    return text !== '—' ? text : ''
+  }).filter(Boolean)
   return parts.length ? parts.join(' · ') : (row.skuCode || t('admin.supplierPricing.specFallback'))
 }
 
@@ -2846,22 +3163,23 @@ const skuAmount = (row: { staffCount?: number | null; serviceHours?: number | nu
   return Math.round((unit * staff * hours + Number.EPSILON) * 100) / 100
 }
 
-const quoteItems = () => quoteDialog.rows
-  .filter((row) => row.available !== false)
-  .map((row) => {
-    const staffCount = row.staffCount == null || row.staffCount === '' ? null : Number(row.staffCount)
-    const serviceHours = row.serviceHours == null || row.serviceHours === '' ? null : Number(row.serviceHours)
-    const quotePrice = quoteDialog.quoteMode === 2
-      ? skuAmount(row)
-      : (row.quotePrice == null || row.quotePrice === '' ? null : Number(row.quotePrice))
-    return { skuId: row.skuId, staffCount, serviceHours, quotePrice }
-  })
+const skuEnabled = (value: unknown, available = true) => available !== false && (value == null || value === '' || Number(value) === 1)
+const quoteItems = () => quoteDialog.rows.map((row) => {
+  const enabled = skuEnabled(row.enabled, row.available !== false)
+  const staffCount = row.staffCount == null || row.staffCount === '' ? null : Number(row.staffCount)
+  const serviceHours = row.serviceHours == null || row.serviceHours === '' ? null : Number(row.serviceHours)
+  const quotePrice = quoteDialog.quoteMode === 2
+    ? skuAmount(row)
+    : (row.quotePrice == null || row.quotePrice === '' ? null : Number(row.quotePrice))
+  return { skuId: row.skuId, staffCount, serviceHours, quotePrice, enabled: enabled ? 1 : 0 }
+})
 
 const draftProblem = () => {
   if (quoteDialog.quoteMode === 2 && quoteDialog.unitPrice != null && !(Number(quoteDialog.unitPrice) > 0)) {
     return t('admin.supplierPricing.unitPositive')
   }
   for (const item of quoteItems()) {
+    if (item.enabled !== 1) continue
     if (item.staffCount != null && !(item.staffCount > 0)) return t('admin.supplierPricing.staffPositive')
     if (item.serviceHours != null && !(item.serviceHours > 0)) return t('admin.supplierPricing.hoursPositive')
     if (quoteDialog.quoteMode === 1 && item.quotePrice != null && !(item.quotePrice > 0)) return t('admin.supplierPricing.pricePositive')
@@ -2873,13 +3191,6 @@ const draftProblem = () => {
 const addonPriceOk = (value: unknown) => {
   const text = String(value ?? '').trim()
   return /^\d+(\.\d{1,2})?$/.test(text) && Number(text) > 0
-}
-
-const attachLabel = (item: any, kind: 'type' | 'value') => {
-  const localized = specText(kind === 'type' ? item?.attachTypeNameI18n : item?.attachValueNameI18n)
-  if (localized !== '—') return localized
-  const plain = kind === 'type' ? item?.attachTypeName : item?.attachValueName
-  return plain ? String(plain) : '—'
 }
 
 const mergeAttaches = (catalog: any[] | undefined, saved: any[] | undefined) => {
@@ -2904,8 +3215,10 @@ const mergeAttaches = (catalog: any[] | undefined, saved: any[] | undefined) => 
 
 const mapAttaches = (list: any[]) => (Array.isArray(list) ? list : []).map((item) => ({
   attachValueId: Number(item.attachValueId),
-  typeName: attachLabel(item, 'type'),
-  name: attachLabel(item, 'value'),
+  typeName: item.attachTypeName ? String(item.attachTypeName) : '',
+  typeNameI18n: item.attachTypeNameI18n && typeof item.attachTypeNameI18n === 'object' ? item.attachTypeNameI18n : null,
+  name: item.attachValueName ? String(item.attachValueName) : '',
+  nameI18n: item.attachValueNameI18n && typeof item.attachValueNameI18n === 'object' ? item.attachValueNameI18n : null,
   platformPrice: item.platformPrice ?? null,
   approvedPrice: item.approvedPrice ?? null,
   offered: item.canServe === true || (item.quotePrice != null && item.quotePrice !== ''),
@@ -2923,11 +3236,11 @@ const submitProblem = () => {
   if (quoteDialog.attaches.some((item) => item.offered && !addonPriceOk(item.quotePrice))) {
     return t('admin.supplierPricing.addonPriceInvalid')
   }
-  const items = quoteItems()
-  if (!items.length) return t('admin.supplierPricing.noSellable')
-  if (items.some((item) => !(Number(item.staffCount) > 0) || !(Number(item.serviceHours) > 0) || !(Number(item.quotePrice) > 0))) {
-    return t('admin.supplierPricing.submitIncomplete')
-  }
+  const items = quoteItems().filter((item) => item.enabled === 1)
+  if (!quoteDialog.rows.some((row) => row.available !== false)) return t('admin.supplierPricing.noSellable')
+  if (!items.length) return t('admin.supplierPricing.skuSwitchRequired')
+  const incomplete = items.some((item) => !(Number(item.staffCount) > 0 && Number(item.serviceHours) > 0 && Number(item.quotePrice) > 0))
+  if (incomplete) return t('admin.supplierPricing.submitIncomplete')
   return ''
 }
 
@@ -2958,6 +3271,7 @@ const applySavedQuote = (saved: any) => {
     row.staffCount = next.staffCount == null ? null : Number(next.staffCount)
     row.serviceHours = next.serviceHours == null ? null : Number(next.serviceHours)
     row.quotePrice = next.quotePrice == null ? null : Number(next.quotePrice)
+    row.enabled = skuEnabled(next.enabled, row.available !== false)
     if (next.approvedPrice != null) row.approvedPrice = next.approvedPrice
   })
   if (Array.isArray(saved.attaches)) quoteDialog.attaches = mapAttaches(saved.attaches)
@@ -2978,19 +3292,20 @@ const onQuoteMode = (mode: string | number | boolean | undefined) => {
   })
 }
 const pickQuoteMode = (mode: 1 | 2) => {
-  if (quoteLocked.value) return
   quoteDialog.quoteMode = mode
   onQuoteMode(mode)
 }
 
-const openServiceQuote = async (row: { spuId: number; name: string; category: string; categoryNameI18n?: Record<string, unknown> | null; status?: number; rejectReason?: string; quoteMode?: number; unitPrice?: number | null }) => {
+const openServiceQuote = async (row: { spuId: number; name: string; spuNameI18n?: Record<string, unknown> | null; category: string; categoryNameI18n?: Record<string, unknown> | null; status?: number; rejectReason?: string; quoteMode?: number; unitPrice?: number | null }) => {
   quoteDialog.visible = true
   quoteDialog.loading = true
   await nextTick()
   scrollProfileTop()
   quoteDialog.spuId = row.spuId
-  quoteDialog.name = serviceTitle(row.name, row.spuNameI18n)
-  quoteDialog.category = localizedCategory(row.category, row.categoryNameI18n)
+  quoteDialog.name = row.name || ''
+  quoteDialog.nameI18n = row.spuNameI18n || null
+  quoteDialog.category = row.category || ''
+  quoteDialog.categoryI18n = row.categoryNameI18n || null
   quoteDialog.status = row.status
   quoteDialog.rejectReason = row.rejectReason || ''
   quoteDialog.quoteMode = row.quoteMode === 2 ? 2 : 1
@@ -3005,7 +3320,8 @@ const openServiceQuote = async (row: { spuId: number; name: string; category: st
     const specTypes = Array.isArray(detail.specTypes) ? detail.specTypes : []
     quoteDialog.columns = specTypes.map((spec: any) => ({
       key: String(spec.specKey ?? spec.specTypeId),
-      label: spec.specTypeName || specText(spec.nameI18n),
+      nameI18n: spec.nameI18n && typeof spec.nameI18n === 'object' ? spec.nameI18n : null,
+      fallback: spec.specTypeName || '',
     }))
     const skus = Array.isArray(detail.skus) ? detail.skus : []
     quoteDialog.rows = skus.map((sku: any) => {
@@ -3013,10 +3329,11 @@ const openServiceQuote = async (row: { spuId: number; name: string; category: st
       return {
         skuId: sku.skuId,
         skuCode: sku.skuCode,
-        specs: Object.fromEntries(quoteDialog.columns.map((column) => [column.key, specText(sku[column.key])])),
+        specs: Object.fromEntries(quoteDialog.columns.map((column) => [column.key, sku[column.key]])),
         platformPrice: saved.platformPrice ?? sku.price,
         approvedPrice: saved.approvedPrice ?? null,
         available: saved.available != null ? saved.available !== false : Number(sku.status ?? 1) === 1,
+        enabled: skuEnabled(saved.enabled, (saved.available != null ? saved.available !== false : Number(sku.status ?? 1) === 1)),
         staffCount: saved.staffCount == null || saved.staffCount === '' ? null : Number(saved.staffCount),
         serviceHours: saved.serviceHours == null || saved.serviceHours === '' ? null : Number(saved.serviceHours),
         quotePrice: saved.quotePrice == null || saved.quotePrice === '' ? null : Number(saved.quotePrice),
@@ -3046,7 +3363,7 @@ const openServiceQuote = async (row: { spuId: number; name: string; category: st
 }
 
 const saveServiceQuote = async () => {
-  if (quoteLocked.value || !supplierRecordId.value) return
+  if (!supplierRecordId.value) return
   const problem = draftProblem()
   if (problem) {
     ElMessage.warning(problem)
@@ -3066,7 +3383,7 @@ const saveServiceQuote = async () => {
 }
 
 const submitServiceQuote = async () => {
-  if (quoteLocked.value || !supplierRecordId.value) return
+  if (!supplierRecordId.value) return
   const problem = submitProblem()
   if (problem) {
     ElMessage.warning(problem)
@@ -3152,10 +3469,21 @@ onMounted(() => {
 })
 watch(section, (value) => {
   if (value === 'orders') loadOrders()
+  if (value === 'service-area') ensureAreaCatalog()
   if (value === 'pricing') {
     loadCatalog()
     loadQuotes()
   }
+})
+watch(areaKeyword, (keyword) => {
+  const query = keyword.trim().toLowerCase()
+  if (!query) return
+  const next = new Set(expandedAreaIds.value)
+  areaCatalog.value.forEach((area) => {
+    const communities = communitiesByArea.value[area.id] || []
+    if (communities.some((community) => community.name.toLowerCase().includes(query))) next.add(area.id)
+  })
+  expandedAreaIds.value = [...next]
 })
 </script>
 
@@ -3221,7 +3549,23 @@ watch(section, (value) => {
 .dossier-rail { position: sticky; top: 16px; padding: 26px 20px; color: #f6f1e8; background: #05152b url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cpath d='M0 159h160M159 0v160' fill='none' stroke='%23ffffff14'/%3E%3C/svg%3E"); border-radius: 22px; }
 .dossier-rail p { margin: 0 0 16px; color: #d7b48a; font-size: 11px; letter-spacing: .18em; text-transform: uppercase; }
 .dossier-rail strong { display: block; font-family: Fraunces, Georgia, serif; font-size: 28px; font-weight: 520; line-height: 1.12; }
-.dossier-rail em { display: inline-block; margin-top: 14px; padding: 5px 12px; border-radius: 999px; color: #05152b; background: #e8c27a; font-style: normal; font-size: 12px; font-weight: 700; }
+.dossier-rail em { display: inline-block; margin-top: 14px; padding: 8px 14px; border-radius: 999px; color: #05152b; background: #e8c27a; font-style: normal; font-size: 16px; font-weight: 800; }
+.profile-status { display: grid; gap: 4px; margin-bottom: 16px; padding: 22px 24px; background: #f7f1e6; border: 1px solid #e4d3b8; border-radius: 18px; }
+.profile-status span { color: #6f5b40; font-size: 13px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
+.profile-status strong { color: #05152b; font-family: Fraunces, Georgia, serif; font-size: 40px; font-weight: 560; letter-spacing: -.03em; line-height: 1.05; }
+.profile-status p { margin: 6px 0 0; color: #6a5334; font-size: 16px; line-height: 1.45; }
+.profile-status.is-review, .profile-status-pill.is-review { background: #fff1d6; border-color: #e2b15a; }
+.profile-status.is-review strong, .profile-status-pill.is-review { color: #8a3d00; }
+.profile-status.is-review strong { font-size: 44px; }
+.profile-status-pill.is-review { background: #8a3d00; color: #fff8ee; }
+.profile-status.is-approved { background: #e7f6ec; border-color: #9dceb0; }
+.profile-status.is-approved strong, .profile-status-pill.is-approved { color: #146c3a; }
+.profile-status-pill.is-approved { background: #146c3a; color: #f3fff6; }
+.profile-status.is-rejected { background: #fdecea; border-color: #e7b2ab; }
+.profile-status.is-rejected strong, .profile-status-pill.is-rejected { color: #a3261c; }
+.profile-status-pill.is-rejected { background: #a3261c; color: #fff6f5; }
+.profile-status.is-draft { background: #f4f1ea; }
+.profile-status.is-draft strong { color: #5c564c; }
 .dossier-rail nav { display: grid; gap: 2px; margin-top: 26px; }
 .dossier-rail button { position: relative; display: flex; gap: 12px; width: 100%; padding: 9px 0 9px 12px; color: #efe7dc; text-align: left; background: transparent; border: 0; font: inherit; font-size: 14px; cursor: pointer; }
 .dossier-rail button.is-active { color: #e8c27a; }
@@ -3379,7 +3723,9 @@ watch(section, (value) => {
 .quote-terms small { color: var(--muted); font-size: 12px; }
 .quote-lines { display: flex; flex-direction: column; gap: 8px; max-height: min(56vh, 560px); overflow: auto; }
 .quote-lines__empty { margin: 28px 0; text-align: center; color: var(--muted); }
-.quote-line { display: grid; grid-template-columns: minmax(148px, 1.2fr) repeat(3, minmax(0, 1fr)); gap: 10px 12px; align-items: end; padding: 12px 14px; background: #fffdf8; border: 1px solid var(--line); border-radius: 12px; }
+.quote-line { display: grid; grid-template-columns: 72px minmax(148px, 1.2fr) repeat(3, minmax(0, 1fr)); gap: 10px 12px; align-items: end; padding: 12px 14px; background: #fffdf8; border: 1px solid var(--line); border-radius: 12px; }
+.quote-line__switch { align-items: flex-start; }
+.quote-line__switch :deep(.el-switch) { height: 32px; }
 .quote-line.is-off { opacity: .55; }
 .quote-line__spec { display: flex; flex-direction: column; gap: 4px; min-width: 0; padding-bottom: 6px; }
 .quote-line__spec strong { color: var(--ink); font-size: 14px; font-weight: 650; line-height: 1.35; }
@@ -3486,6 +3832,41 @@ watch(section, (value) => {
 .area-choice { display: flex; flex-direction: column; gap: 4px; align-items: flex-start; }
 .area-choice strong { color: #1c2433; font-weight: 700; }
 .area-choice small { color: #6d7686; font-size: 12px; font-weight: 500; line-height: 1.45; }
+.area-alert, .area-note { margin-bottom: 14px; padding: 14px 16px; border-radius: 14px; }
+.area-alert { color: #8d2f2f; background: #fdecec; border: 1px solid #f3c7c7; }
+.area-note { color: #3d4d63; background: #eef3f8; border: 1px solid #d5e0ea; }
+.area-alert strong, .area-note strong { display: block; margin-bottom: 4px; font-size: 14px; }
+.area-alert p, .area-note p { margin: 0; font-size: 13px; line-height: 1.5; }
+.area-board { overflow: hidden; background: #fffdf8; border: 1px solid var(--line); border-radius: 16px; }
+.area-board header { padding: 14px 18px; color: #74685a; font-size: 13px; border-bottom: 1px solid var(--line); }
+.area-board table { width: 100%; border-collapse: collapse; }
+.area-board th { padding: 12px 18px; color: #74685a; font-size: 11px; font-weight: 700; letter-spacing: .06em; text-align: left; text-transform: uppercase; background: #f7f3ec; }
+.area-board td { padding: 14px 18px; vertical-align: top; border-top: 1px solid #efe6d8; }
+.area-board td strong { color: #05152b; }
+.area-all { margin: 0; color: #74685a; font-style: italic; }
+.area-manage-tools { display: flex; align-items: center; gap: 12px; }
+.area-manage-tools .el-input { flex: 1; }
+.area-manage-tools > div { display: flex; gap: 8px; }
+.area-manage-note { margin: 12px 0; color: #74685a; font-size: 13px; line-height: 1.45; }
+.area-zone-list { display: flex; flex-direction: column; gap: 8px; max-height: 520px; overflow: auto; }
+.area-zone { border: 1px solid #eadfce; border-radius: 12px; background: #fff; }
+.area-zone header { display: grid; grid-template-columns: 22px minmax(0, 1fr) 28px; gap: 10px; align-items: center; padding: 12px; }
+.area-zone header > button { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; padding: 0; color: inherit; text-align: left; background: transparent; border: 0; cursor: pointer; }
+.area-zone header strong { color: #05152b; font-size: 15px; }
+.area-zone header small { color: #74685a; font-size: 12px; }
+.area-zone header input, .area-communities input { width: 16px; height: 16px; accent-color: #05152b; }
+.area-zone__chevron { justify-content: center !important; align-items: center !important; color: #74685a; font-size: 16px; }
+.area-communities { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 16px; padding: 0 12px 12px 44px; }
+.area-communities > p { grid-column: 1 / -1; margin: 0; color: #74685a; }
+.area-communities label { display: flex; align-items: flex-start; gap: 8px; color: #243044; font-size: 13px; line-height: 1.4; }
+.area-communities label.is-dim { opacity: .38; }
+.area-zone mark, .area-communities mark { padding: 0 1px; color: inherit; background: #f3e2b8; }
+.area-dialog-foot { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.area-dialog-foot > span { color: #74685a; font-size: 13px; }
+@media (max-width: 720px) {
+  .area-manage-tools, .area-dialog-foot { align-items: stretch; flex-direction: column; }
+  .area-communities { grid-template-columns: 1fr; padding-left: 12px; }
+}
 .phone-list { display: flex; flex-direction: column; gap: 2px; line-height: 1.45; }
 .accept-state { margin-right: 8px; color: #1f8a5b; font-size: 12px; font-weight: 700; }
 .accept-state.is-off { color: #8a7d70; }
@@ -3515,7 +3896,7 @@ watch(section, (value) => {
 .order-filter :deep(.el-input__wrapper), .order-filter :deep(.el-select__wrapper), .order-filter :deep(.el-date-editor) { min-height: 40px; border-radius: 10px; box-shadow: 0 0 0 1px #e6dccb inset; }
 .order-search { flex: 0 0 auto; min-width: 94px; height: 40px; }
 .orders-table-shell { min-width: 0; overflow-x: auto; }
-.orders-table { min-width: 1180px; }
+.orders-table { min-width: 1360px; }
 .order-pager { display: flex; justify-content: flex-end; padding: 12px 18px 14px; }
 .orders-table :deep(td.el-table__cell) { vertical-align: top; }
 .orders-table :deep(.order-status-col .cell) { white-space: nowrap; }
@@ -3526,6 +3907,7 @@ watch(section, (value) => {
 .order-cell strong { max-width: 100%; color: #05152b; font-size: 13px; font-weight: 650; line-height: 1.35; overflow-wrap: anywhere; }
 .order-cell small, .order-cell > span { color: #74685a; font-size: 12px; line-height: 1.4; }
 .order-clamp { display: -webkit-box; overflow: hidden; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
+.order-remark-text { color: #05152b; font-weight: 600; }
 .order-pin, .order-map { color: #05152b; font-size: 12px; font-weight: 650; text-decoration: underline; text-underline-offset: 3px; }
 .money-value { display: inline-flex; align-items: baseline; justify-content: flex-end; gap: 4px; white-space: nowrap; }
 .money-value > small { color: #8d5a32; font-size: 9px; letter-spacing: .08em; }
@@ -3699,6 +4081,7 @@ watch(section, (value) => {
 .pricing-section-head > div { min-width: 0; }
 .pricing-section-head h2 { margin: 0; color: #05152b; font-family: Fraunces, Georgia, serif; font-size: 22px; font-weight: 520; letter-spacing: -.02em; }
 .pricing-section-head p { margin: 4px 0 0; color: #7a7166; font-size: 11px; line-height: 1.5; }
+.pricing-section-head p.spec-step-hint { margin-top: 8px; color: #9a3d08; font-size: 22px; font-weight: 750; line-height: 1.35; letter-spacing: -.02em; }
 .pricing-section-head > em { align-self: center; min-width: 30px; padding: 5px 8px; color: #6e5c45; background: #f4eee5; border-radius: 999px; font-size: 10px; font-style: normal; font-weight: 800; text-align: center; }
 .pricing-editor-section .mode-cards, .pricing-editor-section .quote-lines, .pricing-editor-section .quote-attaches { padding-right: 0; padding-left: 0; }
 .pricing-editor-section .mode-cards { margin: 0; }
@@ -3710,17 +4093,13 @@ watch(section, (value) => {
 .mode-cards button.is-on { background: linear-gradient(145deg, #071a31, #0e2b46); border-color: #163c5a; box-shadow: 0 14px 28px rgba(5, 21, 43, .14); }
 .mode-cards button.is-on .mode-card__mark { color: #071a31; background: #e8c27a; }
 .mode-cards button strong, .mode-cards button small { min-width: 0; overflow-wrap: anywhere; }
-.rate-card { display: grid; grid-template-columns: minmax(230px, .7fr) minmax(0, 1.3fr); gap: 14px; align-items: stretch; margin-top: 14px; padding: 14px; background: #f7f3ec; border: 1px solid #eadfce; border-radius: 14px; }
-.rate-field { display: grid; align-content: start; gap: 7px; max-width: none; margin: 0; padding: 0; }
+.rate-card { margin-top: 14px; padding: 14px; background: #f7f3ec; border: 1px solid #eadfce; border-radius: 14px; }
+.rate-field { display: grid; align-content: start; gap: 7px; max-width: 320px; margin: 0; padding: 0; }
 .rate-field > span:first-child { color: #5c564c; font-size: 11px; font-weight: 750; }
 .currency-input { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: stretch; min-width: 0; overflow: hidden; background: #fff; border: 1px solid #dfd4c4; border-radius: 10px; }
 .currency-input > b { display: flex; align-items: center; padding: 0 11px; color: #6f5b40; background: #f3eadc; border-right: 1px solid #dfd4c4; font-size: 10px; letter-spacing: .04em; }
 .currency-input :deep(.el-input-number) { width: 100%; }
 .currency-input :deep(.el-input__wrapper) { box-shadow: none; }
-.rate-formula { display: grid; align-content: center; gap: 4px; min-width: 0; padding: 12px 14px; color: #f7f1e6; background: #05152b; border-radius: 12px; }
-.rate-formula small { color: #e8c27a; font-size: 9px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
-.rate-formula strong { color: #fffdf8; font-size: 12px; line-height: 1.45; overflow-wrap: anywhere; }
-.rate-formula p { margin: 0; color: rgba(247, 241, 230, .58); font-size: 10px; line-height: 1.45; }
 .pricing-editor-section .quote-lines { gap: 10px; max-height: none; overflow: visible; }
 .quote-line { grid-template-columns: minmax(190px, 1.2fr) minmax(112px, .65fr) minmax(112px, .65fr) minmax(160px, .9fr); gap: 12px; align-items: start; padding: 14px; background: #fcfaf6; border-color: #e9decd; border-radius: 14px; transition: border-color .18s ease, box-shadow .18s ease; }
 .quote-line:hover { border-color: #d7c4a8; box-shadow: 0 8px 20px rgba(5, 21, 43, .045); }
@@ -3808,15 +4187,17 @@ watch(section, (value) => {
   .pricing-editor-hero { align-items: flex-start; flex-direction: column; }
   .pricing-editor-hero h1 { font-size: 32px; }
   .pricing-editor-section { padding: 16px; }
-  .rate-card { grid-template-columns: minmax(0, 1fr); }
   .quote-line { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .quote-line__spec, .quote-line__price { grid-column: 1 / -1; }
+  .quote-line__switch, .quote-line__spec, .quote-line__price { grid-column: 1 / -1; }
+  .quote-line label.quote-line__switch { flex-direction: row; align-items: center; justify-content: space-between; }
   .pricing-review-panel dl { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .sv-quote__foot { align-items: stretch; flex-direction: column; }
   .sv-quote__foot > div:last-child { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .sv-quote__foot :deep(.el-button) { width: 100%; margin-left: 0; }
 }
 @media (max-width: 520px) {
+  .profile-status { padding: 16px 16px 18px; }
+  .profile-status strong, .profile-status.is-review strong { font-size: 28px; }
   .pricing-command { padding: 19px; border-radius: 18px; }
   .pricing-command h1 { font-size: 32px; }
   .pricing-command__supplier { flex-wrap: wrap; }
@@ -3828,6 +4209,7 @@ watch(section, (value) => {
   .pricing-section-head { grid-template-columns: 30px minmax(0, 1fr) auto; gap: 9px; }
   .pricing-section-head > span { width: 30px; height: 30px; }
   .pricing-section-head h2 { font-size: 20px; }
+  .pricing-section-head p.spec-step-hint { font-size: 18px; }
   .mode-cards { grid-template-columns: minmax(0, 1fr); }
   .quote-line { grid-template-columns: minmax(0, 1fr); }
   .quote-line__spec, .quote-line__price { grid-column: auto; }

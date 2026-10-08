@@ -214,6 +214,12 @@
                 </dt>
                 <dd>{{ displayValue(order.remark) }}</dd>
               </div>
+              <div v-if="String(order.additionalNotes || '').trim()">
+                <dt>
+                  {{ locale.startsWith("zh") ? "地址额外备注" : "Address notes" }}
+                </dt>
+                <dd>{{ displayValue(order.additionalNotes) }}</dd>
+              </div>
             </dl>
           </section>
         </div>

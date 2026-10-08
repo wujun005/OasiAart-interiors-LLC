@@ -115,6 +115,7 @@
                     <span>
                       <small>{{ t("client.orderList.serviceAddress") }}</small>
                       <strong>{{ item.addressText }}</strong>
+                      <em v-if="item.additionalNotes" class="order-card__note">{{ t('client.orderList.additionalNotes') }}: {{ item.additionalNotes }}</em>
                     </span>
                   </div>
                 </div>
@@ -466,6 +467,7 @@ type OrderCardView = {
   serviceTimeText: string
   createdTimeText: string
   addressText: string
+  additionalNotes: string
   specText: string
   addOnsText: string
   statusText: string
@@ -1003,6 +1005,7 @@ const orderCards = computed<OrderCardView[]>(() =>
             .map((value) => String(value || "").trim())
             .filter(Boolean)
             .join(", ") || t("client.orderList.emptyAddress"),
+        additionalNotes: String(item.additionalNotes || "").trim(),
         specText: formatOrderSpecs(item.specSelections, locale.value),
         addOnsText: formatOrderAddOns(item.attachSelections, locale.value),
         statusText,
@@ -1784,6 +1787,7 @@ onBeforeUnmount(() => {
   font-weight: 600;
 }
 
+.order-card__note { display: block; margin-top: 4px; color: #8a3d00; font-size: 13px; font-style: normal; font-weight: 700; line-height: 1.4; }
 .order-card__detail strong {
   color: rgba(15, 23, 42, 0.78);
   font-size: 14px;

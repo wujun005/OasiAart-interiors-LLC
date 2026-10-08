@@ -95,6 +95,7 @@
             >
               <el-icon><Refresh /></el-icon>
             </el-button>
+            <ReviewNoticeBell v-if="!isSupplierPortal && !isOrdersH5" />
             <div v-if="!isOrdersH5" class="account-chip">
               <span class="account-chip__avatar">{{ accountInitial }}</span>
               <span class="account-chip__copy">
@@ -262,6 +263,7 @@ import {
   getAdminAuthStorageValue,
 } from '@/utils/auth-state';
 import PermissionMenuItem from '@/modules/admin/components/PermissionMenuItem.vue';
+import ReviewNoticeBell from '@/modules/admin/components/ReviewNoticeBell.vue';
 import {
   adminMenuState,
   loadAdminMenuPermissions,
@@ -316,6 +318,7 @@ const activeMenu = computed(() => {
 });
 
 const pageTitle = computed(() => {
+  if (route.path === '/admin/review-notices') return t('admin.reviewNotice.label');
   if (!activeMenu.value) return t('admin.layout.overview');
   const activeItem = menuByPath.value.get(activeMenu.value);
   return activeItem ? resolveMenuLabel(activeItem) : t('admin.layout.overview');
@@ -555,6 +558,7 @@ const resolveMenuIcon = (item: AdminMenuPermissionItem) => {
   if (path.startsWith('/admin/supplier-management')) return OfficeBuilding;
   if (path.startsWith('/admin/notifications')) return Bell;
   if (path.startsWith('/admin/sys-config')) return Setting;
+  if (path.startsWith('/admin/developer')) return Setting;
   if (path.startsWith('/admin/basic/service-areas')) return Location;
   if (path.startsWith('/admin/basic/suppliers')) return User;
   if (path.startsWith('/admin/basic/spec-types')) return Ticket;
@@ -580,6 +584,8 @@ const menuLabelKeyByPath: Record<string, string> = {
   '/admin/basic/service-areas': 'admin.layout.serviceAreas',
   '/admin/notifications': 'admin.layout.notifications',
   '/admin/sys-config': 'admin.layout.sysConfig',
+  '/admin/developer': 'admin.layout.developerTools',
+  '/admin/developer/supplier-registration-whitelist': 'admin.layout.supplierRegistrationWhitelist',
   '/admin/supplier-management': 'admin.layout.supplierManagement',
   '/admin/supplier-management/overview': 'admin.layout.supplierOverview',
   '/admin/supplier-management/profile': 'admin.layout.supplierProfile',
