@@ -250,6 +250,7 @@ const zh = {
     sunday: '您周日提供服务吗？',
     holiday: '您公共假期工作吗？',
     emergency: '您可以接紧急订单吗？',
+    wearUniform: '是否愿意穿我们的制服？',
     emaar: '您是否已在 Emaar 社区注册？',
     emaarHint: '是否曾在 Emaar 社区完成入驻或提供服务',
     other: '您是否已在其他社区注册？',

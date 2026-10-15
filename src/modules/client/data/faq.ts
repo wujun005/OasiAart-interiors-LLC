@@ -49,9 +49,9 @@ const chineseFaqGroups: FaqGroup[] = [
       {
         question: "可以为预约改期吗？",
         answer: [
-          text("可以。距离服务开始超过 3 小时改期免费；距离服务不足 3 小时则无法改期，预约后 10 分钟宽限期除外。完整规则请参阅"),
+          text("可以。下单后、服务开始前 3 小时时段内可免费改期；服务开始前 2 小时内只能申请免费改期，新时间须经 HourX 确认后才生效；服务开始后不可改期。2 小时与 3 小时时段重叠时，以 2 小时规则为准。免费改期取决于可预约时段和人员安排。完整规则请参阅"),
           terms("《条款与条件》"),
-          text("第 6 节“取消、改期与退款”。"),
+          text("第 8 节“取消、改期与退款”。"),
         ],
       },
     ],
@@ -64,13 +64,13 @@ const chineseFaqGroups: FaqGroup[] = [
         answer: [
           text("可以，在“订单”页面操作。是否退款取决于取消政策，请参阅"),
           terms("《条款与条件》"),
-          text("第 6 节“取消、改期与退款”。"),
+          text("第 8 节“取消、改期与退款”。"),
         ],
       },
       {
         question: "预约被取消后可以退款吗？",
         answer: [
-          text("取决于取消时间：预约后 10 分钟内可全额退款，但会扣除一笔不可退还的小额银行卡手续费，也可免费改期；距离服务开始超过 6 小时，可退款但会扣除同样的银行卡手续费；距离服务开始不足 6 小时则不退款。具体手续费请查看"),
+          text("取决于申请时间：下单后、服务开始前 3 小时时段内取消，不收平台取消费，退还实付金额并扣除 3.9% + AED 1 的支付处理费；服务开始前 2 小时内不支持取消退款；服务开始后不可取消、不退款。若因服务商或 HourX 无法提供服务而取消，全额退还实付金额，处理费由 HourX 承担。2 小时与 3 小时时段重叠时，以 2 小时规则为准。确认取消前会展示处理费和预计退款金额。详见"),
           terms("《条款与条件》"),
           text("。"),
         ],
@@ -140,9 +140,9 @@ const englishFaqGroups: FaqGroup[] = [
       {
         question: "Can I reschedule a booking?",
         answer: [
-          text("Yes, and it's free if done more than 3 hours before your service. Within 3 hours of your service, rescheduling isn't available (except during the 10-minute grace period right after booking). See our "),
+          text("Yes. It is free after booking and within the three-hour window before your service starts. Within two hours of the start time, you may only request a free reschedule, and the new time applies only after HourX confirms it. Once the service has started, it cannot be rescheduled. If the two-hour and three-hour windows overlap, the two-hour rule applies. Free rescheduling depends on open time slots and staffing. See our "),
           terms(),
-          text(" (Section 6: Cancellation, Rescheduling & Refunds) for full details."),
+          text(" (Section 8: Cancellation, Rescheduling & Refunds) for full details."),
         ],
       },
     ],
@@ -155,15 +155,15 @@ const englishFaqGroups: FaqGroup[] = [
         answer: [
           text("Yes, from the Orders page. Whether you get a refund depends on our cancellation policy - see our "),
           terms(),
-          text(" (Section 6: Cancellation, Rescheduling & Refunds)."),
+          text(" (Section 8: Cancellation, Rescheduling & Refunds)."),
         ],
       },
       {
         question: "Do I get a refund if my booking is cancelled?",
         answer: [
-          text("It depends on when you cancel: Within 10 minutes of booking - full refund, minus a small non-refundable card fee (or you can reschedule for free). More than 6 hours before your service - refund minus the same small card fee. Less than 6 hours before your service - no refund. (See our "),
+          text("It depends on when HourX receives your request. After booking and within the three-hour window before the service starts, there is no platform cancellation fee: you receive the amount actually paid, minus the 3.9% + AED 1 processing fee. Within two hours of the start time, cancellation refunds are unavailable. After the service has started, it cannot be cancelled or refunded. If HourX or the provider cannot deliver the service and you cancel, you receive a full refund and HourX bears the processing fee. Where the windows overlap, the two-hour rule applies. The fee and estimated refund are shown before you confirm. See our "),
           terms(),
-          text(" for the exact fee amounts.)"),
+          text(" for the full calculation."),
         ],
       },
       { question: "How long do refunds take?", answer: [text("Approved refunds go back to your original payment method and usually arrive within 5-10 business days.")] },

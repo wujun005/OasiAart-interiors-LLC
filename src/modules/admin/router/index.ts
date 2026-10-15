@@ -38,6 +38,11 @@ const routes: RouteRecordRaw[] = [
         component: () => import('@/modules/admin/pages/product/index.vue'),
       },
       {
+        path: 'packages',
+        name: 'admin-packages',
+        component: () => import('@/modules/admin/pages/packages/index.vue'),
+      },
+      {
         path: 'users',
         name: 'admin-users',
         component: () => import('@/modules/admin/pages/user/index.vue'),

@@ -503,7 +503,7 @@
         </el-table-column>
         <el-table-column
           :label="t('admin.orders.table.actions')"
-          width="86"
+          width="108"
         >
           <template #default="{ row }">
             <div class="order-table-actions">
@@ -535,6 +535,15 @@
                 @click="openOrderDetail(row)"
               >
                 {{ t("admin.orders.actions.details") }}
+              </el-button>
+              <el-button
+                link
+                type="primary"
+                size="small"
+                :disabled="!row.orderNo"
+                @click="openOperationLogs(row)"
+              >
+                {{ t("admin.orders.actions.operationLogs") }}
               </el-button>
               <el-button
                 link
@@ -642,6 +651,13 @@
           <el-button type="primary" @click="openDetailEdit">
             <span aria-hidden="true">✎</span>
             {{ t("admin.orders.detail.editOrder") }}
+          </el-button>
+          <el-button
+            plain
+            :disabled="!detailRow.orderNo"
+            @click="openOperationLogs(detailRow)"
+          >
+            {{ t("admin.orders.actions.operationLogs") }}
           </el-button>
           <el-button
             v-if="!isOrdersH5"
@@ -1308,6 +1324,82 @@
 
     <el-dialog
       :class="{ 'orders-h5-dialog': isOrdersH5 }"
+      v-model="operationLogVisible"
+      :title="t('admin.orders.dialog.operationLogsTitle')"
+      :width="isOrdersH5 ? '100%' : '640px'"
+      @closed="clearOperationLogs"
+    >
+      <div v-loading="operationLogLoading" class="operation-logs">
+        <p class="operation-logs__order">
+          {{ t("admin.orders.table.orderNo") }}:
+          <strong>{{ operationLogOrderNo || "-" }}</strong>
+        </p>
+        <p v-if="operationLogFailed" class="operation-logs__empty">
+          {{ t("admin.orders.operationLogs.loadFailed") }}
+        </p>
+        <p v-else-if="!operationLogLoading && !operationLogItems.length" class="operation-logs__empty">
+          {{ t("admin.orders.operationLogs.empty") }}
+        </p>
+        <div v-else-if="operationLogItems.length" class="operation-logs__list">
+          <article
+            v-for="item in operationLogItems"
+            :key="item.id"
+            class="operation-logs__item"
+          >
+            <span class="operation-logs__rail" aria-hidden="true">
+              <span class="operation-logs__dot"></span>
+            </span>
+            <div>
+              <div class="operation-logs__head">
+                <strong>{{ operationLogTypeText(item) }}</strong>
+                <time>{{ item.operateTime || "-" }}</time>
+              </div>
+              <p class="operation-logs__meta">{{ operationLogOperatorText(item) }}</p>
+              <p v-if="operationLogContentText(item)" class="operation-logs__content">
+                {{ operationLogContentText(item) }}
+              </p>
+            </div>
+          </article>
+        </div>
+      </div>
+      <template #footer>
+        <el-button
+          :loading="operationLogPdfLoading"
+          :disabled="operationLogLoading || operationLogFailed || !operationLogItems.length"
+          @click="downloadOperationLogPdf"
+        >
+          {{ t("admin.orders.operationLogs.downloadPdf") }}
+        </el-button>
+        <el-button type="primary" @click="operationLogVisible = false">
+          {{ t("admin.orders.actions.close") }}
+        </el-button>
+      </template>
+    </el-dialog>
+
+    <div ref="operationLogSheetRef" class="operation-log-sheet" aria-hidden="true">
+      <header class="operation-log-sheet__header">
+        <div>
+          <p>{{ t("admin.orders.operationLogs.pdfTitle") }}</p>
+          <h1>#{{ operationLogOrderNo || "-" }}</h1>
+        </div>
+        <span>{{ t("admin.orders.operationLogs.generatedAt") }} {{ operationLogGeneratedAt }}</span>
+      </header>
+      <ol>
+        <li v-for="item in operationLogItems" :key="`pdf-${item.id}`">
+          <div>
+            <strong>{{ operationLogTypeText(item) }}</strong>
+            <time>{{ item.operateTime || "-" }}</time>
+          </div>
+          <p class="operation-log-sheet__meta">{{ operationLogOperatorText(item) }}</p>
+          <p v-if="operationLogContentText(item)" class="operation-log-sheet__body">
+            {{ operationLogContentText(item) }}
+          </p>
+        </li>
+      </ol>
+    </div>
+
+    <el-dialog
+      :class="{ 'orders-h5-dialog': isOrdersH5 }"
       v-model="rescheduleDialogVisible"
       :title="t('admin.orders.dialog.rescheduleHistoryTitle')"
       width="560px"
@@ -1511,7 +1603,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref } from "vue"
+import { computed, onBeforeUnmount, onMounted, reactive, ref } from "vue"
 import { ElMessage, ElMessageBox } from "element-plus"
 import { useI18n } from "vue-i18n"
 import { useRoute } from "vue-router"
@@ -1520,6 +1612,7 @@ import {
   edit as editOrder,
   exportOrders,
   getRefundReasons,
+  operationLogs as fetchOperationLogs,
   page,
   querySuppliers,
   serviceTimeRanges,
@@ -1528,8 +1621,10 @@ import {
   updateAdminRemark,
   updateSupplier,
   type OrderExportPayload,
+  type OrderOperationLog,
   type RefundReasonOption,
 } from "@/modules/admin/api/order"
+import { pickI18nText } from "@/modules/admin/utils/i18n"
 import { detail as getSupplierDetail } from "@/modules/admin/api/supplier"
 import { page as pageServices } from "@/modules/admin/api/spu"
 
@@ -1662,6 +1757,8 @@ type RawAttachDetail = {
   totalPrice?: number | string
   attachTypeName?: string
   attachValueName?: string
+  name?: string
+  nameEn?: string
 }
 
 const orderStatusNameMap: Record<string, number> = {
@@ -1820,6 +1917,15 @@ const remarkForm = reactive({
 })
 const rescheduleDialogVisible = ref(false)
 const rescheduleTarget = ref<OrderRow | null>(null)
+const operationLogVisible = ref(false)
+const operationLogLoading = ref(false)
+const operationLogFailed = ref(false)
+const operationLogPdfLoading = ref(false)
+const operationLogOrderNo = ref("")
+const operationLogGeneratedAt = ref("")
+const operationLogItems = ref<OrderOperationLog[]>([])
+const operationLogRequestId = ref(0)
+const operationLogSheetRef = ref<HTMLElement | null>(null)
 const supplierViewVisible = ref(false)
 const supplierViewLoading = ref(false)
 const supplierViewError = ref("")
@@ -2031,6 +2137,110 @@ const openRescheduleHistory = (row: OrderRow) => {
   rescheduleDialogVisible.value = true
 }
 
+const operationLogTypeText = (item: OrderOperationLog) =>
+  pickI18nText(item.operationTypeI18n, locale.value, item.operationType || "-")
+
+const operationLogContentText = (item: OrderOperationLog) =>
+  pickI18nText(item.contentI18n, locale.value)
+
+const operationLogOperatorText = (item: OrderOperationLog) => {
+  const typeKey = String(item.operatorType || "").trim().toUpperCase()
+  const typeLabel =
+    typeKey === "CLIENT"
+      ? t("admin.orders.operationLogs.client")
+      : typeKey === "ADMIN"
+        ? t("admin.orders.operationLogs.admin")
+        : typeKey === "SYSTEM"
+          ? t("admin.orders.operationLogs.system")
+          : typeKey === "WHATSAPP"
+            ? t("admin.orders.operationLogs.whatsapp")
+            : typeKey
+  const name = String(item.operatorName || "").trim()
+  if (name && typeLabel && name !== typeLabel) return `${name} · ${typeLabel}`
+  return name || typeLabel || "-"
+}
+
+const clearOperationLogs = () => {
+  if (operationLogVisible.value) return
+  operationLogRequestId.value += 1
+  operationLogLoading.value = false
+  operationLogFailed.value = false
+  operationLogItems.value = []
+}
+
+const openOperationLogs = async (row: { orderNo?: string }) => {
+  const orderNo = String(row.orderNo || "").trim()
+  if (!orderNo) {
+    ElMessage.warning(t("admin.orders.operationLogs.orderNoMissing"))
+    return
+  }
+  operationLogOrderNo.value = orderNo
+  operationLogGeneratedAt.value = formatDateTime(new Date().toISOString())
+  operationLogItems.value = []
+  operationLogFailed.value = false
+  operationLogVisible.value = true
+  const requestId = ++operationLogRequestId.value
+  operationLogLoading.value = true
+  try {
+    const list = await fetchOperationLogs(orderNo)
+    if (requestId === operationLogRequestId.value) {
+      operationLogItems.value = list
+    }
+  } catch (error: any) {
+    if (requestId === operationLogRequestId.value) {
+      operationLogFailed.value = true
+      ElMessage.error(error?.message || t("admin.orders.operationLogs.loadFailed"))
+    }
+  } finally {
+    if (requestId === operationLogRequestId.value) {
+      operationLogLoading.value = false
+    }
+  }
+}
+
+const downloadOperationLogPdf = async () => {
+  const sheet = operationLogSheetRef.value
+  if (!sheet || !operationLogItems.value.length || operationLogPdfLoading.value) return
+  operationLogPdfLoading.value = true
+  try {
+    const html2canvas = (await import("html2canvas")).default
+    const { jsPDF } = await import("jspdf")
+    const canvas = await html2canvas(sheet, {
+      scale: 2,
+      backgroundColor: "#ffffff",
+      onclone: (document) => {
+        const node = document.querySelector(".operation-log-sheet")
+        if (!(node instanceof HTMLElement)) return
+        node.style.position = "absolute"
+        node.style.left = "0"
+        node.style.top = "0"
+        node.style.zIndex = "0"
+      },
+    })
+    const image = canvas.toDataURL("image/png")
+    const pdf = new jsPDF("p", "mm", "a4")
+    const pageWidth = pdf.internal.pageSize.getWidth()
+    const pageHeight = pdf.internal.pageSize.getHeight()
+    const imageHeight = (canvas.height * pageWidth) / canvas.width
+    let heightLeft = imageHeight
+    let position = 0
+    pdf.addImage(image, "PNG", 0, position, pageWidth, imageHeight)
+    heightLeft -= pageHeight
+    while (heightLeft > 1) {
+      position -= pageHeight
+      pdf.addPage()
+      pdf.addImage(image, "PNG", 0, position, pageWidth, imageHeight)
+      heightLeft -= pageHeight
+    }
+    const orderNo = operationLogOrderNo.value || "order"
+    pdf.save(`${orderNo}-timeline.pdf`)
+  } catch (error: any) {
+    ElMessage.error(error?.message || t("admin.orders.operationLogs.pdfFailed"))
+  } finally {
+    operationLogPdfLoading.value = false
+  }
+}
+
 const openOrderDetail = async (row: OrderRow) => {
   detailRow.value = row
   detailDrawerVisible.value = true
@@ -2193,7 +2403,71 @@ const submitDetailEdit = async () => {
   }
 }
 
-const printOrderDetail = () => window.print()
+const ORDER_PRINT_PAGE_HEIGHT = ((297 - 26) * 96) / 25.4
+let printingOrderDetail = false
+let orderPrintRoot: HTMLElement | null = null
+
+const removeOrderPrintRoot = () => {
+  orderPrintRoot?.remove()
+  orderPrintRoot = null
+  printingOrderDetail = false
+  document.body.classList.remove("printing-order-detail")
+}
+
+const mountOrderPrintRoot = () => {
+  removeOrderPrintRoot()
+  const source = document.querySelector(".order-detail:not(.order-print-sheet)")
+  if (!(source instanceof HTMLElement)) return null
+  const sheet = source.cloneNode(true) as HTMLElement
+  sheet.classList.add("order-print-sheet")
+  const root = document.createElement("div")
+  root.className = "order-print-root"
+  root.setAttribute("aria-hidden", "true")
+  root.appendChild(sheet)
+  document.body.appendChild(root)
+  orderPrintRoot = root
+  return root
+}
+
+const fitOrderPrintRoot = (root: HTMLElement) => {
+  const sheet = root.querySelector(".order-print-sheet")
+  if (!(sheet instanceof HTMLElement)) return
+  sheet.style.transform = ""
+  sheet.style.width = ""
+  root.style.height = ""
+  root.style.overflow = ""
+  const contentHeight = sheet.scrollHeight
+  if (contentHeight < 40) return
+  const scale = Math.min(1, ORDER_PRINT_PAGE_HEIGHT / contentHeight)
+  if (scale >= 0.995) return
+  sheet.style.transformOrigin = "top left"
+  sheet.style.transform = `scale(${scale.toFixed(4)})`
+  sheet.style.width = `${(100 / scale).toFixed(4)}%`
+  root.style.height = `${Math.floor(contentHeight * scale)}px`
+  root.style.overflow = "hidden"
+}
+
+const handleBeforePrint = () => {
+  if (printingOrderDetail || !detailDrawerVisible.value || !detailRow.value) return
+  const sheet = mountOrderPrintRoot()
+  if (!sheet) return
+  printingOrderDetail = true
+  document.body.classList.add("printing-order-detail")
+  fitOrderPrintRoot(sheet)
+}
+
+const handleAfterPrint = () => {
+  removeOrderPrintRoot()
+}
+
+const printOrderDetail = () => {
+  const sheet = mountOrderPrintRoot()
+  if (!sheet) return
+  printingOrderDetail = true
+  document.body.classList.add("printing-order-detail")
+  fitOrderPrintRoot(sheet)
+  window.print()
+}
 
 const refundReasonLabel = (item: RefundReasonOption) =>
   pickI18nValue(item.nameI18n, item.code)
@@ -2473,6 +2747,7 @@ const trackedSuppliers = (row?: OrderRow | null) =>
 const supplierProgressLabel = (supplier: SupplierOption) => {
   if (supplier.serviceStatusText) return supplier.serviceStatusText
   const status = Number(supplier.serviceStatus ?? 0)
+  if (status === 4) return t("admin.orders.serviceProgress.accepted")
   if (status === 3) return t("admin.orders.serviceProgress.departed")
   if (status === 1) return t("admin.orders.serviceProgress.arrived")
   if (status === 2) return t("admin.orders.serviceProgress.completed")
@@ -2480,7 +2755,7 @@ const supplierProgressLabel = (supplier: SupplierOption) => {
 }
 
 const supplierProgressTag = (status?: number | null) =>
-  Number(status) === 2 ? "success" : Number(status) === 1 || Number(status) === 3 ? "warning" : "info"
+  Number(status) === 2 ? "success" : Number(status) === 1 || Number(status) === 3 || Number(status) === 4 ? "warning" : "info"
 
 const pickI18nValue = (i18n?: I18nText, fallback = ""): string => {
   const valueMap = i18n || {}
@@ -2622,24 +2897,31 @@ const parseAttachDetailsText = (item: any) => {
     item.attachValueNameI18n ??
     {}) as Record<string, I18nText>
   const attachDetails = (
-    Array.isArray(order.attachDetails)
-      ? order.attachDetails
-      : Array.isArray(item.attachDetails)
-        ? item.attachDetails
-        : Array.isArray(order.attachSelections)
-          ? order.attachSelections
-          : Array.isArray(item.attachSelections)
-            ? item.attachSelections
-            : []
+    Array.isArray(order.attachItemDetails) && order.attachItemDetails.length
+      ? order.attachItemDetails
+      : Array.isArray(item.attachItemDetails) && item.attachItemDetails.length
+        ? item.attachItemDetails
+        : Array.isArray(order.attachDetails)
+          ? order.attachDetails
+          : Array.isArray(item.attachDetails)
+            ? item.attachDetails
+            : Array.isArray(order.attachSelections)
+              ? order.attachSelections
+              : Array.isArray(item.attachSelections)
+                ? item.attachSelections
+                : []
   ) as RawAttachDetail[]
   const attachValues = attachDetails
     .map((attach) => {
       const typeName =
         String(attach?.attachTypeName || "").trim() ||
         getI18nMapValue(attachTypeNameI18n, attach?.attachTypeId)
-      const valueName =
-        String(attach?.attachValueName || "").trim() ||
-        getI18nMapValue(attachValueNameI18n, attach?.attachValueId)
+      const snapshotName = String(attach?.name || attach?.attachValueName || "").trim()
+      const englishName = String(attach?.nameEn || "").trim()
+      const localizedName = getI18nMapValue(attachValueNameI18n, attach?.attachValueId)
+      const valueName = locale.value === "zh"
+        ? (snapshotName || localizedName || englishName)
+        : (englishName || localizedName || snapshotName)
       const quantity = Number(attach?.quantity ?? 0)
       const summary = joinLabelValue(typeName, valueName)
       if (!summary) {
@@ -2697,9 +2979,15 @@ const parseLineItems = (item: any): OrderLineItem[] => {
 
   return rawItems.map((lineItem: any) => {
     const quantity = Number(lineItem?.quantity)
+    const lineType = String(lineItem?.lineType ?? "").trim()
+    const snapshotName = String(lineItem?.name ?? "").trim()
+    const englishName = String(lineItem?.nameEn ?? "").trim()
+    const name = lineType === "attach"
+      ? (locale.value === "zh" ? (snapshotName || englishName) : (englishName || snapshotName))
+      : (snapshotName || englishName)
     return {
-      lineType: String(lineItem?.lineType ?? "").trim(),
-      name: String(lineItem?.name ?? "").trim(),
+      lineType,
+      name,
       quantity: Number.isFinite(quantity) ? quantity : null,
       amountWithTaxText: formatMoneyText(lineItem?.amountWithTax),
       amountWithoutTaxText: formatMoneyText(lineItem?.amountWithoutTax),
@@ -4059,9 +4347,17 @@ const onSizeChange = (pageSize: number) => {
 }
 
 onMounted(() => {
+  window.addEventListener("beforeprint", handleBeforePrint)
+  window.addEventListener("afterprint", handleAfterPrint)
   void loadServiceTimeRanges()
   void loadServiceOptions()
   void fetchOrders()
+})
+
+onBeforeUnmount(() => {
+  window.removeEventListener("beforeprint", handleBeforePrint)
+  window.removeEventListener("afterprint", handleAfterPrint)
+  removeOrderPrintRoot()
 })
 </script>
 
@@ -4171,6 +4467,172 @@ onMounted(() => {
 }
 .reschedule-history__item strong {
   color: #334155;
+  font-size: 12px;
+}
+.operation-logs {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-height: 120px;
+}
+.operation-logs__order,
+.operation-logs__empty {
+  margin: 0;
+}
+.operation-logs__order {
+  color: #64748b;
+  font-size: 12px;
+}
+.operation-logs__order strong {
+  color: #2f7ee0;
+}
+.operation-logs__empty {
+  padding: 28px 0 12px;
+  color: #94a3b8;
+  text-align: center;
+  font-size: 13px;
+}
+.operation-logs__list {
+  display: flex;
+  flex-direction: column;
+  max-height: min(62vh, 520px);
+  overflow: auto;
+  padding-right: 4px;
+}
+.operation-logs__item {
+  display: grid;
+  grid-template-columns: 12px minmax(0, 1fr);
+  gap: 12px;
+}
+.operation-logs__rail {
+  position: relative;
+}
+.operation-logs__rail::before {
+  content: "";
+  position: absolute;
+  top: 8px;
+  bottom: 0;
+  left: 4px;
+  width: 1px;
+  background: #e2e8f0;
+}
+.operation-logs__item:last-child .operation-logs__rail::before {
+  display: none;
+}
+.operation-logs__dot {
+  position: relative;
+  z-index: 1;
+  display: block;
+  width: 9px;
+  height: 9px;
+  margin-top: 5px;
+  border-radius: 50%;
+  background: #2f7ee0;
+  box-shadow: 0 0 0 3px #e8f2fc;
+}
+.operation-logs__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+.operation-logs__head strong {
+  color: #0f172a;
+  font-size: 13px;
+}
+.operation-logs__head time {
+  flex: 0 0 auto;
+  color: #94a3b8;
+  font-size: 12px;
+}
+.operation-logs__meta {
+  margin: 4px 0 0;
+  color: #64748b;
+  font-size: 12px;
+}
+.operation-logs__content {
+  margin: 6px 0 14px;
+  color: #334155;
+  font-size: 13px;
+  line-height: 1.55;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.operation-logs__item:last-child .operation-logs__content {
+  margin-bottom: 0;
+}
+.operation-log-sheet {
+  position: fixed;
+  top: 0;
+  left: -10000px;
+  z-index: -1;
+  width: 794px;
+  box-sizing: border-box;
+  padding: 36px 40px 48px;
+  background: #fff;
+  color: #111;
+  font-family: Arial, "PingFang SC", "Microsoft YaHei", sans-serif;
+}
+.operation-log-sheet__header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 24px;
+  padding-bottom: 16px;
+  border-bottom: 2px solid #111;
+}
+.operation-log-sheet__header p,
+.operation-log-sheet li p {
+  margin: 0;
+}
+.operation-log-sheet__meta {
+  margin-top: 4px;
+  color: #667085;
+  font-size: 12px;
+}
+.operation-log-sheet__body {
+  margin-top: 6px;
+  color: #1f2937;
+  font-size: 14px;
+  line-height: 1.55;
+  white-space: pre-wrap;
+}
+.operation-log-sheet__header p {
+  color: #667085;
+  font-size: 13px;
+}
+.operation-log-sheet__header h1 {
+  margin: 4px 0 0;
+  color: #111;
+  font-size: 28px;
+  line-height: 1.2;
+}
+.operation-log-sheet__header > span {
+  flex: 0 0 auto;
+  color: #667085;
+  font-size: 12px;
+}
+.operation-log-sheet ol {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.operation-log-sheet li {
+  padding: 16px 0;
+  border-bottom: 1px solid #e5e7eb;
+}
+.operation-log-sheet li > div {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+}
+.operation-log-sheet li strong {
+  color: #111;
+  font-size: 15px;
+}
+.operation-log-sheet li time {
+  color: #667085;
   font-size: 12px;
 }
 .reschedule-history__item p {
@@ -4518,23 +4980,157 @@ onMounted(() => {
 :deep(.order-detail-edit-dialog .el-select) {
   width: 100%;
 }
-@media print {
-  :global(body *) {
-    visibility: hidden;
-  }
-  .order-detail,
-  .order-detail * {
-    visibility: visible;
-  }
-  .order-detail {
-    position: absolute;
-    inset: 0;
-    width: 100%;
-    background: #fff;
-  }
-  .order-detail__toolbar {
-    display: none;
-  }
+.order-print-root {
+  padding: 0 !important;
+  min-height: 0 !important;
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+}
+.order-print-root .order-print-sheet {
+  min-height: 0 !important;
+}
+.order-print-sheet :deep(.el-button) {
+  display: none !important;
+}
+.order-print-root .order-detail__hero {
+  gap: 12px !important;
+  padding: 0 0 8px !important;
+}
+.order-print-root .order-detail__title {
+  font-size: 18px !important;
+}
+.order-print-root .order-detail__booked-at {
+  margin-top: 2px !important;
+  font-size: 11px !important;
+}
+.order-print-root .order-detail__amount strong {
+  font-size: 16px !important;
+}
+.order-print-root .order-detail__toolbar,
+.order-print-root .h5-actions,
+.order-print-root .h5-nav,
+.order-print-root .h5-supplier,
+.order-print-root .h5-supplier__actions,
+.order-print-root .order-detail__panel-title .el-button {
+  display: none !important;
+}
+.order-print-root .order-detail__status-bar,
+.order-print-root .order-detail__panel {
+  box-shadow: none !important;
+}
+.order-print-root .order-detail__status-bar {
+  gap: 8px !important;
+  margin-bottom: 8px !important;
+  padding: 6px 8px !important;
+}
+.order-print-root .order-detail__columns {
+  grid-template-columns: minmax(0, 1.15fr) minmax(0, 0.85fr) !important;
+  gap: 8px !important;
+}
+.order-print-root .order-detail__stack {
+  gap: 8px !important;
+}
+.order-print-root .order-detail__panel {
+  padding: 8px !important;
+}
+.order-print-root .order-detail__panel h3 {
+  margin: 0 0 6px !important;
+  padding-bottom: 4px !important;
+  font-size: 12px !important;
+}
+.order-print-root .order-detail__service-heading {
+  margin-bottom: 6px !important;
+  font-size: 12px !important;
+}
+.order-print-root .order-detail__list > div + div,
+.order-print-root .order-detail__list--customer > div + div {
+  margin-top: 4px !important;
+}
+.order-print-root .order-detail__list dt,
+.order-print-root .order-detail__payment-grid dt,
+.order-print-root .order-detail__refund-grid dt {
+  margin-bottom: 1px !important;
+  font-size: 9px !important;
+}
+.order-print-root .order-detail__list dd,
+.order-print-root .order-detail__payment-grid dd,
+.order-print-root .order-detail__refund-grid dd {
+  font-size: 11px !important;
+  line-height: 1.35 !important;
+}
+.order-print-root .order-detail__schedule {
+  margin-top: 6px !important;
+  padding-top: 6px !important;
+  gap: 2px !important;
+}
+.order-print-root .order-detail__schedule strong {
+  font-size: 12px !important;
+}
+.order-print-root .order-detail__line-items {
+  gap: 4px !important;
+  margin-bottom: 6px !important;
+  padding-bottom: 6px !important;
+}
+.order-print-root .order-detail__line-item {
+  flex-direction: row !important;
+  padding: 4px 6px !important;
+  gap: 8px !important;
+}
+.order-print-root .order-detail__line-item-amount {
+  align-items: flex-end !important;
+  text-align: right !important;
+}
+.order-print-root .order-detail__summary-row + .order-detail__summary-row:not(.order-detail__summary-row--total) {
+  margin-top: 3px !important;
+}
+.order-print-root .order-detail__summary-row--total {
+  margin-top: 4px !important;
+  padding-top: 4px !important;
+  font-size: 12px !important;
+}
+.order-print-root .order-detail__summary-row--total strong {
+  font-size: 13px !important;
+}
+.order-print-root .order-detail__note {
+  min-height: 0 !important;
+  padding: 4px 6px !important;
+  font-size: 11px !important;
+  line-height: 1.4 !important;
+}
+.order-print-root .order-detail__list--customer {
+  display: grid !important;
+  grid-template-columns: 1fr 1fr !important;
+  gap: 4px 8px !important;
+}
+.order-print-root .order-detail__list--customer > div {
+  margin-top: 0 !important;
+}
+.order-print-root .order-detail__payment,
+.order-print-root .order-detail__refund,
+.order-print-root .order-detail__cancellation {
+  margin-top: 8px !important;
+}
+.order-print-root .order-detail__payment-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+  gap: 6px 8px !important;
+}
+.order-print-root .order-detail__refund-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+  gap: 6px 8px !important;
+}
+.order-print-root .order-detail__refund-reason {
+  grid-column: 1 / -1 !important;
+}
+.order-print-root .service-progress {
+  gap: 6px !important;
+}
+.order-print-root .service-progress__supplier {
+  gap: 4px !important;
+  padding: 6px !important;
+}
+.order-print-root .service-progress__photos :deep(.el-image) {
+  width: 36px !important;
+  height: 36px !important;
 }
 .order-detail__eyebrow {
   margin-bottom: 4px;
@@ -5427,5 +6023,45 @@ onMounted(() => {
 
 .orders-h5-sheet .el-drawer__body {
   padding: 0 16px calc(16px + env(safe-area-inset-bottom));
+}
+
+.order-print-root {
+  position: fixed !important;
+  left: -10000px !important;
+  top: 0 !important;
+  width: 190mm !important;
+  min-height: 0 !important;
+  background: #fff !important;
+}
+
+@page {
+  size: A4 portrait;
+  margin: 8mm;
+}
+
+@media print {
+  body.printing-order-detail {
+    height: auto !important;
+    margin: 0 !important;
+    overflow: visible !important;
+    background: #fff !important;
+  }
+
+  body.printing-order-detail > *:not(.order-print-root) {
+    display: none !important;
+  }
+
+  body.printing-order-detail > .order-print-root {
+    display: block !important;
+    position: static !important;
+    left: auto !important;
+    top: auto !important;
+    width: 190mm !important;
+    min-height: 0 !important;
+    margin: 0 !important;
+    background: #fff !important;
+    break-after: avoid;
+    page-break-after: avoid;
+  }
 }
 </style>

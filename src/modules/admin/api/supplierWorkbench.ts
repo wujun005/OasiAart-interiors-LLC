@@ -90,6 +90,14 @@ export function submitQuote(payload: Record<string, unknown>) {
   return http.post('/api/supplier/tools/quotes/submit', payload);
 }
 
+export function applyQuotePriceChange(payload: { supplierId: number; spuId: number; reason: string }) {
+  return http.post('/api/supplier/tools/quotes/priceChange/apply', payload);
+}
+
+export function reviewQuotePriceChange(payload: { supplierId: number; spuId: number; status: 2 | 3; rejectReason?: string }) {
+  return http.post('/api/platform/supplierQuote/priceChange/review', payload);
+}
+
 export function serviceAreaList(payload: Record<string, unknown> = { status: 1 }) {
   return http.post('/api/platform/serviceArea/list', payload);
 }
@@ -124,6 +132,10 @@ export function supplierChangeAcceptDispatch(payload: { id: number; acceptDispat
 
 export function supplierChangeAcceptOrder(payload: { supplierId: number; spuId: number; acceptOrder: 0 | 1 }) {
   return http.post('/api/supplier/tools/services/changeAcceptOrder', payload);
+}
+
+export function supplierAccept(payload: { orderId: number }) {
+  return http.post('/api/orderHeader/supplier/accept', payload);
 }
 
 export function supplierDepart(payload: { orderId: number }) {

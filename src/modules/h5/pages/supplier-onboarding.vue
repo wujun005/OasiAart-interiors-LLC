@@ -160,7 +160,7 @@ import { categoryIdPayload, isOtherService, listServiceCategories, serviceCatego
 import { DEFAULT_PHONE_DIAL, PHONE_DIAL_OPTIONS, joinPhone, nationalNumberOk, phoneDialLabel } from '@/utils/phone-dial';
 
 type Bit = 0 | 1 | null;
-type ChoiceKey = 'saturdayService' | 'sundayService' | 'publicHolidayService' | 'emergencyService' | 'emaarOnboarded' | 'otherCommunityOnboarded';
+type ChoiceKey = 'saturdayService' | 'sundayService' | 'publicHolidayService' | 'emergencyService' | 'wearUniform' | 'emaarOnboarded' | 'otherCommunityOnboarded';
 
 const { t, locale } = useI18n({ useScope: 'global' });
 const router = useRouter();
@@ -197,6 +197,7 @@ const form = reactive({
   sundayService: 1 as Bit,
   publicHolidayService: 1 as Bit,
   emergencyService: null as Bit,
+  wearUniform: null as Bit,
   emaarOnboarded: null as Bit,
   otherCommunityOnboarded: null as Bit,
   applyRenmark: '',
@@ -214,6 +215,7 @@ const choices = computed(() => [
   { key: 'sundayService' as const, label: t('h5.supplierOnboarding.sunday') },
   { key: 'publicHolidayService' as const, label: t('h5.supplierOnboarding.holiday') },
   { key: 'emergencyService' as const, label: t('h5.supplierOnboarding.emergency') },
+  { key: 'wearUniform' as const, label: t('h5.supplierOnboarding.wearUniform') },
   { key: 'emaarOnboarded' as const, label: t('h5.supplierOnboarding.emaar') },
   { key: 'otherCommunityOnboarded' as const, label: t('h5.supplierOnboarding.other') },
 ]);
@@ -325,6 +327,7 @@ const submit = async () => {
       sundayService: form.sundayService,
       publicHolidayService: form.publicHolidayService,
       emergencyService: form.emergencyService,
+      wearUniform: form.wearUniform,
       emaarOnboarded: form.emaarOnboarded,
       otherCommunityOnboarded: form.otherCommunityOnboarded,
       applyRenmark: form.otherCommunityOnboarded === 1 ? form.applyRenmark.trim() : null,

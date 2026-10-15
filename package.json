@@ -16,6 +16,8 @@
     "ant-design-vue": "^4.2.6",
     "axios": "^1.13.2",
     "element-plus": "^2.12.0",
+    "html2canvas": "^1.4.1",
+    "jspdf": "^4.2.1",
     "pinia": "^3.0.4",
     "sass": "^1.94.0",
     "vant": "^4.9.22",

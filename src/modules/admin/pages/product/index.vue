@@ -737,7 +737,13 @@
       </template>
     </el-dialog>
 
-    <el-dialog v-model="priceDialogVisible" :title="t('admin.product.dialog.priceTitle')" :close-on-click-modal="false" width="min(720px, calc(100vw - 32px))">
+    <el-dialog
+      v-model="priceDialogVisible"
+      class="price-maintain-dialog"
+      :title="t('admin.product.dialog.priceTitle')"
+      :close-on-click-modal="false"
+      width="min(720px, calc(100vw - 32px))"
+    >
       <el-table :data="priceRows" border stripe class="price-table">
         <el-table-column
           v-for="col in priceColumns"
@@ -2875,8 +2881,22 @@ watch(
   font-weight: 600;
 }
 .price-table {
-  margin-bottom: 12px;
-  max-height: 70vh;
+  margin-bottom: 0;
+}
+.price-maintain-dialog.el-dialog {
+  display: flex;
+  flex-direction: column;
+  max-height: calc(100dvh - 32px);
+  margin: 16px auto !important;
+  overflow: hidden;
+}
+.price-maintain-dialog :deep(.el-dialog__header),
+.price-maintain-dialog :deep(.el-dialog__footer) {
+  flex: 0 0 auto;
+}
+.price-maintain-dialog :deep(.el-dialog__body) {
+  flex: 1 1 auto;
+  min-height: 0;
   overflow: auto;
 }
 .i18n-row {

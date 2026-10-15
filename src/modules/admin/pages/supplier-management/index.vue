@@ -202,11 +202,26 @@
               <header class="sec-h"><span>03</span><div><h2>{{ t('admin.supplierProfile.capacityTitle') }}</h2></div><el-button v-if="profileView === 'all'" @click="openProfileSection(2)">{{ t('admin.supplierProfile.editSection') }}</el-button></header>
               <div class="service-pills">
                 <strong>{{ t('admin.supplierProfile.yourServices') }}</strong>
-                <div>
-                  <span v-for="name in selectedServiceNames" :key="name">{{ name }}</span>
-                  <em v-if="!selectedServiceNames.length">{{ t('admin.supplierProfile.noSelectedServices') }}</em>
-                </div>
                 <p>{{ t('admin.supplierProfile.servicesFromPricing') }}</p>
+                <div v-if="offeredCategoryOptions.length" class="service-category-options">
+                  <button
+                    v-for="option in offeredCategoryOptions"
+                    :key="option.categoryId"
+                    type="button"
+                    :disabled="profileReadOnly"
+                    :class="{ 'is-on': expectedServiceIds.includes(option.categoryId) }"
+                    :aria-pressed="expectedServiceIds.includes(option.categoryId)"
+                    @click="toggleExpectedService(option)"
+                  >{{ serviceCategoryLabel(option, String(locale)) }}</button>
+                </div>
+                <em v-else-if="!expectedServiceNameList.length">{{ t('admin.supplierProfile.noSelectedServices') }}</em>
+                <div v-else>
+                  <span v-for="name in expectedServiceNameList" :key="name">{{ name }}</span>
+                </div>
+                <label v-if="otherServiceSelected" class="profile-field">
+                  <span>{{ t('admin.supplierProfile.expectedServiceDescription') }}</span>
+                  <el-input v-model="expectedServiceRemark" type="textarea" :rows="3" maxlength="512" show-word-limit :disabled="profileReadOnly" :placeholder="t('admin.supplierProfile.serviceNotePlaceholder')" />
+                </label>
               </div>
               <div class="dossier-grid align-fields">
                 <label class="profile-field"><span>{{ t('admin.supplierProfile.workers') }}</span><input class="plain-count" :value="wholeText(capacityForm.workers)" inputmode="numeric" :disabled="profileReadOnly" @input="capacityForm.workers = wholeOrZero(($event.target as HTMLInputElement).value)" /></label>
@@ -227,19 +242,25 @@
                 </template>
                 <label><span><strong>{{ t('admin.supplierProfile.ownVehicle') }}</strong></span><el-switch v-model="ownTransportation" :disabled="profileReadOnly" /></label>
                 <label><span><strong>{{ t('admin.supplierProfile.ownEquipment') }}</strong></span><el-switch v-model="complianceItems[3].enabled" :disabled="profileReadOnly" /></label>
+                <div class="dossier-toggle"><span><strong>{{ t('admin.supplierProfile.wearUniform') }}</strong></span>
+                  <el-radio-group v-model="wearUniform" :aria-label="t('admin.supplierProfile.wearUniform')" :disabled="profileReadOnly">
+                    <el-radio :value="1">{{ t('admin.supplierProfile.yes') }}</el-radio>
+                    <el-radio :value="0">{{ t('admin.supplierProfile.no') }}</el-radio>
+                  </el-radio-group>
+                </div>
                 <label><span><strong>{{ t('admin.supplierProfile.taxInvoice') }}</strong></span><el-switch v-model="complianceItems[2].enabled" :disabled="profileReadOnly" /></label>
-                <label><span><strong>{{ t('admin.supplierProfile.emaar') }}</strong></span>
-                  <el-radio-group v-model="emaarOnboarded" :disabled="profileReadOnly">
-                    <el-radio-button :value="1">{{ t('admin.supplierProfile.yes') }}</el-radio-button>
-                    <el-radio-button :value="0">{{ t('admin.supplierProfile.no') }}</el-radio-button>
+                <div class="dossier-toggle"><span><strong>{{ t('admin.supplierProfile.emaar') }}</strong></span>
+                  <el-radio-group v-model="emaarOnboarded" :aria-label="t('admin.supplierProfile.emaar')" :disabled="profileReadOnly">
+                    <el-radio :value="1">{{ t('admin.supplierProfile.yes') }}</el-radio>
+                    <el-radio :value="0">{{ t('admin.supplierProfile.no') }}</el-radio>
                   </el-radio-group>
-                </label>
-                <label><span><strong>{{ t('admin.supplierProfile.otherCommunity') }}</strong></span>
-                  <el-radio-group v-model="otherCommunityOnboarded" :disabled="profileReadOnly" @change="onOtherCommunityChange">
-                    <el-radio-button :value="1">{{ t('admin.supplierProfile.yes') }}</el-radio-button>
-                    <el-radio-button :value="0">{{ t('admin.supplierProfile.no') }}</el-radio-button>
+                </div>
+                <div class="dossier-toggle"><span><strong>{{ t('admin.supplierProfile.otherCommunity') }}</strong></span>
+                  <el-radio-group v-model="otherCommunityOnboarded" :aria-label="t('admin.supplierProfile.otherCommunity')" :disabled="profileReadOnly" @change="onOtherCommunityChange">
+                    <el-radio :value="1">{{ t('admin.supplierProfile.yes') }}</el-radio>
+                    <el-radio :value="0">{{ t('admin.supplierProfile.no') }}</el-radio>
                   </el-radio-group>
-                </label>
+                </div>
               </div>
               <label v-if="asYesNo(otherCommunityOnboarded) === 1" id="profile-field-communities" class="profile-field" :class="{ error: issueOf('communities') }">
                 <span>{{ t('admin.supplierProfile.applyRenmark') }} <i>*</i></span>
@@ -569,6 +590,8 @@
                   <strong>{{ orderServiceTitle(row) }}</strong>
                   <small v-if="orderSpecText(row) !== '—'" class="order-clamp">{{ orderSpecText(row) }}</small>
                   <small v-if="orderAddonBrief(row)" class="order-clamp">{{ orderAddonBrief(row) }}</small>
+                  <small v-if="orderCancelled(row)" class="order-alert">{{ row.cancelReason ? t('admin.supplierOrders.cancelReason', { reason: row.cancelReason }) : t('admin.supplierOrders.orderCancelled') }}</small>
+                  <small v-else-if="orderRescheduleUnread(row)" class="order-reschedule">{{ t('admin.supplierOrders.rescheduleNotice') }}</small>
                 </div>
               </template>
             </el-table-column>
@@ -613,9 +636,10 @@
               <template #default="{ row }">
                 <div class="order-row-actions">
                   <el-button link @click="openAssignedOrder(row)">{{ t('admin.supplierOrders.viewDetail') }}</el-button>
-                  <el-button v-if="serviceStep(row) === 0" link type="primary" @click="departForService(row)">{{ t('admin.supplierOrders.departAction') }}</el-button>
-                  <el-button v-else-if="serviceStep(row) === 3" link type="primary" @click="openServiceAction(row, 'arrive')">{{ t('admin.supplierOrders.arriveAction') }}</el-button>
-                  <el-button v-else-if="serviceStep(row) === 1" link type="primary" @click="openServiceAction(row, 'complete')">{{ t('admin.supplierOrders.completeAction') }}</el-button>
+                  <el-button v-if="serviceStep(row) === 0 && !orderCancelled(row)" link type="primary" @click="acceptOrder(row)">{{ t('admin.supplierOrders.acceptAction') }}</el-button>
+                  <el-button v-else-if="serviceStep(row) === 4 && !orderCancelled(row)" link type="primary" @click="departForService(row)">{{ t('admin.supplierOrders.departAction') }}</el-button>
+                  <el-button v-else-if="serviceStep(row) === 3 && !orderCancelled(row)" link type="primary" @click="openServiceAction(row, 'arrive')">{{ t('admin.supplierOrders.arriveAction') }}</el-button>
+                  <el-button v-else-if="serviceStep(row) === 1 && !orderCancelled(row)" link type="primary" @click="openServiceAction(row, 'complete')">{{ t('admin.supplierOrders.completeAction') }}</el-button>
                 </div>
               </template>
             </el-table-column>
@@ -629,6 +653,8 @@
             </header>
             <h3>{{ orderServiceTitle(row) }}</h3>
             <p v-if="orderSpecText(row) !== '—'">{{ orderSpecText(row) }}</p>
+            <p v-if="orderCancelled(row)" class="order-alert">{{ row.cancelReason ? t('admin.supplierOrders.cancelReason', { reason: row.cancelReason }) : t('admin.supplierOrders.orderCancelled') }}</p>
+            <p v-else-if="orderRescheduleUnread(row)" class="order-reschedule">{{ t('admin.supplierOrders.rescheduleNotice') }}</p>
             <dl>
               <div><dt>{{ t('admin.supplierOrders.serviceTime') }}</dt><dd>{{ orderWhen(row) }}</dd></div>
               <div><dt>{{ t('admin.supplierOrders.price') }}</dt><dd>AED {{ orderMoney(row.quotePrice) }}</dd></div>
@@ -638,9 +664,10 @@
             </dl>
             <footer>
               <el-button @click="openAssignedOrder(row)">{{ t('admin.supplierOrders.viewDetail') }}</el-button>
-              <el-button v-if="serviceStep(row) === 0" type="primary" @click="departForService(row)">{{ t('admin.supplierOrders.departAction') }}</el-button>
-              <el-button v-else-if="serviceStep(row) === 3" type="primary" @click="openServiceAction(row, 'arrive')">{{ t('admin.supplierOrders.arriveAction') }}</el-button>
-              <el-button v-else-if="serviceStep(row) === 1" type="primary" @click="openServiceAction(row, 'complete')">{{ t('admin.supplierOrders.completeAction') }}</el-button>
+              <el-button v-if="serviceStep(row) === 0 && !orderCancelled(row)" type="primary" @click="acceptOrder(row)">{{ t('admin.supplierOrders.acceptAction') }}</el-button>
+              <el-button v-else-if="serviceStep(row) === 4 && !orderCancelled(row)" type="primary" @click="departForService(row)">{{ t('admin.supplierOrders.departAction') }}</el-button>
+              <el-button v-else-if="serviceStep(row) === 3 && !orderCancelled(row)" type="primary" @click="openServiceAction(row, 'arrive')">{{ t('admin.supplierOrders.arriveAction') }}</el-button>
+              <el-button v-else-if="serviceStep(row) === 1 && !orderCancelled(row)" type="primary" @click="openServiceAction(row, 'complete')">{{ t('admin.supplierOrders.completeAction') }}</el-button>
             </footer>
           </article>
           <el-empty v-if="!orderLoading && !supplierOrders.length" :description="t('admin.supplierOrders.empty')" />
@@ -741,7 +768,12 @@
               <template #default="{ row }">
                 <div class="pricing-service-cell">
                   <span>{{ String(serviceTitle(row.name, row.spuNameI18n) || 'S').slice(0, 1).toUpperCase() }}</span>
-                  <div><strong>{{ serviceTitle(row.name, row.spuNameI18n) }}</strong><small>{{ localizedCategory(row.category, row.categoryNameI18n) }}</small></div>
+                  <div>
+                    <strong>{{ serviceTitle(row.name, row.spuNameI18n) }}</strong>
+                    <small>{{ localizedCategory(row.category, row.categoryNameI18n) }}</small>
+                    <em v-if="row.rejectReason" class="quote-reject-reason">{{ t('admin.supplierPricing.rejectReason', { reason: row.rejectReason }) }}</em>
+                    <em v-else-if="Number(row.priceChangeStatus) === 1" class="quote-reject-reason">{{ t('admin.supplierPricing.priceChangePending') }}</em>
+                  </div>
                 </div>
               </template>
             </el-table-column>
@@ -764,7 +796,7 @@
             <el-table-column :label="t('admin.supplierPricing.actions')" width="250" align="right">
               <template #default="{ row }">
                 <el-button link @click.stop="openServiceEditor(row)">{{ t('admin.supplierPricing.staffPhone') }}</el-button>
-                <el-button link type="primary" @click.stop="openServiceQuote(row)">{{ t('admin.supplierPricing.edit') }}</el-button>
+                <el-button link type="primary" @click.stop="openServiceQuote(row)">{{ quoteNeedsResubmit(row) ? t('admin.supplierPricing.resubmitReview') : t('admin.supplierPricing.edit') }}</el-button>
                 <el-button link type="danger" @click.stop="removeAddedService(row)">{{ t('admin.supplierPricing.remove') }}</el-button>
               </template>
             </el-table-column>
@@ -775,7 +807,12 @@
               <header>
                 <div class="pricing-service-cell">
                   <span>{{ String(serviceTitle(row.name, row.spuNameI18n) || 'S').slice(0, 1).toUpperCase() }}</span>
-                  <div><strong>{{ serviceTitle(row.name, row.spuNameI18n) }}</strong><small>{{ localizedCategory(row.category, row.categoryNameI18n) }}</small></div>
+                  <div>
+                    <strong>{{ serviceTitle(row.name, row.spuNameI18n) }}</strong>
+                    <small>{{ localizedCategory(row.category, row.categoryNameI18n) }}</small>
+                    <em v-if="row.rejectReason" class="quote-reject-reason">{{ t('admin.supplierPricing.rejectReason', { reason: row.rejectReason }) }}</em>
+                    <em v-else-if="Number(row.priceChangeStatus) === 1" class="quote-reject-reason">{{ t('admin.supplierPricing.priceChangePending') }}</em>
+                  </div>
                 </div>
                 <el-tag :type="quoteTagType(row.status)" effect="light">{{ quoteStatusLabel(row.status) }}</el-tag>
               </header>
@@ -787,7 +824,7 @@
                 <span><el-switch :model-value="Number(row.acceptOrder) !== 0" :loading="acceptOrderSaving === row.spuId" @change="toggleServiceAccept(row)" /> {{ Number(row.acceptOrder) !== 0 ? t('admin.supplierPricing.enabled') : t('admin.supplierPricing.disabled') }}</span>
                 <div>
                   <el-button link @click="openServiceEditor(row)">{{ t('admin.supplierPricing.staffPhone') }}</el-button>
-                  <el-button link type="primary" @click="openServiceQuote(row)">{{ t('admin.supplierPricing.edit') }}</el-button>
+                  <el-button link type="primary" @click="openServiceQuote(row)">{{ quoteNeedsResubmit(row) ? t('admin.supplierPricing.resubmitReview') : t('admin.supplierPricing.edit') }}</el-button>
                 </div>
               </footer>
             </article>
@@ -811,11 +848,21 @@
           <el-tag :type="quoteTagType(quoteDialog.status)" effect="dark">{{ quoteStatusLabel(quoteDialog.status) }}</el-tag>
         </section>
         <section class="sv-quote" v-loading="quoteDialog.loading">
-          <div v-if="quoteDialog.rejectReason" class="pricing-editor-alert is-rejected">
+          <div v-if="quotePriceLocked" class="pricing-editor-alert" :class="{ 'is-rejected': Number(quoteDialog.priceChangeStatus) === 3 }">
             <span>!</span>
             <div>
-              <strong>{{ t('admin.supplierPricing.statusRejected') }}</strong>
-              <p>{{ t('admin.supplierPricing.rejectReason', { reason: quoteDialog.rejectReason }) }}</p>
+              <strong>{{ Number(quoteDialog.priceChangeStatus) === 1 ? t('admin.supplierPricing.priceChangePending') : Number(quoteDialog.priceChangeStatus) === 3 ? t('admin.supplierPricing.priceChangeRejected') : t('admin.supplierPricing.priceChangeTitle') }}</strong>
+              <p v-if="Number(quoteDialog.priceChangeStatus) === 1">{{ t('admin.supplierPricing.priceChangePendingHint') }}</p>
+              <p v-else-if="Number(quoteDialog.priceChangeStatus) === 3 && quoteDialog.priceChangeRejectReason">{{ t('admin.supplierPricing.rejectReason', { reason: quoteDialog.priceChangeRejectReason }) }}</p>
+              <p v-else>{{ t('admin.supplierPricing.priceChangeHint') }}</p>
+            </div>
+          </div>
+          <div v-if="quoteDialog.rejectReason || quoteHasRejectedLines" class="pricing-editor-alert is-rejected">
+            <span>!</span>
+            <div>
+              <strong>{{ Number(quoteDialog.status) === 3 ? t('admin.supplierPricing.statusRejected') : t('admin.supplierPricing.lineRejectedTitle') }}</strong>
+              <p v-if="quoteDialog.rejectReason">{{ t('admin.supplierPricing.rejectReason', { reason: quoteDialog.rejectReason }) }}</p>
+              <p>{{ t('admin.supplierPricing.lineRejectedHint') }}</p>
             </div>
           </div>
           <div class="pricing-editor-layout">
@@ -829,12 +876,12 @@
                   </div>
                 </header>
                 <div class="mode-cards">
-                  <button type="button" :aria-pressed="quoteDialog.quoteMode === 2" :class="{ 'is-on': quoteDialog.quoteMode === 2 }" @click="pickQuoteMode(2)">
+                  <button type="button" :disabled="quoteRevisionLocked || quotePriceLocked" :aria-pressed="quoteDialog.quoteMode === 2" :class="{ 'is-on': quoteDialog.quoteMode === 2 }" @click="pickQuoteMode(2)">
                     <span class="mode-card__mark">{{ quoteDialog.quoteMode === 2 ? '✓' : '01' }}</span>
                     <strong>{{ t('admin.supplierPricing.hourlyRate') }}</strong>
                     <small>{{ t('admin.supplierPricing.hourlyCardHint') }}</small>
                   </button>
-                  <button type="button" :aria-pressed="quoteDialog.quoteMode === 1" :class="{ 'is-on': quoteDialog.quoteMode === 1 }" @click="pickQuoteMode(1)">
+                  <button type="button" :disabled="quoteRevisionLocked || quotePriceLocked" :aria-pressed="quoteDialog.quoteMode === 1" :class="{ 'is-on': quoteDialog.quoteMode === 1 }" @click="pickQuoteMode(1)">
                     <span class="mode-card__mark">{{ quoteDialog.quoteMode === 1 ? '✓' : '02' }}</span>
                     <strong>{{ t('admin.supplierPricing.fixedPrice') }}</strong>
                     <small>{{ t('admin.supplierPricing.fixedCardHint') }}</small>
@@ -845,7 +892,7 @@
                     <span>{{ t('admin.supplierPricing.rateLabel') }}</span>
                     <span class="currency-input">
                       <b>AED</b>
-                      <el-input-number v-model="quoteDialog.unitPrice" :min="0" :precision="2" controls-position="right" />
+                      <el-input-number v-model="quoteDialog.unitPrice" :min="0" :precision="2" :disabled="quoteRevisionLocked || quotePriceLocked" controls-position="right" />
                     </span>
                   </label>
                 </div>
@@ -865,23 +912,24 @@
                   <article v-for="(row, index) in quoteDialog.rows" :key="row.skuId" class="quote-line" :class="{ 'is-off': row.available === false || !row.enabled }">
                     <label class="quote-line__switch">
                       <span>{{ t('admin.supplierPricing.skuSwitch') }}</span>
-                      <el-switch v-model="row.enabled" :disabled="row.available === false" />
+                      <el-switch v-model="row.enabled" :disabled="row.available === false || quoteLineHeld(row)" />
                     </label>
                     <div class="quote-line__spec">
                       <span>{{ String(index + 1).padStart(2, '0') }}</span>
                       <div>
                         <strong>{{ quoteSpecLabel(row) }}</strong>
+                        <small v-if="row.rejectReason" class="line-reject">{{ t('admin.supplierPricing.lineRejected', { reason: row.rejectReason }) }}</small>
                         <small v-if="row.available === false">{{ t('admin.supplierPricing.discontinued') }}</small>
                         <small v-else>{{ t('admin.supplierPricing.livePrice', { price: moneyText(row.approvedPrice) }) }}</small>
                       </div>
                     </div>
                     <label>
                       <span>{{ t('admin.supplierPricing.headcount') }}</span>
-                      <el-input-number v-model="row.staffCount" :min="1" :precision="0" :disabled="row.available === false || !row.enabled" controls-position="right" />
+                      <el-input-number v-model="row.staffCount" :min="1" :precision="0" :disabled="row.available === false || !row.enabled || quoteLineHeld(row)" controls-position="right" />
                     </label>
                     <label>
                       <span>{{ t('admin.supplierPricing.hours') }}</span>
-                      <el-input-number v-model="row.serviceHours" :min="0.01" :precision="2" :step="0.5" :disabled="row.available === false || !row.enabled" controls-position="right" />
+                      <el-input-number v-model="row.serviceHours" :min="0.01" :precision="2" :step="0.5" :disabled="row.available === false || !row.enabled || quoteLineHeld(row)" controls-position="right" />
                     </label>
                     <label class="quote-line__price">
                       <span>{{ t('admin.supplierPricing.taxPrice') }}</span>
@@ -889,7 +937,7 @@
                         <small>AED</small>
                         <strong>{{ skuAmount(row) == null ? '—' : moneyText(skuAmount(row)) }}</strong>
                       </span>
-                      <el-input v-else v-model="row.quotePrice" inputmode="decimal" :disabled="row.available === false || !row.enabled">
+                      <el-input v-else v-model="row.quotePrice" inputmode="decimal" :disabled="row.available === false || !row.enabled || quoteLineHeld(row)">
                         <template #prepend>AED</template>
                       </el-input>
                       <small v-if="quoteDialog.quoteMode === 2" class="field-help">{{ t('admin.supplierPricing.readonlyPriceHint') }}</small>
@@ -910,12 +958,12 @@
                 <div class="quote-attaches">
                   <article v-for="item in quoteDialog.attaches" :key="item.attachValueId" class="quote-attach" :class="{ 'is-selected': item.offered }">
                     <div class="quote-attach__name">
-                      <el-checkbox :model-value="item.offered" @change="(value: boolean | string | number) => toggleAttach(item, Boolean(value))">
+                      <el-checkbox :model-value="item.offered" :disabled="quoteRevisionLocked || quotePriceLocked" @change="(value: boolean | string | number) => toggleAttach(item, Boolean(value))">
                         {{ attachDisplay(item, 'name') }}
                       </el-checkbox>
                       <small>{{ attachDisplay(item, 'type') }} · {{ t('admin.supplierPricing.livePrice', { price: moneyText(item.approvedPrice) }) }}</small>
                     </div>
-                    <el-input v-if="item.offered" v-model="item.quotePrice" inputmode="decimal" :placeholder="t('admin.supplierPricing.taxPrice')">
+                    <el-input v-if="item.offered" v-model="item.quotePrice" inputmode="decimal" :disabled="quoteRevisionLocked || quotePriceLocked" :placeholder="t('admin.supplierPricing.taxPrice')">
                       <template #prepend>AED</template>
                     </el-input>
                   </article>
@@ -943,11 +991,13 @@
           <footer class="sv-quote__foot">
             <div class="sv-quote__foot-note">
               <span>{{ quoteStatusLabel(quoteDialog.status) }}</span>
-              <small>{{ t('admin.supplierPricing.priceIntro') }}</small>
+              <small v-if="quoteDialog.rejectReason">{{ t('admin.supplierPricing.rejectReason', { reason: quoteDialog.rejectReason }) }}</small>
+              <small v-else>{{ t('admin.supplierPricing.priceIntro') }}</small>
             </div>
             <div>
-              <el-button :loading="quoteDialog.saving" @click="saveServiceQuote">{{ t('admin.supplierPricing.saveDraft') }}</el-button>
-              <el-button type="primary" :loading="quoteDialog.saving" @click="submitServiceQuote">{{ t('admin.supplierPricing.submitReview') }}</el-button>
+              <el-button v-if="quoteDialog.canApplyPriceChange" type="warning" :loading="quoteDialog.saving" @click="requestPriceChange">{{ t('admin.supplierPricing.priceChangeApply') }}</el-button>
+              <el-button :loading="quoteDialog.saving" :disabled="quoteUnderReview || quotePriceLocked" @click="saveServiceQuote">{{ t('admin.supplierPricing.saveDraft') }}</el-button>
+              <el-button type="primary" :loading="quoteDialog.saving" :disabled="quoteUnderReview || quotePriceLocked" @click="submitServiceQuote">{{ Number(quoteDialog.status) === 3 || quoteHasRejectedLines ? t('admin.supplierPricing.resubmitReview') : t('admin.supplierPricing.submitReview') }}</el-button>
             </div>
           </footer>
         </section>
@@ -1097,6 +1147,8 @@
             <strong class="order-lead__number">{{ selectedOrder.orderNo || '—' }}</strong>
             <h2>{{ orderServiceTitle(selectedOrder) }}</h2>
             <p>{{ t('admin.supplierOrders.detailHint') }}</p>
+            <p v-if="orderCancelled(selectedOrder)" class="order-alert">{{ selectedOrder.cancelReason ? t('admin.supplierOrders.cancelReason', { reason: selectedOrder.cancelReason }) : t('admin.supplierOrders.orderCancelled') }}</p>
+            <p v-else-if="selectedOrder.rescheduled" class="order-reschedule">{{ t('admin.supplierOrders.rescheduleNotice') }}</p>
             <div class="order-lead__summary">
               <div><Calendar /><span><small>{{ t('admin.supplierOrders.serviceTime') }}</small><strong>{{ orderWhen(selectedOrder) }}</strong></span></div>
               <div><Money /><span><small>{{ t('admin.supplierOrders.quoteTotal') }}</small><strong>AED {{ orderMoney(selectedOrder.quoteAmount ?? selectedOrder.quotePrice) }}</strong></span></div>
@@ -1197,9 +1249,10 @@
       <template #footer>
         <div v-if="selectedOrder" class="order-drawer-footer">
           <div><span>{{ t('admin.supplierOrders.serviceStatus') }}</span><strong>{{ serviceStatusText(selectedOrder) }}</strong></div>
-          <el-button v-if="serviceStep(selectedOrder) === 0" type="primary" @click="departForService(selectedOrder)">{{ t('admin.supplierOrders.departAction') }}</el-button>
-          <el-button v-else-if="serviceStep(selectedOrder) === 3" type="primary" @click="openServiceAction(selectedOrder, 'arrive')">{{ t('admin.supplierOrders.arriveAction') }}</el-button>
-          <el-button v-else-if="serviceStep(selectedOrder) === 1" type="primary" @click="openServiceAction(selectedOrder, 'complete')">{{ t('admin.supplierOrders.completeAction') }}</el-button>
+          <el-button v-if="serviceStep(selectedOrder) === 0 && !orderCancelled(selectedOrder)" type="primary" @click="acceptOrder(selectedOrder)">{{ t('admin.supplierOrders.acceptAction') }}</el-button>
+          <el-button v-else-if="serviceStep(selectedOrder) === 4 && !orderCancelled(selectedOrder)" type="primary" @click="departForService(selectedOrder)">{{ t('admin.supplierOrders.departAction') }}</el-button>
+          <el-button v-else-if="serviceStep(selectedOrder) === 3 && !orderCancelled(selectedOrder)" type="primary" @click="openServiceAction(selectedOrder, 'arrive')">{{ t('admin.supplierOrders.arriveAction') }}</el-button>
+          <el-button v-else-if="serviceStep(selectedOrder) === 1 && !orderCancelled(selectedOrder)" type="primary" @click="openServiceAction(selectedOrder, 'complete')">{{ t('admin.supplierOrders.completeAction') }}</el-button>
           <span v-else class="order-drawer-footer__done"><CircleCheck />{{ t('admin.supplierOrders.noAction') }}</span>
         </div>
       </template>
@@ -1265,9 +1318,11 @@ import {
   onboardingResubmit,
   onboardingSave,
   serviceCommunityPage,
+  applyQuotePriceChange,
   saveQuoteDraft,
   saveServices,
   submitQuote,
+  supplierAccept,
   supplierArrive,
   supplierDepart,
   supplierAssignedOrderDetail,
@@ -1281,7 +1336,7 @@ import { listBySpu, listSpuAttachCatalog } from '@/modules/admin/api/spu'
 import SupplierAvailability from '@/modules/admin/pages/supplier-management/availability.vue'
 import { useAdminSessionStore } from '@/modules/admin/stores/session'
 import { pickI18nText } from '@/modules/admin/utils/i18n'
-import { categoryIdPayload, listServiceCategories, serviceCategoryLabel } from '@/modules/client/api/supplier-onboarding'
+import { categoryIdPayload, isOtherService, listServiceCategories, serviceCategoryLabel, type ServiceCategoryOption } from '@/modules/client/api/supplier-onboarding'
 import { DEFAULT_PHONE_DIAL, PHONE_DIAL_OPTIONS, joinPhone, nationalNumberOk, phoneDialLabel, splitPhone } from '@/utils/phone-dial'
 import {
   ArrowLeft,
@@ -1617,12 +1672,15 @@ const openAssignedOrder = (row: any) => {
 }
 const serviceStep = (row: any) => {
   const status = Number(row?.serviceStatus)
-  return status === 1 || status === 2 || status === 3 ? status : 0
+  return status === 1 || status === 2 || status === 3 || status === 4 ? status : 0
 }
+const orderCancelled = (row: any) => Number(row?.orderStatus) === 3
+const orderRescheduleUnread = (row: any) => row?.rescheduled === true && row?.rescheduleRead !== true
 const serviceStatusText = (row: any) => {
   const localized = specText(row?.serviceStatusI18n)
   if (localized !== '—') return localized
   const status = serviceStep(row)
+  if (status === 4) return t('admin.supplierOrders.accepted')
   if (status === 3) return t('admin.supplierOrders.departed')
   if (status === 1) return t('admin.supplierOrders.arrived')
   if (status === 2) return t('admin.supplierOrders.completed')
@@ -1631,7 +1689,7 @@ const serviceStatusText = (row: any) => {
 const serviceStatusTag = (status: unknown) => {
   const step = Number(status)
   if (step === 2) return 'success'
-  if (step === 1 || step === 3) return 'warning'
+  if (step === 4 || step === 1 || step === 3) return 'warning'
   return 'info'
 }
 const orderClock = (value: unknown) => {
@@ -1683,9 +1741,30 @@ const addServicePhotos = async (event: Event) => {
     serviceAction.uploading = false
   }
 }
+const acceptOrder = async (row: any) => {
+  const orderId = Number(row?.orderId)
+  if (!orderId || orderCancelled(row) || serviceStep(row) !== 0) return
+  try {
+    await ElMessageBox.confirm(
+      t('admin.supplierOrders.acceptConfirm', { orderNo: row?.orderNo || orderId }),
+      t('admin.supplierOrders.acceptTitle'),
+      { type: 'warning', confirmButtonText: t('admin.supplierOrders.acceptAction') },
+    )
+  } catch {
+    return
+  }
+  try {
+    unwrap(await supplierAccept({ orderId }))
+    ElMessage.success(t('admin.supplierOrders.acceptSaved'))
+    await loadOrders()
+    if (orderDrawerVisible.value && Number(selectedOrder.value?.orderId) === orderId) await loadOrderDetail(orderId)
+  } catch (error: any) {
+    ElMessage.error(error?.message || t('admin.supplierOrders.actionFailed'))
+  }
+}
 const departForService = async (row: any) => {
   const orderId = Number(row?.orderId)
-  if (!orderId) return
+  if (!orderId || orderCancelled(row) || serviceStep(row) !== 4) return
   try {
     await ElMessageBox.confirm(
       t('admin.supplierOrders.departConfirm', { orderNo: row.orderNo || '—' }),
@@ -1743,6 +1822,11 @@ const quoteDialog = reactive({
   categoryI18n: null as Record<string, unknown> | null,
   status: undefined as number | undefined,
   rejectReason: '',
+  priceEditable: true,
+  canApplyPriceChange: false,
+  priceChangeStatus: null as number | null,
+  priceChangeReason: '',
+  priceChangeRejectReason: '',
   quoteMode: null as 1 | 2 | null,
   unitPrice: null as number | null,
   columns: [] as { key: string; nameI18n: Record<string, unknown> | null; fallback: string }[],
@@ -1750,6 +1834,11 @@ const quoteDialog = reactive({
   attaches: [] as Array<{ attachValueId: number; typeName: string; typeNameI18n?: Record<string, unknown> | null; name: string; nameI18n?: Record<string, unknown> | null; platformPrice: unknown; approvedPrice: unknown; offered: boolean; quotePrice: string }>,
 })
 const selectedAttachCount = computed(() => quoteDialog.attaches.filter((item) => item.offered).length)
+const quoteHasRejectedLines = computed(() => quoteDialog.rows.some((row) => Number(row.reviewStatus) === 3 || String(row.rejectReason || '').trim()))
+const quoteRevisionLocked = computed(() => Number(quoteDialog.status) === 1)
+const quotePriceLocked = computed(() => Number(quoteDialog.status) === 2 && quoteDialog.priceEditable !== true)
+const quoteLineHeld = (row: { reviewStatus?: number | null }) => quotePriceLocked.value || (quoteRevisionLocked.value && Number(row.reviewStatus) !== 3)
+const quoteUnderReview = computed(() => quoteRevisionLocked.value && !quoteHasRejectedLines.value)
 
 const settlementTab = ref('transactions')
 const settlementRows = [
@@ -1786,9 +1875,37 @@ const expectedServiceIds = ref<string[]>([])
 const expectedServicesKnown = ref(false)
 const expectedServiceRemark = ref('')
 const expectedCategoryLabels = ref<Record<string, string>>({})
+const offeredCategoryOptions = ref<ServiceCategoryOption[]>([])
 const expectedServiceNameList = computed(() =>
   expectedServiceIds.value.map((id) => expectedCategoryLabels.value[id] || id).filter(Boolean),
 )
+const otherServiceSelected = computed(() => offeredCategoryOptions.value.some((option) => (
+  expectedServiceIds.value.includes(option.categoryId) && isOtherService(option)
+)))
+const loadServiceCategoryOptions = async () => {
+  try {
+    const options = await listServiceCategories()
+    offeredCategoryOptions.value = options
+    const labels: Record<string, string> = {}
+    options.forEach((option) => {
+      labels[option.categoryId] = serviceCategoryLabel(option, String(locale.value || 'zh'))
+    })
+    expectedCategoryLabels.value = labels
+  } catch (error: any) {
+    offeredCategoryOptions.value = []
+    ElMessage.error(error?.message || t('admin.supplierProfile.noSelectedServices'))
+  }
+}
+const toggleExpectedService = (option: ServiceCategoryOption) => {
+  if (profileReadOnly.value) return
+  expectedServicesKnown.value = true
+  if (expectedServiceIds.value.includes(option.categoryId)) {
+    expectedServiceIds.value = expectedServiceIds.value.filter((id) => id !== option.categoryId)
+    if (isOtherService(option)) expectedServiceRemark.value = ''
+    return
+  }
+  expectedServiceIds.value = [...expectedServiceIds.value, option.categoryId]
+}
 const applyExpectedServices = (detail: any) => {
   const raw = detail?.expectedServiceCategoryIds
   if (!Array.isArray(raw)) {
@@ -1800,16 +1917,10 @@ const applyExpectedServices = (detail: any) => {
   expectedServicesKnown.value = true
   expectedServiceIds.value = raw.map((id: unknown) => String(id))
   expectedServiceRemark.value = String(detail?.expectedServiceRemark || '')
-  listServiceCategories().then((options) => {
-    const labels: Record<string, string> = {}
-    options.forEach((option) => {
-      labels[option.categoryId] = serviceCategoryLabel(option, String(locale.value || 'zh'))
-    })
-    expectedCategoryLabels.value = labels
-  }).catch(() => {})
 }
 const dubaiServiceAreas = ref('')
 const emaarOnboarded = ref<0 | 1>(0)
+const wearUniform = ref<0 | 1 | null>(null)
 const otherCommunityOnboarded = ref<0 | 1>(0)
 const applyRenmark = ref('')
 const asYesNo = (value: unknown): 0 | 1 => (Number(value) === 1 ? 1 : 0)
@@ -2094,7 +2205,12 @@ const serviceRows = computed(() => {
     return {
       ...service,
       status: quote?.status,
-      rejectReason: quote?.rejectReason || '',
+      rejectReason: quoteRejectText(quote),
+      priceEditable: quote?.priceEditable !== false,
+      canApplyPriceChange: quote?.canApplyPriceChange === true,
+      priceChangeStatus: quote?.priceChangeStatus == null ? null : Number(quote.priceChangeStatus),
+      priceChangeReason: quote?.priceChangeReason || '',
+      priceChangeRejectReason: quote?.priceChangeRejectReason || '',
       quoteMode: quote?.quoteMode == null ? undefined : Number(quote.quoteMode),
       unitPrice: quote?.unitPrice,
     }
@@ -2109,6 +2225,17 @@ const filteredServiceRows = computed(() => {
     return `${serviceHaystack(row.name, row.spuNameI18n)} ${category} ${row.category} ${row.phones.join(' ')}`.includes(keyword)
   })
 })
+const quoteRejectText = (quote: { rejectReason?: string; skus?: { reviewStatus?: number; rejectReason?: string }[] } | undefined) => {
+  const header = String(quote?.rejectReason || '').trim()
+  const reasons: string[] = []
+  if (header) reasons.push(header)
+  for (const sku of quote?.skus || []) {
+    const reason = String(sku?.rejectReason || '').trim()
+    if ((Number(sku?.reviewStatus) === 3 || reason) && reason && !reasons.includes(reason)) reasons.push(reason)
+  }
+  return reasons.join('；')
+}
+const quoteNeedsResubmit = (row: { status?: number; rejectReason?: string }) => Number(row.status) === 3 || Boolean(String(row.rejectReason || '').trim())
 const pendingQuoteCount = computed(() => serviceRows.value.filter((row) => Number(row.status) === 1).length)
 const enabledServiceCount = computed(() => serviceRows.value.filter((row) => Number(row.acceptOrder) !== 0).length)
 const resetPricingFilters = () => {
@@ -2463,6 +2590,7 @@ const buildProfilePayload = (status?: number, areaIds?: number[]) => ({
   employeeInsuranceFile: complianceItems[1].files,
   taxInvoiceAvailable: bit(complianceItems[2].enabled),
   ownEquipment: bit(complianceItems[3].enabled),
+  wearUniform: wearUniform.value,
   ownTransportation: ownTransportation.value ? 1 : 0,
   totalAvailableWorkers: capacityForm.workers,
   maxSimultaneousOrders: capacityForm.concurrent,
@@ -2583,6 +2711,7 @@ const applyProfile = (detail: any) => {
   complianceItems[1].files = asFileList(detail?.employeeInsuranceFile)
   complianceItems[2].enabled = detail?.taxInvoiceAvailable === 1
   complianceItems[3].enabled = detail?.ownEquipment === 1
+  wearUniform.value = detail?.wearUniform === 1 ? 1 : detail?.wearUniform === 0 ? 0 : null
   ownTransportation.value = detail?.ownTransportation === 1
   femaleStaffCount.value = detail?.femaleStaffCount || 0
   maleStaffCount.value = detail?.maleStaffCount || 0
@@ -2797,7 +2926,6 @@ const lightboxChipClass = computed(() => {
     : sectionIncomplete(profileSection.value)
   return bad ? 'is-warn' : 'is-ok'
 })
-const selectedServiceNames = computed(() => [...new Set(savedServices.value.map((service) => serviceTitle(service.name, service.spuNameI18n)).filter(Boolean))])
 const insuranceDocs = computed(() => [
   { id: 'public' as const, label: t('admin.supplierProfile.publicLiability'), files: complianceItems[0].files },
   { id: 'employee' as const, label: t('admin.supplierProfile.employeeInsurance'), files: complianceItems[1].files },
@@ -3153,6 +3281,20 @@ const quoteSpecLabel = (row: { specs: Record<string, unknown>; skuCode: string }
   }).filter(Boolean)
   return parts.length ? parts.join(' · ') : (row.skuCode || t('admin.supplierPricing.specFallback'))
 }
+const workloadFromSpecs = (specs?: Record<string, unknown>) => {
+  const label = quoteDialog.columns.map((column) => {
+    const text = specText(specs?.[column.key])
+    return text !== '—' ? text : ''
+  }).filter(Boolean).join(' ')
+  const staff = label.match(/(\d+(?:\.\d+)?)\s*(?:个)?\s*(?:persons?|people|staff|员工|人)/i)
+  const hours = label.match(/(\d+(?:\.\d+)?)\s*(?:个)?\s*(?:hours?|hrs?|小时)/i)
+  const staffCount = staff ? Number(staff[1]) : NaN
+  const serviceHours = hours ? Number(hours[1]) : NaN
+  return {
+    staffCount: staffCount > 0 ? Math.round(staffCount) : null,
+    serviceHours: serviceHours > 0 ? serviceHours : null,
+  }
+}
 
 const skuAmount = (row: { staffCount?: number | null; serviceHours?: number | null }) => {
   if (quoteDialog.quoteMode !== 2) return null
@@ -3262,6 +3404,11 @@ const applySavedQuote = (saved: any) => {
   if (!saved) return
   quoteDialog.status = saved.status ?? quoteDialog.status
   quoteDialog.rejectReason = saved.rejectReason || ''
+  quoteDialog.priceEditable = saved.priceEditable !== false
+  quoteDialog.canApplyPriceChange = saved.canApplyPriceChange === true
+  quoteDialog.priceChangeStatus = saved.priceChangeStatus == null ? null : Number(saved.priceChangeStatus)
+  quoteDialog.priceChangeReason = saved.priceChangeReason || ''
+  quoteDialog.priceChangeRejectReason = saved.priceChangeRejectReason || ''
   if (saved.quoteMode != null) quoteDialog.quoteMode = Number(saved.quoteMode) === 2 ? 2 : 1
   quoteDialog.unitPrice = saved.unitPrice == null || saved.unitPrice === '' ? null : Number(saved.unitPrice)
   const quoted = new Map((saved.skus || []).map((sku: any) => [Number(sku.skuId), sku]))
@@ -3271,7 +3418,10 @@ const applySavedQuote = (saved: any) => {
     row.staffCount = next.staffCount == null ? null : Number(next.staffCount)
     row.serviceHours = next.serviceHours == null ? null : Number(next.serviceHours)
     row.quotePrice = next.quotePrice == null ? null : Number(next.quotePrice)
-    row.enabled = skuEnabled(next.enabled, row.available !== false)
+    row.reviewStatus = Number(next.reviewStatus) === 2 || Number(next.reviewStatus) === 3 ? Number(next.reviewStatus) : undefined
+    row.rejectReason = next.rejectReason || ''
+    const lineRejected = Number(next.reviewStatus) === 3 || String(next.rejectReason || '').trim()
+    row.enabled = lineRejected ? row.available !== false : skuEnabled(next.enabled, row.available !== false)
     if (next.approvedPrice != null) row.approvedPrice = next.approvedPrice
   })
   if (Array.isArray(saved.attaches)) quoteDialog.attaches = mapAttaches(saved.attaches)
@@ -3308,6 +3458,11 @@ const openServiceQuote = async (row: { spuId: number; name: string; spuNameI18n?
   quoteDialog.categoryI18n = row.categoryNameI18n || null
   quoteDialog.status = row.status
   quoteDialog.rejectReason = row.rejectReason || ''
+  quoteDialog.priceEditable = (row as any).priceEditable !== false
+  quoteDialog.canApplyPriceChange = (row as any).canApplyPriceChange === true
+  quoteDialog.priceChangeStatus = (row as any).priceChangeStatus == null ? null : Number((row as any).priceChangeStatus)
+  quoteDialog.priceChangeReason = (row as any).priceChangeReason || ''
+  quoteDialog.priceChangeRejectReason = (row as any).priceChangeRejectReason || ''
   quoteDialog.quoteMode = row.quoteMode === 2 ? 2 : 1
   quoteDialog.unitPrice = row.unitPrice == null ? null : Number(row.unitPrice)
   quoteDialog.columns = []
@@ -3326,22 +3481,33 @@ const openServiceQuote = async (row: { spuId: number; name: string; spuNameI18n?
     const skus = Array.isArray(detail.skus) ? detail.skus : []
     quoteDialog.rows = skus.map((sku: any) => {
       const saved = quoted.get(Number(sku.skuId)) || {}
+      const specs = Object.fromEntries(quoteDialog.columns.map((column) => [column.key, sku[column.key]]))
+      const suggested = workloadFromSpecs(specs)
       return {
         skuId: sku.skuId,
         skuCode: sku.skuCode,
-        specs: Object.fromEntries(quoteDialog.columns.map((column) => [column.key, sku[column.key]])),
+        specs,
         platformPrice: saved.platformPrice ?? sku.price,
         approvedPrice: saved.approvedPrice ?? null,
         available: saved.available != null ? saved.available !== false : Number(sku.status ?? 1) === 1,
-        enabled: skuEnabled(saved.enabled, (saved.available != null ? saved.available !== false : Number(sku.status ?? 1) === 1)),
-        staffCount: saved.staffCount == null || saved.staffCount === '' ? null : Number(saved.staffCount),
-        serviceHours: saved.serviceHours == null || saved.serviceHours === '' ? null : Number(saved.serviceHours),
+        enabled: (Number(saved.reviewStatus) === 3 || String(saved.rejectReason || '').trim())
+          ? (saved.available != null ? saved.available !== false : Number(sku.status ?? 1) === 1)
+          : skuEnabled(saved.enabled, (saved.available != null ? saved.available !== false : Number(sku.status ?? 1) === 1)),
+        staffCount: saved.staffCount == null || saved.staffCount === '' ? suggested.staffCount : Number(saved.staffCount),
+        serviceHours: saved.serviceHours == null || saved.serviceHours === '' ? suggested.serviceHours : Number(saved.serviceHours),
         quotePrice: saved.quotePrice == null || saved.quotePrice === '' ? null : Number(saved.quotePrice),
+        reviewStatus: Number(saved.reviewStatus) === 2 || Number(saved.reviewStatus) === 3 ? Number(saved.reviewStatus) : undefined,
+        rejectReason: saved.rejectReason || '',
       }
     })
     if (quote) {
       quoteDialog.status = quote.status
-      quoteDialog.rejectReason = quote.rejectReason || ''
+      quoteDialog.rejectReason = quoteRejectText(quote)
+      quoteDialog.priceEditable = quote.priceEditable !== false
+      quoteDialog.canApplyPriceChange = quote.canApplyPriceChange === true
+      quoteDialog.priceChangeStatus = quote.priceChangeStatus == null ? null : Number(quote.priceChangeStatus)
+      quoteDialog.priceChangeReason = quote.priceChangeReason || ''
+      quoteDialog.priceChangeRejectReason = quote.priceChangeRejectReason || ''
       quoteDialog.quoteMode = Number(quote.quoteMode) === 2 ? 2 : 1
       quoteDialog.unitPrice = quote.unitPrice == null || quote.unitPrice === '' ? quoteDialog.unitPrice : Number(quote.unitPrice)
     }
@@ -3362,8 +3528,43 @@ const openServiceQuote = async (row: { spuId: number; name: string; spuNameI18n?
   }
 }
 
+const requestPriceChange = async () => {
+  if (!supplierRecordId.value || !quoteDialog.canApplyPriceChange || quoteDialog.saving) return
+  let reason = ''
+  try {
+    const result = await ElMessageBox.prompt(
+      t('admin.supplierPricing.priceChangeHint'),
+      t('admin.supplierPricing.priceChangeApply'),
+      {
+        inputType: 'textarea',
+        inputPlaceholder: t('admin.supplierPricing.priceChangeReason'),
+        inputValidator: (value) => (String(value || '').trim() ? true : t('admin.supplierPricing.priceChangeReasonRequired')),
+        confirmButtonText: t('admin.supplierPricing.priceChangeApply'),
+      },
+    )
+    reason = String(result.value || '').trim()
+  } catch {
+    return
+  }
+  quoteDialog.saving = true
+  try {
+    const saved = unwrap(await applyQuotePriceChange({
+      supplierId: supplierRecordId.value,
+      spuId: quoteDialog.spuId,
+      reason,
+    }))
+    applySavedQuote(saved)
+    ElMessage.success(t('admin.supplierPricing.priceChangeSent'))
+    await loadQuotes(true)
+  } catch (error: any) {
+    ElMessage.error(error?.message || t('admin.supplierPricing.priceChangeFailed'))
+  } finally {
+    quoteDialog.saving = false
+  }
+}
+
 const saveServiceQuote = async () => {
-  if (!supplierRecordId.value) return
+  if (!supplierRecordId.value || quoteUnderReview.value || quotePriceLocked.value) return
   const problem = draftProblem()
   if (problem) {
     ElMessage.warning(problem)
@@ -3383,7 +3584,7 @@ const saveServiceQuote = async () => {
 }
 
 const submitServiceQuote = async () => {
-  if (!supplierRecordId.value) return
+  if (!supplierRecordId.value || quoteUnderReview.value || quotePriceLocked.value) return
   const problem = submitProblem()
   if (problem) {
     ElMessage.warning(problem)
@@ -3415,6 +3616,8 @@ const loadOrderDetail = async (orderId: number) => {
     const detail = unwrap(await supplierAssignedOrderDetail(orderId))
     if (requestId !== orderDetailRequest || Number(selectedOrder.value?.orderId) !== orderId) return
     selectedOrder.value = detail || selectedOrder.value
+    const index = supplierOrders.value.findIndex((item) => Number(item?.orderId) === orderId)
+    if (index >= 0 && detail) supplierOrders.value[index] = { ...supplierOrders.value[index], ...detail }
   } catch (error: any) {
     if (requestId !== orderDetailRequest) return
     ElMessage.error(error?.message || t('admin.supplierOrders.detailFailed'))
@@ -3465,6 +3668,7 @@ const handlePrimaryAction = () => {
 }
 
 onMounted(() => {
+  loadServiceCategoryOptions()
   loadCurrentSupplier().catch((error: any) => ElMessage.error(error?.message || t('admin.supplierProfile.loadFailed')))
 })
 watch(section, (value) => {
@@ -3604,9 +3808,15 @@ watch(areaKeyword, (keyword) => {
 .same-line span { min-width: 0; }
 .service-pills { margin-bottom: 16px; }
 .service-pills strong { display: block; margin-bottom: 8px; }
-.service-pills div { display: flex; flex-wrap: wrap; gap: 8px; }
+.service-pills > div { display: flex; flex-wrap: wrap; gap: 8px; }
 .service-pills span { padding: 6px 12px; border: 1px solid #dde0e6; border-radius: 16px; background: #eef0f3; color: #3a3f4a; font-size: 13px; font-weight: 700; }
+.service-category-options { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+.service-category-options button { min-height: 36px; padding: 6px 14px; border: 1px solid #dde0e6; border-radius: 999px; background: #fff; color: #05152b; font: inherit; font-size: 13px; font-weight: 700; cursor: pointer; }
+.service-category-options button.is-on { color: #f7f1e6; background: #05152b; border-color: #05152b; }
+.service-category-options button:disabled { cursor: default; }
+.service-category-options button:disabled:not(.is-on) { color: #7a7166; background: #f6f4f0; }
 .service-pills em, .service-pills p, .doc-row small { color: #7a7166; font-size: 12px; font-style: normal; }
+.service-pills .profile-field { margin-top: 12px; }
 .doc-row { display: flex; justify-content: space-between; gap: 12px; align-items: center; margin-bottom: 12px; padding: 16px; border: 1px solid #e9e2d3; border-radius: 10px; background: #fff; }
 .doc-row.error { border: 2px solid #c0392b; background: #fffafa; }
 .doc-row p { display: flex; gap: 8px; margin: 6px 0 0; }
@@ -3656,9 +3866,9 @@ watch(areaKeyword, (keyword) => {
 .community-fields strong { display: block; color: #05152b; font-size: 14px; }
 .community-fields small { display: block; margin-top: 4px; color: #7a7166; font-size: 12px; line-height: 1.4; }
 .community-note { margin-bottom: 8px; }
-.dossier-toggles label, .policy-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 64px; padding: 12px 14px; background: #fff; border: 1px solid #eadfce; border-radius: 14px; }
-.dossier-toggles :deep(.el-radio-group) { display: inline-flex; flex: none; flex-wrap: nowrap; }
-.dossier-toggles :deep(.el-radio-button__inner) { padding: 6px 14px; }
+.dossier-toggles label, .dossier-toggle, .policy-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 64px; padding: 12px 14px; background: #fff; border: 1px solid #eadfce; border-radius: 14px; }
+.dossier-toggles :deep(.el-radio-group) { display: inline-flex; flex: none; flex-wrap: nowrap; gap: 18px; }
+.dossier-toggles :deep(.el-radio) { height: auto; margin-right: 0; }
 .dossier-toggles span, .policy-row > div { display: grid; min-width: 0; }
 .dossier-toggles strong, .policy-row strong { color: #05152b; font-size: 14px; }
 .dossier-toggles small, .policy-row small { color: #7a7166; font-size: 12px; }
@@ -3908,6 +4118,9 @@ watch(areaKeyword, (keyword) => {
 .order-cell small, .order-cell > span { color: #74685a; font-size: 12px; line-height: 1.4; }
 .order-clamp { display: -webkit-box; overflow: hidden; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
 .order-remark-text { color: #05152b; font-weight: 600; }
+.order-alert, .order-reschedule { display: block; margin-top: 4px; font-size: 12px; line-height: 1.45; }
+.order-alert { color: #b42318; }
+.order-reschedule { color: #9a6700; }
 .order-pin, .order-map { color: #05152b; font-size: 12px; font-weight: 650; text-decoration: underline; text-underline-offset: 3px; }
 .money-value { display: inline-flex; align-items: baseline; justify-content: flex-end; gap: 4px; white-space: nowrap; }
 .money-value > small { color: #8d5a32; font-size: 9px; letter-spacing: .08em; }
@@ -4051,6 +4264,7 @@ watch(areaKeyword, (keyword) => {
 .pricing-service-cell > div { display: grid; min-width: 0; gap: 3px; }
 .pricing-service-cell strong { overflow: hidden; color: #05152b; font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
 .pricing-service-cell small { overflow: hidden; color: #8a7d70; font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
+.quote-reject-reason, .line-reject { color: #b42318; font-size: 12px; font-style: normal; line-height: 1.45; white-space: normal; }
 .quote-mode-pill { display: inline-flex; padding: 5px 8px; color: #5d4930; background: #f5ecdf; border-radius: 999px; font-size: 10px; font-weight: 700; }
 .pricing-price { color: #23354b; font-size: 12px; font-weight: 750; }
 .pricing-data-table :deep(.el-table__row) { cursor: pointer; }

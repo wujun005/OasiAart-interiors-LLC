@@ -31,6 +31,17 @@ export type RefundReasonOption = {
   remarkRequired?: boolean;
 };
 
+export type OrderOperationLog = {
+  id: number;
+  bizNo?: string;
+  operatorName?: string;
+  operatorType?: string;
+  operationType?: string;
+  operationTypeI18n?: Record<string, string>;
+  operateTime?: string;
+  contentI18n?: Record<string, string>;
+};
+
 export type OrderExportPayload = {
   orderNo?: string;
   orderId?: number;
@@ -118,6 +129,18 @@ export function updateSupplier(payload: {
   return http.post('/api/orderHeader/updateSupplier', payload);
 }
 
+// /api/orderHeader/operationLogs 按订单号查询全链路操作记录
+export async function operationLogs(orderNo: string): Promise<OrderOperationLog[]> {
+  const response = await http.get('/api/orderHeader/operationLogs', {
+    params: { orderNo },
+  });
+  if (Array.isArray(response)) return response as OrderOperationLog[];
+  const data = response && typeof response === 'object'
+    ? (response as { data?: unknown }).data
+    : null;
+  return Array.isArray(data) ? data as OrderOperationLog[] : [];
+}
+
 // 导出订单 Excel
 export function exportOrders(payload: OrderExportPayload) {
   return http.post('/api/orderHeader/export', payload, {
@@ -134,6 +157,7 @@ export default {
   updateOrderStatus,
   stripeRefund,
   getRefundReasons,
+  operationLogs,
   querySuppliers,
   updateSupplier,
   exportOrders,

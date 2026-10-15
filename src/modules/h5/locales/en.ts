@@ -251,6 +251,7 @@ const en = {
     sunday: 'Do you provide service on Sundays?',
     holiday: 'Do you work on public holidays?',
     emergency: 'Can you take urgent / emergency jobs?',
+    wearUniform: 'Are you willing to wear our uniform?',
     emaar: 'Are you registered with an Emaar community?',
     emaarHint: 'Whether you have already onboarded or provided service in an Emaar community',
     other: 'Are you registered with other communities?',

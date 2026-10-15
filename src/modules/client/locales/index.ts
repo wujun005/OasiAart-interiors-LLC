@@ -245,7 +245,7 @@ const clientExtraMessages = {
             'Please complete booking at least 24 hours in advance for better assignment.',
           item2Title: 'Cancellation policy',
           item2Desc:
-            'Free cancellation up to 12 hours before service start. Later cancellations may charge 50%.',
+            'More than 2 hours before the service starts, you can reschedule for free or cancel for a refund of the amount paid minus a 3.9% + AED 1 processing fee. Within 2 hours, only a reschedule request is accepted. Once the service has started, it cannot be changed or refunded.',
           item3Title: 'Payment method',
           item3Desc:
             'Support Visa, MasterCard and Apple Pay. Secure online payment.',
@@ -952,7 +952,7 @@ const clientExtraMessages = {
           item1Title: '预约时间',
           item1Desc: '建议至少提前 24 小时预约，便于安排更合适的服务人员。',
           item2Title: '修改与取消政策',
-          item2Desc: '服务开始前 12 小时可免费取消，之后取消可能收取 50% 费用。',
+          item2Desc: '服务开始前超过 2 小时可免费改期，或取消并在扣除实付金额 3.9% + AED 1 的处理费后退款。服务开始前 2 小时内仅可申请改期。服务开始后不可改期，也不可取消退款。',
           item3Title: '支付方式',
           item3Desc: '支持 Visa、MasterCard、Apple Pay，支付过程安全可靠。',
           item4Title: '服务保障',

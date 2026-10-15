@@ -52,6 +52,8 @@ const FIXED_DEVELOPER_MENU_ID = 'fixed-developer-tools';
 const FIXED_WHITELIST_MENU_ID = 'fixed-supplier-registration-whitelist';
 const DEVELOPER_PATH = '/admin/developer';
 const WHITELIST_PATH = '/admin/developer/supplier-registration-whitelist';
+const PACKAGE_PATH = '/admin/packages';
+const FIXED_PACKAGE_MENU_ID = 'fixed-packages';
 const MENU_PATH_ALIASES: Record<string, string> = {
   '/admin/supplier': '/admin/supplier-management',
   '/admin/supplier/profile': '/admin/supplier-management/profile',
@@ -217,6 +219,34 @@ const releaseOverviewPathFromGroups = (nodes: AdminMenuPermissionItem[]) => {
   });
 };
 
+const collectPaths = (nodes: AdminMenuPermissionItem[], target: string[] = []) => {
+  nodes.forEach((node) => {
+    if (node.path) target.push(node.path);
+    if (node.children.length) collectPaths(node.children, target);
+  });
+  return target;
+};
+
+const pinPackageMenu = (roots: AdminMenuPermissionItem[]) => {
+  if (hasMenuPath(roots, PACKAGE_PATH)) return;
+  const paths = collectPaths(roots);
+  if (!paths.length) return;
+  const supplierOnly = paths.every((path) => path.startsWith('/admin/supplier-management'));
+  if (supplierOnly) return;
+  const item: AdminMenuPermissionItem = {
+    id: FIXED_PACKAGE_MENU_ID,
+    name: '套餐管理',
+    path: PACKAGE_PATH,
+    icon: 'present',
+    parentId: 0,
+    sortOrder: 0,
+    children: [],
+  };
+  const productIndex = roots.findIndex((node) => node.path === '/admin/products');
+  if (productIndex >= 0) roots.splice(productIndex + 1, 0, item);
+  else roots.push(item);
+};
+
 const pinSuperAdminOverview = (roots: AdminMenuPermissionItem[]) => {
   releaseOverviewPathFromGroups(roots);
   if (!hasOverviewLeaf(roots)) {
@@ -301,6 +331,7 @@ const hydrateMenuState = (list: RawMenuItem[], pinOverview = false) => {
   }
   const prunedRoots = pruneMenus(roots);
   sortMenus(prunedRoots);
+  pinPackageMenu(prunedRoots);
 
   const flat = flattenMenus(prunedRoots, []);
   const allowedPaths = Array.from(

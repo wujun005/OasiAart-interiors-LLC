@@ -133,6 +133,13 @@ select {
   outline-offset: 2px;
 }
 
+/* Element Plus renders the focus state on the component wrapper. Avoid drawing
+   a second focus outline around its internal text field. */
+.admin-page :where(.el-input__inner, .el-textarea__inner, .el-range-input, .el-select__input):focus-visible,
+.el-overlay :where(.el-input__inner, .el-textarea__inner, .el-range-input, .el-select__input):focus-visible {
+  outline: none;
+}
+
 /* Shared page surfaces. Supplier workspace and the dedicated order H5 route retain
    their purpose-built layout and density. */
 .admin-page:not(.admin-page--orders-h5):not(.admin-page--supplier) .content > .page:not(.page--h5),

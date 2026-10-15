@@ -119,6 +119,15 @@
           </article>
           <article>
             <div>
+              <strong>{{ copy.wearUniform }}<i class="req">*</i></strong>
+            </div>
+            <div class="yes-no">
+              <button type="button" :class="{ 'is-on': form.wearUniform === 1 }" @click="form.wearUniform = 1">{{ copy.yes }}</button>
+              <button type="button" :class="{ 'is-on': form.wearUniform === 0 }" @click="form.wearUniform = 0">{{ copy.no }}</button>
+            </div>
+          </article>
+          <article>
+            <div>
               <strong>{{ copy.emaar }}<i class="req">*</i></strong>
             </div>
             <div class="yes-no">
@@ -197,6 +206,7 @@ const form = reactive({
   sundayService: 1 as Bit,
   publicHolidayService: 1 as Bit,
   emergencyService: null as Bit,
+  wearUniform: null as Bit,
   emaarOnboarded: null as Bit,
   otherCommunityOnboarded: null as Bit,
   applyRenmark: '',
@@ -243,6 +253,7 @@ const copy = computed(() =>
         leadTime: '您需要提前多少小时收到订单？',
         workStart: '您几点开始工作？',
         workEnd: '您几点结束工作？',
+        wearUniform: '是否愿意穿我们的制服？',
         emaar: '您是否已在 Emaar 社区注册？',
         emaarHint: '是否曾在 Emaar 社区完成入驻或提供服务',
         otherCommunity: '您是否已在其他社区注册？',
@@ -304,6 +315,7 @@ const copy = computed(() =>
         leadTime: 'How many hours\' notice do you need before a job?',
         workStart: 'What time do you start work?',
         workEnd: 'What time do you finish work?',
+        wearUniform: 'Are you willing to wear our uniform?',
         emaar: 'Are you registered with an Emaar community?',
         emaarHint: 'Whether you have already onboarded or provided service in an Emaar community',
         otherCommunity: 'Are you registered with other communities?',
@@ -409,10 +421,11 @@ const companyReady = () => {
 
 const submit = async () => {
   const bits = capacityChoices.value.every((item) => form[item.key] === 0 || form[item.key] === 1);
+  const uniformReady = form.wearUniform === 0 || form.wearUniform === 1
   const emaarReady = form.emaarOnboarded === 0 || form.emaarOnboarded === 1
   const otherReady = form.otherCommunityOnboarded === 0 || form.otherCommunityOnboarded === 1
   const noteReady = form.otherCommunityOnboarded !== 1 || Boolean(form.applyRenmark.trim())
-  if (!companyReady() || !bits || !emaarReady || !otherReady || !noteReady || !form.workStart || !form.workEnd) {
+  if (!companyReady() || !bits || !uniformReady || !emaarReady || !otherReady || !noteReady || !form.workStart || !form.workEnd) {
     if (form.licenseExpiry && !licenseAfterToday(form.licenseExpiry)) errorText.value = copy.value.licenseHint;
     else if ((form.mobile.trim() || form.whatsapp.trim()) && (!phoneOk(form.mobile) || !phoneOk(form.whatsapp))) errorText.value = copy.value.phone;
     else if (otherReady && !noteReady) errorText.value = copy.value.communityNoteRequired;
@@ -443,6 +456,7 @@ const submit = async () => {
       emergencyService: form.emergencyService,
       minLeadTimeHours: form.minLeadTimeHours,
       monthlyCapacity: form.monthlyCapacity,
+      wearUniform: form.wearUniform,
       emaarOnboarded: form.emaarOnboarded,
       otherCommunityOnboarded: form.otherCommunityOnboarded,
       applyRenmark: form.otherCommunityOnboarded === 1 ? form.applyRenmark.trim() : null,

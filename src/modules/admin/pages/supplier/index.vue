@@ -82,8 +82,12 @@
           <el-table-column :label="t('admin.platformSuppliers.latestSubmit')" min-width="160">
             <template #default="{ row }">{{ formatTime(row.latestSubmitTime) }}</template>
           </el-table-column>
-          <el-table-column :label="t('admin.platformSuppliers.actions')" width="210">
+          <el-table-column :label="t('admin.platformSuppliers.actions')" min-width="220">
             <template #default="{ row }">
+              <div v-if="Number(row.pendingCount) > 0 || Number(row.priceChangePendingCount) > 0" class="row-updates">
+                <span v-if="Number(row.pendingCount) > 0" class="status-pill pending">{{ t('admin.platformSuppliers.quoteUpdatePending', { count: row.pendingCount }) }}</span>
+                <span v-if="Number(row.priceChangePendingCount) > 0" class="status-pill pending">{{ t('admin.platformSuppliers.priceChangeUpdatePending', { count: row.priceChangePendingCount }) }}</span>
+              </div>
               <div v-if="Number(row.onboardingStatus) === 1" class="row-actions" @click.stop>
                 <button type="button" class="act ok" :disabled="saving" @click="approveOnboardingRow(row)">{{ t('admin.platformSuppliers.approve') }}</button>
                 <button type="button" class="act no" :disabled="saving" @click="openReject('onboarding', row)">{{ t('admin.platformSuppliers.reject') }}</button>
@@ -207,6 +211,7 @@
                 <div><dt>{{ t('admin.platformSuppliers.vat') }}</dt><dd>{{ text(profile.vatTrn) }}</dd></div>
                 <div><dt>{{ t('admin.platformSuppliers.years') }}</dt><dd>{{ text(profile.yearsInBusiness) }}</dd></div>
                 <div><dt>{{ t('admin.platformSuppliers.address') }}</dt><dd>{{ text(profile.officeAddress) }}</dd></div>
+                <div><dt>{{ t('admin.platformSuppliers.wearUniform') }}</dt><dd>{{ yesNo(profile.wearUniform) }}</dd></div>
               </dl>
             </section>
             <section class="panel">
@@ -253,6 +258,7 @@
                   <div><dt>{{ t('admin.platformSuppliers.emergency') }}</dt><dd>{{ yesNo(profile.emergencyService) }}</dd></div>
                   <div><dt>{{ t('admin.platformSuppliers.ownVehicle') }}</dt><dd>{{ yesNo(profile.ownTransportation) }}</dd></div>
                   <div><dt>{{ t('admin.platformSuppliers.ownEquipment') }}</dt><dd>{{ yesNo(profile.ownEquipment) }}</dd></div>
+                  <div><dt>{{ t('admin.platformSuppliers.wearUniform') }}</dt><dd>{{ yesNo(profile.wearUniform) }}</dd></div>
                   <div><dt>{{ t('admin.platformSuppliers.taxInvoice') }}</dt><dd>{{ yesNo(profile.taxInvoiceAvailable) }}</dd></div>
                   <div><dt>{{ t('admin.platformSuppliers.emaar') }}</dt><dd>{{ yesNo(profile.emaarOnboarded) }}</dd></div>
                   <div><dt>{{ t('admin.platformSuppliers.otherCommunity') }}</dt><dd>{{ yesNo(profile.otherCommunityOnboarded) }}</dd></div>
@@ -271,7 +277,12 @@
 
           <div v-else-if="detailTab === 'quotes'" class="tab-panel">
             <section class="panel">
-              <h3>{{ t('admin.platformSuppliers.services') }}</h3>
+              <div class="panel-head">
+                <h3>{{ t('admin.platformSuppliers.services') }}</h3>
+                <button type="button" class="act" :disabled="exportingPrices || !services.length" @click="exportPriceList">
+                  {{ exportingPrices ? t('admin.platformSuppliers.exportingPrices') : t('admin.platformSuppliers.exportPrices') }}
+                </button>
+              </div>
               <p v-if="!services.length" class="muted">{{ t('admin.platformSuppliers.noServicesHint') }}</p>
               <div v-if="!services.length && expectedServiceNames.length" class="category-tags">
                 <span v-for="name in expectedServiceNames" :key="name" class="pill">{{ name }}</span>
@@ -283,17 +294,21 @@
                 <el-table-column :label="t('admin.platformSuppliers.category')" min-width="140">
                   <template #default="{ row }">{{ serviceCategory(row) }}</template>
                 </el-table-column>
-                <el-table-column :label="t('admin.platformSuppliers.quoteStatus')" width="140">
+                <el-table-column :label="t('admin.platformSuppliers.quoteStatus')" width="180">
                   <template #default="{ row }">
                     <span class="status-pill" :class="statusClass(row.status)">{{ quoteStatusLabel(row.status, row.statusI18n) }}</span>
+                    <small v-if="Number(row.priceChangeStatus) === 1" class="price-change-note">{{ t('admin.platformSuppliers.priceChangePending') }}</small>
+                    <small v-if="Number(row.priceChangeStatus) === 1 && row.priceChangeReason" class="price-change-note">{{ t('admin.platformSuppliers.priceChangeReasonLabel', { reason: row.priceChangeReason }) }}</small>
                   </template>
                 </el-table-column>
                 <el-table-column :label="t('admin.platformSuppliers.workers')" width="120">
                   <template #default="{ row }">{{ row.workerCount ?? '—' }}</template>
                 </el-table-column>
-                <el-table-column :label="t('admin.platformSuppliers.actions')" width="140">
+                <el-table-column :label="t('admin.platformSuppliers.actions')" width="220">
                   <template #default="{ row }">
                     <button type="button" class="act navy" @click.stop="openQuote(row)">{{ t('admin.platformSuppliers.reviewQuote') }}</button>
+                    <button v-if="Number(row.priceChangeStatus) === 1" type="button" class="act" @click.stop="approvePriceChange(row)">{{ t('admin.platformSuppliers.approvePriceChange') }}</button>
+                    <button v-if="Number(row.priceChangeStatus) === 1" type="button" class="act no" @click.stop="openPriceChangeReject(row)">{{ t('admin.platformSuppliers.rejectPriceChange') }}</button>
                   </template>
                 </el-table-column>
               </el-table>
@@ -342,12 +357,19 @@
             </div>
             <span class="status-pill" :class="statusClass(skuStatus)">{{ quoteStatusLabel(skuStatus, skuStatusI18n) }}</span>
           </header>
-          <el-table v-loading="skuLoading" :data="skuRows" row-key="skuId" :empty-text="t('admin.platformSuppliers.noSpecs')">
+          <el-table
+            v-loading="skuLoading"
+            :data="reviewSkuRows"
+            row-key="skuId"
+            :empty-text="t('admin.platformSuppliers.noSpecs')"
+            @selection-change="onReviewSelectionChange"
+          >
+            <el-table-column v-if="showLineReview" type="selection" width="48" align="center" :selectable="isLineSelectable" />
             <el-table-column v-for="column in skuColumns" :key="column.key" :label="specColumnLabel(column)" min-width="120">
               <template #default="{ row }">{{ specCell(row.specs[column.key]) }}</template>
             </el-table-column>
-            <el-table-column v-if="!skuColumns.length" label="SKU" prop="skuCode" min-width="120" />
-            <el-table-column :label="t('admin.platformSuppliers.clientPrice')" width="120">
+            <el-table-column v-if="showSkuCodeColumn" label="SKU" prop="skuCode" min-width="120" />
+            <el-table-column :label="t('admin.platformSuppliers.clientPrice')" min-width="150">
               <template #default="{ row }">{{ moneyText(clientPrice(row)) }}</template>
             </el-table-column>
             <el-table-column :label="t('admin.platformSuppliers.taxQuote')" width="130">
@@ -359,14 +381,27 @@
             <el-table-column :label="t('admin.platformSuppliers.effectivePrice')" width="150">
               <template #default="{ row }">{{ moneyText(row.approvedPrice) }}</template>
             </el-table-column>
-            <el-table-column :label="t('admin.platformSuppliers.skuSwitch')" width="90">
-              <template #default="{ row }">{{ row.enabled ? t('admin.platformSuppliers.skuOn') : t('admin.platformSuppliers.skuOff') }}</template>
-            </el-table-column>
             <el-table-column :label="t('admin.platformSuppliers.staffCount')" width="80">
               <template #default="{ row }">{{ row.staffCount ?? '—' }}</template>
             </el-table-column>
             <el-table-column :label="t('admin.platformSuppliers.durationHours')" width="90">
               <template #default="{ row }">{{ row.serviceHours ?? '—' }}</template>
+            </el-table-column>
+            <el-table-column :label="t('admin.platformSuppliers.lineReviewStatus')" min-width="150">
+              <template #default="{ row }">
+                <div class="line-review-result">
+                  <el-tag v-if="lineReviewStatusLabel(row)" :type="lineReviewTagType(row)" effect="light">{{ lineReviewStatusLabel(row) }}</el-tag>
+                  <small v-if="Number(row.reviewStatus) === 3 && row.rejectReason">{{ row.rejectReason }}</small>
+                </div>
+              </template>
+            </el-table-column>
+            <el-table-column v-if="showLineReview" :label="t('admin.platformSuppliers.actions')" width="148" fixed="right">
+              <template #default="{ row }">
+                <div v-if="isLineSelectable(row)" class="line-actions">
+                  <button type="button" class="act no" :disabled="saving" @click="openLineReject([row])">{{ t('admin.platformSuppliers.reject') }}</button>
+                  <button type="button" class="act navy" :disabled="saving" @click="approveLine(row)">{{ t('admin.platformSuppliers.approve') }}</button>
+                </div>
+              </template>
             </el-table-column>
           </el-table>
           <section v-if="skuAttaches.length" class="sku-attaches">
@@ -379,9 +414,10 @@
               <span>{{ item.offered ? moneyText(item.quotePrice) : t('admin.platformSuppliers.unavailable') }}</span>
             </div>
           </section>
-          <footer v-if="Number(skuStatus) === 1" class="quote-foot">
-            <button type="button" class="act no" :disabled="saving" @click="openReject('quote', skuTarget)">{{ t('admin.platformSuppliers.reject') }}</button>
-            <button type="button" class="act navy" :disabled="saving" @click="approveQuote(skuTarget)">{{ t('admin.platformSuppliers.approve') }}</button>
+          <footer v-if="showLineReview" class="quote-foot">
+            <span class="quote-foot__selection">{{ t('admin.platformSuppliers.selectedLines', { count: selectedReviewLines.length }) }}</span>
+            <button type="button" class="act no" :disabled="saving || !selectedReviewLines.length" @click="openLineReject()">{{ t('admin.platformSuppliers.reject') }}</button>
+            <button type="button" class="act navy" :disabled="saving || !selectedReviewLines.length" @click="approveSelectedLines">{{ t('admin.platformSuppliers.approve') }}</button>
           </footer>
         </section>
       </div>
@@ -404,11 +440,29 @@
     </el-dialog>
 
 
-    <el-dialog v-model="rejectOpen" :title="rejectMode === 'onboarding' ? t('admin.platformSuppliers.rejectOnboarding') : t('admin.platformSuppliers.rejectQuote')" width="460px" append-to-body>
+    <el-dialog v-model="rejectOpen" :title="t('admin.platformSuppliers.rejectOnboarding')" width="460px" append-to-body>
       <el-input v-model="rejectReason" type="textarea" :rows="4" maxlength="500" show-word-limit :placeholder="t('admin.platformSuppliers.reasonPlaceholder')" />
       <template #footer>
         <el-button @click="rejectOpen = false">{{ t('admin.platformSuppliers.cancel') }}</el-button>
         <el-button type="danger" :loading="saving" @click="submitReject">{{ t('admin.platformSuppliers.confirmReject') }}</el-button>
+      </template>
+    </el-dialog>
+
+    <el-dialog v-model="priceChangeRejectOpen" :title="t('admin.platformSuppliers.rejectPriceChange')" width="460px" append-to-body>
+      <p v-if="priceChangeTarget?.priceChangeReason" class="line-reject-summary">{{ t('admin.platformSuppliers.priceChangeReasonLabel', { reason: priceChangeTarget.priceChangeReason }) }}</p>
+      <el-input v-model="priceChangeRejectReason" type="textarea" :rows="4" maxlength="500" show-word-limit :placeholder="t('admin.platformSuppliers.reasonPlaceholder')" />
+      <template #footer>
+        <el-button @click="priceChangeRejectOpen = false">{{ t('admin.platformSuppliers.cancel') }}</el-button>
+        <el-button type="danger" :loading="saving" @click="submitPriceChangeReject">{{ t('admin.platformSuppliers.confirmReject') }}</el-button>
+      </template>
+    </el-dialog>
+
+    <el-dialog v-model="lineRejectOpen" :title="lineRejectTargets.length > 1 ? t('admin.platformSuppliers.rejectSelectedTitle') : t('admin.platformSuppliers.rejectQuote')" width="460px" append-to-body>
+      <p class="line-reject-summary">{{ t('admin.platformSuppliers.rejectSelectedHint', { count: lineRejectTargets.length }) }}</p>
+      <el-input v-model="lineRejectReason" type="textarea" :rows="4" maxlength="500" show-word-limit :placeholder="t('admin.platformSuppliers.reasonPlaceholder')" />
+      <template #footer>
+        <el-button @click="lineRejectOpen = false">{{ t('admin.platformSuppliers.cancel') }}</el-button>
+        <el-button type="danger" :loading="saving" @click="rejectSelectedLines">{{ t('admin.platformSuppliers.confirmReject') }}</el-button>
       </template>
     </el-dialog>
   </div>
@@ -417,7 +471,7 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { ElMessage, ElMessageBox } from 'element-plus'
+import { ElMessage } from 'element-plus'
 import { useI18n } from 'vue-i18n'
 import { listBySpu, listSpuAttachCatalog } from '@/modules/admin/api/spu'
 import { pickI18nText } from '@/modules/admin/utils/i18n'
@@ -428,6 +482,7 @@ import {
   onboardingPage,
   platformSupplierQuotePage,
   platformSupplierQuoteReview,
+  reviewQuotePriceChange,
   platformSupplierQuoteServices,
   platformSupplierQuoteSkus,
   serviceCatalog,
@@ -450,6 +505,8 @@ type SupplierRow = {
   expectedCategoryIds?: string[]
   onboardingStatus?: number
   onboardingStatusI18n?: Record<string, string>
+  pendingCount?: number
+  priceChangePendingCount?: number
   pendingReview?: boolean
   latestSubmitTime?: string
 }
@@ -488,6 +545,7 @@ const detailTab = computed(() => {
 const waitingCount = ref(0)
 const detailLoading = ref(false)
 const saving = ref(false)
+const exportingPrices = ref(false)
 const current = ref<SupplierRow | null>(null)
 const profile = reactive<Record<string, any>>({})
 const services = ref<any[]>([])
@@ -596,6 +654,7 @@ const skuOpen = ref(false)
 const skuLoading = ref(false)
 const skuTitle = ref('')
 const skuStatus = ref<number | undefined>()
+const skuVersionNo = ref<number | undefined>()
 const skuRejectReason = ref('')
 const skuTarget = ref<any>(null)
 const skuColumns = ref<{ key: string; nameI18n: Record<string, unknown> | null; fallback: string }[]>([])
@@ -606,9 +665,15 @@ const skuUnitPrice = ref<number | null>(null)
 const skuStatusI18n = ref<Record<string, string> | null>(null)
 
 const rejectOpen = ref(false)
-const rejectMode = ref<'quote' | 'onboarding'>('quote')
 const rejectReason = ref('')
 const rejectTarget = ref<any>(null)
+const lineRejectOpen = ref(false)
+const lineRejectReason = ref('')
+const lineRejectTargets = ref<any[]>([])
+const priceChangeRejectOpen = ref(false)
+const priceChangeRejectReason = ref('')
+const priceChangeTarget = ref<any>(null)
+const selectedReviewLines = ref<any[]>([])
 
 const unwrap = (res: any) => (res && typeof res === 'object' && 'data' in res ? res.data : res)
 const quoteStatusLabel = (status?: number, i18n?: Record<string, unknown> | null) => {
@@ -619,6 +684,22 @@ const quoteStatusLabel = (status?: number, i18n?: Record<string, unknown> | null
   return key ? t(`admin.platformSuppliers.${key}`) : t('admin.platformSuppliers.quoteNone')
 }
 const quoteTagType = (status?: number) => (Number(status) === 1 ? 'warning' : Number(status) === 2 ? 'success' : Number(status) === 3 ? 'danger' : 'info')
+const normalizeLineReviewStatus = (status: unknown) => {
+  const value = Number(status)
+  return value === 2 || value === 3 ? value : undefined
+}
+const lineReviewStatusLabel = (row: any) => {
+  const value = normalizeLineReviewStatus(row?.reviewStatus)
+  if (value === 2) return t('admin.platformSuppliers.lineApproved')
+  if (value === 3) return t('admin.platformSuppliers.lineRejected')
+  return ''
+}
+const lineReviewTagType = (row: any) => {
+  const value = normalizeLineReviewStatus(row?.reviewStatus)
+  if (value === 2) return 'success'
+  if (value === 3) return 'danger'
+  return 'info'
+}
 const onboardingLabel = (status?: number) => {
   const keys = ['draft', 'pending', 'approved', 'rejected']
   const key = keys[Number(status)]
@@ -641,6 +722,9 @@ const specCell = (value: unknown) => {
   const text = specText(value)
   return text === '—' ? '—' : text
 }
+const reviewSkuRows = computed(() => skuRows.value.filter((row) => Number(row?.enabled) === 1))
+const showSkuCodeColumn = computed(() => !skuColumns.value.length || reviewSkuRows.value.some((row) =>
+  skuColumns.value.every((column) => specCell(row?.specs?.[column.key]) === '—')))
 const attachName = (item: { nameI18n?: unknown; name?: string }) => {
   const text = specText(item.nameI18n)
   return text !== '—' ? text : (item.name || '—')
@@ -667,11 +751,9 @@ const moneyText = (value: unknown) => {
   const amount = Number(value)
   return Number.isFinite(amount) ? amount.toFixed(2) : '—'
 }
-const clientPrice = (row: { platformPrice?: unknown; platformOriginalPrice?: unknown }) => {
-  const sale = Number(row.platformPrice)
-  if (Number.isFinite(sale) && sale > 0) return sale
-  const original = Number(row.platformOriginalPrice)
-  return Number.isFinite(original) ? original : null
+const clientPrice = (row: { platformPriceWithTax?: unknown }) => {
+  const amount = Number(row.platformPriceWithTax)
+  return Number.isFinite(amount) ? amount : null
 }
 const marginText = (row: { platformPrice?: unknown; platformOriginalPrice?: unknown; quotePrice?: unknown }) => {
   const client = Number(clientPrice(row))
@@ -848,6 +930,8 @@ const toReviewRow = (item: OnboardingListItem, quote?: SupplierRow): SupplierRow
       : (Number.isFinite(Number(item.status)) ? Number(item.status) : undefined),
     onboardingStatusI18n: quote?.onboardingStatusI18n,
     pendingReview: item.pendingReview,
+    pendingCount: quote?.pendingCount,
+    priceChangePendingCount: quote?.priceChangePendingCount,
     expectedCategoryIds: categoryIdsOf(item),
     latestSubmitTime: quote?.latestSubmitTime || item.modifyTime,
   }
@@ -1043,36 +1127,126 @@ const approveOnboardingRow = async (row: SupplierRow) => {
   }
 }
 
-const approveQuote = async (row: any) => {
-  if (!detailId.value || !row?.spuId) return
-  try {
-    await ElMessageBox.confirm(
-      t('admin.platformSuppliers.approveQuoteConfirm', { name: serviceName(row) || t('admin.platformSuppliers.thisService') }),
-      t('admin.platformSuppliers.approveQuoteTitle'),
-    )
-  } catch {
+const isPendingReviewLine = (row: any) => row?.quoted === true
+  && Number(row?.enabled) === 1
+  && normalizeLineReviewStatus(row?.reviewStatus) == null
+const pendingReviewLines = computed(() => skuRows.value.filter(isPendingReviewLine))
+const showLineReview = computed(() => Number(skuStatus.value) === 1 && pendingReviewLines.value.length > 0)
+const isLineSelectable = (row: any) => Number(skuStatus.value) === 1 && isPendingReviewLine(row)
+
+const onReviewSelectionChange = (rows: any[]) => {
+  selectedReviewLines.value = rows.filter(isLineSelectable)
+}
+
+const refreshCurrentQuote = async () => {
+  const spuId = Number(skuTarget.value?.spuId)
+  await loadReview(detailId.value)
+  await loadSuppliers()
+  const current = services.value.find((item) => Number(item.spuId) === spuId) || skuTarget.value
+  await openSkus(current)
+}
+
+const reviewSelectedLines = async (status: 2 | 3, rows: any[], reason?: string) => {
+  if (!detailId.value || !skuTarget.value?.spuId || saving.value) return
+  const lines = rows
+    .filter(isLineSelectable)
+    .map((row) => ({
+      skuId: row.skuId,
+      status,
+      rejectReason: status === 3 ? reason : undefined,
+    }))
+  if (!lines.length) {
+    ElMessage.warning(t('admin.platformSuppliers.selectReviewLines'))
     return
   }
   saving.value = true
   try {
     await platformSupplierQuoteReview({
       supplierId: detailId.value,
-      spuId: row.spuId,
-      status: 2,
+      spuId: skuTarget.value.spuId,
+      versionNo: skuVersionNo.value,
+      lines,
     })
-    ElMessage.success(t('admin.platformSuppliers.approveQuoteSuccess'))
-    skuStatus.value = 2
-    await loadReview(detailId.value)
-    await loadSuppliers()
+    ElMessage.success(t(status === 2 ? 'admin.platformSuppliers.selectedApproved' : 'admin.platformSuppliers.selectedRejected'))
+    lineRejectOpen.value = false
+    lineRejectReason.value = ''
+    lineRejectTargets.value = []
+    selectedReviewLines.value = []
+    await refreshCurrentQuote()
   } catch (error: any) {
-    ElMessage.error(error?.message || t('admin.platformSuppliers.approveQuoteFailed'))
+    ElMessage.error(error?.message || t(status === 2 ? 'admin.platformSuppliers.approveQuoteFailed' : 'admin.platformSuppliers.rejectFailed'))
   } finally {
     saving.value = false
   }
 }
 
-const openReject = (mode: 'quote' | 'onboarding', row?: any) => {
-  rejectMode.value = mode
+const approveSelectedLines = () => reviewSelectedLines(2, selectedReviewLines.value)
+
+const approveLine = (row: any) => reviewSelectedLines(2, [row])
+
+const reviewPriceChange = async (row: any, status: 2 | 3, reason?: string) => {
+  const supplierId = detailId.value
+  const spuId = Number(row?.spuId)
+  if (!supplierId || !spuId || saving.value) return
+  saving.value = true
+  try {
+    await reviewQuotePriceChange({
+      supplierId,
+      spuId,
+      status,
+      rejectReason: status === 3 ? reason : undefined,
+    })
+    ElMessage.success(status === 2 ? t('admin.platformSuppliers.priceChangeApproved') : t('admin.platformSuppliers.priceChangeRejected'))
+    priceChangeRejectOpen.value = false
+    priceChangeRejectReason.value = ''
+    priceChangeTarget.value = null
+    await loadReview(supplierId)
+  } catch (error: any) {
+    ElMessage.error(error?.message || t('admin.platformSuppliers.rejectFailed'))
+  } finally {
+    saving.value = false
+  }
+}
+
+const approvePriceChange = (row: any) => reviewPriceChange(row, 2)
+
+const openPriceChangeReject = (row: any) => {
+  priceChangeTarget.value = row
+  priceChangeRejectReason.value = ''
+  priceChangeRejectOpen.value = true
+}
+
+const submitPriceChangeReject = () => {
+  const reason = priceChangeRejectReason.value.trim()
+  if (!reason) {
+    ElMessage.warning(t('admin.platformSuppliers.reasonRequired'))
+    return
+  }
+  return reviewPriceChange(priceChangeTarget.value, 3, reason)
+}
+
+const openLineReject = (rows?: any[]) => {
+  const source = Array.isArray(rows) && rows.length ? rows : selectedReviewLines.value
+  const targets = source.filter(isLineSelectable)
+  if (!targets.length) {
+    ElMessage.warning(t('admin.platformSuppliers.selectReviewLines'))
+    return
+  }
+  lineRejectTargets.value = targets
+  lineRejectReason.value = ''
+  lineRejectOpen.value = true
+}
+
+const rejectSelectedLines = () => {
+  const reason = lineRejectReason.value.trim()
+  if (!reason) {
+    ElMessage.warning(t('admin.platformSuppliers.reasonRequired'))
+    return
+  }
+  return reviewSelectedLines(3, lineRejectTargets.value, reason)
+}
+
+const openReject = (_mode: 'onboarding', row?: any) => {
   rejectTarget.value = row || null
   rejectReason.value = ''
   rejectOpen.value = true
@@ -1084,26 +1258,12 @@ const submitReject = async () => {
     ElMessage.warning(t('admin.platformSuppliers.reasonRequired'))
     return
   }
-  const supplierId = rejectMode.value === 'onboarding'
-    ? Number(rejectTarget.value?.id || detailId.value)
-    : detailId.value
+  const supplierId = Number(rejectTarget.value?.id || detailId.value)
   if (!supplierId) return
   saving.value = true
   try {
-    if (rejectMode.value === 'onboarding') {
-      await onboardingChangeStatus({ id: supplierId, status: 3, rejectReason: reason })
-      ElMessage.success(t('admin.platformSuppliers.onboardingRejected'))
-    } else {
-      await platformSupplierQuoteReview({
-        supplierId,
-        spuId: rejectTarget.value?.spuId,
-        status: 3,
-        rejectReason: reason,
-      })
-      ElMessage.success(t('admin.platformSuppliers.quoteRejectedSuccess'))
-      skuStatus.value = 3
-      skuRejectReason.value = reason
-    }
+    await onboardingChangeStatus({ id: supplierId, status: 3, rejectReason: reason })
+    ElMessage.success(t('admin.platformSuppliers.onboardingRejected'))
     rejectOpen.value = false
     if (detailId.value) await loadReview(detailId.value)
     await loadSuppliers()
@@ -1114,11 +1274,186 @@ const submitReject = async () => {
   }
 }
 
+const sheetMoney = (value: unknown) => {
+  const text = moneyText(value)
+  return text === '—' ? '' : text
+}
+const csvCell = (value: unknown) => `"${String(value ?? '').replace(/"/g, '""')}"`
+const downloadCsv = (fileName: string, rows: string[][]) => {
+  const content = `\uFEFF${rows.map((row) => row.map(csvCell).join(',')).join('\r\n')}`
+  const blob = new Blob([content], { type: 'text/csv;charset=utf-8' })
+  const url = URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.href = url
+  link.download = fileName
+  link.click()
+  URL.revokeObjectURL(url)
+}
+const priceFileName = () => {
+  const name = String(profile.companyName || current.value?.supplierName || 'supplier').trim()
+  const safe = name.replace(/[\\/:*?"<>|]+/g, ' ').replace(/\s+/g, ' ').trim() || 'supplier'
+  const no = String(current.value?.supplierNo || profile.supplierNo || '').trim()
+  return `${safe}${no ? `-${no}` : ''}-price-list.csv`
+}
+const billingLabel = (mode: unknown, unitPrice: unknown) => {
+  const value = Number(mode)
+  if (value === 2) {
+    const rate = sheetMoney(unitPrice)
+    return rate ? `${t('admin.platformSuppliers.unitPrice')} ${rate}` : t('admin.platformSuppliers.unitPrice')
+  }
+  if (value === 1) return t('admin.platformSuppliers.fixedPrice')
+  return ''
+}
+const specSheetText = (specs: Record<string, unknown>, columns: { key: string }[]) => columns
+  .map((column) => specCell(specs[column.key]))
+  .filter((text) => text && text !== '—')
+  .join(' · ')
+
+const loadServicePriceRows = async (row: any) => {
+  const quote = unwrap(await platformSupplierQuoteSkus(detailId.value as number, row.spuId)) || {}
+  const quoteSkus = Array.isArray(quote.skus) ? quote.skus : []
+  let columns: { key: string; nameI18n: Record<string, unknown> | null; fallback: string }[] = []
+  let specSkus: any[] = []
+  let catalogAttaches: any[] = []
+  try {
+    const detail = unwrap(await listBySpu(row.spuId)) || {}
+    const specTypes = Array.isArray(detail.specTypes) ? detail.specTypes : []
+    columns = specTypes.map((spec: any) => ({
+      key: String(spec.specKey ?? spec.specTypeId),
+      nameI18n: spec.nameI18n && typeof spec.nameI18n === 'object' ? spec.nameI18n : null,
+      fallback: spec.specTypeName || '',
+    }))
+    specSkus = Array.isArray(detail.skus) ? detail.skus : []
+    catalogAttaches = Array.isArray(detail.attaches) ? detail.attaches : []
+  } catch {
+    columns = []
+    specSkus = []
+  }
+  if (!catalogAttaches.length) {
+    try {
+      catalogAttaches = await listSpuAttachCatalog(row.spuId, catalogAttaches)
+    } catch {
+      catalogAttaches = []
+    }
+  }
+  const catalogBySku = new Map(specSkus.map((sku: any) => [Number(sku.skuId), sku]))
+  const lines = quoteSkus
+    .filter((sku: any) => sku?.quoted === true || Number(sku?.quoted) === 1)
+    .map((saved: any) => {
+      const catalogSku = catalogBySku.get(Number(saved.skuId)) || {}
+      const enabled = saved.enabled == null || saved.enabled === '' ? 1 : Number(saved.enabled)
+      return {
+        enabled,
+        specs: Object.fromEntries(columns.map((column) => [
+          column.key,
+          saved[column.key] ?? saved.specs?.[column.key] ?? catalogSku[column.key],
+        ])),
+        platformPriceWithTax: saved.platformPriceWithTax ?? null,
+        approvedPrice: saved.approvedPrice ?? null,
+        staffCount: saved.staffCount ?? null,
+        serviceHours: saved.serviceHours ?? null,
+        quotePrice: saved.quotePrice ?? null,
+        reviewStatus: normalizeLineReviewStatus(saved.reviewStatus),
+      }
+    })
+    .filter((line) => line.enabled === 1)
+  const savedAttaches = new Map((Array.isArray(quote.attaches) ? quote.attaches : []).map((item: any) => [Number(item.attachValueId), item]))
+  const attachSource = catalogAttaches.length ? catalogAttaches : (Array.isArray(quote.attaches) ? quote.attaches : [])
+  const addons = attachSource.map((item: any) => {
+    const saved = savedAttaches.get(Number(item.attachValueId)) || {}
+    return {
+      offered: saved.canServe === true,
+      name: attachName({
+        nameI18n: (saved.attachValueNameI18n || item.attachValueNameI18n) && typeof (saved.attachValueNameI18n || item.attachValueNameI18n) === 'object'
+          ? (saved.attachValueNameI18n || item.attachValueNameI18n)
+          : null,
+        name: String(saved.attachValueName || item.attachValueName || ''),
+      }),
+      quotePrice: saved.quotePrice ?? null,
+      approvedPrice: saved.approvedPrice ?? null,
+    }
+  }).filter((item) => item.offered)
+  const service = serviceName(row)
+  const category = serviceCategory(row)
+  const status = quoteStatusLabel(quote.status ?? row.status, quote.statusI18n || row.statusI18n)
+  const billing = billingLabel(quote.quoteMode, quote.unitPrice)
+  const sheetRows = lines.map((line) => [
+    service,
+    category,
+    status,
+    billing,
+    t('admin.platformSuppliers.exportSpecItem'),
+    specSheetText(line.specs, columns),
+    line.staffCount ?? '',
+    line.serviceHours ?? '',
+    sheetMoney(line.quotePrice),
+    sheetMoney(line.approvedPrice),
+    sheetMoney(clientPrice(line)),
+    lineReviewStatusLabel(line),
+  ])
+  addons.forEach((item) => {
+    sheetRows.push([
+      service,
+      category,
+      status,
+      billing,
+      t('admin.platformSuppliers.exportAddonItem'),
+      item.name,
+      '',
+      '',
+      sheetMoney(item.quotePrice),
+      sheetMoney(item.approvedPrice),
+      '',
+      '',
+    ])
+  })
+  if (!sheetRows.length) {
+    sheetRows.push([service, category, status, billing, '', '', '', '', '', '', '', ''])
+  }
+  return sheetRows
+}
+
+const exportPriceList = async () => {
+  if (!detailId.value || !services.value.length || exportingPrices.value) return
+  exportingPrices.value = true
+  try {
+    const groups = await Promise.all(services.value.map((row) => loadServicePriceRows(row)))
+    const company = String(profile.companyName || current.value?.supplierName || '').trim()
+    const supplierNo = String(current.value?.supplierNo || profile.supplierNo || '').trim()
+    const rows = [
+      [t('admin.platformSuppliers.exportPrices'), company, supplierNo],
+      [],
+      [
+        t('admin.platformSuppliers.service'),
+        t('admin.platformSuppliers.category'),
+        t('admin.platformSuppliers.quoteStatus'),
+        t('admin.platformSuppliers.billing'),
+        t('admin.platformSuppliers.exportItem'),
+        t('admin.platformSuppliers.exportSpec'),
+        t('admin.platformSuppliers.staffCount'),
+        t('admin.platformSuppliers.durationHours'),
+        t('admin.platformSuppliers.taxQuote'),
+        t('admin.platformSuppliers.effectivePrice'),
+        t('admin.platformSuppliers.clientPrice'),
+        t('admin.platformSuppliers.lineReviewStatus'),
+      ],
+      ...groups.flat(),
+    ]
+    downloadCsv(priceFileName(), rows)
+    ElMessage.success(t('admin.platformSuppliers.exportPricesDone'))
+  } catch (error: any) {
+    ElMessage.error(error?.message || t('admin.platformSuppliers.exportPricesFailed'))
+  } finally {
+    exportingPrices.value = false
+  }
+}
+
 const openSkus = async (row: any) => {
   if (!detailId.value) return
   skuTarget.value = row
   skuTitle.value = serviceName(row) || t('admin.platformSuppliers.serviceFallback')
   skuStatus.value = row.status
+  skuVersionNo.value = undefined
   skuStatusI18n.value = row.statusI18n || null
   skuRejectReason.value = row.rejectReason || ''
   skuQuoteMode.value = null
@@ -1126,15 +1461,20 @@ const openSkus = async (row: any) => {
   skuColumns.value = []
   skuRows.value = []
   skuAttaches.value = []
+  selectedReviewLines.value = []
+  lineRejectTargets.value = []
+  lineRejectOpen.value = false
   skuLoading.value = true
+  lineRejectReason.value = ''
   try {
     const quote = unwrap(await platformSupplierQuoteSkus(detailId.value, row.spuId)) || {}
     skuStatus.value = quote.status ?? row.status
+    skuVersionNo.value = quote.versionNo == null ? undefined : Number(quote.versionNo)
     skuStatusI18n.value = quote.statusI18n || row.statusI18n || null
     skuRejectReason.value = quote.rejectReason || row.rejectReason || ''
     skuQuoteMode.value = quote.quoteMode == null ? null : Number(quote.quoteMode)
     skuUnitPrice.value = quote.unitPrice == null ? null : Number(quote.unitPrice)
-    const quoted = new Map((quote.skus || []).map((sku: any) => [Number(sku.skuId), sku]))
+    const quoteSkus = Array.isArray(quote.skus) ? quote.skus : []
     let columns: { key: string; nameI18n: Record<string, unknown> | null; fallback: string }[] = []
     let specSkus: any[] = []
     let catalogAttaches: any[] = []
@@ -1153,20 +1493,28 @@ const openSkus = async (row: any) => {
       specSkus = []
     }
     skuColumns.value = columns
-    const source = specSkus.length ? specSkus : (quote.skus || [])
-    skuRows.value = source.map((sku: any) => {
-      const saved = quoted.get(Number(sku.skuId)) || sku
+    const catalogBySku = new Map(specSkus.map((sku: any) => [Number(sku.skuId), sku]))
+    skuRows.value = quoteSkus.filter((sku: any) => sku?.quoted === true || Number(sku?.quoted) === 1).map((saved: any) => {
+      const catalogSku = catalogBySku.get(Number(saved.skuId)) || {}
       return {
-        skuId: sku.skuId,
-        skuCode: sku.skuCode,
-        specs: Object.fromEntries(columns.map((column) => [column.key, sku[column.key]])),
-        platformPrice: saved.platformPrice ?? sku.price,
-        platformOriginalPrice: saved.platformOriginalPrice ?? sku.originalPrice,
+        skuId: saved.skuId,
+        skuCode: saved.skuCode || catalogSku.skuCode || `#${saved.skuId}`,
+        specs: Object.fromEntries(columns.map((column) => [
+          column.key,
+          saved[column.key] ?? saved.specs?.[column.key] ?? catalogSku[column.key],
+        ])),
+        platformPrice: saved.platformPrice ?? catalogSku.price,
+        platformPriceWithTax: saved.platformPriceWithTax ?? null,
+        platformOriginalPrice: saved.platformOriginalPrice ?? catalogSku.originalPrice,
         approvedPrice: saved.approvedPrice ?? null,
-        enabled: saved.enabled == null || saved.enabled === '' ? true : Number(saved.enabled) === 1,
+        available: saved.available != null ? saved.available !== false : Number(catalogSku.status ?? 1) === 1,
+        quoted: true,
+        enabled: saved.enabled == null || saved.enabled === '' ? 1 : Number(saved.enabled),
+        reviewStatus: normalizeLineReviewStatus(saved.reviewStatus),
         staffCount: saved.staffCount ?? null,
         serviceHours: saved.serviceHours ?? null,
         quotePrice: saved.quotePrice ?? null,
+        rejectReason: saved.rejectReason || '',
       }
     })
     if (!catalogAttaches.length) {
@@ -1246,8 +1594,10 @@ onMounted(loadSuppliers)
 .status-pill.bad { background: #fdecec; color: #b42318; }
 .muted-pill { background: #eef2f7; color: #6d7686; }
 .row-actions, .hero-actions, .quote-foot { display: flex; gap: 8px; }
+.row-updates { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; margin-bottom: 6px; }
 .act, .open-link { border: 1px solid #d7dee8; border-radius: 8px; background: #fff; color: #05152b; font: inherit; font-size: 13px; cursor: pointer; }
 .act { padding: 6px 10px; }
+.price-change-note { display: block; margin-top: 4px; color: #9a6700; font-size: 12px; line-height: 1.4; }
 .act.ok { border-color: #1f7a4a; color: #1f7a4a; }
 .act.no { border-color: #b42318; color: #b42318; }
 .act.navy { border-color: #05152b; background: #05152b; color: #fff; }
@@ -1279,6 +1629,8 @@ onMounted(loadSuppliers)
 .split { grid-template-columns: 1fr 1fr; }
 .tab-panel { display: flex; flex-direction: column; gap: 12px; }
 .panel h3 { margin: 0 0 12px; color: #05152b; font-size: 16px; }
+.panel-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
+.panel-head h3 { margin: 0; }
 .kv { display: grid; grid-template-columns: 1fr 1fr; gap: 12px 16px; margin: 0; }
 .kv dt { margin-bottom: 3px; font-size: 11px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; }
 .kv dd { margin: 0; color: #05152b; }
@@ -1292,7 +1644,12 @@ onMounted(loadSuppliers)
 .quote-head { display: flex; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
 .quote-head h2 { margin: 0 0 6px; color: #05152b; }
 .quote-head p { margin: 0; color: #6d7686; }
-.quote-foot { justify-content: flex-end; margin-top: 14px; }
+.quote-foot { justify-content: flex-end; align-items: center; flex-wrap: wrap; margin-top: 14px; }
+.quote-foot__selection { margin-right: auto; color: #6d7686; font-size: 13px; }
+.line-actions { display: flex; gap: 6px; }
+.line-review-result { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; }
+.line-review-result small { color: #b42318; white-space: normal; }
+.line-reject-summary { margin: 0 0 12px; color: #6d7686; }
 @media (max-width: 900px) {
   .stat-row, .split, .kv { grid-template-columns: 1fr; }
   .supplier-hero { flex-wrap: wrap; }
