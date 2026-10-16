@@ -118,325 +118,401 @@
             </div>
           </div>
 
-          <section class="product-card product-card--overview">
-            <div class="product-section-heading">
-              <span class="product-section-heading__icon">
-                <svg viewBox="0 0 24 24" aria-hidden="true">
-                  <path d="M5 19h14M7 16V8l5-4 5 4v8M10 16v-4h4v4" />
-                </svg>
-              </span>
-              <div>
-                <span>{{ t("client.productDetail.pageTitle") }}</span>
-                <h2>{{ t("client.productDetail.serviceDescription") }}</h2>
-              </div>
-            </div>
-            <div class="product-card__desc">
-              <p v-if="isLoading">{{ t("client.productDetail.loading") }}</p>
-              <div
-                v-else-if="serviceDescriptionHtml"
-                class="product-rich-text"
-                v-html="serviceDescriptionHtml"
-              />
-              <p v-else class="product-card__empty">
-                {{ t("client.productDetail.emptyDesc") }}
-              </p>
-            </div>
-          </section>
-
-          <div class="product-info-grid">
-            <section class="product-card product-card--compact">
-              <div class="product-section-heading">
-                <span class="product-section-heading__icon">
-                  <svg viewBox="0 0 24 24" aria-hidden="true">
-                    <path d="m5 12 4 4L19 6" />
-                  </svg>
-                </span>
-                <h2>{{ t("client.productDetail.includesTitle") }}</h2>
-              </div>
-              <div
-                v-if="serviceContentHtml"
-                class="product-rich-text"
-                v-html="serviceContentHtml"
-              />
-              <p v-else class="product-card__empty">
-                {{ t("client.productDetail.emptyDesc") }}
-              </p>
-            </section>
-
-            <section class="product-card product-card--compact">
-              <div class="product-section-heading">
-                <span class="product-section-heading__icon">
-                  <svg viewBox="0 0 24 24" aria-hidden="true">
-                    <circle cx="12" cy="12" r="9" />
-                    <path d="M12 11v5M12 8h.01" />
-                  </svg>
-                </span>
-                <h2>{{ t("client.productDetail.noticeTitle") }}</h2>
-              </div>
-              <div
-                v-if="bookingNoticeHtml"
-                class="product-rich-text"
-                v-html="bookingNoticeHtml"
-              />
-              <p v-else class="product-card__empty">
-                {{ t("client.productDetail.emptyDesc") }}
-              </p>
-            </section>
-          </div>
-
-          <section class="product-card">
-            <div class="product-reviews-heading">
-              <div class="product-section-heading">
-                <span class="product-section-heading__icon">
-                  <svg viewBox="0 0 24 24" aria-hidden="true">
-                    <path d="m12 3 2.8 5.7 6.2.9-4.5 4.4 1.1 6.2-5.6-2.9-5.6 2.9 1.1-6.2L3 9.6l6.2-.9L12 3Z" />
-                  </svg>
-                </span>
-                <h2>{{ t("client.productDetail.reviewsTitle") }}</h2>
-              </div>
-              <div v-if="reviewCount" class="product-reviews-heading__score">
-                <strong>{{ averageRating.toFixed(1) }}</strong>
-                <span>{{ t("client.productDetail.reviewCount", { count: reviewCount }) }}</span>
-              </div>
-            </div>
-            <div v-if="reviewItems.length" class="product-review-list">
-              <article
-                v-for="(item, index) in reviewItems"
-                :key="`${item.commenter}-${item.commentTime}-${index}`"
-                class="product-review"
+          <section class="product-detail-tabs">
+            <div
+              class="product-detail-tabs__nav"
+              role="tablist"
+              :aria-label="t('client.productDetail.pageTitle')"
+            >
+              <button
+                v-for="tab in detailTabs"
+                :id="`product-detail-tab-${tab.key}`"
+                :key="tab.key"
+                class="product-detail-tabs__tab"
+                :class="{
+                  'product-detail-tabs__tab--active':
+                    activeDetailTab === tab.key,
+                }"
+                type="button"
+                role="tab"
+                :aria-selected="activeDetailTab === tab.key"
+                aria-controls="product-detail-panel"
+                :tabindex="activeDetailTab === tab.key ? 0 : -1"
+                @click="activeDetailTab = tab.key"
+                @keydown="handleDetailTabKeydown($event, tab.key)"
               >
-                <div class="product-review__avatar">
-                  <img
-                    v-if="item.avatarUrl"
-                    :src="item.avatarUrl"
-                    :alt="item.commenter"
-                  />
-                  <span v-else>{{ item.avatarText }}</span>
-                </div>
-                <div class="product-review__content">
-                  <div class="product-review__head">
-                    <strong>{{ item.commenter }}</strong>
-                    <el-rate
-                      class="product-review__rating"
-                      :model-value="item.rating"
-                      :max="5"
-                      disabled
-                      show-score
-                      score-template="{value}/5"
-                    />
-                  </div>
-                  <p>{{ item.content }}</p>
-                  <span v-if="item.commentTime" class="product-review__time">{{
-                    item.commentTime
-                  }}</span>
-                </div>
-              </article>
+                <span>{{ tab.label }}</span>
+                <small v-if="tab.key === 'reviews' && reviewCount">
+                  {{ reviewCount }}
+                </small>
+              </button>
             </div>
-            <p v-else class="product-card__empty">
-              {{ t("client.productDetail.emptyReviews") }}
-            </p>
+
+            <div
+              id="product-detail-panel"
+              class="product-detail-tabs__panel"
+              role="tabpanel"
+              :aria-labelledby="`product-detail-tab-${activeDetailTab}`"
+              tabindex="0"
+            >
+              <section
+                v-if="activeDetailTab === 'description'"
+                class="product-detail-tabs__section"
+              >
+                <div class="product-section-heading">
+                  <span class="product-section-heading__icon">
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                      <path d="M5 19h14M7 16V8l5-4 5 4v8M10 16v-4h4v4" />
+                    </svg>
+                  </span>
+                  <div>
+                    <span>{{ t("client.productDetail.pageTitle") }}</span>
+                    <h2>{{ t("client.productDetail.serviceDescription") }}</h2>
+                  </div>
+                </div>
+                <div class="product-card__desc">
+                  <p v-if="isLoading">{{ t("client.productDetail.loading") }}</p>
+                  <div
+                    v-else-if="serviceDescriptionHtml"
+                    class="product-rich-text"
+                    v-html="serviceDescriptionHtml"
+                  />
+                  <p v-else class="product-card__empty">
+                    {{ t("client.productDetail.emptyDesc") }}
+                  </p>
+                </div>
+              </section>
+
+              <section
+                v-else-if="activeDetailTab === 'includes'"
+                class="product-detail-tabs__section"
+              >
+                <div class="product-section-heading">
+                  <span class="product-section-heading__icon">
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                      <path d="m5 12 4 4L19 6" />
+                    </svg>
+                  </span>
+                  <h2>{{ t("client.productDetail.includesTitle") }}</h2>
+                </div>
+                <div
+                  v-if="serviceContentHtml"
+                  class="product-rich-text"
+                  v-html="serviceContentHtml"
+                />
+                <p v-else class="product-card__empty">
+                  {{ t("client.productDetail.emptyDesc") }}
+                </p>
+              </section>
+
+              <section
+                v-else-if="activeDetailTab === 'notice'"
+                class="product-detail-tabs__section"
+              >
+                <div class="product-section-heading">
+                  <span class="product-section-heading__icon">
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                      <circle cx="12" cy="12" r="9" />
+                      <path d="M12 11v5M12 8h.01" />
+                    </svg>
+                  </span>
+                  <h2>{{ t("client.productDetail.noticeTitle") }}</h2>
+                </div>
+                <div
+                  v-if="bookingNoticeHtml"
+                  class="product-rich-text"
+                  v-html="bookingNoticeHtml"
+                />
+                <p v-else class="product-card__empty">
+                  {{ t("client.productDetail.emptyDesc") }}
+                </p>
+              </section>
+
+              <section v-else class="product-detail-tabs__section">
+                <div class="product-reviews-heading">
+                  <div class="product-section-heading">
+                    <span class="product-section-heading__icon">
+                      <svg viewBox="0 0 24 24" aria-hidden="true">
+                        <path d="m12 3 2.8 5.7 6.2.9-4.5 4.4 1.1 6.2-5.6-2.9-5.6 2.9 1.1-6.2L3 9.6l6.2-.9L12 3Z" />
+                      </svg>
+                    </span>
+                    <h2>{{ t("client.productDetail.reviewsTitle") }}</h2>
+                  </div>
+                  <div
+                    v-if="reviewCount"
+                    class="product-reviews-heading__score"
+                  >
+                    <strong>{{ averageRating.toFixed(1) }}</strong>
+                    <span>{{
+                      t("client.productDetail.reviewCount", {
+                        count: reviewCount,
+                      })
+                    }}</span>
+                  </div>
+                </div>
+                <div v-if="reviewItems.length" class="product-review-list">
+                  <article
+                    v-for="(item, index) in reviewItems"
+                    :key="`${item.commenter}-${item.commentTime}-${index}`"
+                    class="product-review"
+                  >
+                    <div class="product-review__avatar">
+                      <img
+                        v-if="item.avatarUrl"
+                        :src="item.avatarUrl"
+                        :alt="item.commenter"
+                      />
+                      <span v-else>{{ item.avatarText }}</span>
+                    </div>
+                    <div class="product-review__content">
+                      <div class="product-review__head">
+                        <strong>{{ item.commenter }}</strong>
+                        <el-rate
+                          class="product-review__rating"
+                          :model-value="item.rating"
+                          :max="5"
+                          disabled
+                          show-score
+                          score-template="{value}/5"
+                        />
+                      </div>
+                      <p>{{ item.content }}</p>
+                      <span
+                        v-if="item.commentTime"
+                        class="product-review__time"
+                        >{{ item.commentTime }}</span
+                      >
+                    </div>
+                  </article>
+                </div>
+                <p v-else class="product-card__empty">
+                  {{ t("client.productDetail.emptyReviews") }}
+                </p>
+              </section>
+            </div>
           </section>
         </div>
 
         <aside class="booking-side">
           <section class="booking-card">
-            <div class="booking-card__hero">
-              <span class="booking-card__eyebrow">{{
-                t("client.productDetail.pageTitle")
-              }}</span>
-              <h1>{{ displayTitle }}</h1>
-              <div class="booking-card__meta">
-                <div v-if="reviewCount" class="booking-card__rating">
-                  <span aria-hidden="true">★★★★★</span>
-                  <strong>{{ averageRating.toFixed(1) }}</strong>
-                  <small>{{
-                    t("client.productDetail.reviewCount", { count: reviewCount })
-                  }}</small>
+            <div class="booking-card__scroll">
+              <div class="booking-card__hero">
+                <span class="booking-card__eyebrow">{{
+                  t("client.productDetail.pageTitle")
+                }}</span>
+                <h1>{{ displayTitle }}</h1>
+                <div class="booking-card__meta">
+                  <div v-if="reviewCount" class="booking-card__rating">
+                    <span aria-hidden="true">★★★★★</span>
+                    <strong>{{ averageRating.toFixed(1) }}</strong>
+                    <small>{{
+                      t("client.productDetail.reviewCount", { count: reviewCount })
+                    }}</small>
+                  </div>
+                  <span class="booking-card__trust">
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                      <path d="M12 3 5 6v5c0 4.8 2.9 8.2 7 10 4.1-1.8 7-5.2 7-10V6l-7-3Z" />
+                      <path d="m9 12 2 2 4-4" />
+                    </svg>
+                    {{ t("client.productDetail.trust.trusted") }}
+                  </span>
                 </div>
-                <span class="booking-card__trust">
-                  <svg viewBox="0 0 24 24" aria-hidden="true">
-                    <path d="M12 3 5 6v5c0 4.8 2.9 8.2 7 10 4.1-1.8 7-5.2 7-10V6l-7-3Z" />
-                    <path d="m9 12 2 2 4-4" />
-                  </svg>
-                  {{ t("client.productDetail.trust.trusted") }}
+              </div>
+
+              <div class="booking-price-card">
+                <span class="booking-price-card__label">
+                  {{ t("client.productDetail.booking.priceFrom") }}
                 </span>
-              </div>
-            </div>
-
-            <div class="booking-card__section-heading">
-              <h2>{{ t("client.productDetail.booking.chooseTitle") }}</h2>
-              <p>{{ t("client.productDetail.booking.chooseHint") }}</p>
-            </div>
-
-            <template v-if="bookingSpecGroups.length">
-              <div
-                v-for="group in bookingSpecGroups"
-                :key="group.typeId"
-                class="booking-field"
-              >
-                <p>{{ group.label }}</p>
-                <div class="booking-options">
-                  <button
-                    v-for="option in group.options"
-                    :key="`${group.typeId}-${option.id}`"
-                    class="booking-option"
-                    :class="{
-                      'booking-option--active':
-                        selectedSpecValues[group.typeId] === option.id,
-                    }"
-                    type="button"
-                    @click="selectSpecValue(group.typeId, option.id)"
-                  >
-                    <span class="booking-option__topline">
-                      <span class="booking-option__name">{{ option.label }}</span>
-                      <svg
-                        v-if="selectedSpecValues[group.typeId] === option.id"
-                        viewBox="0 0 24 24"
-                        aria-hidden="true"
-                      >
-                        <circle cx="12" cy="12" r="10" />
-                        <path d="m8 12 2.5 2.5L16 9" />
-                      </svg>
-                    </span>
-                    <small v-if="option.remark" class="booking-option__remark">
-                      {{ option.remark }}
-                    </small>
-                  </button>
+                <div class="booking-price-card__main">
+                  <span>AED</span>
+                  <strong>{{ currentBookingPrice.toFixed(2) }}</strong>
+                </div>
+                <div
+                  v-if="hasBookingDiscount"
+                  class="booking-price-card__offer"
+                >
+                  <del>{{ formatAed(originalBookingPrice || 0) }}</del>
+                  <span>-{{ bookingDiscountPercent }}%</span>
                 </div>
               </div>
-            </template>
 
-            <template v-if="bookingAttachGroups.length">
-              <div class="booking-card__section-heading booking-card__section-heading--addons">
-                <h2>{{ t("client.productDetail.booking.addOnsTitle") }}</h2>
-                <p>{{ t("client.productDetail.booking.addOnsHint") }}</p>
+              <div class="booking-card__section-heading">
+                <h2>{{ t("client.productDetail.booking.chooseTitle") }}</h2>
+                <p>{{ t("client.productDetail.booking.chooseHint") }}</p>
               </div>
-              <div
-                v-for="group in bookingAttachGroups"
-                :key="group.typeId"
-                class="booking-field"
-              >
-                <p>{{ group.label }}</p>
-                <div class="booking-attach-list">
-                  <div
-                    v-for="option in group.options"
-                    :key="`${group.typeId}-${option.id}`"
-                    class="booking-attach-item"
-                  >
-                    <div class="booking-attach-item__meta">
-                      <span class="booking-attach-item__name">{{
-                        option.label
-                      }}</span>
-                      <span class="booking-attach-item__price">
-                        {{
-                          t("client.productDetail.booking.attachUnitPrice", {
-                            price: option.price.toFixed(2),
-                          })
-                        }}
+
+              <template v-if="bookingSpecGroups.length">
+                <div
+                  v-for="group in bookingSpecGroups"
+                  :key="group.typeId"
+                  class="booking-field"
+                >
+                  <p>{{ group.label }}</p>
+                  <div class="booking-options">
+                    <button
+                      v-for="option in group.options"
+                      :key="`${group.typeId}-${option.id}`"
+                      class="booking-option"
+                      :class="{
+                        'booking-option--active':
+                          selectedSpecValues[group.typeId] === option.id,
+                      }"
+                      type="button"
+                      @click="selectSpecValue(group.typeId, option.id)"
+                    >
+                      <span class="booking-option__topline">
+                        <span class="booking-option__name">{{ option.label }}</span>
+                        <svg
+                          v-if="selectedSpecValues[group.typeId] === option.id"
+                          viewBox="0 0 24 24"
+                          aria-hidden="true"
+                        >
+                          <circle cx="12" cy="12" r="10" />
+                          <path d="m8 12 2.5 2.5L16 9" />
+                        </svg>
                       </span>
-                    </div>
-                    <div class="booking-attach-item__stepper">
-                      <button
-                        class="booking-option booking-option--step"
-                        type="button"
-                        @click="decreaseAttachQty(option.id)"
-                      >
-                        -
-                      </button>
-                      <button
-                        class="booking-option booking-option--step booking-option--readonly"
-                        type="button"
-                        disabled
-                      >
-                        {{ attachQuantities[option.id] || 0 }}
-                      </button>
-                      <button
-                        class="booking-option booking-option--step"
-                        type="button"
-                        @click="increaseAttachQty(option.id)"
-                      >
-                        +
-                      </button>
+                      <small v-if="option.remark" class="booking-option__remark">
+                        {{ option.remark }}
+                      </small>
+                    </button>
+                  </div>
+                </div>
+              </template>
+
+              <template v-if="bookingAttachGroups.length">
+                <div class="booking-card__section-heading booking-card__section-heading--addons">
+                  <h2>{{ t("client.productDetail.booking.addOnsTitle") }}</h2>
+                  <p>{{ t("client.productDetail.booking.addOnsHint") }}</p>
+                </div>
+                <div
+                  v-for="group in bookingAttachGroups"
+                  :key="group.typeId"
+                  class="booking-field"
+                >
+                  <p>{{ group.label }}</p>
+                  <div class="booking-attach-list">
+                    <div
+                      v-for="option in group.options"
+                      :key="`${group.typeId}-${option.id}`"
+                      class="booking-attach-item"
+                    >
+                      <div class="booking-attach-item__meta">
+                        <span class="booking-attach-item__name">{{
+                          option.label
+                        }}</span>
+                        <span class="booking-attach-item__price">
+                          {{
+                            t("client.productDetail.booking.attachUnitPrice", {
+                              price: option.price.toFixed(2),
+                            })
+                          }}
+                        </span>
+                      </div>
+                      <div class="booking-attach-item__stepper">
+                        <button
+                          class="booking-option booking-option--step"
+                          type="button"
+                          @click="decreaseAttachQty(option.id)"
+                        >
+                          -
+                        </button>
+                        <button
+                          class="booking-option booking-option--step booking-option--readonly"
+                          type="button"
+                          disabled
+                        >
+                          {{ attachQuantities[option.id] || 0 }}
+                        </button>
+                        <button
+                          class="booking-option booking-option--step"
+                          type="button"
+                          @click="increaseAttachQty(option.id)"
+                        >
+                          +
+                        </button>
+                      </div>
                     </div>
                   </div>
                 </div>
-              </div>
-            </template>
+              </template>
 
-            <p
-              v-if="!bookingSpecGroups.length && !bookingAttachGroups.length"
-              class="booking-card__empty"
-            >
-              {{ t("client.productDetail.emptyDesc") }}
-            </p>
-
-            <div class="booking-summary">
-              <div class="booking-summary__caption">
-                {{ t("client.productDetail.booking.summaryTitle") }}
-              </div>
-              <div class="booking-summary__row">
-                <span>
-                  {{ t("client.productDetail.booking.selectedService") }}
-                  <small v-if="selectedSpecSummary">{{ selectedSpecSummary }}</small>
-                </span>
-                <strong>{{ formatAed(selectedServicePrice) }}</strong>
-              </div>
-              <div v-if="attachTotalPrice > 0" class="booking-summary__row">
-                <span>{{ t("client.productDetail.booking.attachTotal") }}</span>
-                <strong>{{ formatAed(attachTotalPrice) }}</strong>
-              </div>
-              <div
-                v-if="skuPrice"
-                class="booking-summary__row booking-summary__row--tax"
+              <p
+                v-if="!bookingSpecGroups.length && !bookingAttachGroups.length"
+                class="booking-card__empty"
               >
-                <span>{{ t("client.productDetail.booking.vat") }}</span>
-                <strong>{{ formatAed(vatPrice) }}</strong>
-              </div>
-              <div class="booking-summary__row booking-summary__row--total">
-                <span>{{ t("client.productDetail.booking.total") }}</span>
-                <strong>{{ formatAed(totalPrice) }}</strong>
-              </div>
-            </div>
+                {{ t("client.productDetail.emptyDesc") }}
+              </p>
 
-            <div class="booking-actions">
-              <button
-                class="booking-add-cart"
-                type="button"
-                @click="handleAddToCart"
-              >
-                <svg
-                  class="booking-add-cart__icon"
-                  viewBox="0 0 24 24"
-                  aria-hidden="true"
+              <div class="booking-summary">
+                <div class="booking-summary__caption">
+                  {{ t("client.productDetail.booking.summaryTitle") }}
+                </div>
+                <div class="booking-summary__row">
+                  <span>
+                    {{ t("client.productDetail.booking.selectedService") }}
+                    <small v-if="selectedSpecSummary">{{ selectedSpecSummary }}</small>
+                  </span>
+                  <strong>{{ formatAed(selectedServicePrice) }}</strong>
+                </div>
+                <div v-if="attachTotalPrice > 0" class="booking-summary__row">
+                  <span>{{ t("client.productDetail.booking.attachTotal") }}</span>
+                  <strong>{{ formatAed(attachTotalPrice) }}</strong>
+                </div>
+                <div
+                  v-if="skuPrice"
+                  class="booking-summary__row booking-summary__row--tax"
                 >
-                  <path
-                    d="M3 4h2.2l1.7 9.1a2 2 0 0 0 2 1.6h7.8a2 2 0 0 0 1.9-1.4L20 8H7"
-                  />
-                  <circle cx="9.5" cy="19" r="1.3" />
-                  <circle cx="17" cy="19" r="1.3" />
-                  <path d="M14.5 3.5v5M12 6h5" />
-                </svg>
-                <span>{{ t("client.productDetail.booking.addToCart") }}</span>
-              </button>
-              <button
-                class="booking-submit"
-                type="button"
-                :disabled="isCreatingOrder"
-                @click="goOrderConfirm"
-              >
-                {{ t("client.productDetail.booking.bookNow") }}
-                <svg viewBox="0 0 24 24" aria-hidden="true">
-                  <path d="M5 12h14M14 7l5 5-5 5" />
-                </svg>
-              </button>
+                  <span>{{ t("client.productDetail.booking.vat") }}</span>
+                  <strong>{{ formatAed(vatPrice) }}</strong>
+                </div>
+                <div class="booking-summary__row booking-summary__row--total">
+                  <span>{{ t("client.productDetail.booking.total") }}</span>
+                  <strong>{{ formatAed(totalPrice) }}</strong>
+                </div>
+              </div>
             </div>
-            <p class="booking-card__policy">
-              <svg viewBox="0 0 24 24" aria-hidden="true">
-                <rect x="4" y="5" width="16" height="15" rx="2" />
-                <path d="M8 3v4M16 3v4M4 10h16" />
-              </svg>
-              {{ t("client.productDetail.booking.flexiblePolicy") }}
-            </p>
+
+            <div class="booking-card__footer">
+              <div class="booking-actions">
+                <button
+                  class="booking-add-cart"
+                  type="button"
+                  @click="handleAddToCart"
+                >
+                  <svg
+                    class="booking-add-cart__icon"
+                    viewBox="0 0 24 24"
+                    aria-hidden="true"
+                  >
+                    <path
+                      d="M3 4h2.2l1.7 9.1a2 2 0 0 0 2 1.6h7.8a2 2 0 0 0 1.9-1.4L20 8H7"
+                    />
+                    <circle cx="9.5" cy="19" r="1.3" />
+                    <circle cx="17" cy="19" r="1.3" />
+                    <path d="M14.5 3.5v5M12 6h5" />
+                  </svg>
+                  <span>{{ t("client.productDetail.booking.addToCart") }}</span>
+                </button>
+                <button
+                  class="booking-submit"
+                  type="button"
+                  :disabled="isCreatingOrder"
+                  @click="goOrderConfirm"
+                >
+                  {{ t("client.productDetail.booking.bookNow") }}
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M5 12h14M14 7l5 5-5 5" />
+                  </svg>
+                </button>
+              </div>
+              <p class="booking-card__policy">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <rect x="4" y="5" width="16" height="15" rx="2" />
+                  <path d="M8 3v4M16 3v4M4 10h16" />
+                </svg>
+                {{ t("client.productDetail.booking.flexiblePolicy") }}
+              </p>
+            </div>
           </section>
         </aside>
       </div>
@@ -550,6 +626,15 @@ type RebookAttachSelection = {
   quantity: number
 }
 
+type DetailTabKey = "description" | "includes" | "notice" | "reviews"
+
+const detailTabOrder: DetailTabKey[] = [
+  "description",
+  "includes",
+  "notice",
+  "reviews",
+]
+
 const fallbackGallery = [
   "https://www.figma.com/api/mcp/asset/5aa6ad0e-a319-4f63-950e-3654b6bab901",
   "https://www.figma.com/api/mcp/asset/30e46728-8330-4576-878d-44f5c5fe610e",
@@ -567,6 +652,7 @@ const isLoading = ref(false)
 const productDetail = ref<ProductDetailRecord | null>(null)
 const skuPrice = ref<ProductSkuRecord | null>(null)
 const selectedImageIndex = ref(0)
+const activeDetailTab = ref<DetailTabKey>("description")
 const selectedSpecValues = ref<Record<string, string>>({})
 const attachQuantities = ref<Record<string, number>>({})
 const skuRequestSeq = ref(0)
@@ -879,6 +965,34 @@ const basePrice = computed(() =>
   resolveNumber(productDetail.value?.minPrice ?? productDetail.value?.price),
 )
 
+const currentBookingPrice = computed(() => {
+  return (
+    resolveOptionalNumber(skuPrice.value?.priceWithTax) ??
+    resolveOptionalNumber(skuPrice.value?.price) ??
+    basePrice.value
+  )
+})
+
+const originalBookingPrice = computed<number | null>(() => {
+  return (
+    resolveOptionalNumber(skuPrice.value?.originalPriceWithTax) ??
+    resolveOptionalNumber(skuPrice.value?.originalPrice)
+  )
+})
+
+const bookingDiscountPercent = computed(() => {
+  const original = originalBookingPrice.value
+  const current = currentBookingPrice.value
+  if (original === null || original <= 0 || current >= original) {
+    return 0
+  }
+  return Math.max(1, Math.round(((original - current) / original) * 100))
+})
+
+const hasBookingDiscount = computed(
+  () => bookingDiscountPercent.value > 0,
+)
+
 const selectedSpecValueIds = computed(() =>
   bookingSpecGroups.value
     .map((group) => selectedSpecValues.value[group.typeId])
@@ -1065,6 +1179,55 @@ const averageRating = computed(() => {
   const total = reviewItems.value.reduce((sum, item) => sum + item.rating, 0)
   return total / reviewCount.value
 })
+
+const detailTabs = computed(() => [
+  {
+    key: "description" as const,
+    label: t("client.productDetail.serviceDescription"),
+  },
+  {
+    key: "includes" as const,
+    label: t("client.productDetail.includesTitle"),
+  },
+  {
+    key: "notice" as const,
+    label: t("client.productDetail.noticeTitle"),
+  },
+  {
+    key: "reviews" as const,
+    label: t("client.productDetail.reviewsTitle"),
+  },
+])
+
+const handleDetailTabKeydown = (
+  event: KeyboardEvent,
+  currentKey: DetailTabKey,
+) => {
+  const currentIndex = detailTabOrder.indexOf(currentKey)
+  let nextIndex = currentIndex
+
+  if (event.key === "ArrowRight") {
+    nextIndex = (currentIndex + 1) % detailTabOrder.length
+  } else if (event.key === "ArrowLeft") {
+    nextIndex =
+      (currentIndex - 1 + detailTabOrder.length) % detailTabOrder.length
+  } else if (event.key === "Home") {
+    nextIndex = 0
+  } else if (event.key === "End") {
+    nextIndex = detailTabOrder.length - 1
+  } else {
+    return
+  }
+
+  event.preventDefault()
+  const nextKey = detailTabOrder[nextIndex]
+  activeDetailTab.value = nextKey
+  const tabList = (event.currentTarget as HTMLElement).closest('[role="tablist"]')
+  const nextTab = tabList?.querySelector<HTMLButtonElement>(
+    `#product-detail-tab-${nextKey}`,
+  )
+  nextTab?.focus()
+}
 
 type BookingSpecOption = {
   id: string
@@ -1317,6 +1480,7 @@ const loadSkuPrice = async (payload: ProductSkuPayload) => {
 watch(
   () => spuId.value,
   () => {
+    activeDetailTab.value = "description"
     void loadProductDetail()
   },
   { immediate: true },
@@ -1547,6 +1711,8 @@ const goOrderConfirm = async () => {
 
 <style scoped lang="scss">
 .product-detail-page {
+  --product-offer: var(--hourx-brand);
+  --product-offer-soft: var(--hourx-brand-soft);
   min-height: 100%;
   background:
     radial-gradient(circle at 82% 4%, rgba(5, 21, 43, 0.05), transparent 28%),
@@ -1821,6 +1987,138 @@ const goOrderConfirm = async () => {
   stroke-width: 1.9;
   stroke-linecap: round;
   stroke-linejoin: round;
+}
+
+.product-detail-tabs {
+  position: relative;
+  isolation: isolate;
+  border: 1px solid #e3eaf2;
+  border-radius: 18px;
+  background: #fff;
+  box-shadow: 0 12px 34px rgba(7, 27, 51, 0.07);
+}
+
+.product-detail-tabs__nav {
+  position: sticky;
+  z-index: 6;
+  top: 70px;
+  display: flex;
+  align-items: center;
+  gap: 30px;
+  overflow-x: auto;
+  border-bottom: 1px solid #e7edf4;
+  border-radius: 18px 18px 0 0;
+  background: rgba(255, 255, 255, 0.96);
+  padding: 0 28px;
+  box-shadow: 0 8px 20px rgba(7, 27, 51, 0.045);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  scrollbar-width: none;
+}
+
+.product-detail-tabs__nav::-webkit-scrollbar {
+  display: none;
+}
+
+.product-detail-tabs__tab {
+  position: relative;
+  flex: 0 0 auto;
+  height: 58px;
+  border: 0;
+  background: transparent;
+  color: #61738a;
+  padding: 0 2px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 7px;
+  font-size: 13px;
+  font-weight: 750;
+  line-height: 1.25;
+  text-align: left;
+  white-space: nowrap;
+  cursor: pointer;
+  transition:
+    color 160ms ease,
+    background-color 160ms ease;
+}
+
+.product-detail-tabs__tab::after {
+  position: absolute;
+  right: 0;
+  bottom: -1px;
+  left: 0;
+  height: 2px;
+  border-radius: 999px 999px 0 0;
+  background: var(--product-offer);
+  content: "";
+  opacity: 0;
+  transform: scaleX(0.45);
+  transition:
+    opacity 160ms ease,
+    transform 160ms ease;
+}
+
+.product-detail-tabs__tab:hover {
+  color: var(--product-offer);
+}
+
+.product-detail-tabs__tab--active {
+  background: transparent;
+  color: var(--product-offer);
+  font-weight: 850;
+}
+
+.product-detail-tabs__tab--active::after {
+  opacity: 1;
+  transform: scaleX(1);
+}
+
+.product-detail-tabs__tab:focus-visible {
+  z-index: 1;
+  outline: 3px solid rgba(37, 99, 235, 0.22);
+  outline-offset: 3px;
+}
+
+.product-detail-tabs__tab small {
+  min-width: 0;
+  height: auto;
+  background: transparent;
+  color: #95a2b3;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 750;
+}
+
+.product-detail-tabs__tab--active small {
+  background: transparent;
+  color: var(--product-offer);
+}
+
+.product-detail-tabs__panel {
+  min-height: 248px;
+  border-radius: 0 0 18px 18px;
+  padding: 28px;
+  outline: none;
+}
+
+.product-detail-tabs__section {
+  animation: detail-tab-enter 180ms ease-out;
+}
+
+@keyframes detail-tab-enter {
+  from {
+    opacity: 0;
+    transform: translateY(3px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .product-card {
@@ -2175,16 +2473,38 @@ const goOrderConfirm = async () => {
 
 .booking-side {
   position: sticky;
-  top: 92px;
+  top: 70px;
+  max-height: calc(100dvh - 86px);
+  padding-right: 4px;
 }
 
 .booking-card {
+  display: flex;
+  max-height: inherit;
+  flex-direction: column;
   border-radius: 20px;
   background: #fff;
   border: 1px solid #e2eaf3;
   padding: 0;
   overflow: hidden;
   box-shadow: 0 20px 52px rgba(7, 27, 51, 0.12);
+}
+
+.booking-card__scroll {
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-color: rgba(5, 21, 43, 0.25) transparent;
+  scrollbar-width: thin;
+}
+
+.booking-card__scroll::-webkit-scrollbar {
+  width: 5px;
+}
+
+.booking-card__scroll::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: rgba(5, 21, 43, 0.25);
 }
 
 .booking-card__hero {
@@ -2262,6 +2582,70 @@ const goOrderConfirm = async () => {
   stroke-width: 2;
   stroke-linecap: round;
   stroke-linejoin: round;
+}
+
+.booking-price-card {
+  margin: 18px 26px 0;
+  border: 1px solid rgba(5, 21, 43, 0.12);
+  border-radius: 13px;
+  background:
+    radial-gradient(circle at 100% 0, rgba(5, 21, 43, 0.1), transparent 40%),
+    linear-gradient(135deg, #f9fbfd 0%, var(--product-offer-soft) 100%);
+  padding: 13px 15px;
+}
+
+.booking-price-card__label {
+  display: block;
+  color: #61738a;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.booking-price-card__main {
+  margin-top: 3px;
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  color: var(--product-offer);
+}
+
+.booking-price-card__main span {
+  font-size: 13px;
+  font-weight: 850;
+}
+
+.booking-price-card__main strong {
+  font-size: clamp(28px, 2.2vw, 34px);
+  line-height: 1;
+  font-weight: 950;
+  letter-spacing: -0.035em;
+}
+
+.booking-price-card__offer {
+  margin-top: 7px;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+
+.booking-price-card__offer del {
+  color: #8998aa;
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.booking-price-card__offer span {
+  min-height: 22px;
+  border-radius: 6px;
+  background: var(--product-offer);
+  color: #fff;
+  padding: 3px 8px;
+  display: inline-flex;
+  align-items: center;
+  font-size: 11px;
+  font-weight: 850;
 }
 
 .booking-card__section-heading {
@@ -2516,10 +2900,24 @@ const goOrderConfirm = async () => {
 
 .booking-actions {
   display: grid;
-  grid-template-columns: 1fr;
+  grid-template-columns: minmax(0, 0.92fr) minmax(0, 1.08fr);
   gap: 9px;
   margin-top: 20px;
   padding: 0 26px;
+}
+
+.booking-card__footer {
+  position: relative;
+  z-index: 3;
+  flex: 0 0 auto;
+  border-top: 1px solid #e3eaf2;
+  background: rgba(255, 255, 255, 0.98);
+  box-shadow: 0 -12px 28px rgba(7, 27, 51, 0.07);
+}
+
+.booking-card__footer .booking-actions {
+  margin-top: 0;
+  padding-top: 14px;
 }
 
 .booking-add-cart,
@@ -2542,7 +2940,7 @@ const goOrderConfirm = async () => {
 }
 
 .booking-add-cart {
-  order: 2;
+  order: 1;
   border: 1px solid #cbd7e4;
   background: #fff;
   color: #17314e;
@@ -2565,7 +2963,7 @@ const goOrderConfirm = async () => {
 }
 
 .booking-submit {
-  order: 1;
+  order: 2;
   border: 1px solid var(--hourx-brand);
   background: linear-gradient(135deg, var(--hourx-brand-hover) 0%, var(--hourx-brand) 100%);
   color: #fff;
@@ -2704,8 +3102,17 @@ const goOrderConfirm = async () => {
     font-size: 15px;
   }
 
+  .product-detail-tabs__nav {
+    top: 74px;
+  }
+
+  .product-detail-tabs__panel {
+    padding: 30px;
+  }
+
   .booking-side {
-    top: 104px;
+    top: 74px;
+    max-height: calc(100dvh - 90px);
   }
 
   .booking-card {
@@ -2777,7 +3184,7 @@ const goOrderConfirm = async () => {
 
   .booking-side {
     position: sticky;
-    top: 96px;
+    top: 70px;
     min-width: 0;
   }
 }
@@ -2789,6 +3196,20 @@ const goOrderConfirm = async () => {
 
   .booking-side {
     position: static;
+    max-height: none;
+    padding-right: 0;
+  }
+
+  .booking-card {
+    max-height: none;
+  }
+
+  .booking-card__scroll {
+    overflow: visible;
+  }
+
+  .booking-card__footer {
+    box-shadow: none;
   }
 
   .product-detail-container {
@@ -2839,6 +3260,22 @@ const goOrderConfirm = async () => {
     right: 12px;
   }
 
+  .product-detail-tabs__nav {
+    position: static;
+    top: auto;
+    gap: 28px;
+    padding: 0 22px;
+    scroll-snap-type: x proximity;
+  }
+
+  .product-detail-tabs__tab {
+    scroll-snap-align: start;
+  }
+
+  .product-detail-tabs__panel {
+    padding: 24px;
+  }
+
   .product-check-list {
     grid-template-columns: 1fr;
   }
@@ -2878,6 +3315,27 @@ const goOrderConfirm = async () => {
     padding: 18px;
   }
 
+  .product-detail-tabs {
+    border-radius: 14px;
+  }
+
+  .product-detail-tabs__nav {
+    border-radius: 14px 14px 0 0;
+    gap: 24px;
+    padding: 0 18px;
+  }
+
+  .product-detail-tabs__tab {
+    height: 54px;
+    font-size: 12px;
+  }
+
+  .product-detail-tabs__panel {
+    min-height: 220px;
+    border-radius: 0 0 14px 14px;
+    padding: 20px 18px;
+  }
+
   .product-trust-strip__item {
     flex-direction: column;
     gap: 5px;
@@ -2907,6 +3365,11 @@ const goOrderConfirm = async () => {
   .booking-card__meta {
     align-items: flex-start;
     flex-direction: column;
+  }
+
+  .booking-price-card {
+    margin-right: 18px;
+    margin-left: 18px;
   }
 
   .booking-card__policy {
