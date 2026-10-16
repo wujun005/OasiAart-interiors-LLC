@@ -93,9 +93,14 @@ const routes: RouteRecordRaw[] = [
       {
         path: 'supplier-management',
         component: () => import('@/modules/admin/pages/basic/Layout.vue'),
-        redirect: (to) => ({ path: '/admin/supplier-management/profile', query: to.query }),
+        redirect: (to) => ({ path: '/admin/supplier-management/overview', query: to.query }),
         children: [
-          { path: 'overview', redirect: (to) => ({ path: '/admin/supplier-management/profile', query: to.query }) },
+          {
+            path: 'overview',
+            name: 'admin-supplier-overview',
+            component: () => import('@/modules/admin/pages/supplier-management/index.vue'),
+            props: { section: 'overview' },
+          },
           {
             path: 'profile',
             name: 'admin-supplier-profile',
@@ -105,16 +110,20 @@ const routes: RouteRecordRaw[] = [
           {
             path: 'service-area',
             name: 'admin-supplier-service-area',
+            redirect: (to) => ({ path: '/admin/supplier-management/coverage-availability', query: to.query }),
+          },
+          {
+            path: 'coverage-availability',
+            name: 'admin-supplier-coverage-availability',
             component: () => import('@/modules/admin/pages/supplier-management/index.vue'),
-            props: { section: 'service-area' },
+            props: { section: 'coverage-availability' },
           },
           { path: 'staff', redirect: (to) => ({ path: '/admin/supplier-management/profile', query: to.query }) },
           { path: 'schedule', redirect: (to) => ({ path: '/admin/supplier-management/profile', query: to.query }) },
           {
             path: 'availability',
             name: 'admin-supplier-availability',
-            component: () => import('@/modules/admin/pages/supplier-management/index.vue'),
-            props: { section: 'availability' },
+            redirect: (to) => ({ path: '/admin/supplier-management/coverage-availability', query: to.query }),
           },
           {
             path: 'orders',

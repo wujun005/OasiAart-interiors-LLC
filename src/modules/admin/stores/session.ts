@@ -124,9 +124,15 @@ export const useAdminSessionStore = defineStore('admin-session', {
       }
     },
     rememberSupplierDetail(detail: any) {
+      this.alignToken();
       const id = detail?.id;
       if (id == null) return;
       this.details[String(id)] = detail;
+    },
+    patchSupplierDetail(id: number | string, patch: Record<string, unknown>) {
+      this.alignToken();
+      const key = String(id);
+      this.details[key] = { ...this.details[key], id, ...patch };
     },
     async supplierDetail(id: number | string, fresh = false) {
       this.alignToken();

@@ -47,6 +47,8 @@ type AdminMenuPermissionState = {
 
 const ROOT_PATH = '/admin';
 const LOGIN_PATH = '/admin/login';
+const SUPPLIER_PATH = '/admin/supplier-management';
+const SUPPLIER_COVERAGE_PATH = `${SUPPLIER_PATH}/coverage-availability`;
 const FIXED_OVERVIEW_MENU_ID = 'fixed-overview';
 const FIXED_DEVELOPER_MENU_ID = 'fixed-developer-tools';
 const FIXED_WHITELIST_MENU_ID = 'fixed-supplier-registration-whitelist';
@@ -61,10 +63,15 @@ const FIXED_PACKAGE_LIST_MENU_ID = 'fixed-package-list';
 const MENU_PATH_ALIASES: Record<string, string> = {
   '/admin/supplier': '/admin/supplier-management',
   '/admin/supplier/profile': '/admin/supplier-management/profile',
-  '/admin/supplier/service-area': '/admin/supplier-management/service-area',
-  '/admin/supplier/availability': '/admin/supplier-management/availability',
+  '/admin/supplier/overview': '/admin/supplier-management/overview',
+  '/admin/supplier/service-area': SUPPLIER_COVERAGE_PATH,
+  '/admin/supplier/availability': SUPPLIER_COVERAGE_PATH,
+  '/admin/supplier/coverage-availability': SUPPLIER_COVERAGE_PATH,
+  '/admin/supplier-management/service-area': SUPPLIER_COVERAGE_PATH,
+  '/admin/supplier-management/availability': SUPPLIER_COVERAGE_PATH,
   '/admin/supplier/orders': '/admin/supplier-management/orders',
   '/admin/supplier/services': '/admin/supplier-management/pricing',
+  '/admin/supplier-management/services': '/admin/supplier-management/pricing',
   '/admin/suppliers': '/admin/basic/suppliers',
 };
 
@@ -353,12 +360,30 @@ const hydrateMenuState = (list: RawMenuItem[], pinOverview = false) => {
     });
   });
 
+  // Old coverage and availability grants now describe the same destination.
+  // Retain one menu for each supplier path and reparent any existing children;
+  // this only combines permissions that were present in the server response.
+  const supplierMenuByPath = new Map<string, AdminMenuPermissionItem>();
+  const duplicateMenuIds = new Map<string, string>();
+  nodeMap.forEach((node, key) => {
+    if (node.path !== SUPPLIER_PATH && !node.path.startsWith(`${SUPPLIER_PATH}/`)) return;
+    const existing = supplierMenuByPath.get(node.path);
+    if (!existing) {
+      supplierMenuByPath.set(node.path, node);
+      return;
+    }
+    duplicateMenuIds.set(key, String(existing.id));
+    nodeMap.delete(key);
+  });
+
   const roots: AdminMenuPermissionItem[] = [];
   nodeMap.forEach((node) => {
-    const parentKey = String(node.parentId);
+    const originalParentKey = String(node.parentId);
+    const parentKey = duplicateMenuIds.get(originalParentKey) || originalParentKey;
     const parent =
       parentKey && parentKey !== '0' ? nodeMap.get(parentKey) : undefined;
-    if (parent) {
+    if (parent && parent !== node) {
+      node.parentId = parent.id;
       parent.children.push(node);
     } else {
       roots.push(node);
@@ -478,6 +503,16 @@ export const resolveAllowedAdminPath = (path: string) => {
   }
 
   if (adminMenuState.allowedPaths.includes(normalized)) {
+    return normalized;
+  }
+
+  // A server-granted workspace root already covers its supplier descendants.
+  // Return the actual destination so the workspace's overview redirect cannot
+  // bounce between a child route and its permitted parent.
+  if (
+    normalized.startsWith(`${SUPPLIER_PATH}/`) &&
+    adminMenuState.allowedPaths.includes(SUPPLIER_PATH)
+  ) {
     return normalized;
   }
 

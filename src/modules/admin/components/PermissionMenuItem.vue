@@ -10,11 +10,12 @@
       :item="child"
       :resolve-icon="resolveIcon"
       :resolve-label="resolveLabel"
+      :resolve-badge="resolveBadge"
     />
   </el-sub-menu>
   <el-menu-item v-else :index="item.path || fallbackIndex" :disabled="!item.path">
     <el-icon><component :is="iconComponent" /></el-icon>
-    <span>{{ labelText }}</span>
+    <span class="permission-menu-label">{{ labelText }}<em v-if="badgeText" class="permission-menu-badge">{{ badgeText }}</em></span>
   </el-menu-item>
 </template>
 
@@ -31,6 +32,7 @@ const props = defineProps<{
   item: AdminMenuPermissionItem;
   resolveIcon: (item: AdminMenuPermissionItem) => Component;
   resolveLabel?: (item: AdminMenuPermissionItem) => string;
+  resolveBadge?: (item: AdminMenuPermissionItem) => string;
 }>();
 
 const hasChildren = computed(
@@ -44,4 +46,10 @@ const iconComponent = computed(
 const labelText = computed(
   () => props.resolveLabel?.(props.item) || props.item.name || '',
 );
+const badgeText = computed(() => props.resolveBadge?.(props.item) || '');
 </script>
+
+<style scoped>
+.permission-menu-label { display: flex; align-items: center; flex-wrap: wrap; gap: 5px 7px; min-width: 0; line-height: 1.5; white-space: normal; }
+.permission-menu-badge { padding: 2px 6px; color: #263246; background: #edcd89; border-radius: 9px; font-size: 8px; line-height: 1.4; font-style: normal; font-weight: 650; }
+</style>

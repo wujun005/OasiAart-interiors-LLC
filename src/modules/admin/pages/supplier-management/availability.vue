@@ -1,70 +1,124 @@
 <template>
   <div class="availability" v-loading="loading">
-    <section class="avail-banner" :class="{ 'is-off': !accepting }">
-      <div class="avail-banner__main">
-        <el-switch :model-value="accepting" :loading="dispatchSaving" :disabled="!canToggle" @change="onDispatch" />
-        <div>
-          <strong>{{ t('admin.supplierAvailability.accepting') }}</strong>
-          <p>{{ accepting ? t('admin.supplierAvailability.acceptingHint') : t('admin.supplierAvailability.pausedHint') }}</p>
-          <p v-if="!enabled" class="avail-banner__note">{{ t('admin.supplierAvailability.accountOff') }}</p>
-        </div>
+    <section class="availability-control" :class="{ 'is-off': !accepting }">
+      <div class="availability-control__copy">
+        <span class="availability-control__kicker">{{ copy.workspace }}</span>
+        <h2>{{ copy.acceptingNewJobs }}</h2>
+        <p>{{ accepting ? t('admin.supplierAvailability.acceptingHint') : t('admin.supplierAvailability.pausedHint') }}</p>
+        <p v-if="!enabled" class="availability-control__note">{{ t('admin.supplierAvailability.accountOff') }}</p>
       </div>
-      <div class="avail-status">
-        <span class="avail-mark" aria-hidden="true"></span>
-        <div>
-          <strong>{{ accepting ? t('admin.supplierAvailability.available') : t('admin.supplierAvailability.unavailable') }}</strong>
-          <p>{{ accepting ? t('admin.supplierAvailability.availableHint') : t('admin.supplierAvailability.unavailableHint') }}</p>
+      <div class="availability-control__action">
+        <div class="availability-state" role="status">
+          <span class="availability-state__mark" aria-hidden="true"></span>
+          <span>
+            <strong>{{ accepting ? t('admin.supplierAvailability.available') : t('admin.supplierAvailability.unavailable') }}</strong>
+            <small>{{ accepting ? t('admin.supplierAvailability.availableHint') : t('admin.supplierAvailability.unavailableHint') }}</small>
+          </span>
         </div>
-      </div>
-    </section>
-
-    <section class="avail-card">
-      <header>
-        <div>
-          <h2>{{ t('admin.supplierAvailability.hoursTitle') }}</h2>
-          <p>{{ t('admin.supplierAvailability.hoursHint') }}</p>
-        </div>
-        <el-button @click="openHours">{{ t('admin.supplierAvailability.edit') }}</el-button>
-      </header>
-      <div class="hour-grid">
-        <article>
-          <span>{{ t('admin.supplierAvailability.workingDays') }}</span>
-          <strong>{{ workingDaysText }}</strong>
-        </article>
-        <article>
-          <span>{{ t('admin.supplierAvailability.workingHours') }}</span>
-          <strong>{{ hourText }}</strong>
-        </article>
-        <article>
-          <span>{{ t('admin.supplierAvailability.maxJobs') }}</span>
-          <strong>{{ t('admin.supplierAvailability.jobsValue', { count: concurrent }) }}</strong>
-        </article>
+        <el-switch
+          :model-value="accepting"
+          :loading="dispatchSaving"
+          :disabled="!canToggle"
+          size="large"
+          :aria-label="copy.acceptingNewJobs"
+          @change="onDispatch"
+        />
       </div>
     </section>
 
-    <section class="avail-card">
-      <header>
-        <div>
-          <h2>{{ t('admin.supplierAvailability.blockTitle') }}</h2>
-          <p>{{ t('admin.supplierAvailability.blockHint') }}</p>
+    <div class="availability-overview">
+      <section class="workspace-card coverage-card" v-loading="coverageLoading">
+        <header class="workspace-card__header">
+          <div>
+            <span class="workspace-card__index">01</span>
+            <div>
+              <h2>{{ copy.serviceCoverage }}</h2>
+              <p>{{ t('admin.supplierArea.description') }}</p>
+            </div>
+          </div>
+          <el-button @click="emit('manage-coverage')">{{ copy.manageCoverage }}</el-button>
+        </header>
+
+        <div class="coverage-totals" aria-live="polite">
+          <div>
+            <span>{{ copy.zones }}</span>
+            <strong>{{ normalizedCoverageRows.length }}</strong>
+          </div>
+          <div>
+            <span>{{ copy.communities }}</span>
+            <strong>{{ coverageCommunityTotal }}</strong>
+          </div>
         </div>
-        <div class="avail-card__tools">
+
+        <div v-if="normalizedCoverageRows.length" class="coverage-list">
+          <article v-for="row in normalizedCoverageRows" :key="row.id">
+            <span class="coverage-list__zone">
+              <strong>{{ row.zone }}</strong>
+              <small>{{ coverageCountText(row) }}</small>
+            </span>
+            <em :class="coverageStatusTone(row)">{{ coverageStatusText(row) }}</em>
+          </article>
+        </div>
+        <div v-else class="coverage-empty">
+          <strong>{{ t('admin.supplierArea.noneTitle') }}</strong>
+          <p>{{ t('admin.supplierArea.noneBody') }}</p>
+        </div>
+      </section>
+
+      <section class="workspace-card schedule-card">
+        <header class="workspace-card__header">
+          <div>
+            <span class="workspace-card__index">02</span>
+            <div>
+              <h2>{{ copy.defaultSchedule }}</h2>
+              <p>{{ t('admin.supplierAvailability.hoursHint') }}</p>
+            </div>
+          </div>
+          <el-button @click="openHours">{{ copy.editSchedule }}</el-button>
+        </header>
+        <div class="schedule-summary">
+          <article>
+            <span>{{ t('admin.supplierAvailability.workingDays') }}</span>
+            <strong>{{ workingDaysText }}</strong>
+          </article>
+          <article>
+            <span>{{ t('admin.supplierAvailability.workingHours') }}</span>
+            <strong>{{ hourText }}</strong>
+          </article>
+          <article class="schedule-summary__capacity">
+            <span>{{ t('admin.supplierAvailability.maxJobs') }}</span>
+            <strong>{{ t('admin.supplierAvailability.jobsValue', { count: concurrent }) }}</strong>
+          </article>
+        </div>
+      </section>
+    </div>
+
+    <section class="workspace-card blocked-card">
+      <header class="workspace-card__header blocked-card__header">
+        <div>
+          <span class="workspace-card__index">03</span>
+          <div>
+            <h2>{{ copy.blockedTime }}</h2>
+            <p>{{ t('admin.supplierAvailability.blockHint') }}</p>
+          </div>
+        </div>
+        <div class="blocked-card__tools">
           <span v-if="!loadError">{{ t('admin.supplierAvailability.count', { count: total }) }}</span>
-          <el-button @click="calendarOpen = true">{{ t('admin.supplierAvailability.calendar') }}</el-button>
-          <el-button type="primary" @click="openBlock()">{{ t('admin.supplierAvailability.addBlock') }}</el-button>
+          <el-button @click="calendarOpen = true">{{ copy.viewCalendar }}</el-button>
+          <el-button type="primary" @click="openBlock()">{{ copy.addBlockedTime }}</el-button>
         </div>
       </header>
       <el-table :data="events" class="avail-table" row-key="id" :empty-text="loadError ? t('admin.supplierAvailability.loadFailed') : t('admin.supplierAvailability.empty')">
-        <el-table-column :label="t('admin.supplierAvailability.date')" min-width="180">
+        <el-table-column :label="t('admin.supplierAvailability.date')" min-width="138">
           <template #default="{ row }">{{ eventDate(row) }}</template>
         </el-table-column>
-        <el-table-column :label="t('admin.supplierAvailability.time')" min-width="140">
+        <el-table-column :label="t('admin.supplierAvailability.time')" min-width="104">
           <template #default="{ row }">{{ eventTime(row) }}</template>
         </el-table-column>
-        <el-table-column :label="t('admin.supplierAvailability.weekdays')" min-width="160">
+        <el-table-column :label="t('admin.supplierAvailability.weekdays')" min-width="106">
           <template #default="{ row }">{{ weekdayText(row) }}</template>
         </el-table-column>
-        <el-table-column :label="t('admin.supplierAvailability.service')" min-width="180">
+        <el-table-column :label="t('admin.supplierAvailability.service')" min-width="132">
           <template #default="{ row }">
             <div class="tag-row">
               <em v-if="!row.services?.length">{{ t('admin.supplierAvailability.allServices') }}</em>
@@ -72,7 +126,7 @@
             </div>
           </template>
         </el-table-column>
-        <el-table-column :label="t('admin.supplierAvailability.area')" min-width="160">
+        <el-table-column :label="t('admin.supplierAvailability.area')" min-width="120">
           <template #default="{ row }">
             <div class="tag-row">
               <em v-if="!row.areas?.length">{{ t('admin.supplierAvailability.allAreas') }}</em>
@@ -80,15 +134,50 @@
             </div>
           </template>
         </el-table-column>
-        <el-table-column :label="t('admin.supplierAvailability.reason')" min-width="160">
+        <el-table-column :label="t('admin.supplierAvailability.reason')" min-width="126">
           <template #default="{ row }">{{ row.reason || '—' }}</template>
         </el-table-column>
-        <el-table-column :label="t('admin.supplierAvailability.actions')" width="88" fixed="right">
+        <el-table-column :label="t('admin.supplierAvailability.actions')" width="76" fixed="right">
           <template #default="{ row }">
             <el-button link type="primary" @click="openBlock(row)">{{ t('admin.supplierAvailability.edit') }}</el-button>
           </template>
         </el-table-column>
       </el-table>
+
+      <div class="blocked-cards">
+        <article v-for="row in events" :key="`compact-${row.id}`">
+          <header>
+            <span>
+              <strong>{{ eventDate(row) }}</strong>
+              <small>{{ eventTime(row) }} · {{ weekdayText(row) }}</small>
+            </span>
+            <el-button link type="primary" @click="openBlock(row)">{{ t('admin.supplierAvailability.edit') }}</el-button>
+          </header>
+          <dl>
+            <div>
+              <dt>{{ t('admin.supplierAvailability.service') }}</dt>
+              <dd class="tag-row">
+                <em v-if="!row.services?.length">{{ t('admin.supplierAvailability.allServices') }}</em>
+                <em v-for="service in row.services" v-else :key="service.spuId">{{ serviceLabel(service) }}</em>
+              </dd>
+            </div>
+            <div>
+              <dt>{{ t('admin.supplierAvailability.area') }}</dt>
+              <dd class="tag-row">
+                <em v-if="!row.areas?.length">{{ t('admin.supplierAvailability.allAreas') }}</em>
+                <em v-for="area in row.areas" v-else :key="area.areaId">{{ area.areaName || area.areaId }}</em>
+              </dd>
+            </div>
+            <div class="blocked-cards__reason">
+              <dt>{{ t('admin.supplierAvailability.reason') }}</dt>
+              <dd>{{ row.reason || '—' }}</dd>
+            </div>
+          </dl>
+        </article>
+        <div v-if="!events.length" class="blocked-empty">
+          {{ loadError ? t('admin.supplierAvailability.loadFailed') : t('admin.supplierAvailability.empty') }}
+        </div>
+      </div>
       <div v-if="total > pageSize" class="avail-pager">
         <el-pagination layout="prev, pager, next" :current-page="page" :page-size="pageSize" :total="total" @current-change="changePage" />
       </div>
@@ -231,6 +320,14 @@ import { useAdminSessionStore } from '@/modules/admin/stores/session'
 
 type ServiceItem = { spuId: number; serviceName: string }
 type AreaItem = { areaId: number; areaName: string }
+type CoverageRow = {
+  id: number | string
+  zone: string
+  selectedCommunities: number
+  totalCommunities: number
+  status: string
+  statusLabel?: string
+}
 type SupplierEvent = {
   id: number
   startDate: string
@@ -258,14 +355,78 @@ const props = defineProps<{
   saving: boolean
   services?: { spuId: number; name: string }[]
   areas?: { areaId: number; areaName: string }[]
+  coverageRows?: CoverageRow[]
+  coverageLoading?: boolean
 }>()
 
 const emit = defineEmits<{
   'save-hours': [payload: { start: string; end: string; concurrent: number; saturday: boolean; sunday: boolean }]
   'toggle-dispatch': [value: boolean]
+  'manage-coverage': []
 }>()
 
 const { t, locale } = useI18n({ useScope: 'global' })
+const isZh = computed(() => String(locale.value).toLowerCase().startsWith('zh'))
+const copy = computed(() => (isZh.value ? {
+  workspace: '服务区域与可用时间',
+  acceptingNewJobs: '接受新订单',
+  serviceCoverage: '服务覆盖范围',
+  manageCoverage: '管理服务区域',
+  defaultSchedule: '默认排班',
+  editSchedule: '编辑排班',
+  blockedTime: '不可用时间',
+  viewCalendar: '查看日历',
+  addBlockedTime: '添加不可用时间',
+  zones: '区域',
+  communities: '已覆盖小区',
+  fullCoverage: '全部覆盖',
+  partialCoverage: '部分覆盖',
+  activeCoverage: '已覆盖',
+  inactiveCoverage: '未覆盖',
+} : {
+  workspace: 'Coverage & Availability',
+  acceptingNewJobs: 'Accepting New Jobs',
+  serviceCoverage: 'Service Coverage',
+  manageCoverage: 'Manage Coverage',
+  defaultSchedule: 'Default Schedule',
+  editSchedule: 'Edit Schedule',
+  blockedTime: 'Blocked Time',
+  viewCalendar: 'View Calendar',
+  addBlockedTime: 'Add Blocked Time',
+  zones: 'Zones',
+  communities: 'Communities covered',
+  fullCoverage: 'Full coverage',
+  partialCoverage: 'Partial coverage',
+  activeCoverage: 'Covered',
+  inactiveCoverage: 'Not covered',
+}))
+const normalizedCoverageRows = computed(() => props.coverageRows || [])
+const coverageCommunityTotal = computed(() => normalizedCoverageRows.value.reduce(
+  (sum, row) => sum + Math.max(0, Number(row.selectedCommunities) || 0),
+  0,
+))
+const normalizedCoverageStatus = (row: CoverageRow) => String(row.status || '').trim().toLowerCase()
+const coverageStatusTone = (row: CoverageRow) => {
+  const status = normalizedCoverageStatus(row)
+  if (status.includes('partial')) return 'is-partial'
+  if (status.includes('inactive') || status.includes('disabled') || status.includes('none')) return 'is-inactive'
+  return 'is-active'
+}
+const coverageStatusText = (row: CoverageRow) => {
+  if (row.statusLabel) return row.statusLabel
+  const status = normalizedCoverageStatus(row)
+  if (status.includes('partial')) return copy.value.partialCoverage
+  if (status.includes('inactive') || status.includes('disabled') || status.includes('none')) return copy.value.inactiveCoverage
+  if (status.includes('full')) return copy.value.fullCoverage
+  if (status && !['active', 'enabled', 'covered'].includes(status)) return row.status
+  return copy.value.activeCoverage
+}
+const coverageCountText = (row: CoverageRow) => {
+  const selected = Math.max(0, Number(row.selectedCommunities) || 0)
+  const total = Math.max(0, Number(row.totalCommunities) || 0)
+  if (!total) return selected ? String(selected) : t('admin.supplierArea.zoneOnly')
+  return `${selected} / ${total} ${copy.value.communities.toLocaleLowerCase(locale.value)}`
+}
 const accepting = computed(() => props.acceptDispatch)
 const hourText = computed(() => (props.start && props.end ? `${props.start} – ${props.end}` : '—'))
 const workingDaysText = computed(() => {
@@ -559,31 +720,80 @@ onMounted(loadEvents)
 </script>
 
 <style scoped>
-.availability { display: flex; flex-direction: column; gap: 16px; }
-.avail-banner { display: flex; align-items: center; justify-content: space-between; gap: 18px; padding: 18px 20px; background: #f3f8f4; border: 1px solid #d5eadc; border-radius: 16px; }
-.avail-banner.is-off { background: #f7f3ec; border-color: #e6dccb; }
-.avail-banner__main, .avail-status { display: flex; align-items: center; gap: 14px; }
-.avail-status { padding: 12px 14px; background: #fffdf8; border: 1px solid #d5eadc; border-radius: 14px; }
-.avail-banner.is-off .avail-status { border-color: #e6dccb; }
-.avail-banner strong { display: block; color: #05152b; font-size: 16px; }
-.avail-banner p { margin: 4px 0 0; color: #5f6b62; font-size: 13px; }
-.avail-banner__note { color: #8d5a32 !important; }
-.avail-mark { width: 14px; height: 14px; border-radius: 50%; background: #1f8a5b; box-shadow: 0 0 0 6px #d9f0e4; }
-.avail-banner.is-off .avail-mark { background: #8d5a32; box-shadow: 0 0 0 6px #f3e6d4; }
-.avail-card { background: #fffdf8; border: 1px solid #e6dccb; border-radius: 18px; overflow: hidden; }
-.avail-card header { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; padding: 18px 20px 8px; }
-.avail-card h2 { margin: 0; color: #05152b; font-family: Fraunces, Georgia, serif; font-size: 26px; font-weight: 520; letter-spacing: -.03em; }
-.avail-card header p { margin: 6px 0 0; color: #74685a; font-size: 13px; line-height: 1.45; }
-.avail-card__tools { display: flex; align-items: center; gap: 12px; color: #74685a; font-size: 12px; white-space: nowrap; }
-.hour-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; padding: 8px 20px 20px; }
-.hour-grid article { padding: 16px; background: #fff; border: 1px solid #efe4d4; border-radius: 14px; }
-.hour-grid span { display: block; color: #8a7d70; font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; }
-.hour-grid strong { display: block; margin-top: 8px; color: #05152b; font-size: 18px; font-weight: 650; }
-.avail-table { --el-table-header-bg-color: #f7f3ec; --el-table-bg-color: transparent; }
-.avail-table :deep(th.el-table__cell) { color: #74685a; font-size: 11px; font-weight: 700; letter-spacing: .06em; }
-.tag-row { display: flex; flex-wrap: wrap; gap: 6px; }
-.tag-row em { padding: 3px 8px; border-radius: 999px; background: #f7f3ec; color: #05152b; font-style: normal; font-size: 12px; font-weight: 650; }
+.availability { display: flex; min-width: 0; flex-direction: column; gap: 18px; }
+.availability-control { position: relative; isolation: isolate; display: flex; align-items: center; justify-content: space-between; gap: 28px; min-width: 0; min-height: 154px; padding: 26px 28px; overflow: hidden; color: #fffdf8; background: linear-gradient(118deg, #06182e 0%, #0a2b43 58%, #12513f 120%); border: 1px solid rgba(232, 194, 122, .24); border-radius: 22px; box-shadow: 0 18px 44px rgba(5, 21, 43, .13); }
+.availability-control::after { position: absolute; z-index: -1; right: -76px; bottom: -126px; width: 350px; height: 260px; content: ''; background: radial-gradient(circle, rgba(232, 194, 122, .2), transparent 66%); pointer-events: none; }
+.availability-control.is-off { background: linear-gradient(118deg, #121c2b 0%, #29313a 58%, #6e5137 125%); }
+.availability-control__copy { min-width: 0; }
+.availability-control__kicker { display: block; margin-bottom: 8px; color: #e8c27a; font-size: 10px; font-weight: 750; letter-spacing: .18em; text-transform: uppercase; }
+.availability-control h2 { margin: 0; color: #fffdf8; font-family: Fraunces, Georgia, serif; font-size: clamp(29px, 3.2vw, 40px); font-weight: 520; line-height: 1.05; letter-spacing: -.035em; }
+.availability-control p { max-width: 620px; margin: 8px 0 0; color: rgba(247, 241, 230, .72); font-size: 13px; line-height: 1.55; }
+.availability-control__note { color: #f4ce91 !important; }
+.availability-control__action { display: flex; flex: 0 0 auto; align-items: center; gap: 18px; min-width: 0; padding: 14px 16px; background: rgba(4, 17, 33, .5); border: 1px solid rgba(255, 255, 255, .13); border-radius: 16px; backdrop-filter: blur(12px); }
+.availability-state { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.availability-state__mark { width: 10px; height: 10px; border-radius: 50%; background: #66d69a; box-shadow: 0 0 0 6px rgba(102, 214, 154, .14); }
+.is-off .availability-state__mark { background: #e8c27a; box-shadow: 0 0 0 6px rgba(232, 194, 122, .14); }
+.availability-state > span:last-child { display: grid; min-width: 0; gap: 3px; }
+.availability-state strong { color: #fffdf8; font-size: 13px; }
+.availability-state small { max-width: 230px; overflow: hidden; color: rgba(247, 241, 230, .58); font-size: 10px; line-height: 1.35; text-overflow: ellipsis; white-space: nowrap; }
+.availability-control :deep(.el-switch) { --el-switch-on-color: #36a873; --el-switch-off-color: #8a7561; }
+
+.availability-overview { display: grid; grid-template-columns: minmax(0, 1.08fr) minmax(0, .92fr); gap: 18px; min-width: 0; }
+.workspace-card { min-width: 0; overflow: hidden; background: #fffdf8; border: 1px solid #e6dccb; border-radius: 20px; box-shadow: 0 12px 34px rgba(5, 21, 43, .045); }
+.workspace-card__header { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; padding: 20px; border-bottom: 1px solid #eee3d3; }
+.workspace-card__header > div:first-child { display: flex; align-items: flex-start; gap: 12px; min-width: 0; }
+.workspace-card__header > div:first-child > div { min-width: 0; }
+.workspace-card__index { display: grid; flex: 0 0 34px; place-items: center; width: 34px; height: 34px; color: #8d5a32; background: #f4eadc; border-radius: 10px; font-family: Fraunces, Georgia, serif; font-size: 11px; font-weight: 700; }
+.workspace-card h2 { margin: 0; color: #05152b; font-family: Fraunces, Georgia, serif; font-size: 24px; font-weight: 520; line-height: 1.12; letter-spacing: -.025em; }
+.workspace-card__header p { margin: 5px 0 0; color: #74685a; font-size: 12px; line-height: 1.45; }
+.workspace-card__header :deep(.el-button) { flex: 0 0 auto; min-height: 38px; border-color: #d8c8b2; border-radius: 10px; color: #05152b; background: #fff; font-weight: 650; }
+.workspace-card__header :deep(.el-button--primary) { color: #fffdf8; background: #05152b; border-color: #05152b; }
+
+.coverage-totals { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; padding: 16px 20px 10px; }
+.coverage-totals > div { min-width: 0; padding: 13px 14px; background: #f7f3ec; border: 1px solid #eee2d1; border-radius: 13px; }
+.coverage-totals span, .schedule-summary span { display: block; color: #8a7d70; font-size: 9px; font-weight: 750; letter-spacing: .08em; text-transform: uppercase; }
+.coverage-totals strong { display: block; margin-top: 6px; color: #05152b; font-family: Fraunces, Georgia, serif; font-size: 25px; font-weight: 520; line-height: 1; }
+.coverage-list { display: flex; max-height: 246px; padding: 0 20px 18px; overflow-y: auto; flex-direction: column; }
+.coverage-list article { display: flex; align-items: center; justify-content: space-between; gap: 14px; min-width: 0; padding: 12px 2px; border-bottom: 1px solid #efe5d7; }
+.coverage-list article:last-child { border-bottom: 0; }
+.coverage-list__zone { display: grid; min-width: 0; gap: 3px; }
+.coverage-list__zone strong { overflow: hidden; color: #05152b; font-size: 13px; text-overflow: ellipsis; white-space: nowrap; }
+.coverage-list__zone small { color: #74685a; font-size: 11px; }
+.coverage-list em { flex: 0 0 auto; padding: 5px 9px; border-radius: 999px; font-size: 10px; font-style: normal; font-weight: 750; }
+.coverage-list em.is-active { color: #1f6f4e; background: #e6f4ec; }
+.coverage-list em.is-partial { color: #865d22; background: #fff1d9; }
+.coverage-list em.is-inactive { color: #81505a; background: #f8e8eb; }
+.coverage-empty { margin: 0 20px 20px; padding: 18px; text-align: left; background: #f7f3ec; border: 1px dashed #d8c9b4; border-radius: 14px; }
+.coverage-empty strong { color: #05152b; font-size: 13px; }
+.coverage-empty p { margin: 5px 0 0; color: #74685a; font-size: 11px; line-height: 1.5; }
+
+.schedule-summary { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; padding: 16px 20px 20px; }
+.schedule-summary article { min-width: 0; padding: 16px; background: #fff; border: 1px solid #eee2d1; border-radius: 14px; }
+.schedule-summary__capacity { grid-column: 1 / -1; background: linear-gradient(135deg, #f7f3ec, #fffdf8) !important; }
+.schedule-summary strong { display: block; margin-top: 8px; color: #05152b; font-size: 17px; font-weight: 680; line-height: 1.35; overflow-wrap: anywhere; }
+
+.blocked-card__header { align-items: center; }
+.blocked-card__tools { display: flex; align-items: center; justify-content: flex-end; gap: 9px; min-width: 0; color: #74685a; font-size: 11px; white-space: nowrap; }
+.avail-table { width: 100%; --el-table-header-bg-color: #f7f3ec; --el-table-bg-color: transparent; --el-table-row-hover-bg-color: #fbf7f0; }
+.avail-table :deep(th.el-table__cell) { color: #74685a; font-size: 10px; font-weight: 750; letter-spacing: .05em; text-transform: uppercase; }
+.avail-table :deep(td.el-table__cell) { color: #28384d; font-size: 12px; vertical-align: top; }
+.avail-table :deep(.cell) { line-height: 1.45; overflow-wrap: anywhere; }
+.tag-row { display: flex; flex-wrap: wrap; gap: 5px; min-width: 0; }
+.tag-row em { max-width: 100%; padding: 3px 7px; overflow: hidden; border-radius: 999px; background: #f7f3ec; color: #05152b; font-style: normal; font-size: 10px; font-weight: 650; text-overflow: ellipsis; white-space: nowrap; }
+.blocked-cards { display: none; }
+.blocked-cards > article { min-width: 0; padding: 15px; background: #fff; border: 1px solid #eadfce; border-radius: 14px; }
+.blocked-cards > article > header { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.blocked-cards > article > header > span { display: grid; min-width: 0; gap: 3px; }
+.blocked-cards > article > header strong { color: #05152b; font-size: 13px; }
+.blocked-cards > article > header small { color: #74685a; font-size: 11px; line-height: 1.4; }
+.blocked-cards dl { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin: 14px 0 0; padding-top: 13px; border-top: 1px solid #efe5d7; }
+.blocked-cards dl > div { min-width: 0; }
+.blocked-cards__reason { grid-column: 1 / -1; }
+.blocked-cards dt { color: #8a7d70; font-size: 9px; font-weight: 750; letter-spacing: .07em; text-transform: uppercase; }
+.blocked-cards dd { margin: 5px 0 0; color: #28384d; font-size: 12px; line-height: 1.45; overflow-wrap: anywhere; }
+.blocked-empty { grid-column: 1 / -1; padding: 30px 16px; color: #74685a; text-align: center; }
 .avail-pager { display: flex; justify-content: flex-end; padding: 12px 16px 16px; }
+
 .block-form, .hours-form { display: flex; flex-direction: column; gap: 16px; }
 .block-form :deep(.el-date-editor), .block-form :deep(.el-select) { width: 100%; }
 .hours-form label, .block-form > label:not(.hours-form__switch) { display: flex; flex-direction: column; gap: 8px; }
@@ -618,8 +828,31 @@ onMounted(loadEvents)
 .cal-list li { display: flex; justify-content: space-between; gap: 12px; padding: 10px 12px; background: #f7f3ec; border-radius: 10px; }
 .cal-list strong { color: #05152b; }
 .cal-list span { color: #74685a; }
+
+@media (max-width: 1180px) {
+  .availability-overview { grid-template-columns: minmax(0, 1fr); }
+  .avail-table { display: none; }
+  .blocked-cards { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; padding: 14px 16px 4px; }
+}
 @media (max-width: 820px) {
-  .hour-grid, .avail-card header, .avail-banner { grid-template-columns: 1fr; }
-  .avail-card header, .avail-banner { flex-direction: column; align-items: stretch; }
+  .availability-control { align-items: stretch; flex-direction: column; min-height: 0; padding: 22px; }
+  .availability-control__action { justify-content: space-between; width: 100%; box-sizing: border-box; }
+  .workspace-card__header, .blocked-card__header { align-items: stretch; flex-direction: column; }
+  .workspace-card__header :deep(.el-button) { width: 100%; }
+  .blocked-card__tools { justify-content: flex-start; flex-wrap: wrap; white-space: normal; }
+  .blocked-card__tools > span { flex: 1 0 100%; }
+  .blocked-card__tools :deep(.el-button) { width: auto; flex: 1 1 170px; }
+  .blocked-cards { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 520px) {
+  .availability-control { padding: 19px; border-radius: 18px; }
+  .availability-control__action { align-items: flex-start; }
+  .availability-state small { max-width: 190px; white-space: normal; }
+  .coverage-totals, .schedule-summary { grid-template-columns: minmax(0, 1fr); }
+  .schedule-summary__capacity { grid-column: auto; }
+  .blocked-cards dl { grid-template-columns: minmax(0, 1fr); }
+  .blocked-cards__reason { grid-column: auto; }
+  .hours-form__range { grid-template-columns: minmax(0, 1fr); }
+  .hours-form__range em { display: none; }
 }
 </style>

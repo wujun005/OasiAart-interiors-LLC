@@ -25,6 +25,7 @@
             <small>{{ brandLabel }}</small>
           </span>
         </div>
+        <SupplierIdentityCard v-if="isSupplierPortal" :compact="isSidebarCollapsed" />
         <div v-show="!isSidebarCollapsed" class="navigation-label">{{ navigationLabel }}</div>
         <el-menu
           :default-active="activeMenu"
@@ -40,6 +41,7 @@
             :item="item"
             :resolve-icon="resolveMenuIcon"
             :resolve-label="resolveMenuLabel"
+            :resolve-badge="resolveSupplierBadge"
           />
         </el-menu>
         <div v-if="!menuTree.length" class="menu-empty">
@@ -225,7 +227,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, reactive, ref, type Component } from 'vue';
+import { computed, onBeforeUnmount, onMounted, reactive, ref, watch, type Component } from 'vue';
 import axios from 'axios';
 import { ElMessage } from 'element-plus';
 import { useRoute, useRouter } from 'vue-router';
@@ -265,6 +267,7 @@ import {
 } from '@/utils/auth-state';
 import PermissionMenuItem from '@/modules/admin/components/PermissionMenuItem.vue';
 import ReviewNoticeBell from '@/modules/admin/components/ReviewNoticeBell.vue';
+import SupplierIdentityCard from '@/modules/admin/components/SupplierIdentityCard.vue';
 import {
   adminMenuState,
   loadAdminMenuPermissions,
@@ -282,18 +285,38 @@ const refreshTick = ref(0);
 const contentKey = computed(() => `${route.matched[1]?.path || route.path}:${refreshTick.value}`);
 const isOrdersH5 = computed(() => route.name === 'admin-orders-h5');
 const isSupplierPortal = computed(() => route.path.startsWith('/admin/supplier-management'));
+const session = useAdminSessionStore();
 const router = useRouter();
 const { t, locale } = useI18n({ useScope: 'global' });
 const currentLocale = ref<AdminLocale>(locale.value === 'en' ? 'en' : 'zh');
 const getInitialSidebarCollapsed = () => {
   try {
+    if (isSupplierPortal.value) return window.innerWidth < 760;
     return window.innerWidth < 1180 || localStorage.getItem('hourx.admin.sidebarCollapsed') === '1';
   } catch {
     return false;
   }
 };
 const isSidebarCollapsed = ref(getInitialSidebarCollapsed());
-const menuTree = computed(() => adminMenuState.menus);
+const supplierMenuOrder = [
+  '/admin/supplier-management/overview',
+  '/admin/supplier-management/profile',
+  '/admin/supplier-management/coverage-availability',
+  '/admin/supplier-management/orders',
+  '/admin/supplier-management/pricing',
+];
+const menuTree = computed(() => {
+  if (!isSupplierPortal.value) return adminMenuState.menus;
+  const menus = new Map<string, AdminMenuPermissionItem>();
+  adminMenuState.flatMenus.forEach((item) => {
+    const path = item.path === '/admin/supplier-management'
+      ? '/admin/supplier-management/overview'
+      : item.path;
+    if (!supplierMenuOrder.includes(path) || menus.has(path)) return;
+    menus.set(path, { ...item, path, children: [] });
+  });
+  return supplierMenuOrder.flatMap((path) => menus.has(path) ? [menus.get(path)!] : []);
+});
 const getMenuIndex = (item: AdminMenuPermissionItem) =>
   item.path || `menu-${item.id}`;
 
@@ -303,6 +326,9 @@ const menuByPath = computed(() => {
     if (item.path) {
       map.set(item.path, item);
     }
+  });
+  menuTree.value.forEach((item) => {
+    if (item.path) map.set(item.path, item);
   });
   return map;
 });
@@ -335,7 +361,9 @@ const consoleLabel = computed(() => currentLocale.value === 'zh'
 const navigationLabel = computed(() => currentLocale.value === 'zh' ? '工作导航' : 'WORKSPACE');
 const systemOnlineLabel = computed(() => currentLocale.value === 'zh' ? '安全会话已连接' : 'Secure session connected');
 const secureConsoleLabel = computed(() => currentLocale.value === 'zh' ? '安全运营环境' : 'Secure operations');
-const administratorLabel = computed(() => currentLocale.value === 'zh' ? '管理员' : 'Administrator');
+const administratorLabel = computed(() => isSupplierPortal.value
+  ? (currentLocale.value === 'zh' ? '供应商账号' : 'Supplier account')
+  : (currentLocale.value === 'zh' ? '管理员' : 'Administrator'));
 const todayLabel = computed(() => currentLocale.value === 'zh' ? '今天' : 'Today');
 const sidebarToggleLabel = computed(() => {
   if (isSidebarCollapsed.value) {
@@ -347,7 +375,8 @@ const formattedDate = computed(() => new Intl.DateTimeFormat(
   currentLocale.value === 'zh' ? 'zh-CN' : 'en-GB',
   { month: 'short', day: '2-digit', weekday: 'short' },
 ).format(new Date()));
-const accountName = computed(() => getAdminAuthStorageValue('username') || 'HourX Admin');
+const accountName = computed(() => getAdminAuthStorageValue('username')
+  || (isSupplierPortal.value ? 'HourX Supplier' : 'HourX Admin'));
 const accountInitial = computed(() => accountName.value.trim().charAt(0).toUpperCase() || 'H');
 
 const toggleSidebar = () => {
@@ -365,8 +394,25 @@ const toggleSidebar = () => {
 const handleViewportResize = () => {
   if (window.innerWidth < 760) {
     isSidebarCollapsed.value = true;
+  } else if (isSupplierPortal.value) {
+    isSidebarCollapsed.value = false;
   }
 };
+
+watch(isSupplierPortal, (supplierPortal) => {
+  if (supplierPortal) isSidebarCollapsed.value = window.innerWidth < 760;
+});
+
+watch(
+  () => [isSupplierPortal.value, session.me?.supplierId] as const,
+  ([supplierPortal, supplierId]) => {
+    if (!supplierPortal || !supplierId) return;
+    session.supplierDetail(supplierId).catch((error) => {
+      console.error('Failed to load supplier identity:', error);
+    });
+  },
+  { immediate: true },
+);
 
 onMounted(() => window.addEventListener('resize', handleViewportResize, { passive: true }));
 onBeforeUnmount(() => {
@@ -392,7 +438,10 @@ const handleLocaleChange = (lang: AdminLocale) => {
 };
 
 const refresh = () => {
-  useAdminSessionStore().reset();
+  session.reset();
+  session.currentUser().catch((error) => {
+    console.error('Failed to refresh current account:', error);
+  });
   refreshTick.value += 1;
   router.replace({ path: route.path, query: { ...route.query, t: Date.now() } });
 };
@@ -553,6 +602,7 @@ const resolveMenuIcon = (item: AdminMenuPermissionItem) => {
   if (path.startsWith('/admin/supplier-management/overview')) return DataAnalysis;
   if (path.startsWith('/admin/supplier-management/profile')) return Document;
   if (path.startsWith('/admin/supplier-management/service-area')) return Location;
+  if (path.startsWith('/admin/supplier-management/coverage-availability')) return Location;
   if (path.startsWith('/admin/supplier-management/staff')) return UserFilled;
   if (path.startsWith('/admin/supplier-management/schedule')) return Calendar;
   if (path.startsWith('/admin/supplier-management/availability')) return Calendar;
@@ -594,15 +644,16 @@ const menuLabelKeyByPath: Record<string, string> = {
   '/admin/sys-config': 'admin.layout.sysConfig',
   '/admin/developer': 'admin.layout.developerTools',
   '/admin/developer/supplier-registration-whitelist': 'admin.layout.supplierRegistrationWhitelist',
-  '/admin/supplier-management': 'admin.layout.supplierManagement',
-  '/admin/supplier-management/overview': 'admin.layout.supplierOverview',
-  '/admin/supplier-management/profile': 'admin.layout.supplierProfile',
-  '/admin/supplier-management/service-area': 'admin.layout.supplierArea',
+  '/admin/supplier-management': 'admin.supplierPortal.workspaceTitle',
+  '/admin/supplier-management/overview': 'admin.supplierPortal.workspaceTitle',
+  '/admin/supplier-management/profile': 'admin.supplierPortal.profile',
+  '/admin/supplier-management/service-area': 'admin.supplierPortal.coverage',
+  '/admin/supplier-management/coverage-availability': 'admin.supplierPortal.coverage',
   '/admin/supplier-management/staff': 'admin.layout.supplierStaff',
   '/admin/supplier-management/schedule': 'admin.layout.supplierSchedule',
-  '/admin/supplier-management/availability': 'admin.layout.supplierAvailability',
+  '/admin/supplier-management/availability': 'admin.supplierPortal.coverage',
   '/admin/supplier-management/orders': 'admin.layout.supplierOrders',
-  '/admin/supplier-management/pricing': 'admin.layout.supplierPricing',
+  '/admin/supplier-management/pricing': 'admin.supplierPortal.services',
   '/admin/supplier-management/settlement': 'admin.layout.supplierSettlement',
 };
 
@@ -610,6 +661,12 @@ const resolveMenuLabel = (item: AdminMenuPermissionItem) => {
   const key = item.path ? menuLabelKeyByPath[item.path] : '';
   if (key) return t(key);
   return item.name || '';
+};
+
+const resolveSupplierBadge = (item: AdminMenuPermissionItem) => {
+  const detail = session.details[String(session.me?.supplierId || '')];
+  if (!isSupplierPortal.value || isSidebarCollapsed.value || item.path !== '/admin/supplier-management/coverage-availability' || Number(detail?.status) !== 1) return '';
+  return currentLocale.value === 'zh' ? '下一步' : 'Next Step';
 };
 
 loadAdminMenuPermissions().catch((error) => {

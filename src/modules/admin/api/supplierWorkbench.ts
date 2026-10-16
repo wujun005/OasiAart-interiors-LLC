@@ -130,6 +130,19 @@ export function supplierChangeAcceptDispatch(payload: { id: number; acceptDispat
   return http.post('/api/supplier/changeAcceptDispatch', payload);
 }
 
+/** Operational settings are independent of the immutable onboarding review snapshot. */
+export function supplierOperationsMine() {
+  return http.get('/api/supplier/operations/mine');
+}
+
+export function supplierCoverageSave(payload: { supplierId: number; areaIds: number[]; communityIds: number[] }) {
+  return http.post('/api/supplier/operations/coverage/save', payload);
+}
+
+export function supplierScheduleSave(payload: { supplierId: number; workingDays: number[]; startTime: string; endTime: string; maxConcurrentJobs: number; timezone: string }) {
+  return http.post('/api/supplier/operations/schedule/save', payload);
+}
+
 export function supplierChangeAcceptOrder(payload: { supplierId: number; spuId: number; acceptOrder: 0 | 1 }) {
   return http.post('/api/supplier/tools/services/changeAcceptOrder', payload);
 }

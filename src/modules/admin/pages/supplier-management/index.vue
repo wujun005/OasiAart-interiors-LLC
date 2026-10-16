@@ -13,67 +13,22 @@
       </div>
     </header>
 
-    <section v-if="section !== 'profile' && section !== 'pricing'" class="supplier-strip">
-      <div class="supplier-identity">
-        <div class="supplier-logo">{{ supplierInitials }}</div>
-        <div>
-          <div class="supplier-label">{{ t('admin.supplierOrders.signedIn') }}</div>
-          <strong class="supplier-name">{{ companyForm.companyName || t('admin.supplierOrders.unnamed') }}</strong>
-        </div>
-      </div>
-      <div class="supplier-facts">
-        <div><span>{{ t('admin.supplierOrders.supplierId') }}</span><strong>{{ supplierNo || supplierRecordId || '—' }}</strong></div>
-        <div><span>{{ t('admin.supplierOrders.onboarding') }}</span><el-tag :type="onboardingTagType" effect="light">{{ profileStatusLabel }}</el-tag></div>
-      </div>
-    </section>
-
     <template v-if="section === 'overview'">
-      <div class="metric-grid metric-grid--overview">
-        <article class="metric-card"><span class="metric-icon metric-icon--blue"><Tickets /></span><div><small>本月完成订单</small><strong>126</strong><p class="positive">+12.5% vs last month</p></div></article>
-        <article class="metric-card"><span class="metric-icon metric-icon--green"><Money /></span><div><small>本月收益</small><strong>AED 38,420</strong><p class="positive">+8.2% vs last month</p></div></article>
-        <article class="metric-card"><span class="metric-icon metric-icon--amber"><Clock /></span><div><small>待结算</small><strong>AED 12,680</strong><p>预计 30 Sep 到账</p></div></article>
-        <article class="metric-card"><span class="metric-icon metric-icon--purple"><CircleCheck /></span><div><small>服务评分</small><strong>4.86 / 5</strong><p>来自 118 条评价</p></div></article>
-      </div>
-      <div class="overview-grid">
-        <el-card class="surface-card earnings-card" shadow="never">
-          <div class="section-heading compact"><div><h2>收益趋势</h2><p>Earnings overview · AED</p></div><el-select v-model="earningRange" size="small"><el-option label="近 6 个月" value="6m" /><el-option label="今年" value="year" /></el-select></div>
-          <div class="earnings-chart">
-            <div v-for="bar in earningBars" :key="bar.month" class="bar-item"><span class="bar-value">{{ bar.value }}k</span><i :style="{ height: `${bar.height}%` }"></i><small>{{ bar.month }}</small></div>
-          </div>
-        </el-card>
-        <el-card class="surface-card" shadow="never">
-          <div class="section-heading compact"><div><h2>运营概况</h2><p>Capacity & fulfilment</p></div></div>
-          <div class="capacity-list">
-            <div><span>可派员工</span><strong>36 / 42</strong><el-progress :percentage="86" :show-text="false" /></div>
-            <div><span>并发订单容量</span><strong>8 / 12</strong><el-progress :percentage="67" :show-text="false" color="#8d5a32" /></div>
-            <div><span>月订单容量</span><strong>284 / 380</strong><el-progress :percentage="75" :show-text="false" color="#c4a36a" /></div>
-            <div><span>准时完成率</span><strong>96.8%</strong><el-progress :percentage="97" :show-text="false" color="#2f9c78" /></div>
-          </div>
-        </el-card>
-      </div>
-      <div class="overview-grid overview-grid--bottom">
-        <el-card class="surface-card" shadow="never">
-          <div class="section-heading compact"><div><h2>最近交易</h2><p>Recent transactions</p></div><el-button link type="primary" @click="goTo('settlement')">查看全部</el-button></div>
-          <div class="transaction-list"><div v-for="item in recentTransactions" :key="item.jobId"><span class="transaction-icon"><Money /></span><span><strong>{{ item.service }}</strong><small>{{ item.webOrder }} · {{ item.jobId }}</small></span><span class="transaction-amount"><strong>AED {{ item.amount }}</strong><small>{{ item.date }}</small></span></div></div>
-        </el-card>
-        <el-card class="surface-card" shadow="never">
-          <div class="section-heading compact"><div><h2>待处理事项</h2><p>Actions required</p></div></div>
-          <div class="action-list">
-            <button @click="goTo('orders')"><span class="action-badge amber">4</span><span><strong>待确认订单</strong><small>最早已等待 18 分钟</small></span><ArrowRight /></button>
-            <button @click="goTo('pricing')"><span class="action-badge purple">3</span><span><strong>报价变更审核中</strong><small>审核期间继续使用当前价格</small></span><ArrowRight /></button>
-            <button @click="goTo('profile')"><span class="action-badge blue">1</span><span><strong>保险文件即将到期</strong><small>2026-10-18 到期</small></span><ArrowRight /></button>
-          </div>
-        </el-card>
-      </div>
+      <section class="workspace-setup">
+        <header><div><span class="portal-eyebrow">HOURX SUPPLIER PORTAL</span><h2>{{ t('admin.supplierPortal.setupProgress') }}</h2></div><el-tag :type="onboardingTagType">{{ profileStatusLabel }}</el-tag></header>
+        <p>{{ t('admin.supplierPortal.workspaceHint') }}</p>
+        <div class="setup-cards">
+          <article><span class="setup-number">01</span><h3>{{ t('admin.supplierPortal.profile') }}</h3><p>{{ t('admin.supplierPortal.profileHint') }}</p><el-tag :type="profileIssues.length ? 'warning' : 'success'">{{ t(profileIssues.length ? 'admin.supplierPortal.actionRequired' : 'admin.supplierPortal.complete') }}</el-tag><el-button type="primary" @click="goTo('profile')">{{ t('admin.supplierPortal.openProfile') }} <ArrowRight /></el-button></article>
+          <article><span class="setup-number">02</span><h3>{{ t('admin.supplierPortal.coverage') }}</h3><p>{{ t('admin.supplierPortal.coverageHint') }}</p><el-tag :type="selectedAreaIds.length ? 'success' : 'warning'">{{ t(selectedAreaIds.length ? 'admin.supplierPortal.complete' : 'admin.supplierPortal.actionRequired') }}</el-tag><el-button @click="goTo('coverage-availability')">{{ t('admin.supplierPortal.openCoverage') }} <ArrowRight /></el-button></article>
+          <article><span class="setup-number">03</span><h3>{{ t('admin.supplierPortal.services') }}</h3><p>{{ t('admin.supplierPortal.servicesHint') }}</p><el-tag :type="serviceRows.some(row => row.status === 2) ? 'success' : 'warning'">{{ t(serviceRows.some(row => row.status === 2) ? 'admin.supplierPortal.complete' : 'admin.supplierPortal.actionRequired') }}</el-tag><el-button @click="goTo('pricing')">{{ t('admin.supplierPortal.openServices') }} <ArrowRight /></el-button></article>
+        </div>
+      </section>
     </template>
 
     <template v-else-if="section === 'profile'">
       <div class="dossier">
         <aside class="dossier-rail">
-          <p>{{ t('admin.supplierProfile.kicker') }}</p>
-          <strong>{{ companyForm.companyName || t('admin.supplierProfile.untitled') }}</strong>
-          <em class="profile-status-pill" :class="profileStatusClass">{{ profileStatusLabel }}</em>
-          <small v-if="snapshotVersion">{{ t('admin.supplierProfile.snapshotVersion', { version: snapshotVersion }) }}</small>
+          <p>{{ t('admin.supplierPortal.setupProgress') }}</p>
           <nav>
             <button
               v-for="(item, index) in profileSections"
@@ -81,8 +36,9 @@
               type="button"
               :class="{ 'is-active': profileView === 'section' && profileSection === index }"
               @click="openProfileSection(index)"
-            ><span>{{ item.num }}</span>{{ item.title }}</button>
+            ><span class="profile-step-number">{{ sectionIncomplete(index) ? item.num : '✓' }}</span><span class="profile-step-copy"><b>{{ item.title }}</b><small>{{ t(sectionIncomplete(index) ? 'admin.supplierPortal.actionRequired' : 'admin.supplierPortal.complete') }}</small></span><ArrowRight /></button>
           </nav>
+          <div class="profile-progress"><span>{{ t('admin.supplierPortal.sectionsComplete', { count: profileSections.filter((_, index) => !sectionIncomplete(index)).length, total: profileSections.length }) }}</span><el-progress :percentage="Math.round(profileSections.filter((_, index) => !sectionIncomplete(index)).length / profileSections.length * 100)" :show-text="false" color="#19976a" /></div>
           <small v-if="rejectReason">{{ t('admin.supplierProfile.rejected', { reason: rejectReason }) }}</small>
         </aside>
 
@@ -233,6 +189,7 @@
                 <label class="profile-field"><span>{{ t('admin.supplierProfile.femaleStaff') }}</span><input class="plain-count" :value="wholeText(femaleStaffCount)" inputmode="numeric" :disabled="profileReadOnly" @input="femaleStaffCount = wholeOrZero(($event.target as HTMLInputElement).value)" /></label>
                 <label class="profile-field"><span>{{ t('admin.supplierProfile.maleStaff') }}</span><input class="plain-count" :value="wholeText(maleStaffCount)" inputmode="numeric" :disabled="profileReadOnly" @input="maleStaffCount = wholeOrZero(($event.target as HTMLInputElement).value)" /></label>
               </div>
+              <h3 class="profile-group-title">{{ t('admin.supplierPortal.operations') }}</h3>
               <div class="dossier-toggles">
                 <template v-for="item in capacityToggles" :key="item.key">
                   <label v-if="item.key !== 'weekend'">
@@ -242,13 +199,16 @@
                 </template>
                 <label><span><strong>{{ t('admin.supplierProfile.ownVehicle') }}</strong></span><el-switch v-model="ownTransportation" :disabled="profileReadOnly" /></label>
                 <label><span><strong>{{ t('admin.supplierProfile.ownEquipment') }}</strong></span><el-switch v-model="complianceItems[3].enabled" :disabled="profileReadOnly" /></label>
+                <label><span><strong>{{ t('admin.supplierProfile.taxInvoice') }}</strong></span><el-switch v-model="complianceItems[2].enabled" :disabled="profileReadOnly" /></label>
+              </div>
+              <h3 class="profile-group-title">{{ t('admin.supplierPortal.compliance') }}</h3>
+              <div class="dossier-toggles">
                 <div class="dossier-toggle"><span><strong>{{ t('admin.supplierProfile.wearUniform') }}</strong></span>
                   <el-radio-group v-model="wearUniform" :aria-label="t('admin.supplierProfile.wearUniform')" :disabled="profileReadOnly">
                     <el-radio :value="1">{{ t('admin.supplierProfile.yes') }}</el-radio>
                     <el-radio :value="0">{{ t('admin.supplierProfile.no') }}</el-radio>
                   </el-radio-group>
                 </div>
-                <label><span><strong>{{ t('admin.supplierProfile.taxInvoice') }}</strong></span><el-switch v-model="complianceItems[2].enabled" :disabled="profileReadOnly" /></label>
                 <div class="dossier-toggle"><span><strong>{{ t('admin.supplierProfile.emaar') }}</strong></span>
                   <el-radio-group v-model="emaarOnboarded" :aria-label="t('admin.supplierProfile.emaar')" :disabled="profileReadOnly">
                     <el-radio :value="1">{{ t('admin.supplierProfile.yes') }}</el-radio>
@@ -270,21 +230,22 @@
             </section>
 
             <section v-show="showProfileSection(3)">
-              <header class="sec-h"><span>04</span><div><h2>{{ t('admin.supplierProfile.bankTitle') }}</h2></div><el-button v-if="profileView === 'all'" @click="openProfileSection(3)">{{ t('admin.supplierProfile.editSection') }}</el-button></header>
+              <h3 class="profile-group-title">{{ t('admin.supplierPortal.payoutDetails') }}</h3>
               <div class="dossier-grid">
-                <label class="profile-field"><span>{{ t('admin.supplierProfile.accountName') }}</span><el-input v-model="bankForm.accountName" :disabled="profileReadOnly" /></label>
-                <label class="profile-field"><span>{{ t('admin.supplierProfile.bankName') }}</span><el-input v-model="bankForm.bankName" :disabled="profileReadOnly" /></label>
-                <label class="profile-field span-2"><span>{{ t('admin.supplierProfile.iban') }}</span><el-input v-model="bankForm.iban" :disabled="profileReadOnly" /></label>
+                <label id="profile-field-accountName" class="profile-field"><span>{{ t('admin.supplierProfile.accountName') }} <i>*</i></span><el-input v-model="bankForm.accountName" :disabled="profileReadOnly" /></label>
+                <label id="profile-field-bankName" class="profile-field"><span>{{ t('admin.supplierProfile.bankName') }} <i>*</i></span><el-input v-model="bankForm.bankName" :disabled="profileReadOnly" /></label>
+                <label id="profile-field-iban" class="profile-field span-2"><span>{{ t('admin.supplierProfile.iban') }} <i>*</i></span><el-input v-model="bankForm.iban" :disabled="profileReadOnly" /></label>
                 <label class="profile-field"><span>{{ t('admin.supplierProfile.swift') }}</span><el-input v-model="bankForm.swift" :disabled="profileReadOnly" /></label>
                 <label class="profile-field"><span>{{ t('admin.supplierProfile.currency') }}</span><el-select v-model="bankForm.currency" :disabled="profileReadOnly"><el-option label="AED" value="AED" /></el-select></label>
               </div>
             </section>
 
-            <section v-show="showProfileSection(4)">
-              <header class="sec-h"><span>05</span><div><h2>{{ t('admin.supplierProfile.documentsTitle') }}</h2></div><el-button v-if="profileView === 'all'" @click="openProfileSection(4)">{{ t('admin.supplierProfile.editSection') }}</el-button></header>
+            <section v-show="showProfileSection(3)">
+              <h3 class="profile-group-title">{{ t('admin.supplierPortal.verificationDocs') }}</h3>
+              <p class="document-hint">{{ t('admin.supplierPortal.documentHint') }}</p>
               <div id="profile-field-tradeLicense" class="doc-row" :class="{ error: issueOf('tradeLicense') }">
                 <div>
-                  <strong>{{ t('admin.supplierProfile.tradeLicenseFile') }} <i>*</i></strong>
+                  <strong>{{ t('admin.supplierProfile.tradeLicenseFile') }} <i>*</i> <el-tag size="small" :type="tradeLicenseFiles.length ? 'success' : 'warning'">{{ t(tradeLicenseFiles.length ? 'admin.supplierPortal.uploaded' : 'admin.supplierPortal.notUploaded') }}</el-tag></strong>
                   <p v-for="(url, index) in tradeLicenseFiles" :key="`trade-${url}-${index}`">
                     <button type="button" @click="openFilePreview(url)">{{ fileNameFromUrl(url) }}</button>
                     <button v-if="!profileReadOnly" type="button" class="is-remove" @click="removeDocFile('trade', index)">{{ t('admin.supplierProfile.remove') }}</button>
@@ -298,7 +259,7 @@
               </div>
               <div v-for="doc in insuranceDocs" :key="doc.id" class="doc-row">
                 <div>
-                  <strong>{{ doc.label }}</strong>
+                  <strong>{{ doc.label }} <el-tag size="small" :type="doc.files.length ? 'success' : 'info'">{{ t(doc.files.length ? 'admin.supplierPortal.uploaded' : 'admin.supplierPortal.notUploaded') }}</el-tag></strong>
                   <p v-for="(url, index) in doc.files" :key="`${doc.id}-${url}-${index}`">
                     <button type="button" @click="openFilePreview(url)">{{ fileNameFromUrl(url) }}</button>
                     <button v-if="!profileReadOnly" type="button" class="is-remove" @click="removeDocFile(doc.id, index)">{{ t('admin.supplierProfile.remove') }}</button>
@@ -311,7 +272,7 @@
               </div>
               <div class="doc-row">
                 <div>
-                  <strong>{{ t('admin.supplierProfile.otherDocuments') }}</strong>
+                  <strong>{{ t('admin.supplierProfile.otherDocuments') }} <el-tag size="small" :type="otherDocumentFiles.length ? 'success' : 'info'">{{ t(otherDocumentFiles.length ? 'admin.supplierPortal.uploaded' : 'admin.supplierPortal.optional') }}</el-tag></strong>
                   <p v-for="(url, index) in otherDocumentFiles" :key="`other-${url}-${index}`">
                     <button type="button" @click="openFilePreview(url)">{{ fileNameFromUrl(url) }}</button>
                     <button v-if="!profileReadOnly" type="button" class="is-remove" @click="removeDocFile('other', index)">{{ t('admin.supplierProfile.remove') }}</button>
@@ -328,59 +289,44 @@
           <footer v-if="profileView === 'section'" class="profile-footer">
             <div>
               <el-button v-if="profileFromAll" @click="backToFullProfile">{{ t('admin.supplierProfile.backToProfile') }}</el-button>
-              <el-button v-else-if="profileSection > 0" @click="moveProfileSection(-1)">{{ t('admin.supplierProfile.previous') }}</el-button>
+              <el-button v-else-if="profileSection > 0" @click="moveProfileSection(-1)">{{ t('admin.supplierPortal.previousTo', { section: profileSections[profileSection - 1].title }) }}</el-button>
             </div>
             <div>
-              <el-button v-if="profileEditable && !needsResubmit" :loading="saving" @click="saveProfile(0)">{{ t('admin.supplierProfile.saveDraft') }}</el-button>
-              <el-button v-if="!profileFromAll && profileSection < 4" type="primary" @click="moveProfileSection(1)">{{ t('admin.supplierProfile.next') }}</el-button>
-              <el-button v-if="profileFromAll || profileSection === 4" type="primary" :loading="saving" @click="submitProfileForm">
-                {{ needsResubmit || profileFromAll ? t('admin.supplierProfile.resubmit') : t('admin.supplierProfile.submitReview') }}
+              <el-button v-if="profileEditable && !needsResubmit" :loading="saving" @click="saveProfile(0)">{{ profileSection === 2 ? t('admin.user.actions.save') : t('admin.supplierProfile.saveDraft') }}</el-button>
+              <el-button v-if="!profileFromAll && profileSection < profileSections.length - 1" type="primary" @click="moveProfileSection(1)">{{ t('admin.supplierPortal.continueTo', { section: profileSections[profileSection + 1].title }) }}</el-button>
+              <el-button v-if="profileEditable && (profileFromAll || profileSection === profileSections.length - 1)" type="primary" :disabled="profileIssues.length > 0" :loading="saving" @click="submitProfileForm">
+                {{ t('admin.supplierPortal.submitContinue') }}
               </el-button>
             </div>
           </footer>
+          <div v-if="profileSection === 3 && profileEditable && profileIssues.length" class="profile-missing"><strong>{{ t('admin.supplierPortal.missingProfile') }}</strong><button v-for="issue in profileIssues" :key="issue.id" type="button" @click="jumpProfileField(issue)">{{ issue.label }}</button></div>
         </div>
       </div>
+      <el-dialog v-model="profileSubmittedOpen" class="profile-success-dialog" width="min(540px, calc(100vw - 32px))" align-center :show-close="false">
+        <div class="submission-result"><span class="submission-check">✓</span><h2>{{ t('admin.supplierPortal.profileSubmitted') }}</h2><p>{{ t('admin.supplierPortal.profileSubmittedHint') }}</p><el-button type="primary" @click="profileSubmittedOpen = false; goTo('coverage-availability')">{{ t('admin.supplierPortal.openCoverage') }}</el-button><el-button @click="profileSubmittedOpen = false; goTo('overview')">{{ t('admin.supplierPortal.returnWorkspace') }}</el-button></div>
+      </el-dialog>
     </template>
 
-    <template v-else-if="section === 'service-area'">
-      <section v-if="areaSelectionEmpty" class="area-alert">
-        <strong>{{ t('admin.supplierArea.noneTitle') }}</strong>
-        <p>{{ t('admin.supplierArea.noneBody') }}</p>
-      </section>
-      <section class="area-note">
-        <strong>{{ t('admin.supplierArea.bannerTitle') }}</strong>
-        <p>{{ t('admin.supplierArea.bannerBody') }}</p>
-      </section>
-      <section class="area-board" v-loading="editorLoading && !areaCatalogReady">
-        <header>
-          <span>{{ coverageSummary(coverageRows.length, coveredCommunityCount) }}</span>
-        </header>
-        <table>
-          <thead>
-            <tr>
-              <th>{{ t('admin.supplierArea.area') }}</th>
-              <th>{{ t('admin.supplierArea.coverage') }}</th>
-              <th>{{ t('admin.supplierArea.included') }}</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-if="areaCatalogReady && !coverageRows.length">
-              <td colspan="3">{{ t('admin.supplierArea.empty') }}</td>
-            </tr>
-            <tr v-for="row in coverageRows" :key="row.id">
-              <td><strong>{{ row.name }}</strong></td>
-              <td>{{ coverageLabel(row) }}</td>
-              <td>
-                <p v-if="!row.communities.length">{{ t('admin.supplierArea.zoneOnly') }}</p>
-                <p v-else-if="row.picked.length === row.communities.length" class="area-all">{{ t('admin.supplierArea.allIncluded') }}</p>
-                <div v-else class="zone-list">
-                  <span v-for="community in row.picked" :key="community.id">{{ community.name }}</span>
-                </div>
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </section>
+    <template v-else-if="['service-area', 'availability', 'coverage-availability'].includes(section)">
+      <SupplierAvailability
+        :enabled="supplierEnabled"
+        :accept-dispatch="supplierAcceptDispatch"
+        :dispatch-saving="dispatchSaving"
+        :can-toggle="Boolean(supplierRecordId)"
+        :start="capacityForm.start"
+        :end="capacityForm.end"
+        :concurrent="capacityForm.concurrent"
+        :saturday="capacityToggles[1].enabled"
+        :sunday="capacityToggles[2].enabled"
+        :saving="saving"
+        :services="availabilityServices"
+        :areas="availabilityAreas"
+        :coverage-rows="coverageWorkspaceRows"
+        :coverage-loading="editorLoading && !areaCatalogReady"
+        @manage-coverage="openAreaEditor"
+        @save-hours="saveAvailabilityHours"
+        @toggle-dispatch="toggleAcceptDispatch"
+      />
       <el-dialog v-model="areaEditorVisible" class="supplier-form-dialog area-manage-dialog" :title="t('admin.supplierArea.dialogTitle')" width="min(820px, calc(100vw - 32px))" :close-on-click-modal="false" append-to-body>
         <div class="area-manage-tools">
           <el-input v-model="areaKeyword" :prefix-icon="Search" clearable :placeholder="t('admin.supplierArea.searchPlaceholder')" />
@@ -513,41 +459,41 @@
     </template>
 
     <template v-else-if="section === 'orders'">
-      <section class="orders-command" aria-labelledby="orders-command-title">
-        <div class="orders-command__copy">
-          <span>{{ t('admin.supplierOrders.assignedOrder') }}</span>
-          <h2 id="orders-command-title">{{ t('admin.supplierOrders.queueTitle') }}</h2>
-          <p>{{ t('admin.supplierOrders.queueHint') }}</p>
-        </div>
-        <div class="orders-command__metrics">
-          <article>
-            <span>{{ t('admin.supplierOrders.visibleNow') }}</span>
-            <strong>{{ visibleOrderCount }}</strong>
-            <small>{{ orderPageRange }}</small>
-          </article>
-          <article>
-            <span>{{ t('admin.supplierOrders.activeNow') }}</span>
-            <strong>{{ activeOrdersOnPage }}</strong>
-            <small>{{ t('admin.supplierOrders.serviceStatus') }}</small>
-          </article>
-          <article>
-            <span>{{ t('admin.supplierOrders.completedNow') }}</span>
-            <strong>{{ completedOrdersOnPage }}</strong>
-            <small>{{ t('admin.supplierOrders.visibleNow') }}</small>
-          </article>
-        </div>
+      <section v-if="onboardingStatus === 1" class="portal-orders-review" role="status">
+        <Warning />
+        <div><strong>{{ t('admin.supplierPortal.reviewInProgress') }}</strong><p>{{ t('admin.supplierPortal.reviewOrdersHint') }}</p></div>
+      </section>
+      <section class="portal-orders-metrics" :aria-label="t('admin.supplierPortal.orderManagement')">
+        <article v-for="metric in orderMetrics" :key="metric.key" :class="`portal-orders-metric--${metric.key}`">
+          <span>{{ metric.label }}</span>
+          <strong>{{ metric.value ?? '—' }}</strong>
+          <small v-if="metric.value === null">{{ t('admin.supplierPortal.metricsPending') }}</small>
+        </article>
       </section>
 
-      <el-card class="surface-card orders-card" shadow="never" v-loading="orderLoading">
-        <div class="order-toolbar">
+      <el-card class="surface-card orders-card portal-orders-card" shadow="never" v-loading="orderLoading">
+        <div class="order-toolbar portal-orders-toolbar">
           <div class="order-toolbar__head">
             <div>
-              <strong>{{ t('admin.supplierOrders.queueTitle') }}</strong>
+              <strong>{{ t('admin.supplierPortal.orderManagement') }}</strong>
               <span>{{ t('admin.supplierOrders.count', { count: orderTotal }) }}</span>
             </div>
             <el-button v-if="hasOrderFilters" link @click="resetOrderFilters">{{ t('admin.supplierOrders.resetFilters') }}</el-button>
           </div>
-          <div class="order-filters">
+          <nav class="portal-orders-stages" :aria-label="t('admin.supplierPortal.status')">
+            <button
+              v-for="stage in orderStages"
+              :key="stage.value"
+              type="button"
+              :class="{ 'is-active': orderStage === stage.value }"
+              :aria-pressed="orderStage === stage.value"
+              :disabled="stage.value !== 'all' && !orderStageFilteringSupported"
+              :title="stage.value !== 'all' && !orderStageFilteringSupported ? orderStageUnavailable : undefined"
+              @click="changeOrderStage(stage.value)"
+            >{{ stage.label }}</button>
+          </nav>
+          <p v-if="orderCapabilitiesLoaded && !orderStageFilteringSupported" class="portal-orders-compatibility">{{ orderStageUnavailable }}</p>
+          <div class="order-filters portal-orders-filters">
             <label class="order-filter">
               <span>{{ t('admin.supplierOrders.orderNo') }}</span>
               <el-input v-model.trim="orderKeyword" :prefix-icon="Search" :placeholder="t('admin.supplierOrders.searchOrder')" clearable @keyup.enter="searchOrders" @clear="searchOrders" />
@@ -577,25 +523,24 @@
             <el-button class="order-search" type="primary" :icon="Search" @click="searchOrders">{{ t('admin.supplierOrders.search') }}</el-button>
           </div>
         </div>
-        <div class="orders-table-shell">
-          <el-table :data="supplierOrders" class="data-table orders-table" row-key="orderId" :empty-text="t('admin.supplierOrders.empty')">
-            <el-table-column :label="t('admin.supplierOrders.orderNo')" min-width="154">
+        <div v-if="supplierOrders.length" class="orders-table-shell portal-orders-table-shell">
+          <el-table :data="supplierOrders" class="data-table orders-table portal-orders-table" row-key="orderId" table-layout="fixed">
+            <el-table-column :label="t('admin.supplierPortal.orderId')" min-width="110">
               <template #default="{ row }">
                 <button type="button" class="order-no" @click="openAssignedOrder(row)">{{ row.orderNo || '—' }}</button>
               </template>
             </el-table-column>
-            <el-table-column class-name="order-wrap" :label="t('admin.supplierOrders.serviceName')" min-width="220">
+            <el-table-column class-name="order-wrap" :label="t('admin.supplierOrders.serviceName')" min-width="150">
               <template #default="{ row }">
                 <div class="order-cell">
                   <strong>{{ orderServiceTitle(row) }}</strong>
                   <small v-if="orderSpecText(row) !== '—'" class="order-clamp">{{ orderSpecText(row) }}</small>
-                  <small v-if="orderAddonBrief(row)" class="order-clamp">{{ orderAddonBrief(row) }}</small>
                   <small v-if="orderCancelled(row)" class="order-alert">{{ row.cancelReason ? t('admin.supplierOrders.cancelReason', { reason: row.cancelReason }) : t('admin.supplierOrders.orderCancelled') }}</small>
                   <small v-else-if="orderRescheduleUnread(row)" class="order-reschedule">{{ t('admin.supplierOrders.rescheduleNotice') }}</small>
                 </div>
               </template>
             </el-table-column>
-            <el-table-column class-name="order-wrap" :label="t('admin.supplierOrders.serviceTime')" min-width="172">
+            <el-table-column class-name="order-wrap" :label="t('admin.supplierPortal.schedule')" min-width="110">
               <template #default="{ row }">
                 <div class="order-cell">
                   <strong>{{ row.serviceDate || '—' }}</strong>
@@ -603,23 +548,14 @@
                 </div>
               </template>
             </el-table-column>
-            <el-table-column class-name="order-wrap" :label="t('admin.supplierOrders.address')" min-width="220">
+            <el-table-column class-name="order-wrap" :label="t('admin.supplierPortal.customerArea')" min-width="120">
               <template #default="{ row }">
                 <div class="order-cell">
-                  <span class="order-clamp">{{ row.serviceAddress || '—' }}</span>
-                  <small v-if="row.additionalNotes" class="order-clamp">{{ t('admin.supplierOrders.additionalNotes') }}: {{ row.additionalNotes }}</small>
-                  <a v-if="row.pinLocation" class="order-pin" :href="row.pinLocation" target="_blank" rel="noopener noreferrer" @click.stop>{{ t('admin.supplierOrders.openMap') }}</a>
+                  <span class="order-clamp">{{ orderCustomerArea(row) }}</span>
                 </div>
               </template>
             </el-table-column>
-            <el-table-column class-name="order-wrap" :label="t('admin.supplierOrders.customerRemark')" min-width="180">
-              <template #default="{ row }">
-                <div class="order-cell">
-                  <span class="order-clamp order-remark-text">{{ row.remark || '—' }}</span>
-                </div>
-              </template>
-            </el-table-column>
-            <el-table-column class-name="order-wrap" :label="t('admin.supplierOrders.price')" width="126" align="right">
+            <el-table-column class-name="order-wrap" :label="t('admin.supplierPortal.amount')" min-width="95" align="right">
               <template #default="{ row }">
                 <div class="order-cell order-cell--end">
                   <strong class="money-value"><small>AED</small>{{ orderMoney(row.quotePrice) }}</strong>
@@ -627,12 +563,12 @@
                 </div>
               </template>
             </el-table-column>
-            <el-table-column class-name="order-status-col" :label="t('admin.supplierOrders.serviceStatus')" width="178">
+            <el-table-column class-name="order-status-col" :label="t('admin.supplierPortal.status')" min-width="115">
               <template #default="{ row }">
-                <el-tag :type="serviceStatusTag(row.serviceStatus)" effect="light">{{ serviceStatusText(row) }}</el-tag>
+                <el-tag :type="orderCancelled(row) ? 'danger' : serviceStatusTag(row.serviceStatus)" effect="light">{{ orderCancelled(row) ? t('admin.supplierPortal.cancelled') : serviceStatusText(row) }}</el-tag>
               </template>
             </el-table-column>
-            <el-table-column :label="t('admin.supplierOrders.detail')" width="188" align="right">
+            <el-table-column :label="t('admin.supplierPortal.action')" min-width="130" align="right">
               <template #default="{ row }">
                 <div class="order-row-actions">
                   <el-button link @click="openAssignedOrder(row)">{{ t('admin.supplierOrders.viewDetail') }}</el-button>
@@ -645,11 +581,11 @@
             </el-table-column>
           </el-table>
         </div>
-        <div class="orders-mobile" :aria-label="t('admin.supplierOrders.queueTitle')">
-          <article v-for="row in supplierOrders" :key="`mobile-${row.orderId}`" class="order-mobile-card">
+        <div v-if="supplierOrders.length" class="orders-mobile portal-orders-mobile" :aria-label="t('admin.supplierOrders.queueTitle')">
+          <article v-for="row in supplierOrders" :key="`mobile-${row.orderId}`" class="order-mobile-card portal-orders-mobile-card">
             <header>
               <button type="button" class="order-no" @click="openAssignedOrder(row)">{{ row.orderNo || '—' }}</button>
-              <el-tag :type="serviceStatusTag(row.serviceStatus)" effect="light">{{ serviceStatusText(row) }}</el-tag>
+              <el-tag :type="orderCancelled(row) ? 'danger' : serviceStatusTag(row.serviceStatus)" effect="light">{{ orderCancelled(row) ? t('admin.supplierPortal.cancelled') : serviceStatusText(row) }}</el-tag>
             </header>
             <h3>{{ orderServiceTitle(row) }}</h3>
             <p v-if="orderSpecText(row) !== '—'">{{ orderSpecText(row) }}</p>
@@ -658,9 +594,7 @@
             <dl>
               <div><dt>{{ t('admin.supplierOrders.serviceTime') }}</dt><dd>{{ orderWhen(row) }}</dd></div>
               <div><dt>{{ t('admin.supplierOrders.price') }}</dt><dd>AED {{ orderMoney(row.quotePrice) }}</dd></div>
-              <div class="is-wide"><dt>{{ t('admin.supplierOrders.address') }}</dt><dd>{{ row.serviceAddress || '—' }}</dd></div>
-              <div v-if="row.additionalNotes" class="is-wide"><dt>{{ t('admin.supplierOrders.additionalNotes') }}</dt><dd>{{ row.additionalNotes }}</dd></div>
-              <div class="is-wide"><dt>{{ t('admin.supplierOrders.customerRemark') }}</dt><dd>{{ row.remark || '—' }}</dd></div>
+              <div class="is-wide"><dt>{{ t('admin.supplierPortal.customerArea') }}</dt><dd>{{ orderCustomerArea(row) }}</dd></div>
             </dl>
             <footer>
               <el-button @click="openAssignedOrder(row)">{{ t('admin.supplierOrders.viewDetail') }}</el-button>
@@ -670,9 +604,24 @@
               <el-button v-else-if="serviceStep(row) === 1 && !orderCancelled(row)" type="primary" @click="openServiceAction(row, 'complete')">{{ t('admin.supplierOrders.completeAction') }}</el-button>
             </footer>
           </article>
-          <el-empty v-if="!orderLoading && !supplierOrders.length" :description="t('admin.supplierOrders.empty')" />
         </div>
-        <div class="order-pager">
+        <div v-if="!orderLoading && orderLoadFailed" class="portal-orders-empty" role="alert">
+          <span class="portal-orders-empty-icon" aria-hidden="true"><Warning /></span>
+          <h2>{{ t('admin.supplierOrders.loadFailed') }}</h2>
+          <el-button @click="loadOrders">{{ t('admin.common.refresh') }}</el-button>
+        </div>
+        <div v-else-if="!orderLoading && !supplierOrders.length" class="portal-orders-empty">
+          <span class="portal-orders-empty-icon" aria-hidden="true"><Tickets /></span>
+          <h2>{{ t(hasOrderFilters ? 'admin.supplierPortal.noResults' : 'admin.supplierPortal.noOrders') }}</h2>
+          <p>{{ t(hasOrderFilters ? 'admin.supplierPortal.noResultsHint' : 'admin.supplierPortal.noOrdersHint') }}</p>
+          <div>
+            <el-button v-if="hasOrderFilters" @click="resetOrderFilters">{{ t('admin.supplierOrders.resetFilters') }}</el-button>
+            <el-button type="primary" @click="goTo('coverage-availability')">{{ t('admin.supplierPortal.reviewCoverage') }}</el-button>
+            <el-button @click="goTo('pricing')">{{ t('admin.supplierPortal.openServices') }}</el-button>
+          </div>
+        </div>
+        <div v-if="orderTotal > 0" class="order-pager portal-orders-pager">
+          <span>{{ orderPageRange }}</span>
           <el-pagination
             layout="prev, pager, next"
             :current-page="orderPage"
@@ -684,170 +633,49 @@
       </el-card>
     </template>
 
-    <template v-else-if="section === 'availability'">
-      <SupplierAvailability
-        :enabled="supplierEnabled"
-        :accept-dispatch="supplierAcceptDispatch"
-        :dispatch-saving="dispatchSaving"
-        :can-toggle="Boolean(supplierRecordId)"
-        :start="capacityForm.start"
-        :end="capacityForm.end"
-        :concurrent="capacityForm.concurrent"
-        :saturday="capacityToggles[1].enabled"
-        :sunday="capacityToggles[2].enabled"
-        :saving="saving"
-        :services="availabilityServices"
-        :areas="availabilityAreas"
-        @save-hours="saveAvailabilityHours"
-        @toggle-dispatch="toggleAcceptDispatch"
-      />
-    </template>
-
     <template v-else-if="section === 'pricing'">
       <div v-if="!quoteDialog.visible" class="sv-page" v-loading="catalogLoading || quoteLoading">
-        <section class="pricing-command">
-          <div class="pricing-command__copy">
-            <span>{{ t('admin.supplierPricing.workspaceTitle') }}</span>
-            <h1>{{ t('admin.supplierPricing.title') }}</h1>
-            <p>{{ t('admin.supplierPricing.workspaceHint') }}</p>
-            <div class="pricing-command__supplier">
-              <span class="pricing-command__avatar">{{ supplierInitials }}</span>
-              <span>
-                <small>{{ t('admin.supplierOrders.signedIn') }}</small>
-                <strong>{{ companyForm.companyName || t('admin.supplierOrders.unnamed') }}</strong>
-              </span>
-              <el-tag :type="onboardingTagType" effect="light">{{ profileStatusLabel }}</el-tag>
-            </div>
-            <div class="pricing-command__categories">
-              <small>{{ t('admin.supplierPricing.yourCategories') }}</small>
-              <em v-for="category in serviceCategoryOptions" :key="category.id">{{ category.label }}</em>
-              <em v-if="!serviceCategoryOptions.length">—</em>
-              <button type="button" @click="goTo('profile')">{{ t('admin.supplierPricing.changeInProfile') }}</button>
-            </div>
-          </div>
-          <div class="pricing-command__metrics">
-            <article>
-              <small>{{ t('admin.supplierPricing.servicesMetric') }}</small>
-              <strong>{{ serviceRows.length }}</strong>
-              <span>{{ t('admin.supplierPricing.count', { count: serviceRows.length }) }}</span>
-            </article>
-            <article :class="{ 'is-pending': pendingQuoteCount > 0 }">
-              <small>{{ t('admin.supplierPricing.pendingMetric') }}</small>
-              <strong>{{ pendingQuoteCount }}</strong>
-              <span>{{ t('admin.supplierPricing.pending', { count: pendingQuoteCount }) }}</span>
-            </article>
-            <article>
-              <small>{{ t('admin.supplierPricing.enabledMetric') }}</small>
-              <strong>{{ enabledServiceCount }}</strong>
-              <span>{{ t('admin.supplierPricing.acceptEnabled') }}</span>
-            </article>
-          </div>
-        </section>
-
-        <section class="sv-board">
-          <div class="pricing-toolbar">
-            <div class="pricing-filter">
-              <span class="pricing-filter__title">
-                <strong>{{ t('admin.supplierPricing.added') }}</strong>
-                <small>{{ t('admin.supplierPricing.listHint') }}</small>
-              </span>
-              <el-select v-model="quoteCategory" filterable>
-                <el-option :label="t('admin.supplierPricing.allServices')" value="all" />
-                <el-option v-for="category in serviceCategoryOptions" :key="category.id" :label="category.label" :value="category.id" />
-              </el-select>
-              <el-input v-model="addedKeyword" clearable :placeholder="t('admin.supplierPricing.searchAdded')" />
-              <el-button v-if="quoteCategory !== 'all' || addedKeyword" link @click="resetPricingFilters">{{ t('admin.supplierPricing.clearFilters') }}</el-button>
-            </div>
-            <div class="pricing-actions">
-              <small>{{ t('admin.supplierPricing.count', { count: filteredServiceRows.length }) }}</small>
-              <el-button type="primary" :icon="Plus" :disabled="!supplierRecordId" @click="openServicePicker">{{ t('admin.supplierPricing.addService') }}</el-button>
-            </div>
-          </div>
-          <el-table :data="filteredServiceRows" class="data-table pricing-data-table" row-key="spuId" :empty-text="t('admin.supplierPricing.empty')" @row-click="openServiceQuote">
-            <el-table-column :label="t('admin.supplierPricing.service')" min-width="260">
-              <template #default="{ row }">
-                <div class="pricing-service-cell">
-                  <span>{{ String(serviceTitle(row.name, row.spuNameI18n) || 'S').slice(0, 1).toUpperCase() }}</span>
-                  <div>
-                    <strong>{{ serviceTitle(row.name, row.spuNameI18n) }}</strong>
-                    <small>{{ localizedCategory(row.category, row.categoryNameI18n) }}</small>
-                    <em v-if="row.rejectReason" class="quote-reject-reason">{{ t('admin.supplierPricing.rejectReason', { reason: row.rejectReason }) }}</em>
-                    <em v-else-if="Number(row.priceChangeStatus) === 1" class="quote-reject-reason">{{ t('admin.supplierPricing.priceChangePending') }}</em>
-                  </div>
-                </div>
-              </template>
-            </el-table-column>
-            <el-table-column :label="t('admin.supplierPricing.quoteMode')" min-width="130">
-              <template #default="{ row }"><span class="quote-mode-pill">{{ quoteModeLabel(row.quoteMode) }}</span></template>
-            </el-table-column>
-            <el-table-column :label="t('admin.supplierPricing.yourPrice')" min-width="180">
-              <template #default="{ row }"><strong class="pricing-price">{{ yourPriceText(row) }}</strong></template>
-            </el-table-column>
-            <el-table-column :label="t('admin.supplierPricing.reviewStatus')" width="130">
-              <template #default="{ row }">
+        <header class="portal-pricing-header"><div><span class="portal-eyebrow">{{ t('admin.supplierPortal.services') }}</span><h1>{{ t('admin.supplierPricing.title') }}</h1><p>{{ t('admin.supplierPortal.selectedCategoryHint') }}</p></div><el-button type="primary" :icon="Plus" :disabled="!supplierRecordId" @click="openServicePicker">{{ t('admin.supplierPricing.addService') }}</el-button></header>
+        <nav class="portal-journey" :aria-label="t('admin.supplierPricing.title')"><span class="is-current"><b>1</b>{{ t('admin.supplierPortal.categoryStep') }}</span><ArrowRight /><span><b>2</b>{{ t('admin.supplierPortal.serviceStep') }}</span><ArrowRight /><span><b>3</b>{{ t('admin.supplierPortal.setupStep') }}</span></nav>
+        <div class="portal-service-layout">
+          <aside class="portal-categories">
+            <h2>{{ t('admin.supplierPortal.categoryPanel') }}</h2>
+            <nav><button v-for="category in serviceCategoryOptions" :key="category.id" type="button" :class="{ 'is-active': Number(quoteCategory) === category.id }" :aria-pressed="Number(quoteCategory) === category.id" @click="quoteCategory = String(category.id)"><span>{{ category.label }}</span><small>{{ serviceRows.filter(row => row.categoryId === category.id).length }}</small><ArrowRight /></button></nav>
+            <p>{{ t('admin.supplierPortal.categoryHint') }}</p>
+          </aside>
+          <section class="portal-services">
+            <header><div><span class="portal-eyebrow">{{ t('admin.supplierPricing.service') }}</span><h2>{{ selectedPricingCategory }}</h2><p>{{ t('admin.supplierPricing.count', { count: filteredServiceRows.length }) }}</p></div><div class="portal-service-filters"><el-input v-model="addedKeyword" :prefix-icon="Search" clearable :placeholder="t('admin.supplierPricing.searchAdded')" /><el-select v-model="quoteStatusFilter" :aria-label="t('admin.supplierPricing.reviewStatus')"><el-option :label="t('admin.supplierPortal.allStatuses')" value="all" /><el-option :label="t('admin.supplierPricing.statusNone')" value="none" /><el-option v-for="status in [0,1,2,3]" :key="status" :label="quoteStatusLabel(status)" :value="String(status)" /></el-select></div></header>
+            <div class="portal-service-list">
+              <article v-for="row in filteredServiceRows" :key="row.spuId" class="portal-service-row">
+                <div class="portal-service-name"><span class="portal-service-avatar">{{ String(serviceTitle(row.name, row.spuNameI18n) || 'S').slice(0, 1).toUpperCase() }}</span><div><h3>{{ serviceTitle(row.name, row.spuNameI18n) }}</h3><p>{{ yourPriceText(row) }}</p><el-button link @click="openServiceEditor(row)">{{ t('admin.supplierPortal.staffContact') }}</el-button></div></div>
                 <el-tag :type="quoteTagType(row.status)" effect="light">{{ quoteStatusLabel(row.status) }}</el-tag>
-              </template>
-            </el-table-column>
-            <el-table-column :label="t('admin.supplierPricing.enabled')" width="90" align="center">
-              <template #default="{ row }">
-                <el-switch :model-value="Number(row.acceptOrder) !== 0" :loading="acceptOrderSaving === row.spuId" @click.stop @change="toggleServiceAccept(row)" />
-              </template>
-            </el-table-column>
-            <el-table-column :label="t('admin.supplierPricing.actions')" width="250" align="right">
-              <template #default="{ row }">
-                <el-button link @click.stop="openServiceEditor(row)">{{ t('admin.supplierPricing.staffPhone') }}</el-button>
-                <el-button link type="primary" @click.stop="openServiceQuote(row)">{{ quoteNeedsResubmit(row) ? t('admin.supplierPricing.resubmitReview') : t('admin.supplierPricing.edit') }}</el-button>
-                <el-button link type="danger" @click.stop="removeAddedService(row)">{{ t('admin.supplierPricing.remove') }}</el-button>
-              </template>
-            </el-table-column>
-          </el-table>
-          <div class="pricing-mobile-list">
-            <p v-if="!filteredServiceRows.length" class="pricing-mobile-empty">{{ t('admin.supplierPricing.empty') }}</p>
-            <article v-for="row in filteredServiceRows" :key="`mobile-${row.categoryId}-${row.spuId}`" @click="openServiceQuote(row)">
-              <header>
-                <div class="pricing-service-cell">
-                  <span>{{ String(serviceTitle(row.name, row.spuNameI18n) || 'S').slice(0, 1).toUpperCase() }}</span>
-                  <div>
-                    <strong>{{ serviceTitle(row.name, row.spuNameI18n) }}</strong>
-                    <small>{{ localizedCategory(row.category, row.categoryNameI18n) }}</small>
-                    <em v-if="row.rejectReason" class="quote-reject-reason">{{ t('admin.supplierPricing.rejectReason', { reason: row.rejectReason }) }}</em>
-                    <em v-else-if="Number(row.priceChangeStatus) === 1" class="quote-reject-reason">{{ t('admin.supplierPricing.priceChangePending') }}</em>
-                  </div>
-                </div>
-                <el-tag :type="quoteTagType(row.status)" effect="light">{{ quoteStatusLabel(row.status) }}</el-tag>
-              </header>
-              <dl>
-                <div><dt>{{ t('admin.supplierPricing.quoteMode') }}</dt><dd>{{ quoteModeLabel(row.quoteMode) }}</dd></div>
-                <div><dt>{{ t('admin.supplierPricing.yourPrice') }}</dt><dd>{{ yourPriceText(row) }}</dd></div>
-              </dl>
-              <footer @click.stop>
-                <span><el-switch :model-value="Number(row.acceptOrder) !== 0" :loading="acceptOrderSaving === row.spuId" @change="toggleServiceAccept(row)" /> {{ Number(row.acceptOrder) !== 0 ? t('admin.supplierPricing.enabled') : t('admin.supplierPricing.disabled') }}</span>
-                <div>
-                  <el-button link @click="openServiceEditor(row)">{{ t('admin.supplierPricing.staffPhone') }}</el-button>
-                  <el-button link type="primary" @click="openServiceQuote(row)">{{ quoteNeedsResubmit(row) ? t('admin.supplierPricing.resubmitReview') : t('admin.supplierPricing.edit') }}</el-button>
-                </div>
-              </footer>
-            </article>
-          </div>
-        </section>
+                <label class="portal-offer-control"><span>{{ t('admin.supplierPortal.offerService') }}</span><el-switch :model-value="Number(row.acceptOrder) !== 0" :loading="acceptOrderSaving === row.spuId" @change="toggleServiceAccept(row)" /></label>
+                <el-button class="portal-service-cta" :type="row.status == null ? 'primary' : undefined" @click="openServiceQuote(row)">{{ t(`admin.supplierPortal.${quoteActionKey(row.status)}`) }} <ArrowRight /></el-button>
+                <p v-if="row.rejectReason" class="portal-service-reason">{{ t('admin.supplierPricing.rejectReason', { reason: row.rejectReason }) }}</p>
+              </article>
+              <el-empty v-if="!filteredServiceRows.length" :description="serviceRows.length ? t('admin.supplierPortal.noServices') : t('admin.supplierPricing.empty')"><el-button v-if="addedKeyword || quoteStatusFilter !== 'all'" @click="resetPricingFilters">{{ t('admin.supplierPricing.clearFilters') }}</el-button></el-empty>
+            </div>
+          </section>
+        </div>
       </div>
 
       <div v-else class="sv-editor">
         <nav class="sv-crumb">
-          <button type="button" @click="quoteDialog.visible = false">← {{ t('admin.supplierPricing.back') }}</button>
+          <button type="button" @click="quoteScreen === 'review' ? backToQuoteSetup() : closeServiceQuote()">← {{ quoteScreen === 'review' ? t('admin.supplierPortal.backQuote') : t('admin.supplierPortal.backCategory', { category: quoteDialogCategory }) }}</button>
           <span>{{ t('admin.supplierPricing.title') }}</span>
           <em>›</em>
             <strong>{{ quoteDialogTitle }}</strong>
           </nav>
-        <section class="pricing-editor-hero">
+        <section class="portal-quote-header">
           <div>
             <span>{{ t('admin.supplierPricing.editorKicker') }}</span>
-            <h1>{{ quoteDialogTitle }}</h1>
-            <p>{{ quoteDialogCategory }} · {{ t('admin.supplierPricing.editorHint') }}</p>
+            <h1>{{ quoteScreen === 'setup' ? quoteDialogTitle : t(quoteScreen === 'submitted' ? 'admin.supplierPortal.quoteSubmitted' : 'admin.supplierPortal.reviewTitle') }}</h1>
+            <p>{{ quoteScreen === 'setup' ? quoteDialogCategory : quoteDialogTitle }} · {{ t(quoteScreen === 'setup' ? 'admin.supplierPricing.editorHint' : 'admin.supplierPortal.reviewHint') }}</p>
           </div>
-          <el-tag :type="quoteTagType(quoteDialog.status)" effect="dark">{{ quoteStatusLabel(quoteDialog.status) }}</el-tag>
+          <el-tag :type="quoteTagType(quoteEffectiveStatus)" effect="dark">{{ quoteStatusLabel(quoteEffectiveStatus) }}</el-tag>
         </section>
-        <section class="sv-quote" v-loading="quoteDialog.loading">
+        <nav class="portal-journey portal-journey--quote" :aria-label="t('admin.supplierPortal.setupStep')"><span class="is-done"><b>✓</b>{{ t('admin.supplierPortal.serviceStep') }}</span><i></i><span :class="quoteScreen === 'setup' ? 'is-current' : 'is-done'"><b>{{ quoteScreen === 'setup' ? '2' : '✓' }}</b>{{ t('admin.supplierPortal.setupStep') }}</span><i></i><span :class="{ 'is-current': quoteScreen !== 'setup' }"><b>3</b>{{ t('admin.supplierPortal.reviewStep') }}</span></nav>
+        <section v-if="quoteScreen === 'setup'" class="sv-quote" v-loading="quoteDialog.loading">
           <div v-if="quotePriceLocked" class="pricing-editor-alert" :class="{ 'is-rejected': Number(quoteDialog.priceChangeStatus) === 3 }">
             <span>!</span>
             <div>
@@ -895,7 +723,10 @@
                       <el-input-number v-model="quoteDialog.unitPrice" :min="0" :precision="2" :disabled="quoteRevisionLocked || quotePriceLocked" controls-position="right" />
                     </span>
                   </label>
+                  <div class="portal-price-rule"><strong>{{ t('admin.supplierPortal.hourlyFormula') }}</strong><p>{{ t('admin.supplierPortal.hourlyRule') }}</p></div>
                 </div>
+                <div v-else class="portal-price-rule portal-price-rule--fixed"><strong>{{ t('admin.supplierPricing.fixedPrice') }}</strong><p>{{ t('admin.supplierPortal.fixedRule') }}</p></div>
+                <p class="portal-vat-note">{{ t('admin.supplierPortal.vatNote') }}</p>
               </section>
 
               <section class="pricing-editor-section">
@@ -909,7 +740,7 @@
                 </header>
                 <div class="quote-lines">
                   <p v-if="!quoteDialog.loading && !quoteDialog.rows.length" class="quote-lines__empty">{{ t('admin.supplierPricing.noSpecs') }}</p>
-                  <article v-for="(row, index) in quoteDialog.rows" :key="row.skuId" class="quote-line" :class="{ 'is-off': row.available === false || !row.enabled }">
+                  <article v-for="(row, index) in quoteDialog.rows" :key="row.skuId" class="quote-line portal-quote-line" :class="{ 'is-off': row.available === false || !row.enabled, 'has-missing': optionMissingFields(row, quoteDialog.quoteMode, quoteDialog.unitPrice).length > 0 }">
                     <label class="quote-line__switch">
                       <span>{{ t('admin.supplierPricing.skuSwitch') }}</span>
                       <el-switch v-model="row.enabled" :disabled="row.available === false || quoteLineHeld(row)" />
@@ -941,7 +772,9 @@
                         <template #prepend>AED</template>
                       </el-input>
                       <small v-if="quoteDialog.quoteMode === 2" class="field-help">{{ t('admin.supplierPricing.readonlyPriceHint') }}</small>
+                      <small v-if="row.enabled && quoteDialog.quoteMode === 1 && !positiveAmount(row.quotePrice)" class="portal-price-missing">{{ t('admin.supplierPortal.priceRequired') }}</small>
                     </label>
+                    <span class="portal-option-status" :class="{ 'is-ready': row.enabled && !optionMissingFields(row, quoteDialog.quoteMode, quoteDialog.unitPrice).length }">{{ t(!row.enabled || row.available === false ? 'admin.supplierPortal.notOffered' : optionMissingFields(row, quoteDialog.quoteMode, quoteDialog.unitPrice).length ? 'admin.supplierPortal.detailsRequired' : 'admin.supplierPortal.complete') }}</span>
                   </article>
                 </div>
               </section>
@@ -972,17 +805,19 @@
             </div>
 
             <aside class="pricing-review-panel">
-              <span>{{ t('admin.supplierPricing.reviewNoticeTitle') }}</span>
-              <h3>{{ t('admin.supplierPricing.reviewNoticeHint') }}</h3>
+              <span>{{ t('admin.supplierPortal.quoteSummary') }}</span>
+              <h3>{{ t('admin.supplierPortal.vatNote') }}</h3>
               <dl>
-                <div><dt>{{ t('admin.supplierPricing.reviewStatus') }}</dt><dd><el-tag :type="quoteTagType(quoteDialog.status)" effect="light">{{ quoteStatusLabel(quoteDialog.status) }}</el-tag></dd></div>
+                <div><dt>{{ t('admin.supplierPricing.reviewStatus') }}</dt><dd><el-tag :type="quoteTagType(quoteEffectiveStatus)" effect="light">{{ quoteStatusLabel(quoteEffectiveStatus) }}</el-tag></dd></div>
                 <div><dt>{{ t('admin.supplierPricing.quoteMode') }}</dt><dd>{{ quoteModeLabel(quoteDialog.quoteMode) }}</dd></div>
-                <div><dt>{{ t('admin.supplierPricing.package') }}</dt><dd>{{ quoteDialog.rows.length }}</dd></div>
+                <div><dt>{{ t('admin.supplierPortal.enabledOptions') }}</dt><dd>{{ enabledQuoteRows.length }} / {{ quoteDialog.rows.length }}</dd></div>
+                <div><dt>{{ t('admin.supplierPortal.missingFields') }}</dt><dd :class="{ 'portal-price-missing': quoteMissingCount > 0 }">{{ quoteMissingCount }}</dd></div>
+                <div v-if="quoteDialog.quoteMode === 1"><dt>{{ t('admin.supplierPortal.completedPrices') }}</dt><dd>{{ enabledQuoteRows.filter(row => positiveAmount(row.quotePrice)).length }} / {{ enabledQuoteRows.length }}</dd></div>
                 <div><dt>{{ t('admin.supplierPricing.addons') }}</dt><dd>{{ selectedAttachCount }}</dd></div>
               </dl>
               <button type="button" @click="openQuotedServiceEditor">
                 <span>{{ t('admin.supplierPricing.serviceSetupTitle') }}</span>
-                <small>{{ t('admin.supplierPricing.serviceSetupHint') }}</small>
+                <small>{{ t(quoteContactComplete ? 'admin.supplierPortal.contactComplete' : 'admin.supplierPortal.contactRequired') }}</small>
                 <b>→</b>
               </button>
             </aside>
@@ -990,16 +825,29 @@
 
           <footer class="sv-quote__foot">
             <div class="sv-quote__foot-note">
-              <span>{{ quoteStatusLabel(quoteDialog.status) }}</span>
+              <span>{{ quoteStatusLabel(quoteEffectiveStatus) }}</span>
               <small v-if="quoteDialog.rejectReason">{{ t('admin.supplierPricing.rejectReason', { reason: quoteDialog.rejectReason }) }}</small>
-              <small v-else>{{ t('admin.supplierPricing.priceIntro') }}</small>
+              <small v-else>{{ quoteMissingCount ? t('admin.supplierPortal.missingBeforeReview', { count: quoteMissingCount }) : t('admin.supplierPortal.vatNote') }}</small>
             </div>
             <div>
               <el-button v-if="quoteDialog.canApplyPriceChange" type="warning" :loading="quoteDialog.saving" @click="requestPriceChange">{{ t('admin.supplierPricing.priceChangeApply') }}</el-button>
               <el-button :loading="quoteDialog.saving" :disabled="quoteUnderReview || quotePriceLocked" @click="saveServiceQuote">{{ t('admin.supplierPricing.saveDraft') }}</el-button>
-              <el-button type="primary" :loading="quoteDialog.saving" :disabled="quoteUnderReview || quotePriceLocked" @click="submitServiceQuote">{{ Number(quoteDialog.status) === 3 || quoteHasRejectedLines ? t('admin.supplierPricing.resubmitReview') : t('admin.supplierPricing.submitReview') }}</el-button>
+              <el-button type="primary" :disabled="quoteUnderReview || quotePriceLocked || quoteMissingCount > 0 || !enabledQuoteRows.length" @click="reviewServiceQuote">{{ t('admin.supplierPortal.reviewQuote') }}</el-button>
             </div>
           </footer>
+        </section>
+        <section v-else class="portal-review-layout" v-loading="quoteDialog.loading">
+          <main class="portal-review-main">
+            <div v-if="quoteScreen === 'submitted'" class="portal-submitted-notice" role="status"><CircleCheck /><div><strong>{{ t('admin.supplierPortal.quoteSubmitted') }}</strong><p>{{ t('admin.supplierPortal.lockNotice') }} {{ t('admin.supplierPortal.reviewEta') }}</p><small v-if="quoteDialog.submittedAt">{{ t('admin.supplierPortal.submittedOn', { date: orderClock(quoteDialog.submittedAt) }) }}</small></div></div>
+            <section class="portal-review-card"><h2>{{ t('admin.supplierPortal.quoteOverview') }}</h2><dl class="portal-review-facts"><div><dt>{{ t('admin.supplierPricing.service') }}</dt><dd>{{ quoteDialogTitle }}</dd></div><div><dt>{{ t('admin.supplierPricing.category') }}</dt><dd>{{ quoteDialogCategory }}</dd></div><div><dt>{{ t('admin.supplierPricing.quoteMode') }}</dt><dd>{{ quoteModeLabel(quoteDialog.quoteMode ?? undefined) }}</dd></div><div><dt>{{ t('admin.supplierPortal.enabledOptions') }}</dt><dd>{{ enabledQuoteRows.length }} / {{ quoteDialog.rows.length }}</dd></div></dl></section>
+            <section class="portal-review-card"><h2>{{ t('admin.supplierPortal.optionsPrices') }}</h2><div class="portal-review-options"><article v-for="row in enabledQuoteRows" :key="row.skuId"><h3>{{ quoteSpecLabel(row) }}</h3><dl><div><dt>{{ t('admin.supplierPricing.headcount') }}</dt><dd>{{ row.staffCount ?? '—' }}</dd></div><div><dt>{{ t('admin.supplierPricing.hours') }}</dt><dd>{{ row.serviceHours ?? '—' }}</dd></div><div><dt>{{ t('admin.supplierPortal.customerPrice') }}</dt><dd class="portal-review-price">AED {{ moneyText(quoteDialog.quoteMode === 2 ? skuAmount(row) : row.quotePrice) }}</dd></div></dl></article></div><p class="portal-review-note">{{ t(quoteDialog.quoteMode === 2 ? 'admin.supplierPortal.hourlyFormula' : 'admin.supplierPortal.fixedRule') }}</p></section>
+            <section class="portal-review-card"><header><h2>{{ t('admin.supplierPortal.staffContact') }}</h2><el-button v-if="quoteScreen === 'review'" link @click="openQuotedServiceEditor">{{ t('admin.supplierPortal.editContact') }}</el-button></header><dl class="portal-review-facts"><div><dt>{{ t('admin.supplierProfile.contactPerson') }}</dt><dd>{{ companyForm.contact || '—' }}</dd></div><div><dt>{{ t('admin.supplierPricing.headcount') }}</dt><dd>{{ quoteContact?.workerCount ?? '—' }}</dd></div><div><dt>{{ t('admin.supplierPricing.phone') }}</dt><dd>{{ quoteContact?.phones.filter(Boolean).join(' / ') || '—' }}</dd></div></dl></section>
+            <section class="portal-review-card"><h2>{{ t('admin.supplierPricing.addons') }} <small>{{ selectedAttachCount }}</small></h2><div v-for="item in quoteDialog.attaches.filter(item => item.offered)" :key="item.attachValueId" class="portal-review-addon"><span>{{ attachDisplay(item, 'name') }}</span><strong>AED {{ moneyText(item.quotePrice) }}</strong></div><p v-if="!selectedAttachCount" class="portal-review-note">{{ t('admin.supplierOrders.noAddons') }}</p></section>
+          </main>
+          <aside class="portal-review-submit"><h2>{{ t('admin.supplierPortal.quoteSummary') }}</h2><dl><div><dt>{{ t('admin.supplierPricing.reviewStatus') }}</dt><dd><el-tag :type="quoteScreen === 'submitted' ? 'warning' : 'success'">{{ quoteScreen === 'submitted' ? quoteStatusLabel(1) : t('admin.supplierPortal.ready') }}</el-tag></dd></div><div><dt>{{ t('admin.supplierPortal.enabledOptions') }}</dt><dd>{{ enabledQuoteRows.length }}</dd></div><div><dt>{{ t('admin.supplierPortal.missingFields') }}</dt><dd>{{ quoteMissingCount }}</dd></div><div><dt>{{ t('admin.supplierPricing.addons') }}</dt><dd>{{ selectedAttachCount }}</dd></div></dl><p>{{ t('admin.supplierPortal.vatNote') }}</p>
+            <template v-if="quoteScreen === 'review'"><label class="portal-quote-confirm"><input v-model="quoteConfirmed" type="checkbox" /><span>{{ t('admin.supplierPortal.confirmQuote') }}</span></label><p class="portal-review-note">{{ t('admin.supplierPortal.lockNotice') }}</p><el-button type="primary" :loading="quoteDialog.saving" :disabled="!quoteConfirmed || quoteMissingCount > 0 || !enabledQuoteRows.length" @click="submitServiceQuote">{{ t('admin.supplierPortal.submitQuote') }} <ArrowRight /></el-button><el-button :disabled="quoteDialog.saving" @click="backToQuoteSetup">{{ t('admin.supplierPortal.backQuote') }}</el-button></template>
+            <el-button v-else @click="closeServiceQuote">{{ t('admin.supplierPortal.backCategory', { category: quoteDialogCategory }) }}</el-button><p class="portal-review-note">{{ t('admin.supplierPortal.reviewEta') }}</p>
+          </aside>
         </section>
       </div>
 
@@ -1052,7 +900,7 @@
         </template>
       </el-dialog>
 
-      <el-dialog v-model="serviceEditor.open" class="supplier-form-dialog" :title="t('admin.supplierPricing.editTitle', { name: serviceEditorTitle })" width="min(560px, calc(100vw - 32px))" :close-on-click-modal="false" append-to-body>
+      <el-dialog v-model="serviceEditor.open" class="supplier-form-dialog" :title="`${serviceEditorTitle} · ${t('admin.supplierPortal.staffContact')}`" width="min(560px, calc(100vw - 32px))" :close-on-click-modal="false" append-to-body>
         <div class="service-editor-intro">
           <span>{{ t('admin.supplierPricing.serviceSetupTitle') }}</span>
           <strong>{{ serviceEditorTitle }}</strong>
@@ -1061,21 +909,21 @@
         <div class="picker-fields">
           <label>
             <span>{{ t('admin.supplierPricing.headcount') }}</span>
-            <el-input-number v-model="serviceEditor.workerCount" :min="1" :precision="0" controls-position="right" />
+            <el-input-number v-model="serviceEditor.workerCount" :min="1" :precision="0" :disabled="serviceEditorReadOnly" controls-position="right" />
           </label>
           <div class="phone-stack">
             <span>{{ t('admin.supplierPricing.phone') }}</span>
             <div v-for="(_phone, index) in serviceEditor.phones" :key="`edit-${index}`" class="phone-row">
               <small>{{ t('admin.supplierPricing.phoneEntry', { index: index + 1 }) }}</small>
-              <el-input v-model="serviceEditor.phones[index]" maxlength="24" placeholder="+971501234567" />
-              <el-button v-if="serviceEditor.phones.length > 1" @click="removePhone(serviceEditor, index)">{{ t('admin.supplierPricing.delete') }}</el-button>
+              <el-input v-model="serviceEditor.phones[index]" maxlength="24" :disabled="serviceEditorReadOnly" placeholder="+971501234567" />
+              <el-button v-if="!serviceEditorReadOnly && serviceEditor.phones.length > 1" @click="removePhone(serviceEditor, index)">{{ t('admin.supplierPricing.delete') }}</el-button>
             </div>
-            <el-button v-if="serviceEditor.phones.length < 10" link type="primary" @click="addPhone(serviceEditor)">{{ t('admin.supplierPricing.addPhone') }}</el-button>
+            <el-button v-if="!serviceEditorReadOnly && serviceEditor.phones.length < 10" link type="primary" @click="addPhone(serviceEditor)">{{ t('admin.supplierPricing.addPhone') }}</el-button>
           </div>
         </div>
         <template #footer>
           <el-button @click="serviceEditor.open = false">{{ t('admin.supplierPricing.cancel') }}</el-button>
-          <el-button type="primary" :loading="catalogSaving" @click="saveServiceEditor">{{ t('admin.supplierPricing.save') }}</el-button>
+          <el-button v-if="!serviceEditorReadOnly" type="primary" :loading="catalogSaving" @click="saveServiceEditor">{{ t('admin.supplierPricing.save') }}</el-button>
         </template>
       </el-dialog>
     </template>
@@ -1329,6 +1177,9 @@ import {
   supplierAssignedOrders,
   supplierChangeAcceptDispatch,
   supplierChangeAcceptOrder,
+  supplierOperationsMine,
+  supplierCoverageSave,
+  supplierScheduleSave,
   supplierComplete,
   uploadFile,
 } from '@/modules/admin/api/supplierWorkbench'
@@ -1336,6 +1187,7 @@ import { listBySpu, listSpuAttachCatalog } from '@/modules/admin/api/spu'
 import SupplierAvailability from '@/modules/admin/pages/supplier-management/availability.vue'
 import { useAdminSessionStore } from '@/modules/admin/stores/session'
 import { pickI18nText } from '@/modules/admin/utils/i18n'
+import { calculatedQuotePrice, optionMissingFields, positiveAmount, quoteActionKey } from '@/modules/admin/utils/supplierPortal'
 import { categoryIdPayload, isOtherService, listServiceCategories, serviceCategoryLabel, type ServiceCategoryOption } from '@/modules/client/api/supplier-onboarding'
 import { DEFAULT_PHONE_DIAL, PHONE_DIAL_OPTIONS, joinPhone, nationalNumberOk, phoneDialLabel, splitPhone } from '@/utils/phone-dial'
 import {
@@ -1357,7 +1209,7 @@ import {
   Warning,
 } from '@element-plus/icons-vue'
 
-type Section = 'overview' | 'profile' | 'service-area' | 'staff' | 'schedule' | 'orders' | 'pricing' | 'settlement' | 'availability'
+type Section = 'overview' | 'profile' | 'service-area' | 'coverage-availability' | 'staff' | 'schedule' | 'orders' | 'pricing' | 'settlement' | 'availability'
 
 const props = withDefaults(defineProps<{ section?: Section }>(), { section: 'overview' })
 const section = computed(() => props.section)
@@ -1377,6 +1229,8 @@ const pageMeta = {
 } as const
 
 const meta = computed(() => {
+  if (section.value === 'overview') return { title: t('admin.supplierPortal.workspaceTitle'), description: t('admin.supplierPortal.workspaceHint'), primaryAction: '' }
+  if (section.value === 'coverage-availability') return { title: t('admin.supplierPortal.coverage'), description: t('admin.supplierPortal.coverageHint'), primaryAction: '' }
   if (section.value === 'pricing') return { title: t('admin.supplierPricing.title'), description: t('admin.supplierPricing.description'), primaryAction: '' }
   if (section.value === 'profile') return { title: t('admin.supplierProfile.title'), description: t('admin.supplierProfile.description'), primaryAction: '' }
   if (section.value === 'orders') return { title: t('admin.supplierOrders.title'), description: t('admin.supplierOrders.description'), primaryAction: '' }
@@ -1411,14 +1265,16 @@ const whatsappSame = ref(false)
 const tradeLicenseFiles = ref<string[]>([])
 const otherDocumentFiles = ref<string[]>([])
 const profileExtra = ref<Record<string, unknown>>({})
+const independentOperationsReady = ref(false)
+const profileSubmittedOpen = ref(false)
+const documentNames = ref<Record<string, string>>({})
 const needsResubmit = computed(() => profileEditable.value && (onboardingStatus.value === 2 || onboardingStatus.value === 3))
 const profileReadOnly = computed(() => !profileEditable.value || profileView.value === 'all')
 const profileSections = computed(() => [
-  { id: 'company', num: '01', title: t('admin.supplierProfile.companyTitle'), desc: t('admin.supplierProfile.companyHint') },
-  { id: 'contact', num: '02', title: t('admin.supplierProfile.contactTitle'), desc: t('admin.supplierProfile.contactHint') },
-  { id: 'capacity', num: '03', title: t('admin.supplierProfile.capacityTitle'), desc: t('admin.supplierProfile.capacityHint') },
-  { id: 'bank', num: '04', title: t('admin.supplierProfile.bankTitle'), desc: t('admin.supplierProfile.bankHint') },
-  { id: 'documents', num: '05', title: t('admin.supplierProfile.documentsTitle'), desc: t('admin.supplierProfile.documentsHint') },
+  { id: 'company', num: '01', title: t('admin.supplierPortal.companyDetails'), desc: t('admin.supplierProfile.companyHint') },
+  { id: 'contact', num: '02', title: t('admin.supplierPortal.contactDetails'), desc: t('admin.supplierProfile.contactHint') },
+  { id: 'capacity', num: '03', title: t('admin.supplierPortal.capacity'), desc: t('admin.supplierProfile.capacityHint') },
+  { id: 'bank', num: '04', title: t('admin.supplierPortal.payouts'), desc: t('admin.supplierPortal.payoutsHint') },
 ])
 const activeProfileSection = computed(() => profileSections.value[profileSection.value] || profileSections.value[0])
 const showProfileSection = (index: number) => profileView.value === 'all' || profileSection.value === index
@@ -1453,7 +1309,7 @@ const backToFullProfile = () => {
 }
 const moveProfileSection = (step: number) => {
   const next = profileSection.value + step
-  if (next < 0 || next > 4) return
+  if (next < 0 || next >= profileSections.value.length) return
   profileSection.value = next
   scrollProfileTop()
 }
@@ -1507,8 +1363,13 @@ const bankForm = reactive({
   currency: 'AED',
 })
 const fileNameFromUrl = (url: string) => {
-  const path = decodeURIComponent(url.split('?')[0].split('#')[0])
-  return path.split('/').filter(Boolean).pop() || url
+  if (documentNames.value[url]) return documentNames.value[url]
+  let path = url.split('?')[0].split('#')[0]
+  try { path = decodeURIComponent(path) } catch { /* Keep undecodable legacy URLs usable. */ }
+  const name = path.split('/').filter(Boolean).pop() || ''
+  const extension = /\.[a-z0-9]{2,5}$/i.exec(name)?.[0] || ''
+  if (/[a-f\d]{16,}|[a-f\d]{8}-[a-f\d-]{24,}|\d{13,}/i.test(name)) return `${t('admin.supplierPortal.documentName')}${extension}`
+  return name.length > 48 ? `${name.slice(0, 38)}…${extension}` : name || t('admin.supplierPortal.documentName')
 }
 
 const fileKind = (url: string) => {
@@ -1809,7 +1670,10 @@ const submitServiceAction = async () => {
   }
 }
 
-const quoteCategory = ref('all')
+const quoteCategory = ref(String(router.currentRoute.value.query.category || 'all'))
+const quoteStatusFilter = ref('all')
+const quoteScreen = ref<'setup' | 'review' | 'submitted'>('setup')
+const quoteConfirmed = ref(false)
 const liveQuotes = ref<any[]>([])
 const quoteDialog = reactive({
   visible: false,
@@ -1821,6 +1685,7 @@ const quoteDialog = reactive({
   category: '',
   categoryI18n: null as Record<string, unknown> | null,
   status: undefined as number | undefined,
+  submittedAt: '',
   rejectReason: '',
   priceEditable: true,
   canApplyPriceChange: false,
@@ -1835,10 +1700,22 @@ const quoteDialog = reactive({
 })
 const selectedAttachCount = computed(() => quoteDialog.attaches.filter((item) => item.offered).length)
 const quoteHasRejectedLines = computed(() => quoteDialog.rows.some((row) => Number(row.reviewStatus) === 3 || String(row.rejectReason || '').trim()))
+const quoteEffectiveStatus = computed(() => quoteDialog.rejectReason || quoteHasRejectedLines.value ? 3 : quoteDialog.status)
 const quoteRevisionLocked = computed(() => Number(quoteDialog.status) === 1)
 const quotePriceLocked = computed(() => Number(quoteDialog.status) === 2 && quoteDialog.priceEditable !== true)
 const quoteLineHeld = (row: { reviewStatus?: number | null }) => quotePriceLocked.value || (quoteRevisionLocked.value && Number(row.reviewStatus) !== 3)
 const quoteUnderReview = computed(() => quoteRevisionLocked.value && !quoteHasRejectedLines.value)
+const enabledQuoteRows = computed(() => quoteDialog.rows.filter(row => row.enabled && row.available !== false))
+const quoteContact = computed(() => savedServices.value.find(service => service.spuId === quoteDialog.spuId))
+const quoteContactComplete = computed(() => Boolean(quoteContact.value && !contactProblem(quoteDialogTitle.value, quoteContact.value.workerCount, quoteContact.value.phones)))
+const quoteMissingCount = computed(() => {
+  let count = quoteDialog.quoteMode == null ? 1 : 0
+  if (quoteDialog.quoteMode === 2 && !positiveAmount(quoteDialog.unitPrice)) count += 1
+  count += enabledQuoteRows.value.reduce((sum, row) => sum + optionMissingFields(row, quoteDialog.quoteMode, quoteDialog.unitPrice).filter(field => field !== 'rate').length, 0)
+  count += quoteDialog.attaches.filter(item => item.offered && !positiveAmount(item.quotePrice)).length
+  if (!quoteContactComplete.value) count += 1
+  return count
+})
 
 const settlementTab = ref('transactions')
 const settlementRows = [
@@ -2105,6 +1982,10 @@ const serviceEditor = reactive({
   workerCount: null as number | null,
   phones: [''],
 })
+const serviceEditorReadOnly = computed(() => {
+  const quote = liveQuotes.value.find(item => Number(item.spuId) === serviceEditor.spuId)
+  return Number(quote?.status) === 1 && !quoteRejectText(quote)
+})
 
 const flattenSelected = (groups: CatalogGroupDraft[]): SavedService[] => groups.flatMap((group) =>
   group.services
@@ -2166,6 +2047,10 @@ const serviceCategoryOptions = computed(() => {
     return [{ id: service.categoryId, label: localizedCategory(service.category, service.categoryNameI18n) }]
   })
 })
+const selectedPricingCategory = computed(() => serviceCategoryOptions.value.find(category => category.id === Number(quoteCategory.value))?.label || t('admin.supplierPortal.categoryPanel'))
+watch(serviceCategoryOptions, (categories) => {
+  if (categories.length && !categories.some(category => category.id === Number(quoteCategory.value))) quoteCategory.value = String(categories[0].id)
+}, { immediate: true })
 const pickKey = (service: { categoryId: number; spuId: number }) => `${service.categoryId}:${service.spuId}`
 const addedKeys = computed(() => new Set(savedServices.value.map((service) => pickKey(service))))
 const pickerCategoryId = computed(() => {
@@ -2204,7 +2089,7 @@ const serviceRows = computed(() => {
     const quote = quoteBySpu.get(service.spuId)
     return {
       ...service,
-      status: quote?.status,
+      status: quoteRejectText(quote) ? 3 : quote?.status == null ? undefined : Number(quote.status),
       rejectReason: quoteRejectText(quote),
       priceEditable: quote?.priceEditable !== false,
       canApplyPriceChange: quote?.canApplyPriceChange === true,
@@ -2213,13 +2098,16 @@ const serviceRows = computed(() => {
       priceChangeRejectReason: quote?.priceChangeRejectReason || '',
       quoteMode: quote?.quoteMode == null ? undefined : Number(quote.quoteMode),
       unitPrice: quote?.unitPrice,
+      prices: (quote?.skus || []).filter((line: any) => Number(line.enabled ?? 1) !== 0).map((line: any) => Number(line.approvedPrice ?? line.quotePrice)).filter((price: number) => Number.isFinite(price) && price > 0),
     }
   })
 })
 const filteredServiceRows = computed(() => {
   const keyword = addedKeyword.value.trim().toLowerCase()
   return serviceRows.value.filter((row) => {
-    if (quoteCategory.value !== 'all' && row.categoryId !== Number(quoteCategory.value)) return false
+    if (row.categoryId !== Number(quoteCategory.value)) return false
+    if (quoteStatusFilter.value === 'none' && row.status != null) return false
+    if (quoteStatusFilter.value !== 'all' && quoteStatusFilter.value !== 'none' && row.status !== Number(quoteStatusFilter.value)) return false
     if (!keyword) return true
     const category = localizedCategory(row.category, row.categoryNameI18n)
     return `${serviceHaystack(row.name, row.spuNameI18n)} ${category} ${row.category} ${row.phones.join(' ')}`.includes(keyword)
@@ -2239,8 +2127,8 @@ const quoteNeedsResubmit = (row: { status?: number; rejectReason?: string }) => 
 const pendingQuoteCount = computed(() => serviceRows.value.filter((row) => Number(row.status) === 1).length)
 const enabledServiceCount = computed(() => serviceRows.value.filter((row) => Number(row.acceptOrder) !== 0).length)
 const resetPricingFilters = () => {
-  quoteCategory.value = 'all'
   addedKeyword.value = ''
+  quoteStatusFilter.value = 'all'
 }
 const addPhone = (holder: { phones: string[] }) => {
   if (holder.phones.length >= 10) return
@@ -2276,31 +2164,58 @@ const openServicePicker = () => {
   servicePicker.open = true
 }
 const listedPhones = (phones: string[]) => (phones || []).map((phone) => phone.trim()).filter(Boolean)
-const quoteModeLabel = (mode?: number) => (mode === 1 ? t('admin.supplierPricing.fixedPrice') : mode === 2 ? t('admin.supplierPricing.hourlyRate') : t('admin.supplierPricing.modeUnset'))
+const quoteModeLabel = (mode?: number | null) => (mode === 1 ? t('admin.supplierPricing.fixedPrice') : mode === 2 ? t('admin.supplierPricing.hourlyRate') : t('admin.supplierPricing.modeUnset'))
 const phoneOk = (value: string) => /^[1-9]\d{7,14}$/.test(value.replace(/\D/g, ''))
 const supplierOrders = ref<any[]>([])
 const orderLoading = ref(false)
+const orderLoadFailed = ref(false)
 const orderTotal = ref(0)
 const orderPage = ref(1)
-const visibleOrderCount = computed(() => supplierOrders.value.length)
-const activeOrdersOnPage = computed(() => supplierOrders.value.filter((order) => serviceStep(order) !== 2).length)
-const completedOrdersOnPage = computed(() => supplierOrders.value.filter((order) => serviceStep(order) === 2).length)
+type OrderMetricKey = 'newRequests' | 'upcoming' | 'inProgress' | 'completed'
+type OrderStage = 'all' | OrderMetricKey | 'cancelled'
+const orderMetricKeys: OrderMetricKey[] = ['newRequests', 'upcoming', 'inProgress', 'completed']
+const orderStage = ref<OrderStage>('all')
+const orderStageFilteringSupported = ref(false)
+const orderCapabilitiesLoaded = ref(false)
+const orderSummary = ref<Partial<Record<OrderMetricKey, number>>>({})
+let orderListRequest = 0
+const orderMetrics = computed(() => orderMetricKeys.map((key) => ({
+  key,
+  label: t(`admin.supplierPortal.${key}`),
+  value: orderSummary.value[key] ?? null,
+})))
+const orderStages = computed(() => [
+  { value: 'all' as OrderStage, label: t('admin.supplierPortal.allOrders') },
+  ...orderMetricKeys.map((value) => ({ value: value as OrderStage, label: t(`admin.supplierPortal.${value}`) })),
+  { value: 'cancelled' as OrderStage, label: t('admin.supplierPortal.cancelled') },
+])
+const orderStageUnavailable = computed(() => String(locale.value).startsWith('zh')
+  ? '当前服务暂不支持按状态筛选，已显示全部订单。'
+  : 'Status filtering is not available from the server yet. All orders are shown.')
 const orderPageRange = computed(() => {
-  const from = visibleOrderCount.value ? ((orderPage.value - 1) * 10) + 1 : 0
-  const to = visibleOrderCount.value ? Math.min(from + visibleOrderCount.value - 1, orderTotal.value) : 0
+  const count = supplierOrders.value.length
+  const from = count ? ((orderPage.value - 1) * 10) + 1 : 0
+  const to = count ? Math.min(from + count - 1, orderTotal.value) : 0
   return t('admin.supplierOrders.pageRange', { from, to, total: orderTotal.value })
 })
 const hasOrderFilters = computed(() => Boolean(
   orderKeyword.value
   || orderServiceKeyword.value
   || orderCategory.value
-  || orderDateRange.value.length,
+  || orderDateRange.value.length
+  || orderStage.value !== 'all',
 ))
 const resetOrderFilters = () => {
   orderKeyword.value = ''
   orderServiceKeyword.value = ''
   orderCategory.value = null
   orderDateRange.value = []
+  orderStage.value = 'all'
+  searchOrders()
+}
+const changeOrderStage = (stage: OrderStage) => {
+  if (stage === orderStage.value || (stage !== 'all' && !orderStageFilteringSupported.value)) return
+  orderStage.value = stage
   searchOrders()
 }
 
@@ -2352,6 +2267,13 @@ const coverageRows = computed(() => {
   }).filter((row) => row.picked.length || row.bare)
 })
 const coveredCommunityCount = computed(() => savedCoverage.value.included.length)
+const coverageWorkspaceRows = computed(() => coverageRows.value.map((row) => ({
+  id: row.id,
+  zone: row.name,
+  selectedCommunities: row.picked.length,
+  totalCommunities: row.communities.length,
+  status: !row.communities.length || row.picked.length === row.communities.length ? 'full' : 'partial',
+})))
 const coverageSummary = (areas: number, communities: number) => t('admin.supplierArea.count', {
   areas: t(areas === 1 ? 'admin.supplierArea.oneArea' : 'admin.supplierArea.manyAreas', { count: areas }),
   communities: t(communities === 1 ? 'admin.supplierArea.oneCommunity' : 'admin.supplierArea.manyCommunities', { count: communities }),
@@ -2469,11 +2391,16 @@ const moneyText = (value: unknown) => {
   const amount = Number(value)
   return Number.isFinite(amount) ? amount.toFixed(2) : '—'
 }
-const yourPriceText = (row: { quoteMode?: number; unitPrice?: unknown }) => {
+const yourPriceText = (row: { quoteMode?: number; unitPrice?: unknown; prices?: number[] }) => {
   if (Number(row.quoteMode) === 2 && row.unitPrice != null && row.unitPrice !== '') {
     return t('admin.supplierPricing.priceHourly', { price: moneyText(row.unitPrice) })
   }
-  return Number(row.quoteMode) === 1 ? t('admin.supplierPricing.fixedPrice') : t('admin.supplierPricing.priceNotSet')
+  if (Number(row.quoteMode) === 1 && row.prices?.length) {
+    const min = Math.min(...row.prices)
+    const max = Math.max(...row.prices)
+    return `AED ${moneyText(min)}${max === min ? '' : ` – ${moneyText(max)}`}`
+  }
+  return t('admin.supplierPricing.priceNotSet')
 }
 const supplierInitials = computed(() => {
   const raw = String(companyForm.companyName || '').trim()
@@ -2546,9 +2473,12 @@ const orderAddonText = (row: any) => {
     return quantity > 1 ? `${name} × ${quantity}` : name
   }).filter(Boolean).join(', ') || t('admin.supplierOrders.noAddons')
 }
-const orderAddonBrief = (row: any) => {
-  const text = orderAddonText(row)
-  return !text || text === t('admin.supplierOrders.noAddons') ? '' : text
+const orderCustomerArea = (row: any) => {
+  const area = pickI18nText(row?.customerAreaI18n || row?.areaNameI18n, locale.value, '')
+    || [row?.customerArea, row?.areaName, row?.serviceAreaName].find((value) => typeof value === 'string' && value.trim())
+  const community = pickI18nText(row?.communityNameI18n, locale.value, '')
+    || (typeof row?.communityName === 'string' ? row.communityName.trim() : '')
+  return [...new Set([area, community].filter(Boolean))].join(' · ') || '—'
 }
 const orderStartTime = (value?: string) => {
   const text = String(value || '').trim()
@@ -2627,6 +2557,7 @@ const buildProfilePayload = (status?: number, areaIds?: number[]) => ({
     bank: { ...bankForm },
     tradeLicenseFiles: [...tradeLicenseFiles.value],
     otherDocuments: [...otherDocumentFiles.value],
+    documentNames: { ...documentNames.value },
   },
 })
 
@@ -2670,6 +2601,7 @@ const applyProfile = (detail: any) => {
   const extra = detail?.extra && typeof detail.extra === 'object' ? detail.extra : {}
   const bank = extra.bank && typeof extra.bank === 'object' ? extra.bank : {}
   profileExtra.value = { ...extra }
+  documentNames.value = extra.documentNames && typeof extra.documentNames === 'object' ? { ...extra.documentNames } : {}
   bankForm.accountName = String(bank.accountName || '')
   bankForm.bankName = String(bank.bankName || '')
   bankForm.iban = String(bank.iban || '')
@@ -2733,7 +2665,7 @@ const applyProfile = (detail: any) => {
   coveredCommunityIds.value = Array.isArray(savedCoverage)
     ? savedCoverage.map((id: unknown) => Number(id)).filter((id: number) => Number.isFinite(id) && id > 0)
     : null
-  if (section.value === 'service-area') ensureAreaCatalog()
+  if (['service-area', 'availability', 'coverage-availability'].includes(section.value)) ensureAreaCatalog()
 }
 
 const loadSupplierDetail = async (id: number, fresh = false) => {
@@ -2763,6 +2695,37 @@ const reloadOwnProfile = async () => {
   }
 }
 
+const applyOperations = (operations: any) => {
+  if (!operations || typeof operations !== 'object' || Array.isArray(operations)) return
+  const schedule = operations.schedule
+  const coverage = operations.coverage
+  if (schedule && typeof schedule === 'object') {
+    capacityForm.start = String(schedule.startTime || capacityForm.start)
+    capacityForm.end = String(schedule.endTime || capacityForm.end)
+    capacityForm.concurrent = Number(schedule.maxConcurrentJobs ?? capacityForm.concurrent)
+    if (Array.isArray(schedule.workingDays)) {
+      capacityToggles[1].enabled = schedule.workingDays.map(Number).includes(6)
+      capacityToggles[2].enabled = schedule.workingDays.map(Number).includes(7)
+      capacityToggles[0].enabled = capacityToggles[1].enabled || capacityToggles[2].enabled
+    }
+  }
+  if (coverage && typeof coverage === 'object') {
+    if (Array.isArray(coverage.areaIds)) {
+      selectedAreaIds.value = coverage.areaIds.map(Number).filter((id: number) => id > 0)
+      supplierAreas.value = selectedAreaIds.value.map(areaId => ({ areaId, areaName: (coverage.areas || []).find((area: any) => Number(area.areaId) === areaId)?.areaName || areaNameById(areaId) }))
+    }
+    if (Array.isArray(coverage.communityIds)) coveredCommunityIds.value = coverage.communityIds.map(Number).filter((id: number) => id > 0)
+  }
+  if (coverage || schedule) independentOperationsReady.value = true
+}
+const loadOwnOperations = async () => {
+  if (!supplierRecordId.value) return
+  try { applyOperations(unwrap(await supplierOperationsMine())) } catch {
+    // Older servers still expose draft operational fields in onboarding details.
+    // Submitted profiles never fall back to a full onboarding write.
+  }
+}
+
 const loadCurrentSupplier = async () => {
   const me = await session.currentUser()
   supplierNo.value = String(me?.supplierNo || '')
@@ -2773,20 +2736,18 @@ const loadCurrentSupplier = async () => {
   }
   supplierRecordId.value = supplierId
   await reloadOwnProfile()
-  if (section === 'profile') await loadCatalog()
+  if (['overview', 'coverage-availability', 'service-area', 'availability'].includes(section.value)) await loadOwnOperations()
+  if (section.value === 'profile') await loadCatalog()
 }
 
 const saveAvailabilityHours = async (next: { start: string; end: string; concurrent: number; saturday: boolean; sunday: boolean }) => {
+  if (!supplierRecordId.value || saving.value) return
   const previous = {
     start: capacityForm.start,
     end: capacityForm.end,
     concurrent: capacityForm.concurrent,
     saturday: capacityToggles[1].enabled,
     sunday: capacityToggles[2].enabled,
-  }
-  if (!profileEditable.value) {
-    ElMessage.warning(t('admin.supplierProfile.locked'))
-    return
   }
   capacityForm.start = next.start
   capacityForm.end = next.end
@@ -2796,10 +2757,10 @@ const saveAvailabilityHours = async (next: { start: string; end: string; concurr
   capacityToggles[0].enabled = next.saturday || next.sunday
   saving.value = true
   try {
-    if (onboardingStatus.value === 2 || onboardingStatus.value === 3) {
-      unwrap(await onboardingResubmit(buildProfilePayload(1)))
-      ElMessage.success(t('admin.supplierProfile.resubmitted'))
-      await reloadOwnProfile()
+    if (independentOperationsReady.value || onboardingStatus.value !== 0 || !profileEditable.value) {
+      const workingDays = [1, 2, 3, 4, 5, ...(next.saturday ? [6] : []), ...(next.sunday ? [7] : [])]
+      applyOperations(unwrap(await supplierScheduleSave({ supplierId: supplierRecordId.value, workingDays, startTime: next.start, endTime: next.end, maxConcurrentJobs: next.concurrent, timezone: 'Asia/Dubai' })))
+      ElMessage.success(t('admin.supplierAvailability.hoursSaved'))
       return
     }
     const id = unwrap(await onboardingSave(buildProfilePayload(onboardingStatus.value ?? 0)))
@@ -2826,6 +2787,7 @@ const toggleAcceptDispatch = async (next: boolean) => {
   dispatchSaving.value = true
   try {
     await supplierChangeAcceptDispatch({ id: supplierRecordId.value, acceptDispatch: next ? 1 : 0 })
+    session.patchSupplierDetail(supplierRecordId.value, { acceptDispatch: next ? 1 : 0 })
     ElMessage.success(t('admin.supplierAvailability.dispatchSaved'))
   } catch (error: any) {
     supplierAcceptDispatch.value = previous
@@ -2892,7 +2854,10 @@ const profileIssues = computed(() => {
   add('mobile', 1, t('admin.supplierProfile.mobile'), uaeLocalOk(companyForm.mobile), t('admin.supplierProfile.phoneInvalid'))
   add('whatsapp', 1, t('admin.supplierProfile.whatsapp'), whatsappSame.value ? uaeLocalOk(companyForm.mobile) : uaeLocalOk(companyForm.whatsapp), t('admin.supplierProfile.whatsappRequired'))
   add('communities', 2, t('admin.supplierProfile.applyRenmark'), asYesNo(otherCommunityOnboarded.value) !== 1 || Boolean(applyRenmark.value.trim()), t('admin.supplierProfile.communityRequired'))
-  add('tradeLicense', 4, t('admin.supplierProfile.tradeLicenseFile'), tradeLicenseFiles.value.length > 0, t('admin.supplierProfile.tradeFileRequired'))
+  for (const field of ['accountName', 'bankName', 'iban', 'currency'] as const) {
+    add(field, 3, t(`admin.supplierProfile.${field}`), Boolean(bankForm[field].trim()), t('admin.supplierPortal.requiredField', { field: t(`admin.supplierProfile.${field}`) }))
+  }
+  add('tradeLicense', 3, t('admin.supplierProfile.tradeLicenseFile'), tradeLicenseFiles.value.length > 0, t('admin.supplierProfile.tradeFileRequired'))
   return issues
 })
 const issueOf = (id: string) => profileIssues.value.find((item) => item.id === id)?.message || ''
@@ -2906,12 +2871,12 @@ const lightboxDesc = computed(() => profileView.value === 'all'
 const lightboxCrumb = computed(() => {
   if (profileView.value === 'all') return t('admin.supplierProfile.title')
   if (profileFromAll.value) return t('admin.supplierProfile.editingCrumb')
-  return t('admin.supplierProfile.stepOf', { current: profileSection.value + 1, total: 5 })
+  return t('admin.supplierProfile.stepOf', { current: profileSection.value + 1, total: profileSections.value.length })
 })
 const bankComplete = computed(() => Boolean(
   bankForm.accountName.trim() && bankForm.bankName.trim() && bankForm.iban.trim(),
 ))
-const sectionIncomplete = (index: number) => index === 3 ? !bankComplete.value : sectionHasIssue(index)
+const sectionIncomplete = (index: number) => sectionHasIssue(index)
 const lightboxChip = computed(() => {
   if (profileView.value === 'all' && !profileEditable.value) return t('admin.supplierProfile.submittedChip')
   const bad = profileView.value === 'all'
@@ -2974,6 +2939,7 @@ const resubmitProfile = async () => {
     unwrap(await onboardingResubmit(buildProfilePayload(1)))
     ElMessage.success(t('admin.supplierProfile.resubmitted'))
     await reloadOwnProfile()
+    profileSubmittedOpen.value = true
   } catch (error: any) {
     ElMessage.error(error?.message || t('admin.supplierProfile.saveFailed'))
   } finally {
@@ -2998,6 +2964,7 @@ const saveProfile = async (status: number) => {
     onboardingStatus.value = status
     ElMessage.success(t(status === 1 ? 'admin.supplierProfile.submitted' : 'admin.supplierProfile.draftSaved'))
     if (supplierRecordId.value) await loadSupplierDetail(supplierRecordId.value, true)
+    if (status === 1) profileSubmittedOpen.value = true
   } catch (error: any) {
     ElMessage.error(error?.message || t('admin.supplierProfile.saveFailed'))
   } finally {
@@ -3029,11 +2996,14 @@ const uploadInsurance = async (fileKey: string | undefined, options: any) => {
 
 const uploadDocFile = async (id: 'trade' | 'public' | 'employee' | 'other', options: any) => {
   try {
+    const file = options.file as File
+    if (!/\.(pdf|jpe?g|png)$/i.test(file.name) || file.size > 10 * 1024 * 1024) throw new Error(t('admin.supplierPortal.fileInvalid'))
     const files = docFiles(id)
     if (files.length >= 20) throw new Error(t('admin.supplierProfile.uploadLimit'))
     const url = unwrap(await uploadFile(options.file as File))
     const fileUrl = typeof url === 'string' ? url : url?.url || ''
     if (fileUrl && !files.includes(fileUrl)) files.push(fileUrl)
+    if (fileUrl) documentNames.value[fileUrl] = file.name
     options.onSuccess?.(url)
     ElMessage.success(t('admin.supplierProfile.uploaded'))
   } catch (error: any) {
@@ -3124,6 +3094,7 @@ const chosenAreaIds = () => {
 }
 
 const saveAreas = async () => {
+  if (!supplierRecordId.value || saving.value) return
   if (!companyForm.companyName) {
     ElMessage.warning(t('admin.supplierArea.profileRequired'))
     return
@@ -3137,11 +3108,18 @@ const saveAreas = async () => {
   coveredCommunityIds.value = [...draftCommunityIds.value]
   saving.value = true
   try {
-    const id = unwrap(await onboardingSave(buildProfilePayload(onboardingStatus.value ?? undefined, areaIds)))
-    if (id) supplierRecordId.value = Number(id)
+    if (independentOperationsReady.value || onboardingStatus.value !== 0 || !profileEditable.value) {
+      const saved = unwrap(await supplierCoverageSave({ supplierId: supplierRecordId.value, areaIds, communityIds: [...draftCommunityIds.value] }))
+      supplierAreas.value = areaIds.map(areaId => ({ areaId, areaName: areaNameById(areaId) }))
+      selectedAreaIds.value = areaIds
+      applyOperations(saved)
+    } else {
+      const id = unwrap(await onboardingSave(buildProfilePayload(0, areaIds)))
+      if (id) supplierRecordId.value = Number(id)
+      await loadSupplierDetail(supplierRecordId.value, true)
+    }
     areaEditorVisible.value = false
     ElMessage.success(t('admin.supplierArea.saved'))
-    if (supplierRecordId.value) await loadSupplierDetail(supplierRecordId.value, true)
   } catch (error: any) {
     dubaiServiceAreas.value = previousAreas
     profileExtra.value = previousExtra
@@ -3238,6 +3216,7 @@ const openServiceEditor = (row: SavedService) => {
   serviceEditor.open = true
 }
 const saveServiceEditor = async () => {
+  if (serviceEditorReadOnly.value) return
   const problem = contactProblem(serviceEditorTitle.value || t('admin.supplierPricing.thisService'), serviceEditor.workerCount, serviceEditor.phones)
   if (problem) {
     ElMessage.warning(problem)
@@ -3252,18 +3231,6 @@ const saveServiceEditor = async () => {
   const saved = await persistServices(next, t('admin.supplierPricing.serviceSaved'))
   if (saved) serviceEditor.open = false
 }
-const removeAddedService = async (row: SavedService) => {
-  try {
-    await ElMessageBox.confirm(t('admin.supplierPricing.removeConfirm', { name: serviceTitle(row.name, row.spuNameI18n) }), t('admin.supplierPricing.removeTitle'), { type: 'warning' })
-  } catch {
-    return
-  }
-  await persistServices(
-    savedServices.value.filter((service) => !(service.spuId === row.spuId && service.categoryId === row.categoryId)),
-    t('admin.supplierPricing.removed'),
-  )
-}
-
 const loadQuotes = async (fresh = false) => {
   if (!supplierRecordId.value) return
   quoteLoading.value = true
@@ -3298,11 +3265,7 @@ const workloadFromSpecs = (specs?: Record<string, unknown>) => {
 
 const skuAmount = (row: { staffCount?: number | null; serviceHours?: number | null }) => {
   if (quoteDialog.quoteMode !== 2) return null
-  const unit = Number(quoteDialog.unitPrice)
-  const staff = Number(row.staffCount)
-  const hours = Number(row.serviceHours)
-  if (!(unit > 0) || !(staff > 0) || !(hours > 0)) return null
-  return Math.round((unit * staff * hours + Number.EPSILON) * 100) / 100
+  return calculatedQuotePrice(quoteDialog.unitPrice, row.staffCount, row.serviceHours)
 }
 
 const skuEnabled = (value: unknown, available = true) => available !== false && (value == null || value === '' || Number(value) === 1)
@@ -3383,6 +3346,7 @@ const submitProblem = () => {
   if (!items.length) return t('admin.supplierPricing.skuSwitchRequired')
   const incomplete = items.some((item) => !(Number(item.staffCount) > 0 && Number(item.serviceHours) > 0 && Number(item.quotePrice) > 0))
   if (incomplete) return t('admin.supplierPricing.submitIncomplete')
+  if (!quoteContactComplete.value) return t('admin.supplierPortal.contactRequired')
   return ''
 }
 
@@ -3403,6 +3367,7 @@ const quotePayload = () => {
 const applySavedQuote = (saved: any) => {
   if (!saved) return
   quoteDialog.status = saved.status ?? quoteDialog.status
+  quoteDialog.submittedAt = String(saved.submitTime || saved.submittedAt || quoteDialog.submittedAt || '')
   quoteDialog.rejectReason = saved.rejectReason || ''
   quoteDialog.priceEditable = saved.priceEditable !== false
   quoteDialog.canApplyPriceChange = saved.canApplyPriceChange === true
@@ -3431,23 +3396,14 @@ const openQuotedServiceEditor = () => {
   const row = savedServices.value.find((service) => service.spuId === quoteDialog.spuId)
   if (row) openServiceEditor(row)
 }
-const onQuoteMode = (mode: string | number | boolean | undefined) => {
-  if (Number(mode) !== 1) return
-  quoteDialog.rows.forEach((row) => {
-    if (row.quotePrice != null && row.quotePrice !== '') return
-    const unit = Number(quoteDialog.unitPrice)
-    const staff = Number(row.staffCount)
-    const hours = Number(row.serviceHours)
-    if (unit > 0 && staff > 0 && hours > 0) row.quotePrice = Math.round((unit * staff * hours + Number.EPSILON) * 100) / 100
-  })
-}
 const pickQuoteMode = (mode: 1 | 2) => {
   quoteDialog.quoteMode = mode
-  onQuoteMode(mode)
 }
 
 const openServiceQuote = async (row: { spuId: number; name: string; spuNameI18n?: Record<string, unknown> | null; category: string; categoryNameI18n?: Record<string, unknown> | null; status?: number; rejectReason?: string; quoteMode?: number; unitPrice?: number | null }) => {
   quoteDialog.visible = true
+  quoteConfirmed.value = false
+  quoteScreen.value = router.currentRoute.value.query.quoteStep === 'review' ? 'review' : 'setup'
   quoteDialog.loading = true
   await nextTick()
   scrollProfileTop()
@@ -3457,6 +3413,7 @@ const openServiceQuote = async (row: { spuId: number; name: string; spuNameI18n?
   quoteDialog.category = row.category || ''
   quoteDialog.categoryI18n = row.categoryNameI18n || null
   quoteDialog.status = row.status
+  quoteDialog.submittedAt = ''
   quoteDialog.rejectReason = row.rejectReason || ''
   quoteDialog.priceEditable = (row as any).priceEditable !== false
   quoteDialog.canApplyPriceChange = (row as any).canApplyPriceChange === true
@@ -3510,6 +3467,7 @@ const openServiceQuote = async (row: { spuId: number; name: string; spuNameI18n?
       quoteDialog.priceChangeRejectReason = quote.priceChangeRejectReason || ''
       quoteDialog.quoteMode = Number(quote.quoteMode) === 2 ? 2 : 1
       quoteDialog.unitPrice = quote.unitPrice == null || quote.unitPrice === '' ? quoteDialog.unitPrice : Number(quote.unitPrice)
+      quoteDialog.submittedAt = String(quote.submitTime || quote.submittedAt || '')
     }
     let catalogAttaches = Array.isArray(detail.attaches) ? detail.attaches : []
     if (!catalogAttaches.length) {
@@ -3520,12 +3478,38 @@ const openServiceQuote = async (row: { spuId: number; name: string; spuNameI18n?
       }
     }
     quoteDialog.attaches = mergeAttaches(catalogAttaches, quote?.attaches)
+    if (quoteUnderReview.value) quoteScreen.value = 'submitted'
+    else if (quoteScreen.value === 'review' && quoteMissingCount.value) quoteScreen.value = 'setup'
+    syncQuoteRoute()
   } catch (error: any) {
     ElMessage.error(error?.message || t('admin.supplierPricing.specsFailed'))
     quoteDialog.visible = false
   } finally {
     quoteDialog.loading = false
   }
+}
+
+const syncQuoteRoute = () => {
+  router.replace({ path: router.currentRoute.value.path, query: { ...router.currentRoute.value.query, service: String(quoteDialog.spuId), quoteStep: quoteScreen.value, category: quoteCategory.value } })
+}
+const closeServiceQuote = () => {
+  quoteDialog.visible = false
+  const { service, quoteStep, category, ...query } = router.currentRoute.value.query
+  router.replace({ path: router.currentRoute.value.path, query })
+}
+const backToQuoteSetup = () => {
+  if (quoteUnderReview.value) return
+  quoteScreen.value = 'setup'
+  quoteConfirmed.value = false
+  syncQuoteRoute()
+  scrollProfileTop()
+}
+const reviewServiceQuote = () => {
+  if (quoteMissingCount.value || !enabledQuoteRows.value.length || quoteUnderReview.value || quotePriceLocked.value) return
+  quoteScreen.value = 'review'
+  quoteConfirmed.value = false
+  syncQuoteRoute()
+  scrollProfileTop()
 }
 
 const requestPriceChange = async () => {
@@ -3584,7 +3568,7 @@ const saveServiceQuote = async () => {
 }
 
 const submitServiceQuote = async () => {
-  if (!supplierRecordId.value || quoteUnderReview.value || quotePriceLocked.value) return
+  if (!supplierRecordId.value || quoteDialog.saving || quoteUnderReview.value || quotePriceLocked.value || quoteScreen.value !== 'review' || !quoteConfirmed.value) return
   const problem = submitProblem()
   if (problem) {
     ElMessage.warning(problem)
@@ -3596,11 +3580,16 @@ const submitServiceQuote = async () => {
     const submitted = unwrap(await submitQuote({
       supplierId: supplierRecordId.value,
       spuId: quoteDialog.spuId,
+      confirmation: { pricesIncludeVat: true, informationAccurate: true },
     }))
     applySavedQuote(submitted)
     quoteDialog.status = submitted?.status ?? 1
+    quoteDialog.rejectReason = ''
+    quoteDialog.rows.forEach(row => { row.rejectReason = ''; row.reviewStatus = undefined })
+    quoteDialog.submittedAt = String(submitted?.submitTime || submitted?.submittedAt || new Date().toISOString())
     ElMessage.success(t('admin.supplierPricing.submitted'))
-    quoteDialog.visible = false
+    quoteScreen.value = 'submitted'
+    syncQuoteRoute()
     await loadQuotes(true)
   } catch (error: any) {
     ElMessage.error(error?.message || t('admin.supplierPricing.submitFailed'))
@@ -3626,7 +3615,10 @@ const loadOrderDetail = async (orderId: number) => {
   }
 }
 const loadOrders = async () => {
+  const requestId = ++orderListRequest
+  const requestedStage = orderStage.value
   orderLoading.value = true
+  orderLoadFailed.value = false
   try {
     const [serviceTimeStart, serviceTimeEnd] = orderDateRange.value || []
     const page = unwrap(await supplierAssignedOrders({
@@ -3635,17 +3627,39 @@ const loadOrders = async () => {
       categoryId: orderCategory.value || undefined,
       serviceTimeStart: serviceTimeStart || undefined,
       serviceTimeEnd: serviceTimeEnd || undefined,
+      orderStage: orderStageFilteringSupported.value && requestedStage !== 'all' ? requestedStage : undefined,
       pageNum: orderPage.value,
       pageSize: 10,
     }))
-    supplierOrders.value = page?.list || []
+    if (requestId !== orderListRequest) return
+    const supportedFilters = page?.capabilities?.supportedFilters ?? page?.supportedFilters
+    orderStageFilteringSupported.value = Array.isArray(supportedFilters) && supportedFilters.includes('orderStage')
+    orderCapabilitiesLoaded.value = true
+    if (!orderStageFilteringSupported.value && requestedStage !== 'all') {
+      orderStage.value = 'all'
+      orderPage.value = 1
+      await loadOrders()
+      return
+    }
+    const summary: Partial<Record<OrderMetricKey, number>> = {}
+    for (const key of orderMetricKeys) {
+      const raw = page?.summary?.[key]
+      if (typeof raw !== 'number' && (typeof raw !== 'string' || !raw.trim())) continue
+      const count = Number(raw)
+      if (Number.isSafeInteger(count) && count >= 0) summary[key] = count
+    }
+    orderSummary.value = summary
+    supplierOrders.value = Array.isArray(page?.list) ? page.list : []
     orderTotal.value = Number(page?.total || 0)
   } catch (error: any) {
+    if (requestId !== orderListRequest) return
     supplierOrders.value = []
     orderTotal.value = 0
+    orderSummary.value = {}
+    orderLoadFailed.value = true
     ElMessage.error(error?.message || t('admin.supplierOrders.loadFailed'))
   } finally {
-    orderLoading.value = false
+    if (requestId === orderListRequest) orderLoading.value = false
   }
 }
 const searchOrders = () => {
@@ -3672,13 +3686,34 @@ onMounted(() => {
   loadCurrentSupplier().catch((error: any) => ElMessage.error(error?.message || t('admin.supplierProfile.loadFailed')))
 })
 watch(section, (value) => {
+  scrollProfileTop()
   if (value === 'orders') loadOrders()
-  if (value === 'service-area') ensureAreaCatalog()
+  if (['service-area', 'availability', 'coverage-availability'].includes(value)) { ensureAreaCatalog(); loadOwnOperations() }
+  if (value === 'overview') loadOwnOperations()
   if (value === 'pricing') {
     loadCatalog()
     loadQuotes()
   }
 })
+watch([
+  () => router.currentRoute.value.query.service,
+  () => router.currentRoute.value.query.quoteStep,
+  () => catalogLoading.value,
+  () => quoteLoading.value,
+  () => serviceRows.value.length,
+], () => {
+  if (section.value !== 'pricing' || catalogLoading.value || quoteLoading.value) return
+  const id = Number(router.currentRoute.value.query.service)
+  if (!id) { quoteDialog.visible = false; return }
+  if (quoteDialog.visible && quoteDialog.spuId === id) {
+    if (quoteUnderReview.value) quoteScreen.value = 'submitted'
+    else if (!quoteDialog.loading) quoteScreen.value = router.currentRoute.value.query.quoteStep === 'review' && !quoteMissingCount.value ? 'review' : 'setup'
+    return
+  }
+  const row = serviceRows.value.find(service => service.spuId === id)
+  if (row) { quoteCategory.value = String(row.categoryId); openServiceQuote(row) }
+})
+watch(() => JSON.stringify([quoteDialog.quoteMode, quoteDialog.unitPrice, quoteDialog.rows, quoteDialog.attaches, quoteContact.value]), () => { quoteConfirmed.value = false })
 watch(areaKeyword, (keyword) => {
   const query = keyword.trim().toLowerCase()
   if (!query) return
@@ -4472,5 +4507,77 @@ watch(areaKeyword, (keyword) => {
 </style>
 
 <style scoped>
+.portal-orders-review { display: flex; align-items: flex-start; gap: 12px; margin-bottom: 18px; padding: 16px 18px; color: #805a17; background: #fff8e8; border: 1px solid #efdfb8; border-radius: 12px; }
+.portal-orders-review > svg { flex: 0 0 20px; width: 20px; margin-top: 1px; }
+.portal-orders-review strong { font-size: 14px; }
+.portal-orders-review p { margin: 5px 0 0; font-size: 13px; line-height: 1.6; }
+.portal-orders-metrics { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; min-width: 0; margin-bottom: 20px; }
+.portal-orders-metrics article { position: relative; min-width: 0; min-height: 112px; padding: 18px 20px; background: #fff; border: 1px solid #e7e5df; border-radius: 12px; }
+.portal-orders-metrics article::before { position: absolute; top: 20px; right: 18px; width: 8px; height: 8px; content: ''; background: #c69a42; border-radius: 50%; }
+.portal-orders-metric--upcoming::before { background: #5c8bc4 !important; }
+.portal-orders-metric--inProgress::before { background: #8e75c2 !important; }
+.portal-orders-metric--completed::before { background: #439e7b !important; }
+.portal-orders-metrics span { display: block; padding-right: 14px; color: #677487; font-size: 12px; font-weight: 600; line-height: 1.5; }
+.portal-orders-metrics strong { display: block; margin-top: 10px; color: #122b45; font-size: 30px; font-weight: 650; line-height: 1.1; }
+.portal-orders-metrics small { display: block; margin-top: 6px; color: #8a94a2; font-size: 11px; }
+.portal-orders-card { min-width: 0; overflow: hidden; border-color: #e7e5df; border-radius: 14px; }
+.portal-orders-toolbar { gap: 16px; padding: 20px; }
+.portal-orders-stages { display: flex; flex-wrap: wrap; gap: 6px; min-width: 0; padding-bottom: 2px; }
+.portal-orders-stages button { min-height: 36px; padding: 8px 12px; color: #627082; background: transparent; border: 1px solid transparent; border-radius: 8px; font: inherit; font-size: 12px; font-weight: 600; cursor: pointer; }
+.portal-orders-stages button:hover:not(:disabled), .portal-orders-stages button.is-active { color: #8d5a32; background: #f8f1e6; border-color: #ead8bc; }
+.portal-orders-stages button:focus-visible { outline: 2px solid #8d5a32; outline-offset: 2px; }
+.portal-orders-stages button:disabled { color: #8b929b; cursor: not-allowed; }
+.portal-orders-compatibility { margin: -6px 0 0; color: #7c8795; font-size: 12px; line-height: 1.5; }
+.portal-orders-filters { gap: 12px; }
+.portal-orders-table-shell { width: 100%; min-width: 0; overflow-x: clip; }
+.portal-orders-table { width: 100%; min-width: 0; }
+.portal-orders-table :deep(.cell) { padding-right: 10px; padding-left: 10px; overflow-wrap: anywhere; }
+.portal-orders-table :deep(th .cell) { color: #738093; font-size: 11px; font-weight: 600; white-space: normal; line-height: 1.45; }
+.portal-orders-table :deep(.order-status-col .cell) { white-space: normal; }
+.portal-orders-table :deep(.el-tag) { height: auto; min-height: 24px; padding-top: 3px; padding-bottom: 3px; line-height: 1.35; white-space: normal; text-align: center; }
+.portal-orders-table .order-no { max-width: 100%; overflow-wrap: anywhere; }
+.portal-orders-table .order-row-actions { align-items: flex-end; white-space: normal; }
+.portal-orders-table .order-row-actions :deep(.el-button) { max-width: 100%; height: auto; min-height: 26px; line-height: 1.45; white-space: normal; text-align: right; }
+.portal-orders-table .order-row-actions :deep(.el-button > span) { white-space: normal; }
+.portal-orders-empty { display: flex; flex-direction: column; align-items: center; padding: 62px 24px 68px; text-align: center; }
+.portal-orders-empty-icon { display: grid; place-items: center; width: 58px; height: 58px; color: #ab8550; background: #faf4ea; border: 1px solid #eee0ca; border-radius: 17px; }
+.portal-orders-empty-icon svg { width: 27px; }
+.portal-orders-empty h2 { margin: 18px 0 0; color: #172e45; font-size: 19px; font-weight: 650; }
+.portal-orders-empty p { max-width: 460px; margin: 9px 0 24px; color: #7a8798; font-size: 13px; line-height: 1.7; }
+.portal-orders-empty > div { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; }
+.portal-orders-empty :deep(.el-button + .el-button) { margin-left: 0; }
+.portal-orders-pager { align-items: center; justify-content: space-between; gap: 12px; border-top: 1px solid #edf0f2; }
+.portal-orders-pager > span { color: #85909f; font-size: 11px; }
+@media (max-width: 1280px) {
+  .portal-orders-table-shell { display: none; }
+  .portal-orders-mobile { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; padding: 16px; background: #fafbfc; }
+  .portal-orders-mobile-card { min-width: 0; padding: 18px; background: #fff; border: 1px solid #e7e9ed; border-radius: 12px; }
+  .portal-orders-mobile-card header { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
+  .portal-orders-mobile-card .order-no { min-width: 0; overflow-wrap: anywhere; }
+  .portal-orders-mobile-card :deep(.el-tag) { flex: 0 0 auto; max-width: 50%; height: auto; min-height: 24px; padding-top: 3px; padding-bottom: 3px; line-height: 1.35; white-space: normal; text-align: center; }
+  .portal-orders-mobile-card h3 { margin: 18px 0 6px; color: #172e45; font-size: 17px; font-weight: 650; line-height: 1.4; overflow-wrap: anywhere; }
+  .portal-orders-mobile-card > p { margin: 0; color: #7b8797; font-size: 12px; line-height: 1.5; }
+  .portal-orders-mobile-card dl { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; margin: 18px 0 0; padding-top: 16px; border-top: 1px solid #edf0f3; }
+  .portal-orders-mobile-card dl .is-wide { grid-column: 1 / -1; }
+  .portal-orders-mobile-card dt { color: #85909f; font-size: 11px; }
+  .portal-orders-mobile-card dd { margin: 4px 0 0; color: #243b51; font-size: 12px; font-weight: 600; line-height: 1.5; overflow-wrap: anywhere; }
+  .portal-orders-mobile-card footer { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; margin-top: 20px; }
+  .portal-orders-mobile-card footer :deep(.el-button + .el-button) { margin-left: 0; }
+}
+@media (max-width: 760px) {
+  .portal-orders-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+  .portal-orders-metrics article { min-height: 106px; padding: 16px; }
+  .portal-orders-metrics article::before { top: 19px; right: 14px; }
+  .portal-orders-toolbar { padding: 16px; }
+  .portal-orders-stages { gap: 4px; }
+  .portal-orders-stages button { padding: 8px 10px; }
+  .portal-orders-mobile { grid-template-columns: minmax(0, 1fr); padding: 12px; }
+  .portal-orders-empty { padding: 42px 18px 48px; }
+  .portal-orders-empty > div { flex-direction: column; width: min(100%, 320px); }
+  .portal-orders-pager { flex-wrap: wrap; justify-content: center; }
+  .portal-orders-pager > span { flex-basis: 100%; text-align: center; }
+}
 @media (max-width: 820px) { .picker-fields, .picker-toolbar { grid-template-columns: 1fr; flex-direction: column; } .pricing-filter .el-input, .pricing-filter .el-select { width: 100%; } .supplier-demo { padding: 14px; } .supplier-demo--profile { padding: 0 0 20px; } .supplier-demo--profile .page-header h1 { font-size: 30px; } .supplier-demo--profile .dossier { padding: 0 12px; }.page-header, .supplier-strip, .table-toolbar, .schedule-toolbar, .pricing-toolbar { align-items: flex-start; flex-direction: column; }.page-header { gap: 12px; }.page-actions { flex-wrap: wrap; }.supplier-strip { gap: 14px; }.supplier-facts { flex-wrap: wrap; gap: 12px 20px; }.metric-grid { grid-template-columns: 1fr; }.overview-grid--bottom, .pricing-bottom-grid { grid-template-columns: 1fr; }.table-search { flex-wrap: wrap; }.table-search .el-input, .table-search .el-select { width: 100%; }.form-grid, .form-grid--three { grid-template-columns: 1fr; }.span-2 { grid-column: span 1; }.pricing-actions { padding-bottom: 13px; }.section-tabs :deep(.el-tabs__item) { padding: 0 10px; }.compliance-grid, .toggle-grid, .gender-capacity { grid-template-columns: 1fr; } }
 </style>
+
+<style scoped src="./portal-optimization.css"></style>
