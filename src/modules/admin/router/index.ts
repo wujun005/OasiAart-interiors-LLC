@@ -39,8 +39,24 @@ const routes: RouteRecordRaw[] = [
       },
       {
         path: 'packages',
-        name: 'admin-packages',
-        component: () => import('@/modules/admin/pages/packages/index.vue'),
+        redirect: '/admin/package/packages',
+      },
+      {
+        path: 'package',
+        component: () => import('@/modules/admin/pages/basic/Layout.vue'),
+        redirect: '/admin/package/categories',
+        children: [
+          {
+            path: 'categories',
+            name: 'admin-package-categories',
+            component: () => import('@/modules/admin/pages/package-category/index.vue'),
+          },
+          {
+            path: 'packages',
+            name: 'admin-package-list',
+            component: () => import('@/modules/admin/pages/package/index.vue'),
+          },
+        ],
       },
       {
         path: 'users',

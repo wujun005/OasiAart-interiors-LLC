@@ -52,8 +52,12 @@ const FIXED_DEVELOPER_MENU_ID = 'fixed-developer-tools';
 const FIXED_WHITELIST_MENU_ID = 'fixed-supplier-registration-whitelist';
 const DEVELOPER_PATH = '/admin/developer';
 const WHITELIST_PATH = '/admin/developer/supplier-registration-whitelist';
-const PACKAGE_PATH = '/admin/packages';
+const PACKAGE_PATH = '/admin/package';
+const PACKAGE_CATEGORY_PATH = '/admin/package/categories';
+const PACKAGE_LIST_PATH = '/admin/package/packages';
 const FIXED_PACKAGE_MENU_ID = 'fixed-packages';
+const FIXED_PACKAGE_CATEGORY_MENU_ID = 'fixed-package-categories';
+const FIXED_PACKAGE_LIST_MENU_ID = 'fixed-package-list';
 const MENU_PATH_ALIASES: Record<string, string> = {
   '/admin/supplier': '/admin/supplier-management',
   '/admin/supplier/profile': '/admin/supplier-management/profile',
@@ -227,12 +231,39 @@ const collectPaths = (nodes: AdminMenuPermissionItem[], target: string[] = []) =
   return target;
 };
 
+const findMenuByPath = (
+  nodes: AdminMenuPermissionItem[],
+  path: string,
+): AdminMenuPermissionItem | undefined => {
+  for (const node of nodes) {
+    if (node.path === path) return node;
+    const found = findMenuByPath(node.children, path);
+    if (found) return found;
+  }
+  return undefined;
+};
+
+const packageListMenu = (parentId: number | string): AdminMenuPermissionItem => ({
+  id: FIXED_PACKAGE_LIST_MENU_ID,
+  name: '套餐列表',
+  path: PACKAGE_LIST_PATH,
+  icon: 'tickets',
+  parentId,
+  sortOrder: 2,
+  children: [],
+});
+
 const pinPackageMenu = (roots: AdminMenuPermissionItem[]) => {
-  if (hasMenuPath(roots, PACKAGE_PATH)) return;
+  if (hasMenuPath(roots, PACKAGE_LIST_PATH)) return;
   const paths = collectPaths(roots);
   if (!paths.length) return;
   const supplierOnly = paths.every((path) => path.startsWith('/admin/supplier-management'));
   if (supplierOnly) return;
+  const parent = findMenuByPath(roots, PACKAGE_PATH);
+  if (parent) {
+    parent.children.push(packageListMenu(parent.id));
+    return;
+  }
   const item: AdminMenuPermissionItem = {
     id: FIXED_PACKAGE_MENU_ID,
     name: '套餐管理',
@@ -240,7 +271,15 @@ const pinPackageMenu = (roots: AdminMenuPermissionItem[]) => {
     icon: 'present',
     parentId: 0,
     sortOrder: 0,
-    children: [],
+    children: [{
+      id: FIXED_PACKAGE_CATEGORY_MENU_ID,
+      name: '套餐分类',
+      path: PACKAGE_CATEGORY_PATH,
+      icon: 'collection',
+      parentId: FIXED_PACKAGE_MENU_ID,
+      sortOrder: 1,
+      children: [],
+    }, packageListMenu(FIXED_PACKAGE_MENU_ID)],
   };
   const productIndex = roots.findIndex((node) => node.path === '/admin/products');
   if (productIndex >= 0) roots.splice(productIndex + 1, 0, item);

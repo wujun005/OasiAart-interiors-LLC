@@ -90,7 +90,7 @@
               }}</span>
             </div>
             <div class="client-order-detail__service-main">
-              <img :src="order.spuImage || fallbackImage" :alt="serviceTitle" />
+              <img :src="orderImage || order.spuImage || fallbackImage" :alt="serviceTitle" />
               <div>
                 <h2>{{ serviceTitle }}</h2>
                 <div
@@ -105,6 +105,9 @@
                   <b>{{ locale.startsWith("zh") ? "附加项" : "Add-ons" }}</b
                   >{{ addOnsText }}
                 </p>
+                <p v-for="item in packageItemViews" :key="item.id">
+                  <b>{{ item.name }}</b> {{ item.times }}
+                </p>
               </div>
             </div>
           </section>
@@ -116,7 +119,23 @@
               }}</span>
             </div>
             <dl class="client-order-detail__facts">
-              <div>
+              <template v-if="isPackageOrder">
+                <div>
+                  <dt>◷</dt>
+                  <dd>
+                    <small>{{ t("client.home.packages.remainingLabel") }}</small
+                    ><strong>{{ packageRemainingText }}</strong>
+                  </dd>
+                </div>
+                <div v-if="packageValidText">
+                  <dt>⌖</dt>
+                  <dd>
+                    <small>{{ t("client.home.packages.validity") }}</small
+                    ><strong>{{ packageValidText }}</strong>
+                  </dd>
+                </div>
+              </template>
+              <div v-if="!isPackageOrder">
                 <dt>◷</dt>
                 <dd>
                   <small>{{
@@ -125,7 +144,7 @@
                   ><strong>{{ formattedServiceSchedule }}</strong>
                 </dd>
               </div>
-              <div>
+              <div v-if="!isPackageOrder">
                 <dt>⌖</dt>
                 <dd>
                   <small>{{
@@ -226,7 +245,7 @@
 
         <section v-if="actions.length" class="client-order-detail__actions">
           <button
-            v-for="action in actions"
+            v-for="action in visibleActions"
             :key="action.key"
             type="button"
             :class="action.tone"
@@ -575,7 +594,7 @@ const props = withDefaults(defineProps<{ mobile?: boolean }>(), {
 })
 const route = useRoute()
 const router = useRouter()
-const { locale } = useI18n({ useScope: "global" })
+const { t, locale } = useI18n({ useScope: "global" })
 const { cartCount, refreshCart } = useCart()
 const loading = ref(true)
 const order = ref<OrderListRecord | null>(null)
@@ -701,16 +720,69 @@ const cancelReasonOptions = computed(() =>
 const selectedCancelReason = computed(() =>
   cancelReasonOptions.value.find((item) => item.value === cancelForm.reason),
 )
+const isPackageOrder = computed(() => {
+  const current = order.value
+  if (!current) return false
+  return (
+    current.packageOrder === true ||
+    Number(current.orderType) === 2 ||
+    current.packageId != null
+  )
+})
+const orderImage = computed(
+  () =>
+    (order.value?.imageUrls || []).find((url) => String(url || "").trim()) ||
+    order.value?.spuImage ||
+    "",
+)
 const serviceTitle = computed(() =>
   i18nText(
-    order.value?.spuNameI18n,
-    order.value?.spuName ||
-      (locale.value.startsWith("zh") ? "家居服务" : "Home service"),
+    isPackageOrder.value
+      ? order.value?.packageNameI18n || order.value?.nameI18n
+      : order.value?.spuNameI18n,
+    isPackageOrder.value
+      ? locale.value.startsWith("zh")
+        ? "套餐"
+        : "Package"
+      : order.value?.spuName ||
+        (locale.value.startsWith("zh") ? "家居服务" : "Home service"),
   ),
 )
 const serviceDescriptionHtml = computed(() =>
-  normalizeRichTextHtml(i18nText(order.value?.descI18n)),
+  normalizeRichTextHtml(
+    i18nText(
+      isPackageOrder.value
+        ? order.value?.packageDescI18n || order.value?.descI18n
+        : order.value?.descI18n,
+    ),
+  ),
 )
+const packageItemViews = computed(() =>
+  (order.value?.packageItems || []).map((item, index) => ({
+    id: String(item.skuId ?? item.spuId ?? index),
+    name: i18nText(
+      item.spuNameI18n,
+      locale.value.startsWith("zh") ? "服务" : "Service",
+    ),
+    times: t("client.home.packages.itemTimes", {
+      count: Number(item.redeemTimes) || 0,
+    }),
+  })),
+)
+const packageRemainingText = computed(() => {
+  const remaining = Number(order.value?.remainingTimes)
+  const total = Number(order.value?.redeemTimes)
+  if (Number.isFinite(remaining) && Number.isFinite(total)) {
+    return t("client.home.packages.remaining", { remaining, total })
+  }
+  return t("client.home.packages.visitLater")
+})
+const packageValidText = computed(() => {
+  const value = String(order.value?.validUntil || "").trim()
+  return value
+    ? t("client.home.packages.validUntil", { date: value.slice(0, 10) })
+    : ""
+})
 const naturalSpecText = computed(() =>
   (Array.isArray(order.value?.specSelections) ? order.value.specSelections : [])
     .map((selection) => {
@@ -927,7 +999,8 @@ const statusBoxMessage = computed(() => {
 })
 const actions = computed(() => {
   if (rawStatus.value === 0) return []
-  if (rawStatus.value === 1)
+  if (rawStatus.value === 1) {
+    if (isPackageOrder.value) return []
     return [
       {
         key: "manage-booking",
@@ -935,6 +1008,7 @@ const actions = computed(() => {
         tone: "primary",
       },
     ]
+  }
   if (rawStatus.value === 2)
     return [
       ...(!order.value?.reviewed
@@ -983,6 +1057,13 @@ const actions = computed(() => {
     ]
   return []
 })
+const visibleActions = computed(() =>
+  actions.value.filter((action) => {
+    if (!isPackageOrder.value) return true
+    if (action.key === "rebook" && props.mobile) return false
+    return true
+  }),
+)
 
 const displayValue = (value?: string) =>
   String(value || "").trim() ||
@@ -1463,6 +1544,13 @@ const submitCancellation = async () => {
 const runAction = (action: string) => {
   if (action === "review") {
     openFeedback()
+    return
+  }
+  if (action === "rebook" && order.value?.packageId && !props.mobile) {
+    void router.push({
+      name: "package-detail",
+      params: { id: String(order.value.packageId) },
+    })
     return
   }
   if (action === "rebook" && order.value?.spuId) {

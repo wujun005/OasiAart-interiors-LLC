@@ -23,6 +23,20 @@ export interface ExclusiveSpuRecord {
   minNotIncTaxPrice?: number | string | null;
 }
 
+export interface PackageOrderItemRecord {
+  skuId?: number | string;
+  spuId?: number | string;
+  spuNameI18n?: Record<string, string>;
+  specI18n?: Array<{
+    specTypeNameI18n?: Record<string, string>;
+    specValueNameI18n?: Record<string, string>;
+  }>;
+  imageUrls?: string[];
+  redeemTimes?: number | string;
+  occupiedTimes?: number | string;
+  remainingTimes?: number | string;
+}
+
 export interface OrderListRecord {
   orderId?: number | string;
   orderAmount?: number | string;
@@ -31,6 +45,21 @@ export interface OrderListRecord {
   spuName?: string;
   spuNameI18n?: Record<string, string>;
   descI18n?: Record<string, string>;
+  orderType?: number | string;
+  packageOrder?: boolean;
+  packageId?: number | string;
+  packageNameI18n?: Record<string, string>;
+  packageDescI18n?: Record<string, string>;
+  nameI18n?: Record<string, string>;
+  originalPrice?: number | string;
+  salePrice?: number | string;
+  savedAmount?: number | string;
+  imageUrls?: string[];
+  redeemTimes?: number | string;
+  occupiedTimes?: number | string;
+  remainingTimes?: number | string;
+  validUntil?: string;
+  packageItems?: PackageOrderItemRecord[];
   status?: number | string;
   orderStatus?: number | string;
   paymentStatus?: number | string;
@@ -162,7 +191,16 @@ export interface ClientCartItemRecord {
   productName?: string;
   productNameI18n?: Record<string, string>;
   skuCode?: string;
+  amountWithoutTax?: number | string;
   amountWithTax?: number | string;
+  orderType?: number | string;
+  packageId?: number | string;
+  nameI18n?: Record<string, string>;
+  descI18n?: Record<string, string>;
+  originalPrice?: number | string;
+  salePrice?: number | string;
+  savedAmount?: number | string;
+  imageUrls?: string[];
   specValueIds?: Array<number | string>;
   attachItems?: Array<{ attachValueId?: number | string; quantity?: number }>;
   addressId?: number | string;
@@ -573,6 +611,12 @@ export async function addCartItem(params: AddCartItemPayload) {
   );
 }
 
+export async function addPackageToCart(packageId: string | number) {
+  return getEnvelopeData<ClientCartItemRecord>(
+    await http.post('/client/cart/add', { packageId }),
+  );
+}
+
 export async function getCartList() {
   return getDataList<ClientCartItemRecord>(await http.get('/client/cart/list'));
 }
@@ -629,6 +673,55 @@ export async function level1Categories() {
 export async function exclusiveSpus() {
   const payload = await http.get('/client/product/exclusiveSpus');
   return getDataList<ExclusiveSpuRecord>(payload);
+}
+
+export interface PackageCatalogCard {
+  id?: number | string;
+  nameI18n?: Record<string, string>;
+  descI18n?: Record<string, string>;
+  packageName?: string;
+  packageDesc?: string;
+  originalPrice?: number | string | null;
+  salePrice?: number | string | null;
+  savedAmount?: number | string | null;
+  imageUrls?: string[];
+  validDays?: number | null;
+  redeemTimes?: number | null;
+  categoryId?: number | string;
+  categoryNameI18n?: Record<string, string>;
+  serviceContentTextI18n?: Record<string, string>;
+  bookingNoticeI18n?: Record<string, string>;
+  items?: PackageCatalogItem[];
+}
+
+export interface PackageCatalogItem {
+  packageItemId?: number | string;
+  spuId?: number | string;
+  skuId?: number | string;
+  redeemTimes?: number | null;
+  spuNameI18n?: Record<string, string>;
+  specI18n?: Array<{
+    specTypeNameI18n?: Record<string, string>;
+    specValueNameI18n?: Record<string, string>;
+  }>;
+  imageUrls?: string[];
+}
+
+export interface PackageCatalogCategory {
+  categoryId?: number | string;
+  nameI18n?: Record<string, string>;
+  categoryName?: string;
+  imageUrls?: string[];
+  sort?: number;
+  packages?: PackageCatalogCard[];
+}
+
+export async function packageCatalog() {
+  return getDataList<PackageCatalogCategory>(await http.get('/client/package/catalog'));
+}
+
+export async function packageDetail(id: string | number) {
+  return getEnvelopeData<PackageCatalogCard>(await http.get(`/client/package/detail/${id}`));
 }
 
 // /client/product/onShelfSpus 上架商品列表

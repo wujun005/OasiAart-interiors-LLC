@@ -283,17 +283,18 @@ const itemTitle = (item: CartItem) => pickLocalizedText(
   t('client.cart.unnamedService'),
 );
 
-const itemCategory = (item: CartItem) => pickLocalizedText(
-  item.categoryI18n,
-  t('client.cart.storeName'),
-);
+const itemCategory = (item: CartItem) => item.packageId
+  ? t('client.cart.packageLabel')
+  : pickLocalizedText(item.categoryI18n, t('client.cart.storeName'));
 
 const itemSpec = (item: CartItem) => pickLocalizedText(item.specSummaryI18n, item.specSummary || '');
-const itemSchedule = (item: CartItem) => formatServiceSchedule(
-  item.serviceDateTime,
-  locale.value,
-  item.serviceTimeDisplay || '',
-);
+const itemSchedule = (item: CartItem) => item.packageId
+  ? t('client.cart.packageSchedule')
+  : formatServiceSchedule(
+    item.serviceDateTime,
+    locale.value,
+    item.serviceTimeDisplay || '',
+  );
 
 const itemAddOns = (item: CartItem) => {
   if (item.addOnsI18n?.length) {
@@ -305,6 +306,9 @@ const itemAddOns = (item: CartItem) => {
 const formatAed = (value: number) => `AED ${Number(value || 0).toFixed(2)}`;
 
 const cartBookingRoute = (item: CartItem) => {
+  if (item.packageId) {
+    return { name: 'package-detail', params: { id: item.packageId } };
+  }
   const subtotal = item.unitPrice;
   const total = item.priceWithTax;
   return {

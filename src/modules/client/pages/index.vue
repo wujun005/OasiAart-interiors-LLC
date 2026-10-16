@@ -98,48 +98,7 @@
       </div>
     </section>
 
-    <section id="orders" class="offers-section">
-      <div class="home-container">
-        <h2 class="section-title">
-          {{ t("client.home.sections.serviceCardsTitle") }}
-        </h2>
-        <div class="offers-grid">
-          <article
-            v-for="item in featuredCards"
-            :key="item.id"
-            class="offer-card"
-            role="link"
-            tabindex="0"
-            :aria-label="item.title"
-            @click="goProductDetail(item.spuId)"
-            @keydown.enter="goProductDetail(item.spuId)"
-            @keydown.space.prevent="goProductDetail(item.spuId)"
-          >
-            <div class="offer-card__media">
-              <img :src="item.image" :alt="item.title" />
-              <span class="offer-card__badge">{{
-                t("client.home.serviceCard.badge")
-              }}</span>
-            </div>
-            <div class="offer-card__body">
-              <h3>{{ item.title }}</h3>
-              <el-tooltip
-                :content="item.desc"
-                placement="top"
-                :show-after="250"
-                :disabled="!item.desc"
-              >
-                <p class="offer-card__desc">{{ item.desc }}</p>
-              </el-tooltip>
-              <p class="offer-card__price">{{ item.price }}</p>
-              <button type="button" @click.stop="goProductDetail(item.spuId)">
-                {{ t("client.home.serviceCard.button") }}
-              </button>
-            </div>
-          </article>
-        </div>
-      </div>
-    </section>
+    <PackageShowcase />
 
     <section class="booking-section">
       <div class="home-container">
@@ -222,10 +181,9 @@
 import { computed, onMounted, ref } from "vue"
 import { useI18n } from "vue-i18n"
 import { useRouter } from "vue-router"
+import PackageShowcase from "@/modules/client/components/PackageShowcase.vue"
 import {
-  exclusiveSpus,
   level1Categories,
-  type ExclusiveSpuRecord,
   type Level1CategoryRecord,
 } from "@/modules/client/api"
 
@@ -237,15 +195,6 @@ type ServiceTile = {
   icon: string
   placeholder: boolean
   source?: Level1CategoryRecord
-}
-
-type OfferCard = {
-  id: string
-  spuId: string
-  title: string
-  desc: string
-  price: string
-  image: string
 }
 
 type BookingStep = {
@@ -279,13 +228,6 @@ const defaultServiceIcons = [
   "https://www.figma.com/api/mcp/asset/6a649f2a-a66f-4922-b744-d52b9db77848",
 ]
 
-const defaultOfferImages = [
-  "https://www.figma.com/api/mcp/asset/be119407-be81-457f-acb8-6ae8c059b658",
-  "https://www.figma.com/api/mcp/asset/1385c0da-6357-456c-a792-85c4faa896fe",
-  "https://www.figma.com/api/mcp/asset/689f06ae-e279-491b-8afb-133a682a3d8b",
-  "https://www.figma.com/api/mcp/asset/82f87dae-0f7f-4a67-a055-5619d9dfb2ea",
-]
-
 const bookingStepIcons = [
   new URL("@/assets/images/client/Icon6.svg", import.meta.url).href,
   new URL("@/assets/images/client/Icon5.svg", import.meta.url).href,
@@ -302,7 +244,6 @@ const { t, locale } = useI18n({ useScope: "global" })
 const router = useRouter()
 
 const serviceMenuRecords = ref<Level1CategoryRecord[]>([])
-const serviceCardRecords = ref<ExclusiveSpuRecord[]>([])
 
 const getPreferredLangs = () =>
   locale.value === "zh"
@@ -328,28 +269,6 @@ const pickI18nValue = (
     return firstValue.trim()
   }
   return fallback
-}
-
-const cleanDescriptionText = (value: string): string => {
-  let text = String(value || "").trim()
-  if (!text) return ""
-  if (typeof DOMParser !== "undefined") {
-    for (let pass = 0; pass < 2; pass += 1) {
-      const readableHtml = text.replace(
-        /<br\s*\/?>|<\/(?:p|div|li|h[1-6])\s*>/gi,
-        " ",
-      )
-      const decoded = new DOMParser().parseFromString(readableHtml, "text/html")
-        .body.textContent
-      const next = String(decoded || "").trim()
-      if (!next || next === text) break
-      text = next
-    }
-  }
-  return text
-    .replace(/<\/?[a-z][^>]*>/gi, " ")
-    .replace(/\s+/g, " ")
-    .trim()
 }
 
 const serviceTiles = computed<ServiceTile[]>(() => {
@@ -382,53 +301,6 @@ const serviceTiles = computed<ServiceTile[]>(() => {
     .filter((item) => item.title)
 
   return mapped.slice(0, 10)
-})
-
-const defaultOfferCards = computed<OfferCard[]>(() => [])
-
-const formatPriceText = (minPrice?: number | string | null): string => {
-  if (minPrice === undefined || minPrice === null || minPrice === "") {
-    return t("client.home.serviceCard.priceConsult")
-  }
-  const value = Number(minPrice)
-  if (!Number.isFinite(value)) {
-    return t("client.home.serviceCard.priceConsult")
-  }
-  return t("client.home.serviceCard.priceFrom", {
-    price: Number.isInteger(value) ? value : value.toFixed(2),
-  })
-}
-
-const featuredCards = computed<OfferCard[]>(() => {
-  const records = serviceCardRecords.value || []
-  if (!records.length) {
-    return defaultOfferCards.value
-  }
-  const mapped = records
-    .map((item, index) => {
-      const fallback =
-        defaultOfferCards.value.length > 0
-          ? defaultOfferCards.value[index % defaultOfferCards.value.length]
-          : null
-      return {
-        id: String(item.id ?? `offer-${index + 1}`),
-        spuId: String(item.id ?? ""),
-        title: pickI18nValue(
-          item.nameI18n,
-          fallback?.title || t("client.home.defaults.unnamedService"),
-        ),
-        desc: cleanDescriptionText(
-          pickI18nValue(item.descI18n, fallback?.desc || ""),
-        ),
-        price: formatPriceText(item.minNotIncTaxPrice),
-        image:
-          item.imageUrls?.[0] ||
-          fallback?.image ||
-          defaultOfferImages[index % defaultOfferImages.length],
-      }
-    })
-    .filter((item) => item.title)
-  return (mapped.length ? mapped : defaultOfferCards.value).slice(0, 4)
 })
 
 const bookingSteps = computed<BookingStep[]>(() => [
@@ -506,16 +378,6 @@ const openServiceList = (item: ServiceTile) => {
   })
 }
 
-const goProductDetail = (spuId: string) => {
-  if (!spuId) {
-    return
-  }
-  router.push({
-    name: "product-detail",
-    params: { spuId },
-  })
-}
-
 const scrollToServices = () => {
   const servicesSection = document.getElementById("services")
   if (!servicesSection) {
@@ -534,18 +396,8 @@ const openWhatsApp = () => {
   )
 }
 
-const loadExclusiveCards = async () => {
-  try {
-    serviceCardRecords.value = await exclusiveSpus()
-  } catch (error) {
-    console.error("load exclusive spus failed:", error)
-    serviceCardRecords.value = []
-  }
-}
-
 onMounted(() => {
   loadServiceMenus()
-  loadExclusiveCards()
 })
 </script>
 
@@ -978,125 +830,6 @@ onMounted(() => {
   transform: none;
 }
 
-.offers-section {
-  background: #f8fafc;
-  padding: 84px 0 120px;
-}
-
-.offers-grid {
-  margin-top: 64px;
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 32px;
-}
-
-.offer-card {
-  display: flex;
-  flex-direction: column;
-  height: 430px;
-  border: 1px solid #f3f4f6;
-  background: #fff;
-  border-radius: 16px;
-  overflow: hidden;
-  cursor: pointer;
-  transition: transform 180ms ease, border-color 180ms ease, box-shadow 180ms ease;
-}
-
-.offer-card:hover {
-  transform: translateY(-3px);
-  border-color: rgba(23, 105, 194, 0.2);
-  box-shadow: 0 14px 34px rgba(15, 23, 42, 0.09);
-}
-
-.offer-card:focus-visible {
-  outline: 3px solid rgba(23, 105, 194, 0.22);
-  outline-offset: 3px;
-}
-
-.offer-card__media {
-  position: relative;
-  height: 184px;
-}
-
-.offer-card__media img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
-.offer-card__badge {
-  position: absolute;
-  top: 16px;
-  right: 16px;
-  width: fit-content;
-  max-width: calc(100% - 32px);
-  padding: 0 12px;
-  height: 36px;
-  border-radius: 10px;
-  background: #fb2c36;
-  color: #fff;
-  font-size: 14px;
-  font-weight: 700;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  white-space: nowrap;
-}
-
-.offer-card__body {
-  display: flex;
-  flex: 1;
-  flex-direction: column;
-  padding: 24px;
-}
-
-.offer-card__body h3 {
-  margin: 0;
-  font-size: 20px;
-  line-height: 28px;
-  font-weight: 800;
-  min-height: 56px;
-  display: -webkit-box;
-  overflow: hidden;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
-}
-
-.offer-card__desc {
-  margin: 12px 0 0;
-  color: var(--text-sub);
-  font-size: 14px;
-  line-height: 1.6;
-  min-height: 68px;
-  max-height: 68px;
-  display: -webkit-box;
-  overflow: hidden;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 3;
-}
-
-.offer-card__price {
-  margin: auto 0 0;
-  color: var(--primary);
-  text-align: center;
-  font-size: 16px;
-  line-height: 24px;
-  font-weight: 700;
-}
-
-.offer-card__body button {
-  margin-top: 12px;
-  width: 100%;
-  height: 48px;
-  border: none;
-  border-radius: 10px;
-  background: var(--primary);
-  color: #fff;
-  font-size: 16px;
-  font-weight: 700;
-  cursor: pointer;
-}
-
 .booking-section {
   background: var(--primary);
   padding: 80px 0 96px;
@@ -1306,9 +1039,6 @@ onMounted(() => {
     gap: 20px;
   }
 
-  .offers-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
 }
 
 @media (max-width: 960px) {
@@ -1457,11 +1187,6 @@ onMounted(() => {
 
   .services-grid__description {
     -webkit-line-clamp: 1;
-  }
-
-  .offers-grid {
-    grid-template-columns: 1fr;
-    gap: 20px;
   }
 
   .trust-section {

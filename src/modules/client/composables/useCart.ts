@@ -1,6 +1,7 @@
 import { computed, ref } from 'vue';
 import {
   addCartItem,
+  addPackageToCart,
   getCartDetail,
   getCartList,
   removeCartItems,
@@ -18,6 +19,7 @@ export type CartLocalizedText = Record<string, string>;
 export interface CartItem {
   id: string;
   spuId: string;
+  packageId?: string;
   skuId?: string;
   titleI18n: CartLocalizedText;
   categoryI18n?: CartLocalizedText;
@@ -105,17 +107,40 @@ const normalizeRecord = (record: ClientCartItemRecord): CartItem => {
           })),
       }
     : undefined;
-  const priceWithTax = Math.max(0, Number(record.amountWithTax) || 0);
-  const unitPrice = roundMoney(priceWithTax / (1 + TAX_RATE));
+  const packageId = String(record.packageId ?? '').trim();
+  const isPackage = Boolean(packageId) || Number(record.orderType) === 2;
+  const packageNameI18n = record.nameI18n && typeof record.nameI18n === 'object'
+    ? record.nameI18n
+    : {};
+  const titleI18n = Object.keys(productNameI18n).length
+    ? productNameI18n
+    : Object.keys(packageNameI18n).length
+      ? packageNameI18n
+      : { en: title, zh: title };
+  const salePrice = Number(record.salePrice);
+  const amountWithoutTax = Number(record.amountWithoutTax);
+  const amountWithTax = Number(record.amountWithTax);
+  const unitPrice = roundMoney(
+    Number.isFinite(salePrice) && salePrice > 0
+      ? salePrice
+      : Number.isFinite(amountWithoutTax) && amountWithoutTax > 0
+        ? amountWithoutTax
+        : (Number.isFinite(amountWithTax) ? amountWithTax : 0) / (1 + TAX_RATE),
+  );
+  const priceWithTax = roundMoney(
+    Number.isFinite(amountWithTax) && amountWithTax > 0
+      ? amountWithTax
+      : unitPrice * (1 + TAX_RATE),
+  );
+  const packageImage = (record.imageUrls || []).find((url) => String(url || '').trim());
   return {
     id: String(record.cartItemId || ''),
     spuId: String(record.spuId ?? ''),
+    packageId: isPackage ? packageId : undefined,
     skuId: String(record.skuCode || ''),
-    titleI18n: Object.keys(productNameI18n).length
-      ? productNameI18n
-      : { en: title, zh: title },
+    titleI18n,
     categoryI18n: { en: 'Home Services', zh: '家居服务' },
-    image: String(record.spuImage || ''),
+    image: String(packageImage || record.spuImage || ''),
     specSummary: englishSpecs || fallbackSpec,
     specSummaryI18n: {
       en: englishSpecs || fallbackSpec,
@@ -130,7 +155,9 @@ const normalizeRecord = (record: ClientCartItemRecord): CartItem => {
     skuDetail,
     unitPrice,
     priceWithTax,
-    detailPath: record.spuId ? `/services/detail/${record.spuId}` : '/',
+    detailPath: isPackage && packageId
+      ? `/packages/${packageId}`
+      : record.spuId ? `/services/detail/${record.spuId}` : '/',
     selected: true,
     addressId: record.addressId,
     serviceAddress: [
@@ -162,6 +189,7 @@ const refreshCart = async () => {
       const list = await getCartList();
       const detailed = await Promise.all(
         list.map(async (item) => {
+          if (item.packageId) return item;
           try {
             return (await getCartDetail(String(item.cartItemId))) || item;
           } catch {
@@ -220,6 +248,12 @@ export const useCart = () => {
     return cartItemId;
   };
 
+  const addPackage = async (packageId: string | number) => {
+    const cartItem = await addPackageToCart(packageId);
+    await refreshCart();
+    return cartItem;
+  };
+
   const setSelected = (id: string, selected: boolean) => {
     const item = cartItems.value.find((entry) => entry.id === id);
     if (item) item.selected = selected;
@@ -272,6 +306,7 @@ export const useCart = () => {
     isLoading: cartLoading,
     error: cartError,
     addItem,
+    addPackage,
     refreshCart,
     setSelected,
     setAllSelected,

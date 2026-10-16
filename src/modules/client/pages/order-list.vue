@@ -106,14 +106,14 @@
                   <div class="order-card__detail">
                     <img :src="timeIconUrl" alt="" />
                     <span>
-                      <small>{{ t("client.orderList.serviceTime") }}</small>
+                      <small>{{ item.scheduleLabel || t("client.orderList.serviceTime") }}</small>
                       <strong>{{ item.serviceTimeText }}</strong>
                     </span>
                   </div>
                   <div class="order-card__detail order-card__detail--address">
                     <img :src="addressIconUrl" alt="" />
                     <span>
-                      <small>{{ t("client.orderList.serviceAddress") }}</small>
+                      <small>{{ item.addressLabel || t("client.orderList.serviceAddress") }}</small>
                       <strong>{{ item.addressText }}</strong>
                       <em v-if="item.additionalNotes" class="order-card__note">{{ t('client.orderList.additionalNotes') }}: {{ item.additionalNotes }}</em>
                     </span>
@@ -465,8 +465,10 @@ type OrderCardView = {
   amountText: string
   refundHandlingFeeText: string
   serviceTimeText: string
+  scheduleLabel?: string
   createdTimeText: string
   addressText: string
+  addressLabel?: string
   additionalNotes: string
   specText: string
   addOnsText: string
@@ -955,11 +957,23 @@ const orderCards = computed<OrderCardView[]>(() =>
         orderStatus,
         normalizeStatusText(item),
       )
-      const title = pickI18nValue(
-        item.spuNameI18n,
-        String(item.spuName || "").trim() ||
-          t("client.orderList.unknownService"),
-      )
+      const isPackage =
+        item.packageOrder === true ||
+        Number(item.orderType) === 2 ||
+        item.packageId != null
+      const remainingVisits = Number(item.remainingTimes)
+      const totalVisits = Number(item.redeemTimes)
+      const validUntil = String(item.validUntil || "").trim()
+      const title = isPackage
+        ? pickI18nValue(
+            item.packageNameI18n || item.nameI18n,
+            t("client.orderList.unknownService"),
+          )
+        : pickI18nValue(
+            item.spuNameI18n,
+            String(item.spuName || "").trim() ||
+              t("client.orderList.unknownService"),
+          )
       const specSelections = Array.isArray(item.specSelections)
         ? item.specSelections
             .map((selection) => ({
@@ -990,26 +1004,43 @@ const orderCards = computed<OrderCardView[]>(() =>
         amountText: formatAmount(item.orderAmount),
         refundHandlingFeeText:
           orderStatus === 5 ? formatAmount(item.refundHandlingFee, "") : "",
-        serviceTimeText: formatServiceSchedule(
-          item.serviceDateTime,
-          locale.value,
-          t("client.orderList.notProvided"),
-        ),
+        serviceTimeText: isPackage
+          ? Number.isFinite(remainingVisits) && Number.isFinite(totalVisits)
+            ? t("client.home.packages.remaining", {
+                remaining: remainingVisits,
+                total: totalVisits,
+              })
+            : t("client.home.packages.visitLater")
+          : formatServiceSchedule(
+              item.serviceDateTime,
+              locale.value,
+              t("client.orderList.notProvided"),
+            ),
+        scheduleLabel: isPackage
+          ? t("client.home.packages.remainingLabel")
+          : undefined,
         createdTimeText: formatCreatedAt(
           item.createTime,
           locale.value,
           t("client.orderList.notProvided"),
         ),
-        addressText:
-          [item.serviceAddress, item.building, item.roomNo, item.community]
-            .map((value) => String(value || "").trim())
-            .filter(Boolean)
-            .join(", ") || t("client.orderList.emptyAddress"),
+        addressText: isPackage
+          ? validUntil
+            ? t("client.home.packages.validUntil", {
+                date: validUntil.slice(0, 10),
+              })
+            : t("client.home.packages.visitLater")
+          : [item.serviceAddress, item.building, item.roomNo, item.community]
+              .map((value) => String(value || "").trim())
+              .filter(Boolean)
+              .join(", ") || t("client.orderList.emptyAddress"),
+        addressLabel: isPackage ? t("client.home.packages.validity") : undefined,
         additionalNotes: String(item.additionalNotes || "").trim(),
         specText: formatOrderSpecs(item.specSelections, locale.value),
         addOnsText: formatOrderAddOns(item.attachSelections, locale.value),
         statusText,
         image:
+          (isPackage ? item.imageUrls?.find((url) => String(url || "").trim()) : "") ||
           item.spuImage ||
           fallbackImages[index % fallbackImages.length] ||
           fallbackImages[0] ||
@@ -1017,9 +1048,9 @@ const orderCards = computed<OrderCardView[]>(() =>
         reviewed: item.reviewed === true,
         showActions: [0, 1, 2, 3, 4, 5].includes(orderStatus ?? -1),
         canContinue: orderStatus === 0,
-        canManage: orderStatus === 1,
+        canManage: orderStatus === 1 && !isPackage,
         canReview: orderStatus === 2 || orderStatus === 3,
-        canRebook: [2, 3, 4, 5].includes(orderStatus ?? -1),
+        canRebook: !isPackage && [2, 3, 4, 5].includes(orderStatus ?? -1),
         specSelections,
         attachSelections,
         record: item,

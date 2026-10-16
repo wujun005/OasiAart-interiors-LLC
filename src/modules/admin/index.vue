@@ -545,7 +545,9 @@ const resolveMenuIcon = (item: AdminMenuPermissionItem) => {
   }
   const path = item.path || '';
   if (path.startsWith('/admin/products')) return Goods;
-  if (path.startsWith('/admin/packages')) return Present;
+  if (path.startsWith('/admin/package/packages')) return Tickets;
+  if (path.startsWith('/admin/package/categories')) return Collection;
+  if (path.startsWith('/admin/package') || path.startsWith('/admin/packages')) return Present;
   if (path.startsWith('/admin/orders')) return Document;
   if (path.startsWith('/admin/users')) return User;
   if (path.startsWith('/admin/supplier-management/overview')) return DataAnalysis;
@@ -575,6 +577,9 @@ const menuLabelKeyByPath: Record<string, string> = {
   '/admin/orders': 'admin.layout.order',
   '/admin/products': 'admin.layout.product',
   '/admin/packages': 'admin.layout.packages',
+  '/admin/package': 'admin.layout.packages',
+  '/admin/package/categories': 'admin.layout.packageCategories',
+  '/admin/package/packages': 'admin.layout.packageList',
   '/admin/users': 'admin.layout.user',
   '/admin/basic': 'admin.layout.basicData',
   '/admin/basic/categories': 'admin.layout.categoryL1',

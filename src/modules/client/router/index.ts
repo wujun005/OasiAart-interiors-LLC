@@ -35,6 +35,16 @@ const routes: RouteRecordRaw[] = [
     component: () => import('@/modules/client/pages/product-detail.vue'),
   },
   {
+    path: '/packages',
+    name: 'packages',
+    component: () => import('@/modules/client/pages/packages.vue'),
+  },
+  {
+    path: '/packages/:id',
+    name: 'package-detail',
+    component: () => import('@/modules/client/pages/package-detail.vue'),
+  },
+  {
     path: '/orders/confirm',
     name: 'order-confirm',
     component: () => import('@/modules/client/pages/order-confirm.vue'),
