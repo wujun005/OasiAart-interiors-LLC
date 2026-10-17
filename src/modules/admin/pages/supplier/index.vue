@@ -260,8 +260,15 @@
                   <div><dt>{{ t('admin.platformSuppliers.ownEquipment') }}</dt><dd>{{ yesNo(profile.ownEquipment) }}</dd></div>
                   <div><dt>{{ t('admin.platformSuppliers.wearUniform') }}</dt><dd>{{ yesNo(profile.wearUniform) }}</dd></div>
                   <div><dt>{{ t('admin.platformSuppliers.taxInvoice') }}</dt><dd>{{ yesNo(profile.taxInvoiceAvailable) }}</dd></div>
-                  <div><dt>{{ t('admin.platformSuppliers.emaar') }}</dt><dd>{{ yesNo(profile.emaarOnboarded) }}</dd></div>
-                  <div><dt>{{ t('admin.platformSuppliers.otherCommunity') }}</dt><dd>{{ yesNo(profile.otherCommunityOnboarded) }}</dd></div>
+                  <div class="span-all">
+                    <dt>{{ t('admin.platformSuppliers.communities') }}</dt>
+                    <dd>
+                      <div v-if="registeredCommunities.length" class="community-picks">
+                        <span v-for="name in registeredCommunities" :key="name">{{ name }}</span>
+                      </div>
+                      <template v-else>—</template>
+                    </dd>
+                  </div>
                   <div><dt>{{ t('admin.platformSuppliers.otherNote') }}</dt><dd>{{ text(profile.applyRenmark) }}</dd></div>
                 </dl>
               </section>
@@ -600,6 +607,12 @@ const licenseIssuerText = (record: Record<string, any>) => {
   return issued || '—'
 }
 const yesNo = (value: unknown) => (Number(value) === 1 ? t('admin.platformSuppliers.yes') : Number(value) === 0 ? t('admin.platformSuppliers.no') : '—')
+const registeredCommunities = computed(() => [
+  Number(profile.emaarOnboarded) === 1 ? 'Emaar' : '',
+  Number(profile.nakheelOnboarded) === 1 ? 'Nakheel' : '',
+  Number(profile.dubaiHoldingsOnboarded) === 1 ? 'Dubai Holdings' : '',
+  Number(profile.otherCommunityOnboarded) === 1 ? t('admin.platformSuppliers.otherChip') : '',
+].filter(Boolean))
 const staffText = (available: unknown, count: unknown) => {
   if (available === null || available === undefined || available === '') return '—'
   if (Number(available) !== 1 || count === null || count === undefined || count === '') return yesNo(available)
@@ -1632,6 +1645,9 @@ onMounted(loadSuppliers)
 .panel-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
 .panel-head h3 { margin: 0; }
 .kv { display: grid; grid-template-columns: 1fr 1fr; gap: 12px 16px; margin: 0; }
+.kv .span-all { grid-column: 1 / -1; }
+.community-picks { display: flex; flex-wrap: wrap; gap: 8px; }
+.community-picks span { display: inline-flex; align-items: center; min-height: 36px; padding: 0 16px; border-radius: 999px; background: #071426; color: #fff; font-size: 14px; font-weight: 750; }
 .kv dt { margin-bottom: 3px; font-size: 11px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; }
 .kv dd { margin: 0; color: #05152b; }
 .kv dd.yes { color: #1f7a4a; font-weight: 700; }

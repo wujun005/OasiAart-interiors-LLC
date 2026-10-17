@@ -249,17 +249,19 @@
                   </el-radio-group>
                 </div>
                 <label><span><strong>{{ t('admin.supplierProfile.taxInvoice') }}</strong></span><el-switch v-model="complianceItems[2].enabled" :disabled="profileReadOnly" /></label>
-                <div class="dossier-toggle"><span><strong>{{ t('admin.supplierProfile.emaar') }}</strong></span>
-                  <el-radio-group v-model="emaarOnboarded" :aria-label="t('admin.supplierProfile.emaar')" :disabled="profileReadOnly">
-                    <el-radio :value="1">{{ t('admin.supplierProfile.yes') }}</el-radio>
-                    <el-radio :value="0">{{ t('admin.supplierProfile.no') }}</el-radio>
-                  </el-radio-group>
-                </div>
-                <div class="dossier-toggle"><span><strong>{{ t('admin.supplierProfile.otherCommunity') }}</strong></span>
-                  <el-radio-group v-model="otherCommunityOnboarded" :aria-label="t('admin.supplierProfile.otherCommunity')" :disabled="profileReadOnly" @change="onOtherCommunityChange">
-                    <el-radio :value="1">{{ t('admin.supplierProfile.yes') }}</el-radio>
-                    <el-radio :value="0">{{ t('admin.supplierProfile.no') }}</el-radio>
-                  </el-radio-group>
+              </div>
+              <div class="community-picks">
+                <strong>{{ t('admin.supplierProfile.communities') }} <i>*</i></strong>
+                <div class="community-picks__options" role="group" :aria-label="t('admin.supplierProfile.communities')">
+                  <button
+                    v-for="item in communityChips"
+                    :key="item.key"
+                    type="button"
+                    :class="{ 'is-on': item.value === 1 }"
+                    :aria-pressed="item.value === 1"
+                    :disabled="profileReadOnly"
+                    @click="toggleCommunity(item.key)"
+                  >{{ item.label }}</button>
                 </div>
               </div>
               <label v-if="asYesNo(otherCommunityOnboarded) === 1" id="profile-field-communities" class="profile-field" :class="{ error: issueOf('communities') }">
@@ -1920,12 +1922,30 @@ const applyExpectedServices = (detail: any) => {
 }
 const dubaiServiceAreas = ref('')
 const emaarOnboarded = ref<0 | 1>(0)
+const nakheelOnboarded = ref<0 | 1>(0)
+const dubaiHoldingsOnboarded = ref<0 | 1>(0)
 const wearUniform = ref<0 | 1 | null>(null)
 const otherCommunityOnboarded = ref<0 | 1>(0)
 const applyRenmark = ref('')
 const asYesNo = (value: unknown): 0 | 1 => (Number(value) === 1 ? 1 : 0)
-const onOtherCommunityChange = (value: string | number | boolean) => {
-  if (Number(value) !== 1) applyRenmark.value = ''
+type CommunityKey = 'emaarOnboarded' | 'nakheelOnboarded' | 'dubaiHoldingsOnboarded' | 'otherCommunityOnboarded'
+const communityState: Record<CommunityKey, typeof emaarOnboarded> = {
+  emaarOnboarded,
+  nakheelOnboarded,
+  dubaiHoldingsOnboarded,
+  otherCommunityOnboarded,
+}
+const communityChips = computed(() => [
+  { key: 'emaarOnboarded' as const, label: 'Emaar', value: emaarOnboarded.value },
+  { key: 'nakheelOnboarded' as const, label: 'Nakheel', value: nakheelOnboarded.value },
+  { key: 'dubaiHoldingsOnboarded' as const, label: 'Dubai Holdings', value: dubaiHoldingsOnboarded.value },
+  { key: 'otherCommunityOnboarded' as const, label: t('admin.supplierProfile.otherChip'), value: otherCommunityOnboarded.value },
+])
+const toggleCommunity = (key: CommunityKey) => {
+  if (profileReadOnly.value) return
+  const next: 0 | 1 = communityState[key].value === 1 ? 0 : 1
+  communityState[key].value = next
+  if (key === 'otherCommunityOnboarded' && next !== 1) applyRenmark.value = ''
 }
 const LICENSE_AUTHORITY_OTHER = 'Other (type the authority name)'
 const LICENSE_AUTHORITIES = [
@@ -2614,6 +2634,8 @@ const buildProfilePayload = (status?: number, areaIds?: number[]) => ({
   } : {}),
   dubaiServiceAreas: dubaiServiceAreas.value || null,
   emaarOnboarded: asYesNo(emaarOnboarded.value),
+  nakheelOnboarded: asYesNo(nakheelOnboarded.value),
+  dubaiHoldingsOnboarded: asYesNo(dubaiHoldingsOnboarded.value),
   otherCommunityOnboarded: asYesNo(otherCommunityOnboarded.value),
   applyRenmark: asYesNo(otherCommunityOnboarded.value) === 1 ? (applyRenmark.value.trim() || null) : null,
   status,
@@ -2719,6 +2741,8 @@ const applyProfile = (detail: any) => {
   applyExpectedServices(detail)
   dubaiServiceAreas.value = detail?.dubaiServiceAreas || ''
   emaarOnboarded.value = asYesNo(detail?.emaarOnboarded)
+  nakheelOnboarded.value = asYesNo(detail?.nakheelOnboarded)
+  dubaiHoldingsOnboarded.value = asYesNo(detail?.dubaiHoldingsOnboarded)
   otherCommunityOnboarded.value = asYesNo(detail?.otherCommunityOnboarded)
   applyRenmark.value = otherCommunityOnboarded.value === 1 ? String(detail?.applyRenmark || '') : ''
   supplierAreas.value = (detail?.serviceAreas || [])
@@ -3861,6 +3885,13 @@ watch(areaKeyword, (keyword) => {
 .expected-services__chips { display: flex; flex-wrap: wrap; gap: 8px; }
 .expected-services__chips span { min-height: 34px; padding: 4px 14px; display: inline-flex; align-items: center; border: 1px solid #05152b; border-radius: 999px; background: #05152b; color: #f7f1e6; font-size: 14px; font-weight: 650; }
 .expected-services__chips em { color: #7a7166; font-style: normal; }
+.community-picks { display: grid; gap: 12px; margin: 4px 0 16px; }
+.community-picks > strong { color: #111827; font-size: 16px; font-weight: 800; }
+.community-picks > strong i { color: #c2412d; font-style: normal; }
+.community-picks__options { display: flex; flex-wrap: wrap; gap: 12px; }
+.community-picks__options button { min-height: 44px; padding: 0 22px; border: 1.5px solid #d5dbe3; border-radius: 999px; background: #fff; color: #05152b; font: inherit; font-size: 15px; font-weight: 750; cursor: pointer; }
+.community-picks__options button.is-on { border-color: #071426; background: #071426; color: #fff; }
+.community-picks__options button:disabled { cursor: default; }
 .community-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin: 0 0 18px; }
 .community-fields article { display: flex; align-items: center; justify-content: space-between; gap: 16px; min-height: 76px; padding: 14px 16px; background: #fff; border: 1px solid #eadfce; border-radius: 14px; }
 .community-fields strong { display: block; color: #05152b; font-size: 14px; }

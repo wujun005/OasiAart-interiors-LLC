@@ -337,8 +337,10 @@
               </div>
 
               <div class="booking-card__section-heading">
-                <h2>{{ t("client.productDetail.booking.chooseTitle") }}</h2>
-                <p>{{ t("client.productDetail.booking.chooseHint") }}</p>
+                <div class="booking-card__section-title-row">
+                  <h2>{{ t("client.productDetail.booking.chooseTitle") }}</h2>
+                  <p>{{ t("client.productDetail.booking.chooseHint") }}</p>
+                </div>
               </div>
 
               <template v-if="bookingSpecGroups.length">
@@ -381,8 +383,10 @@
 
               <template v-if="bookingAttachGroups.length">
                 <div class="booking-card__section-heading booking-card__section-heading--addons">
-                  <h2>{{ t("client.productDetail.booking.addOnsTitle") }}</h2>
-                  <p>{{ t("client.productDetail.booking.addOnsHint") }}</p>
+                  <div class="booking-card__section-title-row">
+                    <h2>{{ t("client.productDetail.booking.addOnsTitle") }}</h2>
+                    <p>{{ t("client.productDetail.booking.addOnsHint") }}</p>
+                  </div>
                 </div>
                 <div
                   v-for="group in bookingAttachGroups"
@@ -404,6 +408,9 @@
                           {{
                             t("client.productDetail.booking.attachUnitPrice", {
                               price: option.price.toFixed(2),
+                              unit:
+                                option.unit ||
+                                t("client.productDetail.booking.attachUnitFallback"),
                             })
                           }}
                         </span>
@@ -563,6 +570,7 @@ type ProductDetailRecord = {
   }>
   attachTypeNameI18n?: Record<string, I18nText>
   attachValueNameI18n?: Record<string, I18nText>
+  attachValueUnitI18n?: Record<string, I18nText>
   reviewList?: Array<{
     rating?: number | string
     content?: string
@@ -1245,6 +1253,7 @@ type BookingAttachOption = {
   id: string
   label: string
   price: number
+  unit: string
 }
 
 type BookingAttachGroup = {
@@ -1420,6 +1429,7 @@ const bookingAttachGroups = computed<BookingAttachGroup[]>(() => {
                 id,
                 label: optionLabel,
                 price: attachOptionPriceMap.value[id] ?? 0,
+                unit: pickI18nValue(record?.attachValueUnitI18n?.[id], ""),
               }
             : null
         })
@@ -2474,7 +2484,7 @@ const goOrderConfirm = async () => {
 .booking-side {
   position: sticky;
   top: 70px;
-  max-height: calc(100dvh - 86px);
+  max-height: calc(100dvh - 157px);
   padding-right: 4px;
 }
 
@@ -2491,6 +2501,7 @@ const goOrderConfirm = async () => {
 }
 
 .booking-card__scroll {
+  flex: 1 1 auto;
   min-height: 0;
   overflow-y: auto;
   overscroll-behavior: contain;
@@ -2508,7 +2519,7 @@ const goOrderConfirm = async () => {
 }
 
 .booking-card__hero {
-  padding: 26px 26px 22px;
+  padding: 20px 20px 16px;
   border-bottom: 1px solid #e9eef5;
   background:
     radial-gradient(circle at 100% 0, rgba(5, 21, 43, 0.06), transparent 38%),
@@ -2524,16 +2535,16 @@ const goOrderConfirm = async () => {
 }
 
 .booking-card__hero h1 {
-  margin: 8px 0 0;
+  margin: 6px 0 0;
   color: #071b33;
-  font-size: clamp(22px, 1.7vw, 26px);
+  font-size: clamp(21px, 1.55vw, 24px);
   line-height: 1.2;
   font-weight: 900;
   letter-spacing: -0.025em;
 }
 
 .booking-card__meta {
-  margin-top: 13px;
+  margin-top: 10px;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -2585,13 +2596,13 @@ const goOrderConfirm = async () => {
 }
 
 .booking-price-card {
-  margin: 18px 26px 0;
+  margin: 14px 20px 0;
   border: 1px solid rgba(5, 21, 43, 0.12);
   border-radius: 13px;
   background:
     radial-gradient(circle at 100% 0, rgba(5, 21, 43, 0.1), transparent 40%),
     linear-gradient(135deg, #f9fbfd 0%, var(--product-offer-soft) 100%);
-  padding: 13px 15px;
+  padding: 10px 12px;
 }
 
 .booking-price-card__label {
@@ -2617,14 +2628,14 @@ const goOrderConfirm = async () => {
 }
 
 .booking-price-card__main strong {
-  font-size: clamp(28px, 2.2vw, 34px);
+  font-size: clamp(26px, 2vw, 31px);
   line-height: 1;
   font-weight: 950;
   letter-spacing: -0.035em;
 }
 
 .booking-price-card__offer {
-  margin-top: 7px;
+  margin-top: 5px;
   display: flex;
   align-items: center;
   gap: 9px;
@@ -2649,53 +2660,69 @@ const goOrderConfirm = async () => {
 }
 
 .booking-card__section-heading {
-  padding: 22px 26px 0;
+  padding: 16px 20px 0;
+}
+
+.booking-card__section-title-row {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
 }
 
 .booking-card__section-heading h2 {
+  flex: 0 0 auto;
   margin: 0;
   color: #10233e;
-  font-size: 18px;
+  font-size: 17px;
   font-weight: 850;
 }
 
 .booking-card__section-heading p {
-  margin: 5px 0 0;
+  flex: 1 1 auto;
+  min-width: 0;
+  margin: 0;
   color: #7a8ba0;
-  font-size: 12px;
-  line-height: 1.45;
+  font-size: 11px;
+  line-height: 1.35;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .booking-card__section-heading--addons {
-  padding-top: 26px;
+  padding-top: 14px;
 }
 
 .booking-field {
-  margin-top: 18px;
-  padding: 0 26px;
+  margin-top: 12px;
+  padding: 0 20px;
+}
+
+.booking-card__section-heading--addons ~ .booking-field {
+  margin-top: 8px;
 }
 
 .booking-field > p {
-  margin: 0 0 10px;
+  margin: 0 0 7px;
   color: #203650;
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 800;
 }
 
 .booking-options {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(112px, 1fr));
-  gap: 6px;
+  gap: 5px;
 }
 
 .booking-option {
-  min-height: 34px;
-  padding: 4px 8px;
+  min-height: 32px;
+  padding: 3px 7px;
   border-radius: 8px;
   border: 1px solid #dfe7f0;
   background: #fff;
   color: #1b3049;
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 700;
   cursor: pointer;
   display: flex;
@@ -2756,13 +2783,13 @@ const goOrderConfirm = async () => {
 }
 
 .booking-option--step {
-  width: 34px;
-  min-width: 34px;
-  height: 34px;
-  min-height: 34px;
+  width: 28px;
+  min-width: 28px;
+  height: 28px;
+  min-height: 28px;
   padding: 0;
   border-radius: 9px;
-  font-size: 16px;
+  font-size: 14px;
   line-height: 1;
   align-items: center;
   justify-content: center;
@@ -2780,16 +2807,16 @@ const goOrderConfirm = async () => {
 .booking-attach-list {
   display: flex;
   flex-direction: column;
-  gap: 9px;
+  gap: 4px;
 }
 
 .booking-attach-item {
-  border-radius: 12px;
+  border-radius: 10px;
   border: 1px solid #e0e8f1;
   background: #fbfcfe;
-  padding: 11px 12px;
+  padding: 6px 8px;
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
   gap: 8px;
 }
@@ -2804,22 +2831,22 @@ const goOrderConfirm = async () => {
 .booking-attach-item__name {
   display: block;
   color: #1b3049;
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 750;
 }
 
 .booking-attach-item__price {
   display: block;
-  margin-top: 2px;
+  margin-top: 1px;
   color: #73859a;
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 600;
 }
 
 .booking-attach-item__stepper {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 3px;
 }
 
 .booking-card__empty {
@@ -2829,18 +2856,18 @@ const goOrderConfirm = async () => {
 }
 
 .booking-summary {
-  margin-top: 24px;
-  padding: 20px 26px 0;
+  margin-top: 16px;
+  padding: 14px 20px 10px;
   border-top: 1px solid #e9eef5;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 6px;
 }
 
 .booking-summary__caption {
-  margin-bottom: 4px;
+  margin-bottom: 2px;
   color: #10233e;
-  font-size: 16px;
+  font-size: 14px;
   font-weight: 850;
 }
 
@@ -2850,7 +2877,7 @@ const goOrderConfirm = async () => {
   justify-content: space-between;
   gap: 16px;
   color: #66788e;
-  font-size: 13px;
+  font-size: 12px;
 }
 
 .booking-summary__row > span {
@@ -2881,29 +2908,29 @@ const goOrderConfirm = async () => {
 }
 
 .booking-summary__row--total {
-  margin-top: 6px;
-  padding-top: 14px;
+  margin-top: 4px;
+  padding-top: 10px;
   border-top: 1px solid #e3eaf2;
 }
 
 .booking-summary__row--total span {
   color: #10233e;
-  font-size: 17px;
+  font-size: 16px;
   font-weight: 800;
 }
 
 .booking-summary__row--total strong {
   color: var(--hourx-brand);
-  font-size: 24px;
+  font-size: 22px;
   font-weight: 900;
 }
 
 .booking-actions {
   display: grid;
   grid-template-columns: minmax(0, 0.92fr) minmax(0, 1.08fr);
-  gap: 9px;
-  margin-top: 20px;
-  padding: 0 26px;
+  gap: 7px;
+  margin-top: 16px;
+  padding: 0 20px;
 }
 
 .booking-card__footer {
@@ -2917,7 +2944,7 @@ const goOrderConfirm = async () => {
 
 .booking-card__footer .booking-actions {
   margin-top: 0;
-  padding-top: 14px;
+  padding-top: 10px;
 }
 
 .booking-add-cart,
@@ -2925,9 +2952,9 @@ const goOrderConfirm = async () => {
   position: relative;
   width: 100%;
   min-width: 0;
-  height: 50px;
-  border-radius: 11px;
-  font-size: 14px;
+  height: 44px;
+  border-radius: 10px;
+  font-size: 13px;
   font-weight: 800;
   line-height: 1;
   letter-spacing: 0.01em;
@@ -3015,13 +3042,13 @@ const goOrderConfirm = async () => {
 }
 
 .booking-card__policy {
-  margin: 14px 26px 22px;
+  margin: 8px 20px 12px;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 7px;
+  gap: 6px;
   color: #7a8ba0;
-  font-size: 11px;
+  font-size: 10px;
   line-height: 1.4;
   text-align: center;
 }
@@ -3112,7 +3139,7 @@ const goOrderConfirm = async () => {
 
   .booking-side {
     top: 74px;
-    max-height: calc(100dvh - 90px);
+    max-height: calc(100dvh - 157px);
   }
 
   .booking-card {
@@ -3121,42 +3148,45 @@ const goOrderConfirm = async () => {
   }
 
   .booking-card__section-heading h2 {
-    font-size: 19px;
+    font-size: 17px;
   }
 
-  .booking-field > p,
+  .booking-field > p {
+    font-size: 13px;
+  }
+
   .booking-attach-item__name {
-    font-size: 14px;
-  }
-
-  .booking-option {
-    min-height: 36px;
     font-size: 12px;
   }
 
+  .booking-option {
+    min-height: 32px;
+    font-size: 11px;
+  }
+
   .booking-option--step {
-    width: 40px;
-    min-width: 40px;
-    height: 40px;
-    min-height: 40px;
+    width: 28px;
+    min-width: 28px;
+    height: 28px;
+    min-height: 28px;
   }
 
   .booking-summary__row {
-    font-size: 15px;
+    font-size: 13px;
   }
 
   .booking-summary__row--total span {
-    font-size: 20px;
+    font-size: 17px;
   }
 
   .booking-summary__row--total strong {
-    font-size: 24px;
+    font-size: 22px;
   }
 
   .booking-add-cart,
   .booking-submit {
-    height: 52px;
-    font-size: 15px;
+    height: 46px;
+    font-size: 13px;
   }
 }
 
@@ -3392,6 +3422,13 @@ const goOrderConfirm = async () => {
 
   .booking-actions {
     gap: 8px;
+  }
+
+  .booking-option--step {
+    width: 34px;
+    min-width: 34px;
+    height: 34px;
+    min-height: 34px;
   }
 
   .booking-add-cart,
