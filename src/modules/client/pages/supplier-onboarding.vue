@@ -126,24 +126,19 @@
               <button type="button" :class="{ 'is-on': form.wearUniform === 0 }" @click="form.wearUniform = 0">{{ copy.no }}</button>
             </div>
           </article>
-          <article>
-            <div>
-              <strong>{{ copy.emaar }}<i class="req">*</i></strong>
-            </div>
-            <div class="yes-no">
-              <button type="button" :class="{ 'is-on': form.emaarOnboarded === 1 }" @click="form.emaarOnboarded = 1">{{ copy.yes }}</button>
-              <button type="button" :class="{ 'is-on': form.emaarOnboarded === 0 }" @click="form.emaarOnboarded = 0">{{ copy.no }}</button>
-            </div>
-          </article>
-          <article>
-            <div>
-              <strong>{{ copy.otherCommunity }}<i class="req">*</i></strong>
-            </div>
-            <div class="yes-no">
-              <button type="button" :class="{ 'is-on': form.otherCommunityOnboarded === 1 }" @click="form.otherCommunityOnboarded = 1">{{ copy.yes }}</button>
-              <button type="button" :class="{ 'is-on': form.otherCommunityOnboarded === 0 }" @click="setOtherCommunity(0)">{{ copy.no }}</button>
-            </div>
-          </article>
+        </div>
+        <div class="community-picks">
+          <strong>{{ copy.communities }}<i class="req">*</i></strong>
+          <div class="community-picks__options" role="group" :aria-label="copy.communities">
+            <button
+              v-for="item in communityChips"
+              :key="item.key"
+              type="button"
+              :class="{ 'is-on': form[item.key] === 1 }"
+              :aria-pressed="form[item.key] === 1"
+              @click="toggleCommunity(item.key)"
+            >{{ item.label }}</button>
+          </div>
         </div>
         <label v-if="form.otherCommunityOnboarded === 1" class="community-note">
           <span>{{ copy.applyRenmark }}<i class="req">*</i></span>
@@ -208,6 +203,8 @@ const form = reactive({
   emergencyService: null as Bit,
   wearUniform: null as Bit,
   emaarOnboarded: null as Bit,
+  nakheelOnboarded: null as Bit,
+  dubaiHoldingsOnboarded: null as Bit,
   otherCommunityOnboarded: null as Bit,
   applyRenmark: '',
 });
@@ -254,8 +251,12 @@ const copy = computed(() =>
         workStart: '您几点开始工作？',
         workEnd: '您几点结束工作？',
         wearUniform: '是否愿意穿我们的制服？',
+        communities: '是否已在以下社区注册？',
+        otherChip: '其他（请说明）',
         emaar: '您是否已在 Emaar 社区注册？',
         emaarHint: '是否曾在 Emaar 社区完成入驻或提供服务',
+        nakheel: '您是否已在 Nakheel 社区注册？',
+        dubaiHoldings: '您是否已在 Dubai Holdings 社区注册？',
         otherCommunity: '您是否已在其他社区注册？',
         otherCommunityHint: '选「是」后请填写社区说明',
         applyRenmark: '其他社区说明',
@@ -316,8 +317,12 @@ const copy = computed(() =>
         workStart: 'What time do you start work?',
         workEnd: 'What time do you finish work?',
         wearUniform: 'Are you willing to wear our uniform?',
+        communities: 'Registered with the following Communities?',
+        otherChip: 'Other (Please specify)',
         emaar: 'Are you registered with an Emaar community?',
         emaarHint: 'Whether you have already onboarded or provided service in an Emaar community',
+        nakheel: 'Are you registered with a Nakheel community?',
+        dubaiHoldings: 'Are you registered with a Dubai Holdings community?',
         otherCommunity: 'Are you registered with other communities?',
         otherCommunityHint: 'Choose yes, then describe those communities',
         applyRenmark: 'Other community note',
@@ -362,10 +367,19 @@ const setCapacity = (key: 'saturdayService' | 'sundayService' | 'publicHolidaySe
   form[key] = value
 }
 
-const setOtherCommunity = (value: Bit) => {
-  form.otherCommunityOnboarded = value
-  if (value !== 1) form.applyRenmark = ''
+type CommunityKey = 'emaarOnboarded' | 'nakheelOnboarded' | 'dubaiHoldingsOnboarded' | 'otherCommunityOnboarded'
+const communityChips = computed(() => [
+  { key: 'emaarOnboarded' as const, label: 'Emaar' },
+  { key: 'nakheelOnboarded' as const, label: 'Nakheel' },
+  { key: 'dubaiHoldingsOnboarded' as const, label: 'Dubai Holdings' },
+  { key: 'otherCommunityOnboarded' as const, label: copy.value.otherChip },
+])
+const toggleCommunity = (key: CommunityKey) => {
+  const next: Bit = form[key] === 1 ? 0 : 1
+  form[key] = next
+  if (key === 'otherCommunityOnboarded' && next !== 1) form.applyRenmark = ''
 }
+const communityBit = (value: Bit) => (value === 1 ? 1 : 0)
 
 const toggleCategory = (option: ServiceCategoryOption) => {
   if (selectedIds.value.includes(option.categoryId)) {
@@ -422,13 +436,11 @@ const companyReady = () => {
 const submit = async () => {
   const bits = capacityChoices.value.every((item) => form[item.key] === 0 || form[item.key] === 1);
   const uniformReady = form.wearUniform === 0 || form.wearUniform === 1
-  const emaarReady = form.emaarOnboarded === 0 || form.emaarOnboarded === 1
-  const otherReady = form.otherCommunityOnboarded === 0 || form.otherCommunityOnboarded === 1
   const noteReady = form.otherCommunityOnboarded !== 1 || Boolean(form.applyRenmark.trim())
-  if (!companyReady() || !bits || !uniformReady || !emaarReady || !otherReady || !noteReady || !form.workStart || !form.workEnd) {
+  if (!companyReady() || !bits || !uniformReady || !noteReady || !form.workStart || !form.workEnd) {
     if (form.licenseExpiry && !licenseAfterToday(form.licenseExpiry)) errorText.value = copy.value.licenseHint;
     else if ((form.mobile.trim() || form.whatsapp.trim()) && (!phoneOk(form.mobile) || !phoneOk(form.whatsapp))) errorText.value = copy.value.phone;
-    else if (otherReady && !noteReady) errorText.value = copy.value.communityNoteRequired;
+    else if (!noteReady) errorText.value = copy.value.communityNoteRequired;
     else errorText.value = copy.value.required;
     return;
   }
@@ -457,8 +469,10 @@ const submit = async () => {
       minLeadTimeHours: form.minLeadTimeHours,
       monthlyCapacity: form.monthlyCapacity,
       wearUniform: form.wearUniform,
-      emaarOnboarded: form.emaarOnboarded,
-      otherCommunityOnboarded: form.otherCommunityOnboarded,
+      emaarOnboarded: communityBit(form.emaarOnboarded),
+      nakheelOnboarded: communityBit(form.nakheelOnboarded),
+      dubaiHoldingsOnboarded: communityBit(form.dubaiHoldingsOnboarded),
+      otherCommunityOnboarded: communityBit(form.otherCommunityOnboarded),
       applyRenmark: form.otherCommunityOnboarded === 1 ? form.applyRenmark.trim() : null,
       expectedServiceCategoryIds: selectedIds.value.length ? categoryIdPayload(selectedIds.value) : null,
       expectedServiceRemark: otherSelected.value && expectedServiceRemark.value.trim() ? expectedServiceRemark.value.trim() : null,
@@ -512,6 +526,12 @@ const submit = async () => {
 .phone-field input { min-width: 0; }
 .field-hint { color: #8a5a2b; font-size: 12px; font-weight: 650; line-height: 1.45; }
 .span-2 { grid-column: span 2; }
+.community-picks { display: grid; gap: 12px; margin-top: 18px; }
+.community-picks > strong { color: #111827; font-size: 16px; font-weight: 800; }
+.community-picks > strong .req { margin-left: 2px; }
+.community-picks__options { display: flex; flex-wrap: wrap; gap: 12px; }
+.community-picks__options button { min-height: 44px; padding: 0 22px; border: 1.5px solid #d5dbe3; border-radius: 999px; background: #fff; color: #05152b; font: inherit; font-size: 15px; font-weight: 750; cursor: pointer; }
+.community-picks__options button.is-on { border-color: #071426; background: #071426; color: #fff; }
 .community-note { display: grid; gap: 6px; margin-top: 14px; color: #5c564c; font-size: 13px; font-weight: 700; }
 .community-note > span { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
 .community-note textarea { width: 100%; min-height: 88px; padding: 10px 12px; border: 1px solid #e6dccb; border-radius: 10px; background: #fff; color: #05152b; font: inherit; font-size: 14px; font-weight: 500; resize: vertical; }

@@ -143,6 +143,9 @@
                     {{
                       t("client.productDetail.booking.attachUnitPrice", {
                         price: option.price.toFixed(2),
+                        unit:
+                          option.unit ||
+                          t("client.productDetail.booking.attachUnitFallback"),
                       })
                     }}
                   </span>
@@ -343,6 +346,7 @@ type ProductDetailRecord = {
   }>
   attachTypeNameI18n?: Record<string, I18nText>
   attachValueNameI18n?: Record<string, I18nText>
+  attachValueUnitI18n?: Record<string, I18nText>
   reviewList?: Array<{
     rating?: number | string
     content?: string
@@ -414,7 +418,12 @@ type BookingSpecGroup = {
   label: string
   options: BookingSpecOption[]
 }
-type BookingAttachOption = { id: string; label: string; price: number }
+type BookingAttachOption = {
+  id: string
+  label: string
+  price: number
+  unit: string
+}
 type BookingAttachGroup = {
   typeId: string
   label: string
@@ -825,6 +834,7 @@ const bookingAttachGroups = computed<BookingAttachGroup[]>(() => {
                 id,
                 label: optionLabel,
                 price: attachOptionPriceMap.value[id] ?? 0,
+                unit: pickI18nValue(record?.attachValueUnitI18n?.[id], ""),
               }
             : null
         })

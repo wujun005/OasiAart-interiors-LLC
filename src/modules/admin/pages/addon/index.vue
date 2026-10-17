@@ -21,6 +21,9 @@
           <template #default="{ row }">{{ row.displayName }}</template>
         </el-table-column>
         <el-table-column prop="categoryName" :label="t('admin.addon.table.category')" min-width="160" />
+        <el-table-column :label="t('admin.addon.table.unit')" min-width="100">
+          <template #default="{ row }">{{ row.displayUnit || '-' }}</template>
+        </el-table-column>
         <el-table-column prop="amount" :label="t('admin.addon.table.amount')" width="88" />
         <el-table-column :label="t('admin.addon.table.updatedAt')" width="156">
           <template #default="{ row }">{{ formatDate(row.updatedAt) }}</template>
@@ -77,6 +80,21 @@
             <el-option v-for="c in categoryOptions" :key="c.id" :label="c.displayName" :value="c.id" />
           </el-select>
         </el-form-item>
+        <el-form-item :label="t('admin.addon.form.unitI18n')" prop="unitI18n">
+          <div class="i18n-list">
+            <div v-for="(item, idx) in unitI18nList" :key="idx" class="i18n-row">
+              <el-select v-model="item.lang" :placeholder="t('admin.addon.form.languagePlaceholder')" style="width: 140px">
+                <el-option :label="t('admin.common.langZhCn')" value="zh-CN" />
+                <el-option :label="t('admin.common.langEnCode')" value="en" />
+              </el-select>
+              <el-input v-model="item.value" maxlength="64" :placeholder="t('admin.addon.form.unitPlaceholder')" />
+              <el-button link type="danger" :disabled="unitI18nList.length === 1" @click="removeUnitI18n(idx)">
+                {{ t('admin.addon.actions.removeLang') }}
+              </el-button>
+            </div>
+            <el-button link type="primary" @click="addUnitI18n">{{ t('admin.addon.actions.addLang') }}</el-button>
+          </div>
+        </el-form-item>
         <el-form-item :label="t('admin.addon.form.amount')" prop="amount">
           <el-input-number v-model="form.amount" :min="0" :step="1" />
         </el-form-item>
@@ -104,7 +122,9 @@ type Addon = {
   amount: number;
   updatedAt: string;
   displayName: string;
+  displayUnit: string;
   nameI18n?: Record<string, string>;
+  unitI18n?: Record<string, string>;
 };
 
 const categoryOptions = ref<{ id: number; displayName: string; nameI18n?: Record<string, string> }[]>([]);
@@ -134,9 +154,12 @@ const form = reactive<Addon>({
   amount: 0,
   updatedAt: '',
   displayName: '',
+  displayUnit: '',
   nameI18n: {},
+  unitI18n: {},
 });
 const nameI18nList = ref<{ lang: string; value: string }[]>([createEmptyI18nItem()]);
+const unitI18nList = ref<{ lang: string; value: string }[]>([createEmptyI18nItem()]);
 
 const rules: FormRules = {
   nameI18n: [
@@ -151,6 +174,22 @@ const rules: FormRules = {
   ],
   categoryId: [{ required: true, message: t('admin.addon.validation.categoryRequired'), trigger: 'change' }],
   amount: [{ required: true, message: t('admin.addon.validation.amountRequired'), trigger: 'blur' }],
+  unitI18n: [
+    {
+      validator: (_r, _v, cb) => {
+        const invalid = unitI18nList.value.find((item) => {
+          const hasLang = Boolean(item.lang?.trim());
+          const hasValue = Boolean(item.value?.trim());
+          return (hasLang || hasValue) && (!hasLang || !hasValue);
+        });
+        if (invalid) return cb(new Error(t('admin.addon.validation.unitIncomplete')));
+        const tooLong = unitI18nList.value.find((item) => (item.value?.trim().length || 0) > 64);
+        if (tooLong) return cb(new Error(t('admin.addon.validation.unitTooLong')));
+        cb();
+      },
+      trigger: 'change',
+    },
+  ],
 };
 
 const displayList = computed(() =>
@@ -192,9 +231,12 @@ const openCreate = () => {
     amount: 0,
     updatedAt: '',
     displayName: '',
+    displayUnit: '',
     nameI18n: {},
+    unitI18n: {},
   });
   nameI18nList.value = [createEmptyI18nItem()];
+  unitI18nList.value = [createEmptyI18nItem()];
   dialogVisible.value = true;
 };
 
@@ -204,6 +246,7 @@ const openEdit = (row: Addon) => {
   nameI18nList.value = row.nameI18n && Object.keys(row.nameI18n).length
     ? Object.entries(row.nameI18n).map(([lang, value]) => ({ lang, value: value as string }))
     : [createEmptyI18nItem(row.displayName || '')];
+  unitI18nList.value = toUnitFormRows(row.unitI18n);
   dialogVisible.value = true;
 };
 
@@ -214,6 +257,7 @@ const save = () => {
     submitLoading.value = true;
     const zhName = nameI18nList.value.find((i) => i.lang === 'zh-CN' || i.lang === 'zh')?.value || nameI18nList.value[0]?.value || '';
     const enName = nameI18nList.value.find((i) => i.lang === 'en')?.value || '';
+    const unitPayload = buildUnitPayload();
     const payload = {
       id: form.id || undefined,
       attachTypeId: form.categoryId,
@@ -224,6 +268,8 @@ const save = () => {
         return acc;
       }, {}),
       amount: form.amount,
+      unit: unitPayload.unit,
+      unitI18n: unitPayload.unitI18n,
     };
     addOrUpdate(payload)
       .then(() => {
@@ -307,6 +353,12 @@ const fetchList = async () => {
         locale.value,
         item.attachValue?.attachValue || item.name || '',
       ),
+      unitI18n: item.unitI18n || item.attachValue?.unitI18n,
+      displayUnit: pickI18nText(
+        item.unitI18n || item.attachValue?.unitI18n,
+        locale.value,
+        item.attachValue?.unit || item.unit || '',
+      ),
       categoryId: item.attachValue?.attachTypeId ?? item.attachTypeId ?? item.categoryId ?? null,
       amount: item.attachValue?.amount ?? item.amount ?? 0,
       updatedAt: item.attachValue?.modifyTime || item.attachValue?.updateTime || item.updatedAt || item.modifyTime || '',
@@ -319,8 +371,46 @@ const fetchList = async () => {
   }
 };
 
+const toFormLang = (lang: string) => (lang === 'zh' ? 'zh-CN' : lang);
+
+const toUnitFormRows = (unitI18n?: Record<string, string>) => {
+  const rows = Object.entries(unitI18n || {})
+    .filter(([, value]) => Boolean(String(value || '').trim()))
+    .map(([lang, value]) => ({ lang: toFormLang(lang), value: String(value) }));
+  const seen = new Set<string>();
+  const unique = rows.filter((item) => {
+    if (seen.has(item.lang)) return false;
+    seen.add(item.lang);
+    return true;
+  });
+  return unique.length ? unique : [createEmptyI18nItem()];
+};
+
+const buildUnitPayload = () => {
+  const unitI18n: Record<string, string> = {};
+  unitI18nList.value.forEach((item) => {
+    const value = item.value?.trim();
+    if (!item.lang?.trim() || !value) return;
+    const lang = item.lang === 'zh-CN' || item.lang === 'zh' ? 'zh' : item.lang;
+    unitI18n[lang] = value;
+  });
+  return {
+    unit: unitI18n.zh || unitI18n.en || '',
+    unitI18n,
+  };
+};
+
 const addI18n = () => {
   nameI18nList.value.push(createEmptyI18nItem());
+};
+
+const addUnitI18n = () => {
+  unitI18nList.value.push(createEmptyI18nItem());
+};
+
+const removeUnitI18n = (idx: number) => {
+  if (unitI18nList.value.length === 1) return;
+  unitI18nList.value.splice(idx, 1);
 };
 
 const removeI18n = (idx: number) => {

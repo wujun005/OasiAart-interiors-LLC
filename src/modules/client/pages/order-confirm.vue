@@ -2484,7 +2484,7 @@ onMounted(async () => {
 
 .order-summary-side {
   position: sticky;
-  top: 112px;
+  top: 70px;
 }
 
 .order-summary-card {

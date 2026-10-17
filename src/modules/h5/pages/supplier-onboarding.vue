@@ -138,6 +138,20 @@
           </div>
         </article>
 
+        <div class="community-picks">
+          <strong>{{ t('h5.supplierOnboarding.communities') }}<i>*</i></strong>
+          <div class="community-picks__options" role="group" :aria-label="t('h5.supplierOnboarding.communities')">
+            <button
+              v-for="item in communityChips"
+              :key="item.key"
+              type="button"
+              :class="{ 'is-on': form[item.key] === 1 }"
+              :aria-pressed="form[item.key] === 1"
+              @click="toggleCommunity(item.key)"
+            >{{ item.label }}</button>
+          </div>
+        </div>
+
         <label v-if="form.otherCommunityOnboarded === 1">
           <span>{{ t('h5.supplierOnboarding.note') }}<i>*</i></span>
           <textarea v-model="form.applyRenmark" rows="3" maxlength="512" :placeholder="t('h5.supplierOnboarding.notePlaceholder')" />
@@ -160,7 +174,8 @@ import { categoryIdPayload, isOtherService, listServiceCategories, serviceCatego
 import { DEFAULT_PHONE_DIAL, PHONE_DIAL_OPTIONS, joinPhone, nationalNumberOk, phoneDialLabel } from '@/utils/phone-dial';
 
 type Bit = 0 | 1 | null;
-type ChoiceKey = 'saturdayService' | 'sundayService' | 'publicHolidayService' | 'emergencyService' | 'wearUniform' | 'emaarOnboarded' | 'otherCommunityOnboarded';
+type ChoiceKey = 'saturdayService' | 'sundayService' | 'publicHolidayService' | 'emergencyService' | 'wearUniform';
+type CommunityKey = 'emaarOnboarded' | 'nakheelOnboarded' | 'dubaiHoldingsOnboarded' | 'otherCommunityOnboarded';
 
 const { t, locale } = useI18n({ useScope: 'global' });
 const router = useRouter();
@@ -199,6 +214,8 @@ const form = reactive({
   emergencyService: null as Bit,
   wearUniform: null as Bit,
   emaarOnboarded: null as Bit,
+  nakheelOnboarded: null as Bit,
+  dubaiHoldingsOnboarded: null as Bit,
   otherCommunityOnboarded: null as Bit,
   applyRenmark: '',
 });
@@ -216,9 +233,19 @@ const choices = computed(() => [
   { key: 'publicHolidayService' as const, label: t('h5.supplierOnboarding.holiday') },
   { key: 'emergencyService' as const, label: t('h5.supplierOnboarding.emergency') },
   { key: 'wearUniform' as const, label: t('h5.supplierOnboarding.wearUniform') },
-  { key: 'emaarOnboarded' as const, label: t('h5.supplierOnboarding.emaar') },
-  { key: 'otherCommunityOnboarded' as const, label: t('h5.supplierOnboarding.other') },
 ]);
+const communityChips = computed(() => [
+  { key: 'emaarOnboarded' as const, label: 'Emaar' },
+  { key: 'nakheelOnboarded' as const, label: 'Nakheel' },
+  { key: 'dubaiHoldingsOnboarded' as const, label: 'Dubai Holdings' },
+  { key: 'otherCommunityOnboarded' as const, label: t('h5.supplierOnboarding.otherChip') },
+]);
+const toggleCommunity = (key: CommunityKey) => {
+  const next: Bit = form[key] === 1 ? 0 : 1;
+  form[key] = next;
+  if (key === 'otherCommunityOnboarded' && next !== 1) form.applyRenmark = '';
+};
+const communityBit = (value: Bit) => (value === 1 ? 1 : 0);
 
 const pad = (value: number) => String(value).padStart(2, '0');
 const tomorrow = computed(() => {
@@ -247,7 +274,6 @@ const chosen = (value: Bit) => value === 0 || value === 1;
 
 const setChoice = (key: ChoiceKey, value: Bit) => {
   form[key] = value;
-  if (key === 'otherCommunityOnboarded' && value !== 1) form.applyRenmark = '';
 };
 
 const toggleCategory = (option: ServiceCategoryOption) => {
@@ -328,8 +354,10 @@ const submit = async () => {
       publicHolidayService: form.publicHolidayService,
       emergencyService: form.emergencyService,
       wearUniform: form.wearUniform,
-      emaarOnboarded: form.emaarOnboarded,
-      otherCommunityOnboarded: form.otherCommunityOnboarded,
+      emaarOnboarded: communityBit(form.emaarOnboarded),
+      nakheelOnboarded: communityBit(form.nakheelOnboarded),
+      dubaiHoldingsOnboarded: communityBit(form.dubaiHoldingsOnboarded),
+      otherCommunityOnboarded: communityBit(form.otherCommunityOnboarded),
       applyRenmark: form.otherCommunityOnboarded === 1 ? form.applyRenmark.trim() : null,
       expectedServiceCategoryIds: selectedIds.value.length ? categoryIdPayload(selectedIds.value) : null,
       expectedServiceRemark: otherSelected.value && expectedServiceRemark.value.trim() ? expectedServiceRemark.value.trim() : null,
@@ -507,6 +535,40 @@ const submit = async () => {
 .h5-apply__choice button.is-on {
   border-color: #05152b;
   background: #05152b;
+  color: #fff;
+}
+.community-picks {
+  display: grid;
+  gap: 12px;
+}
+.community-picks > strong {
+  color: #111827;
+  font-size: 16px;
+  font-weight: 800;
+}
+.community-picks > strong i {
+  color: #c2412d;
+  font-style: normal;
+}
+.community-picks__options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.community-picks__options button {
+  min-height: 44px;
+  padding: 0 22px;
+  border: 1.5px solid #d5dbe3;
+  border-radius: 999px;
+  background: #fff;
+  color: #05152b;
+  font: inherit;
+  font-size: 15px;
+  font-weight: 750;
+}
+.community-picks__options button.is-on {
+  border-color: #071426;
+  background: #071426;
   color: #fff;
 }
 .h5-apply__services {
