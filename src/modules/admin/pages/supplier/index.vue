@@ -424,7 +424,7 @@
             <h4>{{ t('admin.platformSuppliers.addons') }}</h4>
             <div v-for="item in skuAttaches" :key="item.attachValueId" class="sku-attach">
               <div>
-                <strong>{{ attachName(item) }}</strong>
+                <strong>{{ attachName(item) }}<template v-if="attachUnit(item)"> / {{ attachUnit(item) }}</template></strong>
                 <small>{{ t('admin.platformSuppliers.addonMeta', { type: attachTypeName(item), platform: moneyText(item.platformPrice), approved: moneyText(item.approvedPrice) }) }}</small>
               </div>
               <span>{{ item.offered ? moneyText(item.quotePrice) : t('admin.platformSuppliers.unavailable') }}</span>
@@ -683,7 +683,7 @@ const skuTarget = ref<any>(null)
 const skuColumns = ref<{ key: string; nameI18n: Record<string, unknown> | null; fallback: string }[]>([])
 const skuGroupLabel = ref('')
 const skuRows = ref<any[]>([])
-const skuAttaches = ref<Array<{ attachValueId: number; typeName: string; typeNameI18n?: Record<string, unknown> | null; name: string; nameI18n?: Record<string, unknown> | null; platformPrice: unknown; approvedPrice: unknown; offered: boolean; quotePrice: unknown }>>([])
+const skuAttaches = ref<Array<{ attachValueId: number; typeName: string; typeNameI18n?: Record<string, unknown> | null; name: string; nameI18n?: Record<string, unknown> | null; unit?: string; unitI18n?: Record<string, unknown> | null; platformPrice: unknown; approvedPrice: unknown; offered: boolean; quotePrice: unknown }>>([])
 const skuQuoteMode = ref<number | null>(null)
 const skuReviewByUnitPrice = ref(false)
 const skuUnitPrice = ref<number | null>(null)
@@ -758,6 +758,11 @@ const attachName = (item: { nameI18n?: unknown; name?: string }) => {
 const attachTypeName = (item: { typeNameI18n?: unknown; typeName?: string }) => {
   const text = specText(item.typeNameI18n)
   return text !== '—' ? text : (item.typeName || '—')
+}
+const attachUnit = (item: { unitI18n?: unknown; unit?: string }) => {
+  const text = specText(item.unitI18n)
+  if (text !== '—') return text
+  return String(item.unit || '').trim()
 }
 const serviceCategory = (row: any) => {
   const localized = specText(row?.categoryNameI18n)
@@ -1635,6 +1640,10 @@ const openSkus = async (row: any) => {
         name: String(saved.attachValueName || item.attachValueName || ''),
         nameI18n: (saved.attachValueNameI18n || item.attachValueNameI18n) && typeof (saved.attachValueNameI18n || item.attachValueNameI18n) === 'object'
           ? (saved.attachValueNameI18n || item.attachValueNameI18n)
+          : null,
+        unit: String(saved.unit || item.unit || ''),
+        unitI18n: (saved.unitI18n || item.unitI18n) && typeof (saved.unitI18n || item.unitI18n) === 'object'
+          ? (saved.unitI18n || item.unitI18n)
           : null,
         platformPrice: saved.platformPrice ?? item.platformPrice ?? null,
         approvedPrice: saved.approvedPrice ?? null,

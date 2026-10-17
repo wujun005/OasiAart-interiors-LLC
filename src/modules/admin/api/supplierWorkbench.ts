@@ -78,12 +78,29 @@ export function saveServices(payload: Record<string, unknown>) {
   return http.post('/api/supplier/tools/services/save', payload);
 }
 
+export function saveServiceContacts(payload: {
+  supplierId: number;
+  services: Array<{ spuId: number; workerCount: number; contactPhones: string[] }>;
+}) {
+  return http.post('/api/supplier/tools/services/contacts', payload);
+}
+
 export function quoteList(supplierId: number | string) {
   return http.get('/api/supplier/tools/quotes', { params: { supplierId } });
 }
 
 export function saveQuoteDraft(payload: Record<string, unknown>) {
   return http.post('/api/supplier/tools/quotes/draft', payload);
+}
+
+export function exportQuoteSheet() {
+  return http.get('/api/supplier/tools/quotes/export', { responseType: 'blob' });
+}
+
+export function importQuoteSheet(file: File) {
+  const body = new FormData();
+  body.append('file', file);
+  return http.post('/api/supplier/tools/quotes/import', body);
 }
 
 export function submitQuote(payload: Record<string, unknown>) {

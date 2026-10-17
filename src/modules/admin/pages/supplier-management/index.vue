@@ -1983,13 +1983,36 @@
             <h1>{{ t("admin.supplierPricing.title") }}</h1>
             <p>{{ t("admin.supplierPortal.selectedCategoryHint") }}</p>
           </div>
-          <el-button
-            type="primary"
-            :icon="Plus"
-            :disabled="!supplierRecordId"
-            @click="openServicePicker"
-            >{{ t("admin.supplierPricing.addService") }}</el-button
-          >
+          <div class="portal-pricing-actions">
+            <el-button
+              :icon="Download"
+              :loading="quoteExporting"
+              :disabled="!supplierRecordId"
+              @click="downloadQuoteTemplate"
+              >{{ t("admin.supplierPricing.downloadTemplate") }}</el-button
+            >
+            <el-button
+              :icon="Upload"
+              :loading="quoteImporting"
+              :disabled="!supplierRecordId"
+              @click="quoteFileInput?.click()"
+              >{{ t("admin.supplierPricing.importQuotes") }}</el-button
+            >
+            <el-button
+              type="primary"
+              :icon="Plus"
+              :disabled="!supplierRecordId"
+              @click="openServicePicker"
+              >{{ t("admin.supplierPricing.addService") }}</el-button
+            >
+            <input
+              ref="quoteFileInput"
+              class="quote-file-input"
+              type="file"
+              accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+              @change="importQuoteFile"
+            />
+          </div>
         </header>
         <nav
           class="portal-journey"
@@ -2152,25 +2175,21 @@
             <span>{{ t("admin.supplierPricing.editorKicker") }}</span>
             <h1>
               {{
-                quoteScreen === "setup"
-                  ? quoteDialogTitle
-                  : t(
-                      quoteScreen === "submitted"
-                        ? "admin.supplierPortal.quoteSubmitted"
-                        : "admin.supplierPortal.reviewTitle",
-                    )
+                quoteScreen === "submitted"
+                  ? t("admin.supplierPortal.quoteSubmitted")
+                  : quoteDialogTitle
               }}
             </h1>
             <p>
               {{
-                quoteScreen === "setup" ? quoteDialogCategory : quoteDialogTitle
+                quoteScreen === "submitted" ? quoteDialogTitle : quoteDialogCategory
               }}
               ·
               {{
                 t(
-                  quoteScreen === "setup"
-                    ? "admin.supplierPricing.editorHint"
-                    : "admin.supplierPortal.reviewHint",
+                  quoteScreen === "submitted"
+                    ? "admin.supplierPortal.reviewHint"
+                    : "admin.supplierPricing.editorHint",
                 )
               }}
             </p>
@@ -2195,7 +2214,7 @@
           >
         </nav>
         <section
-          v-if="quoteScreen === 'setup'"
+          v-if="quoteScreen !== 'submitted'"
           class="sv-quote"
           v-loading="quoteDialog.loading"
         >
@@ -2258,7 +2277,6 @@
             <div class="pricing-editor-main">
               <section class="pricing-editor-section">
                 <header class="pricing-section-head">
-                  <span>01</span>
                   <div>
                     <h2>{{
                       t(
@@ -2276,7 +2294,11 @@
                     }}</p>
                   </div>
                 </header>
-                <div v-if="quoteDialog.quoteMode === 2" class="rate-card">
+                <div
+                  v-if="quoteDialog.quoteMode === 2"
+                  class="rate-card"
+                  :class="{ 'is-quote-target': quoteGapFocusId === 'rate' }"
+                >
                   <label class="rate-field">
                     <span>{{ t("admin.supplierPricing.rateLabel") }}</span>
                     <span class="currency-input">
@@ -2301,7 +2323,6 @@
                 class="pricing-editor-section"
               >
                 <header class="pricing-section-head">
-                  <span>02</span>
                   <div>
                     <h2>{{ t("admin.supplierPricing.specStep") }}</h2>
                     <p class="spec-step-hint">
@@ -2375,6 +2396,7 @@
                       v-for="(row, index) in group.rows"
                       :key="row.skuId"
                       class="quote-line portal-quote-line"
+                      :data-quote-sku="row.skuId"
                       :class="{
                         'is-off': row.available === false || !row.enabled,
                         'has-missing':
@@ -2383,6 +2405,7 @@
                             quoteDialog.quoteMode,
                             quoteDialog.unitPrice,
                           ).length > 0,
+                        'is-quote-target': quoteGapFocusId === String(row.skuId),
                       }"
                     >
                       <label class="quote-line__switch">
@@ -2465,7 +2488,6 @@
                 class="pricing-editor-section"
               >
                 <header class="pricing-section-head">
-                  <span>{{ quoteDialog.quoteMode === 2 ? "02" : "03" }}</span>
                   <div>
                     <h2>{{ t("admin.supplierPricing.addonStep") }}</h2>
                     <p>{{ t("admin.supplierPricing.addonStepHint") }}</p>
@@ -2481,7 +2503,12 @@
                     v-for="item in quoteDialog.attaches"
                     :key="item.attachValueId"
                     class="quote-attach"
-                    :class="{ 'is-selected': item.offered }"
+                    :data-quote-addon="item.attachValueId"
+                    :class="{
+                      'is-selected': item.offered,
+                      'is-quote-target':
+                        quoteGapFocusId === `addon-${item.attachValueId}`,
+                    }"
                   >
                     <div class="quote-attach__name">
                       <el-checkbox
@@ -2492,7 +2519,10 @@
                             toggleAttach(item, Boolean(value))
                         "
                       >
-                        {{ attachDisplay(item, "name") }}
+                        {{ attachDisplay(item, "name")
+                        }}<template v-if="attachUnit(item)">
+                          / {{ attachUnit(item) }}</template
+                        >
                       </el-checkbox>
                       <small
                         >{{ attachDisplay(item, "type") }} ·
@@ -2616,20 +2646,120 @@
               >
               <el-button
                 type="primary"
-                :disabled="
-                  quoteUnderReview ||
-                  quotePriceLocked ||
-                  quoteMissingCount > 0 ||
-                  !enabledQuoteRows.length
-                "
                 @click="reviewServiceQuote"
                 >{{ t("admin.supplierPortal.reviewQuote") }}</el-button
               >
             </div>
           </footer>
         </section>
+        <el-dialog
+          class="supplier-form-dialog quote-review-dialog"
+          :model-value="quoteScreen === 'review'"
+          :title="t('admin.supplierPortal.reviewTitle')"
+          width="min(760px, calc(100vw - 32px))"
+          append-to-body
+          :close-on-click-modal="false"
+          :close-on-press-escape="!quoteDialog.saving"
+          :show-close="!quoteDialog.saving"
+          @update:model-value="closeQuoteReview"
+        >
+          <p class="quote-review-dialog__hint">
+            {{ t("admin.supplierPortal.reviewHint") }}
+          </p>
+          <dl class="quote-review-dialog__facts">
+            <div>
+              <dt>{{ t("admin.supplierPricing.service") }}</dt>
+              <dd>{{ quoteDialogTitle }}</dd>
+            </div>
+            <div>
+              <dt>{{ t("admin.supplierPricing.category") }}</dt>
+              <dd>{{ quoteDialogCategory }}</dd>
+            </div>
+            <div>
+              <dt>{{ t("admin.supplierPricing.quoteMode") }}</dt>
+              <dd>{{ quoteModeLabel(quoteDialog.quoteMode ?? undefined) }}</dd>
+            </div>
+            <div v-if="quoteDialog.quoteMode === 2">
+              <dt>{{ t("admin.supplierPricing.rateLabel") }}</dt>
+              <dd>AED {{ moneyText(quoteDialog.unitPrice) }}</dd>
+            </div>
+            <div v-else>
+              <dt>{{ t("admin.supplierPortal.enabledOptions") }}</dt>
+              <dd>{{ enabledQuoteRows.length }} / {{ quoteDialog.rows.length }}</dd>
+            </div>
+          </dl>
+          <div
+            v-if="quoteDialog.quoteMode !== 2 && reviewQuoteGroups.length"
+            class="quote-review-dialog__groups"
+          >
+            <section v-for="group in reviewQuoteGroups" :key="group.key">
+              <h3 v-if="group.title">
+                <small v-if="group.type">{{ group.type }}</small>
+                {{ group.title }}
+              </h3>
+              <div v-for="row in group.rows" :key="row.skuId">
+                <span
+                  v-if="
+                    (row.lineLabel || quoteSpecLabel(row)) &&
+                    (row.lineLabel || quoteSpecLabel(row)) !== group.title
+                  "
+                  >{{ row.lineLabel || quoteSpecLabel(row) }}</span
+                >
+                <strong>AED {{ moneyText(row.quotePrice) }}</strong>
+              </div>
+            </section>
+          </div>
+          <div class="quote-review-dialog__addons">
+            <h3>
+              {{ t("admin.supplierPricing.addons") }}
+              <small>{{ selectedAttachCount }}</small>
+            </h3>
+            <div
+              v-for="item in quoteDialog.attaches.filter((item) => item.offered)"
+              :key="item.attachValueId"
+            >
+              <span
+                >{{ attachDisplay(item, "name")
+                }}<template v-if="attachUnit(item)">
+                  / {{ attachUnit(item) }}</template
+                ></span
+              >
+              <strong>AED {{ moneyText(item.quotePrice) }}</strong>
+            </div>
+            <p v-if="!selectedAttachCount">
+              {{ t("admin.supplierOrders.noAddons") }}
+            </p>
+          </div>
+          <p class="quote-review-dialog__note">
+            {{ t("admin.supplierPortal.vatNote") }}
+            {{ t("admin.supplierPortal.lockNotice") }}
+          </p>
+          <template #footer>
+            <el-checkbox v-model="quoteConfirmed">{{
+              t("admin.supplierPortal.confirmQuote")
+            }}</el-checkbox>
+            <div class="quote-review-dialog__actions">
+              <el-button
+                :disabled="quoteDialog.saving"
+                @click="backToQuoteSetup"
+                >{{ t("admin.supplierPortal.backQuote") }}</el-button
+              >
+              <el-button
+                type="primary"
+                :loading="quoteDialog.saving"
+                :disabled="
+                  !quoteConfirmed ||
+                  quoteMissingCount > 0 ||
+                  !enabledQuoteRows.length
+                "
+                @click="submitServiceQuote"
+                >{{ t("admin.supplierPortal.submitQuote") }}</el-button
+              >
+            </div>
+          </template>
+        </el-dialog>
         <section
-          v-else
+          v-if="quoteScreen === 'submitted'"
           class="portal-review-layout"
           v-loading="quoteDialog.loading"
         >
@@ -2782,7 +2912,11 @@
                 :key="item.attachValueId"
                 class="portal-review-addon"
               >
-                <span>{{ attachDisplay(item, "name") }}</span
+                <span
+                  >{{ attachDisplay(item, "name")
+                  }}<template v-if="attachUnit(item)">
+                    / {{ attachUnit(item) }}</template
+                  ></span
                 ><strong>AED {{ moneyText(item.quotePrice) }}</strong>
               </div>
               <p v-if="!selectedAttachCount" class="portal-review-note">
@@ -2820,33 +2954,7 @@
               </div>
             </dl>
             <p>{{ t("admin.supplierPortal.vatNote") }}</p>
-            <template v-if="quoteScreen === 'review'"
-              ><label class="portal-quote-confirm"
-                ><input v-model="quoteConfirmed" type="checkbox" /><span>{{
-                  t("admin.supplierPortal.confirmQuote")
-                }}</span></label
-              >
-              <p class="portal-review-note">
-                {{ t("admin.supplierPortal.lockNotice") }}
-              </p>
-              <el-button
-                type="primary"
-                :loading="quoteDialog.saving"
-                :disabled="
-                  !quoteConfirmed ||
-                  quoteMissingCount > 0 ||
-                  !enabledQuoteRows.length
-                "
-                @click="submitServiceQuote"
-                >{{ t("admin.supplierPortal.submitQuote") }}
-                <ArrowRight /></el-button
-              ><el-button
-                :disabled="quoteDialog.saving"
-                @click="backToQuoteSetup"
-                >{{ t("admin.supplierPortal.backQuote") }}</el-button
-              ></template
-            >
-            <el-button v-else @click="closeServiceQuote">{{
+            <el-button @click="closeServiceQuote">{{
               t("admin.supplierPortal.backCategory", {
                 category: quoteDialogCategory,
               })
@@ -2946,6 +3054,9 @@
               }}</em>
             </div>
             <div v-if="draftOf(service)" class="picker-row__fields">
+              <p class="picker-hint">
+                {{ t("admin.supplierPricing.contactOptional") }}
+              </p>
               <label>
                 <span>{{ t("admin.supplierPricing.headcount") }}</span>
                 <el-input-number
@@ -3017,7 +3128,6 @@
               v-model="serviceEditor.workerCount"
               :min="1"
               :precision="0"
-              :disabled="serviceEditorReadOnly"
               controls-position="right"
             />
           </label>
@@ -3034,17 +3144,16 @@
               <el-input
                 v-model="serviceEditor.phones[index]"
                 maxlength="24"
-                :disabled="serviceEditorReadOnly"
                 placeholder="+971501234567"
               />
               <el-button
-                v-if="!serviceEditorReadOnly && serviceEditor.phones.length > 1"
+                v-if="serviceEditor.phones.length > 1"
                 @click="removePhone(serviceEditor, index)"
                 >{{ t("admin.supplierPricing.delete") }}</el-button
               >
             </div>
             <el-button
-              v-if="!serviceEditorReadOnly && serviceEditor.phones.length < 10"
+              v-if="serviceEditor.phones.length < 10"
               link
               type="primary"
               @click="addPhone(serviceEditor)"
@@ -3057,7 +3166,6 @@
             t("admin.supplierPricing.cancel")
           }}</el-button>
           <el-button
-            v-if="!serviceEditorReadOnly"
             type="primary"
             :loading="catalogSaving"
             @click="saveServiceEditor"
@@ -3716,7 +3824,10 @@ import {
   onboardingSave,
   serviceCommunityPage,
   applyQuotePriceChange,
+  exportQuoteSheet,
+  importQuoteSheet,
   saveQuoteDraft,
+  saveServiceContacts,
   saveServices,
   submitQuote,
   supplierAccept,
@@ -3735,6 +3846,7 @@ import {
 import { listBySpu, listSpuAttachCatalog } from "@/modules/admin/api/spu"
 import SupplierAvailability from "@/modules/admin/pages/supplier-management/availability.vue"
 import { useAdminSessionStore } from "@/modules/admin/stores/session"
+import { supplierOperationsApiEnabled } from "@/modules/admin/utils/features"
 import { pickI18nText } from "@/modules/admin/utils/i18n"
 import {
   optionMissingFields,
@@ -3771,6 +3883,7 @@ import {
   Plus,
   Search,
   Tickets,
+  Upload,
   UserFilled,
   Warning,
 } from "@element-plus/icons-vue"
@@ -4935,9 +5048,17 @@ const visibleQuoteRows = computed(() =>
   visibleQuoteGroups.value.flatMap((group) => group.rows),
 )
 const selectableQuoteRows = computed(() =>
-  quoteDialog.rows.filter(
+  visibleQuoteRows.value.filter(
     (row) => row.available !== false && !quoteLineHeld(row),
   ),
+)
+const reviewQuoteGroups = computed(() =>
+  quoteGroups.value
+    .map((group) => ({
+      ...group,
+      rows: group.rows.filter((row) => row.enabled && row.available !== false),
+    }))
+    .filter((group) => group.rows.length),
 )
 const setQuotesEnabled = (enabled: boolean) => {
   for (const row of selectableQuoteRows.value) row.enabled = enabled
@@ -4965,11 +5086,24 @@ const quoteGaps = computed(() => {
     groupKey: string
     groupTitle: string
     label: string
+    targetId: string
   }> = []
   if (quoteDialog.quoteMode == null)
-    gaps.push({ kind: "mode", groupKey: "", groupTitle: "", label: "" })
+    gaps.push({
+      kind: "mode",
+      groupKey: "",
+      groupTitle: "",
+      label: "",
+      targetId: "",
+    })
   if (quoteDialog.quoteMode === 2 && !positiveAmount(quoteDialog.unitPrice))
-    gaps.push({ kind: "rate", groupKey: "", groupTitle: "", label: "" })
+    gaps.push({
+      kind: "rate",
+      groupKey: "",
+      groupTitle: "",
+      label: "",
+      targetId: "rate",
+    })
   if (quoteDialog.quoteMode !== 2) {
     for (const row of enabledQuoteRows.value) {
       if (
@@ -4985,6 +5119,7 @@ const quoteGaps = computed(() => {
         groupKey: String(row.groupId || ""),
         groupTitle: String(row.groupValue || ""),
         label: String(row.lineLabel || quoteSpecLabel(row) || ""),
+        targetId: String(row.skuId),
       })
     }
   }
@@ -4995,10 +5130,9 @@ const quoteGaps = computed(() => {
       groupKey: "",
       groupTitle: "",
       label: attachDisplay(item, "name"),
+      targetId: String(item.attachValueId),
     })
   }
-  if (!quoteContactComplete.value)
-    gaps.push({ kind: "contact", groupKey: "", groupTitle: "", label: "" })
   return gaps
 })
 const quoteMissingCount = computed(() => quoteGaps.value.length)
@@ -5029,23 +5163,60 @@ const quoteGapText = computed(() => {
     { count: gaps.length, name: name || t("admin.supplierPricing.specFallback") },
   )
 })
+const quoteReviewBlockReason = computed(() => {
+  if (quoteUnderReview.value) return t("admin.supplierPricing.reviewNoticeHint")
+  if (quotePriceLocked.value) return t("admin.supplierPricing.priceChangeHint")
+  if (!enabledQuoteRows.value.length) return t("admin.supplierPortal.enableOne")
+  if (quoteMissingCount.value) return quoteGapText.value
+  return ""
+})
+const quoteGapFocusId = ref("")
+const scrollToQuoteField = (selector: string) => {
+  const node = document.querySelector(selector)
+  if (!node || !("getBoundingClientRect" in node)) return
+  const field = node.querySelector("input, textarea")
+  const target =
+    field && "getBoundingClientRect" in field && "focus" in field ? field : node
+  const scroller = document.querySelector(".el-main")
+  if (
+    scroller &&
+    "scrollTo" in scroller &&
+    "getBoundingClientRect" in scroller
+  ) {
+    const scrollerBox = scroller.getBoundingClientRect()
+    const targetBox = target.getBoundingClientRect()
+    const top =
+      scroller.scrollTop +
+      targetBox.top -
+      scrollerBox.top -
+      (scroller.clientHeight - targetBox.height) / 2
+    scroller.scrollTo({ top: Math.max(0, top), behavior: "smooth" })
+  } else if ("scrollIntoView" in target) {
+    target.scrollIntoView({ block: "center", behavior: "smooth" })
+  }
+  if ("focus" in target) target.focus({ preventScroll: true })
+}
 const focusQuoteGap = () => {
-  const gap = quoteGaps.value[0]
+  const gap =
+    quoteGaps.value.find((item) =>
+      item.kind === "price" || item.kind === "rate" || item.kind === "addon",
+    ) || quoteGaps.value[0]
   if (!gap) return
+  quoteGapFocusId.value =
+    gap.kind === "addon" ? `addon-${gap.targetId}` : gap.targetId
   if (gap.kind === "price" && gap.groupKey) quoteGroupTab.value = gap.groupKey
   nextTick(() => {
-    const target =
-      gap.kind === "addon"
-        ? ".quote-attaches"
-        : gap.kind === "contact"
-          ? ".pricing-review-panel > button"
-          : gap.kind === "rate" || gap.kind === "mode"
-            ? ".pricing-editor-section"
-            : ".quote-line.has-missing"
-    document.querySelector(target)?.scrollIntoView({
-      block: "center",
-      behavior: "smooth",
-    })
+    const selector =
+      gap.kind === "price"
+        ? `[data-quote-sku="${gap.targetId}"]`
+        : gap.kind === "addon"
+          ? `[data-quote-addon="${gap.targetId}"]`
+          : gap.kind === "rate"
+            ? ".rate-card"
+            : gap.kind === "contact"
+              ? ".pricing-review-panel > button"
+              : ".pricing-editor-section"
+    scrollToQuoteField(selector)
   })
 }
 
@@ -5418,6 +5589,9 @@ const availabilityAreas = computed(() =>
 const catalogLoading = ref(false)
 const catalogSaving = ref(false)
 const quoteLoading = ref(false)
+const quoteExporting = ref(false)
+const quoteImporting = ref(false)
+const quoteFileInput = ref<HTMLInputElement | null>(null)
 const addedKeyword = ref("")
 type PickedDraft = {
   key: string
@@ -5445,13 +5619,6 @@ const serviceEditor = reactive({
   workerCount: null as number | null,
   phones: [""],
 })
-const serviceEditorReadOnly = computed(() => {
-  const quote = liveQuotes.value.find(
-    (item) => Number(item.spuId) === serviceEditor.spuId,
-  )
-  return Number(quote?.status) === 1 && !quoteRejectText(quote)
-})
-
 const flattenSelected = (groups: CatalogGroupDraft[]): SavedService[] =>
   groups.flatMap((group) =>
     group.services
@@ -5471,8 +5638,23 @@ const flattenSelected = (groups: CatalogGroupDraft[]): SavedService[] =>
       })),
   )
 
+const otherCatalogGroup = (group: any) => {
+  if (Number(group?.categoryId) === 0 || group?.other === true) return true
+  const names = [
+    group?.categoryName,
+    ...(group?.nameI18n && typeof group.nameI18n === "object"
+      ? Object.values(group.nameI18n)
+      : []),
+  ]
+  return names.some((name) => {
+    const text = String(name || "").trim()
+    return text === "其他" || text.toLowerCase() === "other"
+  })
+}
 const mapCatalog = (groups: any[]): CatalogGroupDraft[] =>
-  (groups || []).map((group) => ({
+  (groups || [])
+    .filter((group) => !otherCatalogGroup(group))
+    .map((group) => ({
     categoryId: Number(group.categoryId),
     categoryName:
       group.categoryName || t("admin.supplierPricing.uncategorized"),
@@ -6145,6 +6327,10 @@ const attachDisplay = (
   kind === "name"
     ? localizedName(item.nameI18n, item.name)
     : localizedName(item.typeNameI18n, item.typeName)
+const attachUnit = (item: { unit?: string; unitI18n?: unknown }) => {
+  const text = localizedName(item.unitI18n, item.unit)
+  return text === "—" ? "" : text
+}
 const orderCategoryOptions = computed(() => {
   locale.value
   return catalogDraft.value.map((group) => {
@@ -6194,8 +6380,11 @@ const orderAddonText = (row: any) => {
         const localized = specText(item?.nameI18n)
         const name = localized !== "—" ? localized : item?.name
         if (!name) return ""
+        const unitText = specText(item?.unitI18n)
+        const unit = unitText !== "—" ? unitText : String(item?.unit || "").trim()
+        const labeled = unit ? `${name} / ${unit}` : name
         const quantity = Number(item?.quantity)
-        return quantity > 1 ? `${name} × ${quantity}` : name
+        return quantity > 1 ? `${labeled} × ${quantity}` : labeled
       })
       .filter(Boolean)
       .join(", ") || t("admin.supplierOrders.noAddons")
@@ -6538,12 +6727,25 @@ const applyOperations = (operations: any) => {
 }
 const loadOwnOperations = async () => {
   if (!supplierRecordId.value) return
+  if (!supplierOperationsApiEnabled) {
+    independentOperationsReady.value = false
+    return
+  }
   try {
-    applyOperations(unwrap(await supplierOperationsMine()))
+    const operations = unwrap(await supplierOperationsMine())
+    independentOperationsReady.value = true
+    applyOperations(operations)
   } catch {
+    independentOperationsReady.value = false
     // Older servers still expose draft operational fields in onboarding details.
     // Submitted profiles never fall back to a full onboarding write.
   }
+}
+
+const requireIndependentOperations = () => {
+  if (independentOperationsReady.value) return true
+  ElMessage.warning(t("admin.supplierPortal.operationsUnavailable"))
+  return false
 }
 
 const loadCurrentSupplier = async () => {
@@ -6576,6 +6778,11 @@ const saveAvailabilityHours = async (next: {
   sunday: boolean
 }) => {
   if (!supplierRecordId.value || saving.value) return
+  if (
+    (onboardingStatus.value !== 0 || !profileEditable.value) &&
+    !requireIndependentOperations()
+  )
+    return
   const previous = {
     start: capacityForm.start,
     end: capacityForm.end,
@@ -7153,6 +7360,11 @@ const saveAreas = async () => {
     ElMessage.warning(t("admin.supplierArea.profileRequired"))
     return
   }
+  if (
+    (onboardingStatus.value !== 0 || !profileEditable.value) &&
+    !requireIndependentOperations()
+  )
+    return
   const areaIds = chosenAreaIds()
   const previousAreas = dubaiServiceAreas.value
   const previousExtra = profileExtra.value
@@ -7239,8 +7451,6 @@ const persistServices = async (rows: SavedService[], success: string) => {
       categoryId: number
       items: Array<{
         spuId: number
-        workerCount: number
-        contactPhones: string[]
         acceptOrder: 0 | 1
       }>
     }
@@ -7252,8 +7462,6 @@ const persistServices = async (rows: SavedService[], success: string) => {
     }
     group.items.push({
       spuId: row.spuId,
-      workerCount: Number(row.workerCount),
-      contactPhones: cleanPhones(row.phones),
       acceptOrder: row.acceptOrder === 0 ? 0 : 1,
     })
     grouped.set(row.categoryId, group)
@@ -7264,8 +7472,37 @@ const persistServices = async (rows: SavedService[], success: string) => {
       supplierId: supplierRecordId.value,
       services: [...grouped.values()],
     })
-    ElMessage.success(success)
+    if (success) ElMessage.success(success)
     await Promise.all([loadCatalog(true), loadQuotes(true)])
+    return true
+  } catch (error: any) {
+    ElMessage.error(
+      error?.message || t("admin.supplierPricing.saveServicesFailed"),
+    )
+    return false
+  } finally {
+    catalogSaving.value = false
+  }
+}
+const contactStarted = (workerCount: number | null, phones: string[]) =>
+  Number(workerCount) > 0 || cleanPhones(phones).length > 0
+const saveContacts = async (
+  services: Array<{ spuId: number; workerCount: number; phones: string[] }>,
+  success: string,
+) => {
+  if (!supplierRecordId.value || !services.length) return false
+  catalogSaving.value = true
+  try {
+    await saveServiceContacts({
+      supplierId: supplierRecordId.value,
+      services: services.map((service) => ({
+        spuId: service.spuId,
+        workerCount: Number(service.workerCount),
+        contactPhones: service.phones,
+      })),
+    })
+    await Promise.all([loadCatalog(true), loadQuotes(true)])
+    if (success) ElMessage.success(success)
     return true
   } catch (error: any) {
     ElMessage.error(
@@ -7282,12 +7519,16 @@ const confirmAddServices = async () => {
     return
   }
   const problem = servicePicker.drafts
+    .filter((draft) => contactStarted(draft.workerCount, draft.phones))
     .map((draft) => contactProblem(draft.name, draft.workerCount, draft.phones))
     .find(Boolean)
   if (problem) {
     ElMessage.warning(problem)
     return
   }
+  const ready = servicePicker.drafts.filter(
+    (draft) => !contactProblem(draft.name, draft.workerCount, draft.phones),
+  )
   const next = [...savedServices.value]
   servicePicker.drafts.forEach((draft) => {
     if (addedKeys.value.has(draft.key)) return
@@ -7298,18 +7539,34 @@ const confirmAddServices = async () => {
       categoryNameI18n: draft.categoryNameI18n,
       name: draft.name,
       spuNameI18n: draft.spuNameI18n,
-      workerCount: Number(draft.workerCount),
-      phones: cleanPhones(draft.phones),
+      workerCount: null,
+      phones: [],
       acceptOrder: 1,
     })
   })
   const saved = await persistServices(
     next,
-    t("admin.supplierPricing.addedSuccess", {
-      count: servicePicker.drafts.length,
-    }),
+    ready.length
+      ? ""
+      : t("admin.supplierPricing.addedSuccess", {
+          count: servicePicker.drafts.length,
+        }),
   )
-  if (saved) servicePicker.open = false
+  if (!saved) return
+  if (ready.length) {
+    const contactsSaved = await saveContacts(
+      ready.map((draft) => ({
+        spuId: draft.spuId,
+        workerCount: Number(draft.workerCount),
+        phones: cleanPhones(draft.phones),
+      })),
+      t("admin.supplierPricing.addedSuccess", {
+        count: servicePicker.drafts.length,
+      }),
+    )
+    if (!contactsSaved) return
+  }
+  servicePicker.open = false
 }
 const openServiceEditor = (row: SavedService) => {
   serviceEditor.spuId = row.spuId
@@ -7321,7 +7578,6 @@ const openServiceEditor = (row: SavedService) => {
   serviceEditor.open = true
 }
 const saveServiceEditor = async () => {
-  if (serviceEditorReadOnly.value) return
   const problem = contactProblem(
     serviceEditorTitle.value || t("admin.supplierPricing.thisService"),
     serviceEditor.workerCount,
@@ -7331,18 +7587,93 @@ const saveServiceEditor = async () => {
     ElMessage.warning(problem)
     return
   }
-  const phones = cleanPhones(serviceEditor.phones)
-  const next = savedServices.value.map((service) =>
-    service.spuId === serviceEditor.spuId &&
-    service.categoryId === serviceEditor.categoryId
-      ? { ...service, workerCount: Number(serviceEditor.workerCount), phones }
-      : service,
-  )
-  const saved = await persistServices(
-    next,
+  const saved = await saveContacts(
+    [
+      {
+        spuId: serviceEditor.spuId,
+        workerCount: Number(serviceEditor.workerCount),
+        phones: cleanPhones(serviceEditor.phones),
+      },
+    ],
     t("admin.supplierPricing.serviceSaved"),
   )
   if (saved) serviceEditor.open = false
+}
+const quoteSheetName = () => {
+  const now = new Date()
+  const pad = (value: number) => String(value).padStart(2, "0")
+  const stamp = `${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}_${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`
+  return `supplier-quote_${supplierNo.value || supplierRecordId.value}_${stamp}.xlsx`
+}
+const downloadQuoteTemplate = async () => {
+  if (!supplierRecordId.value || quoteExporting.value) return
+  quoteExporting.value = true
+  try {
+    const data = await exportQuoteSheet()
+    const blob = data instanceof Blob ? data : new Blob([data as BlobPart])
+    if (blob.type.includes("json") || blob.type.startsWith("text/")) {
+      const text = await blob.text()
+      let message = text
+      try {
+        const parsed = JSON.parse(text)
+        message = String(parsed?.message || parsed?.msg || text)
+      } catch {
+        message = text
+      }
+      throw new Error(message)
+    }
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement("a")
+    link.href = url
+    link.download = quoteSheetName()
+    link.click()
+    URL.revokeObjectURL(url)
+  } catch (error: any) {
+    ElMessage.error(error?.message || t("admin.supplierPricing.exportFailed"))
+  } finally {
+    quoteExporting.value = false
+  }
+}
+const importQuoteFile = async (event: Event) => {
+  const input = event.target as HTMLInputElement | null
+  const file = input?.files?.[0]
+  if (input) input.value = ""
+  if (!file || !supplierRecordId.value || quoteImporting.value) return
+  if (!file.name.toLowerCase().endsWith(".xlsx")) {
+    ElMessage.warning(t("admin.supplierPricing.quoteFileType"))
+    return
+  }
+  quoteImporting.value = true
+  try {
+    const result = (await importQuoteSheet(file)) as {
+      serviceCount?: number
+      skuCount?: number
+      skippedCount?: number
+      messages?: string[]
+    }
+    await loadQuotes(true)
+    const summary = t("admin.supplierPricing.importDone", {
+      services: result?.serviceCount ?? 0,
+      skus: result?.skuCount ?? 0,
+      skipped: result?.skippedCount ?? 0,
+    })
+    const notes = Array.isArray(result?.messages)
+      ? result.messages.map((item) => String(item || "").trim()).filter(Boolean)
+      : []
+    if (notes.length) {
+      await ElMessageBox.alert(
+        [summary, ...notes].join("\n"),
+        t("admin.supplierPricing.importResult"),
+        { confirmButtonText: t("admin.supplierPricing.importClose") },
+      )
+    } else {
+      ElMessage.success(summary)
+    }
+  } catch (error: any) {
+    ElMessage.error(error?.message || t("admin.supplierPricing.importFailed"))
+  } finally {
+    quoteImporting.value = false
+  }
 }
 const loadQuotes = async (fresh = false) => {
   if (!supplierRecordId.value) return
@@ -7374,6 +7705,13 @@ const blankPositive = (value: unknown) => {
   const number = Number(value)
   return Number.isFinite(number) && number > 0 ? number : null
 }
+const firstPositive = (...values: unknown[]) => {
+  for (const value of values) {
+    const number = blankPositive(value)
+    if (number != null) return number
+  }
+  return null
+}
 const skuEnabled = (value: unknown, available = true) =>
   available !== false && (value == null || value === "" || Number(value) === 1)
 const quoteItems = () =>
@@ -7391,8 +7729,8 @@ const quoteItems = () =>
         : Number(row.quotePrice)
     return {
       skuId: row.skuId,
-      staffCount: 0,
-      serviceHours: 0,
+      staffCount: blankPositive(row.staffCount) ?? 0,
+      serviceHours: blankPositive(row.serviceHours) ?? 0,
       quotePrice,
       enabled: enabled ? 1 : 0,
     }
@@ -7452,6 +7790,8 @@ const mergeAttaches = (
         attachValueName: quote.attachValueName || item.attachValueName,
         attachValueNameI18n:
           quote.attachValueNameI18n || item.attachValueNameI18n,
+        unit: quote.unit || item.unit,
+        unitI18n: quote.unitI18n || item.unitI18n,
         platformPrice: quote.platformPrice ?? item.platformPrice,
         approvedPrice: quote.approvedPrice ?? null,
         canServe: quote.canServe,
@@ -7474,6 +7814,9 @@ const mapAttaches = (list: any[]) =>
       item.attachValueNameI18n && typeof item.attachValueNameI18n === "object"
         ? item.attachValueNameI18n
         : null,
+    unit: item.unit ? String(item.unit) : "",
+    unitI18n:
+      item.unitI18n && typeof item.unitI18n === "object" ? item.unitI18n : null,
     platformPrice: item.platformPrice ?? null,
     approvedPrice: item.approvedPrice ?? null,
     offered:
@@ -7513,8 +7856,6 @@ const submitProblem = () => {
     quoteDialog.quoteMode === 1 &&
     items.some((item) => !(Number(item.quotePrice) > 0))
   if (incomplete) return t("admin.supplierPricing.submitIncomplete")
-  if (!quoteContactComplete.value)
-    return t("admin.supplierPortal.contactRequired")
   return ""
 }
 
@@ -7716,8 +8057,8 @@ const openServiceQuote = async (row: {
           String(saved.rejectReason || "").trim()
             ? available
             : skuEnabled(saved.enabled ?? sku.enabled, available),
-        staffCount: blankPositive(saved.staffCount ?? sku.staffCount),
-        serviceHours: blankPositive(saved.serviceHours ?? sku.serviceHours),
+        staffCount: firstPositive(saved.staffCount, sku.staffCount),
+        serviceHours: firstPositive(saved.serviceHours, sku.serviceHours),
         quotePrice:
           saved.quotePrice == null || saved.quotePrice === ""
             ? sku.quotePrice == null || sku.quotePrice === ""
@@ -7841,17 +8182,20 @@ const backToQuoteSetup = () => {
   scrollProfileTop()
 }
 const reviewServiceQuote = () => {
-  if (
-    quoteMissingCount.value ||
-    !enabledQuoteRows.value.length ||
-    quoteUnderReview.value ||
-    quotePriceLocked.value
-  )
+  const reason = quoteReviewBlockReason.value
+  if (reason) {
+    ElMessage.warning(reason)
+    if (quoteMissingCount.value && !quoteUnderReview.value && !quotePriceLocked.value)
+      focusQuoteGap()
     return
+  }
   quoteScreen.value = "review"
   quoteConfirmed.value = false
   syncQuoteRoute()
-  scrollProfileTop()
+}
+const closeQuoteReview = (open: boolean) => {
+  if (open || quoteDialog.saving) return
+  backToQuoteSetup()
 }
 
 const requestPriceChange = async () => {
@@ -8505,7 +8849,7 @@ watch(areaKeyword, (keyword) => {
 .profile-status strong {
   color: #05152b;
   font-family: Fraunces, Georgia, serif;
-  font-size: 40px;
+  font-size: 32px;
   font-weight: 560;
   letter-spacing: -0.03em;
   line-height: 1.05;
@@ -8524,9 +8868,6 @@ watch(areaKeyword, (keyword) => {
 .profile-status.is-review strong,
 .profile-status-pill.is-review {
   color: #8a3d00;
-}
-.profile-status.is-review strong {
-  font-size: 44px;
 }
 .profile-status-pill.is-review {
   background: #8a3d00;
@@ -10061,6 +10402,12 @@ watch(areaKeyword, (keyword) => {
 }
 .quote-line.is-off {
   opacity: 0.55;
+}
+.quote-line.is-quote-target,
+.rate-card.is-quote-target,
+.quote-attach.is-quote-target {
+  border-color: #c89447;
+  box-shadow: 0 0 0 3px rgba(200, 148, 71, 0.28);
 }
 .quote-line__spec {
   display: flex;
@@ -12705,22 +13052,10 @@ watch(areaKeyword, (keyword) => {
 }
 .pricing-section-head {
   display: grid;
-  grid-template-columns: 34px minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr) auto;
   gap: 12px;
   align-items: start;
   margin-bottom: 16px;
-}
-.pricing-section-head > span {
-  display: grid;
-  place-items: center;
-  width: 34px;
-  height: 34px;
-  color: #8d5a32;
-  background: #f5ecdf;
-  border-radius: 10px;
-  font-family: Fraunces, Georgia, serif;
-  font-size: 12px;
-  font-weight: 650;
 }
 .pricing-section-head > div {
   min-width: 0;
@@ -13564,12 +13899,7 @@ watch(areaKeyword, (keyword) => {
     font-size: 29px;
   }
   .pricing-section-head {
-    grid-template-columns: 30px minmax(0, 1fr) auto;
     gap: 9px;
-  }
-  .pricing-section-head > span {
-    width: 30px;
-    height: 30px;
   }
   .pricing-section-head h2 {
     font-size: 20px;
@@ -13746,6 +14076,83 @@ watch(areaKeyword, (keyword) => {
   padding: 14px 22px 16px;
   background: #fffdf8;
   border-top: 1px solid #eadfce;
+}
+.quote-review-dialog .el-dialog__title {
+  font-size: 22px;
+}
+.quote-review-dialog .el-dialog__footer {
+  display: grid;
+  gap: 12px;
+}
+.quote-review-dialog__hint,
+.quote-review-dialog__note {
+  margin: 0;
+  color: #7a7166;
+  font-size: 13px;
+  line-height: 1.6;
+}
+.quote-review-dialog__hint {
+  margin-bottom: 14px;
+}
+.quote-review-dialog__facts {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px 16px;
+  margin: 0 0 16px;
+}
+.quote-review-dialog__facts dt,
+.quote-review-dialog__groups h3 small {
+  color: #8a7d70;
+  font-size: 11px;
+  font-weight: 500;
+}
+.quote-review-dialog__facts dd {
+  margin: 2px 0 0;
+  color: #102338;
+  font-weight: 650;
+}
+.quote-review-dialog__groups,
+.quote-review-dialog__addons {
+  display: grid;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+.quote-review-dialog__groups section,
+.quote-review-dialog__addons {
+  padding: 12px 14px;
+  background: #fff;
+  border: 1px solid #eadfce;
+  border-radius: 12px;
+}
+.quote-review-dialog__groups h3,
+.quote-review-dialog__addons h3 {
+  margin: 0 0 8px;
+  color: #102338;
+  font-size: 14px;
+}
+.quote-review-dialog__groups h3 small {
+  display: block;
+  margin-bottom: 2px;
+}
+.quote-review-dialog__groups section > div,
+.quote-review-dialog__addons > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 7px 0;
+  border-top: 1px solid #f3eadf;
+  color: #102338;
+  font-size: 13px;
+}
+.quote-review-dialog__groups section > div strong,
+.quote-review-dialog__addons > div strong {
+  margin-left: auto;
+  white-space: nowrap;
+}
+.quote-review-dialog__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
 }
 @media (max-width: 600px) {
   .order-drawer .el-drawer__header {

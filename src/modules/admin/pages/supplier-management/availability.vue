@@ -223,13 +223,15 @@
         </label>
         <label>
           <span>{{ t('admin.supplierAvailability.serviceOptional') }}</span>
-          <el-select v-model="blockForm.spuIds" multiple filterable clearable collapse-tags :placeholder="t('admin.supplierAvailability.allServices')">
+          <el-select :model-value="blockForm.spuIds" multiple filterable clearable collapse-tags :placeholder="t('admin.supplierAvailability.allServices')" @update:model-value="setServiceScope">
+            <el-option key="all-services" :label="t('admin.supplierAvailability.allServices')" :value="ALL_AVAILABILITY_SCOPE" />
             <el-option v-for="service in serviceChoices" :key="service.spuId" :label="service.name" :value="service.spuId" />
           </el-select>
         </label>
         <label>
           <span>{{ t('admin.supplierAvailability.areaOptional') }}</span>
-          <el-select v-model="blockForm.areaIds" multiple filterable clearable collapse-tags :placeholder="t('admin.supplierAvailability.allAreas')">
+          <el-select :model-value="blockForm.areaIds" multiple filterable clearable collapse-tags :placeholder="t('admin.supplierAvailability.allAreas')" @update:model-value="setAreaScope">
+            <el-option key="all-areas" :label="t('admin.supplierAvailability.allAreas')" :value="ALL_AVAILABILITY_SCOPE" />
             <el-option v-for="area in areaChoices" :key="area.areaId" :label="area.name" :value="area.areaId" />
           </el-select>
         </label>
@@ -317,6 +319,13 @@ import { ElMessage } from 'element-plus'
 import { useI18n } from 'vue-i18n'
 import { supplierEventSave } from '@/modules/admin/api/supplierWorkbench'
 import { useAdminSessionStore } from '@/modules/admin/stores/session'
+import {
+  ALL_AVAILABILITY_SCOPE,
+  availabilityScopePayload,
+  availabilityScopeSelection,
+  updateAvailabilityScopeSelection,
+  type AvailabilityScopeValue,
+} from '@/modules/admin/utils/availabilityScope'
 
 type ServiceItem = { spuId: number; serviceName: string }
 type AreaItem = { areaId: number; areaName: string }
@@ -454,8 +463,8 @@ const blockForm = reactive({
   startTime: '',
   endTime: '',
   weekdays: [] as number[],
-  spuIds: [] as number[],
-  areaIds: [] as number[],
+  spuIds: [ALL_AVAILABILITY_SCOPE] as AvailabilityScopeValue[],
+  areaIds: [ALL_AVAILABILITY_SCOPE] as AvailabilityScopeValue[],
   reason: '',
 })
 const calendarOpen = ref(false)
@@ -594,6 +603,12 @@ const areaChoices = computed(() => {
   for (const area of extraAreas.value) if (!map.has(area.areaId)) map.set(area.areaId, area.name)
   return [...map.entries()].map(([areaId, name]) => ({ areaId, name }))
 })
+const setServiceScope = (values: unknown) => {
+  blockForm.spuIds = updateAvailabilityScopeSelection(blockForm.spuIds, values)
+}
+const setAreaScope = (values: unknown) => {
+  blockForm.areaIds = updateAvailabilityScopeSelection(blockForm.areaIds, values)
+}
 const todayKey = () => {
   const now = new Date()
   return `${now.getFullYear()}-${`${now.getMonth() + 1}`.padStart(2, '0')}-${`${now.getDate()}`.padStart(2, '0')}`
@@ -608,8 +623,8 @@ const openBlock = (row?: SupplierEvent) => {
   blockForm.startTime = row?.startTime || ''
   blockForm.endTime = row?.endTime || ''
   blockForm.weekdays = row ? normalizeWeekdays(row.weekdays) : []
-  blockForm.spuIds = (row?.services || []).map((service) => service.spuId)
-  blockForm.areaIds = (row?.areas || []).map((area) => area.areaId)
+  blockForm.spuIds = availabilityScopeSelection((row?.services || []).map((service) => service.spuId))
+  blockForm.areaIds = availabilityScopeSelection((row?.areas || []).map((area) => area.areaId))
   blockForm.reason = row?.reason || ''
   blockOpen.value = true
 }
@@ -654,8 +669,8 @@ const saveBlock = async () => {
       startTime: blockForm.fullDay ? null : blockForm.startTime,
       endTime: blockForm.fullDay ? null : blockForm.endTime,
       weekdays: [...blockForm.weekdays],
-      spuIds: blockForm.spuIds,
-      areaIds: blockForm.areaIds,
+      spuIds: availabilityScopePayload(blockForm.spuIds),
+      areaIds: availabilityScopePayload(blockForm.areaIds),
       reason: reason || null,
     })
     ElMessage.success(t('admin.supplierAvailability.blockSaved'))

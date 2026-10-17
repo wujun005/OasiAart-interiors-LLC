@@ -35,6 +35,8 @@ export type LocalizedAttachSelection = {
   attachTypeNameI18n?: LocalizedText
   attachValueName?: string
   attachValueNameI18n?: LocalizedText
+  unit?: string
+  unitI18n?: LocalizedText
   quantity?: number | string
 }
 
@@ -175,8 +177,10 @@ export const formatOrderAddOns = (
         locale,
       )
       if (!valueName) return ""
+      const unit = localizeOrderText(selection.unitI18n, selection.unit, locale)
+      const labeled = unit ? `${valueName} / ${unit}` : valueName
       const quantity = Math.max(0, Number(selection.quantity ?? 0) || 0)
-      return quantity > 1 ? `${valueName} × ${quantity}` : valueName
+      return quantity > 1 ? `${labeled} × ${quantity}` : labeled
     })
     .filter(Boolean)
     .join(" · ")

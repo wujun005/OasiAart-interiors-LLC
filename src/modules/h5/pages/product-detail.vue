@@ -1704,6 +1704,18 @@ const goOrderConfirm = async () => {
   padding-left: 16px;
 }
 
+.h5-detail-html :deep(li[data-list="bullet"]) {
+  list-style-type: disc;
+}
+
+.h5-detail-html :deep(li[data-list="ordered"]) {
+  list-style-type: decimal;
+}
+
+.h5-detail-html :deep(li[data-list] > .ql-ui) {
+  display: none;
+}
+
 .h5-detail-html :deep(h1),
 .h5-detail-html :deep(h2),
 .h5-detail-html :deep(h3),

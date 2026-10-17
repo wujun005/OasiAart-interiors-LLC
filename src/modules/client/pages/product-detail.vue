@@ -2356,6 +2356,18 @@ const goOrderConfirm = async () => {
   padding-left: 2px;
 }
 
+.product-rich-text :deep(li[data-list="bullet"]) {
+  list-style-type: disc;
+}
+
+.product-rich-text :deep(li[data-list="ordered"]) {
+  list-style-type: decimal;
+}
+
+.product-rich-text :deep(li[data-list] > .ql-ui) {
+  display: none;
+}
+
 .product-rich-text :deep(li::marker) {
   color: var(--hourx-brand);
 }

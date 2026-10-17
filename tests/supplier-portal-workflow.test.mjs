@@ -110,6 +110,7 @@ async function harness(t, section = 'pricing') {
         ElMessageBox: {
           confirm: async () => { throw new Error('Unexpected confirmation dialog') },
           prompt: async () => { throw new Error('Unexpected prompt dialog') },
+          alert: async (message) => { calls.messages.push({ type: 'alert', message }) },
         },
       }
       if (name === '@/modules/admin/api/supplierWorkbench') return api
@@ -117,6 +118,7 @@ async function harness(t, section = 'pricing') {
         listBySpu: async () => ({ skus: [] }), listSpuAttachCatalog: async () => [],
       }
       if (name === '@/modules/admin/stores/session') return { useAdminSessionStore: () => session }
+      if (name === '@/modules/admin/utils/features') return { supplierOperationsApiEnabled: true }
       if (name === '@/modules/admin/utils/supplierPortal') return portal
       if (name === '@/modules/admin/utils/i18n') return i18n
       if (name === '@/utils/phone-dial') return phones
@@ -165,38 +167,71 @@ test('fixed-price missing fields block Review, and completing the price enables 
   state.quoteDialog.rows[0].quotePrice = ''
   await flush()
   assert.equal(state.quoteMissingCount, 1)
-  assert.equal(controlDisabled('reviewServiceQuote', state), true)
   state.reviewServiceQuote()
   assert.equal(state.quoteScreen, 'setup')
   assert.equal(calls.submissions.length, 0)
+  assert.equal(calls.messages.at(-1)?.type, 'warning')
+  assert.match(calls.messages.at(-1).message, /price/i)
   state.quoteDialog.rows[0].quotePrice = '329'
   state.quoteDialog.rows[0].staffCount = 4
   state.quoteDialog.rows[0].serviceHours = 5
   await flush()
   assert.equal(state.quoteMissingCount, 0)
-  assert.equal(controlDisabled('reviewServiceQuote', state), false)
   assert.equal(state.quoteItems()[0].quotePrice, 329)
   state.reviewServiceQuote()
   assert.equal(state.quoteScreen, 'review')
   assert.equal(state.quoteConfirmed, false)
   assert.equal(controlDisabled('submitServiceQuote', state), true)
+  state.savedServices = [{ ...state.savedServices[0], workerCount: null, phones: [] }]
+  await flush()
+  assert.equal(state.quoteMissingCount, 0)
+  assert.equal(state.submitProblem(), '')
 })
 
-test('hourly quotes submit only the hourly rate', async (t) => {
+test('select all and select none change only the current specification tab', async (t) => {
+  const context = await harness(t)
+  await readyQuote(context)
+  const { state } = context
+  state.quoteDialog.rows = [
+    { skuId: 1, enabled: false, available: true, groupId: 'a', groupType: '台数', groupValue: '1 台', quotePrice: '10' },
+    { skuId: 2, enabled: true, available: true, groupId: 'a', groupType: '台数', groupValue: '1 台', quotePrice: '10' },
+    { skuId: 3, enabled: false, available: true, groupId: 'b', groupType: '台数', groupValue: '2 台', quotePrice: '20' },
+  ]
+  await flush()
+  state.quoteGroupTab = 'a'
+  await flush()
+  state.setQuotesEnabled(true)
+  assert.deepEqual(state.quoteDialog.rows.map((row) => row.enabled), [true, true, false])
+  state.setQuotesEnabled(false)
+  assert.deepEqual(state.quoteDialog.rows.map((row) => row.enabled), [false, false, false])
+  state.quoteDialog.rows[2].enabled = true
+  state.quoteGroupTab = 'b'
+  await flush()
+  state.setQuotesEnabled(false)
+  assert.equal(state.quoteDialog.rows[0].enabled, false)
+  assert.equal(state.quoteDialog.rows[2].enabled, false)
+  state.setQuotesEnabled(true)
+  assert.deepEqual(state.quoteDialog.rows.map((row) => row.enabled), [false, false, true])
+})
+
+test('hourly quotes preserve structured workload while submitting the shared rate', async (t) => {
   const context = await harness(t)
   await readyQuote(context, { quoteMode: 2, unitPrice: 80 })
   const { state } = context
+  assert.equal(state.firstPositive(0, 2), 2)
+  assert.equal(state.firstPositive('', null, 1.5), 1.5)
+  assert.equal(state.firstPositive(0, null, ''), null)
   const row = state.quoteDialog.rows[0]
   assert.deepEqual(clone(state.quoteItems()[0]), {
-    skuId: 601, staffCount: 0, serviceHours: 0, quotePrice: 80, enabled: 1,
+    skuId: 601, staffCount: 2, serviceHours: 3, quotePrice: 80, enabled: 1,
   })
   state.quoteDialog.unitPrice = 79.99
   row.staffCount = 3
   row.serviceHours = 1.5
   await flush()
-  assert.equal(clone(state.quoteItems()[0]).quotePrice, 79.99)
-  assert.equal(clone(state.quoteItems()[0]).staffCount, 0)
-  assert.equal(clone(state.quoteItems()[0]).serviceHours, 0)
+  assert.deepEqual(clone(state.quotePayload().items[0]), {
+    skuId: 601, staffCount: 3, serviceHours: 1.5, quotePrice: 79.99, enabled: 1,
+  })
   assert.equal(row.quotePrice, '329')
   state.quoteDialog.unitPrice = null
   await flush()
@@ -207,6 +242,8 @@ test('hourly quotes submit only the hourly rate', async (t) => {
   row.staffCount = null
   row.serviceHours = null
   await flush()
+  assert.equal(clone(state.quoteItems()[0]).staffCount, 0)
+  assert.equal(clone(state.quoteItems()[0]).serviceHours, 0)
   assert.equal(state.quoteMissingCount, 0)
   assert.equal(state.submitProblem(), '')
 })
@@ -222,7 +259,6 @@ test('disabled and unavailable options require no fields and are excluded from e
   await flush()
   assert.equal(state.quoteMissingCount, 0)
   assert.equal(state.enabledQuoteRows.length, 1)
-  assert.equal(controlDisabled('reviewServiceQuote', state), false)
   assert.deepEqual(clone(state.quoteItems().map(row => row.enabled)), [1, 0, 0])
   assert.equal(state.submitProblem(), '')
   state.reviewServiceQuote()
@@ -255,7 +291,9 @@ test('only confirmed Review submits; submitted quotes lock edits and reject repe
   assert.equal(state.quoteDialog.status, 1)
   assert.equal(state.quoteRevisionLocked, true)
   assert.equal(state.quoteUnderReview, true)
-  assert.equal(controlDisabled('reviewServiceQuote', state), true)
+  state.reviewServiceQuote()
+  assert.equal(state.quoteScreen, 'submitted')
+  assert.equal(calls.messages.at(-1)?.type, 'warning')
   assert.ok(state.quoteDialog.rows.every(row => state.quoteLineHeld(row)))
   await state.saveServiceQuote()
   await state.submitServiceQuote()
@@ -315,6 +353,7 @@ test('review-period coverage and schedule save independently without changing th
   const { state, calls } = await harness(t)
   state.onboardingStatus = 1
   state.profileEditable = false
+  state.independentOperationsReady = true
   state.companyForm.companyName = 'Test Supplier'
   await state.saveAvailabilityHours({ start: '09:00', end: '21:00', concurrent: 3, saturday: true, sunday: false })
   assert.equal(calls.schedules.length, 1)
@@ -329,6 +368,27 @@ test('review-period coverage and schedule save independently without changing th
   assert.equal(calls.profileResubmits.length, 0)
   assert.equal(state.onboardingStatus, 1)
   assert.deepEqual(clone(state.selectedAreaIds), [9])
+})
+
+test('review-period operational saves stop safely when the server capability is unavailable', async (t) => {
+  const { state, calls } = await harness(t)
+  state.onboardingStatus = 1
+  state.profileEditable = false
+  state.independentOperationsReady = false
+  state.companyForm.companyName = 'Test Supplier'
+
+  await state.saveAvailabilityHours({ start: '09:00', end: '21:00', concurrent: 3, saturday: true, sunday: false })
+  state.platformAreas = [{ id: 9, name: 'Test Zone' }]
+  state.communitiesByArea = { 9: [{ id: 901, name: 'Test Community' }] }
+  state.draftCommunityIds = [901]
+  state.draftBareAreaIds = []
+  await state.saveAreas()
+
+  assert.equal(calls.schedules.length, 0)
+  assert.equal(calls.coverage.length, 0)
+  assert.equal(calls.profileSaves.length, 0)
+  assert.deepEqual(calls.messages.map(message => message.type), ['warning', 'warning'])
+  assert.ok(calls.messages.every(message => /upgrad/i.test(message.message)))
 })
 
 test('actual supplier portal template compiles with the tested setup bindings', () => {

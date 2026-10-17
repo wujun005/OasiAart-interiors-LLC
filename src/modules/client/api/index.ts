@@ -116,6 +116,8 @@ export interface OrderListRecord {
     attachValueId?: number | string;
     attachValueName?: string;
     attachValueNameI18n?: Record<string, string>;
+    unit?: string;
+    unitI18n?: Record<string, string>;
     quantity?: number | string;
     attachTypeName?: string;
     attachTypeNameI18n?: Record<string, string>;
@@ -240,6 +242,8 @@ export interface ClientCartItemRecord {
     attachValueId?: number | string;
     attachValueName?: string;
     attachValueNameI18n?: Record<string, string>;
+    unit?: string;
+    unitI18n?: Record<string, string>;
     quantity?: number;
     attachTypeName?: string;
     attachTypeNameI18n?: Record<string, string>;
