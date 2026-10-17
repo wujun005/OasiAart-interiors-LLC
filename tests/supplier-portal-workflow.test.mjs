@@ -182,26 +182,33 @@ test('fixed-price missing fields block Review, and completing the price enables 
   assert.equal(controlDisabled('submitServiceQuote', state), true)
 })
 
-test('hourly price responds to rate, staff and hours without changing fixed-price inputs', async (t) => {
+test('hourly quotes submit only the hourly rate', async (t) => {
   const context = await harness(t)
   await readyQuote(context, { quoteMode: 2, unitPrice: 80 })
   const { state } = context
   const row = state.quoteDialog.rows[0]
-  assert.equal(state.skuAmount(row), 480)
-  assert.equal(state.quoteItems()[0].quotePrice, 480)
+  assert.deepEqual(clone(state.quoteItems()[0]), {
+    skuId: 601, staffCount: 0, serviceHours: 0, quotePrice: 80, enabled: 1,
+  })
   state.quoteDialog.unitPrice = 79.99
   row.staffCount = 3
   row.serviceHours = 1.5
   await flush()
-  assert.equal(state.skuAmount(row), 359.96)
-  assert.equal(state.quoteItems()[0].quotePrice, 359.96)
+  assert.equal(clone(state.quoteItems()[0]).quotePrice, 79.99)
+  assert.equal(clone(state.quoteItems()[0]).staffCount, 0)
+  assert.equal(clone(state.quoteItems()[0]).serviceHours, 0)
   assert.equal(row.quotePrice, '329')
   state.quoteDialog.unitPrice = null
   await flush()
   assert.equal(state.quoteMissingCount, 1)
-  assert.equal(state.skuAmount(row), null)
   state.reviewServiceQuote()
   assert.equal(state.quoteScreen, 'setup')
+  state.quoteDialog.unitPrice = 80
+  row.staffCount = null
+  row.serviceHours = null
+  await flush()
+  assert.equal(state.quoteMissingCount, 0)
+  assert.equal(state.submitProblem(), '')
 })
 
 test('disabled and unavailable options require no fields and are excluded from enabled counts', async (t) => {

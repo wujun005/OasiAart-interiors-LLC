@@ -26,7 +26,14 @@ test('fixed prices are independent of staffing and disabled options require no f
   }
   assert.deepEqual(fields({ enabled: false }, 1, null), [])
   assert.deepEqual(fields({ enabled: true, available: false }, 1, null), [])
-  assert.deepEqual(fields({ ...row, staffCount: 1.5 }, 1, 80), ['staff'])
+  assert.deepEqual(fields({ ...row, staffCount: null, serviceHours: null }, 1, 80), [])
+  assert.deepEqual(fields({ ...row, staffCount: 1.5 }, 1, 80), [])
+})
+
+test('hourly quotes only require the shared rate, not each option', () => {
+  const row = { enabled: true, staffCount: null, serviceHours: null, quotePrice: null }
+  assert.deepEqual(fields(row, 2, 80), [])
+  assert.deepEqual(fields(row, 2, null), [])
 })
 
 test('each quotation status has one destination-specific action', () => {

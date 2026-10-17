@@ -357,14 +357,26 @@
               <h2>{{ skuDialogTitle }}</h2>
               <p>
                 {{ quoteStatusLabel(skuStatus, skuStatusI18n) }}
-                · {{ skuQuoteMode === 2 ? t('admin.platformSuppliers.unitPrice') : skuQuoteMode === 1 ? t('admin.platformSuppliers.fixedPrice') : t('admin.platformSuppliers.modeUnset') }}
-                <span v-if="skuQuoteMode === 2"> {{ t('admin.platformSuppliers.perHour', { price: moneyText(skuUnitPrice) }) }}</span>
+                · {{ hourlyQuoteReview ? t('admin.platformSuppliers.unitPrice') : skuQuoteMode === 1 ? t('admin.platformSuppliers.fixedPrice') : t('admin.platformSuppliers.modeUnset') }}
+                <span v-if="hourlyQuoteReview"> {{ t('admin.platformSuppliers.perHour', { price: moneyText(skuUnitPrice) }) }}</span>
                 <span v-if="skuRejectReason"> · {{ skuRejectReason }}</span>
               </p>
             </div>
             <span class="status-pill" :class="statusClass(skuStatus)">{{ quoteStatusLabel(skuStatus, skuStatusI18n) }}</span>
           </header>
+          <section v-if="hourlyQuoteReview" v-loading="skuLoading" class="hourly-review">
+            <div>
+              <span>{{ t('admin.platformSuppliers.hourlyRateLabel') }}</span>
+              <strong>AED {{ moneyText(skuUnitPrice) }}</strong>
+              <p>{{ t('admin.platformSuppliers.hourlyReviewHint') }}</p>
+            </div>
+            <div v-if="showHourlyReview" class="hourly-review__actions">
+              <button type="button" class="act no" :disabled="saving" @click="openHourlyReject">{{ t('admin.platformSuppliers.reject') }}</button>
+              <button type="button" class="act navy" :disabled="saving" @click="reviewHourlyQuote(2)">{{ t('admin.platformSuppliers.approve') }}</button>
+            </div>
+          </section>
           <el-table
+            v-else
             v-loading="skuLoading"
             :data="reviewSkuRows"
             row-key="skuId"
@@ -372,6 +384,9 @@
             @selection-change="onReviewSelectionChange"
           >
             <el-table-column v-if="showLineReview" type="selection" width="48" align="center" :selectable="isLineSelectable" />
+            <el-table-column v-if="skuGroupLabel" :label="skuGroupLabel" min-width="140">
+              <template #default="{ row }">{{ row.groupValue || '—' }}</template>
+            </el-table-column>
             <el-table-column v-for="column in skuColumns" :key="column.key" :label="specColumnLabel(column)" min-width="120">
               <template #default="{ row }">{{ specCell(row.specs[column.key]) }}</template>
             </el-table-column>
@@ -387,12 +402,6 @@
             </el-table-column>
             <el-table-column :label="t('admin.platformSuppliers.effectivePrice')" width="150">
               <template #default="{ row }">{{ moneyText(row.approvedPrice) }}</template>
-            </el-table-column>
-            <el-table-column :label="t('admin.platformSuppliers.staffCount')" width="80">
-              <template #default="{ row }">{{ row.staffCount ?? '—' }}</template>
-            </el-table-column>
-            <el-table-column :label="t('admin.platformSuppliers.durationHours')" width="90">
-              <template #default="{ row }">{{ row.serviceHours ?? '—' }}</template>
             </el-table-column>
             <el-table-column :label="t('admin.platformSuppliers.lineReviewStatus')" min-width="150">
               <template #default="{ row }">
@@ -464,8 +473,9 @@
       </template>
     </el-dialog>
 
-    <el-dialog v-model="lineRejectOpen" :title="lineRejectTargets.length > 1 ? t('admin.platformSuppliers.rejectSelectedTitle') : t('admin.platformSuppliers.rejectQuote')" width="460px" append-to-body>
-      <p class="line-reject-summary">{{ t('admin.platformSuppliers.rejectSelectedHint', { count: lineRejectTargets.length }) }}</p>
+    <el-dialog v-model="lineRejectOpen" :title="hourlyRejecting ? t('admin.platformSuppliers.rejectQuote') : lineRejectTargets.length > 1 ? t('admin.platformSuppliers.rejectSelectedTitle') : t('admin.platformSuppliers.rejectQuote')" width="460px" append-to-body @closed="hourlyRejecting = false">
+      <p v-if="hourlyRejecting" class="line-reject-summary">{{ t('admin.platformSuppliers.hourlyRejectHint') }}</p>
+      <p v-else class="line-reject-summary">{{ t('admin.platformSuppliers.rejectSelectedHint', { count: lineRejectTargets.length }) }}</p>
       <el-input v-model="lineRejectReason" type="textarea" :rows="4" maxlength="500" show-word-limit :placeholder="t('admin.platformSuppliers.reasonPlaceholder')" />
       <template #footer>
         <el-button @click="lineRejectOpen = false">{{ t('admin.platformSuppliers.cancel') }}</el-button>
@@ -671,11 +681,14 @@ const skuVersionNo = ref<number | undefined>()
 const skuRejectReason = ref('')
 const skuTarget = ref<any>(null)
 const skuColumns = ref<{ key: string; nameI18n: Record<string, unknown> | null; fallback: string }[]>([])
+const skuGroupLabel = ref('')
 const skuRows = ref<any[]>([])
 const skuAttaches = ref<Array<{ attachValueId: number; typeName: string; typeNameI18n?: Record<string, unknown> | null; name: string; nameI18n?: Record<string, unknown> | null; platformPrice: unknown; approvedPrice: unknown; offered: boolean; quotePrice: unknown }>>([])
 const skuQuoteMode = ref<number | null>(null)
+const skuReviewByUnitPrice = ref(false)
 const skuUnitPrice = ref<number | null>(null)
 const skuStatusI18n = ref<Record<string, string> | null>(null)
+const hourlyRejecting = ref(false)
 
 const rejectOpen = ref(false)
 const rejectReason = ref('')
@@ -1144,7 +1157,9 @@ const isPendingReviewLine = (row: any) => row?.quoted === true
   && Number(row?.enabled) === 1
   && normalizeLineReviewStatus(row?.reviewStatus) == null
 const pendingReviewLines = computed(() => skuRows.value.filter(isPendingReviewLine))
-const showLineReview = computed(() => Number(skuStatus.value) === 1 && pendingReviewLines.value.length > 0)
+const hourlyQuoteReview = computed(() => skuReviewByUnitPrice.value || skuQuoteMode.value === 2)
+const showHourlyReview = computed(() => hourlyQuoteReview.value && Number(skuStatus.value) === 1)
+const showLineReview = computed(() => !hourlyQuoteReview.value && Number(skuStatus.value) === 1 && pendingReviewLines.value.length > 0)
 const isLineSelectable = (row: any) => Number(skuStatus.value) === 1 && isPendingReviewLine(row)
 
 const onReviewSelectionChange = (rows: any[]) => {
@@ -1197,6 +1212,37 @@ const approveSelectedLines = () => reviewSelectedLines(2, selectedReviewLines.va
 
 const approveLine = (row: any) => reviewSelectedLines(2, [row])
 
+const reviewHourlyQuote = async (status: 2 | 3, reason?: string) => {
+  if (!detailId.value || !skuTarget.value?.spuId || saving.value || !hourlyQuoteReview.value) return
+  saving.value = true
+  try {
+    await platformSupplierQuoteReview({
+      supplierId: detailId.value,
+      spuId: skuTarget.value.spuId,
+      versionNo: skuVersionNo.value,
+      status,
+      rejectReason: status === 3 ? reason : undefined,
+    })
+    ElMessage.success(t(status === 2 ? 'admin.platformSuppliers.selectedApproved' : 'admin.platformSuppliers.selectedRejected'))
+    lineRejectOpen.value = false
+    lineRejectReason.value = ''
+    hourlyRejecting.value = false
+    await refreshCurrentQuote()
+  } catch (error: any) {
+    ElMessage.error(error?.message || t(status === 2 ? 'admin.platformSuppliers.approveQuoteFailed' : 'admin.platformSuppliers.rejectFailed'))
+  } finally {
+    saving.value = false
+  }
+}
+
+const openHourlyReject = () => {
+  if (!showHourlyReview.value || saving.value) return
+  hourlyRejecting.value = true
+  lineRejectTargets.value = []
+  lineRejectReason.value = ''
+  lineRejectOpen.value = true
+}
+
 const reviewPriceChange = async (row: any, status: 2 | 3, reason?: string) => {
   const supplierId = detailId.value
   const spuId = Number(row?.spuId)
@@ -1239,6 +1285,7 @@ const submitPriceChangeReject = () => {
 }
 
 const openLineReject = (rows?: any[]) => {
+  hourlyRejecting.value = false
   const source = Array.isArray(rows) && rows.length ? rows : selectedReviewLines.value
   const targets = source.filter(isLineSelectable)
   if (!targets.length) {
@@ -1256,6 +1303,7 @@ const rejectSelectedLines = () => {
     ElMessage.warning(t('admin.platformSuppliers.reasonRequired'))
     return
   }
+  if (hourlyRejecting.value) return reviewHourlyQuote(3, reason)
   return reviewSelectedLines(3, lineRejectTargets.value, reason)
 }
 
@@ -1363,8 +1411,6 @@ const loadServicePriceRows = async (row: any) => {
         ])),
         platformPriceWithTax: saved.platformPriceWithTax ?? null,
         approvedPrice: saved.approvedPrice ?? null,
-        staffCount: saved.staffCount ?? null,
-        serviceHours: saved.serviceHours ?? null,
         quotePrice: saved.quotePrice ?? null,
         reviewStatus: normalizeLineReviewStatus(saved.reviewStatus),
       }
@@ -1390,20 +1436,32 @@ const loadServicePriceRows = async (row: any) => {
   const category = serviceCategory(row)
   const status = quoteStatusLabel(quote.status ?? row.status, quote.statusI18n || row.statusI18n)
   const billing = billingLabel(quote.quoteMode, quote.unitPrice)
-  const sheetRows = lines.map((line) => [
-    service,
-    category,
-    status,
-    billing,
-    t('admin.platformSuppliers.exportSpecItem'),
-    specSheetText(line.specs, columns),
-    line.staffCount ?? '',
-    line.serviceHours ?? '',
-    sheetMoney(line.quotePrice),
-    sheetMoney(line.approvedPrice),
-    sheetMoney(clientPrice(line)),
-    lineReviewStatusLabel(line),
-  ])
+  const hourly = quote.reviewByUnitPrice === true || Number(quote.quoteMode) === 2
+  const sheetRows = hourly
+    ? [[
+        service,
+        category,
+        status,
+        billing,
+        t('admin.platformSuppliers.unitPrice'),
+        t('admin.platformSuppliers.perPersonHour'),
+        sheetMoney(quote.unitPrice),
+        '',
+        '',
+        '',
+      ]]
+    : lines.map((line) => [
+        service,
+        category,
+        status,
+        billing,
+        t('admin.platformSuppliers.exportSpecItem'),
+        specSheetText(line.specs, columns),
+        sheetMoney(line.quotePrice),
+        sheetMoney(line.approvedPrice),
+        sheetMoney(clientPrice(line)),
+        lineReviewStatusLabel(line),
+      ])
   addons.forEach((item) => {
     sheetRows.push([
       service,
@@ -1412,8 +1470,6 @@ const loadServicePriceRows = async (row: any) => {
       billing,
       t('admin.platformSuppliers.exportAddonItem'),
       item.name,
-      '',
-      '',
       sheetMoney(item.quotePrice),
       sheetMoney(item.approvedPrice),
       '',
@@ -1421,7 +1477,7 @@ const loadServicePriceRows = async (row: any) => {
     ])
   })
   if (!sheetRows.length) {
-    sheetRows.push([service, category, status, billing, '', '', '', '', '', '', '', ''])
+    sheetRows.push([service, category, status, billing, '', '', '', '', '', ''])
   }
   return sheetRows
 }
@@ -1443,8 +1499,6 @@ const exportPriceList = async () => {
         t('admin.platformSuppliers.billing'),
         t('admin.platformSuppliers.exportItem'),
         t('admin.platformSuppliers.exportSpec'),
-        t('admin.platformSuppliers.staffCount'),
-        t('admin.platformSuppliers.durationHours'),
         t('admin.platformSuppliers.taxQuote'),
         t('admin.platformSuppliers.effectivePrice'),
         t('admin.platformSuppliers.clientPrice'),
@@ -1470,8 +1524,10 @@ const openSkus = async (row: any) => {
   skuStatusI18n.value = row.statusI18n || null
   skuRejectReason.value = row.rejectReason || ''
   skuQuoteMode.value = null
+  skuReviewByUnitPrice.value = false
   skuUnitPrice.value = null
   skuColumns.value = []
+  skuGroupLabel.value = ''
   skuRows.value = []
   skuAttaches.value = []
   selectedReviewLines.value = []
@@ -1486,6 +1542,7 @@ const openSkus = async (row: any) => {
     skuStatusI18n.value = quote.statusI18n || row.statusI18n || null
     skuRejectReason.value = quote.rejectReason || row.rejectReason || ''
     skuQuoteMode.value = quote.quoteMode == null ? null : Number(quote.quoteMode)
+    skuReviewByUnitPrice.value = quote.reviewByUnitPrice === true
     skuUnitPrice.value = quote.unitPrice == null ? null : Number(quote.unitPrice)
     const quoteSkus = Array.isArray(quote.skus) ? quote.skus : []
     let columns: { key: string; nameI18n: Record<string, unknown> | null; fallback: string }[] = []
@@ -1505,17 +1562,45 @@ const openSkus = async (row: any) => {
       columns = []
       specSkus = []
     }
-    skuColumns.value = columns
     const catalogBySku = new Map(specSkus.map((sku: any) => [Number(sku.skuId), sku]))
+    const groups = Array.isArray(quote.skuGroups) ? quote.skuGroups : []
+    const groupBySku = new Map<number, any>()
+    groups.forEach((group: any, index: number) => {
+      for (const sku of group?.skus || []) {
+        groupBySku.set(Number(sku?.skuId), { group, index })
+      }
+    })
+    const firstGroup = groups.find((group: any) => group?.specTypeName || group?.specTypeNameI18n)
+    const groupType = firstGroup ? specText(firstGroup.specTypeNameI18n) : '—'
+    skuGroupLabel.value = groupType !== '—' ? groupType : String(firstGroup?.specTypeName || '')
+    const groupKey = firstGroup ? String(firstGroup.specKey ?? firstGroup.specTypeId ?? '') : ''
+    if (groupKey) columns = columns.filter((column) => column.key !== groupKey)
+    skuColumns.value = columns
+    const specEntries = (specs: unknown) => {
+      if (!Array.isArray(specs)) return {}
+      return Object.fromEntries(
+        specs
+          .map((spec: any) => [String(spec?.specKey ?? spec?.specTypeId ?? ''), spec?.specValueNameI18n || spec?.specValueName])
+          .filter(([key]) => key),
+      )
+    }
     skuRows.value = quoteSkus.filter((sku: any) => sku?.quoted === true || Number(sku?.quoted) === 1).map((saved: any) => {
       const catalogSku = catalogBySku.get(Number(saved.skuId)) || {}
+      const grouped = groupBySku.get(Number(saved.skuId))
+      const groupValue = grouped ? specText(grouped.group.specValueNameI18n) : '—'
       return {
         skuId: saved.skuId,
         skuCode: saved.skuCode || catalogSku.skuCode || `#${saved.skuId}`,
-        specs: Object.fromEntries(columns.map((column) => [
-          column.key,
-          saved[column.key] ?? saved.specs?.[column.key] ?? catalogSku[column.key],
-        ])),
+        groupOrder: grouped?.index ?? 999,
+        groupValue: groupValue !== '—' ? groupValue : String(grouped?.group?.specValueName || ''),
+        specs: {
+          ...Object.fromEntries(columns.map((column) => [
+            column.key,
+            saved[column.key] ?? catalogSku[column.key],
+          ])),
+          ...specEntries(catalogSku.specs),
+          ...specEntries(saved.specs),
+        },
         platformPrice: saved.platformPrice ?? catalogSku.price,
         platformPriceWithTax: saved.platformPriceWithTax ?? null,
         platformOriginalPrice: saved.platformOriginalPrice ?? catalogSku.originalPrice,
@@ -1529,7 +1614,7 @@ const openSkus = async (row: any) => {
         quotePrice: saved.quotePrice ?? null,
         rejectReason: saved.rejectReason || '',
       }
-    })
+    }).sort((left: any, right: any) => left.groupOrder - right.groupOrder)
     if (!catalogAttaches.length) {
       try {
         catalogAttaches = await listSpuAttachCatalog(row.spuId, catalogAttaches)
@@ -1660,6 +1745,11 @@ onMounted(loadSuppliers)
 .quote-head { display: flex; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
 .quote-head h2 { margin: 0 0 6px; color: #05152b; }
 .quote-head p { margin: 0; color: #6d7686; }
+.hourly-review { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 14px; padding: 16px 18px; background: #f7f3ec; border: 1px solid #eadfce; border-radius: 14px; }
+.hourly-review span { display: block; color: #74685a; font-size: 12px; font-weight: 700; }
+.hourly-review strong { display: block; margin: 4px 0; color: #05152b; font-size: 28px; line-height: 1.1; }
+.hourly-review p { max-width: 520px; margin: 0; color: #6d7686; font-size: 13px; line-height: 1.5; }
+.hourly-review__actions { display: flex; flex: 0 0 auto; gap: 8px; }
 .quote-foot { justify-content: flex-end; align-items: center; flex-wrap: wrap; margin-top: 14px; }
 .quote-foot__selection { margin-right: auto; color: #6d7686; font-size: 13px; }
 .line-actions { display: flex; gap: 6px; }
@@ -1669,6 +1759,7 @@ onMounted(loadSuppliers)
 @media (max-width: 900px) {
   .stat-row, .split, .kv { grid-template-columns: 1fr; }
   .supplier-hero { flex-wrap: wrap; }
+  .hourly-review { align-items: flex-start; flex-direction: column; }
 }
 .supplier-review__head--detail .el-button { margin-bottom: 8px; padding-left: 0; }
 .board { padding: 14px; background: #fff; border: 1px solid #e7ebf2; border-radius: 14px; }

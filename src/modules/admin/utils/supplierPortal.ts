@@ -20,16 +20,10 @@ export function calculatedQuotePrice(rate: unknown, staff: unknown, hours: unkno
   return Math.round((total + Number.EPSILON * Math.abs(total)) * 100) / 100
 }
 
-export function optionMissingFields(option: QuoteOption, mode: QuoteMode, rate: unknown): string[] {
+export function optionMissingFields(option: QuoteOption, mode: QuoteMode, _rate?: unknown): string[] {
   if (option.available === false || !option.enabled) return []
-  const missing: string[] = []
-  if (!(Number(option.staffCount) > 0) || !Number.isInteger(Number(option.staffCount))) missing.push('staff')
-  if (!(Number(option.serviceHours) > 0)) missing.push('hours')
-  if (mode === 1 && !positiveAmount(option.quotePrice)) missing.push('price')
-  if (mode === 2 && calculatedQuotePrice(rate, option.staffCount, option.serviceHours) == null) {
-    if (!missing.length && !(Number(rate) > 0)) missing.push('rate')
-  }
-  return missing
+  if (mode === 2) return []
+  return positiveAmount(option.quotePrice) ? [] : ['price']
 }
 
 export function quoteActionKey(status?: number | null): string {

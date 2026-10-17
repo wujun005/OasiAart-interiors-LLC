@@ -14,13 +14,13 @@
 .dossier-rail { padding: 22px 14px; color: #102338; background: #fff; border: 1px solid #e6e1d8; border-radius: 14px; }
 .dossier-rail > p { padding: 0 7px; margin: 0; color: #8e7757; font-size: 10px; letter-spacing: .1em; }
 .dossier-rail nav { margin-top: 15px; gap: 8px; }
-.dossier-rail nav button { display: grid; grid-template-columns: 32px minmax(0, 1fr) 12px; gap: 10px; align-items: center; padding: 14px 8px; border-radius: 9px; color: #213247; }
+.dossier-rail nav button { display: grid; grid-template-columns: minmax(0, 1fr) 12px; gap: 12px; align-items: center; padding: 14px 12px; border-radius: 9px; color: #213247; }
 .dossier-rail nav button.is-active { background: #faf4e7; color: #12273c; box-shadow: inset 3px 0 #c79c4e; }
 .dossier-rail nav button.is-active::before { display: none; }
-.dossier-rail .profile-step-number { display: grid; place-items: center; width: 32px; height: 32px; color: #8b682e; background: #f7ecd8; border-radius: 50%; font: 600 12px Sora, sans-serif; }
 .dossier-rail .profile-step-copy { display: grid; gap: 5px; width: auto; color: #102338; font-family: inherit; }
 .profile-step-copy b { font-size: 12px; font-weight: 650; line-height: 1.45; }
-.dossier-rail .profile-step-copy small { margin: 0; font-size: 10px; font-weight: 500; color: #7e847f; }
+.dossier-rail .profile-step-copy small { display: flex; align-items: center; gap: 5px; margin: 0; font-size: 10px; font-weight: 500; color: #7e847f; }
+.dossier-rail .profile-step-check { display: inline-grid; place-items: center; flex: 0 0 16px; width: 16px; height: 16px; color: #177c59; background: #e5f5ed; border-radius: 50%; font: 800 10px/1 Sora, sans-serif; }
 .dossier-rail nav svg { width: 12px; color: #a89472; }
 .profile-progress { padding: 20px 7px 0; margin-top: 18px; border-top: 1px solid #eeeae2; }
 .profile-progress > span { display: block; margin-bottom: 10px; color: #687384; font-size: 10px; line-height: 1.5; }
@@ -53,11 +53,27 @@
 .profile-missing { display: flex; flex-wrap: wrap; gap: 7px; padding: 15px 0; color: #906f3b; font-size: 11px; }
 .profile-missing strong { flex: 0 0 100%; font-weight: 500; }
 .profile-missing button { padding: 3px 8px; color: #865e25; background: #fff6e3; border: 1px solid #f0dfba; border-radius: 5px; font: inherit; cursor: pointer; }
-.submission-result { display: grid; gap: 13px; padding: 15px 20px 25px; text-align: center; }
-.submission-result h2 { margin: 5px 0 0; color: #102338; font: 550 28px/1.2 Fraunces, Georgia, serif; }
-.submission-result p { margin: 0 0 10px; color: #7b8491; line-height: 1.7; font-size: 13px; }
-.submission-check { display: grid; place-items: center; width: 58px; height: 58px; margin: 0 auto; color: #198257; background: #e4f4ec; border-radius: 50%; font-size: 29px; }
-.submission-result :deep(.el-button) { width: 100%; min-height: 42px; margin: 0; }
+.profile-success-dialog :deep(.el-dialog__header) { display: none; }
+.profile-success-dialog :deep(.el-dialog__body) { padding: 0; }
+.submission-result { display: grid; gap: 0; padding: 30px 32px 22px; text-align: center; }
+.submission-result__intro h2 { margin: 14px 0 8px; color: #102338; font: 550 28px/1.2 Fraunces, Georgia, serif; }
+.submission-result__intro p { max-width: 450px; margin: 0 auto; color: #7b8491; line-height: 1.7; font-size: 13px; }
+.submission-check { display: grid; place-items: center; width: 56px; height: 56px; margin: 0 auto; color: #198257; background: #e4f4ec; border-radius: 50%; }
+.submission-check svg { width: 27px; height: 27px; }
+.submission-next { margin-top: 24px; text-align: left; }
+.submission-next__title { display: block; margin-bottom: 10px; color: #47596b; font-size: 11px; font-weight: 700; letter-spacing: .03em; }
+.submission-next__actions { display: grid; gap: 10px; }
+.submission-next-card { display: grid; grid-template-columns: 42px minmax(0, 1fr) 16px; gap: 13px; align-items: center; width: 100%; min-height: 78px; padding: 13px 15px; color: #142a40; background: #fbfaf7; border: 1px solid #e7e1d7; border-radius: 11px; font: inherit; text-align: left; cursor: pointer; transition: border-color .18s ease, box-shadow .18s ease, transform .18s ease; }
+.submission-next-card:hover, .submission-next-card:focus-visible { border-color: #c79c4e; box-shadow: 0 8px 22px rgba(16, 35, 56, .08); transform: translateY(-1px); outline: none; }
+.submission-next-card__icon { display: grid; place-items: center; width: 42px; height: 42px; color: #fff; background: #102b44; border-radius: 10px; }
+.submission-next-card.is-pricing .submission-next-card__icon { color: #7f5b24; background: #f2e5cd; }
+.submission-next-card__icon svg { width: 19px; height: 19px; }
+.submission-next-card__copy { display: grid; gap: 4px; min-width: 0; }
+.submission-next-card__copy strong { color: #142a40; font-size: 13px; line-height: 1.45; }
+.submission-next-card__copy small { color: #7b8491; font-size: 11px; line-height: 1.55; }
+.submission-next-card > svg { width: 14px; color: #a4895c; }
+.submission-later { justify-self: center; margin-top: 17px; padding: 6px 8px; color: #718092; background: transparent; border: 0; font: 550 11px/1.5 Sora, sans-serif; cursor: pointer; }
+.submission-later:hover, .submission-later:focus-visible { color: #102b44; text-decoration: underline; outline: none; }
 .workspace-setup { padding: 26px; background: #fff; border: 1px solid #e6e1d8; border-radius: 16px; }
 .workspace-setup > header { display: flex; justify-content: space-between; align-items: center; gap: 15px; }
 .workspace-setup h2 { margin: 8px 0 0; font: 550 28px Fraunces, Georgia, serif; }
@@ -144,14 +160,18 @@
 .portal-price-rule p { margin: 5px 0 0; color: #8c8270; font-size: 10px; line-height: 1.7; }
 .portal-price-rule--fixed { margin-top: 14px; padding: 16px; background: #fbf5e9; border: 1px solid #f0e3c9; border-radius: 8px; }
 .portal-vat-note { margin: 13px 0 0; color: #7a8592; font-size: 10px; }
-.pricing-editor-section .portal-quote-line { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; padding: 15px; background: #fff; border: 1px solid #e4e8ec; }
-.portal-quote-line .quote-line__switch { grid-column: 1; grid-row: 1; display: flex; align-items: center; gap: 8px; flex-direction: row; }
-.portal-quote-line .quote-line__spec { grid-column: 2 / 4; grid-row: 1; align-self: center; display: block; }
+.pricing-editor-section .portal-quote-line { display: grid; grid-template-columns: auto minmax(0, 1fr) 148px auto; gap: 8px 14px; align-items: center; padding: 12px 14px; background: #fff; border: 1px solid #e4e8ec; }
+.portal-quote-line .quote-line__switch { grid-column: auto; grid-row: auto; display: flex; align-items: center; justify-content: center; width: 28px; white-space: nowrap; }
+.portal-quote-line .quote-line__spec { grid-column: auto; grid-row: auto; align-self: center; display: block; padding: 0; }
 .portal-quote-line .quote-line__spec > span { display: none; }
 .portal-quote-line .quote-line__spec strong { color: #1d344b; font-size: 12px; line-height: 1.5; }
-.portal-quote-line > label:not(.quote-line__switch) { grid-row: 2; display: grid; gap: 5px; min-width: 0; }
+.portal-quote-line > label.quote-line__price { position: relative; grid-column: auto; grid-row: auto; display: block; width: 148px; max-width: 148px; margin: 0; }
+.portal-quote-line > label.quote-line__price > span:first-child { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
+.portal-quote-line .quote-line__price :deep(.el-input__wrapper) { min-height: 32px; padding: 0 8px; }
+.portal-quote-line .portal-price-missing { display: none; }
 .portal-quote-line :deep(.el-input-number) { width: 100%; }
-.portal-option-status { grid-column: 1 / -1; color: #9f7841; font-size: 10px; }
+.portal-quote-line .portal-option-status { grid-column: auto; grid-row: auto; justify-self: end; }
+.portal-option-status { color: #9f7841; font-size: 10px; }
 .portal-option-status.is-ready { color: #21835e; }
 .portal-quote-line.is-off { opacity: .55; background: #f7f8f9; }
 .portal-quote-line.has-missing { border-color: #ead9b8; }
@@ -164,7 +184,7 @@
 .pricing-review-panel dd { color: #22394f; font-size: 11px; }
 .pricing-review-panel > button { color: #213950; background: #fbf4e7; border-color: #eedcba; }
 .pricing-review-panel > button small { color: #8c7f67; }
-.sv-quote__foot { flex-wrap: wrap; gap: 14px; position: static; margin-top: 18px; background: #fff; border: 1px solid #e6e1d8; border-radius: 12px; padding: 16px 20px; }
+.sv-quote__foot { position: sticky; bottom: 0; z-index: 6; flex-wrap: wrap; gap: 14px; margin-top: 18px; background: rgba(255, 253, 248, .96); border: 1px solid #e6e1d8; border-radius: 12px; padding: 16px 20px; box-shadow: 0 -12px 28px rgba(5, 21, 43, .08); backdrop-filter: blur(12px); }
 .sv-quote__foot > div:last-child { display: flex; flex-wrap: wrap; gap: 8px; }
 .sv-quote__foot :deep(.el-button + .el-button) { margin-left: 0; }
 .portal-review-layout { display: grid; grid-template-columns: minmax(0, 1fr) 280px; gap: 18px; align-items: start; }
@@ -234,11 +254,16 @@
   .dossier-grid .span-2 { grid-column: auto; }
   .dossier-rail { padding: 15px 10px; }
   .dossier-rail nav { gap: 4px; }
-  .dossier-rail nav button { grid-template-columns: 26px minmax(0, 1fr); padding: 10px 7px; gap: 8px; }
+  .dossier-rail nav button { grid-template-columns: minmax(0, 1fr); padding: 10px 9px; gap: 0; }
   .dossier-rail nav svg { display: none; }
-  .dossier-rail .profile-step-number { width: 26px; height: 26px; font-size: 10px; }
   .profile-step-copy b { font-size: 10px; }
   .dossier-rail .profile-step-copy small { font-size: 9px; }
+  .submission-result { padding: 26px 17px 18px; }
+  .submission-result__intro h2 { font-size: 24px; }
+  .submission-next { margin-top: 20px; }
+  .submission-next-card { grid-template-columns: 38px minmax(0, 1fr) 14px; gap: 10px; min-height: 72px; padding: 11px 12px; }
+  .submission-next-card__icon { width: 38px; height: 38px; }
+  .submission-next-card__copy small { font-size: 10px; }
   .portal-pricing-header, .portal-quote-header { align-items: flex-start; flex-direction: column; gap: 15px; }
   .portal-service-layout { grid-template-columns: 1fr; }
   .portal-categories { position: static; }
@@ -255,10 +280,11 @@
   .portal-journey > svg { width: 10px; }
   .mode-cards { grid-template-columns: 1fr; }
   .rate-card { grid-template-columns: 1fr; gap: 14px; }
-  .pricing-editor-section .portal-quote-line { grid-template-columns: minmax(0, 1fr); }
-  .portal-quote-line .quote-line__switch,
-  .portal-quote-line .quote-line__spec,
-  .portal-quote-line > label:not(.quote-line__switch) { grid-column: 1; grid-row: auto; }
+  .pricing-editor-section .portal-quote-line { grid-template-columns: auto minmax(0, 1fr); }
+  .portal-quote-line .quote-line__switch { grid-column: 1; grid-row: 1; }
+  .portal-quote-line .quote-line__spec { grid-column: 2; grid-row: 1; }
+  .portal-quote-line > label.quote-line__price { grid-column: 2; grid-row: 2; width: 132px; max-width: 132px; }
+  .portal-quote-line .portal-option-status { grid-column: 1; grid-row: 2; justify-self: start; }
   .pricing-review-panel dl { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .portal-review-card, .portal-review-submit { padding: 18px; }
   .portal-review-options article { grid-template-columns: 1fr; gap: 10px; }

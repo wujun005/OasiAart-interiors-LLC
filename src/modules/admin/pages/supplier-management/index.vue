@@ -107,18 +107,22 @@
               }"
               @click="openProfileSection(index)"
             >
-              <span class="profile-step-number">{{
-                sectionIncomplete(index) ? item.num : "✓"
-              }}</span
-              ><span class="profile-step-copy"
+              <span class="profile-step-copy"
                 ><b>{{ item.title }}</b
-                ><small>{{
-                  t(
-                    sectionIncomplete(index)
-                      ? "admin.supplierPortal.actionRequired"
-                      : "admin.supplierPortal.complete",
-                  )
-                }}</small></span
+                ><small
+                  ><span
+                    v-if="!sectionIncomplete(index)"
+                    class="profile-step-check"
+                    aria-hidden="true"
+                    >✓</span
+                  >{{
+                    t(
+                      sectionIncomplete(index)
+                        ? "admin.supplierPortal.actionRequired"
+                        : "admin.supplierPortal.complete",
+                    )
+                  }}</small
+                ></span
               ><ArrowRight />
             </button>
           </nav>
@@ -1018,7 +1022,13 @@
                 :loading="saving"
                 @click="submitProfileForm"
               >
-                {{ t("admin.supplierPortal.submitContinue") }}
+                {{
+                  t(
+                    needsResubmit
+                      ? "admin.supplierProfile.resubmit"
+                      : "admin.supplierProfile.submitReview",
+                  )
+                }}
               </el-button>
             </div>
           </footer>
@@ -1043,28 +1053,62 @@
       <el-dialog
         v-model="profileSubmittedOpen"
         class="profile-success-dialog"
-        width="min(540px, calc(100vw - 32px))"
+        width="min(620px, calc(100vw - 28px))"
         align-center
         :show-close="false"
+        :close-on-click-modal="false"
       >
         <div class="submission-result">
-          <span class="submission-check">✓</span>
-          <h2>{{ t("admin.supplierPortal.profileSubmitted") }}</h2>
-          <p>{{ t("admin.supplierPortal.profileSubmittedHint") }}</p>
-          <el-button
-            type="primary"
-            @click="
-              profileSubmittedOpen = false
-              goTo('coverage-availability')
-            "
-            >{{ t("admin.supplierPortal.openCoverage") }}</el-button
-          ><el-button
-            @click="
-              profileSubmittedOpen = false
-              goTo('overview')
-            "
-            >{{ t("admin.supplierPortal.returnWorkspace") }}</el-button
+          <span class="submission-check"><Check /></span>
+          <div class="submission-result__intro">
+            <h2>{{ t("admin.supplierPortal.profileSubmitted") }}</h2>
+            <p>{{ t("admin.supplierPortal.profileSubmittedHint") }}</p>
+          </div>
+
+          <div class="submission-next">
+            <strong class="submission-next__title">{{
+              t("admin.supplierPortal.continueSetup")
+            }}</strong>
+            <div class="submission-next__actions">
+              <button
+                type="button"
+                class="submission-next-card"
+                @click="continueProfileSetup('coverage-availability')"
+              >
+                <span class="submission-next-card__icon"><Location /></span>
+                <span class="submission-next-card__copy">
+                  <strong>{{ t("admin.supplierPortal.openCoverage") }}</strong>
+                  <small>{{
+                    t("admin.supplierPortal.coverageSetupHint")
+                  }}</small>
+                </span>
+                <ArrowRight />
+              </button>
+
+              <button
+                type="button"
+                class="submission-next-card is-pricing"
+                @click="continueProfileSetup('pricing')"
+              >
+                <span class="submission-next-card__icon"><Money /></span>
+                <span class="submission-next-card__copy">
+                  <strong>{{
+                    t("admin.supplierPortal.setupServicesPricing")
+                  }}</strong>
+                  <small>{{ t("admin.supplierPortal.pricingSetupHint") }}</small>
+                </span>
+                <ArrowRight />
+              </button>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            class="submission-later"
+            @click="continueProfileSetup('overview')"
           >
+            {{ t("admin.supplierPortal.setupLater") }}
+          </button>
         </div>
       </el-dialog>
     </template>
@@ -2216,42 +2260,22 @@
                 <header class="pricing-section-head">
                   <span>01</span>
                   <div>
-                    <h2>{{ t("admin.supplierPricing.billingStep") }}</h2>
-                    <p>{{ t("admin.supplierPricing.billingStepHint") }}</p>
+                    <h2>{{
+                      t(
+                        quoteDialog.quoteMode === 2
+                          ? "admin.supplierPricing.hourlyRate"
+                          : "admin.supplierPricing.fixedPrice",
+                      )
+                    }}</h2>
+                    <p>{{
+                      t(
+                        quoteDialog.quoteMode === 2
+                          ? "admin.supplierPortal.hourlyRule"
+                          : "admin.supplierPortal.fixedRule",
+                      )
+                    }}</p>
                   </div>
                 </header>
-                <div class="mode-cards">
-                  <button
-                    type="button"
-                    :disabled="quoteRevisionLocked || quotePriceLocked"
-                    :aria-pressed="quoteDialog.quoteMode === 2"
-                    :class="{ 'is-on': quoteDialog.quoteMode === 2 }"
-                    @click="pickQuoteMode(2)"
-                  >
-                    <span class="mode-card__mark">{{
-                      quoteDialog.quoteMode === 2 ? "✓" : "01"
-                    }}</span>
-                    <strong>{{ t("admin.supplierPricing.hourlyRate") }}</strong>
-                    <small>{{
-                      t("admin.supplierPricing.hourlyCardHint")
-                    }}</small>
-                  </button>
-                  <button
-                    type="button"
-                    :disabled="quoteRevisionLocked || quotePriceLocked"
-                    :aria-pressed="quoteDialog.quoteMode === 1"
-                    :class="{ 'is-on': quoteDialog.quoteMode === 1 }"
-                    @click="pickQuoteMode(1)"
-                  >
-                    <span class="mode-card__mark">{{
-                      quoteDialog.quoteMode === 1 ? "✓" : "02"
-                    }}</span>
-                    <strong>{{ t("admin.supplierPricing.fixedPrice") }}</strong>
-                    <small>{{
-                      t("admin.supplierPricing.fixedCardHint")
-                    }}</small>
-                  </button>
-                </div>
                 <div v-if="quoteDialog.quoteMode === 2" class="rate-card">
                   <label class="rate-field">
                     <span>{{ t("admin.supplierPricing.rateLabel") }}</span>
@@ -2266,23 +2290,16 @@
                       />
                     </span>
                   </label>
-                  <div class="portal-price-rule">
-                    <strong>{{
-                      t("admin.supplierPortal.hourlyFormula")
-                    }}</strong>
-                    <p>{{ t("admin.supplierPortal.hourlyRule") }}</p>
-                  </div>
-                </div>
-                <div v-else class="portal-price-rule portal-price-rule--fixed">
-                  <strong>{{ t("admin.supplierPricing.fixedPrice") }}</strong>
-                  <p>{{ t("admin.supplierPortal.fixedRule") }}</p>
                 </div>
                 <p class="portal-vat-note">
                   {{ t("admin.supplierPortal.vatNote") }}
                 </p>
               </section>
 
-              <section class="pricing-editor-section">
+              <section
+                v-if="quoteDialog.quoteMode !== 2"
+                class="pricing-editor-section"
+              >
                 <header class="pricing-section-head">
                   <span>02</span>
                   <div>
@@ -2300,145 +2317,146 @@
                   >
                     {{ t("admin.supplierPricing.noSpecs") }}
                   </p>
-                  <article
-                    v-for="(row, index) in quoteDialog.rows"
-                    :key="row.skuId"
-                    class="quote-line portal-quote-line"
-                    :class="{
-                      'is-off': row.available === false || !row.enabled,
-                      'has-missing':
-                        optionMissingFields(
-                          row,
-                          quoteDialog.quoteMode,
-                          quoteDialog.unitPrice,
-                        ).length > 0,
-                    }"
+                  <div
+                    v-if="showQuoteGroupTabs || visibleQuoteRows.length"
+                    class="quote-line-tools"
                   >
-                    <label class="quote-line__switch">
-                      <span>{{ t("admin.supplierPricing.skuSwitch") }}</span>
-                      <el-switch
-                        v-model="row.enabled"
-                        :disabled="
-                          row.available === false || quoteLineHeld(row)
-                        "
-                      />
-                    </label>
-                    <div class="quote-line__spec">
-                      <span>{{ String(index + 1).padStart(2, "0") }}</span>
-                      <div>
-                        <strong>{{ quoteSpecLabel(row) }}</strong>
-                        <small v-if="row.rejectReason" class="line-reject">{{
-                          t("admin.supplierPricing.lineRejected", {
-                            reason: row.rejectReason,
-                          })
-                        }}</small>
-                        <small v-if="row.available === false">{{
-                          t("admin.supplierPricing.discontinued")
-                        }}</small>
-                        <small v-else>{{
-                          t("admin.supplierPricing.livePrice", {
-                            price: moneyText(row.approvedPrice),
-                          })
-                        }}</small>
-                      </div>
+                    <div
+                      v-if="showQuoteGroupTabs"
+                      class="quote-group-tabs"
+                      role="tablist"
+                      :aria-label="quoteGroupType || t('admin.supplierPricing.specStep')"
+                    >
+                      <span v-if="quoteGroupType" class="quote-group-tabs__type">{{
+                        quoteGroupType
+                      }}</span>
+                      <button
+                        v-for="group in quoteGroupTabs"
+                        :key="group.key"
+                        type="button"
+                        role="tab"
+                        :aria-selected="group.key === quoteGroupTab"
+                        :class="{
+                          'is-on': group.key === quoteGroupTab,
+                          'is-gap': quoteGroupHasGap(group.key),
+                        }"
+                        @click="quoteGroupTab = group.key"
+                      >
+                        {{ group.title }}
+                      </button>
                     </div>
-                    <label>
-                      <span>{{ t("admin.supplierPricing.headcount") }}</span>
-                      <el-input-number
-                        v-model="row.staffCount"
-                        :min="1"
-                        :precision="0"
-                        :disabled="
-                          row.available === false ||
-                          !row.enabled ||
-                          quoteLineHeld(row)
-                        "
-                        controls-position="right"
-                      />
-                    </label>
-                    <label>
-                      <span>{{ t("admin.supplierPricing.hours") }}</span>
-                      <el-input-number
-                        v-model="row.serviceHours"
-                        :min="0.01"
-                        :precision="2"
-                        :step="0.5"
-                        :disabled="
-                          row.available === false ||
-                          !row.enabled ||
-                          quoteLineHeld(row)
-                        "
-                        controls-position="right"
-                      />
-                    </label>
-                    <label class="quote-line__price">
-                      <span>{{ t("admin.supplierPricing.taxPrice") }}</span>
-                      <span
-                        v-if="quoteDialog.quoteMode === 2"
-                        class="auto-price"
+                    <div v-if="quoteDialog.rows.length" class="quote-line-bulk">
+                      <button
+                        type="button"
+                        :disabled="!selectableQuoteRows.length"
+                        @click="setQuotesEnabled(true)"
                       >
-                        <small>AED</small>
-                        <strong>{{
-                          skuAmount(row) == null
-                            ? "—"
-                            : moneyText(skuAmount(row))
-                        }}</strong>
-                      </span>
-                      <el-input
-                        v-else
-                        v-model="row.quotePrice"
-                        inputmode="decimal"
-                        :disabled="
-                          row.available === false ||
-                          !row.enabled ||
-                          quoteLineHeld(row)
-                        "
+                        {{ t("admin.supplierPricing.selectAll") }}
+                      </button>
+                      <button
+                        type="button"
+                        :disabled="!selectableQuoteRows.length"
+                        @click="setQuotesEnabled(false)"
                       >
-                        <template #prepend>AED</template>
-                      </el-input>
-                      <small
-                        v-if="quoteDialog.quoteMode === 2"
-                        class="field-help"
-                        >{{
-                          t("admin.supplierPricing.readonlyPriceHint")
-                        }}</small
-                      >
-                      <small
-                        v-if="
-                          row.enabled &&
-                          quoteDialog.quoteMode === 1 &&
-                          !positiveAmount(row.quotePrice)
-                        "
-                        class="portal-price-missing"
-                        >{{ t("admin.supplierPortal.priceRequired") }}</small
-                      >
-                    </label>
-                    <span
-                      class="portal-option-status"
+                        {{ t("admin.supplierPricing.selectNone") }}
+                      </button>
+                    </div>
+                  </div>
+                  <section
+                    v-for="group in visibleQuoteGroups"
+                    :key="group.key"
+                    class="quote-group"
+                  >
+                    <header v-if="!showQuoteGroupTabs && group.title" class="quote-group__head">
+                      <small v-if="group.type">{{ group.type }}</small>
+                      <strong>{{ group.title }}</strong>
+                    </header>
+                    <article
+                      v-for="(row, index) in group.rows"
+                      :key="row.skuId"
+                      class="quote-line portal-quote-line"
                       :class="{
-                        'is-ready':
-                          row.enabled &&
+                        'is-off': row.available === false || !row.enabled,
+                        'has-missing':
+                          optionMissingFields(
+                            row,
+                            quoteDialog.quoteMode,
+                            quoteDialog.unitPrice,
+                          ).length > 0,
+                      }"
+                    >
+                      <label class="quote-line__switch">
+                        <el-checkbox
+                          v-model="row.enabled"
+                          :disabled="
+                            row.available === false || quoteLineHeld(row)
+                          "
+                          :aria-label="
+                            row.lineLabel ||
+                            quoteSpecLabel(row) ||
+                            t('admin.supplierPricing.skuSwitch')
+                          "
+                        />
+                      </label>
+                      <div class="quote-line__spec">
+                        <span>{{ String(index + 1).padStart(2, "0") }}</span>
+                        <div>
+                          <strong>{{ row.lineLabel || quoteSpecLabel(row) }}</strong>
+                          <small v-if="row.rejectReason" class="line-reject">{{
+                            t("admin.supplierPricing.lineRejected", {
+                              reason: row.rejectReason,
+                            })
+                          }}</small>
+                          <small v-if="row.available === false">{{
+                            t("admin.supplierPricing.discontinued")
+                          }}</small>
+                          <small v-else>{{
+                            t("admin.supplierPricing.livePrice", {
+                              price: moneyText(row.approvedPrice),
+                            })
+                          }}</small>
+                        </div>
+                      </div>
+                      <label class="quote-line__price">
+                          <span>{{ t("admin.supplierPricing.taxPrice") }}</span>
+                          <el-input
+                            v-model="row.quotePrice"
+                            inputmode="decimal"
+                            :placeholder="t('admin.supplierPricing.pricePlaceholder')"
+                            :disabled="
+                              row.available === false ||
+                              !row.enabled ||
+                              quoteLineHeld(row)
+                            "
+                          >
+                            <template #prepend>AED</template>
+                          </el-input>
+                        </label>
+                      <span
+                        v-if="
+                          !row.enabled ||
+                          row.available === false ||
                           !optionMissingFields(
                             row,
                             quoteDialog.quoteMode,
                             quoteDialog.unitPrice,
-                          ).length,
-                      }"
-                      >{{
-                        t(
-                          !row.enabled || row.available === false
-                            ? "admin.supplierPortal.notOffered"
-                            : optionMissingFields(
-                                  row,
-                                  quoteDialog.quoteMode,
-                                  quoteDialog.unitPrice,
-                                ).length
-                              ? "admin.supplierPortal.detailsRequired"
+                          ).length
+                        "
+                        class="portal-option-status"
+                        :class="{
+                          'is-ready':
+                            row.enabled && row.available !== false,
+                        }"
+                        >{{
+                          t(
+                            !row.enabled || row.available === false
+                              ? "admin.supplierPortal.notOffered"
                               : "admin.supplierPortal.complete",
-                        )
-                      }}</span
-                    >
-                  </article>
+                          )
+                        }}</span
+                      >
+                    </article>
+                  </section>
                 </div>
               </section>
 
@@ -2447,7 +2465,7 @@
                 class="pricing-editor-section"
               >
                 <header class="pricing-section-head">
-                  <span>03</span>
+                  <span>{{ quoteDialog.quoteMode === 2 ? "02" : "03" }}</span>
                   <div>
                     <h2>{{ t("admin.supplierPricing.addonStep") }}</h2>
                     <p>{{ t("admin.supplierPricing.addonStepHint") }}</p>
@@ -2517,7 +2535,7 @@
                   <dt>{{ t("admin.supplierPricing.quoteMode") }}</dt>
                   <dd>{{ quoteModeLabel(quoteDialog.quoteMode) }}</dd>
                 </div>
-                <div>
+                <div v-if="quoteDialog.quoteMode !== 2">
                   <dt>{{ t("admin.supplierPortal.enabledOptions") }}</dt>
                   <dd>
                     {{ enabledQuoteRows.length }} /
@@ -2570,13 +2588,17 @@
                   reason: quoteDialog.rejectReason,
                 })
               }}</small>
-              <small v-else>{{
-                quoteMissingCount
-                  ? t("admin.supplierPortal.missingBeforeReview", {
-                      count: quoteMissingCount,
-                    })
-                  : t("admin.supplierPortal.vatNote")
-              }}</small>
+              <small v-else>
+                <button
+                  v-if="quoteGaps.length"
+                  type="button"
+                  class="sv-quote__gap"
+                  @click="focusQuoteGap"
+                >
+                  {{ quoteGapText }}
+                </button>
+                <template v-else>{{ t("admin.supplierPortal.vatNote") }}</template>
+              </small>
             </div>
             <div>
               <el-button
@@ -2648,7 +2670,11 @@
                     {{ quoteModeLabel(quoteDialog.quoteMode ?? undefined) }}
                   </dd>
                 </div>
-                <div>
+                <div v-if="quoteDialog.quoteMode === 2">
+                  <dt>{{ t("admin.supplierPricing.rateLabel") }}</dt>
+                  <dd>AED {{ moneyText(quoteDialog.unitPrice) }}</dd>
+                </div>
+                <div v-if="quoteDialog.quoteMode !== 2">
                   <dt>{{ t("admin.supplierPortal.enabledOptions") }}</dt>
                   <dd>
                     {{ enabledQuoteRows.length }} /
@@ -2657,44 +2683,62 @@
                 </div>
               </dl>
             </section>
-            <section class="portal-review-card">
+            <section
+              v-if="quoteDialog.quoteMode !== 2"
+              class="portal-review-card"
+            >
               <h2>{{ t("admin.supplierPortal.optionsPrices") }}</h2>
               <div class="portal-review-options">
-                <article v-for="row in enabledQuoteRows" :key="row.skuId">
-                  <h3>{{ quoteSpecLabel(row) }}</h3>
-                  <dl>
-                    <div>
-                      <dt>{{ t("admin.supplierPricing.headcount") }}</dt>
-                      <dd>{{ row.staffCount ?? "—" }}</dd>
-                    </div>
-                    <div>
-                      <dt>{{ t("admin.supplierPricing.hours") }}</dt>
-                      <dd>{{ row.serviceHours ?? "—" }}</dd>
-                    </div>
-                    <div>
-                      <dt>{{ t("admin.supplierPortal.customerPrice") }}</dt>
-                      <dd class="portal-review-price">
-                        AED
-                        {{
-                          moneyText(
-                            quoteDialog.quoteMode === 2
-                              ? skuAmount(row)
-                              : row.quotePrice,
-                          )
-                        }}
-                      </dd>
-                    </div>
-                  </dl>
-                </article>
+                <div
+                  v-if="showQuoteGroupTabs"
+                  class="quote-group-tabs"
+                  role="tablist"
+                  :aria-label="quoteGroupType || t('admin.supplierPortal.optionsPrices')"
+                >
+                  <span v-if="quoteGroupType" class="quote-group-tabs__type">{{
+                    quoteGroupType
+                  }}</span>
+                  <button
+                    v-for="group in quoteGroupTabs"
+                    :key="group.key"
+                    type="button"
+                    role="tab"
+                    :aria-selected="group.key === quoteGroupTab"
+                    :class="{ 'is-on': group.key === quoteGroupTab }"
+                    @click="quoteGroupTab = group.key"
+                  >
+                    {{ group.title }}
+                  </button>
+                </div>
+                <section
+                  v-for="group in visibleQuoteGroups"
+                  :key="group.key"
+                  class="quote-group"
+                >
+                  <header v-if="!showQuoteGroupTabs && group.title" class="quote-group__head">
+                    <small v-if="group.type">{{ group.type }}</small>
+                    <strong>{{ group.title }}</strong>
+                  </header>
+                  <article
+                    v-for="row in group.rows.filter(
+                      (item) => item.enabled && item.available !== false,
+                    )"
+                    :key="row.skuId"
+                  >
+                    <h3>{{ row.lineLabel || quoteSpecLabel(row) }}</h3>
+                    <dl>
+                      <div>
+                        <dt>{{ t("admin.supplierPortal.customerPrice") }}</dt>
+                        <dd class="portal-review-price">
+                          AED {{ moneyText(row.quotePrice) }}
+                        </dd>
+                      </div>
+                    </dl>
+                  </article>
+                </section>
               </div>
               <p class="portal-review-note">
-                {{
-                  t(
-                    quoteDialog.quoteMode === 2
-                      ? "admin.supplierPortal.hourlyFormula"
-                      : "admin.supplierPortal.fixedRule",
-                  )
-                }}
+                {{ t("admin.supplierPortal.fixedRule") }}
               </p>
             </section>
             <section class="portal-review-card">
@@ -2762,7 +2806,7 @@
                   >
                 </dd>
               </div>
-              <div>
+              <div v-if="quoteDialog.quoteMode !== 2">
                 <dt>{{ t("admin.supplierPortal.enabledOptions") }}</dt>
                 <dd>{{ enabledQuoteRows.length }}</dd>
               </div>
@@ -3693,7 +3737,6 @@ import SupplierAvailability from "@/modules/admin/pages/supplier-management/avai
 import { useAdminSessionStore } from "@/modules/admin/stores/session"
 import { pickI18nText } from "@/modules/admin/utils/i18n"
 import {
-  calculatedQuotePrice,
   optionMissingFields,
   positiveAmount,
   quoteActionKey,
@@ -4001,6 +4044,10 @@ const goTo = (target: Section) =>
     path: `/admin/supplier-management/${target}`,
     query: router.currentRoute.value.query,
   })
+const continueProfileSetup = (target: Section) => {
+  profileSubmittedOpen.value = false
+  goTo(target)
+}
 
 const companyForm = reactive({
   companyName: "",
@@ -4820,8 +4867,85 @@ const quoteUnderReview = computed(
   () => quoteRevisionLocked.value && !quoteHasRejectedLines.value,
 )
 const enabledQuoteRows = computed(() =>
-  quoteDialog.rows.filter((row) => row.enabled && row.available !== false),
+  quoteDialog.rows.filter(
+    (row) =>
+      row.available !== false &&
+      (quoteDialog.quoteMode === 2 || row.enabled),
+  ),
 )
+const quoteGroups = computed(() => {
+  const groups: Array<{
+    key: string
+    type: string
+    title: string
+    rows: any[]
+  }> = []
+  const index = new Map<string, (typeof groups)[number]>()
+  for (const row of quoteDialog.rows) {
+    const key = String(row.groupId || "all")
+    let group = index.get(key)
+    if (!group) {
+      group = {
+        key,
+        type: String(row.groupType || ""),
+        title: String(row.groupValue || ""),
+        rows: [],
+      }
+      index.set(key, group)
+      groups.push(group)
+    }
+    group.rows.push(row)
+  }
+  return groups.length
+    ? groups
+    : [{ key: "all", type: "", title: "", rows: [] }]
+})
+const quoteGroupTab = ref("")
+const quoteGroupTabs = computed(() => {
+  const titled = quoteGroups.value.filter((group) => group.title && group.rows.length)
+  const rest = quoteGroups.value
+    .filter((group) => !group.title)
+    .flatMap((group) => group.rows)
+  const tabs = [...titled]
+  if (rest.length && titled.length) {
+    tabs.push({
+      key: "rest",
+      type: "",
+      title: t("admin.supplierPricing.otherSpecs"),
+      rows: rest,
+    })
+  }
+  return tabs.length > 1 ? tabs : []
+})
+const quoteGroupType = computed(() => {
+  const types = [
+    ...new Set(quoteGroupTabs.value.map((group) => group.type).filter(Boolean)),
+  ]
+  return types.length === 1 ? types[0] : ""
+})
+const showQuoteGroupTabs = computed(() => quoteGroupTabs.value.length > 1)
+const visibleQuoteGroups = computed(() => {
+  if (!showQuoteGroupTabs.value) return quoteGroups.value
+  const current =
+    quoteGroupTabs.value.find((group) => group.key === quoteGroupTab.value) ||
+    quoteGroupTabs.value[0]
+  return current ? [current] : []
+})
+const visibleQuoteRows = computed(() =>
+  visibleQuoteGroups.value.flatMap((group) => group.rows),
+)
+const selectableQuoteRows = computed(() =>
+  quoteDialog.rows.filter(
+    (row) => row.available !== false && !quoteLineHeld(row),
+  ),
+)
+const setQuotesEnabled = (enabled: boolean) => {
+  for (const row of selectableQuoteRows.value) row.enabled = enabled
+}
+watch(quoteGroupTabs, (tabs) => {
+  if (!tabs.some((group) => group.key === quoteGroupTab.value))
+    quoteGroupTab.value = tabs[0]?.key || ""
+})
 const quoteContact = computed(() =>
   savedServices.value.find((service) => service.spuId === quoteDialog.spuId),
 )
@@ -4835,26 +4959,95 @@ const quoteContactComplete = computed(() =>
     ),
   ),
 )
-const quoteMissingCount = computed(() => {
-  let count = quoteDialog.quoteMode == null ? 1 : 0
+const quoteGaps = computed(() => {
+  const gaps: Array<{
+    kind: "mode" | "rate" | "price" | "addon" | "contact"
+    groupKey: string
+    groupTitle: string
+    label: string
+  }> = []
+  if (quoteDialog.quoteMode == null)
+    gaps.push({ kind: "mode", groupKey: "", groupTitle: "", label: "" })
   if (quoteDialog.quoteMode === 2 && !positiveAmount(quoteDialog.unitPrice))
-    count += 1
-  count += enabledQuoteRows.value.reduce(
-    (sum, row) =>
-      sum +
-      optionMissingFields(
-        row,
-        quoteDialog.quoteMode,
-        quoteDialog.unitPrice,
-      ).filter((field) => field !== "rate").length,
-    0,
-  )
-  count += quoteDialog.attaches.filter(
-    (item) => item.offered && !positiveAmount(item.quotePrice),
-  ).length
-  if (!quoteContactComplete.value) count += 1
-  return count
+    gaps.push({ kind: "rate", groupKey: "", groupTitle: "", label: "" })
+  if (quoteDialog.quoteMode !== 2) {
+    for (const row of enabledQuoteRows.value) {
+      if (
+        !optionMissingFields(
+          row,
+          quoteDialog.quoteMode,
+          quoteDialog.unitPrice,
+        ).includes("price")
+      )
+        continue
+      gaps.push({
+        kind: "price",
+        groupKey: String(row.groupId || ""),
+        groupTitle: String(row.groupValue || ""),
+        label: String(row.lineLabel || quoteSpecLabel(row) || ""),
+      })
+    }
+  }
+  for (const item of quoteDialog.attaches) {
+    if (!item.offered || positiveAmount(item.quotePrice)) continue
+    gaps.push({
+      kind: "addon",
+      groupKey: "",
+      groupTitle: "",
+      label: attachDisplay(item, "name"),
+    })
+  }
+  if (!quoteContactComplete.value)
+    gaps.push({ kind: "contact", groupKey: "", groupTitle: "", label: "" })
+  return gaps
 })
+const quoteMissingCount = computed(() => quoteGaps.value.length)
+const quoteGroupHasGap = (key: string) =>
+  quoteGaps.value.some((gap) => gap.kind === "price" && gap.groupKey === key)
+const quoteGapText = computed(() => {
+  const gaps = quoteGaps.value
+  const gap = gaps[0]
+  if (!gap) return ""
+  const name =
+    gap.groupTitle && gap.label && gap.label !== gap.groupTitle
+      ? `${gap.groupTitle} · ${gap.label}`
+      : gap.groupTitle || gap.label
+  if (gap.kind === "contact") return t("admin.supplierPortal.contactRequired")
+  if (gap.kind === "rate") return t("admin.supplierPricing.hourlyRequired")
+  if (gap.kind === "mode") return t("admin.supplierPricing.modeRequired")
+  if (gap.kind === "addon")
+    return t(
+      gaps.filter((item) => item.kind === "addon").length > 1
+        ? "admin.supplierPortal.missingAddons"
+        : "admin.supplierPortal.missingAddon",
+      { count: gaps.length, name: gap.label },
+    )
+  return t(
+    gaps.length > 1
+      ? "admin.supplierPortal.missingPrices"
+      : "admin.supplierPortal.missingPrice",
+    { count: gaps.length, name: name || t("admin.supplierPricing.specFallback") },
+  )
+})
+const focusQuoteGap = () => {
+  const gap = quoteGaps.value[0]
+  if (!gap) return
+  if (gap.kind === "price" && gap.groupKey) quoteGroupTab.value = gap.groupKey
+  nextTick(() => {
+    const target =
+      gap.kind === "addon"
+        ? ".quote-attaches"
+        : gap.kind === "contact"
+          ? ".pricing-review-panel > button"
+          : gap.kind === "rate" || gap.kind === "mode"
+            ? ".pricing-editor-section"
+            : ".quote-line.has-missing"
+    document.querySelector(target)?.scrollIntoView({
+      block: "center",
+      behavior: "smooth",
+    })
+  })
+}
 
 const settlementTab = ref("transactions")
 const settlementRows = [
@@ -5443,7 +5636,7 @@ const serviceRows = computed(() => {
           : Number(quote.priceChangeStatus),
       priceChangeReason: quote?.priceChangeReason || "",
       priceChangeRejectReason: quote?.priceChangeRejectReason || "",
-      quoteMode: quote?.quoteMode == null ? undefined : Number(quote.quoteMode),
+      quoteMode: assignedQuoteMode(quote),
       unitPrice: quote?.unitPrice,
       prices: (quote?.skus || [])
         .filter((line: any) => Number(line.enabled ?? 1) !== 0)
@@ -5547,6 +5740,21 @@ const quoteModeLabel = (mode?: number | null) =>
     : mode === 2
       ? t("admin.supplierPricing.hourlyRate")
       : t("admin.supplierPricing.modeUnset")
+const assignedQuoteMode = (source?: {
+  quoteMode?: unknown
+  configuredQuoteMode?: unknown
+  status?: unknown
+  priceEditable?: unknown
+} | null): 1 | 2 => {
+  const saved = Number(source?.quoteMode)
+  const configured = Number(source?.configuredQuoteMode)
+  const savedMode = saved === 2 ? 2 : saved === 1 ? 1 : null
+  const configuredMode = configured === 2 ? 2 : configured === 1 ? 1 : null
+  const locked =
+    Number(source?.status) === 1 || source?.priceEditable === false
+  if (locked && savedMode) return savedMode
+  return configuredMode ?? savedMode ?? 1
+}
 const phoneOk = (value: string) =>
   /^[1-9]\d{7,14}$/.test(value.replace(/\D/g, ""))
 const supplierOrders = ref<any[]>([])
@@ -7161,61 +7369,30 @@ const quoteSpecLabel = (row: {
     ? parts.join(" · ")
     : row.skuCode || t("admin.supplierPricing.specFallback")
 }
-const workloadFromSpecs = (specs?: Record<string, unknown>) => {
-  const label = quoteDialog.columns
-    .map((column) => {
-      const text = specText(specs?.[column.key])
-      return text !== "—" ? text : ""
-    })
-    .filter(Boolean)
-    .join(" ")
-  const staff = label.match(
-    /(\d+(?:\.\d+)?)\s*(?:个)?\s*(?:persons?|people|staff|员工|人)/i,
-  )
-  const hours = label.match(/(\d+(?:\.\d+)?)\s*(?:个)?\s*(?:hours?|hrs?|小时)/i)
-  const staffCount = staff ? Number(staff[1]) : NaN
-  const serviceHours = hours ? Number(hours[1]) : NaN
-  return {
-    staffCount: staffCount > 0 ? Math.round(staffCount) : null,
-    serviceHours: serviceHours > 0 ? serviceHours : null,
-  }
+const blankPositive = (value: unknown) => {
+  if (value == null || value === "") return null
+  const number = Number(value)
+  return Number.isFinite(number) && number > 0 ? number : null
 }
-
-const skuAmount = (row: {
-  staffCount?: number | null
-  serviceHours?: number | null
-}) => {
-  if (quoteDialog.quoteMode !== 2) return null
-  return calculatedQuotePrice(
-    quoteDialog.unitPrice,
-    row.staffCount,
-    row.serviceHours,
-  )
-}
-
 const skuEnabled = (value: unknown, available = true) =>
   available !== false && (value == null || value === "" || Number(value) === 1)
 const quoteItems = () =>
   quoteDialog.rows.map((row) => {
-    const enabled = skuEnabled(row.enabled, row.available !== false)
-    const staffCount =
-      row.staffCount == null || row.staffCount === ""
+    const hourly = quoteDialog.quoteMode === 2
+    const enabled = hourly
+      ? row.available !== false
+      : skuEnabled(row.enabled, row.available !== false)
+    const quotePrice = hourly
+      ? positiveAmount(quoteDialog.unitPrice)
+        ? Number(quoteDialog.unitPrice)
+        : null
+      : row.quotePrice == null || row.quotePrice === ""
         ? null
-        : Number(row.staffCount)
-    const serviceHours =
-      row.serviceHours == null || row.serviceHours === ""
-        ? null
-        : Number(row.serviceHours)
-    const quotePrice =
-      quoteDialog.quoteMode === 2
-        ? skuAmount(row)
-        : row.quotePrice == null || row.quotePrice === ""
-          ? null
-          : Number(row.quotePrice)
+        : Number(row.quotePrice)
     return {
       skuId: row.skuId,
-      staffCount,
-      serviceHours,
+      staffCount: 0,
+      serviceHours: 0,
       quotePrice,
       enabled: enabled ? 1 : 0,
     }
@@ -7230,16 +7407,8 @@ const draftProblem = () => {
     return t("admin.supplierPricing.unitPositive")
   }
   for (const item of quoteItems()) {
-    if (item.enabled !== 1) continue
-    if (item.staffCount != null && !(item.staffCount > 0))
-      return t("admin.supplierPricing.staffPositive")
-    if (item.serviceHours != null && !(item.serviceHours > 0))
-      return t("admin.supplierPricing.hoursPositive")
-    if (
-      quoteDialog.quoteMode === 1 &&
-      item.quotePrice != null &&
-      !(item.quotePrice > 0)
-    )
+    if (item.enabled !== 1 || quoteDialog.quoteMode !== 1) continue
+    if (item.quotePrice != null && !(item.quotePrice > 0))
       return t("admin.supplierPricing.pricePositive")
   }
   if (
@@ -7340,14 +7509,9 @@ const submitProblem = () => {
   if (!quoteDialog.rows.some((row) => row.available !== false))
     return t("admin.supplierPricing.noSellable")
   if (!items.length) return t("admin.supplierPricing.skuSwitchRequired")
-  const incomplete = items.some(
-    (item) =>
-      !(
-        Number(item.staffCount) > 0 &&
-        Number(item.serviceHours) > 0 &&
-        Number(item.quotePrice) > 0
-      ),
-  )
+  const incomplete =
+    quoteDialog.quoteMode === 1 &&
+    items.some((item) => !(Number(item.quotePrice) > 0))
   if (incomplete) return t("admin.supplierPricing.submitIncomplete")
   if (!quoteContactComplete.value)
     return t("admin.supplierPortal.contactRequired")
@@ -7387,8 +7551,7 @@ const applySavedQuote = (saved: any) => {
     saved.priceChangeStatus == null ? null : Number(saved.priceChangeStatus)
   quoteDialog.priceChangeReason = saved.priceChangeReason || ""
   quoteDialog.priceChangeRejectReason = saved.priceChangeRejectReason || ""
-  if (saved.quoteMode != null)
-    quoteDialog.quoteMode = Number(saved.quoteMode) === 2 ? 2 : 1
+  quoteDialog.quoteMode = assignedQuoteMode(saved)
   quoteDialog.unitPrice =
     saved.unitPrice == null || saved.unitPrice === ""
       ? null
@@ -7399,9 +7562,8 @@ const applySavedQuote = (saved: any) => {
   quoteDialog.rows.forEach((row) => {
     const next = quoted.get(Number(row.skuId))
     if (!next) return
-    row.staffCount = next.staffCount == null ? null : Number(next.staffCount)
-    row.serviceHours =
-      next.serviceHours == null ? null : Number(next.serviceHours)
+    row.staffCount = blankPositive(next.staffCount)
+    row.serviceHours = blankPositive(next.serviceHours)
     row.quotePrice = next.quotePrice == null ? null : Number(next.quotePrice)
     row.reviewStatus =
       Number(next.reviewStatus) === 2 || Number(next.reviewStatus) === 3
@@ -7425,10 +7587,6 @@ const openQuotedServiceEditor = () => {
   )
   if (row) openServiceEditor(row)
 }
-const pickQuoteMode = (mode: 1 | 2) => {
-  quoteDialog.quoteMode = mode
-}
-
 const openServiceQuote = async (row: {
   spuId: number
   name: string
@@ -7464,7 +7622,7 @@ const openServiceQuote = async (row: {
   quoteDialog.priceChangeReason = (row as any).priceChangeReason || ""
   quoteDialog.priceChangeRejectReason =
     (row as any).priceChangeRejectReason || ""
-  quoteDialog.quoteMode = row.quoteMode === 2 ? 2 : 1
+  quoteDialog.quoteMode = assignedQuoteMode(row)
   quoteDialog.unitPrice = row.unitPrice == null ? null : Number(row.unitPrice)
   quoteDialog.columns = []
   quoteDialog.rows = []
@@ -7487,53 +7645,138 @@ const openServiceQuote = async (row: {
       fallback: spec.specTypeName || "",
     }))
     const skus = Array.isArray(detail.skus) ? detail.skus : []
-    quoteDialog.rows = skus.map((sku: any) => {
-      const saved = quoted.get(Number(sku.skuId)) || {}
-      const specs = Object.fromEntries(
-        quoteDialog.columns.map((column) => [column.key, sku[column.key]]),
+    const specRecord = (specs: unknown) => {
+      if (!Array.isArray(specs)) return {}
+      return Object.fromEntries(
+        specs
+          .map((spec: any) => [
+            String(spec?.specKey ?? spec?.specTypeId ?? ""),
+            spec?.specValueNameI18n || spec?.specValueName,
+          ])
+          .filter(([key]) => key),
       )
-      const suggested = workloadFromSpecs(specs)
+    }
+    const groupFields = (group: any, sku: any) => {
+      const type = localizedName(group?.specTypeNameI18n, group?.specTypeName)
+      const value = localizedName(
+        group?.specValueNameI18n,
+        group?.specValueName,
+      )
+      const groupValueId = group?.specValueId
+      const lineLabel = (Array.isArray(sku?.specs) ? sku.specs : [])
+        .filter(
+          (spec: any) =>
+            groupValueId == null ||
+            String(spec?.specValueId) !== String(groupValueId),
+        )
+        .map((spec: any) =>
+          localizedName(spec?.specValueNameI18n, spec?.specValueName),
+        )
+        .filter((text: string) => text && text !== "—")
+        .join(" · ")
       return {
-        skuId: sku.skuId,
-        skuCode: sku.skuCode,
-        specs,
-        platformPrice: saved.platformPrice ?? sku.price,
-        approvedPrice: saved.approvedPrice ?? null,
-        available:
-          saved.available != null
-            ? saved.available !== false
-            : Number(sku.status ?? 1) === 1,
+        groupId: groupValueId != null ? String(groupValueId) : "all",
+        groupType: type === "—" ? "" : type,
+        groupValue: value === "—" ? "" : value,
+        lineLabel,
+      }
+    }
+    const mapQuoteRow = (
+      sku: any,
+      saved: any,
+      meta: {
+        groupId: string
+        groupType: string
+        groupValue: string
+        lineLabel: string
+      },
+    ) => {
+      const available =
+        saved.available != null
+          ? saved.available !== false
+          : sku.available != null
+            ? sku.available !== false
+            : Number(sku.status ?? 1) === 1
+      return {
+        skuId: sku.skuId ?? saved.skuId,
+        skuCode: sku.skuCode || saved.skuCode || "",
+        specs: {
+          ...Object.fromEntries(
+            quoteDialog.columns.map((column) => [column.key, sku[column.key]]),
+          ),
+          ...specRecord(sku.specs),
+          ...specRecord(saved.specs),
+        },
+        ...meta,
+        platformPrice: saved.platformPrice ?? sku.platformPrice ?? sku.price,
+        approvedPrice: saved.approvedPrice ?? sku.approvedPrice ?? null,
+        available,
         enabled:
           Number(saved.reviewStatus) === 3 ||
           String(saved.rejectReason || "").trim()
-            ? saved.available != null
-              ? saved.available !== false
-              : Number(sku.status ?? 1) === 1
-            : skuEnabled(
-                saved.enabled,
-                saved.available != null
-                  ? saved.available !== false
-                  : Number(sku.status ?? 1) === 1,
-              ),
-        staffCount:
-          saved.staffCount == null || saved.staffCount === ""
-            ? suggested.staffCount
-            : Number(saved.staffCount),
-        serviceHours:
-          saved.serviceHours == null || saved.serviceHours === ""
-            ? suggested.serviceHours
-            : Number(saved.serviceHours),
+            ? available
+            : skuEnabled(saved.enabled ?? sku.enabled, available),
+        staffCount: blankPositive(saved.staffCount ?? sku.staffCount),
+        serviceHours: blankPositive(saved.serviceHours ?? sku.serviceHours),
         quotePrice:
           saved.quotePrice == null || saved.quotePrice === ""
-            ? null
+            ? sku.quotePrice == null || sku.quotePrice === ""
+              ? null
+              : Number(sku.quotePrice)
             : Number(saved.quotePrice),
         reviewStatus:
-          Number(saved.reviewStatus) === 2 || Number(saved.reviewStatus) === 3
-            ? Number(saved.reviewStatus)
+          Number(saved.reviewStatus ?? sku.reviewStatus) === 2 ||
+          Number(saved.reviewStatus ?? sku.reviewStatus) === 3
+            ? Number(saved.reviewStatus ?? sku.reviewStatus)
             : undefined,
-        rejectReason: saved.rejectReason || "",
+        rejectReason: saved.rejectReason || sku.rejectReason || "",
       }
-    })
+    }
+    const grouped =
+      Array.isArray(quote?.skuGroups) &&
+      quote.skuGroups.some(
+        (group: any) => Array.isArray(group?.skus) && group.skus.length,
+      )
+        ? quote.skuGroups
+        : Array.isArray(detail.skuGroups) && detail.skuGroups.length
+          ? detail.skuGroups
+          : null
+    if (grouped) {
+      const seen = new Set<number>()
+      const rows: any[] = []
+      for (const group of grouped) {
+        for (const sku of group.skus || []) {
+          const id = Number(sku?.skuId)
+          if (!Number.isFinite(id) || seen.has(id)) continue
+          seen.add(id)
+          rows.push(
+            mapQuoteRow(sku, quoted.get(id) || sku, groupFields(group, sku)),
+          )
+        }
+      }
+      for (const sku of skus) {
+        const id = Number(sku?.skuId)
+        if (!Number.isFinite(id) || seen.has(id)) continue
+        rows.push(
+          mapQuoteRow(sku, quoted.get(id) || {}, {
+            groupId: "all",
+            groupType: "",
+            groupValue: "",
+            lineLabel: "",
+          }),
+        )
+      }
+      quoteDialog.rows = rows
+    } else {
+      quoteDialog.rows = skus.map((sku: any) =>
+        mapQuoteRow(sku, quoted.get(Number(sku.skuId)) || {}, {
+          groupId: "all",
+          groupType: "",
+          groupValue: "",
+          lineLabel: "",
+        }),
+      )
+    }
     if (quote) {
       quoteDialog.status = quote.status
       quoteDialog.rejectReason = quoteRejectText(quote)
@@ -7543,7 +7786,7 @@ const openServiceQuote = async (row: {
         quote.priceChangeStatus == null ? null : Number(quote.priceChangeStatus)
       quoteDialog.priceChangeReason = quote.priceChangeReason || ""
       quoteDialog.priceChangeRejectReason = quote.priceChangeRejectReason || ""
-      quoteDialog.quoteMode = Number(quote.quoteMode) === 2 ? 2 : 1
+      quoteDialog.quoteMode = assignedQuoteMode(quote)
       quoteDialog.unitPrice =
         quote.unitPrice == null || quote.unitPrice === ""
           ? quoteDialog.unitPrice
@@ -12631,11 +12874,117 @@ watch(areaKeyword, (keyword) => {
   max-height: none;
   overflow: visible;
 }
+.quote-line.is-hourly {
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+}
+.quote-group {
+  display: grid;
+  gap: 8px;
+}
+.quote-group + .quote-group {
+  margin-top: 8px;
+}
+.quote-group__head {
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+  padding: 6px 2px 0;
+}
+.quote-group__head small {
+  color: #7a7166;
+  font-size: 12px;
+  font-weight: 700;
+}
+.quote-group__head strong {
+  color: #05152b;
+  font-size: 15px;
+}
+.quote-line-tools {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 12px;
+}
+.quote-line-bulk {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-left: auto;
+}
+.quote-line-bulk button {
+  min-height: 32px;
+  padding: 4px 12px;
+  border: 1px solid #eadfce;
+  border-radius: 999px;
+  background: #fff;
+  color: #05152b;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 650;
+  cursor: pointer;
+}
+.quote-line-bulk button:disabled {
+  color: #a3988c;
+  cursor: not-allowed;
+}
+.quote-line-bulk button:focus-visible {
+  outline: 3px solid rgba(200, 148, 71, 0.26);
+  outline-offset: 2px;
+}
+.quote-line__switch :deep(.el-checkbox) {
+  height: auto;
+  margin: 0;
+}
+.quote-line__switch :deep(.el-checkbox__inner) {
+  width: 16px;
+  height: 16px;
+  border-color: #c8bfb2;
+  border-radius: 4px;
+}
+.quote-line__switch :deep(.el-checkbox__input.is-checked .el-checkbox__inner),
+.quote-line__switch :deep(.el-checkbox__input.is-indeterminate .el-checkbox__inner) {
+  background: #05152b;
+  border-color: #05152b;
+}
+.quote-group-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.quote-group-tabs__type {
+  margin-right: 4px;
+  color: #7a7166;
+  font-size: 12px;
+  font-weight: 700;
+}
+.quote-group-tabs button {
+  min-height: 34px;
+  padding: 6px 14px;
+  border: 1px solid #eadfce;
+  border-radius: 999px;
+  background: #fff;
+  color: #05152b;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 650;
+  cursor: pointer;
+}
+.quote-group-tabs button.is-on {
+  color: #f7f1e6;
+  background: #05152b;
+  border-color: #05152b;
+}
+.quote-group-tabs button:focus-visible {
+  outline: 3px solid rgba(200, 148, 71, 0.26);
+  outline-offset: 2px;
+}
 .quote-line {
-  grid-template-columns: minmax(190px, 1.2fr) minmax(112px, 0.65fr) minmax(
-      112px,
-      0.65fr
-    ) minmax(160px, 0.9fr);
+  grid-template-columns:
+    auto minmax(160px, 1.2fr) minmax(104px, 0.62fr) minmax(104px, 0.62fr)
+    minmax(140px, 0.85fr) auto;
   gap: 12px;
   align-items: start;
   padding: 14px;
@@ -12698,6 +13047,17 @@ watch(areaKeyword, (keyword) => {
 }
 .quote-line__price {
   min-width: 0;
+}
+.portal-option-status {
+  align-self: center;
+  justify-self: end;
+  color: #8a7d70;
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.portal-option-status.is-ready {
+  color: #1f7a4d;
 }
 .auto-price {
   display: flex;
@@ -12869,6 +13229,24 @@ watch(areaKeyword, (keyword) => {
   color: #05152b;
   font-size: 11px;
   font-weight: 800;
+}
+.sv-quote__gap {
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: #9a6230;
+  font: inherit;
+  font-size: 12px;
+  line-height: 1.45;
+  text-align: left;
+  cursor: pointer;
+}
+.sv-quote__gap:focus-visible {
+  outline: 3px solid rgba(200, 148, 71, 0.26);
+  outline-offset: 2px;
+}
+.quote-group-tabs button.is-gap:not(.is-on) {
+  border-color: #e2c08a;
 }
 .sv-quote__foot-note small {
   margin-top: 2px;
