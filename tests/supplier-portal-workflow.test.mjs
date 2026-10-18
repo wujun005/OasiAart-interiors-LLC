@@ -60,7 +60,7 @@ const renderer = Vue.createRenderer({
 })
 
 async function harness(t, section = 'pricing') {
-  const calls = { drafts: [], submissions: [], profileSaves: [], profileResubmits: [], schedules: [], coverage: [], messages: [], routes: [] }
+  const calls = { drafts: [], submissions: [], profileSaves: [], profileResubmits: [], schedules: [], coverage: [], messages: [], routes: [], scrolledFields: [], focusedFields: [] }
   const locale = Vue.ref('en')
   const translate = (key, params = {}) => {
     const text = key.split('.').reduce((node, part) => node?.[part], messages[locale.value])
@@ -98,7 +98,13 @@ async function harness(t, section = 'pricing') {
   const exports = {}
   runInNewContext(code, {
     exports,
-    document: { querySelector: () => null, getElementById: () => null },
+    document: {
+      querySelector: () => null,
+      getElementById: (id) => ({
+        scrollIntoView: () => calls.scrolledFields.push(id),
+        querySelector: () => ({ focus: () => calls.focusedFields.push(id) }),
+      }),
+    },
     require: (name) => {
       if (name === 'vue') return Vue
       if (name === 'vue-i18n') return { useI18n: () => ({ t: translate, locale }) }
@@ -317,7 +323,7 @@ test('editing a reviewed quote clears its confirmation and prevents submission',
   assert.equal(calls.submissions.length, 0)
 })
 
-test('missing bank fields or required trade license block profile submission', async (t) => {
+test('profile submit stays clickable and explains missing bank fields or required documents', async (t) => {
   const { state, calls } = await harness(t, 'profile')
   Object.assign(state.companyForm, {
     companyName: 'Test Supplier', licenseNo: 'TEST-001', licenseIssuedBy: 'Dubai DET',
@@ -328,18 +334,24 @@ test('missing bank fields or required trade license block profile submission', a
   await flush()
   assert.deepEqual(clone(state.profileIssues.map(issue => issue.id)), ['accountName', 'bankName', 'iban', 'tradeLicense'])
   assert.equal(state.bankComplete, false)
-  assert.equal(controlDisabled('submitProfileForm', state), true)
+  assert.equal(controlDisabled('submitProfileForm', state), false)
   assert.ok(state.profileProblem(1))
-  state.submitProfileForm()
+  await state.submitProfileForm()
   await flush()
   assert.equal(state.submitTried, true)
+  assert.equal(calls.messages.at(-1).message, state.profileIssues[0].message)
+  assert.equal(calls.scrolledFields.at(-1), 'profile-field-accountName')
+  assert.equal(calls.focusedFields.at(-1), 'profile-field-accountName')
+  assert.equal(state.profileSection, 3)
   assert.equal(calls.profileSaves.length, 0)
   assert.equal(calls.profileResubmits.length, 0)
   Object.assign(state.bankForm, { accountName: 'Test Supplier LLC', bankName: 'Test Bank', iban: 'AE070331234567890123456' })
   await flush()
   assert.deepEqual(clone(state.profileIssues.map(issue => issue.id)), ['tradeLicense'])
-  state.submitProfileForm()
+  await state.submitProfileForm()
   await flush()
+  assert.equal(calls.messages.at(-1).message, state.profileIssues[0].message)
+  assert.equal(calls.scrolledFields.at(-1), 'profile-field-tradeLicense')
   assert.equal(calls.profileSaves.length, 0)
   state.tradeLicenseFiles = ['https://example.com/trade-license.pdf']
   await flush()
@@ -347,6 +359,36 @@ test('missing bank fields or required trade license block profile submission', a
   assert.equal(state.profileIssues.length, 0)
   assert.equal(controlDisabled('submitProfileForm', state), false)
   assert.equal(state.profileProblem(1), '')
+  await state.submitProfileForm()
+  assert.equal(calls.profileSaves.length, 1)
+  assert.equal(calls.profileSaves[0].status, 1)
+})
+
+test('resubmitting from the last step points to company issues and submits after they are fixed', async (t) => {
+  const { state, calls, locale } = await harness(t, 'profile')
+  locale.value = 'zh'
+  state.onboardingStatus = 3
+  state.profileSection = 3
+  Object.assign(state.companyForm, {
+    companyName: 'Test Supplier', licenseNo: 'TEST-001', licenseIssuedBy: '',
+    licenseExpiry: '2099-12-31', address: 'Dubai', contact: 'Test Contact',
+    email: 'contact@example.com', mobile: '501234567', whatsapp: '501234567',
+  })
+  Object.assign(state.bankForm, { accountName: 'Test Supplier LLC', bankName: 'Test Bank', iban: 'AE070331234567890123456' })
+  state.tradeLicenseFiles = ['https://example.com/trade-license.pdf']
+  await flush()
+  assert.equal(controlDisabled('submitProfileForm', state), false)
+  await state.submitProfileForm()
+  assert.equal(state.profileSection, 0)
+  assert.equal(calls.messages.at(-1).type, 'warning')
+  assert.equal(calls.messages.at(-1).message, messages.zh.admin.supplierProfile.licenseIssuedByRequired)
+  assert.equal(calls.focusedFields.at(-1), 'profile-field-licenseIssuedBy')
+  assert.equal(calls.profileResubmits.length, 0)
+
+  state.companyForm.licenseIssuedBy = 'Dubai DET'
+  await state.submitProfileForm()
+  assert.equal(calls.profileResubmits.length, 1)
+  assert.equal(calls.profileSaves.length, 0)
 })
 
 test('review-period coverage and schedule save independently without changing the onboarding snapshot', async (t) => {

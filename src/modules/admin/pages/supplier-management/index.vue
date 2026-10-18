@@ -186,6 +186,7 @@
               submitTried && profileIssues.length && profileView === 'section'
             "
             class="error-banner"
+            role="alert"
           >
             <strong>{{
               t("admin.supplierProfile.fixCount", {
@@ -198,8 +199,7 @@
               type="button"
               @click="jumpProfileField(issue)"
             >
-              {{ profileSections[issue.section].num }}
-              {{ profileSections[issue.section].title }} · {{ issue.label }}
+              {{ profileSections[issue.section].title }} · {{ issue.message }}
             </button>
           </div>
           <p v-if="!profileEditable" class="review-lock">
@@ -776,38 +776,60 @@
                 {{ t("admin.supplierPortal.payoutDetails") }}
               </h3>
               <div class="dossier-grid">
-                <label id="profile-field-accountName" class="profile-field"
+                <label
+                  id="profile-field-accountName"
+                  class="profile-field"
+                  :class="{ error: issueOf('accountName') }"
                   ><span
                     >{{ t("admin.supplierProfile.accountName") }} <i>*</i></span
                   ><el-input
                     v-model="bankForm.accountName"
                     :disabled="profileReadOnly"
-                /></label>
-                <label id="profile-field-bankName" class="profile-field"
+                  /><small v-if="issueOf('accountName')">{{
+                    issueOf("accountName")
+                  }}</small></label
+                >
+                <label
+                  id="profile-field-bankName"
+                  class="profile-field"
+                  :class="{ error: issueOf('bankName') }"
                   ><span
                     >{{ t("admin.supplierProfile.bankName") }} <i>*</i></span
                   ><el-input
                     v-model="bankForm.bankName"
                     :disabled="profileReadOnly"
-                /></label>
-                <label id="profile-field-iban" class="profile-field span-2"
+                  /><small v-if="issueOf('bankName')">{{
+                    issueOf("bankName")
+                  }}</small></label
+                >
+                <label
+                  id="profile-field-iban"
+                  class="profile-field span-2"
+                  :class="{ error: issueOf('iban') }"
                   ><span>{{ t("admin.supplierProfile.iban") }} <i>*</i></span
                   ><el-input
                     v-model="bankForm.iban"
                     :disabled="profileReadOnly"
-                /></label>
+                  /><small v-if="issueOf('iban')">{{ issueOf("iban") }}</small
+                ></label>
                 <label class="profile-field"
                   ><span>{{ t("admin.supplierProfile.swift") }}</span
                   ><el-input
                     v-model="bankForm.swift"
                     :disabled="profileReadOnly"
                 /></label>
-                <label class="profile-field"
+                <label
+                  id="profile-field-currency"
+                  class="profile-field"
+                  :class="{ error: issueOf('currency') }"
                   ><span>{{ t("admin.supplierProfile.currency") }}</span
                   ><el-select
                     v-model="bankForm.currency"
                     :disabled="profileReadOnly"
                     ><el-option label="AED" value="AED" /></el-select
+                  ><small v-if="issueOf('currency')">{{
+                    issueOf("currency")
+                  }}</small
                 ></label>
               </div>
             </section>
@@ -1018,7 +1040,7 @@
                     profileSection === profileSections.length - 1)
                 "
                 type="primary"
-                :disabled="profileIssues.length > 0"
+                :disabled="saving"
                 :loading="saving"
                 @click="submitProfileForm"
               >
@@ -1045,7 +1067,7 @@
               type="button"
               @click="jumpProfileField(issue)"
             >
-              {{ issue.label }}
+              {{ issue.message }}
             </button>
           </div>
         </div>
@@ -1580,23 +1602,11 @@
               type="button"
               :class="{ 'is-active': orderStage === stage.value }"
               :aria-pressed="orderStage === stage.value"
-              :disabled="stage.value !== 'all' && !orderStageFilteringSupported"
-              :title="
-                stage.value !== 'all' && !orderStageFilteringSupported
-                  ? orderStageUnavailable
-                  : undefined
-              "
               @click="changeOrderStage(stage.value)"
             >
               {{ stage.label }}
             </button>
           </nav>
-          <p
-            v-if="orderCapabilitiesLoaded && !orderStageFilteringSupported"
-            class="portal-orders-compatibility"
-          >
-            {{ orderStageUnavailable }}
-          </p>
           <div class="order-filters portal-orders-filters">
             <label class="order-filter">
               <span>{{ t("admin.supplierOrders.orderNo") }}</span>
@@ -1758,17 +1768,9 @@
             >
               <template #default="{ row }">
                 <el-tag
-                  :type="
-                    orderCancelled(row)
-                      ? 'danger'
-                      : serviceStatusTag(row.serviceStatus)
-                  "
+                  :type="workbenchStatusTag(row)"
                   effect="light"
-                  >{{
-                    orderCancelled(row)
-                      ? t("admin.supplierPortal.cancelled")
-                      : serviceStatusText(row)
-                  }}</el-tag
+                  >{{ workbenchStatusText(row) }}</el-tag
                 >
               </template>
             </el-table-column>
@@ -1833,19 +1835,9 @@
               >
                 {{ row.orderNo || "—" }}
               </button>
-              <el-tag
-                :type="
-                  orderCancelled(row)
-                    ? 'danger'
-                    : serviceStatusTag(row.serviceStatus)
-                "
-                effect="light"
-                >{{
-                  orderCancelled(row)
-                    ? t("admin.supplierPortal.cancelled")
-                    : serviceStatusText(row)
-                }}</el-tag
-              >
+              <el-tag :type="workbenchStatusTag(row)" effect="light">{{
+                workbenchStatusText(row)
+              }}</el-tag>
             </header>
             <h3>{{ orderServiceTitle(row) }}</h3>
             <p v-if="orderSpecText(row) !== '—'">{{ orderSpecText(row) }}</p>
@@ -2098,10 +2090,38 @@
                   }}</span>
                   <div>
                     <h3>{{ serviceTitle(row.name, row.spuNameI18n) }}</h3>
-                    <p>{{ yourPriceText(row) }}</p>
-                    <el-button link @click="openServiceEditor(row)">{{
-                      t("admin.supplierPortal.staffContact")
-                    }}</el-button>
+                    <div class="portal-service-meta">
+                      <p class="portal-service-price">{{ yourPriceText(row) }}</p>
+                      <button
+                        type="button"
+                        class="portal-contact-summary"
+                        :aria-label="
+                          t('admin.supplierPortal.editContactSummary', {
+                            service: serviceTitle(row.name, row.spuNameI18n),
+                            staff: Number(row.workerCount) || 0,
+                            contacts: listedPhones(row.phones).length,
+                          })
+                        "
+                        @click="openServiceEditor(row)"
+                      >
+                        <span class="portal-contact-summary__item">
+                          <UserFilled aria-hidden="true" />
+                          <span>{{ t("admin.supplierPortal.staff") }}</span>
+                          <strong>{{ Number(row.workerCount) || "—" }}</strong>
+                        </span>
+                        <span class="portal-contact-summary__item">
+                          <Phone aria-hidden="true" />
+                          <span>{{
+                            t("admin.supplierPortal.orderContact")
+                          }}</span>
+                          <strong>{{ listedPhones(row.phones).length || "—" }}</strong>
+                        </span>
+                        <ArrowRight
+                          class="portal-contact-summary__arrow"
+                          aria-hidden="true"
+                        />
+                      </button>
+                    </div>
                   </div>
                 </div>
                 <el-tag :type="quoteTagType(row.status)" effect="light">{{
@@ -3881,6 +3901,7 @@ import {
   Money,
   OfficeBuilding,
   Plus,
+  Phone,
   Search,
   Tickets,
   Upload,
@@ -4747,7 +4768,9 @@ const serviceStep = (row: any) => {
     ? status
     : 0
 }
-const orderCancelled = (row: any) => Number(row?.orderStatus) === 3
+const orderCancelled = (row: any) =>
+  Number(row?.orderStatus) === 3 ||
+  String(row?.supplierStage || "").toUpperCase() === "CANCELLED"
 const orderRescheduleUnread = (row: any) =>
   row?.rescheduled === true && row?.rescheduleRead !== true
 const serviceStatusText = (row: any) => {
@@ -4765,6 +4788,24 @@ const serviceStatusTag = (status: unknown) => {
   if (step === 2) return "success"
   if (step === 4 || step === 1 || step === 3) return "warning"
   return "info"
+}
+const workbenchStatusText = (row: any) => {
+  const localized = specText(row?.supplierStageI18n)
+  if (localized !== "—") return localized
+  const code = String(row?.supplierStage || "").toUpperCase()
+  if (code === "NEW") return t("admin.supplierPortal.newRequests")
+  if (code === "UPCOMING") return t("admin.supplierPortal.upcoming")
+  if (code === "IN_PROGRESS") return t("admin.supplierPortal.inProgress")
+  if (code === "COMPLETED") return t("admin.supplierPortal.completed")
+  if (code === "CANCELLED") return t("admin.supplierPortal.cancelled")
+  return serviceStatusText(row)
+}
+const workbenchStatusTag = (row: any) => {
+  const code = String(row?.supplierStage || "").toUpperCase()
+  if (code === "CANCELLED" || orderCancelled(row)) return "danger"
+  if (code === "COMPLETED") return "success"
+  if (code === "IN_PROGRESS" || code === "UPCOMING") return "warning"
+  return code === "NEW" ? "info" : serviceStatusTag(row?.serviceStatus)
 }
 const orderClock = (value: unknown) => {
   if (value == null || value === "") return "—"
@@ -5953,9 +5994,15 @@ const orderMetricKeys: OrderMetricKey[] = [
   "completed",
 ]
 const orderStage = ref<OrderStage>("all")
-const orderStageFilteringSupported = ref(false)
-const orderCapabilitiesLoaded = ref(false)
 const orderSummary = ref<Partial<Record<OrderMetricKey, number>>>({})
+const supplierStageParam = (stage: OrderStage) => {
+  if (stage === "newRequests") return "NEW"
+  if (stage === "upcoming") return "UPCOMING"
+  if (stage === "inProgress") return "IN_PROGRESS"
+  if (stage === "completed") return "COMPLETED"
+  if (stage === "cancelled") return "CANCELLED"
+  return undefined
+}
 let orderListRequest = 0
 const orderMetrics = computed(() =>
   orderMetricKeys.map((key) => ({
@@ -5975,11 +6022,6 @@ const orderStages = computed(() => [
     label: t("admin.supplierPortal.cancelled"),
   },
 ])
-const orderStageUnavailable = computed(() =>
-  String(locale.value).startsWith("zh")
-    ? "当前服务暂不支持按状态筛选，已显示全部订单。"
-    : "Status filtering is not available from the server yet. All orders are shown.",
-)
 const orderPageRange = computed(() => {
   const count = supplierOrders.value.length
   const from = count ? (orderPage.value - 1) * 10 + 1 : 0
@@ -6008,11 +6050,7 @@ const resetOrderFilters = () => {
   searchOrders()
 }
 const changeOrderStage = (stage: OrderStage) => {
-  if (
-    stage === orderStage.value ||
-    (stage !== "all" && !orderStageFilteringSupported.value)
-  )
-    return
+  if (stage === orderStage.value) return
   orderStage.value = stage
   searchOrders()
 }
@@ -7124,22 +7162,29 @@ const jumpProfileField = async (issue: { section: number; id: string }) => {
   profileView.value = "section"
   profileSection.value = issue.section
   await nextTick()
-  document
-    .getElementById(`profile-field-${issue.id}`)
-    ?.scrollIntoView({ behavior: "smooth", block: "center" })
+  const field = document.getElementById(`profile-field-${issue.id}`)
+  field?.scrollIntoView({ behavior: "smooth", block: "center" })
+  field
+    ?.querySelector<HTMLElement>(
+      "input:not([disabled]), textarea:not([disabled]), button:not([disabled])",
+    )
+    ?.focus({ preventScroll: true })
 }
-const submitProfileForm = () => {
+const submitProfileForm = async () => {
+  if (saving.value) return
   if (!profileEditable.value) {
     ElMessage.warning(t("admin.supplierProfile.locked"))
     return
   }
   submitTried.value = true
-  if (profileIssues.value.length) {
-    scrollProfileTop()
+  const firstIssue = profileIssues.value[0]
+  if (firstIssue) {
+    ElMessage.warning(firstIssue.message)
+    await jumpProfileField(firstIssue)
     return
   }
-  if (needsResubmit.value) resubmitProfile()
-  else saveProfile(1)
+  if (needsResubmit.value) return resubmitProfile()
+  return saveProfile(1)
 }
 const docFiles = (id: "trade" | "public" | "employee" | "other") => {
   if (id === "trade") return tradeLicenseFiles.value
@@ -8360,26 +8405,12 @@ const loadOrders = async () => {
         categoryId: orderCategory.value || undefined,
         serviceTimeStart: serviceTimeStart || undefined,
         serviceTimeEnd: serviceTimeEnd || undefined,
-        orderStage:
-          orderStageFilteringSupported.value && requestedStage !== "all"
-            ? requestedStage
-            : undefined,
+        supplierStage: supplierStageParam(requestedStage),
         pageNum: orderPage.value,
         pageSize: 10,
       }),
     )
     if (requestId !== orderListRequest) return
-    const supportedFilters =
-      page?.capabilities?.supportedFilters ?? page?.supportedFilters
-    orderStageFilteringSupported.value =
-      Array.isArray(supportedFilters) && supportedFilters.includes("orderStage")
-    orderCapabilitiesLoaded.value = true
-    if (!orderStageFilteringSupported.value && requestedStage !== "all") {
-      orderStage.value = "all"
-      orderPage.value = 1
-      await loadOrders()
-      return
-    }
     const summary: Partial<Record<OrderMetricKey, number>> = {}
     for (const key of orderMetricKeys) {
       const raw = page?.summary?.[key]
@@ -8425,8 +8456,7 @@ const handlePrimaryAction = () => {
     return
   }
   if (section.value === "profile") {
-    if (needsResubmit.value) resubmitProfile()
-    else saveProfile(1)
+    submitProfileForm()
   }
 }
 
