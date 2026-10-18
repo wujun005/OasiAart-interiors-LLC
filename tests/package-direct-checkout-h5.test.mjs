@@ -24,6 +24,26 @@ const code = ts.transpileModule(scriptSource, {
     esModuleInterop: true,
   },
 }).outputText
+const plainTextExports = {}
+runInNewContext(ts.transpileModule(
+  readFileSync(new URL("src/modules/client/utils/plain-text.ts", root), "utf8"),
+  { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } },
+).outputText, { exports: plainTextExports })
+const packageBookingCode = ts.transpileModule(
+  readFileSync(new URL("src/modules/client/composables/usePackageFirstBooking.ts", root), "utf8"),
+  { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } },
+).outputText
+const packageCard = { items: [{ skuId: 201, spuId: 7, redeemTimes: 3, spuNameI18n: { en: "Home cleaning", zh: "家庭清洁" } }] }
+const timeOptions = [{ time: "09:00", timeRange: 7, available: true }]
+const completeBooking = async (state) => {
+  const address = { id: 1, fullName: "Test Customer", phoneCountryCode: "+971", phone: "501234567", address: "Test Street", building: "Villa 1" }
+  state.addressList = [address]
+  state.selectSavedAddress(address)
+  state.form.serviceDate = "2099-01-01"
+  state.form.remark = "Ring the doorbell once"
+  await flush()
+  state.form.timeRange = "7"
+}
 
 const clone = (value) => JSON.parse(JSON.stringify(value))
 const flush = async () => {
@@ -50,11 +70,13 @@ const renderer = Vue.createRenderer({
   patchProp() {},
   parentNode: () => null,
   nextSibling: () => null,
+  insertStaticContent: () => [{}, {}],
 })
 
 async function harness(t, overrides = {}) {
   const calls = {
     cartOptions: [],
+    packageDetails: [],
     cartRefresh: 0,
     cartAdd: [],
     cartRemove: [],
@@ -68,6 +90,7 @@ async function harness(t, overrides = {}) {
     failures: [],
     successes: [],
     errors: [],
+    renderErrors: [],
   }
   const route = Vue.reactive({
     query: {
@@ -100,6 +123,16 @@ async function harness(t, overrides = {}) {
     },
   }
   const exports = {}
+  const packageBookingExports = {}
+  runInNewContext(packageBookingCode, { exports: packageBookingExports, require: (name) => {
+    if (name === "vue") return Vue
+    if (name === "@/modules/client/utils/plain-text") return plainTextExports
+    if (name === "@/modules/client/api") return { packageDetail: async (id) => {
+      calls.packageDetails.push(id)
+      return overrides.packageDetail ? overrides.packageDetail(id) : packageCard
+    } }
+    throw new Error(`Unexpected booking dependency: ${name}`)
+  } })
   runInNewContext(code, {
     exports,
     window: browser,
@@ -109,6 +142,8 @@ async function harness(t, overrides = {}) {
     },
     require: (name) => {
       if (name === "vue") return Vue
+      if (name === "@/modules/client/utils/plain-text") return plainTextExports
+      if (name === "@/modules/client/composables/usePackageFirstBooking") return packageBookingExports
       if (name === "vue-i18n") {
         return {
           useI18n: () => ({
@@ -146,9 +181,9 @@ async function harness(t, overrides = {}) {
             calls.latestAddress += 1
             return null
           },
-          getAvailableSelectTime: async () => {
+          getAvailableSelectTime: async (params) => {
             calls.availableTimes += 1
-            return []
+            return overrides.availableTimes ? overrides.availableTimes(params) : timeOptions
           },
           getCartDetail: async () => {
             calls.cartDetail += 1
@@ -156,7 +191,8 @@ async function harness(t, overrides = {}) {
           },
           saveContactAddress: async (payload) => {
             calls.saveContact.push(clone(payload))
-            return null
+            if (overrides.saveContact) return overrides.saveContact(payload)
+            return 1
           },
           createPay: async (payload) => {
             calls.createPay.push(clone(payload))
@@ -198,14 +234,18 @@ async function harness(t, overrides = {}) {
       throw new Error(`Unexpected dependency: ${name}`)
     },
   })
-  const app = renderer.createApp({ ...exports.default, render: () => null })
+  const app = renderer.createApp({ ...exports.default, render: overrides.renderTemplate || (() => null) })
+  if (overrides.renderTemplate) {
+    app.config.errorHandler = (error) => calls.renderErrors.push(error)
+    app.config.warnHandler = () => {}
+  }
   const instance = app.mount({})
   t.after(() => app.unmount())
   await flush()
-  return { state: instance.$.setupState, route, calls, browser }
+  return { state: instance.$.setupState, route, calls, browser, locale }
 }
 
-test("H5 package confirmation compiles and hides address, schedule and note sections", () => {
+test("H5 package confirmation compiles with first-service, address, time and note fields", () => {
   const result = compileTemplate({
     source: descriptor.template.content,
     filename,
@@ -213,13 +253,24 @@ test("H5 package confirmation compiles and hides address, schedule and note sect
     compilerOptions: { bindingMetadata: script.bindings },
   })
   assert.deepEqual(result.errors, [])
-  assert.match(descriptor.template.content, /v-if="!isPackageMode"[\s\S]+?h5-order-card--address/)
-  assert.match(descriptor.template.content, /v-if="!isPackageMode" class="h5-order-card h5-order-card--time"/)
-  assert.match(descriptor.template.content, /v-if="!isPackageMode" class="h5-order-card h5-order-card--note"/)
-  assert.match(descriptor.template.content, /套餐支付后可在订单中按次预约，届时选择服务地址和时间/)
+  assert.match(descriptor.template.content, /v-model="packageSkuId"/)
+  assert.match(descriptor.template.content, /v-model(?:\.trim)?="form\.remark"/)
+  assert.doesNotMatch(descriptor.template.content, /v-if="!isPackageMode" class="h5-order-card h5-order-card--(?:time|note)"/)
 })
 
-test("package mode renders query summary without initializing cart or loading booking data", async (t) => {
+test("H5 first-visit confirmation executes the actual template before and after booking form completion", async (t) => {
+  const result = compileTemplate({ source: descriptor.template.content, filename, id: "h5-first-visit-render", compilerOptions: { bindingMetadata: script.bindings } })
+  const template = {}
+  runInNewContext(ts.transpileModule(result.code, { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText,
+    { exports: template, require: () => ({ ...Vue, withDirectives: (vnode) => vnode }) })
+  const { state, calls } = await harness(t, { renderTemplate: template.render })
+  await completeBooking(state)
+  await flush()
+  assert.deepEqual(calls.renderErrors, [])
+  assert.equal(state.getValidationMessage(), "")
+})
+
+test("package mode renders summary and loads first-visit address/service data without initializing cart", async (t) => {
   const { state, calls } = await harness(t)
   assert.equal(state.isPackageMode, true)
   assert.equal(state.packageId, 12)
@@ -231,18 +282,24 @@ test("package mode renders query summary without initializing cart or loading bo
   assert.equal(state.tax, 5)
   assert.equal(state.total, 105)
   assert.deepEqual(calls.cartOptions, [{ initialize: false }])
-  assert.equal(calls.addressList, 0)
-  assert.equal(calls.latestAddress, 0)
+  assert.equal(calls.addressList, 1)
+  assert.equal(calls.latestAddress, 1)
+  assert.equal(state.packageSkuId, "201")
+  assert.deepEqual(calls.packageDetails, ["12"])
   assert.equal(calls.availableTimes, 0)
   assert.equal(calls.cartDetail, 0)
 })
 
-test("package confirmation requires agreement and sends only the existing createPay request", async (t) => {
+test("package confirmation validates a scheduled visit, requires policy and saves first booking before payment", async (t) => {
   const pendingPayment = deferred()
   const { state, calls, browser } = await harness(t, {
     createPay: () => pendingPayment.promise,
   })
 
+  state.handleConfirm()
+  assert.equal(state.policyPopupVisible, false)
+  assert.match(calls.failures.at(-1), /saved contact and service address/i)
+  await completeBooking(state)
   state.handleConfirm()
   assert.equal(state.policyPopupVisible, true)
   assert.equal(state.agreedPolicy, false)
@@ -267,13 +324,20 @@ test("package confirmation requires agreement and sends only the existing create
   })
   await Promise.all([first, duplicate])
   assert.equal(browser.location.href, "https://payments.example.test/checkout")
-  assert.equal(calls.saveContact.length, 0)
+  assert.equal(calls.saveContact.length, 1)
+  assert.equal(calls.saveContact[0].packageSkuId, 201)
+  assert.equal(calls.saveContact[0].orderId, 42)
+  assert.equal(calls.saveContact[0].serviceAddress, "Test Street")
+  assert.equal(calls.saveContact[0].serviceTime, "2099-01-01")
+  assert.equal(calls.saveContact[0].timeRange, 7)
+  assert.equal(calls.saveContact[0].remark, "Ring the doorbell once")
   assert.equal(calls.cartAdd.length, 0)
   assert.equal(calls.cartRemove.length, 0)
 })
 
-test("package payment success skips cart refresh and returns an empty schedule", async (t) => {
+test("package payment success skips cart refresh and shows its first scheduled visit", async (t) => {
   const { state, calls } = await harness(t)
+  await completeBooking(state)
   await state.handleStripeSuccess()
   assert.equal(calls.cartRefresh, 0)
   assert.deepEqual(calls.push.at(-1), {
@@ -281,7 +345,7 @@ test("package payment success skips cart refresh and returns an empty schedule",
     query: {
       orderId: "42",
       service: "Care Package",
-      scheduled: "",
+      scheduled: "2099-01-01 09:00",
       amount: "105",
     },
   })
@@ -344,6 +408,7 @@ test("failed package payment can be retried after the submit guard resets", asyn
       return { data: { approvalUrl: "https://payments.example.test/retry" } }
     },
   })
+  await completeBooking(state)
   state.agreedPolicy = true
 
   await state.confirmPolicyAndContinue()
@@ -355,6 +420,56 @@ test("failed package payment can be retried after the submit guard resets", asyn
   assert.equal(state.isSubmitting, false)
   assert.equal(calls.createPay.length, 2)
   assert.equal(browser.location.href, "https://payments.example.test/retry")
+  assert.equal(calls.saveContact.length, 2)
+  assert.equal(calls.cartAdd.length, 0)
+})
+
+test("H5 never creates payment if saving the first booking fails", async (t) => {
+  const { state, calls } = await harness(t, { saveContact: async () => { throw new Error("First booking unavailable") } })
+  await completeBooking(state)
+  state.agreedPolicy = true
+  await state.submitBooking()
+  assert.equal(calls.saveContact.length, 1)
+  assert.equal(calls.createPay.length, 0)
+  assert.equal(state.isSubmitting, false)
+  assert.equal(calls.failures.at(-1), "First booking unavailable")
+})
+
+test("H5 switching the first service ignores available times from the previous service", async (t) => {
+  const old = deferred()
+  const current = deferred()
+  const { state, calls } = await harness(t, {
+    packageDetail: async () => ({ items: [packageCard.items[0], { ...packageCard.items[0], skuId: 202, spuId: 8 }] }),
+    availableTimes: ({ spuId }) => spuId === 7 ? old.promise : current.promise,
+  })
+  assert.equal(state.packageSkuId, "")
+  state.packageSkuId = "201"
+  state.form.serviceDate = "2099-01-01"
+  await flush()
+  state.packageSkuId = "202"
+  await flush()
+  current.resolve([{ time: "10:00", timeRange: 9, available: true }])
+  await flush()
+  old.resolve(timeOptions)
+  await flush()
+  assert.equal(state.availableTimeRecords[0].timeRange, 9)
+  assert.equal(state.form.timeRange, "9")
+  assert.equal(calls.createPay.length, 0)
   assert.equal(calls.saveContact.length, 0)
+})
+
+test("H5 confirmation strips rich-text multilingual titles and handles old checkout links", async (t) => {
+  const { state, route, locale, calls } = await harness(t, { query: {
+    title: "<p>Fallback package</p>",
+    titleI18n: JSON.stringify({ en: "<p>Massage <strong>3 visits</strong></p>", zh: "<p>柔式上门按摩3次</p>" }),
+  } })
+  assert.equal(state.summaryTitle, "Massage 3 visits")
+  locale.value = "zh"
+  assert.equal(state.summaryTitle, "柔式上门按摩3次")
+  route.query.titleI18n = JSON.stringify({ zh: "<p><br></p>" })
+  assert.equal(state.summaryTitle, "Fallback package")
+  route.query.title = "<p><br></p>"
+  assert.equal(state.summaryTitle, "client.orderConfirm.summary.itemDefault")
+  assert.equal(calls.createPay.length, 0)
   assert.equal(calls.cartAdd.length, 0)
 })

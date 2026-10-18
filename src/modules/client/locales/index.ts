@@ -157,7 +157,7 @@ const clientExtraMessages = {
           remaining: '{remaining} of {total} visits left',
           validUntil: 'Valid until {date}',
           validity: 'Validity',
-          visitLater: 'Each visit is booked after purchase.',
+          visitLater: 'Book your first visit at checkout, then schedule remaining visits from Orders.',
         },
         serviceTile: {
           action: 'View services',
@@ -906,7 +906,7 @@ const clientExtraMessages = {
           remaining: '剩余 {remaining} / {total} 次',
           validUntil: '有效期至 {date}',
           validity: '有效期',
-          visitLater: '购买后按次预约上门。',
+          visitLater: '下单时预约首次服务，剩余次数可在订单中继续预约。',
         },
         serviceCard: {
           badge: '限时特价',

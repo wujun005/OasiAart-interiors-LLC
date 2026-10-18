@@ -835,7 +835,7 @@ export async function createOrder(params: any) {
 
 // 套餐直购：只创建订单，支付沿用订单确认页，不经过购物车。
 export async function createPackageOrder(packageId: number | string) {
-  return getEnvelopeData<number | string>(await http.post('/client/order/placePackage', { packageId }));
+  return getEnvelopeData<number | string>(await http.post('/client/order/placePackage', { packageId, bookFirstVisit: true }));
 }
 
 // /client/order/getLatestAddress 获取最新地址

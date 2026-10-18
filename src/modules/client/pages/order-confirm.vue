@@ -22,7 +22,11 @@
             <header class="order-section-title">
               <span class="order-section-title__index" aria-hidden="true">1</span>
               <h2>
-                {{ locale === "zh" ? "确认套餐" : "Confirm Package" }}
+                {{
+                  locale === "zh"
+                    ? "确认套餐与首次预约"
+                    : "Confirm Package & First Booking"
+                }}
               </h2>
             </header>
 
@@ -47,16 +51,86 @@
               <p>
                 {{
                   locale === "zh"
-                    ? "套餐支付后可在订单中按次预约，届时选择服务地址和时间。"
-                    : "After payment, you can book each included service from your orders and choose the service address and time then."
+                    ? "购买套餐时请先选择套餐内一项服务，并填写首次上门地址和时间；支付成功后将自动创建首次预约，后续次数可在订单中继续预约。"
+                    : "Choose one included service and enter the address and time for your first visit. Payment automatically creates this booking, and later visits can be booked from your orders."
                 }}
+              </p>
+            </div>
+
+            <div class="order-package-service">
+              <label class="order-field">
+                <span>
+                  {{ locale === "zh" ? "首次预约服务" : "First visit service" }}
+                </span>
+                <div class="order-input-wrap">
+                  <i aria-hidden="true">S</i>
+                  <select
+                    v-model="packageSkuId"
+                    :disabled="
+                      packageServicesLoading || Boolean(packageServicesError)
+                    "
+                    required
+                  >
+                    <option value="" disabled>
+                      {{
+                        packageServicesLoading
+                          ? locale === "zh"
+                            ? "服务加载中..."
+                            : "Loading services..."
+                          : locale === "zh"
+                            ? "请选择首次预约服务"
+                            : "Select a service for the first visit"
+                      }}
+                    </option>
+                    <option
+                      v-for="option in packageServiceOptions"
+                      :key="option.value"
+                      :value="option.value"
+                    >
+                      {{ option.label
+                      }}{{ option.spec ? ` · ${option.spec}` : "" }}
+                    </option>
+                  </select>
+                </div>
+              </label>
+              <div
+                v-if="packageServicesError"
+                class="order-package-service__state order-package-service__state--error"
+                role="alert"
+              >
+                <span>{{ packageServicesError }}</span>
+                <button
+                  type="button"
+                  :disabled="packageServicesLoading"
+                  @click="reloadPackageServices"
+                >
+                  {{ locale === "zh" ? "重试" : "Retry" }}
+                </button>
+              </div>
+              <p
+                v-else-if="!packageServicesLoading && !packageServiceOptions.length"
+                class="order-package-service__state"
+              >
+                {{
+                  locale === "zh"
+                    ? "当前套餐暂无可预约服务"
+                    : "No bookable service is available in this package."
+                }}
+              </p>
+              <p
+                v-else-if="packageFirstService?.spec"
+                class="order-package-service__state"
+              >
+                {{ packageFirstService.spec }}
               </p>
             </div>
           </section>
 
-          <section v-else class="order-card">
+          <section class="order-card">
             <header class="order-section-title">
-              <span class="order-section-title__index">1</span>
+              <span class="order-section-title__index">
+                {{ isPackageMode ? 2 : 1 }}
+              </span>
               <h2>
                 {{
                   locale === "zh"
@@ -185,9 +259,11 @@
             </div>
           </section>
 
-          <section v-if="!isPackageMode" class="order-card">
+          <section class="order-card">
             <header class="order-section-title">
-              <span class="order-section-title__index">2</span>
+              <span class="order-section-title__index">
+                {{ isPackageMode ? 3 : 2 }}
+              </span>
               <h2>{{ t("client.orderConfirm.sections.time") }}</h2>
             </header>
             <div class="order-fields-grid">
@@ -244,9 +320,11 @@
             </div>
           </section>
 
-          <section v-if="!isPackageMode" class="order-card">
+          <section class="order-card">
             <header class="order-section-title">
-              <span class="order-section-title__index">3</span>
+              <span class="order-section-title__index">
+                {{ isPackageMode ? 4 : 3 }}
+              </span>
               <h2>{{ t("client.orderConfirm.sections.note") }}</h2>
             </header>
             <label class="order-field order-booking-note">
@@ -337,7 +415,6 @@
     <AgreementDialog v-model="legalDialogVisible" :doc-type="legalDocType" />
 
     <SavedAddressManager
-      v-if="!isPackageMode"
       ref="checkoutAddressEditorRef"
       :editor-only="true"
       @saved="handleCheckoutAddressSaved"
@@ -437,6 +514,8 @@ import {
   formatContactName,
   splitContactName,
 } from "@/modules/client/utils/order-localization"
+import { toPlainText } from "@/modules/client/utils/plain-text"
+import { usePackageFirstBooking } from "@/modules/client/composables/usePackageFirstBooking"
 
 type I18nText = Record<string, string>
 
@@ -467,6 +546,19 @@ const getQueryText = (key: string) => {
   return typeof raw === "string" ? raw.trim() : ""
 }
 const isPackageMode = computed(() => getQueryText("mode") === "package")
+const {
+  options: packageServiceOptions,
+  selectedSkuId: packageSkuId,
+  selectedService: packageFirstService,
+  loading: packageServicesLoading,
+  error: packageServicesError,
+  reload: reloadPackageServices,
+  validationMessage: packageServiceValidationMessage,
+} = usePackageFirstBooking(
+  isPackageMode,
+  () => getQueryText("packageId"),
+  locale,
+)
 const DEFAULT_COUNTRY_CODE = "+971"
 const COUNTRY_CODE_ENTRIES = [
   { value: "+971", labelEn: "UAE +971", labelZh: "阿联酋 +971" },
@@ -500,6 +592,7 @@ const isTimeOptionsLoading = ref(false)
 const lastLoadedServiceDate = ref("")
 const pendingTimeText = ref("")
 const pendingTimeRange = ref("")
+let availableTimesRequestSeq = 0
 
 const agreedPolicy = ref(false)
 const policyDialogVisible = ref(false)
@@ -922,6 +1015,11 @@ const openServiceDatePicker = () => {
 }
 
 const serviceTimePlaceholder = computed(() => {
+  if (isPackageMode.value && !packageFirstService.value) {
+    return locale.value === "zh"
+      ? "请先选择首次预约服务"
+      : "Select the first visit service first"
+  }
   if (!normalizeText(form.serviceDate)) {
     return locale.value === "zh" ? "请先选择日期" : "Please select a date first"
   }
@@ -934,45 +1032,77 @@ const serviceTimePlaceholder = computed(() => {
   return locale.value === "zh" ? "请选择时间" : "Please select time"
 })
 
-const fetchAvailableTimes = async (force = false) => {
-  if (isPackageMode.value) {
-    return
+const clearAvailableTimes = (clearPendingRange = true) => {
+  availableTimesRequestSeq += 1
+  availableTimeRecords.value = []
+  lastLoadedServiceDate.value = ""
+  pendingTimeText.value = ""
+  if (clearPendingRange) {
+    pendingTimeRange.value = ""
   }
+  form.timeRange = ""
+  isTimeOptionsLoading.value = false
+}
+
+const fetchAvailableTimes = async (force = false) => {
   const serviceDate = normalizeText(form.serviceDate)
-  const spuIdText = getQueryText("spuId")
+  const spuIdText = normalizeText(
+    isPackageMode.value
+      ? packageFirstService.value?.spuId
+      : getQueryText("spuId"),
+  )
   if (!serviceDate) {
     return
   }
   if (!spuIdText) {
     return
   }
+  const requestKey = `${spuIdText}:${serviceDate}`
   if (
     !force &&
-    lastLoadedServiceDate.value === serviceDate &&
+    lastLoadedServiceDate.value === requestKey &&
     availableTimeRecords.value.length
   ) {
     return
   }
 
+  const requestSeq = ++availableTimesRequestSeq
   isTimeOptionsLoading.value = true
   try {
     const payload = await getAvailableSelectTime({
       spuId: Number.isFinite(Number(spuIdText)) ? Number(spuIdText) : spuIdText,
       serviceTime: serviceDate,
     })
+    if (requestSeq !== availableTimesRequestSeq) {
+      return
+    }
     availableTimeRecords.value = Array.isArray(payload) ? payload : []
-    lastLoadedServiceDate.value = serviceDate
+    lastLoadedServiceDate.value = requestKey
     applyPendingTimeText()
   } catch (error) {
+    if (requestSeq !== availableTimesRequestSeq) {
+      return
+    }
     console.error("load available select time failed:", error)
     availableTimeRecords.value = []
     lastLoadedServiceDate.value = ""
   } finally {
-    isTimeOptionsLoading.value = false
+    if (requestSeq === availableTimesRequestSeq) {
+      isTimeOptionsLoading.value = false
+    }
   }
 }
 
 const handleServiceTimeOpen = async () => {
+  if (isPackageMode.value && !packageFirstService.value) {
+    ElMessage.warning(
+      packageServiceValidationMessage.value ||
+        (locale.value === "zh"
+          ? "请先选择首次预约服务"
+          : "Please select a service for the first visit"),
+    )
+    return
+  }
   if (!normalizeText(form.serviceDate)) {
     ElMessage.warning(
       t("client.orderConfirm.validation.requiredField", {
@@ -987,17 +1117,31 @@ const handleServiceTimeOpen = async () => {
 watch(
   () => form.serviceDate,
   (value, oldValue) => {
-    if (isPackageMode.value) {
-      return
-    }
     if (value !== oldValue) {
-      availableTimeRecords.value = []
-      lastLoadedServiceDate.value = ""
-      pendingTimeText.value = ""
-      form.timeRange = ""
+      clearAvailableTimes(false)
       if (normalizeText(value)) {
         void fetchAvailableTimes(true)
       }
+    }
+  },
+)
+
+watch(
+  () => [packageSkuId.value, packageFirstService.value?.spuId || ""] as const,
+  ([skuId, spuId], [previousSkuId, previousSpuId]) => {
+    if (!isPackageMode.value) {
+      return
+    }
+    if (skuId === previousSkuId && spuId === previousSpuId) {
+      return
+    }
+    clearAvailableTimes()
+    if (
+      normalizeText(skuId) &&
+      normalizeText(spuId) &&
+      normalizeText(form.serviceDate)
+    ) {
+      void fetchAvailableTimes(true)
     }
   },
 )
@@ -1029,9 +1173,6 @@ watch(
       .map((item) => `${item.timeRange}:${item.available}`)
       .join("|"),
   () => {
-    if (isPackageMode.value) {
-      return
-    }
     if (isTimeOptionsLoading.value) {
       return
     }
@@ -1128,6 +1269,10 @@ const getPositiveQueryId = (key: string): number | null => {
 
 const orderId = computed(() => getPositiveQueryId("orderId"))
 const packageId = computed(() => getPositiveQueryId("packageId"))
+const selectedPackageSkuId = computed(() => {
+  const numeric = Number(packageSkuId.value)
+  return Number.isSafeInteger(numeric) && numeric > 0 ? numeric : null
+})
 const isCartEditMode = computed(() => getQueryText("mode") === "cart-edit")
 const editingCartItemId = computed(() => getQueryText("cartItemId"))
 const isCartMode = computed(() =>
@@ -1140,12 +1285,16 @@ const { addItem, refreshCart, removeItems } = useCart({
   initialize: !isPackageMode.value,
 })
 
-const summaryTitle = computed(() =>
-  pickI18nValue(
-    parseQueryJson<I18nText>("titleI18n", {}),
-    getQueryText("title") || t("client.orderConfirm.summary.itemDefault"),
-  ),
-)
+const summaryTitle = computed(() => {
+  const fallbackTitle =
+    toPlainText(getQueryText("title")) ||
+    toPlainText(t("client.orderConfirm.summary.itemDefault"))
+  return (
+    toPlainText(
+      pickI18nValue(parseQueryJson<I18nText>("titleI18n", {}), ""),
+    ) || fallbackTitle
+  )
+})
 
 const summaryMeta = computed(() => {
   const selectedSpecValueIds = parseQueryJson<string[]>(
@@ -1374,9 +1523,7 @@ const handleStripeSuccess = async () => {
     query: {
       orderId: String(orderId.value || ""),
       service: summaryTitle.value,
-      scheduled: isPackageMode.value
-        ? ""
-        : `${form.serviceDate} ${selectedTimeOption.value?.time || ""}`.trim(),
+      scheduled: `${form.serviceDate} ${selectedTimeOption.value?.time || ""}`.trim(),
       amount: String(total.value),
     },
   })
@@ -1632,7 +1779,22 @@ const getValidationMessage = (): string => {
         ? "套餐订单信息无效，请返回套餐详情后重试"
         : "The package order is invalid. Please return to the package details and try again."
     }
-    return ""
+    if (packageServicesLoading.value) {
+      return locale.value === "zh"
+        ? "套餐服务正在加载，请稍候"
+        : "Package services are loading. Please wait."
+    }
+    if (packageServicesError.value) {
+      return packageServicesError.value
+    }
+    if (packageServiceValidationMessage.value) {
+      return packageServiceValidationMessage.value
+    }
+    if (selectedPackageSkuId.value === null || !packageFirstService.value) {
+      return locale.value === "zh"
+        ? "请选择首次预约服务"
+        : "Please select a service for the first visit"
+    }
   }
   if (!isCartMode.value && orderId.value === null) {
     return t("client.orderConfirm.validation.orderIdMissing")
@@ -1711,31 +1873,15 @@ const submitBooking = async () => {
   }
 
   if (isPackageMode.value) {
-    const targetOrderId = orderId.value
-    if (targetOrderId === null || packageId.value === null) {
-      ElMessage.warning(
-        locale.value === "zh"
-          ? "套餐订单信息无效，请返回套餐详情后重试"
-          : "The package order is invalid. Please return to the package details and try again.",
-      )
+    const validationMessage = getValidationMessage()
+    if (validationMessage) {
+      ElMessage.warning(validationMessage)
       return
     }
     if (!agreedPolicy.value) {
       ElMessage.warning(t("client.orderConfirm.validation.policy"))
       return
     }
-
-    isSubmitting.value = true
-    try {
-      policyDialogVisible.value = false
-      await startStripePayment(targetOrderId)
-    } catch (error: any) {
-      console.error("create package payment failed:", error)
-      ElMessage.error(error?.message || "Payment request failed")
-    } finally {
-      isSubmitting.value = false
-    }
-    return
   }
 
   const serviceDateTime = buildServiceDateTime()
@@ -1801,6 +1947,9 @@ const submitBooking = async () => {
     } else {
       const result = await saveContactAddress({
         ...addressPayload,
+        ...(isPackageMode.value && selectedPackageSkuId.value !== null
+          ? { packageSkuId: selectedPackageSkuId.value }
+          : {}),
         fullName: selectedAddress.value
           ? getAddressFullName(selectedAddress.value)
           : formatContactName(form.firstName, form.lastName),
@@ -1841,9 +1990,6 @@ const confirmPolicyAndContinue = async () => {
 }
 
 onMounted(async () => {
-  if (isPackageMode.value) {
-    return
-  }
   let preferredAddressId: number | null = null
   if (isCartEditMode.value && editingCartItemId.value) {
     try {
@@ -2034,6 +2180,49 @@ onMounted(async () => {
   margin: 0;
   font-size: 14px;
   line-height: 1.65;
+}
+
+.order-package-service {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-top: 2px;
+}
+
+.order-package-service .order-input-wrap {
+  max-width: 560px;
+  background: #fff;
+}
+
+.order-package-service__state {
+  margin: 0;
+  color: rgba(15, 23, 42, 0.56);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.order-package-service__state--error {
+  max-width: 560px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  color: #b42318;
+}
+
+.order-package-service__state--error button {
+  flex: 0 0 auto;
+  border: 0;
+  background: transparent;
+  color: var(--hourx-brand);
+  font: inherit;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.order-package-service__state--error button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
 }
 
 .order-section-title {

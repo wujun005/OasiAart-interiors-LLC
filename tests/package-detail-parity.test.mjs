@@ -23,6 +23,8 @@ const transpile = (content) => ts.transpileModule(content, {
   },
 }).outputText
 const code = transpile(script.content)
+const plainTextExports = {}
+runInNewContext(transpile(read("src/modules/client/utils/plain-text.ts")), { exports: plainTextExports })
 const bizTagExports = {}
 runInNewContext(transpile(read("src/modules/client/utils/biz-tag.ts")), {
   exports: bizTagExports,
@@ -124,6 +126,7 @@ async function harness(t, overrides = {}) {
         clearStoredAuthState: () => { calls.clearAuth += 1 },
       }
       if (name === "@/modules/client/utils/biz-tag") return bizTagExports
+      if (name === "@/modules/client/utils/plain-text") return plainTextExports
       if (name.endsWith(".vue") || name.includes("/style/")) return {}
       throw new Error(`Unexpected dependency: ${name}`)
     },
@@ -478,3 +481,22 @@ test("navigation during direct order creation does not reopen a stale package ch
   assert.equal(state.view.title, "Package 3")
   assert.equal(state.buying, false)
 })
+
+for (const platform of ["client", "h5"]) {
+  test(`${platform} package checkout sends plain multilingual titles instead of rich-text markup`, async (t) => {
+    const { state, calls } = await harness(t, {
+      platform,
+      auth: { isLoggedIn: true },
+      packageDetail: async () => packageCard("2", {
+        nameI18n: { en: "<p>Massage <strong>3 visits</strong></p>", zh: "<p>柔式上门按摩3次</p>" },
+      }),
+    })
+    assert.equal(state.view.title, "Massage 3 visits")
+    await state.openCheckout()
+    const query = calls.push.at(-1).query
+    assert.equal(query.title, "Massage 3 visits")
+    assert.deepEqual(JSON.parse(query.titleI18n), { en: "Massage 3 visits", zh: "柔式上门按摩3次" })
+    assert.deepEqual(calls.addPackage, [])
+    assert.deepEqual(calls.checkout, [])
+  })
+}

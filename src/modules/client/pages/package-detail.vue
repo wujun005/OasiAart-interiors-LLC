@@ -294,6 +294,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 import { bizTagLabels } from '@/modules/client/utils/biz-tag'
+import { toPlainText as plainText } from '@/modules/client/utils/plain-text'
 import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
@@ -367,16 +368,6 @@ const pickRaw = (i18n?: Record<string, string>, fallback = '') => {
   }
   const first = Object.values(map).find((value) => typeof value === 'string' && value.trim())
   return typeof first === 'string' ? first.trim() : fallback
-}
-
-const plainText = (value: string) => {
-  let text = String(value || '').trim()
-  if (!text) return ''
-  if (typeof DOMParser !== 'undefined') {
-    const readable = text.replace(/<br\s*\/?>|<\/(?:p|div|li|h[1-6])\s*>/gi, ' ')
-    text = new DOMParser().parseFromString(readable, 'text/html').body.textContent || text
-  }
-  return text.replace(/<\/?[a-z][^>]*>/gi, ' ').replace(/\s+/g, ' ').trim()
 }
 
 const asHtml = (value: string) => {
@@ -524,7 +515,10 @@ const openCheckout = async () => {
   if (!(await ensureLogin())) return
   if (busy.value || !view.value || String(route.params.id || '').trim() !== packageId) return
   const selectedPackage = view.value
-  const titleI18n = detail.value?.nameI18n || {}
+  const titleI18n = Object.fromEntries(
+    Object.entries(detail.value?.nameI18n || {})
+      .map(([language, title]) => [language, plainText(title)]),
+  )
   buying.value = true
   try {
     const createdOrderId = await createPackageOrder(packageId)
@@ -540,7 +534,7 @@ const openCheckout = async () => {
         orderId: String(createdOrderId),
         title: selectedPackage.title,
         titleI18n: JSON.stringify(titleI18n),
-        specSummary: t('client.home.packages.visitLater'),
+        specSummary: locale.value === 'zh' ? '下单时预约首次服务' : 'Book your first visit at checkout',
         imageUrls: JSON.stringify(selectedPackage.images),
         subtotal: String(selectedPackage.saleAmount),
         tax: String(selectedPackage.vat),
