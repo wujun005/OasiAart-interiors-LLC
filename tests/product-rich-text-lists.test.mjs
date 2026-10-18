@@ -23,8 +23,11 @@ for (const page of pages) {
     const source = readFileSync(filename, "utf8")
     const { descriptor } = parse(source, { filename: page.path })
     const style = descriptor.styles[0]
+    const styleSource = style.src
+      ? readFileSync(new URL(style.src, filename), "utf8")
+      : style.content
     const result = compileStyle({
-      source: style.content,
+      source: styleSource,
       filename: page.path,
       id: "data-v-rich-text-test",
       scoped: style.scoped,

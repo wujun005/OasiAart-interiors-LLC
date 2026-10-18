@@ -127,6 +127,7 @@ async function harness(t, section = 'pricing') {
       if (name === '@/modules/admin/utils/features') return { supplierOperationsApiEnabled: true }
       if (name === '@/modules/admin/utils/supplierPortal') return portal
       if (name === '@/modules/admin/utils/i18n') return i18n
+      if (name === '@/modules/admin/utils/supplierMap') return loadModule('src/modules/admin/utils/supplierMap.ts')
       if (name === '@/utils/phone-dial') return phones
       if (name === '@/modules/client/api/supplier-onboarding') return {
         listServiceCategories: async () => [],

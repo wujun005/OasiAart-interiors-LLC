@@ -34,6 +34,10 @@ for (const language of ["en", "zh"]) {
   })
   messages[language] = exports.default
 }
+const adminI18n = {}
+runInNewContext(transpile(read("src/modules/admin/utils/i18n.ts")), {
+  exports: adminI18n,
+})
 const clone = (value) => JSON.parse(JSON.stringify(value))
 const flush = async () => {
   for (let i = 0; i < 12; i++) await Promise.resolve()
@@ -67,6 +71,7 @@ async function harness(t) {
     details: [],
     statuses: [],
     messages: [],
+    windowEvents: [],
   }
   const locale = Vue.ref("en")
   const translate = (key, params = {}) => {
@@ -104,12 +109,24 @@ async function harness(t) {
     },
   }
   const exports = {}
+  const window = {
+    addEventListener: (type) => calls.windowEvents.push({ type, action: "add" }),
+    removeEventListener: (type) =>
+      calls.windowEvents.push({ type, action: "remove" }),
+  }
+  const document = {
+    body: { classList: { remove() {} } },
+  }
   runInNewContext(code, {
     exports,
+    document,
+    window,
     require: (name) => {
       if (name === "vue") return Vue
       if (name === "vue-i18n")
         return { useI18n: () => ({ t: translate, locale }) }
+      if (name === "vue-router")
+        return { useRoute: () => Vue.reactive({ name: "admin-orders" }) }
       if (name === "element-plus")
         return {
           ElMessage: Object.fromEntries(
@@ -134,6 +151,7 @@ async function harness(t) {
             return controls.detail(id)
           },
         }
+      if (name === "@/modules/admin/utils/i18n") return adminI18n
       throw new Error(`未允许的依赖：${name}`)
     },
   })
@@ -155,7 +173,7 @@ async function harness(t) {
   return { state, calls, controls, row, locale, translate }
 }
 
-test("业务状态 0—6、字符串与枚举名称均映射正确，行颜色不依赖支付状态", async (t) => {
+test("业务状态 0—6、字符串与枚举名称均映射正确，仅未付款已取消保持中性", async (t) => {
   const { state, row } = await harness(t)
   const tones = [
     "neutral",
@@ -176,13 +194,23 @@ test("业务状态 0—6、字符串与枚举名称均映射正确，行颜色�
     "REFUND_FAILED",
   ].entries()) {
     for (const status of [index, String(index), name]) {
-      for (const paymentStatus of [0, 1, 5]) {
+      for (const paymentStatus of index === 3 ? [1, 5] : [0, 1, 5]) {
         assert.equal(
           state.orderRowClassName({ row: row(status, { paymentStatus }) }),
           `order-status--${tones[index]}`,
         )
       }
     }
+  }
+  for (const status of [3, "3", "CANCELLED"]) {
+    assert.equal(
+      state.orderRowClassName({ row: row(status, { paymentStatus: 0 }) }),
+      "order-status--neutral",
+    )
+    assert.equal(
+      state.orderRowClassName({ row: row(status, { paymentStatus: 1 }) }),
+      "order-status--closed",
+    )
   }
   assert.equal(state.orderStatusTone(null), "neutral")
   assert.equal(state.orderStatusTone(99), "neutral")
@@ -337,14 +365,14 @@ test("其他状态保留分配及管理入口，支持分配与解除分配", as
     )
   }
   await state.openAssignDialog(row(1))
-  state.assignForm.supplierId = 10
+  state.assignForm.supplierIds = [10]
   await state.submitSupplierAssignment()
   await state.openAssignDialog(row(1, { supplierId: 10 }))
-  state.assignForm.supplierId = ""
+  state.assignForm.supplierIds = []
   await state.submitSupplierAssignment()
   assert.deepEqual(calls.updates, [
-    { orderId: 100, supplierId: 10 },
-    { orderId: 100, supplierId: null },
+    { orderId: 100, supplierIds: [10] },
+    { orderId: 100, supplierIds: [] },
   ])
 })
 
@@ -364,11 +392,11 @@ test("可编辑订单的批量分配保持原有行为", async (t) => {
   const { state, calls, row } = await harness(t)
   state.selectedRows = [row(0), row(1, { orderId: 200 })]
   await state.openBulkAssignDialog()
-  state.assignForm.supplierId = 10
+  state.assignForm.supplierIds = [10]
   await state.submitSupplierAssignment()
   assert.deepEqual(calls.updates, [
-    { orderId: 100, supplierId: 10 },
-    { orderId: 200, supplierId: 10 },
+    { orderId: 100, supplierIds: [10] },
+    { orderId: 200, supplierIds: [10] },
   ])
 })
 

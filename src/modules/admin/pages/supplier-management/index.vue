@@ -1282,145 +1282,77 @@
     </template>
 
     <template v-else-if="section === 'staff'">
-      <div class="metric-grid">
-        <article class="metric-card">
-          <span class="metric-icon metric-icon--blue"><UserFilled /></span>
-          <div>
-            <small>员工总数</small><strong>42</strong>
-            <p>36 active today</p>
+      <el-card class="surface-card portal-orders-card" shadow="never" v-loading="staffLoading">
+        <div class="order-toolbar portal-orders-toolbar">
+          <div class="order-toolbar__head">
+            <div>
+              <strong>{{ t("admin.supplierStaff.title") }}</strong>
+              <span>{{ t("admin.supplierStaff.count", { count: staffTotal }) }}</span>
+            </div>
+            <div class="portal-pricing-actions">
+              <el-button :loading="staffExporting" @click="downloadStaffSheet">{{
+                t("admin.supplierStaff.export")
+              }}</el-button>
+              <el-button :loading="staffImporting" @click="staffFileRef?.click()">{{
+                t("admin.supplierStaff.import")
+              }}</el-button>
+              <el-button type="primary" @click="openStaffEditor()">{{
+                t("admin.supplierStaff.add")
+              }}</el-button>
+              <input
+                ref="staffFileRef"
+                class="quote-file-input"
+                type="file"
+                accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                @change="importStaffFile"
+              />
+            </div>
           </div>
-        </article>
-        <article class="metric-card">
-          <span class="metric-icon metric-icon--green"><CircleCheck /></span>
-          <div>
-            <small>资料已验证</small><strong>35</strong>
-            <p>83% verified</p>
+          <div class="order-filters portal-orders-filters">
+            <label class="order-filter">
+              <span>{{ t("admin.supplierStaff.search") }}</span>
+              <el-input
+                v-model.trim="staffQuery"
+                :prefix-icon="Search"
+                :placeholder="t('admin.supplierStaff.search')"
+                clearable
+                @keyup.enter="searchStaff"
+                @clear="searchStaff"
+              />
+            </label>
+            <el-button type="primary" @click="searchStaff">{{
+              t("admin.supplierOrders.search")
+            }}</el-button>
           </div>
-        </article>
-        <article class="metric-card">
-          <span class="metric-icon metric-icon--amber"><Warning /></span>
-          <div>
-            <small>证件即将到期</small><strong>5</strong>
-            <p>Within 30 days</p>
-          </div>
-        </article>
-        <article class="metric-card">
-          <span class="metric-icon metric-icon--purple"><Calendar /></span>
-          <div>
-            <small>今日可派</small><strong>28</strong>
-            <p>6 already assigned</p>
-          </div>
-        </article>
-      </div>
-      <el-card class="surface-card" shadow="never">
-        <div class="table-toolbar">
-          <div class="table-search">
-            <el-input
-              v-model="staffKeyword"
-              :prefix-icon="Search"
-              placeholder="搜索姓名、手机号或员工编号"
-              clearable
-            />
-            <el-select v-model="staffSkill" placeholder="全部技能" clearable
-              ><el-option
-                v-for="skill in staffSkills"
-                :key="skill"
-                :label="skill"
-                :value="skill"
-            /></el-select>
-            <el-select v-model="staffStatus" placeholder="全部状态" clearable
-              ><el-option label="可派" value="available" /><el-option
-                label="服务中"
-                value="busy" /><el-option label="休假" value="leave"
-            /></el-select>
-          </div>
-          <div class="result-count">{{ filteredStaff.length }} 位员工</div>
         </div>
-        <el-table :data="filteredStaff" class="data-table" row-key="id">
-          <el-table-column label="员工" min-width="210">
-            <template #default="{ row }"
-              ><div class="person-cell">
-                <el-avatar :size="38" :style="{ background: row.color }">{{
-                  initials(row.name)
-                }}</el-avatar
-                ><span
-                  ><strong>{{ row.name }}</strong
-                  ><small>{{ row.id }} · {{ row.gender }}</small></span
-                >
-              </div></template
-            >
+        <el-table :data="staffAccounts" class="data-table" row-key="id">
+          <el-table-column :label="t('admin.supplierStaff.name')" min-width="160" prop="name" />
+          <el-table-column :label="t('admin.supplierStaff.phone')" min-width="160" prop="phone" />
+          <el-table-column :label="t('admin.supplierStaff.email')" min-width="200">
+            <template #default="{ row }">{{ row.email || "—" }}</template>
           </el-table-column>
-          <el-table-column label="角色" min-width="135"
-            ><template #default="{ row }"
-              ><div class="muted-stack">
-                <strong>{{ row.role }}</strong
-                ><small>{{ row.employment }}</small>
-              </div></template
-            ></el-table-column
-          >
-          <el-table-column label="技能 / Services" min-width="240">
-            <template #default="{ row }"
-              ><div class="tag-list">
-                <el-tag
-                  v-for="skill in row.skills"
-                  :key="skill"
-                  size="small"
-                  effect="plain"
-                  >{{ skill }}</el-tag
-                >
-              </div></template
-            >
+          <el-table-column :label="t('admin.supplierPortal.action')" width="140" align="right">
+            <template #default="{ row }">
+              <el-button link type="primary" @click="openStaffEditor(row)">{{
+                t("admin.supplierStaff.edit")
+              }}</el-button>
+              <el-button link type="danger" @click="removeStaff(row)">{{
+                t("admin.supplierStaff.remove")
+              }}</el-button>
+            </template>
           </el-table-column>
-          <el-table-column label="联系方式" min-width="160"
-            ><template #default="{ row }"
-              ><div class="muted-stack">
-                <span>{{ row.mobile }}</span
-                ><small>{{ row.language }}</small>
-              </div></template
-            ></el-table-column
-          >
-          <el-table-column label="默认工作时间" min-width="175"
-            ><template #default="{ row }"
-              ><div class="muted-stack">
-                <span>{{ row.workingDays }}</span
-                ><small>{{ row.workingHours }}</small>
-              </div></template
-            ></el-table-column
-          >
-          <el-table-column label="覆盖区域" min-width="150"
-            ><template #default="{ row }"
-              ><div class="zone-list">
-                <span v-for="zone in row.zones" :key="zone">{{ zone }}</span>
-              </div></template
-            ></el-table-column
-          >
-          <el-table-column label="证件" width="96"
-            ><template #default="{ row }"
-              ><el-tag
-                :type="row.docs === 'Verified' ? 'success' : 'warning'"
-                effect="light"
-                >{{ row.docs === "Verified" ? "已验证" : "即将到期" }}</el-tag
-              ></template
-            ></el-table-column
-          >
-          <el-table-column label="今日状态" width="96"
-            ><template #default="{ row }"
-              ><span class="status-pill" :class="`status-pill--${row.status}`"
-                ><i></i>{{ staffStatusLabel(row.status) }}</span
-              ></template
-            ></el-table-column
-          >
-          <el-table-column label="操作" width="96" align="right"
-            ><template #default="{ row }"
-              ><el-button
-                link
-                type="primary"
-                @click="showToast(`打开 ${row.name} 的人员档案`)"
-                >查看</el-button
-              ></template
-            ></el-table-column
-          >
+          <template #empty>{{ t("admin.supplierStaff.empty") }}</template>
         </el-table>
+        <p class="staff-account-hint">{{ t("admin.supplierStaff.passwordHint") }}</p>
+        <div v-if="staffTotal > staffPageSize" class="order-pager portal-orders-pager">
+          <el-pagination
+            layout="prev, pager, next"
+            :current-page="staffPage"
+            :page-size="staffPageSize"
+            :total="staffTotal"
+            @current-change="changeStaffPage"
+          />
+        </div>
       </el-card>
     </template>
 
@@ -1674,7 +1606,7 @@
           <el-table
             :data="supplierOrders"
             class="data-table orders-table portal-orders-table"
-            row-key="orderId"
+            :row-key="orderVisitKey"
             table-layout="fixed"
           >
             <el-table-column
@@ -1824,7 +1756,7 @@
         >
           <article
             v-for="row in supplierOrders"
-            :key="`mobile-${row.orderId}`"
+            :key="orderVisitKey(row)"
             class="order-mobile-card portal-orders-mobile-card"
           >
             <header>
@@ -3321,50 +3253,40 @@
     <el-dialog
       v-model="staffDialogVisible"
       class="supplier-form-dialog"
-      title="新增供应商人员 / Add Staff"
-      width="min(620px, calc(100vw - 32px))"
+      :title="
+        staffForm.id
+          ? t('admin.supplierStaff.dialogEdit')
+          : t('admin.supplierStaff.dialogCreate')
+      "
+      width="min(560px, calc(100vw - 32px))"
       :close-on-click-modal="false"
       append-to-body
     >
-      <el-form label-position="top" class="form-grid">
-        <el-form-item label="姓名 / Full Name"
-          ><el-input v-model="newStaff.name" placeholder="例如：Amina Noor"
-        /></el-form-item>
-        <el-form-item label="员工编号 / Staff ID"
-          ><el-input v-model="newStaff.id"
-        /></el-form-item>
-        <el-form-item label="手机号 / Mobile"
-          ><el-input v-model="newStaff.mobile" placeholder="+971"
-        /></el-form-item>
-        <el-form-item label="性别 / Gender"
-          ><el-select v-model="newStaff.gender" style="width: 100%"
-            ><el-option label="Female" value="Female" /><el-option
-              label="Male"
-              value="Male" /></el-select
-        ></el-form-item>
-        <el-form-item label="角色 / Role"
-          ><el-select v-model="newStaff.role" style="width: 100%"
-            ><el-option label="Technician" value="Technician" /><el-option
-              label="Cleaner"
-              value="Cleaner" /><el-option
-              label="Team Lead"
-              value="Team Lead" /></el-select
-        ></el-form-item>
-        <el-form-item label="主要技能 / Primary Skill"
-          ><el-select v-model="newStaff.skill" style="width: 100%"
-            ><el-option
-              v-for="skill in staffSkills"
-              :key="skill"
-              :label="skill"
-              :value="skill" /></el-select
-        ></el-form-item>
+      <el-form label-position="top">
+        <el-form-item :label="t('admin.supplierStaff.name')" required>
+          <el-input v-model.trim="staffForm.name" maxlength="64" />
+        </el-form-item>
+        <el-form-item :label="t('admin.supplierStaff.phone')" required>
+          <el-input
+            v-model.trim="staffForm.phone"
+            :placeholder="t('admin.supplierStaff.phonePlaceholder')"
+          />
+        </el-form-item>
+        <el-form-item :label="t('admin.supplierStaff.email')">
+          <el-input
+            v-model.trim="staffForm.email"
+            :placeholder="t('admin.supplierStaff.emailPlaceholder')"
+          />
+        </el-form-item>
       </el-form>
-      <template #footer
-        ><el-button @click="staffDialogVisible = false">取消</el-button
-        ><el-button type="primary" @click="addStaff"
-          >保存人员</el-button
-        ></template
-      >
+      <template #footer>
+        <el-button @click="staffDialogVisible = false">{{
+          t("admin.supplierStaff.cancel")
+        }}</el-button>
+        <el-button type="primary" :loading="staffSaving" @click="saveStaffAccount">{{
+          t("admin.supplierStaff.save")
+        }}</el-button>
+      </template>
     </el-dialog>
 
     <el-dialog
@@ -3520,12 +3442,12 @@
                 {{ selectedOrder.additionalNotes }}
               </p>
               <a
-                v-if="selectedOrder.pinLocation"
+                v-if="googleNavigateUrl(selectedOrder)"
                 class="order-map"
-                :href="selectedOrder.pinLocation"
+                :href="googleNavigateUrl(selectedOrder)"
                 target="_blank"
                 rel="noopener noreferrer"
-                >{{ t("admin.supplierOrders.openMap") }}</a
+                >{{ t("admin.supplierOrders.navigateGoogle") }}</a
               >
             </section>
 
@@ -3845,9 +3767,14 @@ import {
   serviceCommunityPage,
   applyQuotePriceChange,
   exportQuoteSheet,
+  exportSupplierStaff,
   importQuoteSheet,
+  importSupplierStaff,
   saveQuoteDraft,
   saveServiceContacts,
+  saveSupplierStaff,
+  deleteSupplierStaff,
+  supplierStaffPage,
   saveServices,
   submitQuote,
   supplierAccept,
@@ -3868,6 +3795,7 @@ import SupplierAvailability from "@/modules/admin/pages/supplier-management/avai
 import { useAdminSessionStore } from "@/modules/admin/stores/session"
 import { supplierOperationsApiEnabled } from "@/modules/admin/utils/features"
 import { pickI18nText } from "@/modules/admin/utils/i18n"
+import { googleNavigateUrl } from "@/modules/admin/utils/supplierMap"
 import {
   optionMissingFields,
   positiveAmount,
@@ -4006,6 +3934,12 @@ const meta = computed(() => {
     return {
       title: t("admin.supplierOrders.title"),
       description: t("admin.supplierOrders.description"),
+      primaryAction: "",
+    }
+  if (section.value === "staff")
+    return {
+      title: t("admin.supplierStaff.title"),
+      description: t("admin.supplierStaff.description"),
       primaryAction: "",
     }
   if (section.value === "availability")
@@ -4756,11 +4690,25 @@ const orderMoney = (value: unknown) => {
   const amount = Number(value)
   return Number.isFinite(amount) ? amount.toFixed(2) : "—"
 }
+const visitIds = (row: any) => {
+  const orderId = Number(row?.orderId)
+  const fulfillmentId = Number(row?.fulfillmentId)
+  return {
+    orderId,
+    ...(Number.isFinite(fulfillmentId) && fulfillmentId > 0
+      ? { fulfillmentId }
+      : {}),
+  }
+}
+const orderVisitKey = (row: any) => {
+  const ids = visitIds(row)
+  return `${ids.orderId}-${ids.fulfillmentId || row?.serviceDate || ""}-${row?.serviceTime || ""}`
+}
 const openAssignedOrder = (row: any) => {
   selectedOrder.value = row
   orderDrawerVisible.value = true
-  const orderId = Number(row?.orderId)
-  if (orderId) loadOrderDetail(orderId)
+  const ids = visitIds(row)
+  if (ids.orderId) loadOrderDetail(ids.orderId, ids.fulfillmentId)
 }
 const serviceStep = (row: any) => {
   const status = Number(row?.serviceStatus)
@@ -4825,6 +4773,7 @@ const serviceAction = reactive({
   open: false,
   mode: "arrive" as "arrive" | "complete",
   orderId: 0,
+  fulfillmentId: undefined as number | undefined,
   orderNo: "",
   remark: "",
   photos: [] as Array<{ name: string; url: string }>,
@@ -4832,8 +4781,10 @@ const serviceAction = reactive({
   saving: false,
 })
 const openServiceAction = (row: any, mode: "arrive" | "complete") => {
+  const ids = visitIds(row)
   serviceAction.mode = mode
-  serviceAction.orderId = Number(row.orderId)
+  serviceAction.orderId = ids.orderId
+  serviceAction.fulfillmentId = ids.fulfillmentId
   serviceAction.orderNo = row.orderNo || ""
   serviceAction.remark = ""
   serviceAction.photos = []
@@ -4880,14 +4831,14 @@ const acceptOrder = async (row: any) => {
     return
   }
   try {
-    unwrap(await supplierAccept({ orderId }))
+    unwrap(await supplierAccept(visitIds(row)))
     ElMessage.success(t("admin.supplierOrders.acceptSaved"))
     await loadOrders()
     if (
       orderDrawerVisible.value &&
       Number(selectedOrder.value?.orderId) === orderId
     )
-      await loadOrderDetail(orderId)
+      await loadOrderDetail(orderId, visitIds(row).fulfillmentId)
   } catch (error: any) {
     ElMessage.error(error?.message || t("admin.supplierOrders.actionFailed"))
   }
@@ -4905,14 +4856,14 @@ const departForService = async (row: any) => {
   }
   orderLoading.value = true
   try {
-    await supplierDepart({ orderId })
+    await supplierDepart(visitIds(row))
     ElMessage.success(t("admin.supplierOrders.departSaved"))
     await loadOrders()
     if (
       orderDrawerVisible.value &&
       Number(selectedOrder.value?.orderId) === orderId
     )
-      await loadOrderDetail(orderId)
+      await loadOrderDetail(orderId, visitIds(row).fulfillmentId)
   } catch (error: any) {
     ElMessage.error(error?.message || t("admin.supplierOrders.actionFailed"))
   } finally {
@@ -4924,6 +4875,9 @@ const submitServiceAction = async () => {
   serviceAction.saving = true
   const payload = {
     orderId: serviceAction.orderId,
+    ...(serviceAction.fulfillmentId
+      ? { fulfillmentId: serviceAction.fulfillmentId }
+      : {}),
     photos: serviceAction.photos.map((photo) => photo.url),
     remark: serviceAction.remark.trim() || null,
   }
@@ -4943,7 +4897,7 @@ const submitServiceAction = async () => {
       orderDrawerVisible.value &&
       Number(selectedOrder.value?.orderId) === serviceAction.orderId
     ) {
-      await loadOrderDetail(serviceAction.orderId)
+      await loadOrderDetail(serviceAction.orderId, serviceAction.fulfillmentId)
     }
   } catch (error: any) {
     ElMessage.error(error?.message || t("admin.supplierOrders.actionFailed"))
@@ -6700,6 +6654,7 @@ const loadSupplierDetail = async (id: number, fresh = false) => {
     loadCatalog(fresh),
     loadQuotes(fresh),
     section.value === "orders" ? loadOrders() : Promise.resolve(),
+    section.value === "staff" ? loadStaff() : Promise.resolve(),
   ])
 }
 
@@ -6713,6 +6668,7 @@ const reloadOwnProfile = async () => {
       loadCatalog(),
       loadQuotes(),
       section.value === "orders" ? loadOrders() : Promise.resolve(),
+      section.value === "staff" ? loadStaff() : Promise.resolve(),
     ])
   } catch {
     if (!supplierRecordId.value)
@@ -8365,20 +8321,24 @@ const submitServiceQuote = async () => {
   }
 }
 
-const loadOrderDetail = async (orderId: number) => {
+const loadOrderDetail = async (orderId: number, fulfillmentId?: number) => {
   const requestId = ++orderDetailRequest
   orderDetailLoading.value = true
   try {
-    const detail = unwrap(await supplierAssignedOrderDetail(orderId))
+    const detail = unwrap(
+      await supplierAssignedOrderDetail(orderId, fulfillmentId),
+    )
     if (
       requestId !== orderDetailRequest ||
       Number(selectedOrder.value?.orderId) !== orderId
     )
       return
     selectedOrder.value = detail || selectedOrder.value
-    const index = supplierOrders.value.findIndex(
-      (item) => Number(item?.orderId) === orderId,
-    )
+    const index = supplierOrders.value.findIndex((item) => {
+      if (Number(item?.orderId) !== orderId) return false
+      if (!fulfillmentId) return true
+      return Number(item?.fulfillmentId) === fulfillmentId
+    })
     if (index >= 0 && detail)
       supplierOrders.value[index] = {
         ...supplierOrders.value[index],
@@ -8442,9 +8402,203 @@ const changeOrderPage = (page: number) => {
   loadOrders()
 }
 
+type StaffAccount = {
+  id: number
+  name: string
+  phone: string
+  email: string
+}
+const staffAccounts = ref<StaffAccount[]>([])
+const staffTotal = ref(0)
+const staffPage = ref(1)
+const staffPageSize = 10
+const staffQuery = ref("")
+const staffLoading = ref(false)
+const staffSaving = ref(false)
+const staffExporting = ref(false)
+const staffImporting = ref(false)
+const staffFileRef = ref<HTMLInputElement | null>(null)
+const staffForm = reactive({
+  id: undefined as number | undefined,
+  name: "",
+  phone: "",
+  email: "",
+})
+let staffListRequest = 0
+const staffEmailOk = (value: string) => /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(value)
+const loadStaff = async () => {
+  const requestId = ++staffListRequest
+  staffLoading.value = true
+  try {
+    const page = unwrap(
+      await supplierStaffPage({
+        keyword: staffQuery.value || undefined,
+        pageNum: staffPage.value,
+        pageSize: staffPageSize,
+      }),
+    )
+    if (requestId !== staffListRequest) return
+    staffAccounts.value = (Array.isArray(page?.list) ? page.list : []).map(
+      (row: any) => ({
+        id: Number(row?.id),
+        name: String(row?.name || ""),
+        phone: String(row?.phone || ""),
+        email: String(row?.email || ""),
+      }),
+    )
+    staffTotal.value = Number(page?.total || 0)
+  } catch (error: any) {
+    if (requestId !== staffListRequest) return
+    staffAccounts.value = []
+    staffTotal.value = 0
+    ElMessage.error(error?.message || t("admin.supplierStaff.loadFailed"))
+  } finally {
+    if (requestId === staffListRequest) staffLoading.value = false
+  }
+}
+const searchStaff = () => {
+  staffPage.value = 1
+  loadStaff()
+}
+const changeStaffPage = (page: number) => {
+  staffPage.value = page
+  loadStaff()
+}
+const openStaffEditor = (row?: StaffAccount) => {
+  staffForm.id = row?.id
+  staffForm.name = row?.name || ""
+  staffForm.phone = row?.phone || ""
+  staffForm.email = row?.email || ""
+  staffDialogVisible.value = true
+}
+const saveStaffAccount = async () => {
+  const name = staffForm.name.trim()
+  const phone = staffForm.phone.trim()
+  const email = staffForm.email.trim()
+  if (!name) {
+    ElMessage.warning(t("admin.supplierStaff.nameRequired"))
+    return
+  }
+  if (!phoneOk(phone)) {
+    ElMessage.warning(t("admin.supplierStaff.phoneInvalid"))
+    return
+  }
+  if (email && !staffEmailOk(email)) {
+    ElMessage.warning(t("admin.supplierStaff.emailInvalid"))
+    return
+  }
+  staffSaving.value = true
+  try {
+    await saveSupplierStaff({
+      id: staffForm.id,
+      name,
+      phone,
+      email: email || undefined,
+    })
+    staffDialogVisible.value = false
+    ElMessage.success(t("admin.supplierStaff.saved"))
+    await loadStaff()
+  } catch (error: any) {
+    ElMessage.error(error?.message || t("admin.supplierStaff.saveFailed"))
+  } finally {
+    staffSaving.value = false
+  }
+}
+const removeStaff = async (row: StaffAccount) => {
+  try {
+    await ElMessageBox.confirm(
+      t("admin.supplierStaff.removeConfirm", { name: row.name || row.phone }),
+      t("admin.common.confirmTitle"),
+      { type: "warning" },
+    )
+  } catch {
+    return
+  }
+  try {
+    await deleteSupplierStaff([row.id])
+    ElMessage.success(t("admin.supplierStaff.removed"))
+    if (staffAccounts.value.length === 1 && staffPage.value > 1)
+      staffPage.value -= 1
+    await loadStaff()
+  } catch (error: any) {
+    ElMessage.error(error?.message || t("admin.supplierStaff.removeFailed"))
+  }
+}
+const downloadStaffSheet = async () => {
+  if (staffExporting.value) return
+  staffExporting.value = true
+  try {
+    const data = await exportSupplierStaff()
+    const blob = data instanceof Blob ? data : new Blob([data as BlobPart])
+    if (blob.type.includes("json") || blob.type.startsWith("text/")) {
+      const text = await blob.text()
+      let message = text
+      try {
+        message = String(JSON.parse(text)?.message || text)
+      } catch {
+        message = text
+      }
+      throw new Error(message)
+    }
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement("a")
+    link.href = url
+    link.download = String(locale.value).startsWith("zh")
+      ? "供应商员工.xlsx"
+      : "supplier-staff.xlsx"
+    link.click()
+    URL.revokeObjectURL(url)
+  } catch (error: any) {
+    ElMessage.error(error?.message || t("admin.supplierStaff.exportFailed"))
+  } finally {
+    staffExporting.value = false
+  }
+}
+const importStaffFile = async (event: Event) => {
+  const input = event.target as HTMLInputElement | null
+  const file = input?.files?.[0]
+  if (input) input.value = ""
+  if (!file || staffImporting.value) return
+  if (!file.name.toLowerCase().endsWith(".xlsx")) {
+    ElMessage.warning(t("admin.supplierStaff.fileType"))
+    return
+  }
+  staffImporting.value = true
+  try {
+    const result = (await importSupplierStaff(file)) as {
+      created?: number
+      updated?: number
+      skipped?: number
+      messages?: string[]
+    }
+    await loadStaff()
+    const summary = t("admin.supplierStaff.importDone", {
+      created: result?.created ?? 0,
+      updated: result?.updated ?? 0,
+      skipped: result?.skipped ?? 0,
+    })
+    const notes = Array.isArray(result?.messages)
+      ? result.messages.map((item) => String(item || "").trim()).filter(Boolean)
+      : []
+    if (notes.length) {
+      await ElMessageBox.alert(
+        [summary, ...notes].join("\n"),
+        t("admin.supplierStaff.importResult"),
+        { confirmButtonText: t("admin.supplierStaff.importClose") },
+      )
+    } else {
+      ElMessage.success(summary)
+    }
+  } catch (error: any) {
+    ElMessage.error(error?.message || t("admin.supplierStaff.importFailed"))
+  } finally {
+    staffImporting.value = false
+  }
+}
+
 const handlePrimaryAction = () => {
   if (section.value === "staff") {
-    staffDialogVisible.value = true
+    openStaffEditor()
     return
   }
   if (section.value === "service-area") {
@@ -8469,6 +8623,7 @@ onMounted(() => {
 watch(section, (value) => {
   scrollProfileTop()
   if (value === "orders") loadOrders()
+  if (value === "staff") loadStaff()
   if (
     ["service-area", "availability", "coverage-availability"].includes(value)
   ) {

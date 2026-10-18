@@ -167,6 +167,64 @@
             <el-icon><Plus /></el-icon>
           </el-upload>
         </el-form-item>
+        <el-form-item :label="t('admin.bizTag.label')">
+          <div class="biz-tag-picks">
+            <span
+              v-for="tag in selectedPackageTags"
+              :key="tag.id"
+              class="biz-tag-chip"
+            >
+              {{ tagPicker.englishLabel(tag) }}
+              <button
+                type="button"
+                :aria-label="t('admin.bizTag.remove')"
+                @click="tagPicker.remove(Number(tag.id))"
+              >×</button>
+            </span>
+            <span
+              v-for="(name, index) in pendingTagNames"
+              :key="`${name}-${index}`"
+              class="biz-tag-chip"
+            >
+              {{ name }}
+              <button
+                type="button"
+                :aria-label="t('admin.bizTag.remove')"
+                @click="pendingTagNames.splice(index, 1)"
+              >×</button>
+            </span>
+            <input
+              v-if="tagAdderOpen"
+              ref="tagDraftRef"
+              v-model="tagDraft"
+              class="biz-tag-draft"
+              type="text"
+              maxlength="64"
+              :placeholder="t('admin.bizTag.enPlaceholder')"
+              @keydown.enter.prevent="confirmEnglishTag"
+              @keydown.esc.prevent="closeTagAdder"
+              @blur="confirmEnglishTag"
+            />
+            <button
+              v-else
+              type="button"
+              class="biz-tag-add"
+              :aria-label="t('admin.bizTag.create')"
+              @click="openTagAdder"
+            >
+              <el-icon><Plus /></el-icon>
+            </button>
+          </div>
+        </el-form-item>
+
+        <el-form-item :label="t('admin.packageList.form.name')">
+          <el-input
+            v-model="form.name"
+            maxlength="128"
+            :placeholder="t('admin.packageList.form.namePlaceholder')"
+            style="width: 420px"
+          />
+        </el-form-item>
 
         <el-form-item v-for="field in textFields" :key="field.key" :label="field.label">
           <div class="i18n-list">
@@ -212,15 +270,13 @@
                 <el-select
                   :model-value="block.spuId"
                   filterable
-                  remote
                   clearable
-                  :remote-method="(keyword: string) => searchSpus(keyword, block)"
                   :loading="spuLoading"
                   :placeholder="t('admin.packageList.form.spuPlaceholder')"
-                  @visible-change="(open: boolean) => open && !block.spuOptions.length && searchSpus('', block)"
+                  @visible-change="(open: boolean) => open && ensureSpus()"
                   @change="(spuId: number | null) => changeSpu(block, spuId)"
                 >
-                  <el-option v-for="item in block.spuOptions" :key="item.id" :label="item.name" :value="item.id" />
+                  <el-option v-for="item in spuOptionsFor(block)" :key="item.id" :label="item.name" :value="item.id" />
                 </el-select>
               </div>
               <div v-if="block.spuId" class="field-row">
@@ -259,7 +315,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref, watch } from 'vue';
+import { computed, nextTick, onMounted, reactive, ref, watch } from 'vue';
 import type { UploadRequestOptions, UploadUserFile } from 'element-plus';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { Plus } from '@element-plus/icons-vue';
@@ -278,9 +334,47 @@ import {
 } from '@/modules/admin/api/package';
 import { listBySpu, page as spuPage } from '@/modules/admin/api/spu';
 import { pickI18nText } from '@/modules/admin/utils/i18n';
+import { useBizTagPicker } from '@/modules/admin/utils/bizTagPicker';
+import type { BizTag } from '@/modules/client/utils/biz-tag';
 
 const LANG_ZH = 'zh';
 const LANG_EN = 'en';
+const tagPicker = useBizTagPicker();
+const tagAdderOpen = ref(false);
+const tagDraft = ref('');
+const tagDraftRef = ref<HTMLInputElement | null>(null);
+const pendingTagNames = ref<string[]>([]);
+const selectedPackageTags = computed(() =>
+  tagPicker.selectedIds.value
+    .map((id) => tagPicker.options.value.find((tag) => Number(tag.id) === id))
+    .filter((tag): tag is BizTag => Boolean(tag)),
+);
+const openTagAdder = () => {
+  tagDraft.value = '';
+  tagAdderOpen.value = true;
+  nextTick(() => tagDraftRef.value?.focus());
+};
+const closeTagAdder = () => {
+  tagDraft.value = '';
+  tagAdderOpen.value = false;
+};
+const confirmEnglishTag = () => {
+  if (!tagAdderOpen.value) return;
+  const name = tagDraft.value.trim();
+  if (!name) {
+    closeTagAdder();
+    return;
+  }
+  const existing = tagPicker.options.value.find(
+    (tag) => tagPicker.englishLabel(tag).toLowerCase() === name.toLowerCase(),
+  );
+  const existingId = Number(existing?.id);
+  if (existingId > 0) tagPicker.select(existingId);
+  else if (!pendingTagNames.value.some((item) => item.toLowerCase() === name.toLowerCase())) {
+    pendingTagNames.value.push(name);
+  }
+  closeTagAdder();
+};
 
 type LangRow = { lang: string; value: string };
 type CategoryOption = { id: number; label: string; enabled: boolean };
@@ -305,14 +399,17 @@ type SkuRow = {
   available: boolean;
 };
 type SpuOption = { id: number; name: string };
+type SpuCatalogItem = {
+  id: number;
+  nameI18n?: Record<string, string>;
+  fallbackName: string;
+};
 type SpuBlock = {
   key: number;
   spuId: number | null;
   spuName: string;
   selectedSkuId: number | null;
   skus: SkuRow[];
-  spuOptions: SpuOption[];
-  optionSeq: number;
   skuSeq: number;
 };
 type SavedSku = {
@@ -594,15 +691,34 @@ const form = reactive({
   validDays: 30,
   originalPrice: null as number | null,
   salePrice: null as number | null,
+  name: '',
 });
-const nameRows = ref<LangRow[]>(defaultLangRows());
+const loadedNameI18n = ref<Record<string, string>>({});
 const descRows = ref<LangRow[]>(defaultLangRows());
 const serviceRows = ref<LangRow[]>(defaultLangRows());
 const noticeRows = ref<LangRow[]>(defaultLangRows());
 const imageFiles = ref<UploadUserFile[]>([]);
 const spuBlocks = ref<SpuBlock[]>([]);
 const spuLoading = ref(false);
+const spuCatalog = ref<SpuCatalogItem[]>([]);
+const spuCatalogLoaded = ref(false);
+let spuCatalogInflight: Promise<void> | null = null;
+const skuCatalog = new Map<number, { specTypes: any[]; skus: any[] }>();
+const skuCatalogInflight = new Map<number, Promise<{ specTypes: any[]; skus: any[] }>>();
 let serviceBlockSeed = 1;
+
+const spuOptions = computed<SpuOption[]>(() => spuCatalog.value.map((item) => ({
+  id: item.id,
+  name: pickI18nText(item.nameI18n, locale.value, item.fallbackName),
+})));
+
+const spuOptionsFor = (block: SpuBlock) => {
+  const options = [...spuOptions.value];
+  if (block.spuId && !options.some((item) => item.id === block.spuId)) {
+    options.unshift({ id: block.spuId, name: block.spuName || String(block.spuId) });
+  }
+  return options;
+};
 
 const formCategoryOptions = computed(() => {
   const enabled = categoryOptions.value.filter((item) => item.enabled);
@@ -610,8 +726,24 @@ const formCategoryOptions = computed(() => {
   if (current && !enabled.some((item) => item.id === current.id)) return [current, ...enabled];
   return enabled;
 });
+const packageNamePayload = () => {
+  const name = form.name.trim();
+  if (!name) return {};
+  const original = loadedNameI18n.value || {};
+  if (name === packageNameText(original) && Object.keys(original).length) {
+    const next = { ...original };
+    if (!String(next.en || '').trim()) next.en = name;
+    return next;
+  }
+  return { en: name };
+};
+const packageNameText = (map?: Record<string, string>) => {
+  const rows = toLangRows(map);
+  const english = rows.find((row) => row.lang === LANG_EN && row.value);
+  const source = english || rows.find((row) => row.value);
+  return plainText(source?.value || '');
+};
 const textFields = computed(() => [
-  { key: 'name', label: t('admin.packageList.form.name'), rows: nameRows.value, rich: true, placeholder: t('admin.packageList.form.textPlaceholder') },
   { key: 'desc', label: t('admin.packageList.form.desc'), rows: descRows.value, rich: false, placeholder: t('admin.packageList.form.textPlaceholder') },
   { key: 'service', label: t('admin.packageList.form.serviceContent'), rows: serviceRows.value, rich: true, placeholder: t('admin.packageList.form.serviceContentPlaceholder') },
   { key: 'notice', label: t('admin.packageList.form.bookingNotice'), rows: noticeRows.value, rich: true, placeholder: t('admin.packageList.form.textPlaceholder') },
@@ -628,9 +760,7 @@ const blankServiceBlock = (): SpuBlock => ({
   spuName: '',
   selectedSkuId: null,
   skus: [],
-    spuOptions: [],
-    optionSeq: 0,
-    skuSeq: 0,
+  skuSeq: 0,
 });
 
 const resetForm = () => {
@@ -639,12 +769,17 @@ const resetForm = () => {
   form.validDays = 30;
   form.originalPrice = null;
   form.salePrice = null;
-  nameRows.value = defaultLangRows();
+  form.name = '';
+  loadedNameI18n.value = {};
   descRows.value = defaultLangRows();
   serviceRows.value = defaultLangRows();
   noticeRows.value = defaultLangRows();
   imageFiles.value = [];
   spuBlocks.value = [blankServiceBlock()];
+  tagPicker.reset();
+  pendingTagNames.value = [];
+  tagAdderOpen.value = false;
+  tagDraft.value = '';
 };
 
 const skuLabelFromList = (sku: any, specTypes: any[]) => {
@@ -660,28 +795,101 @@ const skuLabelFromDetail = (item: any) => {
   return labels.join(' / ') || String(item.skuId);
 };
 
+const fetchSpuCatalog = async () => {
+  const pageSize = 200;
+  let pageNum = 1;
+  let fetched = 0;
+  let total = 0;
+  const collected: any[] = [];
+  do {
+    const res = await spuPage({ pageNum, pageSize, shelfStatus: 1 });
+    const data = unwrap(res);
+    const list = Array.isArray(data.list) ? data.list : [];
+    collected.push(...list);
+    fetched += list.length;
+    const reportedTotal = Number(data.total);
+    total = Number.isFinite(reportedTotal) && reportedTotal >= 0
+      ? reportedTotal
+      : fetched;
+    if (!list.length || fetched >= total) break;
+    pageNum += 1;
+  } while (true);
+
+  const seen = new Set<number>();
+  spuCatalog.value = collected.map((item: any) => {
+    const spu = item?.spu || item || {};
+    return {
+      id: Number(spu.id ?? item?.id),
+      nameI18n: item?.nameI18n || spu.nameI18n,
+      fallbackName: String(spu.spuName || item?.spuName || ''),
+    };
+  }).filter((item: SpuCatalogItem) => {
+    if (item.id <= 0 || seen.has(item.id)) return false;
+    seen.add(item.id);
+    return true;
+  });
+  spuCatalogLoaded.value = true;
+};
+
+const ensureSpus = () => {
+  if (spuCatalogLoaded.value) return Promise.resolve();
+  if (spuCatalogInflight) return spuCatalogInflight;
+  spuLoading.value = true;
+  spuCatalogInflight = fetchSpuCatalog()
+    .catch((error: any) => {
+      ElMessage.error(error?.message || t('admin.packageList.message.spuFailed'));
+    })
+    .finally(() => {
+      spuLoading.value = false;
+      spuCatalogInflight = null;
+    });
+  return spuCatalogInflight;
+};
+
+const loadSkuCatalog = async (spuId: number) => {
+  const cached = skuCatalog.get(spuId);
+  if (cached) return cached;
+  const inflight = skuCatalogInflight.get(spuId);
+  if (inflight) return inflight;
+
+  const request = (async () => {
+    const res = await listBySpu(spuId);
+    const data = unwrap(res);
+    const raw = {
+      specTypes: Array.isArray(data.specTypes) ? [...data.specTypes] : [],
+      skus: Array.isArray(data.skus) ? [...data.skus] : [],
+    };
+    skuCatalog.set(spuId, raw);
+    return raw;
+  })();
+  skuCatalogInflight.set(spuId, request);
+  try {
+    return await request;
+  } catch (error: any) {
+    ElMessage.error(error?.message || t('admin.packageList.message.skuFailed'));
+    throw error;
+  } finally {
+    if (skuCatalogInflight.get(spuId) === request) skuCatalogInflight.delete(spuId);
+  }
+};
+
 const loadSpuBlock = async (spuId: number, saved: SavedSku[]) => {
   const savedMap = new Map(saved.map((item) => [item.skuId, item]));
   let skus: SkuRow[] = [];
   try {
-    const res = await listBySpu(spuId);
-    const data = unwrap(res);
-    const specTypes = Array.isArray(data.specTypes) ? data.specTypes : [];
-    const list = Array.isArray(data.skus) ? data.skus : [];
-    skus = list.map((sku: any) => {
+    const raw = await loadSkuCatalog(spuId);
+    skus = raw.skus.map((sku: any) => {
       const skuId = Number(sku.skuId);
       const picked = savedMap.get(skuId);
       return {
         skuId,
-        specLabel: skuLabelFromList(sku, specTypes),
+        specLabel: skuLabelFromList(sku, raw.specTypes),
         price: sku.price == null ? null : Number(sku.price),
         redeemTimes: picked?.redeemTimes || 1,
         available: true,
       };
     });
-  } catch (error: any) {
-    ElMessage.error(error?.message || t('admin.packageList.message.skuFailed'));
-  }
+  } catch {}
   saved.forEach((item) => {
     if (skus.some((sku) => sku.skuId === item.skuId)) return;
     skus.push({
@@ -708,39 +916,9 @@ const skuOptionLabel = (sku: SkuRow) => {
   return `${sku.specLabel}${price}${unavailable}`;
 };
 
-const searchSpus = async (keyword: string, block: SpuBlock) => {
-  const seq = ++block.optionSeq;
-  spuLoading.value = true;
-  try {
-    const res = await spuPage({
-      pageNum: 1,
-      pageSize: 20,
-      shelfStatus: 1,
-      nameKeyword: keyword?.trim() || undefined,
-    });
-    const data = unwrap(res);
-    const list = Array.isArray(data.list) ? data.list : [];
-    const options = list.map((item: any) => {
-      const spu = item.spu || item;
-      return {
-        id: Number(spu.id ?? item.id),
-        name: pickI18nText(item.nameI18n || spu.nameI18n, locale.value, spu.spuName || ''),
-      };
-    }).filter((item: SpuOption) => item.id);
-    if (seq !== block.optionSeq) return;
-    if (block.spuId && !options.some((item: SpuOption) => item.id === block.spuId)) {
-      options.unshift({ id: block.spuId, name: block.spuName || String(block.spuId) });
-    }
-    block.spuOptions = options;
-  } catch (error: any) {
-    ElMessage.error(error?.message || t('admin.packageList.message.spuFailed'));
-  } finally {
-    spuLoading.value = false;
-  }
-};
-
 const changeSpu = async (block: SpuBlock, spuId: number | null) => {
   if (!spuId) {
+    block.skuSeq += 1;
     block.spuId = null;
     block.spuName = '';
     block.selectedSkuId = null;
@@ -751,7 +929,7 @@ const changeSpu = async (block: SpuBlock, spuId: number | null) => {
     ElMessage.warning(t('admin.packageList.message.serviceDuplicate'));
     return;
   }
-  const option = block.spuOptions.find((item) => item.id === spuId);
+  const option = spuOptionsFor(block).find((item) => item.id === spuId);
   const seq = ++block.skuSeq;
   block.spuId = spuId;
   block.spuName = option?.name || String(spuId);
@@ -765,7 +943,7 @@ const changeSpu = async (block: SpuBlock, spuId: number | null) => {
 const addServiceBlock = () => {
   const block = blankServiceBlock();
   spuBlocks.value.push(block);
-  searchSpus('', block);
+  ensureSpus();
 };
 
 const removeBlock = (key: number) => {
@@ -779,7 +957,8 @@ const fillFromDetail = async (detail: any) => {
   form.validDays = Number(detail.validDays || 1);
   form.originalPrice = detail.originalPrice == null ? null : Number(detail.originalPrice);
   form.salePrice = detail.salePrice == null ? null : Number(detail.salePrice);
-  nameRows.value = toLangRows(detail.nameI18n);
+  loadedNameI18n.value = { ...(detail.nameI18n || {}) };
+  form.name = packageNameText(detail.nameI18n);
   descRows.value = toLangRows(detail.descI18n);
   serviceRows.value = toLangRows(detail.serviceContentTextI18n);
   noticeRows.value = toLangRows(detail.bookingNoticeI18n);
@@ -811,8 +990,6 @@ const fillFromDetail = async (detail: any) => {
         spuName: bucket.name,
         selectedSkuId: loaded.selectedSkuId,
         skus: loaded.skus,
-        spuOptions: [{ id: spuId, name: bucket.name }],
-        optionSeq: 0,
         skuSeq: 0,
       };
     }),
@@ -825,8 +1002,10 @@ const openCreate = () => {
   resetForm();
   formKey.value += 1;
   dialogVisible.value = true;
-  const first = spuBlocks.value[0];
-  if (first) searchSpus('', first);
+  ensureSpus();
+  tagPicker.loadOptions().catch((error: any) => {
+    ElMessage.error(error?.message || t('admin.bizTag.saveFailed'));
+  });
 };
 
 const openEdit = async (row: PackageRow) => {
@@ -834,9 +1013,12 @@ const openEdit = async (row: PackageRow) => {
   resetForm();
   dialogVisible.value = true;
   detailLoading.value = true;
+  ensureSpus();
   try {
     const res = await getPackageDetail(row.id);
     await fillFromDetail(unwrap(res));
+    await tagPicker.loadOptions();
+    await tagPicker.loadBound(2, row.id);
     formKey.value += 1;
   } catch (error: any) {
     dialogVisible.value = false;
@@ -890,7 +1072,6 @@ const save = async () => {
     return;
   }
   const texts = [
-    { rows: nameRows.value, rich: true },
     { rows: descRows.value, rich: false },
     { rows: serviceRows.value, rich: true },
     { rows: noticeRows.value, rich: true },
@@ -910,13 +1091,15 @@ const save = async () => {
       validDays: form.validDays,
       originalPrice: form.originalPrice,
       salePrice: form.salePrice,
-      nameI18n: rowsToMap(nameRows.value, true),
+      nameI18n: packageNamePayload(),
       descI18n: rowsToMap(descRows.value),
       serviceContentI18n: rowsToMap(serviceRows.value, true),
       bookingNoticeI18n: rowsToMap(noticeRows.value, true),
       imageUrls: imageFiles.value.map((file) => file.url).filter(Boolean),
       items,
+      tags: tagPicker.saveItems(pendingTagNames.value),
     });
+    pendingTagNames.value = [];
     ElMessage.success(t('admin.packageList.message.saveSuccess'));
     dialogVisible.value = false;
     fetchList();
@@ -948,6 +1131,7 @@ const handleImageUpload = (options: UploadRequestOptions) => {
 onMounted(() => {
   fetchCategories();
   fetchList();
+  ensureSpus();
 });
 
 watch(() => locale.value, () => {
@@ -957,6 +1141,66 @@ watch(() => locale.value, () => {
 </script>
 
 <style scoped>
+.biz-tag-picks {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  min-height: 32px;
+}
+.biz-tag-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 28px;
+  padding: 0 8px 0 10px;
+  border: 1px solid #f3c7a0;
+  border-radius: 4px;
+  background: #fff4e8;
+  color: #e07a2f;
+  font-size: 13px;
+  line-height: 1;
+}
+.biz-tag-chip button {
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: #e07a2f;
+  font-size: 14px;
+  line-height: 1;
+  cursor: pointer;
+}
+.biz-tag-add {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: 0;
+  border-radius: 4px;
+  background: #3b6cff;
+  color: #fff;
+  cursor: pointer;
+}
+.biz-tag-add :deep(svg) {
+  width: 14px;
+  height: 14px;
+}
+.biz-tag-draft {
+  width: 168px;
+  height: 28px;
+  padding: 0 8px;
+  border: 1px solid #f3c7a0;
+  border-radius: 4px;
+  background: #fff;
+  color: #142033;
+  font: inherit;
+  font-size: 13px;
+}
+.biz-tag-draft:focus {
+  outline: 2px solid rgba(59, 108, 255, 0.35);
+  border-color: #3b6cff;
+}
 .page {
   padding: 12px;
   font-size: 12px;

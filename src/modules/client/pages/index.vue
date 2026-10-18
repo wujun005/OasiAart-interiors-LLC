@@ -56,35 +56,33 @@
       }}</span>
     </button>
 
-    <section id="services" class="services-section">
+    <section id="services" class="services-section" aria-labelledby="home-services-title">
       <div class="home-container">
         <header class="home-intro">
-          <p class="home-intro__eyebrow">
-            {{ t("client.home.sections.servicesTitle") }}
-          </p>
-          <h2>{{ t("client.home.sections.serviceSelectorTitle") }}</h2>
+          <div class="home-intro__heading">
+            <p class="home-intro__eyebrow">
+              {{ t("client.home.sections.servicesTitle") }}
+            </p>
+            <h2 id="home-services-title">{{ t("client.home.sections.serviceSelectorTitle") }}</h2>
+          </div>
           <p class="home-intro__description">
             {{ t("client.home.sections.serviceSelectorSubtitle") }}
           </p>
         </header>
         <div class="services-grid">
           <button
-            v-for="(item, index) in serviceTiles"
+            v-for="item in serviceTiles"
             :key="item.id"
             class="services-grid__item"
             type="button"
             :aria-label="item.title"
             @click="openServiceList(item)"
           >
-            <div class="services-grid__icon">
-              <img v-if="item.icon" :src="item.icon" :alt="item.title" />
+            <div class="services-grid__icon" aria-hidden="true">
+              <img v-if="item.icon" :src="item.icon" alt="" loading="lazy" decoding="async" />
             </div>
             <div class="services-grid__content">
-              <span class="services-grid__meta">
-                {{ String(index + 1).padStart(2, "0") }} ·
-                {{ t("client.home.sections.servicesTitle") }}
-              </span>
-              <p>{{ item.title }}</p>
+              <h3>{{ item.title }}</h3>
               <span v-if="item.description" class="services-grid__description">
                 {{ item.description }}
               </span>
@@ -413,7 +411,7 @@ onMounted(() => {
 }
 
 .home-container {
-  width: min(1280px, calc(100% - 48px));
+  width: min(1200px, calc(100% - 48px));
   margin: 0 auto;
 }
 
@@ -612,41 +610,47 @@ onMounted(() => {
 }
 
 .services-section {
-  padding: 80px 0 96px;
+  padding: 48px 0 40px;
 }
 
 .home-intro {
-  max-width: 880px;
-  margin: 0 auto;
-  text-align: center;
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 24px;
+  text-align: left;
+}
+
+.home-intro__heading {
+  min-width: 0;
 }
 
 .home-intro__eyebrow {
   margin: 0;
   color: var(--primary);
-  font-size: 15px;
+  font-size: 10px;
   line-height: 1.4;
-  font-weight: 850;
-  letter-spacing: 0.12em;
+  font-weight: 750;
+  letter-spacing: 0.16em;
   text-transform: uppercase;
 }
 
 .home-intro h2 {
-  margin: 12px 0 0;
+  margin: 8px 0 0;
   color: var(--hourx-brand);
-  font-size: clamp(34px, 3.4vw, 48px);
-  line-height: 1.15;
-  font-weight: 850;
-  letter-spacing: -0.025em;
+  font-size: clamp(26px, 2.4vw, 32px);
+  line-height: 1.2;
+  font-weight: 750;
+  letter-spacing: -0.035em;
 }
 
 .home-intro__description {
-  max-width: 720px;
-  margin: 18px auto 0;
-  color: rgba(15, 23, 42, 0.56);
-  font-size: 17px;
+  max-width: 310px;
+  margin: 0 0 2px;
+  color: #738093;
+  font-size: 13px;
   line-height: 1.65;
-  font-weight: 500;
+  font-weight: 400;
 }
 
 .section-title {
@@ -687,31 +691,31 @@ onMounted(() => {
 }
 
 .services-grid {
-  margin-top: 28px;
+  margin-top: 24px;
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 24px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
 }
 
 .services-grid__item {
   position: relative;
-  min-height: 154px;
-  padding: 22px 24px;
-  border: 1px solid #e5edf6;
-  border-radius: 22px;
+  min-width: 0;
+  height: 148px;
+  padding: 17px 18px;
+  box-sizing: border-box;
+  border: 1px solid #e5eaf0;
+  border-radius: 14px;
   overflow: hidden;
-  background:
-    radial-gradient(circle at 100% 0%, rgba(5, 21, 43, 0.1), transparent 42%),
-    #fff;
+  background: #fff;
   display: grid;
-  grid-template-columns: 88px minmax(0, 1fr);
-  align-items: center;
-  gap: 24px;
+  grid-template-columns: 44px minmax(0, 1fr);
+  align-items: start;
+  gap: 14px;
   color: inherit;
   font: inherit;
   text-align: left;
   cursor: pointer;
-  box-shadow: 0 12px 30px rgba(15, 23, 42, 0.055);
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.025);
   transition:
     transform 0.22s ease,
     border-color 0.22s ease,
@@ -719,21 +723,22 @@ onMounted(() => {
 }
 
 .services-grid__item:hover {
-  transform: translateY(-5px);
-  border-color: rgba(5, 21, 43, 0.46);
-  box-shadow: 0 20px 42px rgba(15, 88, 140, 0.13);
+  transform: translateY(-2px);
+  border-color: #adbcca;
+  box-shadow: 0 8px 20px rgba(5, 21, 43, 0.06);
+}
+
+.services-grid__item:focus-visible {
+  outline: 2px solid var(--hourx-brand);
+  outline-offset: 3px;
 }
 
 .services-grid__icon {
-  width: 88px;
-  height: 88px;
-  border: 1px solid rgba(5, 21, 43, 0.12);
-  border-radius: 26px;
-  background: linear-gradient(
-    145deg,
-    var(--hourx-brand-soft) 0%,
-    var(--hourx-brand-soft) 100%
-  );
+  width: 44px;
+  height: 44px;
+  border: 1px solid #e5eaf0;
+  border-radius: 12px;
+  background: var(--hourx-brand-soft);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -741,8 +746,8 @@ onMounted(() => {
 }
 
 .services-grid__icon img {
-  width: 48px;
-  height: 48px;
+  width: 25px;
+  height: 25px;
   object-fit: contain;
   filter: var(--hourx-brand-filter);
 }
@@ -760,54 +765,55 @@ onMounted(() => {
 
 .services-grid__content {
   min-width: 0;
+  height: 100%;
   display: flex;
   flex-direction: column;
   align-items: flex-start;
 }
 
-.services-grid__meta {
+.services-grid__item h3 {
+  display: -webkit-box;
+  width: 100%;
+  max-height: 42px;
+  margin: 1px 0 0;
+  overflow: hidden;
   color: var(--hourx-brand);
-  font-size: 11px;
+  font-size: 16px;
   line-height: 1.3;
-  font-weight: 800;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-}
-
-.services-grid__item p {
-  margin: 8px 0 0;
-  color: var(--text-main);
-  font-size: 23px;
-  line-height: 1.28;
-  font-weight: 850;
-  letter-spacing: -0.015em;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
 }
 
 .services-grid__description {
   max-width: 100%;
-  margin-top: 7px;
-  color: rgba(15, 23, 42, 0.55);
-  font-size: 13px;
+  margin-top: 6px;
+  color: #738093;
+  font-size: 12px;
   line-height: 1.5;
   display: -webkit-box;
   overflow: hidden;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
+  line-clamp: 2;
 }
 
 .services-grid__link {
-  margin-top: 12px;
+  margin-top: auto;
+  padding-top: 8px;
   display: inline-flex;
   align-items: center;
   gap: 7px;
   color: var(--hourx-brand);
-  font-size: 13px;
+  font-size: 11px;
   line-height: 1.3;
-  font-weight: 800;
+  font-weight: 650;
 }
 
 .services-grid__link span {
-  font-size: 17px;
+  font-size: 15px;
   line-height: 1;
   transition: transform 0.2s ease;
 }
@@ -1035,8 +1041,7 @@ onMounted(() => {
 
 @media (max-width: 1300px) {
   .services-grid {
-    margin-top: 48px;
-    gap: 20px;
+    gap: 12px;
   }
 
 }
@@ -1095,25 +1100,30 @@ onMounted(() => {
   }
 
   .services-grid__item {
-    min-height: 156px;
-    padding: 20px;
-    grid-template-columns: 84px minmax(0, 1fr);
-    gap: 18px;
+    padding: 16px;
+    grid-template-columns: 40px minmax(0, 1fr);
+    gap: 12px;
   }
 
   .services-grid__icon {
-    width: 84px;
-    height: 84px;
-    border-radius: 22px;
+    width: 40px;
+    height: 40px;
+    border-radius: 11px;
   }
 
   .services-grid__icon img {
-    width: 48px;
-    height: 48px;
+    width: 24px;
+    height: 24px;
   }
 
-  .services-grid__item p {
-    font-size: 19px;
+  .home-intro {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .home-intro__description {
+    max-width: none;
   }
 
   .booking-steps {
@@ -1168,25 +1178,30 @@ onMounted(() => {
     display: none;
   }
 
+  .services-section {
+    padding: 32px 0;
+  }
+
   .home-intro h2 {
-    font-size: 30px;
+    font-size: 25px;
   }
 
   .home-intro__description {
-    font-size: 15px;
+    font-size: 12px;
   }
 
   .services-grid {
     grid-template-columns: 1fr;
-    gap: 16px;
+    gap: 10px;
   }
 
   .services-grid__item {
-    min-height: 144px;
+    height: 140px;
+    padding: 14px;
   }
 
   .services-grid__description {
-    -webkit-line-clamp: 1;
+    -webkit-line-clamp: 2;
   }
 
   .trust-section {
@@ -1213,6 +1228,17 @@ onMounted(() => {
 
   .final-cta__button {
     width: 100%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .services-grid__item,
+  .services-grid__link span {
+    transition: none;
+  }
+
+  .services-grid__item:hover {
+    transform: none;
   }
 }
 </style>

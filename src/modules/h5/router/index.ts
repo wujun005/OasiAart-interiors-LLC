@@ -54,6 +54,16 @@ const routes: RouteRecordRaw[] = [
     component: () => import('../pages/cart.vue'),
   },
   {
+    path: '/packages',
+    name: 'h5-packages',
+    component: () => import('../pages/packages.vue'),
+  },
+  {
+    path: '/packages/:id',
+    name: 'h5-package-detail',
+    component: () => import('../pages/package-detail.vue'),
+  },
+  {
     path: '/orders/confirm',
     name: 'h5-order-confirm',
     component: () => import('../pages/order-confirm.vue'),

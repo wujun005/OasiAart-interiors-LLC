@@ -15,7 +15,46 @@
     <section class="order-confirm-body">
       <div class="order-confirm-container order-confirm-layout">
         <div class="order-confirm-main">
-          <section class="order-card">
+          <section
+            v-if="isPackageMode"
+            class="order-card order-package-card"
+          >
+            <header class="order-section-title">
+              <span class="order-section-title__index" aria-hidden="true">1</span>
+              <h2>
+                {{ locale === "zh" ? "确认套餐" : "Confirm Package" }}
+              </h2>
+            </header>
+
+            <div class="order-package-preview">
+              <div class="order-package-preview__media">
+                <img
+                  v-if="packageImageUrl"
+                  :src="packageImageUrl"
+                  :alt="summaryTitle"
+                />
+                <span v-else aria-hidden="true">P</span>
+              </div>
+              <div class="order-package-preview__content">
+                <span>{{ locale === "zh" ? "服务套餐" : "Service package" }}</span>
+                <h3>{{ summaryTitle }}</h3>
+                <p>{{ summaryMeta }}</p>
+              </div>
+            </div>
+
+            <div class="order-package-guidance" role="note">
+              <span aria-hidden="true">i</span>
+              <p>
+                {{
+                  locale === "zh"
+                    ? "套餐支付后可在订单中按次预约，届时选择服务地址和时间。"
+                    : "After payment, you can book each included service from your orders and choose the service address and time then."
+                }}
+              </p>
+            </div>
+          </section>
+
+          <section v-else class="order-card">
             <header class="order-section-title">
               <span class="order-section-title__index">1</span>
               <h2>
@@ -146,7 +185,7 @@
             </div>
           </section>
 
-          <section class="order-card">
+          <section v-if="!isPackageMode" class="order-card">
             <header class="order-section-title">
               <span class="order-section-title__index">2</span>
               <h2>{{ t("client.orderConfirm.sections.time") }}</h2>
@@ -205,7 +244,7 @@
             </div>
           </section>
 
-          <section class="order-card">
+          <section v-if="!isPackageMode" class="order-card">
             <header class="order-section-title">
               <span class="order-section-title__index">3</span>
               <h2>{{ t("client.orderConfirm.sections.note") }}</h2>
@@ -298,6 +337,7 @@
     <AgreementDialog v-model="legalDialogVisible" :doc-type="legalDocType" />
 
     <SavedAddressManager
+      v-if="!isPackageMode"
       ref="checkoutAddressEditorRef"
       :editor-only="true"
       @saved="handleCheckoutAddressSaved"
@@ -419,6 +459,14 @@ type CheckoutAddressEditorHandle = {
 const route = useRoute()
 const router = useRouter()
 const { t, locale } = useI18n({ useScope: "global" })
+const getQueryText = (key: string) => {
+  const raw = route.query[key]
+  if (Array.isArray(raw)) {
+    return typeof raw[0] === "string" ? raw[0].trim() : ""
+  }
+  return typeof raw === "string" ? raw.trim() : ""
+}
+const isPackageMode = computed(() => getQueryText("mode") === "package")
 const DEFAULT_COUNTRY_CODE = "+971"
 const COUNTRY_CODE_ENTRIES = [
   { value: "+971", labelEn: "UAE +971", labelZh: "阿联酋 +971" },
@@ -477,7 +525,6 @@ const stripePublishableKey =
   typeof import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY === "string"
     ? import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY.trim()
     : ""
-const { addItem, refreshCart, removeItems } = useCart()
 
 const openLegal = (docType: LegalDocType) => {
   legalDocType.value = docType
@@ -888,6 +935,9 @@ const serviceTimePlaceholder = computed(() => {
 })
 
 const fetchAvailableTimes = async (force = false) => {
+  if (isPackageMode.value) {
+    return
+  }
   const serviceDate = normalizeText(form.serviceDate)
   const spuIdText = getQueryText("spuId")
   if (!serviceDate) {
@@ -937,6 +987,9 @@ const handleServiceTimeOpen = async () => {
 watch(
   () => form.serviceDate,
   (value, oldValue) => {
+    if (isPackageMode.value) {
+      return
+    }
     if (value !== oldValue) {
       availableTimeRecords.value = []
       lastLoadedServiceDate.value = ""
@@ -976,6 +1029,9 @@ watch(
       .map((item) => `${item.timeRange}:${item.available}`)
       .join("|"),
   () => {
+    if (isPackageMode.value) {
+      return
+    }
     if (isTimeOptionsLoading.value) {
       return
     }
@@ -1015,14 +1071,6 @@ watch(
     await initStripeElements()
   },
 )
-
-const getQueryText = (key: string) => {
-  const raw = route.query[key]
-  if (Array.isArray(raw)) {
-    return typeof raw[0] === "string" ? raw[0].trim() : ""
-  }
-  return typeof raw === "string" ? raw.trim() : ""
-}
 
 const parseQueryJson = <T,>(key: string, fallback: T): T => {
   const raw = getQueryText(key)
@@ -1069,16 +1117,17 @@ const getQueryNumber = (key: string, fallback = 0) => {
   return Number.isFinite(numeric) ? numeric : fallback
 }
 
-const getQueryOrderId = (): number | null => {
-  const text = getQueryText("orderId")
+const getPositiveQueryId = (key: string): number | null => {
+  const text = getQueryText(key)
   if (!text) {
     return null
   }
   const numeric = Number(text)
-  return Number.isFinite(numeric) ? numeric : null
+  return Number.isSafeInteger(numeric) && numeric > 0 ? numeric : null
 }
 
-const orderId = computed(() => getQueryOrderId())
+const orderId = computed(() => getPositiveQueryId("orderId"))
+const packageId = computed(() => getPositiveQueryId("packageId"))
 const isCartEditMode = computed(() => getQueryText("mode") === "cart-edit")
 const editingCartItemId = computed(() => getQueryText("cartItemId"))
 const isCartMode = computed(() =>
@@ -1087,6 +1136,9 @@ const isCartMode = computed(() =>
 const cartSkuDetail = computed(() =>
   parseQueryJson<CartSkuDetail | null>("cartSkuDetail", null),
 )
+const { addItem, refreshCart, removeItems } = useCart({
+  initialize: !isPackageMode.value,
+})
 
 const summaryTitle = computed(() =>
   pickI18nValue(
@@ -1115,6 +1167,23 @@ const summaryMeta = computed(() => {
   return (
     getQueryText("specSummary") || t("client.orderConfirm.summary.metaDefault")
   )
+})
+
+const packageImageUrl = computed(() => {
+  const parsed = parseQueryJson<unknown>("imageUrls", [])
+  const candidates = Array.isArray(parsed)
+    ? parsed
+    : typeof parsed === "string"
+      ? [parsed]
+      : []
+  const firstImage = candidates
+    .map((value) => normalizeText(value))
+    .find(Boolean)
+  if (firstImage) {
+    return firstImage
+  }
+  const raw = getQueryText("imageUrls")
+  return /^https?:\/\//i.test(raw) || raw.startsWith("/") ? raw : ""
 })
 
 const explicitSubtotal = computed(() => getQueryNumber("subtotal", 0))
@@ -1293,18 +1362,21 @@ const handleStripeSuccess = async () => {
   await new Promise<void>((resolve) => {
     window.setTimeout(resolve, PAYMENT_STATUS_SYNC_DELAY_MS)
   })
-  try {
-    await refreshCart()
-  } catch (error) {
-    console.warn("Payment succeeded but refreshing the cart failed:", error)
+  if (!isPackageMode.value) {
+    try {
+      await refreshCart()
+    } catch (error) {
+      console.warn("Payment succeeded but refreshing the cart failed:", error)
+    }
   }
   await router.push({
     name: "booking-success",
     query: {
-      orderId: String(route.query.orderId || ""),
+      orderId: String(orderId.value || ""),
       service: summaryTitle.value,
-      scheduled:
-        `${form.serviceDate} ${selectedTimeOption.value?.time || ""}`.trim(),
+      scheduled: isPackageMode.value
+        ? ""
+        : `${form.serviceDate} ${selectedTimeOption.value?.time || ""}`.trim(),
       amount: String(total.value),
     },
   })
@@ -1554,6 +1626,14 @@ const startStripePayment = async (targetOrderId: number) => {
 }
 
 const getValidationMessage = (): string => {
+  if (isPackageMode.value) {
+    if (orderId.value === null || packageId.value === null) {
+      return locale.value === "zh"
+        ? "套餐订单信息无效，请返回套餐详情后重试"
+        : "The package order is invalid. Please return to the package details and try again."
+    }
+    return ""
+  }
   if (!isCartMode.value && orderId.value === null) {
     return t("client.orderConfirm.validation.orderIdMissing")
   }
@@ -1603,6 +1683,13 @@ const goBack = () => {
     router.back()
     return
   }
+  if (isPackageMode.value && packageId.value !== null) {
+    router.push({
+      name: "package-detail",
+      params: { id: String(packageId.value) },
+    })
+    return
+  }
   const spuId = getQueryText("spuId")
   if (spuId) {
     router.push({
@@ -1620,6 +1707,34 @@ const goManageAddresses = () => {
 
 const submitBooking = async () => {
   if (isSubmitting.value) {
+    return
+  }
+
+  if (isPackageMode.value) {
+    const targetOrderId = orderId.value
+    if (targetOrderId === null || packageId.value === null) {
+      ElMessage.warning(
+        locale.value === "zh"
+          ? "套餐订单信息无效，请返回套餐详情后重试"
+          : "The package order is invalid. Please return to the package details and try again.",
+      )
+      return
+    }
+    if (!agreedPolicy.value) {
+      ElMessage.warning(t("client.orderConfirm.validation.policy"))
+      return
+    }
+
+    isSubmitting.value = true
+    try {
+      policyDialogVisible.value = false
+      await startStripePayment(targetOrderId)
+    } catch (error: any) {
+      console.error("create package payment failed:", error)
+      ElMessage.error(error?.message || "Payment request failed")
+    } finally {
+      isSubmitting.value = false
+    }
     return
   }
 
@@ -1726,6 +1841,9 @@ const confirmPolicyAndContinue = async () => {
 }
 
 onMounted(async () => {
+  if (isPackageMode.value) {
+    return
+  }
   let preferredAddressId: number | null = null
   if (isCartEditMode.value && editingCartItemId.value) {
     try {
@@ -1823,6 +1941,99 @@ onMounted(async () => {
   border-radius: 16px;
   background: #fff;
   padding: 24px;
+}
+
+.order-package-card {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.order-package-preview {
+  display: grid;
+  grid-template-columns: 112px minmax(0, 1fr);
+  gap: 18px;
+  align-items: center;
+  padding: 16px;
+  border: 1px solid #e8edf3;
+  border-radius: 14px;
+  background: #f8fafc;
+}
+
+.order-package-preview__media {
+  width: 112px;
+  aspect-ratio: 4 / 3;
+  overflow: hidden;
+  border-radius: 12px;
+  display: grid;
+  place-items: center;
+  background: var(--hourx-brand-soft);
+  color: var(--hourx-brand);
+  font-size: 28px;
+  font-weight: 900;
+}
+
+.order-package-preview__media img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.order-package-preview__content {
+  min-width: 0;
+}
+
+.order-package-preview__content > span {
+  color: var(--hourx-brand);
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.order-package-preview__content h3 {
+  margin: 6px 0 0;
+  color: rgba(15, 23, 42, 0.92);
+  font-size: 20px;
+  line-height: 1.35;
+  font-weight: 900;
+}
+
+.order-package-preview__content p {
+  margin: 6px 0 0;
+  color: rgba(15, 23, 42, 0.56);
+  font-size: 14px;
+  line-height: 1.55;
+}
+
+.order-package-guidance {
+  display: flex;
+  align-items: flex-start;
+  gap: 11px;
+  padding: 14px 16px;
+  border-radius: 13px;
+  background: var(--hourx-brand-soft);
+  color: rgba(15, 23, 42, 0.72);
+}
+
+.order-package-guidance > span {
+  width: 20px;
+  height: 20px;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--hourx-brand);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.order-package-guidance p {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.65;
 }
 
 .order-section-title {
@@ -2722,6 +2933,14 @@ onMounted(async () => {
   .order-address-book__state--empty {
     align-items: flex-start;
     flex-direction: column;
+  }
+
+  .order-package-preview {
+    grid-template-columns: 88px minmax(0, 1fr);
+  }
+
+  .order-package-preview__media {
+    width: 88px;
   }
 }
 

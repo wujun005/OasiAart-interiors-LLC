@@ -131,8 +131,13 @@ export function supplierAssignedOrders(payload: Record<string, unknown> = {}) {
   return http.post('/api/orderHeader/supplier/mine', payload);
 }
 
-export function supplierAssignedOrderDetail(orderId: number) {
-  return http.get('/api/orderHeader/supplier/detail', { params: { orderId } });
+export function supplierAssignedOrderDetail(orderId: number, fulfillmentId?: number) {
+  return http.get('/api/orderHeader/supplier/detail', {
+    params: {
+      orderId,
+      ...(fulfillmentId ? { fulfillmentId } : {}),
+    },
+  });
 }
 
 export function supplierEventPage(payload: Record<string, unknown> = {}) {
@@ -164,19 +169,19 @@ export function supplierChangeAcceptOrder(payload: { supplierId: number; spuId: 
   return http.post('/api/supplier/tools/services/changeAcceptOrder', payload);
 }
 
-export function supplierAccept(payload: { orderId: number }) {
+export function supplierAccept(payload: { orderId: number; fulfillmentId?: number }) {
   return http.post('/api/orderHeader/supplier/accept', payload);
 }
 
-export function supplierDepart(payload: { orderId: number }) {
+export function supplierDepart(payload: { orderId: number; fulfillmentId?: number }) {
   return http.post('/api/orderHeader/supplier/depart', payload);
 }
 
-export function supplierArrive(payload: { orderId: number; photos?: string[]; remark?: string | null }) {
+export function supplierArrive(payload: { orderId: number; fulfillmentId?: number; photos?: string[]; remark?: string | null }) {
   return http.post('/api/orderHeader/supplier/arrive', payload);
 }
 
-export function supplierComplete(payload: { orderId: number; photos?: string[]; remark?: string | null }) {
+export function supplierComplete(payload: { orderId: number; fulfillmentId?: number; photos?: string[]; remark?: string | null }) {
   return http.post('/api/orderHeader/supplier/complete', payload);
 }
 
@@ -184,4 +189,26 @@ export function uploadFile(file: File) {
   const formData = new FormData();
   formData.append('file', file);
   return http.post('/api/file/upload', formData);
+}
+
+export function supplierStaffPage(payload: { pageNum?: number; pageSize?: number; keyword?: string } = {}) {
+  return http.post('/api/supplier/staff/page', payload);
+}
+
+export function saveSupplierStaff(payload: { id?: number; name: string; phone: string; email?: string }) {
+  return http.post('/api/supplier/staff/save', payload);
+}
+
+export function deleteSupplierStaff(ids: number[]) {
+  return http.post('/api/supplier/staff/delete', { ids });
+}
+
+export function exportSupplierStaff() {
+  return http.get('/api/supplier/staff/export', { responseType: 'blob' });
+}
+
+export function importSupplierStaff(file: File) {
+  const body = new FormData();
+  body.append('file', file);
+  return http.post('/api/supplier/staff/import', body);
 }

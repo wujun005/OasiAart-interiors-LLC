@@ -134,6 +134,19 @@
           min-width="130"
           show-overflow-tooltip
         />
+        <el-table-column :label="t('admin.product.table.tags')" min-width="160">
+          <template #default="{ row }">
+            <div v-if="productTagLabels(row).length" class="biz-tag-list">
+              <el-tag
+                v-for="label in productTagLabels(row)"
+                :key="label"
+                size="small"
+                effect="plain"
+              >{{ label }}</el-tag>
+            </div>
+            <span v-else>—</span>
+          </template>
+        </el-table-column>
         <el-table-column
           prop="categoryName"
           :label="t('admin.product.table.category')"
@@ -462,6 +475,55 @@
         </div>
         <el-form-item :label="t('admin.product.form.sale')" prop="product.isOnSale">
           <el-switch v-model="form.product.isOnSale" />
+        </el-form-item>
+        <el-form-item :label="t('admin.bizTag.label')">
+          <div class="biz-tag-picks">
+            <span
+              v-for="tag in selectedProductTags"
+              :key="tag.id"
+              class="biz-tag-chip"
+            >
+              {{ tagPicker.englishLabel(tag) }}
+              <button
+                type="button"
+                :aria-label="t('admin.bizTag.remove')"
+                @click="tagPicker.remove(Number(tag.id))"
+              >×</button>
+            </span>
+            <span
+              v-for="(name, index) in pendingTagNames"
+              :key="`${name}-${index}`"
+              class="biz-tag-chip"
+            >
+              {{ name }}
+              <button
+                type="button"
+                :aria-label="t('admin.bizTag.remove')"
+                @click="pendingTagNames.splice(index, 1)"
+              >×</button>
+            </span>
+            <input
+              v-if="tagAdderOpen"
+              ref="tagDraftRef"
+              v-model="tagDraft"
+              class="biz-tag-draft"
+              type="text"
+              maxlength="64"
+              :placeholder="t('admin.bizTag.enPlaceholder')"
+              @keydown.enter.prevent="confirmEnglishTag"
+              @keydown.esc.prevent="closeTagAdder"
+              @blur="confirmEnglishTag"
+            />
+            <button
+              v-else
+              type="button"
+              class="biz-tag-add"
+              :aria-label="t('admin.bizTag.create')"
+              @click="openTagAdder"
+            >
+              <el-icon><Plus /></el-icon>
+            </button>
+          </div>
         </el-form-item>
         <!-- <el-form-item label="币种" prop="product.currency">
           <el-select
@@ -815,6 +877,8 @@ import { getSpecValuePage } from '@/modules/admin/api/spec';
 import { getPage as getAddonTypePage } from '@/modules/admin/api/addonType';
 import { getPage as getAddonPage } from '@/modules/admin/api/addon';
 import { ADMIN_LANG_EN, ADMIN_LANG_ZH, pickI18nText } from '@/modules/admin/utils/i18n';
+import { useBizTagPicker } from '@/modules/admin/utils/bizTagPicker';
+import { bizTagLabels, type BizTag } from '@/modules/client/utils/biz-tag';
 import { getAdminAuthStorageValue } from '@/utils/auth-state';
 
 type ProductEntity = {
@@ -869,6 +933,7 @@ type ProductRow = {
   specIds?: number[];
   specNames: string[];
   exclusive?: number;
+  tags: BizTag[];
 };
 
 type SpecGroup = {
@@ -893,6 +958,43 @@ type SpecOption = SpecTypeOption & { typeId: number | null };
 
 const subCategoryOptions = ref<SubCategoryOption[]>([]);
 const { locale, t } = useI18n({ useScope: 'global' });
+const tagPicker = useBizTagPicker();
+const tagAdderOpen = ref(false);
+const tagDraft = ref('');
+const tagDraftRef = ref<HTMLInputElement | null>(null);
+const pendingTagNames = ref<string[]>([]);
+const productTagLabels = (row: ProductRow) => bizTagLabels(row.tags, String(locale.value));
+const selectedProductTags = computed(() =>
+  tagPicker.selectedIds.value
+    .map((id) => tagPicker.options.value.find((tag) => Number(tag.id) === id))
+    .filter((tag): tag is BizTag => Boolean(tag)),
+);
+const openTagAdder = () => {
+  tagDraft.value = '';
+  tagAdderOpen.value = true;
+  nextTick(() => tagDraftRef.value?.focus());
+};
+const closeTagAdder = () => {
+  tagDraft.value = '';
+  tagAdderOpen.value = false;
+};
+const confirmEnglishTag = () => {
+  if (!tagAdderOpen.value) return;
+  const name = tagDraft.value.trim();
+  if (!name) {
+    closeTagAdder();
+    return;
+  }
+  const existing = tagPicker.options.value.find(
+    (tag) => tagPicker.englishLabel(tag).toLowerCase() === name.toLowerCase(),
+  );
+  const existingId = Number(existing?.id);
+  if (existingId > 0) tagPicker.select(existingId);
+  else if (!pendingTagNames.value.some((item) => item.toLowerCase() === name.toLowerCase())) {
+    pendingTagNames.value.push(name);
+  }
+  closeTagAdder();
+};
 const getDefaultI18nLang = () => ADMIN_LANG_EN;
 const getNextAvailableLang = (langs: string[]) => {
   const used = new Set(langs.filter(Boolean));
@@ -1335,6 +1437,10 @@ const resetForm = () => {
     },
   ];
   form.addonGroups = [];
+  tagPicker.reset();
+  pendingTagNames.value = [];
+  tagAdderOpen.value = false;
+  tagDraft.value = '';
   uploadList.value = [];
   uploadCount.value = 0;
   draggedImageIndex.value = null;
@@ -1421,7 +1527,7 @@ const toRow = (item: any): ProductRow => {
     specIds: [],
     specNames,
     exclusive: spu.exclusive ?? undefined,
-
+    tags: Array.isArray(item?.tags) ? item.tags : [],
   };
 };
 
@@ -2204,6 +2310,9 @@ const openCreate = () => {
     form.product.subCategoryId = filteredSubCategoryOptions.value[0].value;
   }
   dialogVisible.value = true;
+  tagPicker.loadOptions().catch((error: any) => {
+    ElMessage.error(error?.message || t('admin.bizTag.saveFailed'));
+  });
 };
 
 const openPreview = (row: ProductRow) => {
@@ -2309,6 +2418,8 @@ const openEdit = async (row: ProductRow) => {
         }))
       : [createEmptyLangValue()];
 
+    await tagPicker.loadOptions();
+    if (spu.id) await tagPicker.loadBound(1, Number(spu.id));
     form.productImages = images.map((url: string, idx: number) => ({
       id: undefined,
       productId: spu.id,
@@ -2613,14 +2724,13 @@ const save = () => {
             attachTypeId: g.categoryId,
             attachValueIds: g.addonIds,
           })),
+        tags: tagPicker.saveItems(pendingTagNames.value),
       };
-      if (isEdit.value) {
-        await addOrUpdate(payload);
-        ElMessage.success(t('admin.product.message.updateSuccess'));
-      } else {
-        await addOrUpdate(payload);
-        ElMessage.success(t('admin.product.message.createSuccess'));
-      }
+      await addOrUpdate(payload);
+      pendingTagNames.value = [];
+      ElMessage.success(
+        t(isEdit.value ? 'admin.product.message.updateSuccess' : 'admin.product.message.createSuccess'),
+      );
       dialogVisible.value = false;
       fetchProducts();
     } catch (error: any) {
@@ -2703,6 +2813,67 @@ watch(
 </script>
 
 <style scoped>
+.biz-tag-list { display: flex; flex-wrap: wrap; gap: 4px; }
+.biz-tag-picks {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  min-height: 32px;
+}
+.biz-tag-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 28px;
+  padding: 0 8px 0 10px;
+  border: 1px solid #f3c7a0;
+  border-radius: 4px;
+  background: #fff4e8;
+  color: #e07a2f;
+  font-size: 13px;
+  line-height: 1;
+}
+.biz-tag-chip button {
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: #e07a2f;
+  font-size: 14px;
+  line-height: 1;
+  cursor: pointer;
+}
+.biz-tag-add {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: 0;
+  border-radius: 4px;
+  background: #3b6cff;
+  color: #fff;
+  cursor: pointer;
+}
+.biz-tag-add :deep(svg) {
+  width: 14px;
+  height: 14px;
+}
+.biz-tag-draft {
+  width: 168px;
+  height: 28px;
+  padding: 0 8px;
+  border: 1px solid #f3c7a0;
+  border-radius: 4px;
+  background: #fff;
+  color: #142033;
+  font: inherit;
+  font-size: 13px;
+}
+.biz-tag-draft:focus {
+  outline: 2px solid rgba(59, 108, 255, 0.35);
+  border-color: #3b6cff;
+}
 .page {
   --el-font-size-base: 12px;
   --el-component-size: 30px;

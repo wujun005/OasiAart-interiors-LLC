@@ -2,6 +2,7 @@ import { createRouter, createWebHistory, RouteRecordRaw } from 'vue-router';
 // import { useAuthStore } from '@/stores/auth';
 import {
   getFirstAllowedAdminPath,
+  isSupplierStaffOrdersOnly,
   loadAdminMenuPermissions,
   resolveAllowedAdminPath,
 } from '@/modules/admin/utils/menuPermission';
@@ -118,7 +119,12 @@ const routes: RouteRecordRaw[] = [
             component: () => import('@/modules/admin/pages/supplier-management/index.vue'),
             props: { section: 'coverage-availability' },
           },
-          { path: 'staff', redirect: (to) => ({ path: '/admin/supplier-management/profile', query: to.query }) },
+          {
+            path: 'staff',
+            name: 'admin-supplier-staff',
+            component: () => import('@/modules/admin/pages/supplier-management/index.vue'),
+            props: { section: 'staff' },
+          },
           { path: 'schedule', redirect: (to) => ({ path: '/admin/supplier-management/profile', query: to.query }) },
           {
             path: 'availability',
@@ -130,6 +136,11 @@ const routes: RouteRecordRaw[] = [
             name: 'admin-supplier-orders',
             component: () => import('@/modules/admin/pages/supplier-management/index.vue'),
             props: { section: 'orders' },
+          },
+          {
+            path: 'orders/h5',
+            name: 'admin-supplier-orders-h5',
+            component: () => import('@/modules/admin/pages/supplier-management/orders-h5.vue'),
           },
           {
             path: 'pricing',
@@ -221,6 +232,8 @@ router.beforeEach(async (to) => {
 
   const ordersPath = '/admin/orders';
   const ordersH5Path = '/admin/orders/h5';
+  const supplierOrdersPath = '/admin/supplier-management/orders';
+  const supplierOrdersH5Path = '/admin/supplier-management/orders/h5';
   if (to.path === ordersPath && isMobileDevice()) {
     return { path: ordersH5Path, query: to.query, replace: true };
   }
@@ -249,9 +262,24 @@ router.beforeEach(async (to) => {
     return { path: '/admin/login', query: { redirect: to.fullPath } };
   }
 
-  const permissionPath = to.path === ordersH5Path ? ordersPath : to.path;
+  const staffOrdersOnly = isSupplierStaffOrdersOnly();
+  if (staffOrdersOnly && to.path.startsWith('/admin/supplier-management')) {
+    const home = supplierOrdersH5Path;
+    if (to.path !== home) {
+      return { path: home, query: to.query, replace: true };
+    }
+  }
+  if (to.path === supplierOrdersH5Path && !isMobileDevice() && !staffOrdersOnly) {
+    return { path: supplierOrdersPath, query: to.query, replace: true };
+  }
+
+  const permissionPath = to.path === supplierOrdersH5Path
+    ? supplierOrdersPath
+    : to.path === ordersH5Path
+      ? ordersPath
+      : to.path;
   const targetPath = resolveAllowedAdminPath(permissionPath);
-  if (to.path === ordersH5Path && targetPath) return true;
+  if ((to.path === ordersH5Path || to.path === supplierOrdersH5Path) && targetPath) return true;
   if (targetPath) {
     if (targetPath !== to.path) {
       return { path: targetPath };

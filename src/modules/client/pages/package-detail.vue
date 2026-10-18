@@ -1,26 +1,42 @@
 <template>
-  <div class="product-detail-page">
+  <div class="package-detail-page">
+    <PackageDetailMobile
+      v-if="props.platform === 'h5'"
+      :view="view"
+      :loading="loading"
+      :missing="missing"
+      :busy="busy"
+      :selected-image-index="selectedImageIndex"
+      :cart-count="cartCount"
+      @back="goBack"
+      @cart="router.push({ name: routeNames.cart })"
+      @image-change="selectedImageIndex = $event"
+      @add-to-cart="addToCart"
+      @checkout="openCheckout"
+    />
+    <div v-else class="product-detail-page">
     <section class="product-detail-subheader">
       <div class="product-detail-container">
         <nav class="product-detail-back" aria-label="breadcrumb">
-          <RouterLink class="product-detail-back__link" to="/">
-            {{ t('client.header.nav.home') }}
+          <RouterLink class="product-detail-back__link" :to="{ name: 'packages' }">
+            {{ t('client.home.packages.detailBack') }}
           </RouterLink>
           <span class="product-detail-back__separator" aria-hidden="true">&lt;</span>
-          <span class="product-detail-back__current">{{ view?.title || t('client.home.packages.unavailable') }}</span>
+          <span class="product-detail-back__current">{{ view?.title || t(loading ? 'client.productDetail.loading' : 'client.home.packages.unavailable') }}</span>
         </nav>
       </div>
     </section>
 
     <section class="product-detail-body">
-      <div v-if="missing" class="product-detail-container">
-        <p class="product-card__empty">{{ t('client.home.packages.unavailable') }}</p>
+      <div v-if="loading || missing" class="product-detail-container package-detail-state" :aria-busy="loading">
+        <p role="status">{{ t(loading ? 'client.productDetail.loading' : 'client.home.packages.unavailable') }}</p>
+        <RouterLink v-if="missing" :to="{ name: 'packages' }">{{ t('client.home.packages.viewAll') }}</RouterLink>
       </div>
 
       <div v-else-if="view" class="product-detail-container product-detail-layout">
         <div class="product-main">
           <section class="product-gallery">
-            <div v-if="galleryImages.length > 1" class="product-gallery__thumbs">
+            <div v-if="galleryImages.length" class="product-gallery__thumbs">
               <button
                 v-for="(image, index) in galleryImages"
                 :key="`thumb-${index}`"
@@ -93,26 +109,35 @@
             </div>
           </div>
 
-          <section class="product-card product-card--overview">
-            <div class="product-section-heading">
-              <span class="product-section-heading__icon">
-                <svg viewBox="0 0 24 24" aria-hidden="true">
-                  <path d="M5 19h14M7 16V8l5-4 5 4v8M10 16v-4h4v4" />
-                </svg>
-              </span>
-              <div>
-                <span>{{ t('client.productDetail.pageTitle') }}</span>
-                <h2>{{ t('client.productDetail.serviceDescription') }}</h2>
-              </div>
+          <section class="product-detail-tabs">
+            <div class="product-detail-tabs__nav" role="tablist" :aria-label="t('client.productDetail.pageTitle')">
+              <button
+                v-for="tab in detailTabs"
+                :id="`package-detail-tab-${tab.key}`"
+                :key="tab.key"
+                class="product-detail-tabs__tab"
+                :class="{ 'product-detail-tabs__tab--active': activeDetailTab === tab.key }"
+                type="button"
+                role="tab"
+                :aria-selected="activeDetailTab === tab.key"
+                aria-controls="package-detail-panel"
+                :tabindex="activeDetailTab === tab.key ? 0 : -1"
+                @click="activeDetailTab = tab.key"
+                @keydown="handleDetailTabKeydown($event, tab.key)"
+              >{{ tab.label }}</button>
             </div>
-            <div class="product-card__desc">
-              <div v-if="view.descHtml" class="product-rich-text" v-html="view.descHtml" />
-              <p v-else class="product-card__empty">{{ t('client.productDetail.emptyDesc') }}</p>
-            </div>
-          </section>
-
-          <div class="product-info-grid">
-            <section class="product-card product-card--compact">
+            <div id="package-detail-panel" class="product-detail-tabs__panel" role="tabpanel" :aria-labelledby="`package-detail-tab-${activeDetailTab}`" tabindex="0">
+              <section v-if="activeDetailTab === 'description'" class="product-detail-tabs__section">
+                <div class="product-section-heading">
+                  <span class="product-section-heading__icon">
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 19h14M7 16V8l5-4 5 4v8M10 16v-4h4v4" /></svg>
+                  </span>
+                  <h2>{{ t('client.productDetail.serviceDescription') }}</h2>
+                </div>
+                <div v-if="view.descHtml" class="product-rich-text" v-html="view.descHtml" />
+                <p v-else class="product-card__empty">{{ t('client.productDetail.emptyDesc') }}</p>
+              </section>
+              <section v-else-if="activeDetailTab === 'includes'" class="product-detail-tabs__section">
               <div class="product-section-heading">
                 <span class="product-section-heading__icon">
                   <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12 4 4L19 6" /></svg>
@@ -132,9 +157,8 @@
               <p v-if="!view.aboutHtml && !view.items.length" class="product-card__empty">
                 {{ t('client.productDetail.emptyDesc') }}
               </p>
-            </section>
-
-            <section class="product-card product-card--compact">
+              </section>
+              <section v-else-if="activeDetailTab === 'notice'" class="product-detail-tabs__section">
               <div class="product-section-heading">
                 <span class="product-section-heading__icon">
                   <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -146,15 +170,29 @@
               </div>
               <div v-if="view.noticeHtml" class="product-rich-text" v-html="view.noticeHtml" />
               <p v-else class="product-card__empty">{{ t('client.productDetail.emptyDesc') }}</p>
-            </section>
-          </div>
+              </section>
+              <section v-else class="product-detail-tabs__section">
+                <div class="product-section-heading">
+                  <span class="product-section-heading__icon">
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 3 2.7 5.5 6.1.9-4.4 4.3 1 6.1-5.4-2.9-5.4 2.9 1-6.1L3.2 9.4l6.1-.9Z" /></svg>
+                  </span>
+                  <h2>{{ t('client.productDetail.reviewsTitle') }}</h2>
+                </div>
+                <p class="product-card__empty">{{ t('client.productDetail.emptyReviews') }}</p>
+              </section>
+            </div>
+          </section>
         </div>
 
         <aside class="booking-side">
           <section class="booking-card">
+            <div class="booking-card__scroll">
             <div class="booking-card__hero">
               <span class="booking-card__eyebrow">{{ t('client.productDetail.pageTitle') }}</span>
               <h1>{{ view.title }}</h1>
+              <div v-if="view.tags.length" class="biz-tags">
+                <span v-for="tag in view.tags" :key="tag">{{ tag }}</span>
+              </div>
               <div class="booking-card__meta">
                 <div v-if="view.visits" class="booking-card__rating">
                   <strong>{{ view.visits }}</strong>
@@ -170,9 +208,21 @@
               </div>
             </div>
 
+            <div class="booking-price-card">
+              <span class="booking-price-card__label">{{ t('client.home.packages.dealPrice') }}</span>
+              <div class="booking-price-card__main"><span>AED</span><strong>{{ view.saleAmount.toFixed(2) }}</strong></div>
+              <div v-if="view.original" class="booking-price-card__offer">
+                <del>AED {{ view.original }}</del>
+                <span v-if="view.save">{{ view.save }}</span>
+              </div>
+              <p v-if="view.perVisit" class="package-price-per-visit">{{ view.perVisit }}</p>
+            </div>
+
             <div class="booking-card__section-heading">
-              <h2>{{ t('client.home.packages.included') }}</h2>
-              <p>{{ t('client.home.packages.visitLater') }}</p>
+              <div class="booking-card__section-title-row">
+                <h2>{{ t('client.home.packages.included') }}</h2>
+                <p>{{ t('client.home.packages.visitLater') }}</p>
+              </div>
             </div>
 
             <div v-if="view.items.length" class="booking-field">
@@ -207,6 +257,8 @@
               </div>
             </div>
 
+            </div>
+            <div class="booking-card__footer">
             <div class="booking-actions">
               <button class="booking-add-cart" type="button" :disabled="busy" @click="addToCart">
                 <svg class="booking-add-cart__icon" viewBox="0 0 24 24" aria-hidden="true">
@@ -229,104 +281,80 @@
               </svg>
               {{ t('client.productDetail.booking.flexiblePolicy') }}
             </p>
+            </div>
           </section>
         </aside>
       </div>
     </section>
+    </div>
 
-    <el-dialog
-      v-model="checkoutVisible"
-      class="package-checkout-dialog"
-      :title="t('client.cart.checkoutDialog.title')"
-      width="min(560px, calc(100vw - 28px))"
-    >
-      <div v-if="view" class="checkout-dialog__scroll">
-        <div class="checkout-dialog__items">
-          <div>
-            <span>{{ view.title }}</span>
-            <strong>{{ formatAed(view.saleAmount) }}</strong>
-          </div>
-        </div>
-        <dl class="checkout-dialog__total">
-          <div>
-            <dt>{{ t('client.cart.subtotal') }}</dt>
-            <dd>{{ formatAed(view.saleAmount) }}</dd>
-          </div>
-          <div>
-            <dt>{{ t('client.cart.vat') }}</dt>
-            <dd>{{ formatAed(view.vat) }}</dd>
-          </div>
-          <div>
-            <dt>{{ t('client.cart.estimatedTotal') }}</dt>
-            <dd>{{ formatAed(view.total) }}</dd>
-          </div>
-        </dl>
-        <BookingPolicyDetails
-          class="checkout-dialog__policy"
-          compact
-          show-intro
-          :agreed="checkoutPolicyAgreed"
-          @update:agreed="checkoutPolicyAgreed = $event"
-          @read-policy="openLegal('terms')"
-        />
-      </div>
-      <template #footer>
-        <button class="dialog-secondary" type="button" @click="checkoutVisible = false">
-          {{ t('client.cart.checkoutDialog.cancel') }}
-        </button>
-        <button class="dialog-primary" type="button" :disabled="!checkoutPolicyAgreed || buying" @click="confirmCheckout">
-          {{ t('client.cart.checkoutDialog.confirm') }}
-        </button>
-      </template>
-    </el-dialog>
-    <StripePaymentModal
-      :visible="stripeVisible"
-      :client-secret="stripeClientSecret"
-      :customer-session-client-secret="stripeCustomerSessionClientSecret"
-      :locale="locale"
-      :subtotal="view?.saleAmount || 0"
-      :tax="view?.vat || 0"
-      :total="view?.total || 0"
-      @close="stripeVisible = false"
-      @error="handleStripeError"
-      @paid="handlePaymentSuccess"
-    />
-    <AgreementDialog v-model="legalDialogVisible" :doc-type="legalDocType" />
   </div>
 </template>
 
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
+import { bizTagLabels } from '@/modules/client/utils/biz-tag'
 import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { checkoutCart, packageDetail, type PackageCatalogCard } from '@/modules/client/api'
-import StripePaymentModal from '@/modules/client/components/StripePaymentModal.vue'
-import AgreementDialog from '@/modules/client/components/agreement-dialog.vue'
-import BookingPolicyDetails from '@/modules/client/components/booking-policy-details.vue'
+import 'element-plus/es/components/message/style/css'
+import { createPackageOrder, packageDetail, type PackageCatalogCard } from '@/modules/client/api'
 import { useCart } from '@/modules/client/composables/useCart'
-import type { LegalDocType } from '@/modules/client/constants/legal'
+import PackageDetailMobile from '@/modules/h5/components/PackageDetailMobile.vue'
 import { getStoredAuthSnapshot, clearStoredAuthState } from '@/utils/auth-state'
+
+const props = withDefaults(defineProps<{
+  platform?: 'client' | 'h5'
+}>(), {
+  platform: 'client',
+})
 
 const route = useRoute()
 const router = useRouter()
 const { t, locale } = useI18n({ useScope: 'global' })
-const { addPackage, removeItems } = useCart()
+const { addPackage, cartCount } = useCart({ initialize: false })
 const detail = ref<PackageCatalogCard | null>(null)
+const loading = ref(false)
 const missing = ref(false)
+let loadRequestSeq = 0
 const adding = ref(false)
 const buying = ref(false)
-const checkoutVisible = ref(false)
-const checkoutPolicyAgreed = ref(false)
-const stripeVisible = ref(false)
-const stripeClientSecret = ref('')
-const stripeCustomerSessionClientSecret = ref('')
-const legalDialogVisible = ref(false)
-const legalDocType = ref<LegalDocType>('terms')
-const checkedOutItemIds = ref<string[]>([])
-const checkoutSummary = ref({ orderNo: '', orderId: '', service: '', scheduled: '', amount: '' })
 const selectedImageIndex = ref(0)
-const busy = computed(() => adding.value || buying.value)
+type DetailTabKey = 'description' | 'includes' | 'notice' | 'reviews'
+const detailTabOrder: DetailTabKey[] = ['description', 'includes', 'notice', 'reviews']
+const activeDetailTab = ref<DetailTabKey>('description')
+const detailTabs = computed(() => [
+  { key: 'description' as const, label: t('client.productDetail.serviceDescription') },
+  { key: 'includes' as const, label: t('client.productDetail.includesTitle') },
+  { key: 'notice' as const, label: t('client.productDetail.noticeTitle') },
+  { key: 'reviews' as const, label: t('client.productDetail.reviewsTitle') },
+])
+const handleDetailTabKeydown = (event: KeyboardEvent, currentKey: DetailTabKey) => {
+  const currentIndex = detailTabOrder.indexOf(currentKey)
+  let nextIndex = currentIndex
+  if (event.key === 'ArrowRight') nextIndex = (currentIndex + 1) % detailTabOrder.length
+  else if (event.key === 'ArrowLeft') nextIndex = (currentIndex - 1 + detailTabOrder.length) % detailTabOrder.length
+  else if (event.key === 'Home') nextIndex = 0
+  else if (event.key === 'End') nextIndex = detailTabOrder.length - 1
+  else return
+  event.preventDefault()
+  const nextKey = detailTabOrder[nextIndex]
+  activeDetailTab.value = nextKey
+  const tabList = (event.currentTarget as HTMLElement).closest('[role="tablist"]')
+  tabList?.querySelector<HTMLButtonElement>(`#package-detail-tab-${nextKey}`)?.focus()
+}
+const busy = computed(() => loading.value || adding.value || buying.value)
+const routeNames = computed(() => props.platform === 'h5'
+  ? {
+      login: 'h5-login',
+      cart: 'h5-cart',
+      orderConfirm: 'h5-order-confirm',
+    }
+  : {
+      login: 'login',
+      cart: 'cart',
+      orderConfirm: 'order-confirm',
+    })
 
 const preferredLangs = () =>
   locale.value === 'zh' ? ['zh-CN', 'zh', 'en', 'en-US'] : ['en', 'en-US', 'zh-CN', 'zh']
@@ -358,6 +386,7 @@ const asHtml = (value: string) => {
 }
 
 const amount = (value: unknown) => {
+  if (value == null || (typeof value === 'string' && !value.trim())) return null
   const number = Number(value)
   return Number.isFinite(number) ? number : null
 }
@@ -369,14 +398,13 @@ const money = (value: number) =>
   }).format(value)
 
 const roundMoney = (value: number) => Math.round((value + Number.EPSILON) * 100) / 100
-
 const formatAed = (value: number) => `AED ${Number(value || 0).toFixed(2)}`
 
 const view = computed(() => {
   const card = detail.value
   if (!card) return null
   const sale = amount(card.salePrice)
-  if (sale == null) return null
+  if (sale == null || sale < 0) return null
   const original = amount(card.originalPrice)
   const saved = Math.max(0, amount(card.savedAmount) ?? (original != null ? original - sale : 0))
   const visits = Number(card.redeemTimes || 0)
@@ -384,6 +412,7 @@ const view = computed(() => {
   const vat = roundMoney(sale * 0.05)
   return {
     title: name,
+    tags: bizTagLabels(card.tags, locale.value),
     mark: Array.from(name)[0] || 'H',
     category: plainText(pickRaw(card.categoryNameI18n)),
     badge: visits > 0 ? t('client.home.packages.visits', { count: visits }) : '',
@@ -434,40 +463,54 @@ const showNextImage = () => {
 }
 
 const load = async (id: string) => {
+  const requestSeq = ++loadRequestSeq
+  loading.value = true
   missing.value = false
   detail.value = null
   selectedImageIndex.value = 0
+  activeDetailTab.value = 'description'
   if (!id) {
     missing.value = true
+    loading.value = false
     return
   }
   try {
     const card = await packageDetail(id)
+    if (requestSeq !== loadRequestSeq) return
     detail.value = card
-    missing.value = !card || amount(card.salePrice) == null
+    missing.value = !view.value
   } catch (error) {
+    if (requestSeq !== loadRequestSeq) return
     console.error('load package detail failed:', error)
     missing.value = true
+  } finally {
+    if (requestSeq === loadRequestSeq) loading.value = false
   }
+}
+
+const goBack = () => {
+  if (window.history.state?.back) router.back()
+  else void router.push({ name: props.platform === 'h5' ? 'h5-packages' : 'packages' })
 }
 
 const ensureLogin = async () => {
   const authSnapshot = getStoredAuthSnapshot()
   if (authSnapshot.isExpired) clearStoredAuthState()
   if (authSnapshot.isLoggedIn) return true
-  await router.push({ name: 'login', query: { redirect: route.fullPath } })
+  await router.push({ name: routeNames.value.login, query: { redirect: route.fullPath } })
   return false
 }
 
 const addToCart = async () => {
   const packageId = String(route.params.id || '').trim()
-  if (!packageId || busy.value) return
+  if (!packageId || !view.value || missing.value || busy.value) return
   if (!(await ensureLogin())) return
+  if (busy.value || !view.value || String(route.params.id || '').trim() !== packageId) return
   adding.value = true
   try {
     await addPackage(packageId)
     ElMessage.success(t('client.home.packages.added'))
-    await router.push({ name: 'cart' })
+    await router.push({ name: routeNames.value.cart })
   } catch (error: any) {
     ElMessage.error(error?.message || t('client.home.packages.addFailed'))
   } finally {
@@ -476,394 +519,75 @@ const addToCart = async () => {
 }
 
 const openCheckout = async () => {
-  if (!view.value || busy.value) return
-  if (!(await ensureLogin())) return
-  checkoutPolicyAgreed.value = false
-  checkoutVisible.value = true
-}
-
-const openLegal = (docType: LegalDocType) => {
-  legalDocType.value = docType
-  legalDialogVisible.value = true
-}
-
-const confirmCheckout = async () => {
   const packageId = String(route.params.id || '').trim()
-  if (!packageId || !view.value || !checkoutPolicyAgreed.value || buying.value) return
+  if (!packageId || !view.value || missing.value || busy.value) return
+  if (!(await ensureLogin())) return
+  if (busy.value || !view.value || String(route.params.id || '').trim() !== packageId) return
+  const selectedPackage = view.value
+  const titleI18n = detail.value?.nameI18n || {}
   buying.value = true
   try {
-    const cartItem = await addPackage(packageId)
-    const cartItemId = String(cartItem?.cartItemId || '').trim()
-    if (!cartItemId) {
+    const createdOrderId = await createPackageOrder(packageId)
+    if (!/^[1-9]\d*$/.test(String(createdOrderId ?? ''))) {
       throw new Error(t('client.productDetail.booking.createOrderFailed'))
     }
-    checkedOutItemIds.value = [cartItemId]
-    const result = await checkoutCart([cartItemId], 'STRIPE', window.location.href)
-    const payment = result?.payment
-    checkoutSummary.value = {
-      orderNo: (result?.orderNos || []).join(', '),
-      orderId: (result?.orderIds || []).join(', '),
-      service: view.value.title,
-      scheduled: t('client.home.packages.visitLater'),
-      amount: String(result?.totalAmount || view.value.total || ''),
-    }
-    const approvalUrl = String(payment?.approvalUrl || '').trim()
-    const clientSecret = String(payment?.clientSecret || '').trim()
-    if (approvalUrl) {
-      window.location.href = approvalUrl
-      return
-    }
-    if (!clientSecret) {
-      throw new Error(locale.value === 'zh' ? '未获取到支付参数' : 'Missing payment parameters')
-    }
-    checkoutVisible.value = false
-    stripeClientSecret.value = clientSecret
-    stripeCustomerSessionClientSecret.value = String(payment?.customerSessionClientSecret || '').trim()
-    stripeVisible.value = true
+    if (String(route.params.id || '').trim() !== packageId) return
+    await router.push({
+      name: routeNames.value.orderConfirm,
+      query: {
+        mode: 'package',
+        packageId,
+        orderId: String(createdOrderId),
+        title: selectedPackage.title,
+        titleI18n: JSON.stringify(titleI18n),
+        specSummary: t('client.home.packages.visitLater'),
+        imageUrls: JSON.stringify(selectedPackage.images),
+        subtotal: String(selectedPackage.saleAmount),
+        tax: String(selectedPackage.vat),
+        total: String(selectedPackage.total),
+      },
+    })
   } catch (error: any) {
-    checkedOutItemIds.value = []
     ElMessage.error(error?.message || t('client.productDetail.booking.createOrderFailed'))
   } finally {
     buying.value = false
   }
 }
 
-const handleStripeError = (message: string) => ElMessage.error(message)
-
-const handlePaymentSuccess = async () => {
-  stripeVisible.value = false
-  const completedIds = [...checkedOutItemIds.value]
-  checkedOutItemIds.value = []
-  try {
-    if (completedIds.length) await removeItems(completedIds)
-  } catch (error) {
-    console.warn('Payment succeeded but refreshing the cart failed:', error)
-  }
-  ElMessage.success(locale.value === 'zh' ? '支付成功' : 'Payment successful')
-  window.setTimeout(() => void router.push({ name: 'booking-success', query: checkoutSummary.value }), 2000)
-}
-
 watch(() => String(route.params.id || ''), load, { immediate: true })
 </script>
 
+<style scoped lang="scss" src="../styles/product-detail.scss"></style>
+
 <style scoped lang="scss">
-.product-detail-page {
-  min-height: 100%;
-  background:
-    radial-gradient(circle at 82% 4%, rgba(5, 21, 43, 0.05), transparent 28%),
-    linear-gradient(180deg, #f8fbff 0%, #f5f8fc 48%, #f7f9fc 100%);
-}
-
-.product-detail-subheader {
-  height: 58px;
-  background: rgba(255, 255, 255, 0.88);
-  border-top: 1px solid #eef2f7;
-  border-bottom: 1px solid #e7edf4;
-}
-
-.product-detail-container {
-  width: min(1480px, calc(100% - clamp(32px, 4vw, 72px)));
-  margin: 0 auto;
-}
-
-.product-detail-back {
-  height: 58px;
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  color: rgba(15, 23, 42, 0.78);
-  font-size: 14px;
-  font-weight: 650;
-}
-
-.product-detail-back__link {
-  color: #58708d;
-  font-weight: 700;
-  text-decoration: none;
-}
-
-.product-detail-back__separator {
-  color: #a4b1c2;
-}
-
-.product-detail-back__current {
-  color: rgba(15, 23, 42, 0.88);
-  font-weight: 700;
-}
-
-.product-detail-body {
-  padding: 22px 0 64px;
-}
-
-.product-detail-layout {
+.package-detail-state {
+  min-height: 320px;
   display: grid;
-  grid-template-columns: minmax(0, 1.55fr) minmax(400px, 0.82fr);
-  gap: clamp(20px, 2vw, 30px);
-  align-items: start;
+  align-content: center;
+  justify-items: center;
+  gap: 16px;
+  color: #61738a;
+  text-align: center;
 }
 
-.product-main {
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-}
-
-.product-gallery {
-  display: grid;
-  grid-template-columns: 76px minmax(0, 1fr);
-  gap: 14px;
-}
+.package-detail-state p { margin: 0; }
+.package-detail-state a { color: var(--hourx-brand); }
+.product-detail-back__link { text-decoration: none; }
 
 .product-gallery:not(:has(.product-gallery__thumbs)) {
   grid-template-columns: minmax(0, 1fr);
 }
 
-.product-gallery__thumbs {
-  display: flex;
-  flex-direction: column;
-  gap: 9px;
-  max-height: 430px;
-  overflow: auto;
-}
-
-.product-gallery__thumb {
-  flex: 0 0 76px;
-  width: 76px;
-  height: 76px;
-  padding: 0;
-  border: 2px solid #fff;
-  border-radius: 12px;
-  overflow: hidden;
-  background: #fff;
-  box-shadow: 0 4px 14px rgba(7, 27, 51, 0.08);
-  cursor: pointer;
-}
-
-.product-gallery__thumb img,
-.product-gallery__hero img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  display: block;
-}
-
 .product-gallery__hero.is-empty {
   display: grid;
   place-items: center;
-  background:
-    radial-gradient(120px 80px at 18% 18%, rgba(255, 244, 220, 0.7), transparent 70%),
-    linear-gradient(155deg, #1c334f 0%, #10233f 58%, #2a2118 100%);
+  background: var(--hourx-brand-soft);
 }
 
 .product-gallery__empty {
-  color: rgba(255, 248, 236, 0.88);
-  font-family: "Iowan Old Style", "Songti SC", "Noto Serif SC", Georgia, serif;
-  font-size: 72px;
-}
-
-.product-gallery__thumb--active {
-  border-color: var(--hourx-brand);
-  box-shadow: 0 0 0 2px rgba(5, 21, 43, 0.12);
-}
-
-.product-gallery__hero {
-  position: relative;
-  aspect-ratio: 16 / 9;
-  overflow: hidden;
-  border: 1px solid rgba(209, 219, 231, 0.8);
-  border-radius: 18px;
-  background: #e5e7eb;
-  box-shadow: 0 16px 40px rgba(7, 27, 51, 0.1);
-}
-
-.product-gallery__arrow {
-  position: absolute;
-  z-index: 2;
-  top: 50%;
-  width: 44px;
-  height: 44px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  border: 1px solid rgba(255, 255, 255, 0.58);
-  border-radius: 50%;
-  background: rgba(5, 21, 43, 0.7);
-  color: #fff;
-  transform: translateY(-50%);
-  cursor: pointer;
-}
-
-.product-gallery__arrow--prev { left: 16px; }
-.product-gallery__arrow--next { right: 16px; }
-
-.product-gallery__arrow svg {
-  width: 24px;
-  height: 24px;
-  fill: none;
-  stroke: currentColor;
-  stroke-width: 2.2;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-}
-
-.product-gallery__badge {
-  position: absolute;
-  top: 16px;
-  left: 16px;
-  height: 24px;
-  display: inline-flex;
-  align-items: center;
-  padding: 0 12px;
-  border-radius: 999px;
-  background: var(--hourx-brand);
-  color: #fff;
-  font-size: 11px;
-  font-weight: 800;
-}
-
-.product-gallery__dots {
-  position: absolute;
-  bottom: 14px;
-  left: 50%;
-  display: flex;
-  gap: 8px;
-  transform: translateX(-50%);
-}
-
-.product-gallery__dot {
-  width: 8px;
-  height: 8px;
-  padding: 0;
-  border: 1px solid rgba(255, 255, 255, 0.72);
-  border-radius: 50%;
-  background: rgba(255, 255, 255, 0.6);
-  cursor: pointer;
-}
-
-.product-gallery__dot--active {
-  width: 10px;
-  height: 10px;
-  border-color: #fff;
-  background: #fff;
-}
-
-.product-trust-strip {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  min-height: 54px;
-  border: 1px solid #e5ecf4;
-  border-radius: 14px;
-  background: rgba(255, 255, 255, 0.9);
-  box-shadow: 0 8px 24px rgba(7, 27, 51, 0.05);
-}
-
-.product-trust-strip__item {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 9px;
-  padding: 12px 14px;
-  color: #52647b;
-  font-size: 12px;
-  font-weight: 700;
-}
-
-.product-trust-strip__item + .product-trust-strip__item {
-  border-left: 1px solid #e9eef5;
-}
-
-.product-trust-strip__item svg {
-  width: 20px;
-  height: 20px;
-  flex: 0 0 auto;
-  fill: none;
-  stroke: var(--hourx-brand);
-  stroke-width: 1.9;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-}
-
-.product-card {
-  padding: 26px;
-  border: 1px solid #e6edf5;
-  border-radius: 18px;
-  background: #fff;
-  box-shadow: 0 10px 30px rgba(7, 27, 51, 0.055);
-}
-
-.product-card h2 {
-  margin: 0;
-  color: #10233e;
-  font-size: 18px;
-  font-weight: 850;
-}
-
-.product-info-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 14px;
-}
-
-.product-section-heading {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.product-section-heading > div > span {
-  display: block;
-  margin-bottom: 3px;
-  color: #7c8ba0;
-  font-size: 10px;
-  font-weight: 800;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-}
-
-.product-section-heading__icon {
-  width: 34px;
-  height: 34px;
-  display: inline-flex;
-  flex: 0 0 auto;
-  align-items: center;
-  justify-content: center;
-  border-radius: 10px;
-  background: var(--hourx-brand-soft);
   color: var(--hourx-brand);
-}
-
-.product-section-heading__icon svg {
-  width: 19px;
-  height: 19px;
-  fill: none;
-  stroke: currentColor;
-  stroke-width: 1.9;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-}
-
-.product-card__empty {
-  margin: 16px 0 0;
-  color: rgba(15, 23, 42, 0.35);
-}
-
-.product-rich-text {
-  margin-top: 18px;
-  color: #52647b;
-  font-size: 14px;
-  line-height: 1.72;
-  overflow-wrap: anywhere;
-}
-
-.product-rich-text :deep(p) {
-  margin: 6px 0;
-}
-
-.product-rich-text :deep(ul),
-.product-rich-text :deep(ol) {
-  margin: 10px 0 0;
-  padding-left: 19px;
+  font-size: 72px;
+  font-weight: 800;
 }
 
 .package-includes {
@@ -898,434 +622,27 @@ watch(() => String(route.params.id || ''), load, { immediate: true })
   font-style: normal;
 }
 
-.booking-side {
-  position: sticky;
-  top: 92px;
-}
+.booking-attach-item__meta { min-width: 0; }
 
-.booking-card {
-  overflow: hidden;
-  border: 1px solid #e2eaf3;
-  border-radius: 20px;
-  background: #fff;
-  box-shadow: 0 20px 52px rgba(7, 27, 51, 0.12);
-}
-
-.booking-card__hero {
-  padding: 26px 26px 22px;
-  border-bottom: 1px solid #e9eef5;
-  background:
-    radial-gradient(circle at 100% 0, rgba(5, 21, 43, 0.06), transparent 38%),
-    linear-gradient(180deg, #fff 0%, #fbfdff 100%);
-}
-
-.booking-card__eyebrow {
-  color: var(--hourx-brand);
-  font-size: 10px;
-  font-weight: 850;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-}
-
-.booking-card__hero h1 {
-  margin: 8px 0 0;
-  color: #071b33;
-  font-size: clamp(22px, 1.7vw, 26px);
-  font-weight: 900;
-  letter-spacing: -0.025em;
-  line-height: 1.2;
-}
-
-.booking-card__meta {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  margin-top: 13px;
-}
-
-.booking-card__rating {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.booking-card__rating strong {
-  color: var(--hourx-brand);
-  font-size: 12px;
-}
-
-.booking-card__rating small,
-.booking-card__trust {
-  color: #4c6279;
-  font-size: 11px;
-  font-weight: 700;
-}
-
-.booking-card__trust {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  white-space: nowrap;
-}
-
-.booking-card__trust svg,
-.booking-card__policy svg {
-  fill: none;
-  stroke: var(--hourx-brand);
-  stroke-width: 1.8;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-}
-
-.booking-card__trust svg {
-  width: 16px;
-  height: 16px;
-}
-
-.booking-card__section-heading,
-.booking-field,
-.booking-summary,
-.booking-actions {
-  padding-right: 26px;
-  padding-left: 26px;
-}
-
-.booking-card__section-heading {
-  padding-top: 22px;
-}
-
-.booking-card__section-heading h2 {
-  margin: 0;
-  color: #10233e;
-  font-size: 18px;
-  font-weight: 850;
-}
-
-.booking-card__section-heading p,
-.booking-card__empty {
-  margin: 5px 0 0;
-  color: #7a8ba0;
-  font-size: 12px;
-  line-height: 1.45;
-}
-
-.booking-card__empty {
-  margin: 18px 26px 0;
-}
-
-.booking-field {
-  margin-top: 18px;
-}
-
-.booking-attach-list {
-  display: flex;
-  flex-direction: column;
-  gap: 9px;
-}
-
-.booking-attach-item {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 8px;
-  padding: 11px 12px;
-  border: 1px solid #e0e8f1;
-  border-radius: 12px;
-  background: #fbfcfe;
-}
-
-.booking-attach-item__name {
-  display: block;
-  color: #1b3049;
-  font-size: 13px;
-  font-weight: 750;
-}
-
-.booking-attach-item__price,
 .package-times {
+  flex-shrink: 0;
   color: #73859a;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 600;
-}
-
-.package-times {
   white-space: nowrap;
 }
 
-.booking-summary {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  margin-top: 24px;
-  padding-top: 20px;
-  border-top: 1px solid #e9eef5;
+.package-price-per-visit {
+  margin: 8px 0 0;
+  color: #61738a;
+  font-size: 12px;
 }
 
-.booking-summary__caption {
-  margin-bottom: 4px;
-  color: #10233e;
-  font-size: 16px;
-  font-weight: 850;
+.package-includes strong,
+.package-includes small,
+.booking-attach-item__name,
+.booking-attach-item__price {
+  overflow-wrap: anywhere;
 }
 
-.booking-summary__row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  color: #66788e;
-  font-size: 13px;
-}
-
-.booking-summary__row > span {
-  display: flex;
-  min-width: 0;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.booking-summary__row > span small {
-  color: #91a0b2;
-  font-size: 11px;
-}
-
-.booking-summary__row > span small.is-original {
-  text-decoration: line-through;
-}
-
-.booking-summary__row strong {
-  color: rgba(15, 23, 42, 0.86);
-  font-size: 14px;
-  white-space: nowrap;
-}
-
-.booking-summary__row--tax span {
-  color: var(--hourx-brand);
-}
-
-.booking-summary__row--total {
-  margin-top: 6px;
-  padding-top: 14px;
-  border-top: 1px solid #e3eaf2;
-}
-
-.booking-summary__row--total span {
-  color: #10233e;
-  font-size: 17px;
-  font-weight: 800;
-}
-
-.booking-summary__row--total strong {
-  color: var(--hourx-brand);
-  font-size: 24px;
-  font-weight: 900;
-}
-
-.booking-actions {
-  display: grid;
-  gap: 9px;
-  margin-top: 20px;
-}
-
-.booking-add-cart,
-.booking-submit {
-  position: relative;
-  display: inline-flex;
-  width: 100%;
-  min-width: 0;
-  height: 50px;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  border-radius: 11px;
-  font-size: 14px;
-  font-weight: 800;
-  line-height: 1;
-  letter-spacing: 0.01em;
-  cursor: pointer;
-  transition:
-    transform 180ms ease,
-    border-color 180ms ease,
-    background-color 180ms ease,
-    box-shadow 180ms ease;
-}
-
-.booking-add-cart {
-  order: 2;
-  border: 1px solid #cbd7e4;
-  background: #fff;
-  color: #17314e;
-  box-shadow: none;
-}
-
-.booking-add-cart__icon {
-  width: 20px;
-  height: 20px;
-  flex: 0 0 auto;
-  fill: none;
-  stroke: currentColor;
-  stroke-width: 1.9;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-}
-
-.booking-submit {
-  order: 1;
-  gap: 10px;
-  border: 1px solid var(--hourx-brand);
-  background: linear-gradient(135deg, var(--hourx-brand-hover) 0%, var(--hourx-brand) 100%);
-  color: #fff;
-  box-shadow: 0 12px 24px rgba(5, 21, 43, 0.18);
-}
-
-.booking-add-cart:hover:not(:disabled) {
-  border-color: #93a7bd;
-  background: #f7fafd;
-  box-shadow: 0 8px 18px rgba(5, 21, 43, 0.12);
-  transform: translateY(-1px);
-}
-
-.booking-submit:hover:not(:disabled) {
-  box-shadow: 0 14px 28px rgba(5, 21, 43, 0.24);
-  transform: translateY(-1px);
-}
-
-.booking-add-cart:disabled,
-.booking-submit:disabled,
-.dialog-primary:disabled {
-  cursor: not-allowed;
-  opacity: 0.58;
-}
-
-.booking-submit svg {
-  width: 18px;
-  height: 18px;
-  fill: none;
-  stroke: currentColor;
-  stroke-width: 2;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-}
-
-.booking-card__policy {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 7px;
-  margin: 14px 26px 22px;
-  color: #7a8ba0;
-  font-size: 11px;
-  text-align: center;
-}
-
-.booking-card__policy svg {
-  width: 15px;
-  height: 15px;
-  stroke: #71849a;
-}
-
-.checkout-dialog__scroll {
-  max-height: min(68vh, 720px);
-  overflow-y: auto;
-  padding-right: 6px;
-}
-
-.checkout-dialog__items {
-  display: grid;
-  gap: 8px;
-  padding: 14px;
-  border-radius: 12px;
-  background: #f6f8fb;
-}
-
-.checkout-dialog__items > div,
-.checkout-dialog__total > div {
-  display: flex;
-  justify-content: space-between;
-  gap: 18px;
-  color: #48576c;
-  font-size: 13px;
-}
-
-.checkout-dialog__total {
-  display: grid;
-  gap: 9px;
-  margin: 18px 0 0;
-}
-
-.checkout-dialog__total dt,
-.checkout-dialog__total dd {
-  margin: 0;
-}
-
-.checkout-dialog__total > div:last-child {
-  padding-top: 10px;
-  border-top: 1px solid #e4e9f0;
-  color: #05152b;
-  font-size: 16px;
-  font-weight: 900;
-}
-
-.checkout-dialog__policy {
-  margin-top: 20px;
-  padding-top: 18px;
-  border-top: 1px solid #e5e7eb;
-}
-
-.dialog-primary,
-.dialog-secondary {
-  min-width: 120px;
-  height: 42px;
-  border-radius: 10px;
-  font: inherit;
-  font-weight: 800;
-  cursor: pointer;
-}
-
-.dialog-primary {
-  border: 1px solid #05152b;
-  background: #05152b;
-  color: #fff;
-}
-
-.dialog-secondary {
-  margin-right: 8px;
-  border: 1px solid #dbe2eb;
-  background: #fff;
-  color: #526176;
-}
-
-@media (max-width: 1180px) {
-  .product-detail-layout {
-    grid-template-columns: minmax(0, 1fr) clamp(350px, 35vw, 390px);
-  }
-}
-
-@media (max-width: 820px) {
-  .product-detail-layout,
-  .product-gallery,
-  .product-info-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .booking-side {
-    position: static;
-  }
-
-  .product-detail-container {
-    width: calc(100% - 32px);
-  }
-
-  .product-gallery__thumbs {
-    order: 2;
-    flex-direction: row;
-    max-height: none;
-  }
-
-  .product-gallery__hero {
-    height: clamp(220px, 52vw, 380px);
-    aspect-ratio: auto;
-  }
-}
 </style>

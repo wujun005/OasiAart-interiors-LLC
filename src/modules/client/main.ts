@@ -23,6 +23,8 @@ const getH5RedirectPath = () => {
     && path !== '/services/search'
     && path !== '/orders'
     && path !== '/orders/confirm'
+    && path !== '/packages'
+    && !path.startsWith('/packages/')
     && !path.startsWith('/services/detail/')
   ) {
     return '';
@@ -31,7 +33,7 @@ const getH5RedirectPath = () => {
   const isMobileUa = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini|Mobile/i.test(ua);
   const isNarrowViewport = window.innerWidth <= 768;
   if (!(isMobileUa || isNarrowViewport)) return '';
-  if (path.startsWith('/services/detail/')) {
+  if (path === '/packages' || path.startsWith('/packages/') || path.startsWith('/services/detail/')) {
     return `/h5/#${path}`;
   }
   if (path === '/login') {

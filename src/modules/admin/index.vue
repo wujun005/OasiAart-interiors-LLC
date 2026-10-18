@@ -58,6 +58,10 @@
       <el-container class="workspace">
         <el-header class="header">
           <div class="header-leading">
+            <div v-if="route.name === 'admin-supplier-orders-h5'" class="staff-mobile-brand" aria-label="HourX">
+              <img src="/assets/images/client/hourx-mark.svg" alt="" />
+              <strong>HourX</strong>
+            </div>
             <button
               v-if="!isOrdersH5"
               type="button"
@@ -270,6 +274,7 @@ import ReviewNoticeBell from '@/modules/admin/components/ReviewNoticeBell.vue';
 import SupplierIdentityCard from '@/modules/admin/components/SupplierIdentityCard.vue';
 import {
   adminMenuState,
+  isSupplierStaffOrdersOnly,
   loadAdminMenuPermissions,
   resetAdminMenuPermissions,
   resolveAllowedAdminPath,
@@ -283,8 +288,10 @@ import { DEFAULT_PHONE_DIAL, PHONE_DIAL_OPTIONS, joinPhone, splitPhone } from '@
 const route = useRoute();
 const refreshTick = ref(0);
 const contentKey = computed(() => `${route.matched[1]?.path || route.path}:${refreshTick.value}`);
-const isOrdersH5 = computed(() => route.name === 'admin-orders-h5');
+const isOrdersH5 = computed(() =>
+  route.name === 'admin-orders-h5' || route.name === 'admin-supplier-orders-h5');
 const isSupplierPortal = computed(() => route.path.startsWith('/admin/supplier-management'));
+const isStaffOrdersWorkspace = computed(() => isSupplierStaffOrdersOnly());
 const session = useAdminSessionStore();
 const router = useRouter();
 const { t, locale } = useI18n({ useScope: 'global' });
@@ -304,6 +311,7 @@ const supplierMenuOrder = [
   '/admin/supplier-management/coverage-availability',
   '/admin/supplier-management/orders',
   '/admin/supplier-management/pricing',
+  '/admin/supplier-management/staff',
 ];
 const menuTree = computed(() => {
   if (!isSupplierPortal.value) return adminMenuState.menus;
@@ -345,6 +353,7 @@ const activeMenu = computed(() => {
 });
 
 const pageTitle = computed(() => {
+  if (route.name === 'admin-supplier-orders-h5') return t('admin.layout.supplierOrders');
   if (route.path === '/admin/review-notices') return t('admin.reviewNotice.label');
   if (!activeMenu.value) return t('admin.layout.overview');
   const activeItem = menuByPath.value.get(activeMenu.value);
@@ -404,9 +413,9 @@ watch(isSupplierPortal, (supplierPortal) => {
 });
 
 watch(
-  () => [isSupplierPortal.value, session.me?.supplierId] as const,
-  ([supplierPortal, supplierId]) => {
-    if (!supplierPortal || !supplierId) return;
+  () => [isSupplierPortal.value, session.me?.supplierId, isOrdersH5.value, isStaffOrdersWorkspace.value] as const,
+  ([supplierPortal, supplierId, ordersH5, staffOrdersWorkspace]) => {
+    if (!supplierPortal || !supplierId || ordersH5 || staffOrdersWorkspace) return;
     session.supplierDetail(supplierId).catch((error) => {
       console.error('Failed to load supplier identity:', error);
     });
@@ -1272,6 +1281,22 @@ syncPasswordGate();
 
 .admin-page--orders-h5 .page-heading__eyebrow {
   display: none;
+}
+
+.staff-mobile-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  flex-shrink: 0;
+  color: #0c2038;
+  font-size: 15px;
+  letter-spacing: -0.04em;
+}
+
+.staff-mobile-brand img {
+  width: 25px;
+  height: 25px;
+  object-fit: contain;
 }
 
 .admin-page--orders-h5 .breadcrumb {

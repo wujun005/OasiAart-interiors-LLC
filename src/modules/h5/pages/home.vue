@@ -159,6 +159,8 @@
         </div>
       </section>
 
+      <PackageShowcase platform="h5" />
+
       <section v-if="featuredCards.length" class="h5-section h5-section--muted">
         <div class="h5-section__header">
           <h2>{{ t("client.home.sections.serviceCardsTitle") }}</h2>
@@ -432,6 +434,7 @@ import {
 import { useAuth } from "@/modules/h5/composables/useAuth"
 import { setClientLocale } from "@/modules/client/locales"
 import { useCart } from "@/modules/client/composables/useCart"
+import PackageShowcase from "@/modules/client/components/PackageShowcase.vue"
 
 type ServiceTile = {
   id: string

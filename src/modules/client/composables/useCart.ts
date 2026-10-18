@@ -225,8 +225,8 @@ const initializeCart = () => {
   void refreshCart();
 };
 
-export const useCart = () => {
-  initializeCart();
+export const useCart = (options: { initialize?: boolean } = {}) => {
+  if (options.initialize !== false) initializeCart();
 
   const selectedItems = computed(() => cartItems.value.filter((item) => item.selected));
   const cartCount = computed(() => cartItems.value.length);

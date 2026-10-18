@@ -21,6 +21,7 @@ export interface ExclusiveSpuRecord {
   descI18n?: Record<string, string>;
   minPrice?: number | string;
   minNotIncTaxPrice?: number | string | null;
+  tags?: Array<{ id?: number | string; name?: string; nameI18n?: Record<string, string> }>;
 }
 
 export interface PackageOrderItemRecord {
@@ -695,6 +696,7 @@ export interface PackageCatalogCard {
   categoryNameI18n?: Record<string, string>;
   serviceContentTextI18n?: Record<string, string>;
   bookingNoticeI18n?: Record<string, string>;
+  tags?: Array<{ id?: number | string; name?: string; nameI18n?: Record<string, string> }>;
   items?: PackageCatalogItem[];
 }
 
@@ -829,6 +831,11 @@ export function cancelOrder(params: { orderNo: string; cancelReason?: string }) 
 export async function createOrder(params: any) {
   const payload = await http.post('/client/order/place', params);
   return payload && typeof payload === 'object' && 'data' in payload ? payload.data : null;
+}
+
+// 套餐直购：只创建订单，支付沿用订单确认页，不经过购物车。
+export async function createPackageOrder(packageId: number | string) {
+  return getEnvelopeData<number | string>(await http.post('/client/order/placePackage', { packageId }));
 }
 
 // /client/order/getLatestAddress 获取最新地址

@@ -9,7 +9,10 @@
     </header>
 
     <main class="h5-order-main">
-      <section class="h5-order-card h5-order-card--address">
+      <section
+        v-if="!isPackageMode"
+        class="h5-order-card h5-order-card--address"
+      >
         <div class="h5-order-card__heading">
           <span class="h5-order-card__heading-icon" aria-hidden="true">
             <van-icon name="location-o" />
@@ -206,7 +209,26 @@
         </div>
       </section>
 
-      <section class="h5-order-card h5-order-card--time">
+      <section
+        v-if="isPackageMode"
+        class="h5-order-card h5-order-card--package-guide"
+      >
+        <span class="h5-order-card__heading-icon" aria-hidden="true">
+          <van-icon name="passed" />
+        </span>
+        <div>
+          <strong>{{ locale === "zh" ? "套餐购买说明" : "Package purchase" }}</strong>
+          <p>
+            {{
+              locale === "zh"
+                ? "套餐支付后可在订单中按次预约，届时选择服务地址和时间。"
+                : "After payment, book each included visit from Orders and choose the service address and time then."
+            }}
+          </p>
+        </div>
+      </section>
+
+      <section v-if="!isPackageMode" class="h5-order-card h5-order-card--time">
         <div class="h5-order-card__heading">
           <span class="h5-order-card__heading-icon" aria-hidden="true">
             <van-icon name="clock-o" />
@@ -266,7 +288,7 @@
         </p>
       </section>
 
-      <section class="h5-order-card h5-order-card--note">
+      <section v-if="!isPackageMode" class="h5-order-card h5-order-card--note">
         <div class="h5-order-card__heading">
           <span class="h5-order-card__heading-icon" aria-hidden="true">
             <van-icon name="notes-o" />
@@ -322,6 +344,7 @@
     </footer>
 
     <van-popup
+      v-if="!isPackageMode"
       v-model:show="addAddressPopupVisible"
       class="h5-add-address-popup"
       position="bottom"
@@ -533,6 +556,7 @@
     </van-popup>
 
     <van-calendar
+      v-if="!isPackageMode"
       v-model:show="serviceDateCalendarVisible"
       :title="t('client.orderConfirm.fields.serviceDate')"
       :min-date="serviceDateMinDate"
@@ -708,7 +732,17 @@ type StripeFactory = (
 const route = useRoute()
 const router = useRouter()
 const { t, locale } = useI18n({ useScope: "global" })
-const { addItem, refreshCart, removeItems } = useCart()
+const getQueryText = (key: string) => {
+  const raw = route.query[key]
+  if (Array.isArray(raw)) {
+    return typeof raw[0] === "string" ? raw[0].trim() : ""
+  }
+  return typeof raw === "string" ? raw.trim() : ""
+}
+const isPackageMode = computed(() => getQueryText("mode") === "package")
+const { addItem, refreshCart, removeItems } = useCart({
+  initialize: !isPackageMode.value,
+})
 
 const DEFAULT_COUNTRY_CODE = "+971"
 const COUNTRY_CODE_ENTRIES = [
@@ -1373,14 +1407,6 @@ const isFutureServiceSlot = (dateText: string, timeText: string): boolean => {
   return slotTimestamp >= bookingThreshold()
 }
 
-const getQueryText = (key: string) => {
-  const raw = route.query[key]
-  if (Array.isArray(raw)) {
-    return typeof raw[0] === "string" ? raw[0].trim() : ""
-  }
-  return typeof raw === "string" ? raw.trim() : ""
-}
-
 const parseQueryJson = <T,>(key: string, fallback: T): T => {
   const raw = getQueryText(key)
   if (!raw) {
@@ -1490,6 +1516,9 @@ const serviceTimePlaceholder = computed(() => {
 })
 
 const fetchAvailableTimes = async (force = false) => {
+  if (isPackageMode.value) {
+    return
+  }
   const serviceDate = normalizeText(form.serviceDate)
   const spuIdText = getQueryText("spuId")
   if (!serviceDate || !spuIdText) {
@@ -1536,6 +1565,9 @@ const handleServiceTimeOpen = async () => {
 watch(
   () => form.serviceDate,
   (value, oldValue) => {
+    if (isPackageMode.value) {
+      return
+    }
     if (value !== oldValue) {
       availableTimeRecords.value = []
       lastLoadedServiceDate.value = ""
@@ -1651,6 +1683,10 @@ const getQueryOrderId = (): number | null => {
 }
 
 const orderId = computed(() => getQueryOrderId())
+const packageId = computed(() => {
+  const numeric = Number(getQueryText("packageId"))
+  return Number.isSafeInteger(numeric) && numeric > 0 ? numeric : null
+})
 const isCartEditMode = computed(() => getQueryText("mode") === "cart-edit")
 const editingCartItemId = computed(() => getQueryText("cartItemId"))
 const isCartMode = computed(() =>
@@ -1895,18 +1931,21 @@ const handleStripeSuccess = async () => {
   await new Promise<void>((resolve) => {
     window.setTimeout(resolve, PAYMENT_STATUS_SYNC_DELAY_MS)
   })
-  try {
-    await refreshCart()
-  } catch (error) {
-    console.warn("Payment succeeded but refreshing the cart failed:", error)
+  if (!isPackageMode.value) {
+    try {
+      await refreshCart()
+    } catch (error) {
+      console.warn("Payment succeeded but refreshing the cart failed:", error)
+    }
   }
   await router.push({
     name: "h5-booking-success",
     query: {
-      orderId: String(route.query.orderId || ""),
+      orderId: String(orderId.value || ""),
       service: summaryTitle.value,
-      scheduled:
-        `${form.serviceDate} ${selectedTimeOption.value?.time || ""}`.trim(),
+      scheduled: isPackageMode.value
+        ? ""
+        : `${form.serviceDate} ${selectedTimeOption.value?.time || ""}`.trim(),
       amount: String(total.value),
     },
   })
@@ -2155,6 +2194,21 @@ const startStripePayment = async (targetOrderId: number) => {
 }
 
 const getValidationMessage = (): string => {
+  if (isPackageMode.value) {
+    if (packageId.value === null) {
+      return locale.value === "zh"
+        ? "套餐参数无效，请返回套餐详情后重试"
+        : "Invalid package. Return to the package details and try again."
+    }
+    if (
+      orderId.value === null ||
+      !Number.isSafeInteger(orderId.value) ||
+      orderId.value <= 0
+    ) {
+      return t("client.orderConfirm.validation.orderIdMissing")
+    }
+    return ""
+  }
   if (!isCartMode.value && orderId.value === null) {
     return t("client.orderConfirm.validation.orderIdMissing")
   }
@@ -2200,6 +2254,13 @@ const getValidationMessage = (): string => {
 }
 
 const goBack = () => {
+  if (isPackageMode.value && packageId.value !== null) {
+    router.push({
+      name: "h5-package-detail",
+      params: { id: String(packageId.value) },
+    })
+    return
+  }
   const spuId = getQueryText("spuId")
   if (spuId) {
     router.push({
@@ -2219,6 +2280,30 @@ const goBack = () => {
 
 const submitBooking = async () => {
   if (isSubmitting.value) {
+    return
+  }
+
+  if (isPackageMode.value) {
+    const validationMessage = getValidationMessage()
+    if (validationMessage) {
+      showFailToast(validationMessage)
+      return
+    }
+    if (!agreedPolicy.value) {
+      showFailToast(t("client.orderConfirm.validation.policy"))
+      return
+    }
+
+    isSubmitting.value = true
+    try {
+      policyPopupVisible.value = false
+      await startStripePayment(orderId.value as number)
+    } catch (error: any) {
+      console.error("create package payment failed:", error)
+      showFailToast(error?.message || "Payment request failed")
+    } finally {
+      isSubmitting.value = false
+    }
     return
   }
 
@@ -2325,6 +2410,9 @@ const confirmPolicyAndContinue = async () => {
 }
 
 onMounted(async () => {
+  if (isPackageMode.value) {
+    return
+  }
   let preferredAddressId: number | null = null
   if (isCartEditMode.value && editingCartItemId.value) {
     try {
@@ -2415,6 +2503,34 @@ onMounted(async () => {
 
 .h5-order-card--summary {
   padding-top: 16px;
+}
+
+.h5-order-card--package-guide {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  background: #f2fbf8;
+  border-color: #cfece4;
+}
+
+.h5-order-card--package-guide .h5-order-card__heading-icon {
+  background: #dff5ef;
+  color: #177966;
+}
+
+.h5-order-card--package-guide strong {
+  display: block;
+  color: #173b34;
+  font-size: 14px;
+  line-height: 1.4;
+  font-weight: 800;
+}
+
+.h5-order-card--package-guide p {
+  margin: 4px 0 0;
+  color: #4e6e67;
+  font-size: 12px;
+  line-height: 1.6;
 }
 
 .h5-order-card__heading {

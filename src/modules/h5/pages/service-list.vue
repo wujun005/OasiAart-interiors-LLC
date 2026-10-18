@@ -86,6 +86,9 @@
             </div>
             <div class="h5-service-card__content">
               <h4>{{ item.title }}</h4>
+              <div v-if="item.tags.length" class="biz-tags">
+                <span v-for="tag in item.tags" :key="tag">{{ tag }}</span>
+              </div>
               <p>{{ item.price }}</p>
             </div>
             <button type="button" @click.stop="goProductDetail(item.spuId)">
@@ -103,6 +106,7 @@
 
 <script setup lang="ts">
 import { computed, ref, watch } from "vue"
+import { bizTagLabels } from "@/modules/client/utils/biz-tag"
 import { useI18n } from "vue-i18n"
 import { useRoute, useRouter, type LocationQueryValue } from "vue-router"
 import {
@@ -120,6 +124,7 @@ type ServiceCardView = {
   title: string
   price: string
   icon: string
+  tags: string[]
 }
 
 const tagIconCertified = new URL(
@@ -309,6 +314,7 @@ const serviceCards = computed<ServiceCardView[]>(() => {
       title: pickI18nValue(item.nameI18n, ""),
       price: formatPrice(item.minNotIncTaxPrice),
       icon: item.imageUrls?.[0] || cardIconSet[index % cardIconSet.length],
+      tags: bizTagLabels(item.tags, locale.value),
     }))
     .filter((item) => item.title)
 })
@@ -709,6 +715,22 @@ const goProductDetail = (spuId: string) => {
   object-fit: contain;
 }
 
+.biz-tags {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 4px;
+  margin-top: 4px;
+}
+.biz-tags span {
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: #f6f1e7;
+  color: #6d5428;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1.5;
+}
 .h5-service-card__content h4 {
   margin: 0;
   color: #0f172a;

@@ -197,10 +197,10 @@ const unwrap = (payload: any) => (
   payload && typeof payload === 'object' && 'data' in payload ? payload.data : payload
 );
 
-const currentUserIsSuperAdmin = async () => {
+const currentUserRoleCodes = async () => {
   const me = await useAdminSessionStore().currentUser();
   const userId = Number(me?.id || 0);
-  if (!userId) return false;
+  if (!userId) return [] as string[];
   const [roleRes, mineRes] = await Promise.all([
     listEnabledRoles(),
     getAdminUserRoleIds(userId),
@@ -208,9 +208,10 @@ const currentUserIsSuperAdmin = async () => {
   const roles = unwrap(roleRes);
   const mine = unwrap(mineRes);
   const mineIds = new Set((Array.isArray(mine) ? mine : []).map((id: number) => Number(id)));
-  return (Array.isArray(roles) ? roles : []).some(
-    (role: { id?: number; code?: string }) => mineIds.has(Number(role.id)) && role.code === 'SUPER_ADMIN',
-  );
+  return (Array.isArray(roles) ? roles : [])
+    .filter((role: { id?: number; code?: string }) => mineIds.has(Number(role.id)))
+    .map((role: { code?: string }) => String(role.code || ''))
+    .filter(Boolean);
 };
 
 const hasOverviewLeaf = (nodes: AdminMenuPermissionItem[]): boolean =>
@@ -259,6 +260,22 @@ const packageListMenu = (parentId: number | string): AdminMenuPermissionItem => 
   sortOrder: 2,
   children: [],
 });
+
+const pinSupplierStaffMenu = (roots: AdminMenuPermissionItem[]) => {
+  const staffPath = `${SUPPLIER_PATH}/staff`;
+  if (hasMenuPath(roots, staffPath)) return;
+  const parent = findMenuByPath(roots, SUPPLIER_PATH);
+  if (!parent) return;
+  parent.children.push({
+    id: 'supplier-staff',
+    name: '员工管理',
+    path: staffPath,
+    icon: 'userfilled',
+    parentId: parent.id,
+    sortOrder: 6,
+    children: [],
+  });
+};
 
 const pinPackageMenu = (roots: AdminMenuPermissionItem[]) => {
   if (hasMenuPath(roots, PACKAGE_LIST_PATH)) return;
@@ -327,7 +344,7 @@ const pinSuperAdminOverview = (roots: AdminMenuPermissionItem[]) => {
   }
 };
 
-const hydrateMenuState = (list: RawMenuItem[], pinOverview = false) => {
+const hydrateMenuState = (list: RawMenuItem[], pinOverview = false, pinStaff = false) => {
   const rawFlatItems = flattenRawMenus(list);
   const nodeMap = new Map<string, AdminMenuPermissionItem>();
 
@@ -396,6 +413,8 @@ const hydrateMenuState = (list: RawMenuItem[], pinOverview = false) => {
   const prunedRoots = pruneMenus(roots);
   sortMenus(prunedRoots);
   pinPackageMenu(prunedRoots);
+  if (pinStaff) pinSupplierStaffMenu(prunedRoots);
+  if (pinStaff) sortMenus(prunedRoots);
 
   const flat = flattenMenus(prunedRoots, []);
   const allowedPaths = Array.from(
@@ -460,14 +479,18 @@ export const loadAdminMenuPermissions = async (force = false) => {
   const task = (async () => {
     const res = await getCurrentUserRoles();
     if (version !== loadVersion) return;
-    let pinOverview = false;
+    let roleCodes: string[] = [];
     try {
-      pinOverview = await currentUserIsSuperAdmin();
+      roleCodes = await currentUserRoleCodes();
     } catch (error) {
-      console.error('Failed to resolve super admin role for the overview menu:', error);
+      console.error('Failed to resolve the current account roles for the menu:', error);
     }
     if (version !== loadVersion) return;
-    hydrateMenuState(parseMenuList(res), pinOverview);
+    hydrateMenuState(
+      parseMenuList(res),
+      roleCodes.includes('SUPER_ADMIN'),
+      roleCodes.includes('SUPPLIER'),
+    );
     adminMenuState.lastToken = token;
     adminMenuState.loaded = true;
   })()
@@ -490,8 +513,29 @@ export const loadAdminMenuPermissions = async (force = false) => {
   return adminMenuState;
 };
 
+const SUPPLIER_OWNER_PATHS = [
+  `${SUPPLIER_PATH}/overview`,
+  `${SUPPLIER_PATH}/profile`,
+  `${SUPPLIER_PATH}/pricing`,
+  `${SUPPLIER_PATH}/staff`,
+  SUPPLIER_COVERAGE_PATH,
+];
+
 export const getFirstAllowedAdminPath = () =>
   adminMenuState.firstPath || ROOT_PATH;
+
+/** 纯员工子账号只有工作台父菜单和订单，没有资料、报价、区域或平台菜单。 */
+export const isSupplierStaffOrdersOnly = () => {
+  const allowed = adminMenuState.allowedPaths;
+  const inSupplier = allowed.some(
+    (path) => path === SUPPLIER_PATH || path.startsWith(`${SUPPLIER_PATH}/`),
+  );
+  if (!inSupplier) return false;
+  if (SUPPLIER_OWNER_PATHS.some((path) => allowed.includes(path))) return false;
+  return allowed.every(
+    (path) => path === ROOT_PATH || path === SUPPLIER_PATH || path.startsWith(`${SUPPLIER_PATH}/`),
+  );
+};
 
 export const resolveAllowedAdminPath = (path: string) => {
   const normalized = normalizePath(path);

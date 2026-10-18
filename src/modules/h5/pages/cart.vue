@@ -343,7 +343,10 @@ const cartBookingRoute = (item: CartItem) => {
   };
 };
 const goDetails = (item: CartItem) => {
-  if (item.packageId) return;
+  if (item.packageId) {
+    void router.push({ name: 'h5-package-detail', params: { id: item.packageId } });
+    return;
+  }
   void router.push(cartBookingRoute(item));
 };
 

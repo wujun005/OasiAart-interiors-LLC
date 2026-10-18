@@ -87,6 +87,7 @@
 .portal-pricing-header, .portal-quote-header { display: flex; align-items: center; justify-content: space-between; gap: 20px; min-width: 0; }
 .portal-pricing-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; }
 .quote-file-input { display: none; }
+.staff-account-hint { margin: 14px 0 0; color: #677487; font-size: 13px; line-height: 1.6; }
 .portal-pricing-header h1, .portal-quote-header h1 { color: #102338; margin: 8px 0; }
 .portal-pricing-header p, .portal-quote-header p { max-width: 800px; margin: 0; color: #7c838c; font-size: 12px; line-height: 1.7; }
 .portal-quote-header > div { min-width: 0; }
