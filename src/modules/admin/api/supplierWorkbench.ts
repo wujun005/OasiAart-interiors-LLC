@@ -115,6 +115,20 @@ export function reviewQuotePriceChange(payload: { supplierId: number; spuId: num
   return http.post('/api/platform/supplierQuote/priceChange/review', payload);
 }
 
+export function exportPlatformQuoteSheet(supplierId: number) {
+  return http.get('/api/platform/supplierQuote/quotes/export', {
+    params: { supplierId },
+    responseType: 'blob',
+  });
+}
+
+export function importPlatformQuoteSheet(supplierId: number, file: File) {
+  const body = new FormData();
+  body.append('supplierId', String(supplierId));
+  body.append('file', file);
+  return http.post('/api/platform/supplierQuote/quotes/import', body);
+}
+
 export function serviceAreaList(payload: Record<string, unknown> = { status: 1 }) {
   return http.post('/api/platform/serviceArea/list', payload);
 }

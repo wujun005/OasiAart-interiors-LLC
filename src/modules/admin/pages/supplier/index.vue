@@ -285,10 +285,21 @@
           <div v-else-if="detailTab === 'quotes'" class="tab-panel">
             <section class="panel">
               <div class="panel-head">
-                <h3>{{ t('admin.platformSuppliers.services') }}</h3>
-                <button type="button" class="act" :disabled="exportingPrices || !services.length" @click="exportPriceList">
-                  {{ exportingPrices ? t('admin.platformSuppliers.exportingPrices') : t('admin.platformSuppliers.exportPrices') }}
-                </button>
+                <div>
+                  <h3>{{ t('admin.platformSuppliers.services') }}</h3>
+                  <p class="quote-sheet-hint">{{ t('admin.platformSuppliers.quoteSheetHint') }}</p>
+                </div>
+                <div class="panel-actions">
+                  <button type="button" class="act" :disabled="quoteExporting || !detailId" @click="downloadQuoteSheet">
+                    {{ quoteExporting ? t('admin.platformSuppliers.exportingQuotes') : t('admin.platformSuppliers.exportQuoteSheet') }}
+                  </button>
+                  <button type="button" class="act navy" :disabled="quoteImporting || !detailId" @click="quoteFileInput?.click()">
+                    {{ quoteImporting ? t('admin.platformSuppliers.importingQuotes') : t('admin.platformSuppliers.importQuoteSheet') }}
+                  </button>
+                  <button type="button" class="act" :disabled="exportingPrices || !services.length" @click="exportPriceList">
+                    {{ exportingPrices ? t('admin.platformSuppliers.exportingPrices') : t('admin.platformSuppliers.exportPrices') }}
+                  </button>
+                </div>
               </div>
               <p v-if="!services.length" class="muted">{{ t('admin.platformSuppliers.noServicesHint') }}</p>
               <div v-if="!services.length && expectedServiceNames.length" class="category-tags">
@@ -362,7 +373,15 @@
                 <span v-if="skuRejectReason"> · {{ skuRejectReason }}</span>
               </p>
             </div>
-            <span class="status-pill" :class="statusClass(skuStatus)">{{ quoteStatusLabel(skuStatus, skuStatusI18n) }}</span>
+            <div class="quote-head__actions">
+              <button type="button" class="act" :disabled="quoteExporting || !detailId" @click="downloadQuoteSheet">
+                {{ quoteExporting ? t('admin.platformSuppliers.exportingQuotes') : t('admin.platformSuppliers.exportQuoteSheet') }}
+              </button>
+              <button type="button" class="act navy" :disabled="quoteImporting || !detailId" @click="quoteFileInput?.click()">
+                {{ quoteImporting ? t('admin.platformSuppliers.importingQuotes') : t('admin.platformSuppliers.importQuoteSheet') }}
+              </button>
+              <span class="status-pill" :class="statusClass(skuStatus)">{{ quoteStatusLabel(skuStatus, skuStatusI18n) }}</span>
+            </div>
           </header>
           <section v-if="hourlyQuoteReview" v-loading="skuLoading" class="hourly-review">
             <div>
@@ -456,6 +475,14 @@
     </el-dialog>
 
 
+    <input
+      ref="quoteFileInput"
+      class="quote-file-input"
+      type="file"
+      accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+      @change="importQuoteFile"
+    />
+
     <el-dialog v-model="rejectOpen" :title="t('admin.platformSuppliers.rejectOnboarding')" width="460px" append-to-body>
       <el-input v-model="rejectReason" type="textarea" :rows="4" maxlength="500" show-word-limit :placeholder="t('admin.platformSuppliers.reasonPlaceholder')" />
       <template #footer>
@@ -488,7 +515,7 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import { useI18n } from 'vue-i18n'
 import { listBySpu, listSpuAttachCatalog } from '@/modules/admin/api/spu'
 import { pickI18nText } from '@/modules/admin/utils/i18n'
@@ -502,6 +529,8 @@ import {
   reviewQuotePriceChange,
   platformSupplierQuoteServices,
   platformSupplierQuoteSkus,
+  exportPlatformQuoteSheet,
+  importPlatformQuoteSheet,
   serviceCatalog,
 } from '@/modules/admin/api/supplierWorkbench'
 
@@ -563,6 +592,9 @@ const waitingCount = ref(0)
 const detailLoading = ref(false)
 const saving = ref(false)
 const exportingPrices = ref(false)
+const quoteExporting = ref(false)
+const quoteImporting = ref(false)
+const quoteFileInput = ref<HTMLInputElement | null>(null)
 const current = ref<SupplierRow | null>(null)
 const profile = reactive<Record<string, any>>({})
 const services = ref<any[]>([])
@@ -1520,6 +1552,87 @@ const exportPriceList = async () => {
   }
 }
 
+const quoteSheetName = () => {
+  const now = new Date()
+  const pad = (value: number) => String(value).padStart(2, '0')
+  const stamp = `${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}_${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`
+  const supplierNo = String(current.value?.supplierNo || profile.supplierNo || detailId.value || '').trim()
+  return `supplier-quote_${supplierNo}_${stamp}.xlsx`
+}
+
+const downloadQuoteSheet = async () => {
+  if (!detailId.value || quoteExporting.value) return
+  quoteExporting.value = true
+  try {
+    const data = await exportPlatformQuoteSheet(detailId.value)
+    const blob = data instanceof Blob ? data : new Blob([data as BlobPart])
+    if (blob.type.includes('json') || blob.type.startsWith('text/')) {
+      const text = await blob.text()
+      let message = text
+      try {
+        const parsed = JSON.parse(text)
+        message = String(parsed?.message || parsed?.msg || text)
+      } catch {
+        message = text
+      }
+      throw new Error(message)
+    }
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = quoteSheetName()
+    link.click()
+    URL.revokeObjectURL(url)
+  } catch (error: any) {
+    ElMessage.error(error?.message || t('admin.platformSuppliers.exportQuoteFailed'))
+  } finally {
+    quoteExporting.value = false
+  }
+}
+
+const importQuoteFile = async (event: Event) => {
+  const input = event.target as HTMLInputElement | null
+  const file = input?.files?.[0]
+  if (input) input.value = ''
+  if (!file || !detailId.value || quoteImporting.value) return
+  if (!file.name.toLowerCase().endsWith('.xlsx')) {
+    ElMessage.warning(t('admin.platformSuppliers.quoteFileType'))
+    return
+  }
+  quoteImporting.value = true
+  try {
+    const result = unwrap(await importPlatformQuoteSheet(detailId.value, file)) as {
+      serviceCount?: number
+      skuCount?: number
+      skippedCount?: number
+      messages?: string[]
+    }
+    if (screen.value === 'quote') await refreshCurrentQuote()
+    else await loadReview(detailId.value)
+    const summary = t('admin.platformSuppliers.importDone', {
+      services: result?.serviceCount ?? 0,
+      skus: result?.skuCount ?? 0,
+      skipped: result?.skippedCount ?? 0,
+    })
+    const notes = Array.isArray(result?.messages)
+      ? result.messages.map((item) => String(item || '').trim()).filter(Boolean)
+      : []
+    if (notes.length) {
+      await ElMessageBox.alert(
+        [summary, ...notes].join('\n'),
+        t('admin.platformSuppliers.importResult'),
+        { confirmButtonText: t('admin.platformSuppliers.importClose') },
+      )
+    } else {
+      ElMessage.success(summary)
+    }
+  } catch (error: any) {
+    ElMessage.error(error?.message || t('admin.platformSuppliers.importFailed'))
+  } finally {
+    quoteImporting.value = false
+  }
+}
+
 const openSkus = async (row: any) => {
   if (!detailId.value) return
   skuTarget.value = row
@@ -1736,8 +1849,12 @@ onMounted(loadSuppliers)
 .split { grid-template-columns: 1fr 1fr; }
 .tab-panel { display: flex; flex-direction: column; gap: 12px; }
 .panel h3 { margin: 0 0 12px; color: #05152b; font-size: 16px; }
-.panel-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
+.panel-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
 .panel-head h3 { margin: 0; }
+.panel-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; }
+.quote-sheet-hint { margin: 6px 0 0; color: #6d7686; font-size: 12px; line-height: 1.5; }
+.quote-file-input { display: none; }
+.quote-head__actions { display: flex; align-items: center; flex-wrap: wrap; justify-content: flex-end; gap: 8px; }
 .kv { display: grid; grid-template-columns: 1fr 1fr; gap: 12px 16px; margin: 0; }
 .kv .span-all { grid-column: 1 / -1; }
 .community-picks { display: flex; flex-wrap: wrap; gap: 8px; }
