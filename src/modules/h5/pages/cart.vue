@@ -336,6 +336,9 @@ const cartBookingRoute = (item: CartItem) => {
       specSummary: itemSpec(item),
       selectedSpecValueIds: JSON.stringify(item.selectedSpecValueIds || []),
       specValueNameI18n: JSON.stringify(item.specValueNameI18n || {}),
+      ...(item.attachSelections?.length
+        ? { attachSelections: JSON.stringify(item.attachSelections) }
+        : {}),
       subtotal: subtotal.toFixed(2),
       tax: (total - subtotal).toFixed(2),
       total: total.toFixed(2),

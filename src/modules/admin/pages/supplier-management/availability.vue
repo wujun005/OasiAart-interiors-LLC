@@ -1,18 +1,24 @@
 <template>
   <div class="availability" v-loading="loading">
-    <section class="availability-control" :class="{ 'is-off': !accepting }">
+    <section class="availability-control" :class="{ 'is-off': !dispatchActive }">
       <div class="availability-control__copy">
         <span class="availability-control__kicker">{{ copy.workspace }}</span>
-        <h2>{{ copy.acceptingNewJobs }}</h2>
-        <p>{{ accepting ? t('admin.supplierAvailability.acceptingHint') : t('admin.supplierAvailability.pausedHint') }}</p>
-        <p v-if="!enabled" class="availability-control__note">{{ t('admin.supplierAvailability.accountOff') }}</p>
+        <h2>{{ t('admin.supplierAvailability.manageHint') }}</h2>
+        <div class="availability-facts">
+          <em>{{ verificationLabel }}</em>
+          <em>{{ t('admin.supplierAvailability.acceptJobs') }} · {{ accepting ? t('admin.supplierAvailability.preferenceOn') : t('admin.supplierAvailability.preferenceOff') }}</em>
+          <em>{{ t('admin.supplierAvailability.preference') }} · {{ accepting ? t('admin.supplierAvailability.preferenceOn') : t('admin.supplierAvailability.preferenceOff') }}</em>
+        </div>
+        <p v-if="!dispatchActive">{{ t('admin.supplierAvailability.dispatchLater') }}</p>
+        <p v-if="!dispatchActive" class="availability-control__note">{{ t('admin.supplierAvailability.preferenceSaved') }}</p>
+        <p v-else-if="!enabled" class="availability-control__note">{{ t('admin.supplierAvailability.accountOff') }}</p>
       </div>
       <div class="availability-control__action">
         <div class="availability-state" role="status">
           <span class="availability-state__mark" aria-hidden="true"></span>
           <span>
-            <strong>{{ accepting ? t('admin.supplierAvailability.available') : t('admin.supplierAvailability.unavailable') }}</strong>
-            <small>{{ accepting ? t('admin.supplierAvailability.availableHint') : t('admin.supplierAvailability.unavailableHint') }}</small>
+            <strong>{{ t('admin.supplierAvailability.acceptJobs') }}</strong>
+            <small>{{ eligibilityLabel }}</small>
           </span>
         </div>
         <el-switch
@@ -64,39 +70,12 @@
           <p>{{ t('admin.supplierArea.noneBody') }}</p>
         </div>
       </section>
-
-      <section class="workspace-card schedule-card">
-        <header class="workspace-card__header">
-          <div>
-            <span class="workspace-card__index">02</span>
-            <div>
-              <h2>{{ copy.defaultSchedule }}</h2>
-              <p>{{ t('admin.supplierAvailability.hoursHint') }}</p>
-            </div>
-          </div>
-          <el-button @click="openHours">{{ copy.editSchedule }}</el-button>
-        </header>
-        <div class="schedule-summary">
-          <article>
-            <span>{{ t('admin.supplierAvailability.workingDays') }}</span>
-            <strong>{{ workingDaysText }}</strong>
-          </article>
-          <article>
-            <span>{{ t('admin.supplierAvailability.workingHours') }}</span>
-            <strong>{{ hourText }}</strong>
-          </article>
-          <article class="schedule-summary__capacity">
-            <span>{{ t('admin.supplierAvailability.maxJobs') }}</span>
-            <strong>{{ t('admin.supplierAvailability.jobsValue', { count: concurrent }) }}</strong>
-          </article>
-        </div>
-      </section>
     </div>
 
     <section class="workspace-card blocked-card">
       <header class="workspace-card__header blocked-card__header">
         <div>
-          <span class="workspace-card__index">03</span>
+          <span class="workspace-card__index">02</span>
           <div>
             <h2>{{ copy.blockedTime }}</h2>
             <p>{{ t('admin.supplierAvailability.blockHint') }}</p>
@@ -110,7 +89,10 @@
       </header>
       <el-table :data="events" class="avail-table" row-key="id" :empty-text="loadError ? t('admin.supplierAvailability.loadFailed') : t('admin.supplierAvailability.empty')">
         <el-table-column :label="t('admin.supplierAvailability.date')" min-width="138">
-          <template #default="{ row }">{{ eventDate(row) }}</template>
+          <template #default="{ row }">
+            <strong v-if="weeklyClosureText(row)">{{ weeklyClosureText(row) }}</strong>
+            <span>{{ eventDate(row) }}</span>
+          </template>
         </el-table-column>
         <el-table-column :label="t('admin.supplierAvailability.time')" min-width="104">
           <template #default="{ row }">{{ eventTime(row) }}</template>
@@ -148,8 +130,8 @@
         <article v-for="row in events" :key="`compact-${row.id}`">
           <header>
             <span>
-              <strong>{{ eventDate(row) }}</strong>
-              <small>{{ eventTime(row) }} · {{ weekdayText(row) }}</small>
+              <strong>{{ weeklyClosureText(row) || eventDate(row) }}</strong>
+              <small>{{ eventTime(row) }} · {{ weekdayText(row) }}<template v-if="weeklyClosureText(row)"> · {{ eventDate(row) }}</template></small>
             </span>
             <el-button link type="primary" @click="openBlock(row)">{{ t('admin.supplierAvailability.edit') }}</el-button>
           </header>
@@ -246,41 +228,6 @@
       </template>
     </el-dialog>
 
-    <el-dialog v-model="hoursOpen" :title="t('admin.supplierAvailability.hoursTitle')" width="min(520px, calc(100vw - 32px))" :close-on-click-modal="false">
-      <div class="hours-form">
-        <label>
-          <span>{{ t('admin.supplierAvailability.workingHours') }}</span>
-          <div class="hours-form__range">
-            <el-time-select v-model="draft.start" start="06:00" step="00:30" end="23:00" />
-            <em>–</em>
-            <el-time-select v-model="draft.end" start="06:00" step="00:30" end="23:30" />
-          </div>
-        </label>
-        <label>
-          <span>{{ t('admin.supplierAvailability.maxJobs') }}</span>
-          <el-input-number v-model="draft.concurrent" :min="0" :precision="0" controls-position="right" />
-        </label>
-        <label class="hours-form__switch">
-          <span>
-            <strong>{{ t('admin.supplierAvailability.saturday') }}</strong>
-            <small>{{ t('admin.supplierAvailability.saturdayHint') }}</small>
-          </span>
-          <el-switch v-model="draft.saturday" />
-        </label>
-        <label class="hours-form__switch">
-          <span>
-            <strong>{{ t('admin.supplierAvailability.sunday') }}</strong>
-            <small>{{ t('admin.supplierAvailability.sundayHint') }}</small>
-          </span>
-          <el-switch v-model="draft.sunday" />
-        </label>
-      </div>
-      <template #footer>
-        <el-button @click="hoursOpen = false">{{ t('admin.supplierAvailability.cancel') }}</el-button>
-        <el-button type="primary" :loading="saving" @click="saveHours">{{ t('admin.supplierAvailability.save') }}</el-button>
-      </template>
-    </el-dialog>
-
     <el-dialog v-model="calendarOpen" :title="t('admin.supplierAvailability.calendarTitle')" width="min(720px, calc(100vw - 32px))">
       <p class="cal-hint">{{ t('admin.supplierAvailability.calendarHint') }}</p>
       <div class="cal-nav">
@@ -326,6 +273,7 @@ import {
   updateAvailabilityScopeSelection,
   type AvailabilityScopeValue,
 } from '@/modules/admin/utils/availabilityScope'
+import { dispatchEligibility } from '@/modules/admin/utils/supplierReviewState'
 
 type ServiceItem = { spuId: number; serviceName: string }
 type AreaItem = { areaId: number; areaName: string }
@@ -354,14 +302,9 @@ const ALL_WEEKDAYS = [1, 2, 3, 4, 5, 6, 7]
 const props = defineProps<{
   enabled: boolean
   acceptDispatch: boolean
+  reviewStatus?: number | null
   dispatchSaving: boolean
   canToggle: boolean
-  start: string
-  end: string
-  concurrent: number
-  saturday: boolean
-  sunday: boolean
-  saving: boolean
   services?: { spuId: number; name: string }[]
   areas?: { areaId: number; areaName: string }[]
   coverageRows?: CoverageRow[]
@@ -369,7 +312,6 @@ const props = defineProps<{
 }>()
 
 const emit = defineEmits<{
-  'save-hours': [payload: { start: string; end: string; concurrent: number; saturday: boolean; sunday: boolean }]
   'toggle-dispatch': [value: boolean]
   'manage-coverage': []
 }>()
@@ -381,8 +323,6 @@ const copy = computed(() => (isZh.value ? {
   acceptingNewJobs: '接受新订单',
   serviceCoverage: '服务覆盖范围',
   manageCoverage: '管理服务区域',
-  defaultSchedule: '默认排班',
-  editSchedule: '编辑排班',
   blockedTime: '不可用时间',
   viewCalendar: '查看日历',
   addBlockedTime: '添加不可用时间',
@@ -397,8 +337,6 @@ const copy = computed(() => (isZh.value ? {
   acceptingNewJobs: 'Accepting New Jobs',
   serviceCoverage: 'Service Coverage',
   manageCoverage: 'Manage Coverage',
-  defaultSchedule: 'Default Schedule',
-  editSchedule: 'Edit Schedule',
   blockedTime: 'Blocked Time',
   viewCalendar: 'View Calendar',
   addBlockedTime: 'Add Blocked Time',
@@ -437,13 +375,36 @@ const coverageCountText = (row: CoverageRow) => {
   return `${selected} / ${total} ${copy.value.communities.toLocaleLowerCase(locale.value)}`
 }
 const accepting = computed(() => props.acceptDispatch)
-const hourText = computed(() => (props.start && props.end ? `${props.start} – ${props.end}` : '—'))
-const workingDaysText = computed(() => {
-  if (props.saturday && props.sunday) return t('admin.supplierAvailability.daysAll')
-  if (props.saturday) return t('admin.supplierAvailability.daysWithSaturday')
-  if (props.sunday) return t('admin.supplierAvailability.daysWithSunday')
-  return t('admin.supplierAvailability.daysWeek')
+const eligibilityKey = computed(() => dispatchEligibility({
+  reviewStatus: props.reviewStatus,
+  enabled: props.enabled ? 1 : 0,
+  acceptDispatch: props.acceptDispatch ? 1 : 0,
+}))
+const eligibilityLabel = computed(() => {
+  const keys = {
+    pendingVerification: 'eligibilityPending',
+    verificationApproved: 'eligibilityApproved',
+    setupIncomplete: 'eligibilitySetup',
+    active: 'eligibilityActive',
+    suspended: 'eligibilitySuspended',
+    changesRequired: 'eligibilityChanges',
+  } as const
+  return t(`admin.supplierAvailability.${keys[eligibilityKey.value]}`)
 })
+const verificationLabel = computed(() => {
+  if (props.reviewStatus === 1) return t('admin.supplierAvailability.pendingApproval')
+  if (props.reviewStatus === 2) return t('admin.supplierAvailability.eligibilityApproved')
+  if (props.reviewStatus === 3) return t('admin.supplierAvailability.eligibilityChanges')
+  return t('admin.supplierAvailability.eligibilitySetup')
+})
+const dispatchActive = computed(() => eligibilityKey.value === 'active')
+const weekdayName = (code: number) => weekdayChoices.value.find((day) => day.code === code)?.label || String(code)
+const weeklyClosureText = (row: SupplierEvent) => {
+  const allDay = Number(row.fullDay) === 1 || (!row.startTime && !row.endTime)
+  const codes = [...new Set((row.weekdays || []).map((item) => Number(item)).filter((code) => code >= 1 && code <= 7))]
+  if (!allDay || !codes.length || codes.length === 7 || row.services?.length || row.areas?.length) return ''
+  return codes.map((code) => t('admin.supplierAvailability.dayClosed', { day: weekdayName(code) })).join(locale.value === 'zh' ? '；' : '; ')
+}
 
 const loading = ref(false)
 const loadError = ref('')
@@ -451,7 +412,6 @@ const allEvents = ref<SupplierEvent[]>([])
 const total = ref(0)
 const page = ref(1)
 const pageSize = 8
-const hoursOpen = ref(false)
 const blockOpen = ref(false)
 const blockSaving = ref(false)
 const extraServices = ref<{ spuId: number; name: string }[]>([])
@@ -470,7 +430,6 @@ const blockForm = reactive({
 const calendarOpen = ref(false)
 const cursor = ref(new Date())
 const pickedDay = ref('')
-const draft = reactive({ start: '', end: '', concurrent: 0, saturday: false, sunday: false })
 
 const eventDate = (row: SupplierEvent) => {
   const start = formatDay(row.startDate)
@@ -561,29 +520,6 @@ const changePage = (next: number) => {
 
 const onDispatch = (value: boolean | string | number) => {
   emit('toggle-dispatch', value === true || value === 1 || value === '1')
-}
-
-const openHours = () => {
-  draft.start = props.start || '08:00'
-  draft.end = props.end || '20:00'
-  draft.concurrent = props.concurrent || 0
-  draft.saturday = props.saturday
-  draft.sunday = props.sunday
-  hoursOpen.value = true
-}
-const saveHours = () => {
-  if (!draft.start || !draft.end || draft.start >= draft.end) {
-    ElMessage.warning(t('admin.supplierAvailability.hoursInvalid'))
-    return
-  }
-  emit('save-hours', {
-    start: draft.start,
-    end: draft.end,
-    concurrent: Number(draft.concurrent || 0),
-    saturday: draft.saturday,
-    sunday: draft.sunday,
-  })
-  hoursOpen.value = false
 }
 
 const serviceChoices = computed(() => {
@@ -741,7 +677,9 @@ onMounted(loadEvents)
 .availability-control.is-off { background: linear-gradient(118deg, #121c2b 0%, #29313a 58%, #6e5137 125%); }
 .availability-control__copy { min-width: 0; }
 .availability-control__kicker { display: block; margin-bottom: 8px; color: #e8c27a; font-size: 10px; font-weight: 750; letter-spacing: .18em; text-transform: uppercase; }
-.availability-control h2 { margin: 0; color: #fffdf8; font-family: Fraunces, Georgia, serif; font-size: clamp(29px, 3.2vw, 40px); font-weight: 520; line-height: 1.05; letter-spacing: -.035em; }
+.availability-control h2 { margin: 0; color: #fffdf8; font-family: Fraunces, Georgia, serif; font-size: clamp(22px, 2.2vw, 30px); font-weight: 520; line-height: 1.2; letter-spacing: -.03em; }
+.availability-facts { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+.availability-facts em { padding: 4px 8px; color: #fffdf8; background: rgba(255, 255, 255, .12); border-radius: 999px; font-size: 12px; font-style: normal; font-weight: 650; }
 .availability-control p { max-width: 620px; margin: 8px 0 0; color: rgba(247, 241, 230, .72); font-size: 13px; line-height: 1.55; }
 .availability-control__note { color: #f4ce91 !important; }
 .availability-control__action { display: flex; flex: 0 0 auto; align-items: center; gap: 18px; min-width: 0; padding: 14px 16px; background: rgba(4, 17, 33, .5); border: 1px solid rgba(255, 255, 255, .13); border-radius: 16px; backdrop-filter: blur(12px); }
@@ -753,7 +691,7 @@ onMounted(loadEvents)
 .availability-state small { max-width: 230px; overflow: hidden; color: rgba(247, 241, 230, .58); font-size: 10px; line-height: 1.35; text-overflow: ellipsis; white-space: nowrap; }
 .availability-control :deep(.el-switch) { --el-switch-on-color: #36a873; --el-switch-off-color: #8a7561; }
 
-.availability-overview { display: grid; grid-template-columns: minmax(0, 1.08fr) minmax(0, .92fr); gap: 18px; min-width: 0; }
+.availability-overview { display: grid; grid-template-columns: minmax(0, 1fr); gap: 18px; min-width: 0; }
 .workspace-card { min-width: 0; overflow: hidden; background: #fffdf8; border: 1px solid #e6dccb; border-radius: 20px; box-shadow: 0 12px 34px rgba(5, 21, 43, .045); }
 .workspace-card__header { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; padding: 20px; border-bottom: 1px solid #eee3d3; }
 .workspace-card__header > div:first-child { display: flex; align-items: flex-start; gap: 12px; min-width: 0; }
@@ -766,7 +704,7 @@ onMounted(loadEvents)
 
 .coverage-totals { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; padding: 16px 20px 10px; }
 .coverage-totals > div { min-width: 0; padding: 13px 14px; background: #f7f3ec; border: 1px solid #eee2d1; border-radius: 13px; }
-.coverage-totals span, .schedule-summary span { display: block; color: #8a7d70; font-size: 9px; font-weight: 750; letter-spacing: .08em; text-transform: uppercase; }
+.coverage-totals span { display: block; color: #8a7d70; font-size: 9px; font-weight: 750; letter-spacing: .08em; text-transform: uppercase; }
 .coverage-totals strong { display: block; margin-top: 6px; color: #05152b; font-family: Fraunces, Georgia, serif; font-size: 25px; font-weight: 520; line-height: 1; }
 .coverage-list { display: flex; max-height: 246px; padding: 0 20px 18px; overflow-y: auto; flex-direction: column; }
 .coverage-list article { display: flex; align-items: center; justify-content: space-between; gap: 14px; min-width: 0; padding: 12px 2px; border-bottom: 1px solid #efe5d7; }
@@ -781,11 +719,6 @@ onMounted(loadEvents)
 .coverage-empty { margin: 0 20px 20px; padding: 18px; text-align: left; background: #f7f3ec; border: 1px dashed #d8c9b4; border-radius: 14px; }
 .coverage-empty strong { color: #05152b; font-size: 13px; }
 .coverage-empty p { margin: 5px 0 0; color: #74685a; font-size: 11px; line-height: 1.5; }
-
-.schedule-summary { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; padding: 16px 20px 20px; }
-.schedule-summary article { min-width: 0; padding: 16px; background: #fff; border: 1px solid #eee2d1; border-radius: 14px; }
-.schedule-summary__capacity { grid-column: 1 / -1; background: linear-gradient(135deg, #f7f3ec, #fffdf8) !important; }
-.schedule-summary strong { display: block; margin-top: 8px; color: #05152b; font-size: 17px; font-weight: 680; line-height: 1.35; overflow-wrap: anywhere; }
 
 .blocked-card__header { align-items: center; }
 .blocked-card__tools { display: flex; align-items: center; justify-content: flex-end; gap: 9px; min-width: 0; color: #74685a; font-size: 11px; white-space: nowrap; }
@@ -863,8 +796,7 @@ onMounted(loadEvents)
   .availability-control { padding: 19px; border-radius: 18px; }
   .availability-control__action { align-items: flex-start; }
   .availability-state small { max-width: 190px; white-space: normal; }
-  .coverage-totals, .schedule-summary { grid-template-columns: minmax(0, 1fr); }
-  .schedule-summary__capacity { grid-column: auto; }
+  .coverage-totals { grid-template-columns: minmax(0, 1fr); }
   .blocked-cards dl { grid-template-columns: minmax(0, 1fr); }
   .blocked-cards__reason { grid-column: auto; }
   .hours-form__range { grid-template-columns: minmax(0, 1fr); }

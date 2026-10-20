@@ -165,6 +165,63 @@ export const formatOrderSpecs = (
     .filter(Boolean)
     .join(" · ")
 
+export type OrderSummaryAttachLine = {
+  id: string
+  label: string
+  quantity: number
+  amount?: number
+}
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  Boolean(value) && typeof value === "object" && !Array.isArray(value)
+
+const asLocalizedText = (value: unknown): LocalizedText => {
+  if (!isRecord(value)) return undefined
+  const entries = Object.entries(value).filter(
+    ([, text]) => typeof text === "string" && text.trim(),
+  )
+  if (!entries.length) return undefined
+  return Object.fromEntries(entries.map(([key, text]) => [key, String(text).trim()]))
+}
+
+const roundOrderMoney = (value: number) =>
+  Math.round((value + Number.EPSILON) * 100) / 100
+
+export const readOrderSummaryAttachLines = (
+  value: unknown,
+  locale: string,
+): OrderSummaryAttachLine[] => {
+  if (!Array.isArray(value)) return []
+  return value.flatMap((item, index) => {
+    if (!isRecord(item)) return []
+    const label = localizeOrderText(
+      asLocalizedText(item.labelI18n) || asLocalizedText(item.attachValueNameI18n),
+      String(item.label ?? item.attachValueName ?? "").trim(),
+      locale,
+    )
+    if (!label) return []
+    const unit = localizeOrderText(
+      asLocalizedText(item.unitI18n),
+      String(item.unit ?? "").trim(),
+      locale,
+    )
+    const quantity = Math.max(0, Number(item.quantity ?? 1) || 0)
+    if (quantity <= 0) return []
+    const amountValue = Number(item.amount)
+    const hasAmount =
+      item.amount !== undefined &&
+      item.amount !== null &&
+      item.amount !== "" &&
+      Number.isFinite(amountValue)
+    return [{
+      id: String(item.id ?? item.attachValueId ?? `${label}-${index}`),
+      label: unit ? `${label} / ${unit}` : label,
+      quantity,
+      ...(hasAmount ? { amount: roundOrderMoney(amountValue) } : {}),
+    }]
+  })
+}
+
 export const formatOrderAddOns = (
   selections: LocalizedAttachSelection[] | undefined,
   locale: string,

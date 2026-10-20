@@ -72,6 +72,7 @@
                 <em class="staff-status" :class="statusClass(row)">{{ statusText(row) }}</em>
               </span>
               <strong class="staff-card__title">{{ serviceTitle(row) }}</strong>
+              <span v-if="assignedStaffText(row)" class="staff-card__spec">{{ t('admin.supplierOrders.assignedStaff') }} · {{ assignedStaffText(row) }}</span>
               <span v-if="specText(row) !== '—'" class="staff-card__spec">{{ specText(row) }}</span>
               <span class="staff-card__schedule">
                 <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="5" width="16" height="16" rx="3" /><path d="M8 3v4M16 3v4M4 11h16" /></svg>
@@ -155,6 +156,7 @@
           <section class="staff-section">
             <div class="staff-section__heading"><span class="staff-section__icon" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="4" y="6" width="16" height="15" rx="3" /><path d="M9 6V3h6v3M4 11h16" /></svg></span><h2>{{ t('admin.supplierOrders.servicePlan') }}</h2></div>
             <dl class="staff-facts">
+              <div><dt>{{ t('admin.supplierOrders.assignedStaff') }}</dt><dd>{{ assignedStaffText(order) || t('admin.supplierOrders.assignedStaffEmpty') }}</dd></div>
               <div><dt>{{ t('admin.supplierOrders.specs') }}</dt><dd>{{ specText(order) }}</dd></div>
               <div><dt>{{ t('admin.supplierOrders.addons') }}</dt><dd>{{ addonText(order) }}</dd></div>
               <div class="staff-facts__price"><dt>{{ t('admin.supplierOrders.price') }}</dt><dd><small v-if="money(order?.quotePrice) !== '—'">AED</small> {{ money(order?.quotePrice) }}</dd></div>
@@ -191,6 +193,7 @@
           <span class="staff-detail__foot-status"><small>{{ t('admin.supplierOrders.serviceStatus') }}</small><strong>{{ statusText(order) }}</strong></span>
           <div class="staff-detail__foot-actions">
             <a v-if="navigateUrl(order)" class="staff-nav" :href="navigateUrl(order)" target="_blank" rel="noopener noreferrer">{{ t('admin.supplierOrders.navigateGoogle') }}</a>
+            <button v-if="canAct(order, 0)" type="button" class="staff-danger" :disabled="actionBusy" @click="reject(order)">{{ t('admin.supplierOrders.rejectAction') }}</button>
             <button v-if="canAct(order, 0)" type="button" class="staff-primary" :disabled="actionBusy" @click="accept(order)">{{ t(actionBusy ? 'admin.supplierOrders.actionPending' : 'admin.supplierOrders.acceptAction') }}</button>
             <button v-else-if="canAct(order, 4)" type="button" class="staff-primary" :disabled="actionBusy" @click="depart(order)">{{ t(actionBusy ? 'admin.supplierOrders.actionPending' : 'admin.supplierOrders.departAction') }}</button>
             <button v-else-if="canAct(order, 3)" type="button" class="staff-primary" :disabled="actionBusy" @click="openAction(order, 'arrive')">{{ t('admin.supplierOrders.arriveAction') }}</button>
@@ -244,6 +247,7 @@ import { useI18n } from 'vue-i18n'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
   supplierAccept,
+  supplierReject,
   supplierArrive,
   supplierAssignedOrderDetail,
   supplierAssignedOrders,
@@ -345,6 +349,10 @@ const localized = (value: unknown, plain?: unknown) => {
   return fallback || '—'
 }
 const serviceTitle = (row: any) => localized(row?.spuNameI18n, row?.spuName)
+const assignedStaffText = (row: any) => {
+  const list = Array.isArray(row?.assignedStaff) ? row.assignedStaff : []
+  return list.map((item: any) => String(item?.name || item?.phone || '').trim()).filter(Boolean).join('、')
+}
 const specText = (row: any) => {
   const specs = Array.isArray(row?.specs) ? row.specs : []
   const text = specs.map((spec: any) => [localized(spec?.typeNameI18n, spec?.typeName), localized(spec?.valueNameI18n, spec?.valueName)]
@@ -535,6 +543,42 @@ const refreshAfterAction = async (ids: VisitIds) => {
     loadOrders(),
     detailOpen.value && sameVisit(detailTarget.value, ids) ? fetchDetail(ids) : Promise.resolve(),
   ])
+}
+const reject = async (row: any) => {
+  if (actionBusy.value || action.open || !canAct(row, 0)) return
+  const ids = idsOf(row)
+  if (!validIds(ids)) return
+  actionBusy.value = true
+  try {
+    let reason = ''
+    try {
+      const result = await ElMessageBox.prompt(
+        t('admin.supplierOrders.rejectConfirm', { orderNo: row?.orderNo || ids.orderId }),
+        t('admin.supplierOrders.rejectTitle'),
+        {
+          type: 'warning',
+          confirmButtonText: t('admin.supplierOrders.rejectAction'),
+          cancelButtonText: t('admin.supplierPricing.cancel'),
+          inputPlaceholder: t('admin.supplierOrders.rejectReasonPlaceholder'),
+          inputValidator: (value) => String(value || '').trim().length <= 512 || t('admin.supplierOrders.rejectTooLong'),
+        },
+      )
+      reason = String(result.value || '').trim()
+    } catch {
+      return
+    }
+    if (disposed || !canAct(row, 0)) return
+    await supplierReject({ ...ids, ...(reason ? { rejectReason: reason } : {}) })
+    if (disposed) return
+    ElMessage.success(t('admin.supplierOrders.rejectSaved'))
+    detailOpen.value = false
+    order.value = null
+    await loadOrders()
+  } catch (error: any) {
+    if (!disposed) ElMessage.error(error?.message || t('admin.supplierOrders.actionFailed'))
+  } finally {
+    actionBusy.value = false
+  }
 }
 const accept = async (row: any) => {
   if (actionBusy.value || action.open || !canAct(row, 0)) return
@@ -782,7 +826,9 @@ onBeforeUnmount(() => {
 .staff-state h2 { margin: 0; color: #485e73; font-size: 16px; font-weight: 650; }
 .staff-state p { max-width: 340px; margin: 0; color: #8492a1; font-size: 12px; }
 .staff-state--error .staff-state__icon { border-color: #f0ddda; background: #fcf0ee; color: #b1796c; }
-.staff-primary, .staff-ghost { display: inline-flex; min-height: 44px; align-items: center; justify-content: center; padding: 10px 18px; border: 1px solid var(--staff-ink); border-radius: 10px; background: var(--staff-ink); color: white; font-size: 12px; line-height: 1.35; font-weight: 650; text-align: center; }
+.staff-primary, .staff-ghost, .staff-danger { display: inline-flex; min-height: 44px; align-items: center; justify-content: center; padding: 10px 18px; border: 1px solid var(--staff-ink); border-radius: 10px; background: var(--staff-ink); color: white; font-size: 12px; line-height: 1.35; font-weight: 650; text-align: center; }
+.staff-danger { background: #fff; color: #b42318; border-color: #e7b4ae; }
+.staff-danger:disabled { opacity: .65; }
 .staff-primary:disabled { opacity: .65; }
 .staff-ghost { border-color: #d9e1e9; background: white; color: #485e73; }
 .staff-skeleton { display: grid; gap: 15px; height: 255px; padding: 22px 17px; }

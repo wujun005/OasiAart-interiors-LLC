@@ -110,6 +110,7 @@ async function harness(t, overrides = {}) {
       if (name === "@/modules/client/utils/order-localization") return {
         formatContactName: (first, last) => `${first} ${last}`.trim(),
         splitContactName: () => ({ firstName: "", lastName: "" }),
+        readOrderSummaryAttachLines: () => [],
       }
       if (name.endsWith(".vue")) return {}
       throw new Error(`Unexpected dependency: ${name}`)

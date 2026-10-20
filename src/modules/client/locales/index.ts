@@ -13,6 +13,7 @@ const clientExtraMessages = {
         nav: {
           home: 'Home',
           services: 'Services',
+          packages: 'Packages',
           orders: 'Orders',
           cart: 'Cart',
           joinUs: 'Become a Partner',
@@ -161,6 +162,8 @@ const clientExtraMessages = {
         },
         serviceTile: {
           action: 'View services',
+          expand: 'Show more',
+          collapse: 'Show less',
         },
         bookingForm: {
           title: 'Booking Details',
@@ -479,6 +482,8 @@ const clientExtraMessages = {
         refundHandlingFee: 'Refund handling fee',
         statusRefundRejected: 'Refund Failed',
         statusUnknown: 'Pending',
+        packageOrder: 'Package order',
+        regularOrder: 'Regular order',
         orderNo: 'Order ID',
         serviceTime: 'Service time',
         createdTime: 'Created',
@@ -770,6 +775,7 @@ const clientExtraMessages = {
         nav: {
           home: '首页',
           services: '服务',
+          packages: '套餐',
           orders: '订单',
           cart: '购物车',
           joinUs: '成为合作伙伴',
@@ -916,6 +922,8 @@ const clientExtraMessages = {
         },
         serviceTile: {
           action: '查看服务',
+          expand: '展开',
+          collapse: '收起',
         },
         bookingForm: {
           title: '预约详情',
@@ -1222,6 +1230,8 @@ const clientExtraMessages = {
         refundHandlingFee: '退款手续费',
         statusRefundRejected: '退款失败',
         statusUnknown: '待处理',
+        packageOrder: '套餐订单',
+        regularOrder: '普通订单',
         orderNo: '订单号',
         serviceTime: '服务时间',
         createdTime: '创建时间',

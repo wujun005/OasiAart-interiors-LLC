@@ -190,7 +190,14 @@
           <div class="h5-order-summary__content">
             <strong>{{ summaryTitle }}</strong>
             <p>{{ summaryMeta }}</p>
-            <em>{{ formatAed(subtotal) }}</em>
+            <div v-if="summaryAttachLines.length" class="h5-order-summary__addons">
+              <p>{{ t("client.orderList.addOns") }}</p>
+              <div v-for="line in summaryAttachLines" :key="line.id">
+                <span>{{ attachLineText(line) }}</span>
+                <strong v-if="showAttachPrices">{{ formatAed(line.amount || 0) }}</strong>
+              </div>
+            </div>
+            <em>{{ formatAed(summaryServiceAmount) }}</em>
           </div>
         </div>
         <div class="h5-order-summary__prices">
@@ -630,13 +637,7 @@
       :agreed="agreedPolicy"
       :submitting="isSubmitting"
       show-order-summary
-      :order-summary-items="[
-        {
-          title: summaryTitle,
-          meta: summaryMeta,
-          amountText: formatAed(subtotal),
-        },
-      ]"
+      :order-summary-items="policySummaryItems"
       :subtotal-text="formatAed(subtotal)"
       :tax-text="formatAed(tax)"
       :total-text="formatAed(total)"
@@ -744,6 +745,7 @@ import {
 } from "@/modules/client/utils/geolocation"
 import {
   formatContactName,
+  readOrderSummaryAttachLines,
   splitContactName,
 } from "@/modules/client/utils/order-localization"
 import { toPlainText } from "@/modules/client/utils/plain-text"
@@ -1891,6 +1893,63 @@ const tax = computed(() =>
 )
 
 const formatAed = (value: number) => `AED ${value.toFixed(2)}`
+const roundMoney = (value: number) =>
+  Math.round((value + Number.EPSILON) * 100) / 100
+
+const summaryAttachLines = computed(() => {
+  const localeName = String(locale.value || "")
+  const pricedLines = readOrderSummaryAttachLines(
+    parseQueryJson("attachLines", []),
+    localeName,
+  )
+  if (pricedLines.length) return pricedLines
+  return readOrderSummaryAttachLines(
+    parseQueryJson("attachSelections", []),
+    localeName,
+  )
+})
+const summaryAttachAmount = computed(() =>
+  roundMoney(
+    summaryAttachLines.value.reduce(
+      (sum, line) => sum + (Number(line.amount) || 0),
+      0,
+    ),
+  ),
+)
+const explicitServiceAmount = computed(() => {
+  if (!getQueryText("serviceAmount")) return null
+  const numeric = getQueryNumber("serviceAmount", Number.NaN)
+  return Number.isFinite(numeric) ? numeric : null
+})
+const showAttachPrices = computed(() => {
+  const lines = summaryAttachLines.value
+  if (!lines.length || lines.some((line) => line.amount === undefined)) return false
+  const service =
+    explicitServiceAmount.value ??
+    roundMoney(Math.max(0, subtotal.value - summaryAttachAmount.value))
+  return (
+    Math.abs(roundMoney(service + summaryAttachAmount.value) - roundMoney(subtotal.value)) <=
+    0.05
+  )
+})
+const summaryServiceAmount = computed(() => {
+  if (!showAttachPrices.value) return subtotal.value
+  if (explicitServiceAmount.value !== null) return explicitServiceAmount.value
+  return roundMoney(Math.max(0, subtotal.value - summaryAttachAmount.value))
+})
+const attachLineText = (line: { label: string; quantity: number }) =>
+  `${line.label} × ${line.quantity}`
+const policySummaryItems = computed(() => [
+  {
+    title: summaryTitle.value,
+    meta: summaryMeta.value,
+    amountText: formatAed(summaryServiceAmount.value),
+  },
+  ...summaryAttachLines.value.map((line) => ({
+    title: attachLineText(line),
+    amountText: showAttachPrices.value ? formatAed(line.amount || 0) : "",
+  })),
+])
 
 const extractEnvelopeData = <T,>(payload: unknown): T | null => {
   if (payload === null || payload === undefined) {
@@ -2833,6 +2892,40 @@ onMounted(async () => {
   line-height: 1.3;
   font-style: normal;
   font-weight: 800;
+  white-space: nowrap;
+}
+
+.h5-order-summary__addons {
+  width: 100%;
+  margin-top: 8px;
+}
+
+.h5-order-summary__addons > p {
+  margin: 0 0 6px;
+  color: #8b97a8;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.h5-order-summary__addons > div {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+  color: #334155;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.h5-order-summary__addons > div + div {
+  margin-top: 6px;
+}
+
+.h5-order-summary__content .h5-order-summary__addons strong {
+  display: inline;
+  color: #172033;
+  font-size: 12px;
+  font-weight: 700;
   white-space: nowrap;
 }
 

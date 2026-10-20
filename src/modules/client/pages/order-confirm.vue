@@ -343,12 +343,22 @@
         <aside class="order-summary-side">
           <section class="order-summary-card">
             <h2>{{ t("client.orderConfirm.summary.title") }}</h2>
-            <div class="order-summary-card__item">
+            <div
+              class="order-summary-card__item"
+              :class="{ 'order-summary-card__item--open': summaryAttachLines.length }"
+            >
               <div>
                 <h3>{{ summaryTitle }}</h3>
                 <p>{{ summaryMeta }}</p>
               </div>
-              <strong>{{ formatAed(subtotal) }}</strong>
+              <strong>{{ formatAed(summaryServiceAmount) }}</strong>
+            </div>
+            <div v-if="summaryAttachLines.length" class="order-summary-card__addons">
+              <p>{{ t("client.orderList.addOns") }}</p>
+              <div v-for="line in summaryAttachLines" :key="line.id">
+                <span>{{ attachLineText(line) }}</span>
+                <strong v-if="showAttachPrices">{{ formatAed(line.amount || 0) }}</strong>
+              </div>
             </div>
 
             <div class="order-summary-card__prices">
@@ -397,13 +407,7 @@
       :agreed="agreedPolicy"
       :submitting="isSubmitting"
       show-order-summary
-      :order-summary-items="[
-        {
-          title: summaryTitle,
-          meta: summaryMeta,
-          amountText: formatAed(subtotal),
-        },
-      ]"
+      :order-summary-items="policySummaryItems"
       :subtotal-text="formatAed(subtotal)"
       :tax-text="formatAed(tax)"
       :total-text="formatAed(total)"
@@ -512,6 +516,7 @@ import SavedAddressManager from "@/modules/client/components/SavedAddressManager
 import type { LegalDocType } from "@/modules/client/constants/legal"
 import {
   formatContactName,
+  readOrderSummaryAttachLines,
   splitContactName,
 } from "@/modules/client/utils/order-localization"
 import { toPlainText } from "@/modules/client/utils/plain-text"
@@ -1350,6 +1355,63 @@ const tax = computed(() =>
 )
 
 const formatAed = (value: number) => `AED ${value.toFixed(2)}`
+const roundMoney = (value: number) =>
+  Math.round((value + Number.EPSILON) * 100) / 100
+
+const summaryAttachLines = computed(() => {
+  const localeName = String(locale.value || "")
+  const pricedLines = readOrderSummaryAttachLines(
+    parseQueryJson("attachLines", []),
+    localeName,
+  )
+  if (pricedLines.length) return pricedLines
+  return readOrderSummaryAttachLines(
+    parseQueryJson("attachSelections", []),
+    localeName,
+  )
+})
+const summaryAttachAmount = computed(() =>
+  roundMoney(
+    summaryAttachLines.value.reduce(
+      (sum, line) => sum + (Number(line.amount) || 0),
+      0,
+    ),
+  ),
+)
+const explicitServiceAmount = computed(() => {
+  if (!getQueryText("serviceAmount")) return null
+  const numeric = getQueryNumber("serviceAmount", Number.NaN)
+  return Number.isFinite(numeric) ? numeric : null
+})
+const showAttachPrices = computed(() => {
+  const lines = summaryAttachLines.value
+  if (!lines.length || lines.some((line) => line.amount === undefined)) return false
+  const service =
+    explicitServiceAmount.value ??
+    roundMoney(Math.max(0, subtotal.value - summaryAttachAmount.value))
+  return (
+    Math.abs(roundMoney(service + summaryAttachAmount.value) - roundMoney(subtotal.value)) <=
+    0.05
+  )
+})
+const summaryServiceAmount = computed(() => {
+  if (!showAttachPrices.value) return subtotal.value
+  if (explicitServiceAmount.value !== null) return explicitServiceAmount.value
+  return roundMoney(Math.max(0, subtotal.value - summaryAttachAmount.value))
+})
+const attachLineText = (line: { label: string; quantity: number }) =>
+  `${line.label} × ${line.quantity}`
+const policySummaryItems = computed(() => [
+  {
+    title: summaryTitle.value,
+    meta: summaryMeta.value,
+    amountText: formatAed(summaryServiceAmount.value),
+  },
+  ...summaryAttachLines.value.map((line) => ({
+    title: attachLineText(line),
+    amountText: showAttachPrices.value ? formatAed(line.amount || 0) : "",
+  })),
+])
 
 const extractEnvelopeData = <T,>(payload: unknown): T | null => {
   if (payload === null || payload === undefined) {
@@ -2929,6 +2991,47 @@ onMounted(async () => {
   color: rgba(15, 23, 42, 0.9);
   font-size: 20px;
   font-weight: 800;
+}
+
+.order-summary-card__item--open {
+  padding-bottom: 10px;
+  border-bottom: 0;
+}
+
+.order-summary-card__addons {
+  padding-bottom: 14px;
+  border-bottom: 1px solid #f3f4f6;
+}
+
+.order-summary-card__addons p {
+  margin: 0 0 8px;
+  color: rgba(15, 23, 42, 0.45);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.order-summary-card__addons div {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.order-summary-card__addons div + div {
+  margin-top: 8px;
+}
+
+.order-summary-card__addons span {
+  color: rgba(15, 23, 42, 0.78);
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+.order-summary-card__addons strong {
+  color: rgba(15, 23, 42, 0.9);
+  font-size: 14px;
+  font-weight: 700;
+  white-space: nowrap;
 }
 
 .order-summary-card__prices {

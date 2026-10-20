@@ -175,16 +175,20 @@ export function supplierCoverageSave(payload: { supplierId: number; areaIds: num
   return http.post('/api/supplier/operations/coverage/save', payload);
 }
 
-export function supplierScheduleSave(payload: { supplierId: number; workingDays: number[]; startTime: string; endTime: string; maxConcurrentJobs: number; timezone: string }) {
-  return http.post('/api/supplier/operations/schedule/save', payload);
-}
-
 export function supplierChangeAcceptOrder(payload: { supplierId: number; spuId: number; acceptOrder: 0 | 1 }) {
   return http.post('/api/supplier/tools/services/changeAcceptOrder', payload);
 }
 
 export function supplierAccept(payload: { orderId: number; fulfillmentId?: number }) {
   return http.post('/api/orderHeader/supplier/accept', payload);
+}
+
+export function supplierReject(payload: { orderId: number; fulfillmentId?: number; rejectReason?: string }) {
+  return http.post('/api/orderHeader/supplier/reject', payload);
+}
+
+export function assignOrderStaff(payload: { orderId: number; fulfillmentId?: number; staffUserIds: number[] }) {
+  return http.post('/api/orderHeader/supplier/assignStaff', payload);
 }
 
 export function supplierDepart(payload: { orderId: number; fulfillmentId?: number }) {
@@ -209,8 +213,18 @@ export function supplierStaffPage(payload: { pageNum?: number; pageSize?: number
   return http.post('/api/supplier/staff/page', payload);
 }
 
-export function saveSupplierStaff(payload: { id?: number; name: string; phone: string; email?: string }) {
+export function saveSupplierStaff(payload: {
+  id?: number;
+  name: string;
+  phone: string;
+  email?: string;
+  categoryIds?: number[];
+}) {
   return http.post('/api/supplier/staff/save', payload);
+}
+
+export function updateSupplierStaffState(payload: { id: number; acceptJobs?: boolean; suspended?: boolean }) {
+  return http.post('/api/supplier/staff/state', payload);
 }
 
 export function deleteSupplierStaff(ids: number[]) {
@@ -219,6 +233,10 @@ export function deleteSupplierStaff(ids: number[]) {
 
 export function exportSupplierStaff() {
   return http.get('/api/supplier/staff/export', { responseType: 'blob' });
+}
+
+export function downloadSupplierStaffTemplate() {
+  return http.get('/api/supplier/staff/template', { responseType: 'blob' });
 }
 
 export function importSupplierStaff(file: File) {

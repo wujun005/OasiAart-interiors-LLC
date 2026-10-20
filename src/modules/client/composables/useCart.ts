@@ -28,6 +28,7 @@ export interface CartItem {
   specSummaryI18n?: CartLocalizedText;
   addOns?: string[];
   addOnsI18n?: CartLocalizedText[];
+  attachSelections?: ClientCartItemRecord['attachSelections'];
   selectedSpecValueIds?: string[];
   specValueNameI18n?: Record<string, CartLocalizedText>;
   skuDetail?: CartSkuDetail;
@@ -150,6 +151,7 @@ const normalizeRecord = (record: ClientCartItemRecord): CartItem => {
     addOnsI18n: englishAddOns || chineseAddOns
       ? [{ en: englishAddOns, zh: chineseAddOns }]
       : [],
+    attachSelections: Array.isArray(record.attachSelections) ? record.attachSelections : [],
     selectedSpecValueIds: (record.specValueIds || []).map((item) => String(item)),
     specValueNameI18n,
     skuDetail,

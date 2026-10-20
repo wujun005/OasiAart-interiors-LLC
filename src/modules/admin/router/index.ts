@@ -1,6 +1,7 @@
 import { createRouter, createWebHistory, RouteRecordRaw } from 'vue-router';
 // import { useAuthStore } from '@/stores/auth';
 import {
+  ADMIN_NO_ACCESS_PATH,
   getFirstAllowedAdminPath,
   isSupplierStaffOrdersOnly,
   loadAdminMenuPermissions,
@@ -209,6 +210,11 @@ const routes: RouteRecordRaw[] = [
     name: 'login',
     component: () => import('@/modules/admin/pages/login.vue'),
   },
+  {
+    path: ADMIN_NO_ACCESS_PATH,
+    name: 'admin-no-access',
+    component: () => import('@/modules/admin/pages/no-access.vue'),
+  },
 
   // 默认跳转到 C端首页
   // { path: '/', redirect: '/admin' },
@@ -262,6 +268,12 @@ router.beforeEach(async (to) => {
     return { path: '/admin/login', query: { redirect: to.fullPath } };
   }
 
+  if (to.path === ADMIN_NO_ACCESS_PATH) {
+    const home = getFirstAllowedAdminPath();
+    if (home !== ADMIN_NO_ACCESS_PATH) return { path: home, replace: true };
+    return true;
+  }
+
   const staffOrdersOnly = isSupplierStaffOrdersOnly();
   if (staffOrdersOnly && to.path.startsWith('/admin/supplier-management')) {
     const home = supplierOrdersH5Path;
@@ -288,11 +300,11 @@ router.beforeEach(async (to) => {
   }
 
   const fallbackPath = getFirstAllowedAdminPath();
-  if (fallbackPath && fallbackPath !== to.path) {
-    return { path: fallbackPath };
+  if (fallbackPath !== to.path) {
+    return { path: fallbackPath, replace: true };
   }
 
-  return { path: '/admin/login' };
+  return true;
 });
 
 export default router;

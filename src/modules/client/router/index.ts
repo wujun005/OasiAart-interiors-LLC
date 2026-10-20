@@ -108,6 +108,15 @@ const routes: RouteRecordRaw[] = [
     name: 'profile',
     component: ProfilePage,
   },
+  ...(import.meta.env.VITE_MARK_PAID_TEST === 'true'
+    ? [
+        {
+          path: '/dev/mark-paid',
+          name: 'mark-paid-test',
+          component: () => import('@/modules/client/pages/mark-paid-test.vue'),
+        },
+      ]
+    : []),
 ];
 
 export const router = createRouter({

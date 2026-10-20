@@ -66,6 +66,7 @@ export type OrderExportPayload = {
     | 'NOT_RESCHEDULED'
     | 'ALL';
   rescheduled?: boolean;
+  packageOrder?: boolean;
   exportScope?: OrderExportScope;
   orderIds?: number[];
 };
@@ -129,6 +130,16 @@ export function updateSupplier(payload: {
   return http.post('/api/orderHeader/updateSupplier', payload);
 }
 
+// 把供应商派到履约单。已在名单里的保留原进度，不会写成已接单。
+// 只有一条未完成履约时可以不传 fulfillmentId，有多条时必传。
+export function dispatchSupplier(payload: {
+  orderId: number;
+  fulfillmentId?: number;
+  supplierIds: number[];
+}) {
+  return http.post('/api/orderHeader/dispatchSupplier', payload);
+}
+
 // /api/orderHeader/operationLogs 按订单号查询全链路操作记录
 export async function operationLogs(orderNo: string): Promise<OrderOperationLog[]> {
   const response = await http.get('/api/orderHeader/operationLogs', {
@@ -160,5 +171,6 @@ export default {
   operationLogs,
   querySuppliers,
   updateSupplier,
+  dispatchSupplier,
   exportOrders,
 };

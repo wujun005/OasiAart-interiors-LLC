@@ -228,6 +228,7 @@ async function harness(t, overrides = {}) {
           formatContactName: (firstName, lastName) =>
             [firstName, lastName].filter(Boolean).join(" "),
           splitContactName: (fullName) => ({ firstName: fullName, lastName: "" }),
+          readOrderSummaryAttachLines: () => [],
         }
       }
       if (name.endsWith(".vue")) return {}

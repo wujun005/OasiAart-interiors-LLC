@@ -6,16 +6,21 @@
   >
     <strong class="supplier-identity__company" :title="companyName">{{ companyName }}</strong>
     <p class="supplier-identity__id"><span>Supplier ID</span><strong>{{ supplierId }}</strong></p>
-    <dl class="supplier-identity__statuses">
+    <dl v-if="detail" class="supplier-identity__statuses">
       <div>
-        <dt>{{ isZh ? '入驻审核' : 'Onboarding review' }}</dt>
+        <dt>{{ isZh ? '企业审核' : 'Business verification' }}</dt>
         <dd :class="reviewTone"><i aria-hidden="true" />{{ reviewLabel }}</dd>
       </div>
       <div>
-        <dt>{{ isZh ? '接单状态' : 'Order availability' }}</dt>
-        <dd :class="dispatchTone"><i aria-hidden="true" />{{ dispatchLabel }}</dd>
+        <dt>{{ t('admin.supplierAvailability.acceptJobs') }}</dt>
+        <dd :class="dispatchTone"><i aria-hidden="true" />{{ acceptPreference }}</dd>
+      </div>
+      <div>
+        <dt>{{ t('admin.platformSuppliers.dispatchEligibility') }}</dt>
+        <dd :class="eligibilityTone"><i aria-hidden="true" />{{ eligibilityLabel }}</dd>
       </div>
     </dl>
+    <p v-if="detail && eligibilityKey !== 'active'" class="supplier-identity__note">{{ t('admin.supplierAvailability.preferenceSaved') }}</p>
   </section>
 </template>
 
@@ -23,6 +28,7 @@
 import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useAdminSessionStore } from '@/modules/admin/stores/session';
+import { dispatchEligibility } from '@/modules/admin/utils/supplierReviewState';
 
 defineProps<{ compact?: boolean }>();
 const session = useAdminSessionStore();
@@ -50,13 +56,28 @@ const dispatchStatus = computed(() => {
   const value = detail.value?.acceptDispatch;
   return value == null || value === '' ? null : Number(value);
 });
-const dispatchLabel = computed(() => {
-  if (dispatchStatus.value === 1) return isZh.value ? '接单中' : 'Accepting orders';
-  if (dispatchStatus.value === 0) return isZh.value ? '已暂停' : 'Paused';
-  return isZh.value ? '待确认' : 'Not available';
+const acceptPreference = computed(() => t(dispatchStatus.value === 1
+  ? 'admin.supplierAvailability.preferenceOn'
+  : 'admin.supplierAvailability.preferenceOff'));
+const eligibilityKey = computed(() => dispatchEligibility({
+  reviewStatus: reviewStatus.value,
+  enabled: detail.value?.enabled,
+  acceptDispatch: detail.value?.acceptDispatch,
+}));
+const eligibilityLabel = computed(() => {
+  const keys = {
+    pendingVerification: 'eligibilityPending',
+    verificationApproved: 'eligibilityApproved',
+    setupIncomplete: 'eligibilitySetup',
+    active: 'eligibilityActive',
+    suspended: 'eligibilitySuspended',
+    changesRequired: 'eligibilityChanges',
+  } as const;
+  return t(`admin.supplierAvailability.${keys[eligibilityKey.value]}`);
 });
-const dispatchTone = computed(() => dispatchStatus.value === 1 ? 'is-positive'
-  : dispatchStatus.value === 0 ? 'is-paused' : 'is-neutral');
+const dispatchTone = computed(() => dispatchStatus.value === 1 ? 'is-positive' : 'is-paused');
+const eligibilityTone = computed(() => eligibilityKey.value === 'active' ? 'is-positive'
+  : eligibilityKey.value === 'suspended' || eligibilityKey.value === 'changesRequired' ? 'is-negative' : 'is-pending');
 </script>
 
 <style scoped>
@@ -115,6 +136,13 @@ const dispatchTone = computed(() => dispatchStatus.value === 1 ? 'is-positive'
 
 .supplier-identity__statuses dt {
   color: rgba(245, 235, 215, 0.65);
+}
+
+.supplier-identity__note {
+  margin: 10px 0 0;
+  color: rgba(245, 235, 215, 0.72);
+  font-size: 10px;
+  line-height: 1.45;
 }
 
 .supplier-identity__statuses dd {

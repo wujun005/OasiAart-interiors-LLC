@@ -69,9 +69,9 @@
             {{ t("client.home.sections.serviceSelectorSubtitle") }}
           </p>
         </header>
-        <div class="services-grid">
+        <div id="home-services-grid" class="services-grid">
           <button
-            v-for="item in serviceTiles"
+            v-for="item in visibleServiceTiles"
             :key="item.id"
             class="services-grid__item"
             type="button"
@@ -93,10 +93,27 @@
             </div>
           </button>
         </div>
+        <button
+          v-if="canToggleServices"
+          class="services-toggle"
+          type="button"
+          :aria-expanded="servicesExpanded"
+          aria-controls="home-services-grid"
+          @click="servicesExpanded = !servicesExpanded"
+        >
+          <span>{{
+            servicesExpanded
+              ? t("client.home.serviceTile.collapse")
+              : t("client.home.serviceTile.expand")
+          }}</span>
+          <span class="services-toggle__chevron" aria-hidden="true" />
+        </button>
       </div>
     </section>
 
-    <PackageShowcase />
+    <div id="packages">
+      <PackageShowcase />
+    </div>
 
     <section class="booking-section">
       <div class="home-container">
@@ -176,7 +193,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref } from "vue"
+import { computed, onBeforeUnmount, onMounted, ref } from "vue"
 import { useI18n } from "vue-i18n"
 import { useRouter } from "vue-router"
 import PackageShowcase from "@/modules/client/components/PackageShowcase.vue"
@@ -301,6 +318,28 @@ const serviceTiles = computed<ServiceTile[]>(() => {
   return mapped.slice(0, 10)
 })
 
+const servicesExpanded = ref(false)
+const serviceColumns = ref(3)
+const collapsedServiceCount = computed(() => serviceColumns.value * 2)
+const visibleServiceTiles = computed(() =>
+  servicesExpanded.value
+    ? serviceTiles.value
+    : serviceTiles.value.slice(0, collapsedServiceCount.value),
+)
+const canToggleServices = computed(
+  () => serviceTiles.value.length > collapsedServiceCount.value,
+)
+
+const syncServiceColumns = () => {
+  if (window.matchMedia("(max-width: 640px)").matches) {
+    serviceColumns.value = 1
+  } else if (window.matchMedia("(max-width: 960px)").matches) {
+    serviceColumns.value = 2
+  } else {
+    serviceColumns.value = 3
+  }
+}
+
 const bookingSteps = computed<BookingStep[]>(() => [
   {
     icon: bookingStepIcons[0],
@@ -395,11 +434,21 @@ const openWhatsApp = () => {
 }
 
 onMounted(() => {
+  syncServiceColumns()
+  window.addEventListener("resize", syncServiceColumns)
   loadServiceMenus()
+})
+
+onBeforeUnmount(() => {
+  window.removeEventListener("resize", syncServiceColumns)
 })
 </script>
 
 <style scoped lang="scss">
+#packages {
+  scroll-margin-top: 96px;
+}
+
 .home-page {
   --primary: var(--hourx-brand);
   --primary-dark: var(--hourx-brand-hover);
@@ -834,6 +883,49 @@ onMounted(() => {
 
 .services-grid__item--placeholder:hover {
   transform: none;
+}
+
+.services-toggle {
+  min-width: 132px;
+  height: 40px;
+  margin: 16px auto 0;
+  padding: 0 18px;
+  border: 1px solid #e5eaf0;
+  border-radius: 12px;
+  background: #fff;
+  color: var(--hourx-brand);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.025);
+}
+
+.services-toggle:hover {
+  border-color: #adbcca;
+}
+
+.services-toggle:focus-visible {
+  outline: 2px solid var(--hourx-brand);
+  outline-offset: 3px;
+}
+
+.services-toggle__chevron {
+  width: 8px;
+  height: 8px;
+  margin-top: -3px;
+  border-right: 1.5px solid currentColor;
+  border-bottom: 1.5px solid currentColor;
+  transform: rotate(45deg);
+}
+
+.services-toggle[aria-expanded="true"] .services-toggle__chevron {
+  margin-top: 3px;
+  transform: rotate(225deg);
 }
 
 .booking-section {

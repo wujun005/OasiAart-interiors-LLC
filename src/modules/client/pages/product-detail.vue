@@ -464,9 +464,17 @@
                   </span>
                   <strong>{{ formatAed(selectedServicePrice) }}</strong>
                 </div>
-                <div v-if="attachTotalPrice > 0" class="booking-summary__row">
+                <div
+                  v-for="line in selectedAttachLines"
+                  :key="line.id"
+                  class="booking-summary__row"
+                >
+                  <span>{{ line.label }} × {{ line.quantity }}</span>
+                  <strong>{{ formatAed(line.amount) }}</strong>
+                </div>
+                <div v-if="selectedAttachLines.length" class="booking-summary__row">
                   <span>{{ t("client.productDetail.booking.attachTotal") }}</span>
-                  <strong>{{ formatAed(attachTotalPrice) }}</strong>
+                  <strong>{{ formatAed(selectedAttachTotal) }}</strong>
                 </div>
                 <div
                   v-if="skuPrice"
@@ -541,6 +549,7 @@ import {
   getProductSku,
   createOrder,
 } from "@/modules/client/api"
+import { normalizeRichTextHtml } from "@/modules/client/utils/richText"
 import { formatCreatedAt } from "@/modules/client/utils/order-date-time"
 import { formatContactName } from "@/modules/client/utils/order-localization"
 import { clearStoredAuthState, getStoredAuthSnapshot } from "@/utils/auth-state"
@@ -724,13 +733,6 @@ const escapeHtml = (value: string) =>
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&#039;")
-
-const normalizeRichTextHtml = (value: string) => {
-  const content = String(value || "").trim()
-  if (!content) return ""
-  if (/<\/?[a-z][^>]*>/i.test(content)) return content
-  return `<p>${escapeHtml(content).replace(/\r?\n/g, "<br>")}</p>`
-}
 
 const legacyListToHtml = (items: string[]) =>
   items.length
@@ -1454,6 +1456,30 @@ const bookingAttachGroups = computed<BookingAttachGroup[]>(() => {
     .filter((item): item is BookingAttachGroup => Boolean(item))
 })
 
+const selectedAttachLines = computed(() => {
+  const record = productDetail.value
+  return bookingAttachGroups.value.flatMap((group) =>
+    group.options.flatMap((option) => {
+      const quantity = Math.max(0, Number(attachQuantities.value[option.id] || 0))
+      if (!quantity) return []
+      const unitPrice = Number(option.price) || 0
+      return [{
+        id: option.id,
+        label: option.label,
+        labelI18n: record?.attachValueNameI18n?.[option.id],
+        unit: option.unit || undefined,
+        unitI18n: record?.attachValueUnitI18n?.[option.id],
+        quantity,
+        amount: Math.round(unitPrice * quantity * 100) / 100,
+      }]
+    }),
+  )
+})
+
+const selectedAttachTotal = computed(() =>
+  Math.round(selectedAttachLines.value.reduce((sum, line) => sum + line.amount, 0) * 100) / 100,
+)
+
 const loadProductDetail = async () => {
   if (!spuId.value) {
     productDetail.value = null
@@ -1614,6 +1640,15 @@ const decreaseAttachQty = (valueId: string) => {
   }
 }
 
+const attachCheckoutQuery = () => {
+  const lines = selectedAttachLines.value
+  if (!lines.length) return {}
+  return {
+    attachLines: JSON.stringify(lines),
+    serviceAmount: selectedServicePrice.value.toFixed(2),
+  }
+}
+
 const handleAddToCart = async () => {
   const payload = skuRequestPayload.value
   if (!payload) {
@@ -1642,6 +1677,7 @@ const handleAddToCart = async () => {
       specValueNameI18n: JSON.stringify(
         productDetail.value?.specValueNameI18n || {},
       ),
+      ...attachCheckoutQuery(),
       subtotal: subtotalPrice.value.toFixed(2),
       tax: vatPrice.value.toFixed(2),
       total: totalPrice.value.toFixed(2),
@@ -1712,6 +1748,7 @@ const goOrderConfirm = async () => {
         specValueNameI18n: JSON.stringify(
           productDetail.value?.specValueNameI18n || {},
         ),
+        ...attachCheckoutQuery(),
         subtotal: subtotalPrice.value.toFixed(2),
         tax: vatPrice.value.toFixed(2),
         total: totalPrice.value.toFixed(2),

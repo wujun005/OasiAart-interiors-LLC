@@ -3,7 +3,7 @@
     class="supplier-demo"
     :class="{ 'supplier-demo--profile': section === 'profile' }"
   >
-    <header v-if="section !== 'pricing'" class="page-header">
+    <header v-if="section !== 'pricing' && section !== 'staff'" class="page-header">
       <div>
         <p class="page-kicker">{{ meta.description }}</p>
         <h1>{{ meta.title }}</h1>
@@ -33,7 +33,6 @@
             <span class="portal-eyebrow">HOURX SUPPLIER PORTAL</span>
             <h2>{{ t("admin.supplierPortal.setupProgress") }}</h2>
           </div>
-          <el-tag :type="onboardingTagType">{{ profileStatusLabel }}</el-tag>
         </header>
         <p>{{ t("admin.supplierPortal.workspaceHint") }}</p>
         <div class="setup-cards">
@@ -41,14 +40,23 @@
             <span class="setup-number">01</span>
             <h3>{{ t("admin.supplierPortal.profile") }}</h3>
             <p>{{ t("admin.supplierPortal.profileHint") }}</p>
-            <el-tag :type="profileIssues.length ? 'warning' : 'success'">{{
-              t(
-                profileIssues.length
-                  ? "admin.supplierPortal.actionRequired"
-                  : "admin.supplierPortal.complete",
-              )
-            }}</el-tag
-            ><el-button type="primary" @click="goTo('profile')"
+            <p class="setup-status-label">
+              {{ t("admin.supplierPortal.profileStatus") }}
+            </p>
+            <ul
+              class="setup-status"
+              :aria-label="t('admin.supplierPortal.profileStatus')"
+            >
+              <li
+                v-for="item in profileStatusItems"
+                :key="item.key"
+                :class="[item.tone, { 'has-count': Number(item.count) > 0 }]"
+              >
+                <span>{{ item.label }}</span>
+                <b>{{ item.count }}</b>
+              </li>
+            </ul>
+            <el-button type="primary" @click="goTo('profile')"
               >{{ t("admin.supplierPortal.openProfile") }} <ArrowRight
             /></el-button>
           </article>
@@ -56,14 +64,23 @@
             <span class="setup-number">02</span>
             <h3>{{ t("admin.supplierPortal.coverage") }}</h3>
             <p>{{ t("admin.supplierPortal.coverageHint") }}</p>
-            <el-tag :type="selectedAreaIds.length ? 'success' : 'warning'">{{
-              t(
-                selectedAreaIds.length
-                  ? "admin.supplierPortal.complete"
-                  : "admin.supplierPortal.actionRequired",
-              )
-            }}</el-tag
-            ><el-button @click="goTo('coverage-availability')"
+            <p class="setup-status-label">
+              {{ t("admin.supplierPortal.coverageStatus") }}
+            </p>
+            <ul
+              class="setup-status"
+              :aria-label="t('admin.supplierPortal.coverageStatus')"
+            >
+              <li
+                v-for="item in coverageStatusItems"
+                :key="item.key"
+                :class="[item.tone, { 'has-count': Number(item.count) > 0 }]"
+              >
+                <span>{{ item.label }}</span>
+                <b>{{ item.count == null ? "—" : item.count }}</b>
+              </li>
+            </ul>
+            <el-button @click="goTo('coverage-availability')"
               >{{ t("admin.supplierPortal.openCoverage") }} <ArrowRight
             /></el-button>
           </article>
@@ -71,20 +88,23 @@
             <span class="setup-number">03</span>
             <h3>{{ t("admin.supplierPortal.services") }}</h3>
             <p>{{ t("admin.supplierPortal.servicesHint") }}</p>
-            <el-tag
-              :type="
-                serviceRows.some((row) => row.status === 2)
-                  ? 'success'
-                  : 'warning'
-              "
-              >{{
-                t(
-                  serviceRows.some((row) => row.status === 2)
-                    ? "admin.supplierPortal.complete"
-                    : "admin.supplierPortal.actionRequired",
-                )
-              }}</el-tag
-            ><el-button @click="goTo('pricing')"
+            <p class="setup-status-label">
+              {{ t("admin.supplierPortal.quoteStatus") }}
+            </p>
+            <ul
+              class="setup-status"
+              :aria-label="t('admin.supplierPortal.quoteStatus')"
+            >
+              <li
+                v-for="item in quoteStatusItems"
+                :key="item.key"
+                :class="[item.tone, { 'has-count': Number(item.count) > 0 }]"
+              >
+                <span>{{ item.label }}</span>
+                <b>{{ item.count }}</b>
+              </li>
+            </ul>
+            <el-button @click="goTo('pricing')"
               >{{ t("admin.supplierPortal.openServices") }} <ArrowRight
             /></el-button>
           </article>
@@ -98,30 +118,26 @@
           <p>{{ t("admin.supplierPortal.setupProgress") }}</p>
           <nav>
             <button
-              v-for="(item, index) in profileSections"
+              v-for="item in profileNav"
               :key="item.id"
               type="button"
               :class="{
                 'is-active':
-                  profileView === 'section' && profileSection === index,
+                  profileView === 'section' &&
+                  (profileSection === item.index ||
+                    (item.index === 0 && profileSection === 1)),
               }"
-              @click="openProfileSection(index)"
+              @click="openProfileSection(item.index)"
             >
               <span class="profile-step-copy"
                 ><b>{{ item.title }}</b
                 ><small
                   ><span
-                    v-if="!sectionIncomplete(index)"
+                    v-if="!profileStepIncomplete(item.index)"
                     class="profile-step-check"
                     aria-hidden="true"
                     >✓</span
-                  >{{
-                    t(
-                      sectionIncomplete(index)
-                        ? "admin.supplierPortal.actionRequired"
-                        : "admin.supplierPortal.complete",
-                    )
-                  }}</small
+                  >{{ profileStepLabel(item.index) }}</small
                 ></span
               ><ArrowRight />
             </button>
@@ -129,19 +145,19 @@
           <div class="profile-progress">
             <span>{{
               t("admin.supplierPortal.sectionsComplete", {
-                count: profileSections.filter(
-                  (_, index) => !sectionIncomplete(index),
+                count: profileNav.filter(
+                  (item) => !profileStepIncomplete(item.index),
                 ).length,
-                total: profileSections.length,
+                total: profileNav.length,
               })
             }}</span
             ><el-progress
               :percentage="
                 Math.round(
-                  (profileSections.filter(
-                    (_, index) => !sectionIncomplete(index),
+                  (profileNav.filter(
+                    (item) => !profileStepIncomplete(item.index),
                   ).length /
-                    profileSections.length) *
+                    Math.max(profileNav.length, 1)) *
                     100,
                 )
               "
@@ -156,10 +172,12 @@
 
         <div class="profile-main">
           <div class="profile-status" :class="profileStatusClass" role="status">
-            <span>{{ t("admin.supplierProfile.statusLabel") }}</span>
-            <strong>{{ profileStatusLabel }}</strong>
+            <div class="profile-status__heading">
+              <span>{{ t("admin.supplierProfile.statusLabel") }}:</span>
+              <strong>{{ profileStatusLabel }}</strong>
+            </div>
             <p v-if="onboardingStatus === 1">
-              {{ t("admin.supplierProfile.locked") }}
+              {{ t("admin.supplierProfile.reviewHint") }}
             </p>
             <p v-else-if="onboardingStatus === 3 && rejectReason">
               {{
@@ -208,7 +226,7 @@
 
           <div
             class="dossier-sheet"
-            :class="{ 'is-all': profileView === 'all' }"
+            :class="{ 'is-all': profileView === 'all', 'is-locked': !profileEditable }"
           >
             <section v-show="showProfileSection(0)">
               <header class="sec-h">
@@ -366,7 +384,10 @@
             </section>
 
             <section v-show="showProfileSection(1)">
-              <header class="sec-h">
+              <h3 v-if="profileView === 'section'" class="profile-group-title">
+                {{ t("admin.supplierProfile.contactTitle") }}
+              </h3>
+              <header v-else class="sec-h">
                 <span>02</span>
                 <div>
                   <h2>{{ t("admin.supplierProfile.contactTitle") }}</h2>
@@ -557,32 +578,6 @@
                     :disabled="profileReadOnly"
                     @input="
                       capacityForm.workers = wholeOrZero(
-                        ($event.target as HTMLInputElement).value,
-                      )
-                    "
-                /></label>
-                <label class="profile-field"
-                  ><span>{{ t("admin.supplierProfile.concurrent") }}</span
-                  ><input
-                    class="plain-count"
-                    :value="wholeText(capacityForm.concurrent)"
-                    inputmode="numeric"
-                    :disabled="profileReadOnly"
-                    @input="
-                      capacityForm.concurrent = wholeOrZero(
-                        ($event.target as HTMLInputElement).value,
-                      )
-                    "
-                /></label>
-                <label class="profile-field"
-                  ><span>{{ t("admin.supplierProfile.monthly") }}</span
-                  ><input
-                    class="plain-count"
-                    :value="wholeText(capacityForm.monthly)"
-                    inputmode="numeric"
-                    :disabled="profileReadOnly"
-                    @input="
-                      capacityForm.monthly = wholeOrZero(
                         ($event.target as HTMLInputElement).value,
                       )
                     "
@@ -785,21 +780,41 @@
                   ><el-input
                     v-model="bankForm.accountName"
                     :disabled="profileReadOnly"
-                  /><small v-if="issueOf('accountName')">{{
+                  /><small>{{ t("admin.supplierProfile.accountNameHint") }}</small
+                  ><small v-if="issueOf('accountName')">{{
                     issueOf("accountName")
                   }}</small></label
                 >
                 <label
                   id="profile-field-bankName"
                   class="profile-field"
-                  :class="{ error: issueOf('bankName') }"
+                  :class="{ error: issueOf('bankName') || issueOf('bankNameOther') }"
                   ><span
                     >{{ t("admin.supplierProfile.bankName") }} <i>*</i></span
-                  ><el-input
+                  ><el-select
                     v-model="bankForm.bankName"
+                    filterable
                     :disabled="profileReadOnly"
-                  /><small v-if="issueOf('bankName')">{{
+                    :placeholder="t('admin.supplierProfile.bankNamePlaceholder')"
+                  >
+                    <el-option
+                      v-for="bank in uaeBanks"
+                      :key="bank"
+                      :label="bank === BANK_OTHER ? t('admin.supplierProfile.bankOther') : bank"
+                      :value="bank"
+                    />
+                  </el-select>
+                  <el-input
+                    v-if="bankForm.bankName === BANK_OTHER"
+                    v-model="bankForm.bankNameOther"
+                    :disabled="profileReadOnly"
+                    :placeholder="t('admin.supplierProfile.bankNamePlaceholder')"
+                  />
+                  <small v-if="issueOf('bankName')">{{
                     issueOf("bankName")
+                  }}</small>
+                  <small v-if="issueOf('bankNameOther')">{{
+                    issueOf("bankNameOther")
                   }}</small></label
                 >
                 <label
@@ -812,25 +827,22 @@
                     :disabled="profileReadOnly"
                   /><small v-if="issueOf('iban')">{{ issueOf("iban") }}</small
                 ></label>
-                <label class="profile-field"
+                <label
+                  id="profile-field-swift"
+                  class="profile-field"
+                  :class="{ error: issueOf('swift') }"
                   ><span>{{ t("admin.supplierProfile.swift") }}</span
                   ><el-input
                     v-model="bankForm.swift"
                     :disabled="profileReadOnly"
-                /></label>
-                <label
-                  id="profile-field-currency"
-                  class="profile-field"
-                  :class="{ error: issueOf('currency') }"
+                  /><small v-if="issueOf('swift')">{{ issueOf("swift") }}</small></label
+                >
+                <label class="profile-field"
                   ><span>{{ t("admin.supplierProfile.currency") }}</span
-                  ><el-select
-                    v-model="bankForm.currency"
-                    :disabled="profileReadOnly"
-                    ><el-option label="AED" value="AED" /></el-select
-                  ><small v-if="issueOf('currency')">{{
-                    issueOf("currency")
-                  }}</small
-                ></label>
+                  ><strong class="currency-fixed">{{
+                    t("admin.supplierProfile.currencyFixed")
+                  }}</strong></label
+                >
               </div>
             </section>
 
@@ -944,18 +956,22 @@
                   }}</el-button>
                 </el-upload>
               </div>
-              <div class="doc-row">
+              <div
+                id="profile-field-bankCertificate"
+                class="doc-row"
+                :class="{ error: issueOf('bankCertificate') }"
+              >
                 <div>
                   <strong
-                    >{{ t("admin.supplierProfile.otherDocuments") }}
+                    >{{ t("admin.supplierProfile.otherDocuments") }} <i>*</i>
                     <el-tag
                       size="small"
-                      :type="otherDocumentFiles.length ? 'success' : 'info'"
+                      :type="otherDocumentFiles.length ? 'success' : 'warning'"
                       >{{
                         t(
                           otherDocumentFiles.length
                             ? "admin.supplierPortal.uploaded"
-                            : "admin.supplierPortal.optional",
+                            : "admin.supplierPortal.notUploaded",
                         )
                       }}</el-tag
                     ></strong
@@ -979,6 +995,9 @@
                   <small v-if="!otherDocumentFiles.length">{{
                     t("admin.supplierProfile.notUploaded")
                   }}</small>
+                  <small v-if="issueOf('bankCertificate')" class="err">{{
+                    issueOf("bankCertificate")
+                  }}</small>
                 </div>
                 <el-upload
                   v-if="!profileReadOnly"
@@ -1001,11 +1020,11 @@
                 t("admin.supplierProfile.backToProfile")
               }}</el-button>
               <el-button
-                v-else-if="profileSection > 0"
+                v-else-if="adjacentProfileIndex(-1) != null"
                 @click="moveProfileSection(-1)"
                 >{{
                   t("admin.supplierPortal.previousTo", {
-                    section: profileSections[profileSection - 1].title,
+                    section: profileSections[adjacentProfileIndex(-1) || 0].title,
                   })
                 }}</el-button
               >
@@ -1022,14 +1041,12 @@
                 }}</el-button
               >
               <el-button
-                v-if="
-                  !profileFromAll && profileSection < profileSections.length - 1
-                "
+                v-if="!profileFromAll && adjacentProfileIndex(1) != null"
                 type="primary"
                 @click="moveProfileSection(1)"
                 >{{
                   t("admin.supplierPortal.continueTo", {
-                    section: profileSections[profileSection + 1].title,
+                    section: profileSections[adjacentProfileIndex(1) || 0].title,
                   })
                 }}</el-button
               >
@@ -1145,20 +1162,14 @@
       <SupplierAvailability
         :enabled="supplierEnabled"
         :accept-dispatch="supplierAcceptDispatch"
+        :review-status="onboardingStatus"
         :dispatch-saving="dispatchSaving"
         :can-toggle="Boolean(supplierRecordId)"
-        :start="capacityForm.start"
-        :end="capacityForm.end"
-        :concurrent="capacityForm.concurrent"
-        :saturday="capacityToggles[1].enabled"
-        :sunday="capacityToggles[2].enabled"
-        :saving="saving"
         :services="availabilityServices"
         :areas="availabilityAreas"
         :coverage-rows="coverageWorkspaceRows"
         :coverage-loading="editorLoading && !areaCatalogReady"
         @manage-coverage="openAreaEditor"
-        @save-hours="saveAvailabilityHours"
         @toggle-dispatch="toggleAcceptDispatch"
       />
       <el-dialog
@@ -1282,78 +1293,7 @@
     </template>
 
     <template v-else-if="section === 'staff'">
-      <el-card class="surface-card portal-orders-card" shadow="never" v-loading="staffLoading">
-        <div class="order-toolbar portal-orders-toolbar">
-          <div class="order-toolbar__head">
-            <div>
-              <strong>{{ t("admin.supplierStaff.title") }}</strong>
-              <span>{{ t("admin.supplierStaff.count", { count: staffTotal }) }}</span>
-            </div>
-            <div class="portal-pricing-actions">
-              <el-button :loading="staffExporting" @click="downloadStaffSheet">{{
-                t("admin.supplierStaff.export")
-              }}</el-button>
-              <el-button :loading="staffImporting" @click="staffFileRef?.click()">{{
-                t("admin.supplierStaff.import")
-              }}</el-button>
-              <el-button type="primary" @click="openStaffEditor()">{{
-                t("admin.supplierStaff.add")
-              }}</el-button>
-              <input
-                ref="staffFileRef"
-                class="quote-file-input"
-                type="file"
-                accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-                @change="importStaffFile"
-              />
-            </div>
-          </div>
-          <div class="order-filters portal-orders-filters">
-            <label class="order-filter">
-              <span>{{ t("admin.supplierStaff.search") }}</span>
-              <el-input
-                v-model.trim="staffQuery"
-                :prefix-icon="Search"
-                :placeholder="t('admin.supplierStaff.search')"
-                clearable
-                @keyup.enter="searchStaff"
-                @clear="searchStaff"
-              />
-            </label>
-            <el-button type="primary" @click="searchStaff">{{
-              t("admin.supplierOrders.search")
-            }}</el-button>
-          </div>
-        </div>
-        <el-table :data="staffAccounts" class="data-table" row-key="id">
-          <el-table-column :label="t('admin.supplierStaff.name')" min-width="160" prop="name" />
-          <el-table-column :label="t('admin.supplierStaff.phone')" min-width="160" prop="phone" />
-          <el-table-column :label="t('admin.supplierStaff.email')" min-width="200">
-            <template #default="{ row }">{{ row.email || "—" }}</template>
-          </el-table-column>
-          <el-table-column :label="t('admin.supplierPortal.action')" width="140" align="right">
-            <template #default="{ row }">
-              <el-button link type="primary" @click="openStaffEditor(row)">{{
-                t("admin.supplierStaff.edit")
-              }}</el-button>
-              <el-button link type="danger" @click="removeStaff(row)">{{
-                t("admin.supplierStaff.remove")
-              }}</el-button>
-            </template>
-          </el-table-column>
-          <template #empty>{{ t("admin.supplierStaff.empty") }}</template>
-        </el-table>
-        <p class="staff-account-hint">{{ t("admin.supplierStaff.passwordHint") }}</p>
-        <div v-if="staffTotal > staffPageSize" class="order-pager portal-orders-pager">
-          <el-pagination
-            layout="prev, pager, next"
-            :current-page="staffPage"
-            :page-size="staffPageSize"
-            :total="staffTotal"
-            @current-change="changeStaffPage"
-          />
-        </div>
-      </el-card>
+      <StaffBoard />
     </template>
 
     <template v-else-if="section === 'schedule'">
@@ -1524,6 +1464,12 @@
               t("admin.supplierOrders.resetFilters")
             }}</el-button>
           </div>
+          <p v-if="staffOrderUserId" class="staff-order-filter">
+            {{ t("admin.supplierStaff.jobsForStaff") }}
+            <button type="button" @click="clearStaffOrderFilter">
+              {{ t("admin.supplierStaff.clearStaffJobs") }}
+            </button>
+          </p>
           <nav
             class="portal-orders-stages"
             :aria-label="t('admin.supplierPortal.status')"
@@ -1604,7 +1550,7 @@
           class="orders-table-shell portal-orders-table-shell"
         >
           <el-table
-            :data="supplierOrders"
+            :data="visibleSupplierOrders"
             class="data-table orders-table portal-orders-table"
             :row-key="orderVisitKey"
             table-layout="fixed"
@@ -1647,6 +1593,14 @@
                     v-else-if="orderRescheduleUnread(row)"
                     class="order-reschedule"
                     >{{ t("admin.supplierOrders.rescheduleNotice") }}</small
+                  >
+                  <small
+                    v-if="assignedStaffText(row) || canAssignStaff(row)"
+                    class="order-staff"
+                    >{{
+                      assignedStaffText(row) ||
+                      t("admin.supplierOrders.assignedStaffEmpty")
+                    }}</small
                   >
                 </div>
               </template>
@@ -1717,6 +1671,20 @@
                     t("admin.supplierOrders.viewDetail")
                   }}</el-button>
                   <el-button
+                    v-if="canAssignStaff(row)"
+                    link
+                    type="primary"
+                    @click="openAssignStaff(row)"
+                    >{{ t("admin.supplierOrders.assignStaff") }}</el-button
+                  >
+                  <el-button
+                    v-if="serviceStep(row) === 0 && !orderCancelled(row)"
+                    link
+                    type="danger"
+                    @click="rejectOrder(row)"
+                    >{{ t("admin.supplierOrders.rejectAction") }}</el-button
+                  >
+                  <el-button
                     v-if="serviceStep(row) === 0 && !orderCancelled(row)"
                     link
                     type="primary"
@@ -1755,7 +1723,7 @@
           :aria-label="t('admin.supplierOrders.queueTitle')"
         >
           <article
-            v-for="row in supplierOrders"
+            v-for="row in visibleSupplierOrders"
             :key="orderVisitKey(row)"
             class="order-mobile-card portal-orders-mobile-card"
           >
@@ -1803,6 +1771,14 @@
               <el-button @click="openAssignedOrder(row)">{{
                 t("admin.supplierOrders.viewDetail")
               }}</el-button>
+              <el-button v-if="canAssignStaff(row)" @click="openAssignStaff(row)">{{
+                t("admin.supplierOrders.assignStaff")
+              }}</el-button>
+              <el-button
+                v-if="serviceStep(row) === 0 && !orderCancelled(row)"
+                @click="rejectOrder(row)"
+                >{{ t("admin.supplierOrders.rejectAction") }}</el-button
+              >
               <el-button
                 v-if="serviceStep(row) === 0 && !orderCancelled(row)"
                 type="primary"
@@ -1993,21 +1969,27 @@
                   :prefix-icon="Search"
                   clearable
                   :placeholder="t('admin.supplierPricing.searchAdded')"
-                /><el-select
-                  v-model="quoteStatusFilter"
-                  :aria-label="t('admin.supplierPricing.reviewStatus')"
-                  ><el-option
-                    :label="t('admin.supplierPortal.allStatuses')"
-                    value="all" /><el-option
-                    :label="t('admin.supplierPricing.statusNone')"
-                    value="none" /><el-option
-                    v-for="status in [0, 1, 2, 3]"
-                    :key="status"
-                    :label="quoteStatusLabel(status)"
-                    :value="String(status)"
-                /></el-select>
+                />
               </div>
             </header>
+            <div
+              class="portal-status-board"
+              role="tablist"
+              :aria-label="t('admin.supplierPricing.reviewStatus')"
+            >
+              <button
+                v-for="item in quoteStatusOptions"
+                :key="item.value"
+                type="button"
+                role="tab"
+                :aria-selected="quoteStatusFilter === item.value"
+                :class="{ 'is-active': quoteStatusFilter === item.value }"
+                @click="quoteStatusFilter = item.value"
+              >
+                <strong>{{ item.count }}</strong>
+                <span>{{ item.label }}</span>
+              </button>
+            </div>
             <div class="portal-service-list">
               <article
                 v-for="row in filteredServiceRows"
@@ -2103,6 +2085,7 @@
         <nav class="sv-crumb">
           <button
             type="button"
+            class="crumb-back"
             @click="
               quoteScreen === 'review'
                 ? backToQuoteSetup()
@@ -2110,17 +2093,29 @@
             "
           >
             ←
-            {{
-              quoteScreen === "review"
-                ? t("admin.supplierPortal.backQuote")
-                : t("admin.supplierPortal.backCategory", {
-                    category: quoteDialogCategory,
-                  })
-            }}
           </button>
-          <span>{{ t("admin.supplierPricing.title") }}</span>
-          <em>›</em>
-          <strong>{{ quoteDialogTitle }}</strong>
+          <button type="button" @click="closeServiceQuote()">
+            {{ t("admin.supplierPricing.title") }}
+          </button>
+          <template v-if="quoteDialogCategory && quoteDialogCategory !== '—'">
+            <span>›</span>
+            <button type="button" @click="closeServiceQuote()">
+              {{ quoteDialogCategory }}
+            </button>
+          </template>
+          <span>›</span>
+          <button
+            v-if="quoteScreen === 'review'"
+            type="button"
+            @click="backToQuoteSetup()"
+          >
+            {{ quoteDialogTitle }}
+          </button>
+          <b v-else>{{ quoteDialogTitle }}</b>
+          <template v-if="quoteScreen === 'review'">
+            <span>›</span>
+            <b>{{ t("admin.supplierPortal.reviewTitle") }}</b>
+          </template>
         </nav>
         <section class="portal-quote-header">
           <div>
@@ -2227,27 +2222,17 @@
           </div>
           <div class="pricing-editor-layout">
             <div class="pricing-editor-main">
-              <section class="pricing-editor-section">
+              <section
+                v-if="quoteDialog.quoteMode === 2"
+                class="pricing-editor-section"
+              >
                 <header class="pricing-section-head">
                   <div>
-                    <h2>{{
-                      t(
-                        quoteDialog.quoteMode === 2
-                          ? "admin.supplierPricing.hourlyRate"
-                          : "admin.supplierPricing.fixedPrice",
-                      )
-                    }}</h2>
-                    <p>{{
-                      t(
-                        quoteDialog.quoteMode === 2
-                          ? "admin.supplierPortal.hourlyRule"
-                          : "admin.supplierPortal.fixedRule",
-                      )
-                    }}</p>
+                    <h2>{{ t("admin.supplierPricing.hourlyRate") }}</h2>
+                    <p>{{ t("admin.supplierPortal.hourlyRule") }}</p>
                   </div>
                 </header>
                 <div
-                  v-if="quoteDialog.quoteMode === 2"
                   class="rate-card"
                   :class="{ 'is-quote-target': quoteGapFocusId === 'rate' }"
                 >
@@ -2276,9 +2261,9 @@
               >
                 <header class="pricing-section-head">
                   <div>
-                    <h2>{{ t("admin.supplierPricing.specStep") }}</h2>
-                    <p class="spec-step-hint">
-                      {{ t("admin.supplierPricing.specStepHint") }}
+                    <h2>{{ t("admin.supplierPricing.fixedPrice") }}</h2>
+                    <p>
+                      {{ t("admin.supplierPortal.fixedRule") }}
                     </p>
                   </div>
                   <em>{{ quoteDialog.rows.length }}</em>
@@ -2385,11 +2370,19 @@
                           <small v-if="row.available === false">{{
                             t("admin.supplierPricing.discontinued")
                           }}</small>
-                          <small v-else>{{
-                            t("admin.supplierPricing.livePrice", {
-                              price: moneyText(row.approvedPrice),
-                            })
-                          }}</small>
+                          <small v-else class="quote-rate-facts">
+                            <span v-if="linePriceFacts(row).showActive">{{
+                              t("admin.supplierPricing.activeRate", {
+                                price: moneyText(row.approvedPrice),
+                              })
+                            }}</span>
+                            <span v-if="linePriceFacts(row).showPending">{{
+                              t("admin.supplierPricing.pendingQuote", {
+                                price: moneyText(row.quotePrice),
+                              })
+                            }}</span>
+                            <span>{{ linePriceStateLabel(linePriceFacts(row).view) }}</span>
+                          </small>
                         </div>
                       </div>
                       <label class="quote-line__price">
@@ -2407,29 +2400,6 @@
                             <template #prepend>AED</template>
                           </el-input>
                         </label>
-                      <span
-                        v-if="
-                          !row.enabled ||
-                          row.available === false ||
-                          !optionMissingFields(
-                            row,
-                            quoteDialog.quoteMode,
-                            quoteDialog.unitPrice,
-                          ).length
-                        "
-                        class="portal-option-status"
-                        :class="{
-                          'is-ready':
-                            row.enabled && row.available !== false,
-                        }"
-                        >{{
-                          t(
-                            !row.enabled || row.available === false
-                              ? "admin.supplierPortal.notOffered"
-                              : "admin.supplierPortal.complete",
-                          )
-                        }}</span
-                      >
                     </article>
                   </section>
                 </div>
@@ -2479,7 +2449,7 @@
                       <small
                         >{{ attachDisplay(item, "type") }} ·
                         {{
-                          t("admin.supplierPricing.livePrice", {
+                          t("admin.supplierPricing.activeRate", {
                             price: moneyText(item.approvedPrice),
                           })
                         }}</small
@@ -2501,8 +2471,19 @@
 
             <aside class="pricing-review-panel">
               <span>{{ t("admin.supplierPortal.quoteSummary") }}</span>
-              <h3>{{ t("admin.supplierPortal.vatNote") }}</h3>
+              <h3>{{ t("admin.supplierPortal.priceStatus") }}</h3>
               <dl>
+                <div>
+                  <dt>{{ t("admin.supplierPortal.pricingProgress") }}</dt>
+                  <dd>
+                    {{
+                      enabledQuoteRows.filter((row) =>
+                        positiveAmount(row.quotePrice),
+                      ).length
+                    }}
+                    / {{ enabledQuoteRows.length || quoteDialog.rows.length }}
+                  </dd>
+                </div>
                 <div>
                   <dt>{{ t("admin.supplierPricing.reviewStatus") }}</dt>
                   <dd>
@@ -2525,7 +2506,7 @@
                   </dd>
                 </div>
                 <div>
-                  <dt>{{ t("admin.supplierPortal.missingFields") }}</dt>
+                  <dt>{{ t("admin.supplierPricing.missingPriceLabel") }}</dt>
                   <dd
                     :class="{ 'portal-price-missing': quoteMissingCount > 0 }"
                   >
@@ -2548,17 +2529,32 @@
                   <dd>{{ selectedAttachCount }}</dd>
                 </div>
               </dl>
-              <button type="button" @click="openQuotedServiceEditor">
-                <span>{{ t("admin.supplierPricing.serviceSetupTitle") }}</span>
-                <small>{{
+              <button
+                v-if="quotePriceChanges.length"
+                type="button"
+                @click="priceChangesOpen = !priceChangesOpen"
+              >
+                <span>{{
                   t(
-                    quoteContactComplete
-                      ? "admin.supplierPortal.contactComplete"
-                      : "admin.supplierPortal.contactRequired",
+                    priceChangesOpen
+                      ? "admin.supplierPortal.hidePriceChanges"
+                      : "admin.supplierPortal.viewPriceChanges",
                   )
-                }}</small>
+                }}</span>
+                <small>{{ quotePriceChanges.length }}</small>
                 <b>→</b>
               </button>
+              <ul v-if="priceChangesOpen" class="quote-price-changes">
+                <li v-for="row in quotePriceChanges" :key="row.skuId">
+                  {{
+                    t("admin.supplierPortal.priceChangeLine", {
+                      name: row.lineLabel || quoteSpecLabel(row),
+                      from: moneyText(row.approvedPrice),
+                      to: moneyText(row.quotePrice),
+                    })
+                  }}
+                </li>
+              </ul>
             </aside>
           </div>
 
@@ -3251,45 +3247,6 @@
     </template>
 
     <el-dialog
-      v-model="staffDialogVisible"
-      class="supplier-form-dialog"
-      :title="
-        staffForm.id
-          ? t('admin.supplierStaff.dialogEdit')
-          : t('admin.supplierStaff.dialogCreate')
-      "
-      width="min(560px, calc(100vw - 32px))"
-      :close-on-click-modal="false"
-      append-to-body
-    >
-      <el-form label-position="top">
-        <el-form-item :label="t('admin.supplierStaff.name')" required>
-          <el-input v-model.trim="staffForm.name" maxlength="64" />
-        </el-form-item>
-        <el-form-item :label="t('admin.supplierStaff.phone')" required>
-          <el-input
-            v-model.trim="staffForm.phone"
-            :placeholder="t('admin.supplierStaff.phonePlaceholder')"
-          />
-        </el-form-item>
-        <el-form-item :label="t('admin.supplierStaff.email')">
-          <el-input
-            v-model.trim="staffForm.email"
-            :placeholder="t('admin.supplierStaff.emailPlaceholder')"
-          />
-        </el-form-item>
-      </el-form>
-      <template #footer>
-        <el-button @click="staffDialogVisible = false">{{
-          t("admin.supplierStaff.cancel")
-        }}</el-button>
-        <el-button type="primary" :loading="staffSaving" @click="saveStaffAccount">{{
-          t("admin.supplierStaff.save")
-        }}</el-button>
-      </template>
-    </el-dialog>
-
-    <el-dialog
       v-model="shiftDialogVisible"
       class="supplier-form-dialog"
       title="添加班次 / Block"
@@ -3416,6 +3373,13 @@
                 <div class="is-wide">
                   <span>{{ t("admin.supplierOrders.serviceTime") }}</span
                   ><strong>{{ orderWhen(selectedOrder) }}</strong>
+                </div>
+                <div class="is-wide">
+                  <span>{{ t("admin.supplierOrders.assignedStaff") }}</span
+                  ><strong>{{
+                    assignedStaffText(selectedOrder) ||
+                    t("admin.supplierOrders.assignedStaffEmpty")
+                  }}</strong>
                 </div>
                 <div>
                   <span>{{ t("admin.supplierOrders.staffCount") }}</span
@@ -3616,6 +3580,18 @@
             ><strong>{{ serviceStatusText(selectedOrder) }}</strong>
           </div>
           <el-button
+            v-if="canAssignStaff(selectedOrder)"
+            @click="openAssignStaff(selectedOrder)"
+            >{{ t("admin.supplierOrders.assignStaff") }}</el-button
+          >
+          <el-button
+            v-if="
+              serviceStep(selectedOrder) === 0 && !orderCancelled(selectedOrder)
+            "
+            @click="rejectOrder(selectedOrder)"
+            >{{ t("admin.supplierOrders.rejectAction") }}</el-button
+          >
+          <el-button
             v-if="
               serviceStep(selectedOrder) === 0 && !orderCancelled(selectedOrder)
             "
@@ -3653,6 +3629,50 @@
         </div>
       </template>
     </el-drawer>
+
+    <el-dialog
+      v-model="assignStaffDialog.open"
+      class="supplier-form-dialog"
+      :title="t('admin.supplierOrders.assignStaffTitle')"
+      width="min(520px, calc(100vw - 32px))"
+      :close-on-click-modal="false"
+      append-to-body
+    >
+      <p class="assign-staff-hint">
+        {{ assignStaffDialog.orderNo }} · {{ t("admin.supplierOrders.assignStaffHint") }}
+      </p>
+      <p v-if="!assignStaffDialog.loading && !assignStaffDialog.options.length">
+        {{ t("admin.supplierOrders.assignStaffEmpty") }}
+      </p>
+      <el-select
+        v-else
+        v-model="assignStaffDialog.staffUserIds"
+        multiple
+        filterable
+        :loading="assignStaffDialog.loading"
+        :placeholder="t('admin.supplierOrders.assignStaffPlaceholder')"
+        style="width: 100%"
+      >
+        <el-option
+          v-for="person in assignStaffDialog.options"
+          :key="person.adminUserId"
+          :label="person.label"
+          :value="person.adminUserId"
+        />
+      </el-select>
+      <template #footer>
+        <el-button @click="assignStaffDialog.open = false">{{
+          t("admin.orders.actions.cancel")
+        }}</el-button>
+        <el-button
+          type="primary"
+          :loading="assignStaffDialog.saving"
+          :disabled="assignStaffDialog.loading"
+          @click="saveAssignStaff"
+          >{{ t("admin.supplierOrders.assignStaff") }}</el-button
+        >
+      </template>
+    </el-dialog>
 
     <el-dialog
       v-model="serviceAction.open"
@@ -3767,17 +3787,15 @@ import {
   serviceCommunityPage,
   applyQuotePriceChange,
   exportQuoteSheet,
-  exportSupplierStaff,
   importQuoteSheet,
-  importSupplierStaff,
   saveQuoteDraft,
   saveServiceContacts,
-  saveSupplierStaff,
-  deleteSupplierStaff,
   supplierStaffPage,
   saveServices,
   submitQuote,
   supplierAccept,
+  supplierReject,
+  assignOrderStaff,
   supplierArrive,
   supplierDepart,
   supplierAssignedOrderDetail,
@@ -3786,21 +3804,27 @@ import {
   supplierChangeAcceptOrder,
   supplierOperationsMine,
   supplierCoverageSave,
-  supplierScheduleSave,
   supplierComplete,
   uploadFile,
 } from "@/modules/admin/api/supplierWorkbench"
 import { listBySpu, listSpuAttachCatalog } from "@/modules/admin/api/spu"
 import SupplierAvailability from "@/modules/admin/pages/supplier-management/availability.vue"
+import StaffBoard from "@/modules/admin/pages/supplier-management/staff-board.vue"
 import { useAdminSessionStore } from "@/modules/admin/stores/session"
 import { supplierOperationsApiEnabled } from "@/modules/admin/utils/features"
+import { isSupplierStaffOrdersOnly } from "@/modules/admin/utils/menuPermission"
 import { pickI18nText } from "@/modules/admin/utils/i18n"
 import { googleNavigateUrl } from "@/modules/admin/utils/supplierMap"
 import {
+  countCoverageStatuses,
+  countSingleReviewStatus,
+  countWorkspaceQuotes,
   optionMissingFields,
   positiveAmount,
   quoteActionKey,
+  quotePriceView,
 } from "@/modules/admin/utils/supplierPortal"
+import { ibanValid, swiftValid } from "@/modules/admin/utils/supplierReviewState"
 import {
   categoryIdPayload,
   isOtherService,
@@ -4031,8 +4055,11 @@ const profileSections = computed(() => [
 const activeProfileSection = computed(
   () => profileSections.value[profileSection.value] || profileSections.value[0],
 )
-const showProfileSection = (index: number) =>
-  profileView.value === "all" || profileSection.value === index
+const showProfileSection = (index: number) => {
+  if (profileView.value === "all") return true
+  if (index === 1) return profileSection.value === 0 || profileSection.value === 1
+  return profileSection.value === index
+}
 const supplierEnabled = ref(false)
 const supplierAcceptDispatch = ref(true)
 const dispatchSaving = ref(false)
@@ -4054,7 +4081,7 @@ const scrollProfileTop = () => {
 }
 const openProfileSection = (index: number) => {
   if (profileView.value === "all") profileFromAll.value = true
-  profileSection.value = index
+  profileSection.value = index === 1 ? 0 : index
   profileView.value = "section"
   scrollProfileTop()
 }
@@ -4063,9 +4090,25 @@ const backToFullProfile = () => {
   profileView.value = "all"
   scrollProfileTop()
 }
+const profileNav = computed(() =>
+  profileSections.value
+    .map((item, index) => ({ ...item, index }))
+    .filter((item) => item.id !== "contact")
+    .map((item, order) => ({
+      ...item,
+      num: String(order + 1).padStart(2, "0"),
+    })),
+)
+const adjacentProfileIndex = (step: number) => {
+  const order = profileNav.value.map((item) => item.index)
+  const current = profileSection.value === 1 ? 0 : profileSection.value
+  const position = order.indexOf(current)
+  if (position < 0) return undefined
+  return order[position + step]
+}
 const moveProfileSection = (step: number) => {
-  const next = profileSection.value + step
-  if (next < 0 || next >= profileSections.value.length) return
+  const next = adjacentProfileIndex(step)
+  if (next == null) return
   profileSection.value = next
   scrollProfileTop()
 }
@@ -4158,9 +4201,25 @@ const complianceItems = reactive([
   },
 ])
 
+const BANK_OTHER = "Other"
+const UAE_BANKS = [
+  "Emirates NBD",
+  "Abu Dhabi Commercial Bank",
+  "First Abu Dhabi Bank",
+  "Dubai Islamic Bank",
+  "Mashreq Bank",
+  "Abu Dhabi Islamic Bank",
+  "Commercial Bank of Dubai",
+  "RAKBANK",
+  "Sharjah Islamic Bank",
+  "National Bank of Fujairah",
+  BANK_OTHER,
+]
+const uaeBanks = UAE_BANKS
 const bankForm = reactive({
   accountName: "",
   bankName: "",
+  bankNameOther: "",
   iban: "",
   swift: "",
   currency: "AED",
@@ -4236,8 +4295,6 @@ const policyDocuments = computed(() =>
 
 const capacityForm = reactive({
   workers: 0,
-  concurrent: 0,
-  monthly: 0,
   leadTime: 0,
   start: "08:00",
   end: "18:00",
@@ -4700,6 +4757,90 @@ const visitIds = (row: any) => {
       : {}),
   }
 }
+const assignedStaffText = (row: any) => {
+  const list = Array.isArray(row?.assignedStaff) ? row.assignedStaff : []
+  return list
+    .map((item: any) => String(item?.name || item?.phone || "").trim())
+    .filter(Boolean)
+    .join("、")
+}
+const canAssignStaff = (row: any) =>
+  !isSupplierStaffOrdersOnly() &&
+  !orderCancelled(row) &&
+  serviceStep(row) !== 2 &&
+  Number(row?.fulfillmentId) > 0
+const assignStaffDialog = reactive({
+  open: false,
+  saving: false,
+  loading: false,
+  orderId: 0,
+  fulfillmentId: undefined as number | undefined,
+  orderNo: "",
+  staffUserIds: [] as number[],
+  options: [] as { adminUserId: number; label: string }[],
+})
+const openAssignStaff = async (row: any) => {
+  const ids = visitIds(row)
+  if (!ids.orderId || !ids.fulfillmentId || !canAssignStaff(row)) return
+  assignStaffDialog.orderId = ids.orderId
+  assignStaffDialog.fulfillmentId = ids.fulfillmentId
+  assignStaffDialog.orderNo = String(row?.orderNo || "")
+  const current = Array.isArray(row?.assignedStaff) ? row.assignedStaff : []
+  assignStaffDialog.staffUserIds = current
+    .map((item: any) => Number(item?.adminUserId))
+    .filter((id: number) => Number.isFinite(id) && id > 0)
+  assignStaffDialog.open = true
+  assignStaffDialog.loading = true
+  try {
+    const page = unwrap(await supplierStaffPage({ pageNum: 1, pageSize: 500 }))
+    assignStaffDialog.options = (Array.isArray(page?.list) ? page.list : [])
+      .filter(
+        (item: any) =>
+          item?.suspended !== true &&
+          item?.suspended !== 1 &&
+          item?.accountStatus !== "suspended",
+      )
+      .map((item: any) => ({
+        adminUserId: Number(item?.adminUserId),
+        label: [item?.name, item?.phone].filter(Boolean).join(" · "),
+      }))
+      .filter((item: { adminUserId: number }) => item.adminUserId > 0)
+  } catch (error: any) {
+    assignStaffDialog.options = []
+    ElMessage.error(error?.message || t("admin.supplierStaff.loadFailed"))
+  } finally {
+    assignStaffDialog.loading = false
+  }
+}
+const saveAssignStaff = async () => {
+  if (!assignStaffDialog.orderId || !assignStaffDialog.fulfillmentId) return
+  assignStaffDialog.saving = true
+  try {
+    unwrap(
+      await assignOrderStaff({
+        orderId: assignStaffDialog.orderId,
+        fulfillmentId: assignStaffDialog.fulfillmentId,
+        staffUserIds: assignStaffDialog.staffUserIds,
+      }),
+    )
+    ElMessage.success(t("admin.supplierOrders.assignStaffSaved"))
+    assignStaffDialog.open = false
+    await loadOrders()
+    if (
+      orderDrawerVisible.value &&
+      Number(selectedOrder.value?.orderId) === assignStaffDialog.orderId
+    ) {
+      await loadOrderDetail(
+        assignStaffDialog.orderId,
+        assignStaffDialog.fulfillmentId,
+      )
+    }
+  } catch (error: any) {
+    ElMessage.error(error?.message || t("admin.supplierOrders.actionFailed"))
+  } finally {
+    assignStaffDialog.saving = false
+  }
+}
 const orderVisitKey = (row: any) => {
   const ids = visitIds(row)
   return `${ids.orderId}-${ids.fulfillmentId || row?.serviceDate || ""}-${row?.serviceTime || ""}`
@@ -4811,6 +4952,48 @@ const addServicePhotos = async (event: Event) => {
     ElMessage.error(error?.message || t("admin.supplierOrders.actionFailed"))
   } finally {
     serviceAction.uploading = false
+  }
+}
+const rejectOrder = async (row: any) => {
+  const ids = visitIds(row)
+  if (!ids.orderId || orderCancelled(row) || serviceStep(row) !== 0) return
+  let reason = ""
+  try {
+    const result = await ElMessageBox.prompt(
+      t("admin.supplierOrders.rejectConfirm", {
+        orderNo: row?.orderNo || ids.orderId,
+      }),
+      t("admin.supplierOrders.rejectTitle"),
+      {
+        type: "warning",
+        confirmButtonText: t("admin.supplierOrders.rejectAction"),
+        cancelButtonText: t("admin.orders.actions.cancel"),
+        inputPlaceholder: t("admin.supplierOrders.rejectReasonPlaceholder"),
+        inputValidator: (value) =>
+          String(value || "").trim().length <= 512 ||
+          t("admin.supplierOrders.rejectTooLong"),
+      },
+    )
+    reason = String(result.value || "").trim()
+  } catch {
+    return
+  }
+  try {
+    unwrap(await supplierReject({
+      ...ids,
+      ...(reason ? { rejectReason: reason } : {}),
+    }))
+    ElMessage.success(t("admin.supplierOrders.rejectSaved"))
+    await loadOrders()
+    if (
+      orderDrawerVisible.value &&
+      Number(selectedOrder.value?.orderId) === ids.orderId
+    ) {
+      orderDrawerVisible.value = false
+      selectedOrder.value = null
+    }
+  } catch (error: any) {
+    ElMessage.error(error?.message || t("admin.supplierOrders.actionFailed"))
   }
 }
 const acceptOrder = async (row: any) => {
@@ -5822,6 +6005,30 @@ const serviceRows = computed(() => {
     }
   })
 })
+const categoryServiceRows = computed(() =>
+  serviceRows.value.filter(
+    (row) => row.categoryId === Number(quoteCategory.value),
+  ),
+)
+const quoteStatusOptions = computed(() => {
+  const rows = categoryServiceRows.value
+  const options = [
+    { value: "all", label: t("admin.supplierPortal.allStatuses") },
+    { value: "none", label: t("admin.supplierPricing.statusNone") },
+    ...[0, 1, 2, 3].map((status) => ({
+      value: String(status),
+      label: quoteStatusLabel(status),
+    })),
+  ]
+  return options.map((item) => ({
+    ...item,
+    count: rows.filter((row) => {
+      if (item.value === "all") return true
+      if (item.value === "none") return row.status == null
+      return row.status === Number(item.value)
+    }).length,
+  }))
+})
 const filteredServiceRows = computed(() => {
   const keyword = addedKeyword.value.trim().toLowerCase()
   return serviceRows.value.filter((row) => {
@@ -5935,6 +6142,18 @@ const assignedQuoteMode = (source?: {
 const phoneOk = (value: string) =>
   /^[1-9]\d{7,14}$/.test(value.replace(/\D/g, ""))
 const supplierOrders = ref<any[]>([])
+const staffOrderUserId = computed(() => {
+  const id = Number(router.currentRoute.value.query.staff)
+  return Number.isFinite(id) && id > 0 ? id : 0
+})
+const visibleSupplierOrders = computed(() => {
+  if (!staffOrderUserId.value) return supplierOrders.value
+  return supplierOrders.value.filter((row) =>
+    (Array.isArray(row?.assignedStaff) ? row.assignedStaff : []).some(
+      (item: any) => Number(item?.adminUserId) === staffOrderUserId.value,
+    ),
+  )
+})
 const orderLoading = ref(false)
 const orderLoadFailed = ref(false)
 const orderTotal = ref(0)
@@ -5992,15 +6211,23 @@ const hasOrderFilters = computed(() =>
     orderServiceKeyword.value ||
     orderCategory.value ||
     orderDateRange.value.length ||
-    orderStage.value !== "all",
+    orderStage.value !== "all" ||
+    staffOrderUserId.value > 0,
   ),
 )
+const clearStaffOrderFilter = () => {
+  if (!staffOrderUserId.value) return
+  const query = { ...router.currentRoute.value.query }
+  delete query.staff
+  router.replace({ path: router.currentRoute.value.path, query })
+}
 const resetOrderFilters = () => {
   orderKeyword.value = ""
   orderServiceKeyword.value = ""
   orderCategory.value = null
   orderDateRange.value = []
   orderStage.value = "all"
+  clearStaffOrderFilter()
   searchOrders()
 }
 const changeOrderStage = (stage: OrderStage) => {
@@ -6009,11 +6236,87 @@ const changeOrderStage = (stage: OrderStage) => {
   searchOrders()
 }
 
-const onboardingTagType = computed(() => {
-  if (onboardingStatus.value === 2) return "success"
-  if (onboardingStatus.value === 3) return "danger"
-  if (onboardingStatus.value === 1) return "warning"
-  return "info"
+const profileStatusItems = computed(() => {
+  const counts = countSingleReviewStatus(onboardingStatus.value)
+  return [
+    {
+      key: "none",
+      label: t("admin.supplierPortal.profileNone"),
+      count: counts.none,
+      tone: "is-muted",
+    },
+    {
+      key: "draft",
+      label: t("admin.supplierPortal.profileDraft"),
+      count: counts.draft,
+      tone: "is-review",
+    },
+    {
+      key: "reviewing",
+      label: t("admin.supplierPortal.profileReviewing"),
+      count: counts.reviewing,
+      tone: "is-review",
+    },
+    {
+      key: "approved",
+      label: t("admin.supplierPortal.profileApproved"),
+      count: counts.approved,
+      tone: "is-approved",
+    },
+    {
+      key: "rejected",
+      label: t("admin.supplierPortal.profileRejected"),
+      count: counts.rejected,
+      tone: "is-rejected",
+    },
+  ]
+})
+const quoteStatusItems = computed(() => {
+  const counts = countWorkspaceQuotes(serviceRows.value)
+  return [
+    {
+      key: "awaiting",
+      label: t("admin.supplierPortal.awaitingQuote"),
+      count: counts.awaiting,
+      tone: "is-review",
+    },
+    {
+      key: "draft",
+      label: t("admin.supplierPortal.quoteDraft"),
+      count: counts.draft,
+      tone: "is-review",
+    },
+    {
+      key: "reviewing",
+      label: t("admin.supplierPortal.quoteReviewing"),
+      count: counts.reviewing,
+      tone: "is-review",
+    },
+    {
+      key: "approved",
+      label: t("admin.supplierPortal.quoteApproved"),
+      count: counts.approved,
+      tone: "is-approved",
+    },
+    {
+      key: "rejected",
+      label: t("admin.supplierPortal.quoteRejected"),
+      count: counts.rejected,
+      tone: "is-rejected",
+    },
+    {
+      key: "priceChange",
+      label: t("admin.supplierPortal.quotePriceChange"),
+      count: counts.priceChange,
+      tone: "is-review",
+    },
+    {
+      key: "priceChangeRejected",
+      label: t("admin.supplierPortal.quotePriceChangeRejected"),
+      count: counts.priceChangeRejected,
+      tone: "is-rejected",
+    },
+  ]
 })
 const areaCatalog = computed(() => {
   const map = new Map<number, AreaZone>()
@@ -6078,6 +6381,61 @@ const coverageWorkspaceRows = computed(() =>
         : "partial",
   })),
 )
+const coverageStatusItems = computed(() => {
+  const selected = selectedAreaIds.value.length
+  const ready = areaCatalogReady.value
+  const rows = ready ? coverageWorkspaceRows.value : []
+  const counts = countCoverageStatuses({
+    selectedAreas: selected,
+    fullAreas:
+      !selected || ready
+        ? rows.filter((row) => row.status === "full").length
+        : null,
+    partialAreas:
+      !selected || ready
+        ? rows.filter((row) => row.status === "partial").length
+        : null,
+    communities: !selected
+      ? 0
+      : ready
+        ? coveredCommunityCount.value
+        : Array.isArray(coveredCommunityIds.value)
+          ? coveredCommunityIds.value.length
+          : null,
+  })
+  return [
+    {
+      key: "unset",
+      label: t("admin.supplierPortal.coverageUnset"),
+      count: counts.unset,
+      tone: "is-rejected",
+    },
+    {
+      key: "areas",
+      label: t("admin.supplierPortal.coverageAreas"),
+      count: counts.areas,
+      tone: "is-approved",
+    },
+    {
+      key: "full",
+      label: t("admin.supplierPortal.coverageFull"),
+      count: counts.full,
+      tone: "is-approved",
+    },
+    {
+      key: "partial",
+      label: t("admin.supplierPortal.coveragePartial"),
+      count: counts.partial,
+      tone: "is-review",
+    },
+    {
+      key: "communities",
+      label: t("admin.supplierPortal.coverageCommunities"),
+      count: counts.communities,
+      tone: "is-approved",
+    },
+  ]
+})
 const coverageSummary = (areas: number, communities: number) =>
   t("admin.supplierArea.count", {
     areas: t(
@@ -6224,11 +6582,42 @@ const unwrap = (res: any) =>
 const bit = (enabled: boolean) => (enabled ? 1 : 0)
 const quoteStatusLabel = (status?: number) =>
   [
-    t("admin.supplierPricing.statusDraft"),
-    t("admin.supplierPricing.statusPending"),
-    t("admin.supplierPricing.statusApproved"),
-    t("admin.supplierPricing.statusRejected"),
+    t("admin.supplierPricing.quotationDraft"),
+    t("admin.supplierPricing.quotationReview"),
+    t("admin.supplierPricing.quotationApproved"),
+    t("admin.supplierPricing.quotationRejected"),
   ][status ?? -1] || t("admin.supplierPricing.statusNone")
+const linePriceFacts = (row: {
+  approvedPrice?: unknown
+  quotePrice?: unknown
+  reviewStatus?: unknown
+  rejectReason?: unknown
+}) =>
+  quotePriceView({
+    approvedPrice: row.approvedPrice,
+    quotePrice: row.quotePrice,
+    reviewStatus: row.reviewStatus,
+    quoteStatus: quoteDialog.status,
+    priceChangeStatus: quoteDialog.priceChangeStatus,
+    rejected: Boolean(row.rejectReason),
+  })
+const linePriceStateLabel = (view: string) => {
+  const keys: Record<string, string> = {
+    underReview: "admin.supplierPricing.priceUnderReview",
+    approvedPending: "admin.supplierPricing.priceApprovedPending",
+    rejected: "admin.supplierPricing.priceRejected",
+    active: "admin.supplierPricing.priceActive",
+    draft: "admin.supplierPricing.quotationDraft",
+  }
+  return keys[view] ? t(keys[view]) : ""
+}
+const priceChangesOpen = ref(false)
+const quotePriceChanges = computed(() =>
+  quoteDialog.rows.filter((row) => {
+    const facts = linePriceFacts(row)
+    return facts.showActive && facts.showPending
+  }),
+)
 const quoteTagType = (status?: number) =>
   Number(status) === 1
     ? "warning"
@@ -6452,8 +6841,6 @@ const buildProfilePayload = (status?: number, areaIds?: number[]) => ({
   wearUniform: wearUniform.value,
   ownTransportation: ownTransportation.value ? 1 : 0,
   totalAvailableWorkers: capacityForm.workers,
-  maxSimultaneousOrders: capacityForm.concurrent,
-  monthlyCapacity: capacityForm.monthly,
   minLeadTimeHours: capacityForm.leadTime,
   workingHours:
     capacityForm.start && capacityForm.end
@@ -6494,7 +6881,16 @@ const buildProfilePayload = (status?: number, areaIds?: number[]) => ({
       companyForm.licenseIssuedBy === LICENSE_AUTHORITY_OTHER
         ? companyForm.licenseIssuedByOther.trim() || null
         : null,
-    bank: { ...bankForm },
+    bank: {
+      accountName: bankForm.accountName.trim(),
+      bankName:
+        bankForm.bankName === BANK_OTHER
+          ? bankForm.bankNameOther.trim()
+          : bankForm.bankName.trim(),
+      iban: bankForm.iban.replace(/\s+/g, "").toUpperCase(),
+      swift: bankForm.swift.replace(/\s+/g, "").toUpperCase(),
+      currency: "AED",
+    },
     tradeLicenseFiles: [...tradeLicenseFiles.value],
     otherDocuments: [...otherDocumentFiles.value],
     documentNames: { ...documentNames.value },
@@ -6508,9 +6904,9 @@ const applyProfile = (detail: any) => {
       ? null
       : Number(detail.status)
   onboardingStatus.value = Number.isFinite(status) ? status : null
-  if (detail?.editable === false) profileEditable.value = false
+  if (onboardingStatus.value === 1 || detail?.editable === false) profileEditable.value = false
   else if (detail?.editable === true) profileEditable.value = true
-  else profileEditable.value = onboardingStatus.value !== 1
+  else profileEditable.value = true
   snapshotVersion.value =
     detail?.snapshotVersion == null || detail?.snapshotVersion === ""
       ? null
@@ -6565,10 +6961,17 @@ const applyProfile = (detail: any) => {
       ? { ...extra.documentNames }
       : {}
   bankForm.accountName = String(bank.accountName || "")
-  bankForm.bankName = String(bank.bankName || "")
+  const savedBank = String(bank.bankName || "")
+  if (savedBank && !UAE_BANKS.includes(savedBank)) {
+    bankForm.bankName = BANK_OTHER
+    bankForm.bankNameOther = savedBank
+  } else {
+    bankForm.bankName = savedBank
+    bankForm.bankNameOther = ""
+  }
   bankForm.iban = String(bank.iban || "")
   bankForm.swift = String(bank.swift || "")
-  bankForm.currency = String(bank.currency || "AED")
+  bankForm.currency = "AED"
   tradeLicenseFiles.value = asFileList(extra.tradeLicenseFiles)
   otherDocumentFiles.value = asFileList(extra.otherDocuments)
   if (!profileEditable.value) {
@@ -6580,8 +6983,6 @@ const applyProfile = (detail: any) => {
     profileBooted.value = true
   }
   capacityForm.workers = detail?.totalAvailableWorkers || 0
-  capacityForm.concurrent = detail?.maxSimultaneousOrders || 0
-  capacityForm.monthly = detail?.monthlyCapacity || 0
   capacityForm.leadTime = detail?.minLeadTimeHours || 0
   const hours = String(detail?.workingHours || "").split("-")
   capacityForm.start = hours[0] || "08:00"
@@ -6654,7 +7055,6 @@ const loadSupplierDetail = async (id: number, fresh = false) => {
     loadCatalog(fresh),
     loadQuotes(fresh),
     section.value === "orders" ? loadOrders() : Promise.resolve(),
-    section.value === "staff" ? loadStaff() : Promise.resolve(),
   ])
 }
 
@@ -6668,7 +7068,6 @@ const reloadOwnProfile = async () => {
       loadCatalog(),
       loadQuotes(),
       section.value === "orders" ? loadOrders() : Promise.resolve(),
-      section.value === "staff" ? loadStaff() : Promise.resolve(),
     ])
   } catch {
     if (!supplierRecordId.value)
@@ -6684,21 +7083,7 @@ const applyOperations = (operations: any) => {
     Array.isArray(operations)
   )
     return
-  const schedule = operations.schedule
   const coverage = operations.coverage
-  if (schedule && typeof schedule === "object") {
-    capacityForm.start = String(schedule.startTime || capacityForm.start)
-    capacityForm.end = String(schedule.endTime || capacityForm.end)
-    capacityForm.concurrent = Number(
-      schedule.maxConcurrentJobs ?? capacityForm.concurrent,
-    )
-    if (Array.isArray(schedule.workingDays)) {
-      capacityToggles[1].enabled = schedule.workingDays.map(Number).includes(6)
-      capacityToggles[2].enabled = schedule.workingDays.map(Number).includes(7)
-      capacityToggles[0].enabled =
-        capacityToggles[1].enabled || capacityToggles[2].enabled
-    }
-  }
   if (coverage && typeof coverage === "object") {
     if (Array.isArray(coverage.areaIds)) {
       selectedAreaIds.value = coverage.areaIds
@@ -6716,8 +7101,8 @@ const applyOperations = (operations: any) => {
       coveredCommunityIds.value = coverage.communityIds
         .map(Number)
         .filter((id: number) => id > 0)
+    independentOperationsReady.value = true
   }
-  if (coverage || schedule) independentOperationsReady.value = true
 }
 const loadOwnOperations = async () => {
   if (!supplierRecordId.value) return
@@ -6761,86 +7146,8 @@ const loadCurrentSupplier = async () => {
     ].includes(section.value)
   )
     await loadOwnOperations()
+  if (section.value === "overview") ensureAreaCatalog()
   if (section.value === "profile") await loadCatalog()
-}
-
-const saveAvailabilityHours = async (next: {
-  start: string
-  end: string
-  concurrent: number
-  saturday: boolean
-  sunday: boolean
-}) => {
-  if (!supplierRecordId.value || saving.value) return
-  if (
-    (onboardingStatus.value !== 0 || !profileEditable.value) &&
-    !requireIndependentOperations()
-  )
-    return
-  const previous = {
-    start: capacityForm.start,
-    end: capacityForm.end,
-    concurrent: capacityForm.concurrent,
-    saturday: capacityToggles[1].enabled,
-    sunday: capacityToggles[2].enabled,
-  }
-  capacityForm.start = next.start
-  capacityForm.end = next.end
-  capacityForm.concurrent = next.concurrent
-  capacityToggles[1].enabled = next.saturday
-  capacityToggles[2].enabled = next.sunday
-  capacityToggles[0].enabled = next.saturday || next.sunday
-  saving.value = true
-  try {
-    if (
-      independentOperationsReady.value ||
-      onboardingStatus.value !== 0 ||
-      !profileEditable.value
-    ) {
-      const workingDays = [
-        1,
-        2,
-        3,
-        4,
-        5,
-        ...(next.saturday ? [6] : []),
-        ...(next.sunday ? [7] : []),
-      ]
-      applyOperations(
-        unwrap(
-          await supplierScheduleSave({
-            supplierId: supplierRecordId.value,
-            workingDays,
-            startTime: next.start,
-            endTime: next.end,
-            maxConcurrentJobs: next.concurrent,
-            timezone: "Asia/Dubai",
-          }),
-        ),
-      )
-      ElMessage.success(t("admin.supplierAvailability.hoursSaved"))
-      return
-    }
-    const id = unwrap(
-      await onboardingSave(buildProfilePayload(onboardingStatus.value ?? 0)),
-    )
-    if (id) supplierRecordId.value = Number(id)
-    ElMessage.success(t("admin.supplierAvailability.hoursSaved"))
-    if (supplierRecordId.value)
-      await loadSupplierDetail(supplierRecordId.value, true)
-  } catch (error: any) {
-    capacityForm.start = previous.start
-    capacityForm.end = previous.end
-    capacityForm.concurrent = previous.concurrent
-    capacityToggles[1].enabled = previous.saturday
-    capacityToggles[2].enabled = previous.sunday
-    capacityToggles[0].enabled = previous.saturday || previous.sunday
-    ElMessage.error(
-      error?.message || t("admin.supplierAvailability.hoursFailed"),
-    )
-  } finally {
-    saving.value = false
-  }
 }
 
 const toggleAcceptDispatch = async (next: boolean) => {
@@ -7027,28 +7334,64 @@ const profileIssues = computed(() => {
       Boolean(applyRenmark.value.trim()),
     t("admin.supplierProfile.communityRequired"),
   )
-  for (const field of [
+  add(
     "accountName",
+    3,
+    t("admin.supplierProfile.accountName"),
+    Boolean(bankForm.accountName.trim()),
+    t("admin.supplierPortal.requiredField", {
+      field: t("admin.supplierProfile.accountName"),
+    }),
+  )
+  add(
     "bankName",
+    3,
+    t("admin.supplierProfile.bankName"),
+    Boolean(bankForm.bankName.trim()),
+    t("admin.supplierPortal.requiredField", {
+      field: t("admin.supplierProfile.bankName"),
+    }),
+  )
+  add(
+    "bankNameOther",
+    3,
+    t("admin.supplierProfile.bankName"),
+    bankForm.bankName !== BANK_OTHER || Boolean(bankForm.bankNameOther.trim()),
+    t("admin.supplierPortal.requiredField", {
+      field: t("admin.supplierProfile.bankName"),
+    }),
+  )
+  add(
     "iban",
-    "currency",
-  ] as const) {
-    add(
-      field,
-      3,
-      t(`admin.supplierProfile.${field}`),
-      Boolean(bankForm[field].trim()),
-      t("admin.supplierPortal.requiredField", {
-        field: t(`admin.supplierProfile.${field}`),
-      }),
-    )
-  }
+    3,
+    t("admin.supplierProfile.iban"),
+    ibanValid(bankForm.iban),
+    bankForm.iban.trim()
+      ? t("admin.supplierProfile.ibanInvalid")
+      : t("admin.supplierPortal.requiredField", {
+          field: t("admin.supplierProfile.iban"),
+        }),
+  )
+  add(
+    "swift",
+    3,
+    t("admin.supplierProfile.swift"),
+    swiftValid(bankForm.swift),
+    t("admin.supplierProfile.swiftInvalid"),
+  )
   add(
     "tradeLicense",
     3,
     t("admin.supplierProfile.tradeLicenseFile"),
     tradeLicenseFiles.value.length > 0,
     t("admin.supplierProfile.tradeFileRequired"),
+  )
+  add(
+    "bankCertificate",
+    3,
+    t("admin.supplierProfile.otherDocuments"),
+    otherDocumentFiles.value.length > 0,
+    t("admin.supplierProfile.bankCertificateRequired"),
   )
   return issues
 })
@@ -7069,29 +7412,56 @@ const lightboxDesc = computed(() =>
 const lightboxCrumb = computed(() => {
   if (profileView.value === "all") return t("admin.supplierProfile.title")
   if (profileFromAll.value) return t("admin.supplierProfile.editingCrumb")
+  const current = profileSection.value === 1 ? 0 : profileSection.value
+  const position = profileNav.value.findIndex((item) => item.index === current)
   return t("admin.supplierProfile.stepOf", {
-    current: profileSection.value + 1,
-    total: profileSections.value.length,
+    current: Math.max(position, 0) + 1,
+    total: profileNav.value.length,
   })
 })
 const bankComplete = computed(() =>
   Boolean(
     bankForm.accountName.trim() &&
-    bankForm.bankName.trim() &&
-    bankForm.iban.trim(),
+    (bankForm.bankName === BANK_OTHER
+      ? bankForm.bankNameOther.trim()
+      : bankForm.bankName.trim()) &&
+    ibanValid(bankForm.iban) &&
+    swiftValid(bankForm.swift),
   ),
 )
-const sectionIncomplete = (index: number) => sectionHasIssue(index)
+const profileStepIncomplete = (index: number) =>
+  index === 0
+    ? sectionHasIssue(0) || sectionHasIssue(1)
+    : sectionHasIssue(index)
+const profileStepLabel = (index: number) => {
+  const incomplete = profileStepIncomplete(index)
+  if (onboardingStatus.value === 1) {
+    return t(
+      incomplete
+        ? "admin.supplierProfile.changesRequired"
+        : "admin.supplierProfile.submittedStep",
+    )
+  }
+  if (onboardingStatus.value === 2 && !incomplete)
+    return t("admin.supplierProfile.verified")
+  if (onboardingStatus.value === 3)
+    return t("admin.supplierProfile.changesRequired")
+  if (incomplete) return t("admin.supplierPortal.actionRequired")
+  return t("admin.supplierProfile.filled")
+}
+const sectionIncomplete = (index: number) => profileStepIncomplete(index)
 const lightboxChip = computed(() => {
+  if (profileView.value === "all" && onboardingStatus.value === 1)
+    return t("admin.supplierProfile.submittedChip")
   if (profileView.value === "all" && !profileEditable.value)
     return t("admin.supplierProfile.submittedChip")
+  const current = profileSection.value === 1 ? 0 : profileSection.value
   const bad =
     profileView.value === "all"
       ? profileIssues.value.length > 0 || !bankComplete.value
-      : sectionIncomplete(profileSection.value)
-  return bad
-    ? t("admin.supplierProfile.needsFix")
-    : t("admin.supplierProfile.completed")
+      : profileStepIncomplete(current)
+  if (bad) return t("admin.supplierProfile.needsFix")
+  return profileStepLabel(current)
 })
 const lightboxChipClass = computed(() => {
   if (profileView.value === "all" && !profileEditable.value) return "is-wait"
@@ -8367,7 +8737,7 @@ const loadOrders = async () => {
         serviceTimeEnd: serviceTimeEnd || undefined,
         supplierStage: supplierStageParam(requestedStage),
         pageNum: orderPage.value,
-        pageSize: 10,
+        pageSize: staffOrderUserId.value ? 100 : 10,
       }),
     )
     if (requestId !== orderListRequest) return
@@ -8402,205 +8772,7 @@ const changeOrderPage = (page: number) => {
   loadOrders()
 }
 
-type StaffAccount = {
-  id: number
-  name: string
-  phone: string
-  email: string
-}
-const staffAccounts = ref<StaffAccount[]>([])
-const staffTotal = ref(0)
-const staffPage = ref(1)
-const staffPageSize = 10
-const staffQuery = ref("")
-const staffLoading = ref(false)
-const staffSaving = ref(false)
-const staffExporting = ref(false)
-const staffImporting = ref(false)
-const staffFileRef = ref<HTMLInputElement | null>(null)
-const staffForm = reactive({
-  id: undefined as number | undefined,
-  name: "",
-  phone: "",
-  email: "",
-})
-let staffListRequest = 0
-const staffEmailOk = (value: string) => /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(value)
-const loadStaff = async () => {
-  const requestId = ++staffListRequest
-  staffLoading.value = true
-  try {
-    const page = unwrap(
-      await supplierStaffPage({
-        keyword: staffQuery.value || undefined,
-        pageNum: staffPage.value,
-        pageSize: staffPageSize,
-      }),
-    )
-    if (requestId !== staffListRequest) return
-    staffAccounts.value = (Array.isArray(page?.list) ? page.list : []).map(
-      (row: any) => ({
-        id: Number(row?.id),
-        name: String(row?.name || ""),
-        phone: String(row?.phone || ""),
-        email: String(row?.email || ""),
-      }),
-    )
-    staffTotal.value = Number(page?.total || 0)
-  } catch (error: any) {
-    if (requestId !== staffListRequest) return
-    staffAccounts.value = []
-    staffTotal.value = 0
-    ElMessage.error(error?.message || t("admin.supplierStaff.loadFailed"))
-  } finally {
-    if (requestId === staffListRequest) staffLoading.value = false
-  }
-}
-const searchStaff = () => {
-  staffPage.value = 1
-  loadStaff()
-}
-const changeStaffPage = (page: number) => {
-  staffPage.value = page
-  loadStaff()
-}
-const openStaffEditor = (row?: StaffAccount) => {
-  staffForm.id = row?.id
-  staffForm.name = row?.name || ""
-  staffForm.phone = row?.phone || ""
-  staffForm.email = row?.email || ""
-  staffDialogVisible.value = true
-}
-const saveStaffAccount = async () => {
-  const name = staffForm.name.trim()
-  const phone = staffForm.phone.trim()
-  const email = staffForm.email.trim()
-  if (!name) {
-    ElMessage.warning(t("admin.supplierStaff.nameRequired"))
-    return
-  }
-  if (!phoneOk(phone)) {
-    ElMessage.warning(t("admin.supplierStaff.phoneInvalid"))
-    return
-  }
-  if (email && !staffEmailOk(email)) {
-    ElMessage.warning(t("admin.supplierStaff.emailInvalid"))
-    return
-  }
-  staffSaving.value = true
-  try {
-    await saveSupplierStaff({
-      id: staffForm.id,
-      name,
-      phone,
-      email: email || undefined,
-    })
-    staffDialogVisible.value = false
-    ElMessage.success(t("admin.supplierStaff.saved"))
-    await loadStaff()
-  } catch (error: any) {
-    ElMessage.error(error?.message || t("admin.supplierStaff.saveFailed"))
-  } finally {
-    staffSaving.value = false
-  }
-}
-const removeStaff = async (row: StaffAccount) => {
-  try {
-    await ElMessageBox.confirm(
-      t("admin.supplierStaff.removeConfirm", { name: row.name || row.phone }),
-      t("admin.common.confirmTitle"),
-      { type: "warning" },
-    )
-  } catch {
-    return
-  }
-  try {
-    await deleteSupplierStaff([row.id])
-    ElMessage.success(t("admin.supplierStaff.removed"))
-    if (staffAccounts.value.length === 1 && staffPage.value > 1)
-      staffPage.value -= 1
-    await loadStaff()
-  } catch (error: any) {
-    ElMessage.error(error?.message || t("admin.supplierStaff.removeFailed"))
-  }
-}
-const downloadStaffSheet = async () => {
-  if (staffExporting.value) return
-  staffExporting.value = true
-  try {
-    const data = await exportSupplierStaff()
-    const blob = data instanceof Blob ? data : new Blob([data as BlobPart])
-    if (blob.type.includes("json") || blob.type.startsWith("text/")) {
-      const text = await blob.text()
-      let message = text
-      try {
-        message = String(JSON.parse(text)?.message || text)
-      } catch {
-        message = text
-      }
-      throw new Error(message)
-    }
-    const url = URL.createObjectURL(blob)
-    const link = document.createElement("a")
-    link.href = url
-    link.download = String(locale.value).startsWith("zh")
-      ? "供应商员工.xlsx"
-      : "supplier-staff.xlsx"
-    link.click()
-    URL.revokeObjectURL(url)
-  } catch (error: any) {
-    ElMessage.error(error?.message || t("admin.supplierStaff.exportFailed"))
-  } finally {
-    staffExporting.value = false
-  }
-}
-const importStaffFile = async (event: Event) => {
-  const input = event.target as HTMLInputElement | null
-  const file = input?.files?.[0]
-  if (input) input.value = ""
-  if (!file || staffImporting.value) return
-  if (!file.name.toLowerCase().endsWith(".xlsx")) {
-    ElMessage.warning(t("admin.supplierStaff.fileType"))
-    return
-  }
-  staffImporting.value = true
-  try {
-    const result = (await importSupplierStaff(file)) as {
-      created?: number
-      updated?: number
-      skipped?: number
-      messages?: string[]
-    }
-    await loadStaff()
-    const summary = t("admin.supplierStaff.importDone", {
-      created: result?.created ?? 0,
-      updated: result?.updated ?? 0,
-      skipped: result?.skipped ?? 0,
-    })
-    const notes = Array.isArray(result?.messages)
-      ? result.messages.map((item) => String(item || "").trim()).filter(Boolean)
-      : []
-    if (notes.length) {
-      await ElMessageBox.alert(
-        [summary, ...notes].join("\n"),
-        t("admin.supplierStaff.importResult"),
-        { confirmButtonText: t("admin.supplierStaff.importClose") },
-      )
-    } else {
-      ElMessage.success(summary)
-    }
-  } catch (error: any) {
-    ElMessage.error(error?.message || t("admin.supplierStaff.importFailed"))
-  } finally {
-    staffImporting.value = false
-  }
-}
-
 const handlePrimaryAction = () => {
-  if (section.value === "staff") {
-    openStaffEditor()
-    return
-  }
   if (section.value === "service-area") {
     openAreaEditor()
     return
@@ -8620,17 +8792,24 @@ onMounted(() => {
     ElMessage.error(error?.message || t("admin.supplierProfile.loadFailed")),
   )
 })
+watch(staffOrderUserId, () => {
+  if (section.value !== "orders") return
+  orderPage.value = 1
+  loadOrders()
+})
 watch(section, (value) => {
   scrollProfileTop()
   if (value === "orders") loadOrders()
-  if (value === "staff") loadStaff()
   if (
     ["service-area", "availability", "coverage-availability"].includes(value)
   ) {
     ensureAreaCatalog()
     loadOwnOperations()
   }
-  if (value === "overview") loadOwnOperations()
+  if (value === "overview") {
+    loadOwnOperations()
+    ensureAreaCatalog()
+  }
   if (value === "pricing") {
     loadCatalog()
     loadQuotes()
@@ -8704,6 +8883,22 @@ watch(areaKeyword, (keyword) => {
 </script>
 
 <style scoped>
+.staff-order-filter {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 0 0 12px;
+  color: #243246;
+  font-size: 14px;
+}
+.staff-order-filter button {
+  border: 0;
+  background: transparent;
+  color: #8d5a32;
+  font: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+}
 .supplier-demo {
   --ink: #05152b;
   --muted: #74685a;
@@ -9016,33 +9211,39 @@ watch(areaKeyword, (keyword) => {
   font-weight: 800;
 }
 .profile-status {
-  display: grid;
-  gap: 4px;
   margin-bottom: 16px;
-  padding: 22px 24px;
+  padding: 14px 16px;
   background: #f7f1e6;
   border: 1px solid #e4d3b8;
-  border-radius: 18px;
+  border-radius: 14px;
 }
-.profile-status span {
+.profile-status__heading {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+}
+.profile-status__heading span {
   color: #6f5b40;
-  font-size: 13px;
+  font-size: 11px;
   font-weight: 800;
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
-.profile-status strong {
+.profile-status__heading strong {
   color: #05152b;
   font-family: Fraunces, Georgia, serif;
-  font-size: 32px;
-  font-weight: 560;
-  letter-spacing: -0.03em;
-  line-height: 1.05;
+  font-size: 18px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  line-height: 1.2;
 }
 .profile-status p {
-  margin: 6px 0 0;
+  display: block;
+  width: 100%;
+  margin: 7px 0 0;
   color: #6a5334;
-  font-size: 16px;
+  font-size: 13px;
   line-height: 1.45;
 }
 .profile-status.is-review,
@@ -10794,11 +10995,17 @@ watch(areaKeyword, (keyword) => {
   background: transparent;
   cursor: pointer;
 }
-.sv-page,
-.sv-editor {
+.sv-page {
   display: grid;
   gap: 16px;
   min-width: 0;
+}
+.sv-editor {
+  display: block;
+  min-width: 0;
+}
+.sv-editor > * + * {
+  margin-top: 16px;
 }
 .sv-eyebrow {
   margin: 0;
@@ -10900,24 +11107,6 @@ watch(areaKeyword, (keyword) => {
   margin: 4px 0 0;
   color: #7a7166;
   font-size: 13px;
-}
-.sv-crumb {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  color: #7a7166;
-  font-size: 13px;
-}
-.sv-crumb button {
-  border: 0;
-  background: transparent;
-  color: #05152b;
-  font: inherit;
-  font-weight: 700;
-  cursor: pointer;
-}
-.sv-crumb strong {
-  color: #05152b;
 }
 .sv-quote {
   padding: 8px 0 0;
@@ -13100,20 +13289,6 @@ watch(areaKeyword, (keyword) => {
   display: none;
 }
 
-.sv-crumb {
-  min-width: 0;
-  overflow: hidden;
-  white-space: nowrap;
-}
-.sv-crumb > * {
-  flex: 0 0 auto;
-}
-.sv-crumb strong {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
 .pricing-editor-hero {
   position: relative;
   isolation: isolate;
@@ -13567,17 +13742,6 @@ watch(areaKeyword, (keyword) => {
 }
 .quote-line__price {
   min-width: 0;
-}
-.portal-option-status {
-  align-self: center;
-  justify-self: end;
-  color: #8a7d70;
-  font-size: 12px;
-  font-weight: 700;
-  white-space: nowrap;
-}
-.portal-option-status.is-ready {
-  color: #1f7a4d;
 }
 .auto-price {
   display: flex;
@@ -14048,11 +14212,11 @@ watch(areaKeyword, (keyword) => {
 }
 @media (max-width: 520px) {
   .profile-status {
-    padding: 16px 16px 18px;
+    padding: 13px 14px;
   }
-  .profile-status strong,
-  .profile-status.is-review strong {
-    font-size: 28px;
+  .profile-status__heading strong,
+  .profile-status.is-review .profile-status__heading strong {
+    font-size: 17px;
   }
   .pricing-command {
     padding: 19px;

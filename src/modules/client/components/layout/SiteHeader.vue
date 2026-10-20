@@ -17,6 +17,11 @@
           :to="{ path: '/', hash: '#services' }"
           >{{ t("client.header.nav.services") }}</RouterLink
         >
+        <RouterLink
+          class="site-header__link"
+          :to="{ path: '/', hash: '#packages' }"
+          >{{ t("client.header.nav.packages") }}</RouterLink
+        >
         <RouterLink class="site-header__link" :to="{ name: 'order-list' }">{{
           t("client.header.nav.orders")
         }}</RouterLink>

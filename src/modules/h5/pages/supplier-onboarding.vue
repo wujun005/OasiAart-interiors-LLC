@@ -108,14 +108,6 @@
           <input :value="wholeText(form.totalAvailableWorkers)" inputmode="numeric" @input="form.totalAvailableWorkers = wholeNumber(($event.target as HTMLInputElement).value)" />
         </label>
         <label>
-          <span>{{ t('h5.supplierOnboarding.simultaneous') }}</span>
-          <input :value="wholeText(form.maxSimultaneousOrders)" inputmode="numeric" @input="form.maxSimultaneousOrders = wholeNumber(($event.target as HTMLInputElement).value)" />
-        </label>
-        <label>
-          <span>{{ t('h5.supplierOnboarding.monthly') }}</span>
-          <input :value="wholeText(form.monthlyCapacity)" inputmode="numeric" @input="form.monthlyCapacity = wholeNumber(($event.target as HTMLInputElement).value)" />
-        </label>
-        <label>
           <span>{{ t('h5.supplierOnboarding.leadTime') }}</span>
           <input :value="wholeText(form.minLeadTimeHours)" inputmode="numeric" @input="form.minLeadTimeHours = wholeNumber(($event.target as HTMLInputElement).value)" />
         </label>
@@ -203,8 +195,6 @@ const form = reactive({
   whatsappCode: DEFAULT_PHONE_DIAL,
   whatsapp: '',
   totalAvailableWorkers: null as number | null,
-  maxSimultaneousOrders: null as number | null,
-  monthlyCapacity: null as number | null,
   minLeadTimeHours: null as number | null,
   workStart: '08:00',
   workEnd: '20:00',
@@ -344,8 +334,6 @@ const submit = async () => {
       email: form.email,
       yearsInBusiness: form.yearsInBusiness == null || Number.isNaN(Number(form.yearsInBusiness)) ? null : Number(form.yearsInBusiness),
       totalAvailableWorkers: form.totalAvailableWorkers,
-      maxSimultaneousOrders: form.maxSimultaneousOrders,
-      monthlyCapacity: form.monthlyCapacity,
       minLeadTimeHours: form.minLeadTimeHours,
       workingHours: `${form.workStart}-${form.workEnd}`,
       weekendService: form.saturdayService === 1 || form.sundayService === 1 ? 1 : 0,

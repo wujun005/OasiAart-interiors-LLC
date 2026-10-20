@@ -10,6 +10,16 @@
             @clear="handleSearch"
             @keyup.enter="handleSearch"
           />
+          <el-select
+            v-model="query.packageOrder"
+            class="orders-h5__kind"
+            :placeholder="t('admin.orders.filters.packageOrder')"
+            @change="handleSearch"
+          >
+            <el-option :label="t('admin.orders.filters.packageAll')" value="" />
+            <el-option :label="t('admin.orders.filters.packageYes')" value="true" />
+            <el-option :label="t('admin.orders.filters.packageNo')" value="false" />
+          </el-select>
           <button type="button" class="orders-h5__filter" @click="handleSearch">
             {{ t("admin.orders.actions.search") }}
           </button>
@@ -62,6 +72,16 @@
                 </el-select>
               </span>
               <span class="orders-h5__pill orders-h5__pill--quiet">{{ row.paymentStatusText }}</span>
+              <span
+                class="orders-h5__pill"
+                :class="row.packageOrder ? 'orders-h5__pill--package' : 'orders-h5__pill--quiet'"
+              >
+                {{
+                  row.packageOrder
+                    ? t("admin.orders.table.packageOrder")
+                    : t("admin.orders.table.regularOrder")
+                }}
+              </span>
               <span v-if="showsNoRefundNote(row)" class="orders-h5__pill orders-h5__pill--alert">
                 {{ t("admin.orders.table.noRefund") }}
               </span>
@@ -175,6 +195,15 @@
               :label="item.label"
               :value="item.value"
             />
+          </el-select>
+          <el-select
+            v-model="query.packageOrder"
+            :placeholder="t('admin.orders.filters.packageOrder')"
+            @change="handleSearch"
+          >
+            <el-option :label="t('admin.orders.filters.packageAll')" value="" />
+            <el-option :label="t('admin.orders.filters.packageYes')" value="true" />
+            <el-option :label="t('admin.orders.filters.packageNo')" value="false" />
           </el-select>
           <el-select
             v-model="query.rescheduleFilter"
@@ -300,6 +329,24 @@
               {{ t("admin.orders.table.rescheduledUnread") }}
             </el-tag>
             <span v-if="!row.orderNo">-</span>
+          </template>
+        </el-table-column>
+        <el-table-column
+          :label="t('admin.orders.table.orderKind')"
+          width="92"
+        >
+          <template #default="{ row }">
+            <el-tag
+              :type="row.packageOrder ? 'warning' : 'info'"
+              effect="plain"
+              size="small"
+            >
+              {{
+                row.packageOrder
+                  ? t("admin.orders.table.packageOrder")
+                  : t("admin.orders.table.regularOrder")
+              }}
+            </el-tag>
           </template>
         </el-table-column>
         <el-table-column
@@ -718,6 +765,45 @@
               {{ detailRow.orderStatusText }}
             </el-tag>
           </div>
+        </section>
+
+        <section
+          v-if="detailRow.fulfillments.length"
+          class="order-detail__panel order-fulfillments"
+        >
+          <h3>{{ t("admin.orders.detail.fulfillments") }}</h3>
+          <article
+            v-for="visit in detailRow.fulfillments"
+            :key="visit.key"
+            class="order-fulfillments__card"
+          >
+            <header>
+              <strong>{{ visit.title }}</strong>
+              <el-tag :type="visit.cancelled ? 'info' : visit.completed ? 'success' : 'warning'" effect="plain">
+                {{ visit.statusText }}
+              </el-tag>
+            </header>
+            <p v-if="visit.scheduleText">
+              <span>{{ t("admin.orders.detail.visitTime") }}</span>{{ visit.scheduleText }}
+            </p>
+            <p v-if="visit.addressText">
+              <span>{{ t("admin.orders.detail.visitAddress") }}</span>{{ visit.addressText }}
+            </p>
+            <div v-if="visit.suppliers.length" class="order-fulfillments__suppliers">
+              <span
+                v-for="supplier in visit.suppliers"
+                :key="`${visit.key}-${supplier.id}`"
+              >
+                {{ supplier.supplierName || "—" }}
+                <el-tag :type="supplierProgressTag(supplier.serviceStatus)" effect="light" size="small">
+                  {{ supplierProgressLabel(supplier) }}
+                </el-tag>
+              </span>
+            </div>
+            <p v-else-if="visit.supplierName">
+              <span>{{ t("admin.orders.table.supplierName") }}</span>{{ visit.supplierName }}
+            </p>
+          </article>
         </section>
 
         <section v-if="trackedSuppliers(detailRow).length" class="order-detail__panel service-progress">
@@ -1510,6 +1596,26 @@
           </span>
         </p>
         <el-select
+          v-if="needsVisitChoice"
+          v-model="assignForm.fulfillmentId"
+          filterable
+          :loading="assignVisitsLoading"
+          :placeholder="t('admin.orders.form.assignVisitPlaceholder')"
+          popper-class="orders-h5-select"
+          style="width: 100%"
+        >
+          <el-option
+            v-for="visit in assignVisitOptions"
+            :key="visit.id || visit.key"
+            :label="visit.title"
+            :value="visit.id"
+            :disabled="!visit.id"
+          />
+        </el-select>
+        <p v-if="needsVisitChoice" class="h5-assign__hint">
+          {{ t("admin.orders.form.assignHint") }}
+        </p>
+        <el-select
           v-model="assignForm.supplierIds"
           multiple
           filterable
@@ -1563,6 +1669,27 @@
             disabled
           />
         </el-form-item>
+        <el-form-item
+          v-if="needsVisitChoice"
+          :label="t('admin.orders.form.assignVisit')"
+        >
+          <el-select
+            v-model="assignForm.fulfillmentId"
+            filterable
+            :loading="assignVisitsLoading"
+            :placeholder="t('admin.orders.form.assignVisitPlaceholder')"
+            style="width: 100%"
+          >
+            <el-option
+              v-for="visit in assignVisitOptions"
+              :key="visit.id || visit.key"
+              :label="visit.title"
+              :value="visit.id"
+              :disabled="!visit.id"
+            />
+          </el-select>
+          <p class="assign-hint">{{ t("admin.orders.form.assignHint") }}</p>
+        </el-form-item>
         <el-form-item :label="t('admin.orders.form.supplier')">
           <el-select
             v-model="assignForm.supplierIds"
@@ -1609,6 +1736,7 @@ import { useI18n } from "vue-i18n"
 import { useRoute } from "vue-router"
 import {
   detail as getOrderDetail,
+  dispatchSupplier,
   edit as editOrder,
   exportOrders,
   getRefundReasons,
@@ -1652,10 +1780,33 @@ type RescheduleChangeItem = {
   serviceTime: string
 }
 
+type OrderFulfillmentSupplier = {
+  id: number | string
+  supplierName: string
+  serviceStatus: number | null
+  serviceStatusText: string
+}
+
+type OrderFulfillment = {
+  key: string
+  id: number | null
+  title: string
+  scheduleText: string
+  addressText: string
+  statusText: string
+  supplierName: string
+  suppliers: OrderFulfillmentSupplier[]
+  cancelled: boolean
+  completed: boolean
+  assignable: boolean
+}
+
 type OrderRow = {
   orderId: number | null
   id: string | number
   orderNo: string
+  packageOrder: boolean
+  fulfillments: OrderFulfillment[]
   userPhone: string
   contactPhone: string
   firstName: string
@@ -1830,6 +1981,7 @@ const query = reactive({
   orderStatuses: [] as number[],
   paymentStatuses: (isOrdersH5.value ? [1] : []) as number[],
   rescheduleFilter: "ALL" as RescheduleFilter,
+  packageOrder: "" as "" | "true" | "false",
   serviceTimeSort: "" as ServiceTimeSort,
   pageNum: 1,
   pageSize: 10,
@@ -1943,8 +2095,17 @@ const supplierOptions = ref<SupplierOption[]>([])
 const assignForm = reactive({
   orderId: null as number | null,
   orderNo: "",
+  fulfillmentId: null as number | null,
   supplierIds: [] as Array<number | string>,
 })
+const assignVisits = ref<OrderFulfillment[]>([])
+const assignVisitsLoading = ref(false)
+const assignVisitOptions = computed(() =>
+  assignVisits.value.filter((visit) => visit.assignable),
+)
+const needsVisitChoice = computed(
+  () => assignVisitOptions.value.filter((visit) => visit.id).length > 1,
+)
 const assignSupplierPreview = ref({ supplierName: "", contactInfo: "" })
 
 const formatDateTime = (value?: string) => {
@@ -2670,6 +2831,14 @@ const normalizeOrderId = (value: unknown): number | null => {
 const normalizeBoolean = (value: unknown) =>
   value === true || value === 1 || String(value ?? "").toLowerCase() === "true"
 
+const isPackageOrderRecord = (order: any, item: any) => {
+  const raw = order?.packageOrder ?? item?.packageOrder
+  if (raw === true || raw === 1 || String(raw ?? "").toLowerCase() === "true") return true
+  if (raw === false || raw === 0 || String(raw ?? "").toLowerCase() === "false") return false
+  const orderType = Number(order?.orderType ?? item?.orderType)
+  return orderType === 2
+}
+
 const parseRescheduleChanges = (value: unknown): RescheduleChangeItem[] => {
   if (typeof value === "string") {
     const legacyText = value.trim()
@@ -3158,6 +3327,83 @@ const resolveAssignedSuppliers = (
   }
 }
 
+const fulfillmentStatusText = (visit: {
+  cancelled: boolean
+  completed: boolean
+  scheduleStatusText: string
+  serviceStatus: number | null
+  serviceStatusText: string
+}) => {
+  if (visit.cancelled) return visit.scheduleStatusText || t("admin.orders.detail.visitCancelled")
+  if (visit.completed) return t("admin.orders.serviceProgress.completed")
+  return visit.scheduleStatusText || visit.serviceStatusText || supplierProgressLabel({
+    id: 0,
+    supplierName: "",
+    serviceStatus: visit.serviceStatus,
+    serviceStatusText: visit.serviceStatusText,
+  })
+}
+
+const parseFulfillments = (value: unknown): OrderFulfillment[] => {
+  if (!Array.isArray(value)) return []
+  return value.map((item, index) => {
+    const row = item && typeof item === "object" ? item as Record<string, any> : {}
+    const id = normalizeOrderId(row.id ?? row.fulfillmentId)
+    const seq = Number(row.seqNo)
+    const serviceName = pickI18nValue(
+      row.spuNameI18n,
+      String(row.spuName || row.serviceName || "").trim(),
+    )
+    const seqText = Number.isFinite(seq) && seq > 0
+      ? t("admin.orders.detail.visitSeq", { seq })
+      : ""
+    const suppliers = (Array.isArray(row.suppliers) ? row.suppliers : []).map(
+      (supplier: any, supplierIndex: number) => ({
+        id: supplier?.supplierId ?? supplier?.id ?? `${index}-${supplierIndex}`,
+        supplierName: String(supplier?.supplierName || "").trim(),
+        serviceStatus: normalizeOptionalNumberParam(supplier?.serviceStatus),
+        serviceStatusText: pickI18nValue(supplier?.serviceStatusI18n, ""),
+      }),
+    )
+    const scheduleStatus = normalizeOptionalNumberParam(row.scheduleStatus)
+    const serviceStatus = normalizeOptionalNumberParam(row.serviceStatus)
+    const cancelled = scheduleStatus === 2
+    const completed = suppliers.length
+      ? suppliers.every((supplier: OrderFulfillmentSupplier) => supplier.serviceStatus === 2)
+      : serviceStatus === 2
+    const scheduleStatusText = pickI18nValue(row.scheduleStatusI18n, "")
+    const serviceStatusText = pickI18nValue(row.serviceStatusI18n, "")
+    const addressText = [row.serviceAddress, row.building, row.roomNo, row.community]
+      .map((part) => String(part || "").trim())
+      .filter(Boolean)
+      .join(" · ")
+    const parsed = {
+      cancelled,
+      completed,
+      scheduleStatusText,
+      serviceStatus,
+      serviceStatusText,
+    }
+    return {
+      key: String(id || row.fulfillmentNo || `${index}`),
+      id,
+      title: [seqText, serviceName || String(row.fulfillmentNo || "").trim()]
+        .filter(Boolean)
+        .join(" · "),
+      scheduleText: String(
+        row.serviceDateTime || row.serviceTimeDisplay || row.serviceDate || "",
+      ).trim(),
+      addressText,
+      statusText: fulfillmentStatusText(parsed),
+      supplierName: String(row.supplierName || "").trim(),
+      suppliers,
+      cancelled,
+      completed,
+      assignable: !cancelled && !completed,
+    }
+  })
+}
+
 const parseOrderRow = (item: any): OrderRow => {
   const order = item?.order ?? item?.orderHeader ?? item ?? {}
   const orderId = normalizeOrderId(
@@ -3220,6 +3466,8 @@ const parseOrderRow = (item: any): OrderRow => {
     orderId,
     id: orderId ?? String(order.orderNo ?? item.orderNo ?? ""),
     orderNo: String(order.orderNo ?? item.orderNo ?? "").trim(),
+    packageOrder: isPackageOrderRecord(order, item),
+    fulfillments: parseFulfillments(order.fulfillmentList ?? item.fulfillmentList),
     userPhone: String(
       order.userPhone ?? item.userPhone ?? order.phone ?? item.phone ?? "",
     ).trim(),
@@ -3630,6 +3878,8 @@ const requestPayload = computed(() => {
   }
 
   payload.rescheduleFilter = query.rescheduleFilter
+  if (query.packageOrder === "true") payload.packageOrder = true
+  if (query.packageOrder === "false") payload.packageOrder = false
   if (query.serviceTimeSort) {
     payload.sortField = "serviceTime"
     payload.sortOrder =
@@ -3822,6 +4072,27 @@ const openSupplierView = async (row: OrderRow) => {
   }
 }
 
+const loadAssignVisits = async (orderId: number) => {
+  assignVisitsLoading.value = true
+  try {
+    const response = await getOrderDetail(orderId)
+    const parsed = normalizeOrderDetail(
+      response,
+      assignTarget.value || ({ fulfillments: [] } as OrderRow),
+    )
+    if (assignForm.orderId !== orderId) return
+    assignVisits.value = parsed.fulfillments
+    const open = parsed.fulfillments.filter((visit) => visit.assignable && visit.id)
+    assignForm.fulfillmentId = open.length === 1 ? open[0].id : null
+  } catch (error) {
+    console.warn("load assign visits failed:", error)
+    assignVisits.value = []
+    assignForm.fulfillmentId = null
+  } finally {
+    assignVisitsLoading.value = false
+  }
+}
+
 const openAssignDialog = async (row: OrderRow) => {
   if (isSupplierReadOnly(row)) {
     assignDialogVisible.value = false
@@ -3842,6 +4113,8 @@ const openAssignDialog = async (row: OrderRow) => {
       : []
   assignForm.orderId = row.orderId
   assignForm.orderNo = row.orderNo
+  assignForm.fulfillmentId = null
+  assignVisits.value = []
   assignForm.supplierIds = suppliers.map((supplier) => supplier.id)
   assignSupplierPreview.value = {
     supplierName: row.supplierName || "",
@@ -3849,7 +4122,7 @@ const openAssignDialog = async (row: OrderRow) => {
   }
   supplierOptions.value = suppliers.filter((supplier) => supplier.supplierName)
   assignDialogVisible.value = true
-  await loadSupplierOptions()
+  await Promise.all([loadSupplierOptions(), loadAssignVisits(row.orderId)])
   if (suppliers.length !== 1 || !suppliers[0]?.id) return
   try {
     assignSupplierPreview.value = normalizeSupplierCopyInfo(
@@ -3879,6 +4152,8 @@ const openBulkAssignDialog = async () => {
   bulkAssignTargets.value = targets
   assignForm.orderId = null
   assignForm.orderNo = ""
+  assignForm.fulfillmentId = null
+  assignVisits.value = []
   assignForm.supplierIds = []
   supplierOptions.value = []
   assignDialogVisible.value = true
@@ -3935,10 +4210,15 @@ const submitSupplierAssignment = async () => {
     if (bulkAssignMode.value) {
       const results = await Promise.allSettled(
         bulkAssignTargets.value.map((row) =>
-          updateSupplier({
-            orderId: row.orderId as number,
-            supplierIds,
-          }),
+          supplierIds.length
+            ? dispatchSupplier({
+                orderId: row.orderId as number,
+                supplierIds,
+              })
+            : updateSupplier({
+                orderId: row.orderId as number,
+                supplierIds,
+              }),
         ),
       )
       const failedIds = new Set(
@@ -3970,10 +4250,25 @@ const submitSupplierAssignment = async () => {
           : row,
       )
     } else {
-      await updateSupplier({
-        orderId: assignForm.orderId as number,
-        supplierIds,
-      })
+      const openVisits = assignVisitOptions.value
+      if (supplierIds.length && needsVisitChoice.value && !assignForm.fulfillmentId) {
+        ElMessage.warning(t("admin.orders.form.assignVisitRequired"))
+        return
+      }
+      if (supplierIds.length) {
+        await dispatchSupplier({
+          orderId: assignForm.orderId as number,
+          ...(assignForm.fulfillmentId
+            ? { fulfillmentId: assignForm.fulfillmentId }
+            : {}),
+          supplierIds,
+        })
+      } else {
+        await updateSupplier({
+          orderId: assignForm.orderId as number,
+          supplierIds,
+        })
+      }
       ElMessage.success(
         t(
           supplierIds.length
@@ -4329,6 +4624,7 @@ const reset = () => {
   query.orderStatuses = []
   query.paymentStatuses = []
   query.rescheduleFilter = "ALL"
+  query.packageOrder = ""
   query.serviceTimeSort = ""
   query.pageNum = 1
   query.pageSize = 10
@@ -4834,6 +5130,57 @@ onBeforeUnmount(() => {
   font-size: 11px;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+.order-fulfillments {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.order-fulfillments__card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  border: 1px solid #e1e8f0;
+  border-radius: 12px;
+  background: #f8fafc;
+}
+.order-fulfillments__card header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.order-fulfillments__card p {
+  margin: 0;
+  color: #3d4a5c;
+  font-size: 13px;
+  line-height: 1.5;
+}
+.order-fulfillments__card p span {
+  display: block;
+  margin-bottom: 2px;
+  color: #7a7166;
+  font-size: 12px;
+}
+.order-fulfillments__suppliers {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.order-fulfillments__suppliers span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: #05152b;
+  font-size: 13px;
+}
+.assign-hint,
+.h5-assign__hint {
+  margin: 8px 0 0;
+  color: #7a7166;
+  font-size: 12px;
+  line-height: 1.5;
 }
 .service-progress {
   display: flex;
@@ -5455,6 +5802,10 @@ onBeforeUnmount(() => {
   min-width: 0;
 }
 
+.orders-h5__kind {
+  flex: 0 0 108px;
+}
+
 .orders-h5__filter,
 .orders-h5__pager button,
 .orders-h5__ghost,
@@ -5618,6 +5969,11 @@ onBeforeUnmount(() => {
   color: #24364c;
   font-size: 11px;
   font-weight: 700;
+}
+
+.orders-h5__pill--package {
+  background: #fff4df;
+  color: #9a5700;
 }
 
 .orders-h5__pill--quiet {

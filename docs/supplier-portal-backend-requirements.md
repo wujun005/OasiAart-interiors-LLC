@@ -46,12 +46,12 @@
 | --- | --- | --- |
 | 公司信息 | `companyName`、`tradeLicenseNo`、`licenseExpiry`、`vatTrn`、`yearsInBusiness`、`officeAddress`；发证机构当前在 `extra.licenseIssuedBy` / `extra.licenseIssuedByOther` | 确认字段长度、格式、日期及是否必填；发证机构选择“其他”时校验说明 |
 | 联系人 | `contactPerson`、`email`、`mobile`、`whatsapp` | 明确国家区号、号码和邮箱的规范化与校验规则 |
-| 服务与接单能力 | `expectedServiceCategoryIds`、`servicesProvided`、`totalAvailableWorkers`、`femaleStaffCount`、`maleStaffCount`、`maxSimultaneousOrders`、`monthlyCapacity`、`minLeadTimeHours`、`workingHours`、周末配置及社区准入字段 | 校验人员及容量为合法数值，工作时间有效；制服、Emaar 与其他社区准入保留在该步骤 |
+| 服务与接单能力 | `expectedServiceCategoryIds`、`servicesProvided`、`totalAvailableWorkers`、`femaleStaffCount`、`maleStaffCount`、`minLeadTimeHours`、`workingHours`、周末配置及社区准入字段。入驻资料不再收集或保存 `maxSimultaneousOrders`、`monthlyCapacity` | 校验人员为合法数值，工作时间有效；制服、Emaar 与其他社区准入保留在该步骤 |
 | 收款与验证 | `extra.bank`；营业执照、保险与其他文件当前分别保存于 `extra.tradeLicenseFiles`、保险文件字段、`extra.otherDocuments` | 收款和文件可一起保存草稿；服务端维护必需文件清单并在提交时校验 |
 
 新增建议：返回 `sectionStates`（四步各为 `complete` / `action_required`）、`missingFields` 和 `requiredDocuments`，每个问题至少包含稳定字段路径、所属步骤、错误类型及可展示信息。必填规则须明确区分总是必填、满足条件才必填和选填，不能仅依赖前端按钮禁用。原需求未逐项指定所有字段是否必填，最终规则应由产品与服务端确认，不能把页面展示字段全部默认定为必填。
 
-草稿允许缺失必填值，提交必须重新校验完整资料。建议对人数校验非负整数、女员工与男员工数量之和不超过总数；对并发接单数、每月容量及提前预约时间制定一致的范围规则。
+草稿允许缺失必填值，提交必须重新校验完整资料。建议对人数校验非负整数、女员工与男员工数量之和不超过总数；对提前预约时间制定范围规则。
 
 验收：缺少任一必需文件时，直接调用提交接口也被拒绝，并返回该文件；草稿刷新后收款资料和文件仍在；四步完成状态与提交校验一致。
 

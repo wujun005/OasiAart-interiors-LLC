@@ -242,8 +242,6 @@ const en = {
     dialCode: 'Country code',
     phoneHint: 'Enter the number after the country code',
     workers: 'How many staff do you have in total?',
-    simultaneous: 'How many jobs can you handle at the same time?',
-    monthly: 'How many jobs can you do in one month?',
     leadTime: 'How many hours\' notice do you need before a job?',
     workStart: 'What time do you start work?',
     workEnd: 'What time do you finish work?',

@@ -6,6 +6,7 @@ import {
 } from '@/modules/admin/api/user';
 import { getAdminAuthStorageValue } from '@/utils/auth-state';
 import { useAdminSessionStore } from '@/modules/admin/stores/session';
+import { ADMIN_NO_ACCESS_PATH, pickAdminEntryPath } from '@/modules/admin/utils/adminEntry';
 
 export type AdminMenuPermissionItem = {
   id: number | string;
@@ -521,8 +522,10 @@ const SUPPLIER_OWNER_PATHS = [
   SUPPLIER_COVERAGE_PATH,
 ];
 
+export { ADMIN_NO_ACCESS_PATH };
+
 export const getFirstAllowedAdminPath = () =>
-  adminMenuState.firstPath || ROOT_PATH;
+  pickAdminEntryPath(adminMenuState.allowedPaths, adminMenuState.firstPath);
 
 /** 纯员工子账号只有工作台父菜单和订单，没有资料、报价、区域或平台菜单。 */
 export const isSupplierStaffOrdersOnly = () => {
@@ -542,21 +545,12 @@ export const resolveAllowedAdminPath = (path: string) => {
   if (!normalized) return '';
   if (normalized === LOGIN_PATH) return LOGIN_PATH;
   if (!normalized.startsWith(ROOT_PATH)) return normalized;
+  if (normalized === ADMIN_NO_ACCESS_PATH) return ADMIN_NO_ACCESS_PATH;
   if (normalized === '/admin/review-notices') {
     return adminMenuState.allowedPaths.includes('/admin/basic/suppliers') ? normalized : '';
   }
 
   if (adminMenuState.allowedPaths.includes(normalized)) {
-    return normalized;
-  }
-
-  // A server-granted workspace root already covers its supplier descendants.
-  // Return the actual destination so the workspace's overview redirect cannot
-  // bounce between a child route and its permitted parent.
-  if (
-    normalized.startsWith(`${SUPPLIER_PATH}/`) &&
-    adminMenuState.allowedPaths.includes(SUPPLIER_PATH)
-  ) {
     return normalized;
   }
 
@@ -567,9 +561,16 @@ export const resolveAllowedAdminPath = (path: string) => {
 
   const parentMatched = adminMenuState.allowedPaths.find(
     (allowedPath) =>
-      normalized === allowedPath || normalized.startsWith(`${allowedPath}/`),
+      allowedPath !== ROOT_PATH &&
+      (normalized === allowedPath || normalized.startsWith(`${allowedPath}/`)),
   );
-  return parentMatched || '';
+  // Stay on the requested child. Sending it back to a parent that redirects
+  // here again aborts the navigation and leaves the user on the login page.
+  if (parentMatched && normalized.startsWith(`${parentMatched}/`)) return normalized;
+  if (parentMatched) return parentMatched;
+
+  const overview = adminMenuState.allowedPaths.find((allowedPath) => allowedPath === ROOT_PATH);
+  return overview && normalized.startsWith(`${ROOT_PATH}/`) ? overview : '';
 };
 
 export const hasAdminMenuAccess = (path: string) =>

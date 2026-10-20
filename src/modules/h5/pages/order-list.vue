@@ -80,7 +80,15 @@
             />
             <div class="h5-order-card__content">
               <div class="h5-order-card__title-row">
-                <h3>{{ item.title }}</h3>
+                <div class="h5-order-card__title-copy">
+                  <h3>{{ item.title }}</h3>
+                  <span
+                    class="h5-order-card__kind-badge"
+                    :class="`h5-order-card__kind-badge--${item.orderKind}`"
+                  >
+                    {{ item.orderKindText }}
+                  </span>
+                </div>
                 <strong>{{ item.amountText }}</strong>
               </div>
               <div
@@ -140,6 +148,14 @@
               @click.stop="goContinueBooking(item)"
             >
               {{ locale === "zh" ? "继续预订" : "Continue Booking" }}
+            </button>
+            <button
+              v-if="item.canBookVisit"
+              type="button"
+              class="h5-order-card__btn h5-order-card__btn--primary"
+              @click.stop="goBookVisit(item)"
+            >
+              {{ locale === "zh" ? "预约上门" : "Book a visit" }}
             </button>
             <button
               v-if="item.canManage"
@@ -491,6 +507,8 @@ type OrderCardView = {
   statusCode: 1 | 2 | 3 | 4
   rawOrderStatus: number | null
   title: string
+  orderKind: "package" | "regular"
+  orderKindText: string
   amountText: string
   refundHandlingFeeText: string
   serviceTimeText: string
@@ -506,6 +524,7 @@ type OrderCardView = {
   reviewed: boolean
   showActions: boolean
   canContinue: boolean
+  canBookVisit: boolean
   canManage: boolean
   canReview: boolean
   canRebook: boolean
@@ -972,6 +991,37 @@ const statusTabs = computed(() => [
   },
 ])
 
+const packageHasRemainingVisit = (item: OrderListRecord) => {
+  const rows = item.packageItems || []
+  const remainingOf = (remaining: unknown, redeem: unknown, occupied: unknown) => {
+    const left = Number(remaining)
+    if (Number.isFinite(left)) return left > 0
+    const total = Number(redeem)
+    const used = Number(occupied)
+    if (Number.isFinite(total) && Number.isFinite(used)) return total > used
+    return Number.isFinite(total) && total > 0
+  }
+  if (rows.length) {
+    return rows.some((row) =>
+      remainingOf(row.remainingTimes, row.redeemTimes, row.occupiedTimes),
+    )
+  }
+  if (
+    item.remainingTimes == null &&
+    item.redeemTimes == null &&
+    item.occupiedTimes == null
+  ) {
+    return true
+  }
+  return remainingOf(item.remainingTimes, item.redeemTimes, item.occupiedTimes)
+}
+const packageStillValid = (item: OrderListRecord) => {
+  const raw = String(item.validUntil || "").trim()
+  if (!raw) return true
+  const end = new Date(`${raw.slice(0, 10)}T23:59:59`)
+  return Number.isNaN(end.getTime()) || end.getTime() >= Date.now()
+}
+
 const orderCards = computed<OrderCardView[]>(() =>
   (orderRecords.value || [])
     .map((item, index) => {
@@ -1024,6 +1074,10 @@ const orderCards = computed<OrderCardView[]>(() =>
               String(item.spuName || "").trim() ||
                 t("client.orderList.unknownService"),
             ),
+        orderKind: isPackage ? "package" : "regular",
+        orderKindText: isPackage
+          ? t("client.orderList.packageOrder")
+          : t("client.orderList.regularOrder"),
         amountText: formatAmount(item.orderAmount),
         refundHandlingFeeText:
           orderStatus === 5 ? formatAmount(item.refundHandlingFee, "") : "",
@@ -1071,6 +1125,11 @@ const orderCards = computed<OrderCardView[]>(() =>
         reviewed: item.reviewed === true,
         showActions: [0, 1, 2, 3, 4, 5].includes(orderStatus ?? -1),
         canContinue: orderStatus === 0,
+        canBookVisit:
+          isPackage &&
+          orderStatus === 1 &&
+          packageStillValid(item) &&
+          packageHasRemainingVisit(item),
         canManage: orderStatus === 1 && !isPackage,
         canReview: orderStatus === 2 || orderStatus === 3,
         canRebook: !isPackage && [2, 3, 4, 5].includes(orderStatus ?? -1),
@@ -1207,6 +1266,9 @@ const goContinueBooking = async (item: OrderCardView) => {
       selectedSpecValueIds: JSON.stringify(
         item.specSelections.map((entry) => entry.specValueId),
       ),
+      ...(Array.isArray(item.record.attachSelections) && item.record.attachSelections.length
+        ? { attachSelections: JSON.stringify(item.record.attachSelections) }
+        : {}),
       total: item.amountText.replace(/[^\d.]/g, ""),
     },
   })
@@ -1218,6 +1280,14 @@ const goDetail = (item: OrderCardView) => {
     return
   }
   router.push({ name: "h5-order-detail", params: { orderNo: item.orderNo } })
+}
+
+const goBookVisit = (item: OrderCardView) => {
+  router.push({
+    name: "h5-order-detail",
+    params: { orderNo: item.orderNo },
+    query: { book: "1" },
+  })
 }
 
 const requestReschedule = (item: OrderCardView) => {
@@ -1755,12 +1825,45 @@ onBeforeUnmount(() => {
   gap: 12px;
 }
 
+.h5-order-card__title-copy {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 5px 7px;
+}
+
 .h5-order-card__title-row h3 {
   margin: 0;
   color: rgba(15, 23, 42, 0.9);
   font-size: 14px;
   line-height: 1.5;
   font-weight: 700;
+}
+
+.h5-order-card__kind-badge {
+  min-height: 19px;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 7px;
+  font-size: 9px;
+  line-height: 1;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.h5-order-card__kind-badge--package {
+  border-color: rgba(183, 125, 31, 0.2);
+  background: #fbf1df;
+  color: #9a6510;
+}
+
+.h5-order-card__kind-badge--regular {
+  border-color: rgba(71, 92, 117, 0.12);
+  background: #eef3f7;
+  color: #52657a;
 }
 
 .h5-order-card__title-row strong {

@@ -38,6 +38,38 @@ export interface PackageOrderItemRecord {
   remainingTimes?: number | string;
 }
 
+export interface PackageFulfillmentRecord {
+  fulfillmentNo?: string;
+  seqNo?: number | string;
+  skuId?: number | string;
+  spuId?: number | string;
+  spuNameI18n?: Record<string, string>;
+  imageUrls?: string[];
+  serviceDate?: string;
+  timeRange?: number | string;
+  serviceDateTime?: string;
+  serviceTimeDisplay?: string;
+  serviceAddress?: string;
+  building?: string;
+  roomNo?: string;
+  community?: string;
+  firstName?: string;
+  lastName?: string;
+  phone?: string;
+  email?: string;
+  remark?: string;
+  supplierName?: string;
+  scheduleStatus?: number | string;
+  scheduleStatusI18n?: Record<string, string>;
+  serviceStatus?: number | string;
+  serviceStatusI18n?: Record<string, string>;
+  departTime?: string;
+  arriveTime?: string;
+  completeTime?: string;
+  cancelTime?: string;
+  cancelReason?: string;
+}
+
 export interface OrderListRecord {
   orderId?: number | string;
   orderAmount?: number | string;
@@ -61,6 +93,7 @@ export interface OrderListRecord {
   remainingTimes?: number | string;
   validUntil?: string;
   packageItems?: PackageOrderItemRecord[];
+  fulfillmentList?: PackageFulfillmentRecord[];
   status?: number | string;
   orderStatus?: number | string;
   paymentStatus?: number | string;
@@ -768,6 +801,13 @@ export async function getOrderList(params?: any) {
   return getDataList<OrderListRecord>(payload);
 }
 
+// /client/order/detail 返回完整订单详情；套餐订单包含逐次履约列表。
+export async function getClientOrderDetail(orderNo: string) {
+  return getEnvelopeData<OrderListRecord>(await http.get('/client/order/detail', {
+    params: { orderNo },
+  }));
+}
+
 // /client/order/page 按订单号补查订单主键，兼容旧列表接口不返回 orderId
 export async function getOrderByOrderNo(orderNo: string) {
   const payload = await http.post('/client/order/page', {
@@ -821,6 +861,27 @@ export async function getOrderRefundAmount(orderNo: string) {
 // /client/order/reschedule 修改服务日期、时段及可选联系信息
 export async function rescheduleOrder(params: OrderReschedulePayload) {
   return getEnvelopeData<OrderRescheduleResult>(await http.post('/client/order/reschedule', params));
+}
+
+export interface PackageFulfillPayload {
+  orderNo: string;
+  skuId: number;
+  serviceDate: string;
+  timeRange: number;
+  firstName?: string;
+  lastName?: string;
+  phone?: string;
+  email?: string;
+  serviceAddress?: string;
+  building?: string;
+  roomNo?: string;
+  community?: string;
+  remark?: string;
+}
+
+// /client/order/package/fulfill 为套餐里的一个服务再发起一次履约，占用 1 次。
+export async function fulfillPackageOrder(params: PackageFulfillPayload) {
+  return getEnvelopeData<string>(await http.post('/client/order/package/fulfill', params));
 }
 
 export function cancelOrder(params: { orderNo: string; cancelReason?: string }) {

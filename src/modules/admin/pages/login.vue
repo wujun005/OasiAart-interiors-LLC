@@ -233,6 +233,7 @@ import {
   getFirstAllowedAdminPath,
   loadAdminMenuPermissions,
   resetAdminMenuPermissions,
+  resolveAllowedAdminPath,
 } from '@/modules/admin/utils/menuPermission';
 import { useAdminSessionStore } from '@/modules/admin/stores/session';
 
@@ -388,14 +389,15 @@ const submitLogin = async () => {
     const redirectQuery = Array.isArray(route.query.redirect)
       ? route.query.redirect[0]
       : route.query.redirect;
-    const redirectPath =
+    const requested =
       typeof redirectQuery === 'string' &&
       redirectQuery.startsWith('/admin') &&
       !redirectQuery.startsWith('/admin/login')
         ? redirectQuery
-        : getFirstAllowedAdminPath();
+        : '';
+    const redirectPath = (requested && resolveAllowedAdminPath(requested)) || getFirstAllowedAdminPath();
     try {
-      await router.replace(redirectPath || '/admin');
+      await router.replace(redirectPath);
     } catch (error) {
       if (!isNavigationFailure(error)) throw error;
     }

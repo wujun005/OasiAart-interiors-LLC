@@ -100,8 +100,6 @@
         </div>
         <div class="apply-grid align-fields">
           <label><span>{{ copy.workers }}</span><input :value="wholeText(form.totalAvailableWorkers)" inputmode="numeric" @input="form.totalAvailableWorkers = wholeNumber(($event.target as HTMLInputElement).value)" /></label>
-          <label><span>{{ copy.simultaneous }}</span><input :value="wholeText(form.maxSimultaneousOrders)" inputmode="numeric" @input="form.maxSimultaneousOrders = wholeNumber(($event.target as HTMLInputElement).value)" /></label>
-          <label><span>{{ copy.monthly }}</span><input :value="wholeText(form.monthlyCapacity)" inputmode="numeric" @input="form.monthlyCapacity = wholeNumber(($event.target as HTMLInputElement).value)" /></label>
           <label><span>{{ copy.leadTime }}</span><input :value="wholeText(form.minLeadTimeHours)" inputmode="numeric" @input="form.minLeadTimeHours = wholeNumber(($event.target as HTMLInputElement).value)" /></label>
           <label><span>{{ copy.workStart }}<i class="req">*</i></span><el-time-select v-model="form.workStart" class="apply-time" start="00:00" step="00:15" end="23:45" :clearable="false" /></label>
           <label><span>{{ copy.workEnd }}<i class="req">*</i></span><el-time-select v-model="form.workEnd" class="apply-time" start="00:00" step="00:15" end="23:45" :clearable="false" /></label>
@@ -192,8 +190,6 @@ const form = reactive({
   email: '',
   yearsInBusiness: null as number | null,
   totalAvailableWorkers: null as number | null,
-  maxSimultaneousOrders: null as number | null,
-  monthlyCapacity: null as number | null,
   minLeadTimeHours: null as number | null,
   workStart: '08:00',
   workEnd: '20:00',
@@ -245,8 +241,6 @@ const copy = computed(() =>
         yes: '是',
         no: '否',
         workers: '您共有多少名员工？',
-        simultaneous: '您同时可以处理多少个订单？',
-        monthly: '您每月可以完成多少个订单？',
         leadTime: '您需要提前多少小时收到订单？',
         workStart: '您几点开始工作？',
         workEnd: '您几点结束工作？',
@@ -311,8 +305,6 @@ const copy = computed(() =>
         yes: 'Yes',
         no: 'No',
         workers: 'How many staff do you have in total?',
-        simultaneous: 'How many jobs can you handle at the same time?',
-        monthly: 'How many jobs can you do in one month?',
         leadTime: 'How many hours\' notice do you need before a job?',
         workStart: 'What time do you start work?',
         workEnd: 'What time do you finish work?',
@@ -459,7 +451,6 @@ const submit = async () => {
       email: form.email.trim(),
       yearsInBusiness: form.yearsInBusiness,
       totalAvailableWorkers: form.totalAvailableWorkers,
-      maxSimultaneousOrders: form.maxSimultaneousOrders,
       workingHours: `${form.workStart}-${form.workEnd}`,
       weekendService: form.saturdayService === 1 || form.sundayService === 1 ? 1 : 0,
       saturdayService: form.saturdayService,
@@ -467,7 +458,6 @@ const submit = async () => {
       publicHolidayService: form.publicHolidayService,
       emergencyService: form.emergencyService,
       minLeadTimeHours: form.minLeadTimeHours,
-      monthlyCapacity: form.monthlyCapacity,
       wearUniform: form.wearUniform,
       emaarOnboarded: communityBit(form.emaarOnboarded),
       nakheelOnboarded: communityBit(form.nakheelOnboarded),

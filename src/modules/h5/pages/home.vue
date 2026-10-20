@@ -143,9 +143,9 @@
             {{ t("client.home.sections.serviceSelectorSubtitle") }}
           </p>
         </header>
-        <div class="h5-service-grid">
+        <div id="h5-service-grid" class="h5-service-grid">
           <button
-            v-for="item in mobileServiceTiles"
+            v-for="item in visibleMobileServiceTiles"
             :key="item.id"
             class="h5-service-tile"
             type="button"
@@ -157,6 +157,21 @@
             <span class="h5-service-tile__label">{{ item.title }}</span>
           </button>
         </div>
+        <button
+          v-if="canToggleMobileServices"
+          class="h5-service-toggle"
+          type="button"
+          :aria-expanded="servicesExpanded"
+          aria-controls="h5-service-grid"
+          @click="servicesExpanded = !servicesExpanded"
+        >
+          <span>{{
+            servicesExpanded
+              ? t("client.home.serviceTile.collapse")
+              : t("client.home.serviceTile.expand")
+          }}</span>
+          <span class="h5-service-toggle__chevron" aria-hidden="true" />
+        </button>
       </section>
 
       <PackageShowcase platform="h5" />
@@ -673,6 +688,18 @@ const mobileServiceTiles = computed<ServiceTile[]>(() => {
     source: item,
   }))
 })
+
+const MOBILE_SERVICE_COLUMNS = 2
+const MOBILE_SERVICE_ROWS = 2
+const servicesExpanded = ref(false)
+const visibleMobileServiceTiles = computed(() =>
+  servicesExpanded.value
+    ? mobileServiceTiles.value
+    : mobileServiceTiles.value.slice(0, MOBILE_SERVICE_COLUMNS * MOBILE_SERVICE_ROWS),
+)
+const canToggleMobileServices = computed(
+  () => mobileServiceTiles.value.length > MOBILE_SERVICE_COLUMNS * MOBILE_SERVICE_ROWS,
+)
 
 const bookingSteps = computed<BookingStep[]>(() => [
   {
@@ -1242,29 +1269,29 @@ onMounted(() => {
 }
 
 .h5-service-grid {
-  margin-top: 16px;
+  margin-top: 12px;
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px;
+  gap: 8px;
 }
 
 .h5-service-tile {
   min-width: 0;
-  min-height: 122px;
+  min-height: 84px;
   border: 1px solid #dce7f3;
-  border-radius: 18px;
+  border-radius: 14px;
   background:
     radial-gradient(circle at 88% 8%, rgba(5, 21, 43, 0.11), transparent 42%),
     var(--hourx-brand-soft);
-  padding: 14px 10px;
+  padding: 10px 8px 9px;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 13px;
+  gap: 6px;
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.92),
-    0 8px 20px rgba(31, 80, 122, 0.055);
+    0 4px 12px rgba(31, 80, 122, 0.045);
   transition:
     transform 0.18s ease,
     border-color 0.18s ease,
@@ -1278,10 +1305,10 @@ onMounted(() => {
 }
 
 .h5-service-tile__icon {
-  width: 54px;
-  height: 54px;
+  width: 36px;
+  height: 36px;
   border: 1px solid rgba(5, 21, 43, 0.12);
-  border-radius: 18px;
+  border-radius: 12px;
   background: linear-gradient(
     145deg,
     var(--hourx-brand-soft) 0%,
@@ -1295,24 +1322,57 @@ onMounted(() => {
 }
 
 .h5-service-tile__icon img {
-  width: 34px;
-  height: 34px;
+  width: 22px;
+  height: 22px;
   object-fit: contain;
   filter: var(--hourx-brand-filter);
 }
 
 .h5-service-tile__label {
-  min-height: 40px;
   max-width: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  display: -webkit-box;
+  overflow: hidden;
   color: #0f172a;
-  font-size: 14px;
-  line-height: 1.35;
-  font-weight: 800;
+  font-size: 13px;
+  line-height: 1.3;
+  font-weight: 750;
   text-align: center;
   overflow-wrap: anywhere;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+}
+
+.h5-service-toggle {
+  width: 100%;
+  height: 34px;
+  margin-top: 8px;
+  border: 1px solid #dce7f3;
+  border-radius: 12px;
+  background: #fff;
+  color: var(--hourx-brand);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 750;
+  cursor: pointer;
+}
+
+.h5-service-toggle__chevron {
+  width: 7px;
+  height: 7px;
+  margin-top: -3px;
+  border-right: 1.5px solid currentColor;
+  border-bottom: 1.5px solid currentColor;
+  transform: rotate(45deg);
+}
+
+.h5-service-toggle[aria-expanded="true"] .h5-service-toggle__chevron {
+  margin-top: 3px;
+  transform: rotate(225deg);
 }
 
 .h5-service-tile--placeholder {
@@ -1357,28 +1417,27 @@ onMounted(() => {
   }
 
   .h5-service-grid {
-    gap: 10px;
+    gap: 8px;
   }
 
   .h5-service-tile {
-    min-height: 126px;
-    padding: 14px 8px 12px;
-    gap: 10px;
+    min-height: 78px;
+    padding: 8px 6px;
+    gap: 6px;
   }
 
   .h5-service-tile__icon {
-    width: 54px;
-    height: 54px;
+    width: 32px;
+    height: 32px;
   }
 
   .h5-service-tile__icon img {
-    width: 34px;
-    height: 34px;
+    width: 20px;
+    height: 20px;
   }
 
   .h5-service-tile__label {
-    min-height: 36px;
-    font-size: 13px;
+    font-size: 12px;
   }
 }
 

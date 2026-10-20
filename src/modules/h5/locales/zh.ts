@@ -241,8 +241,6 @@ const zh = {
     dialCode: '区号',
     phoneHint: '请填写区号后面的号码',
     workers: '您共有多少名员工？',
-    simultaneous: '您同时可以处理多少个订单？',
-    monthly: '您每月可以完成多少个订单？',
     leadTime: '您需要提前多少小时收到订单？',
     workStart: '您几点开始工作？',
     workEnd: '您几点结束工作？',

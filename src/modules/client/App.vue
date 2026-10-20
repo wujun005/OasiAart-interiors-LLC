@@ -24,7 +24,7 @@ import SiteFooter from '@/modules/client/components/layout/SiteFooter.vue';
 const route = useRoute();
 const { locale } = useI18n({ useScope: 'global' });
 const isPlainLayout = computed(() =>
-  route.path === '/login' || route.path === '/register',
+  route.path === '/login' || route.path === '/register' || route.path === '/dev/mark-paid',
 );
 
 watch(

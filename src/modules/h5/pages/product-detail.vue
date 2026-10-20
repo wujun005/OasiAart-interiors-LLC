@@ -317,6 +317,7 @@ import {
 } from "@/modules/client/api"
 import { useCart } from "@/modules/client/composables/useCart"
 import { setClientLocale } from "@/modules/client/locales"
+import { normalizeRichTextHtml } from "@/modules/client/utils/richText"
 import { formatCreatedAt } from "@/modules/client/utils/order-date-time"
 import { formatContactName } from "@/modules/client/utils/order-localization"
 import { clearStoredAuthState, getStoredAuthSnapshot } from "@/utils/auth-state"
@@ -400,6 +401,7 @@ type ProductSkuPayload = {
 
 type ProductSkuRecord = {
   skuId?: number | string
+  price?: number | string
   totalPrice?: number | string
   totalPriceWithTax?: number | string
   attachTotalPrice?: number | string
@@ -503,13 +505,6 @@ const escapeHtml = (value: string) =>
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&#039;")
-
-const normalizeRichTextHtml = (value: string) => {
-  const content = String(value || "").trim()
-  if (!content) return ""
-  if (/<\/?[a-z][^>]*>/i.test(content)) return content
-  return `<p>${escapeHtml(content).replace(/\r?\n/g, "<br>")}</p>`
-}
 
 const legacyListToHtml = (items: string[]) =>
   items.length
@@ -910,6 +905,36 @@ const skuRequestSignature = computed(() => {
 const subtotalPrice = computed(
   () => resolveOptionalNumber(skuPrice.value?.totalPrice) ?? basePrice.value,
 )
+const selectedServicePrice = computed(
+  () => resolveOptionalNumber(skuPrice.value?.price) ?? basePrice.value,
+)
+const selectedAttachLines = computed(() => {
+  const record = productDetail.value
+  return bookingAttachGroups.value.flatMap((group) =>
+    group.options.flatMap((option) => {
+      const quantity = Math.max(0, Number(attachQuantities.value[option.id] || 0))
+      if (!quantity) return []
+      const unitPrice = Number(option.price) || 0
+      return [{
+        id: option.id,
+        label: option.label,
+        labelI18n: record?.attachValueNameI18n?.[option.id],
+        unit: option.unit || undefined,
+        unitI18n: record?.attachValueUnitI18n?.[option.id],
+        quantity,
+        amount: Math.round(unitPrice * quantity * 100) / 100,
+      }]
+    }),
+  )
+})
+const attachCheckoutQuery = () => {
+  const lines = selectedAttachLines.value
+  if (!lines.length) return {}
+  return {
+    attachLines: JSON.stringify(lines),
+    serviceAmount: selectedServicePrice.value.toFixed(2),
+  }
+}
 const attachTotalPrice = computed(() => {
   const fromSku = resolveOptionalNumber(skuPrice.value?.attachTotalPrice)
   if (fromSku !== null) return fromSku
@@ -1222,6 +1247,7 @@ const handleAddToCart = async () => {
       specValueNameI18n: JSON.stringify(
         productDetail.value?.specValueNameI18n || {},
       ),
+      ...attachCheckoutQuery(),
       subtotal: subtotalPrice.value.toFixed(2),
       tax: vatPrice.value.toFixed(2),
       total: totalPrice.value.toFixed(2),
@@ -1286,6 +1312,7 @@ const goOrderConfirm = async () => {
         specValueNameI18n: JSON.stringify(
           productDetail.value?.specValueNameI18n || {},
         ),
+        ...attachCheckoutQuery(),
         subtotal: subtotalPrice.value.toFixed(2),
         tax: vatPrice.value.toFixed(2),
         total: totalPrice.value.toFixed(2),
