@@ -309,8 +309,8 @@ const supplierMenuOrder = [
   '/admin/supplier-management/overview',
   '/admin/supplier-management/profile',
   '/admin/supplier-management/coverage-availability',
-  '/admin/supplier-management/orders',
   '/admin/supplier-management/pricing',
+  '/admin/supplier-management/orders',
   '/admin/supplier-management/staff',
 ];
 const menuTree = computed(() => {
@@ -603,8 +603,12 @@ const resolveMenuIcon = (item: AdminMenuPermissionItem) => {
   }
   const path = item.path || '';
   if (path.startsWith('/admin/products')) return Goods;
+  if (path.startsWith('/admin/package/services')) return Goods;
   if (path.startsWith('/admin/package/packages')) return Tickets;
   if (path.startsWith('/admin/package/categories')) return Collection;
+  if (path.startsWith('/admin/package/service-subcategories')) return FolderOpened;
+  if (path.startsWith('/admin/package/spec-types')) return Ticket;
+  if (path.startsWith('/admin/package/specs')) return Tickets;
   if (path.startsWith('/admin/package') || path.startsWith('/admin/packages')) return Present;
   if (path.startsWith('/admin/orders')) return Document;
   if (path.startsWith('/admin/users')) return User;
@@ -638,6 +642,10 @@ const menuLabelKeyByPath: Record<string, string> = {
   '/admin/packages': 'admin.layout.packages',
   '/admin/package': 'admin.layout.packages',
   '/admin/package/categories': 'admin.layout.packageCategories',
+  '/admin/package/service-subcategories': 'admin.layout.packageServiceSubcategories',
+  '/admin/package/spec-types': 'admin.layout.packageSpecTypes',
+  '/admin/package/specs': 'admin.layout.packageSpecs',
+  '/admin/package/services': 'admin.layout.packageServices',
   '/admin/package/packages': 'admin.layout.packageList',
   '/admin/users': 'admin.layout.user',
   '/admin/basic': 'admin.layout.basicData',

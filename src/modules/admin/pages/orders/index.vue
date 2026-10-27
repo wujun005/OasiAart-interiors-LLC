@@ -302,7 +302,7 @@
         <el-table-column
           prop="orderNo"
           :label="t('admin.orders.table.orderNo')"
-          width="122"
+          width="188"
         >
           <template #default="{ row }">
             <el-tooltip
@@ -333,7 +333,7 @@
         </el-table-column>
         <el-table-column
           :label="t('admin.orders.table.orderKind')"
-          width="92"
+          width="108"
         >
           <template #default="{ row }">
             <el-tag
@@ -351,7 +351,7 @@
         </el-table-column>
         <el-table-column
           :label="t('admin.orders.table.createdAt')"
-          width="110"
+          width="156"
         >
           <template #default="{ row }">
             {{ formatDateTime(row.createdAt) }}
@@ -359,7 +359,7 @@
         </el-table-column>
         <el-table-column
           :label="t('admin.orders.table.customerContact')"
-          width="105"
+          width="196"
         >
           <template #default="{ row }">
             <div class="table-stack">
@@ -378,7 +378,7 @@
         </el-table-column>
         <el-table-column
           :label="t('admin.orders.table.serviceDetails')"
-          min-width="135"
+          min-width="180"
         >
           <template #default="{ row }">
             <div class="table-stack">
@@ -412,7 +412,7 @@
         <el-table-column
           prop="serviceTime"
           :label="t('admin.orders.table.scheduledTime')"
-          width="125"
+          width="188"
         >
           <template #default="{ row }">
             <div class="table-stack">
@@ -457,7 +457,7 @@
         </el-table-column>
         <el-table-column
           :label="t('admin.orders.table.rescheduleChanges')"
-          width="78"
+          width="164"
         >
           <template #default="{ row }">
             <div v-if="row.rescheduleChanges.length" class="reschedule-compact">
@@ -472,12 +472,12 @@
         <el-table-column
           prop="amountText"
           :label="t('admin.orders.table.amount')"
-          width="80"
+          width="96"
           show-overflow-tooltip
         />
         <el-table-column
           :label="t('admin.orders.table.paymentStatus')"
-          width="108"
+          width="128"
         >
           <template #default="{ row }">
             <div class="payment-status-cell">
@@ -490,7 +490,7 @@
         </el-table-column>
         <el-table-column
           :label="t('admin.orders.table.orderStatus')"
-          width="112"
+          width="136"
         >
           <template #default="{ row }">
             <el-select
@@ -802,6 +802,48 @@
             </div>
             <p v-else-if="visit.supplierName">
               <span>{{ t("admin.orders.table.supplierName") }}</span>{{ visit.supplierName }}
+            </p>
+            <div
+              v-for="person in staffForVisit(detailRow, visit)"
+              :key="person.key"
+              class="order-fulfillments__staff"
+            >
+              <strong>{{ t("admin.orders.detail.assignedStaff") }}</strong>
+              <p>
+                <span>{{ t("admin.orders.detail.staffName") }}</span>{{ person.name || "—" }}
+              </p>
+              <p>
+                <span>{{ t("admin.orders.detail.staffPhone") }}</span>
+                <a v-if="staffPhoneHref(person.phone)" :href="staffPhoneHref(person.phone)">{{ person.phone }}</a>
+                <template v-else>—</template>
+              </p>
+              <p v-if="staffSupplierName(detailRow, person)">
+                <span>{{ t("admin.orders.detail.staffSupplier") }}</span>{{ staffSupplierName(detailRow, person) }}
+              </p>
+            </div>
+          </article>
+        </section>
+
+        <section
+          v-if="looseAssignedStaff(detailRow).length"
+          class="order-detail__panel order-fulfillments"
+        >
+          <h3>{{ t("admin.orders.detail.assignedStaff") }}</h3>
+          <article
+            v-for="person in looseAssignedStaff(detailRow)"
+            :key="person.key"
+            class="order-fulfillments__card"
+          >
+            <p>
+              <span>{{ t("admin.orders.detail.staffName") }}</span>{{ person.name || "—" }}
+            </p>
+            <p>
+              <span>{{ t("admin.orders.detail.staffPhone") }}</span>
+              <a v-if="staffPhoneHref(person.phone)" :href="staffPhoneHref(person.phone)">{{ person.phone }}</a>
+              <template v-else>—</template>
+            </p>
+            <p v-if="staffSupplierName(detailRow, person)">
+              <span>{{ t("admin.orders.detail.staffSupplier") }}</span>{{ staffSupplierName(detailRow, person) }}
             </p>
           </article>
         </section>
@@ -1583,6 +1625,8 @@
       :z-index="5200"
       :title="assignDialogTitle"
       :close-on-click-modal="false"
+      :close-on-press-escape="!assignSubmitting"
+      :show-close="!assignSubmitting"
     >
       <div class="h5-assign">
         <p class="h5-assign__order">{{ assignForm.orderNo }}</p>
@@ -1595,33 +1639,27 @@
             {{ assignSupplierPreview.contactInfo }}
           </span>
         </p>
+        <div v-if="assignTarget && !bulkAssignMode" class="assign-staff">
+          <strong>{{ t("admin.orders.detail.assignedStaff") }}</strong>
+          <p v-if="!assignTarget.assignedStaff.length" class="assign-staff__empty">
+            {{ t("admin.orders.detail.assignedStaffEmpty") }}
+          </p>
+          <p v-for="person in assignTarget.assignedStaff" :key="person.key">
+            <span>{{ t("admin.orders.detail.staffName") }}</span>{{ person.name || "—" }}
+            <span>{{ t("admin.orders.detail.staffPhone") }}</span>
+            <a v-if="staffPhoneHref(person.phone)" :href="staffPhoneHref(person.phone)">{{ person.phone }}</a>
+            <template v-else>—</template>
+            <em v-if="assignStaffVisitTitle(person)">{{ assignStaffVisitTitle(person) }}</em>
+          </p>
+        </div>
         <el-select
-          v-if="needsVisitChoice"
-          v-model="assignForm.fulfillmentId"
-          filterable
-          :loading="assignVisitsLoading"
-          :placeholder="t('admin.orders.form.assignVisitPlaceholder')"
-          popper-class="orders-h5-select"
-          style="width: 100%"
-        >
-          <el-option
-            v-for="visit in assignVisitOptions"
-            :key="visit.id || visit.key"
-            :label="visit.title"
-            :value="visit.id"
-            :disabled="!visit.id"
-          />
-        </el-select>
-        <p v-if="needsVisitChoice" class="h5-assign__hint">
-          {{ t("admin.orders.form.assignHint") }}
-        </p>
-        <el-select
-          v-model="assignForm.supplierIds"
-          multiple
+          v-model="assignForm.supplierId"
+          @change="assignRequiresSupplierChoice = false"
           filterable
           clearable
-          collapse-tags
-          collapse-tags-tooltip
+          remote
+          :remote-method="loadSupplierOptions"
+          :disabled="assignSubmitting"
           :loading="supplierLoading"
           :placeholder="t('admin.orders.form.supplierPlaceholder')"
           popper-class="orders-h5-select"
@@ -1634,13 +1672,18 @@
             :value="item.id"
           />
         </el-select>
+        <p v-if="assignRequiresSupplierChoice" class="h5-assign__hint">
+          {{ t("admin.orders.form.singleSupplierRequired") }}
+          <el-button link type="primary" @click="clearLegacySupplierAssignment">{{ t("admin.orders.form.clearExistingSuppliers") }}</el-button>
+        </p>
+        <p class="h5-assign__hint">{{ t("admin.orders.form.assignHint") }}</p>
         <div class="h5-assign__footer">
-          <button type="button" @click="assignDialogVisible = false">
+          <button type="button" :disabled="assignSubmitting" @click="assignDialogVisible = false">
             {{ t("admin.orders.actions.cancel") }}
           </button>
           <button
             type="button"
-            :disabled="assignSubmitting"
+            :disabled="assignSubmitting || assignRequiresSupplierChoice"
             @click="submitSupplierAssignment"
           >
             {{ t("admin.orders.actions.save") }}
@@ -1654,9 +1697,11 @@
       v-model="assignDialogVisible"
       :title="t('admin.orders.dialog.assignSupplierTitle')"
       :close-on-click-modal="false"
+      :close-on-press-escape="!assignSubmitting"
+      :show-close="!assignSubmitting"
       width="520px"
     >
-      <el-form label-width="100px">
+      <el-form label-width="118px">
         <el-form-item :label="t('admin.orders.form.orderNo')">
           <el-input
             :model-value="
@@ -1670,35 +1715,30 @@
           />
         </el-form-item>
         <el-form-item
-          v-if="needsVisitChoice"
-          :label="t('admin.orders.form.assignVisit')"
+          v-if="assignTarget && !bulkAssignMode"
+          :label="t('admin.orders.detail.assignedStaff')"
         >
-          <el-select
-            v-model="assignForm.fulfillmentId"
-            filterable
-            :loading="assignVisitsLoading"
-            :placeholder="t('admin.orders.form.assignVisitPlaceholder')"
-            style="width: 100%"
-          >
-            <el-option
-              v-for="visit in assignVisitOptions"
-              :key="visit.id || visit.key"
-              :label="visit.title"
-              :value="visit.id"
-              :disabled="!visit.id"
-            />
-          </el-select>
-          <p class="assign-hint">{{ t("admin.orders.form.assignHint") }}</p>
+          <div class="assign-staff">
+            <p v-if="!assignTarget.assignedStaff.length" class="assign-staff__empty">
+              {{ t("admin.orders.detail.assignedStaffEmpty") }}
+            </p>
+            <p v-for="person in assignTarget.assignedStaff" :key="person.key">
+              <span>{{ t("admin.orders.detail.staffName") }}</span>{{ person.name || "—" }}
+              <span>{{ t("admin.orders.detail.staffPhone") }}</span>
+              <a v-if="staffPhoneHref(person.phone)" :href="staffPhoneHref(person.phone)">{{ person.phone }}</a>
+              <template v-else>—</template>
+              <em v-if="assignStaffVisitTitle(person)">{{ assignStaffVisitTitle(person) }}</em>
+            </p>
+          </div>
         </el-form-item>
         <el-form-item :label="t('admin.orders.form.supplier')">
           <el-select
-            v-model="assignForm.supplierIds"
-            multiple
+            v-model="assignForm.supplierId"
+            @change="assignRequiresSupplierChoice = false"
             filterable
             remote
             clearable
-            collapse-tags
-            collapse-tags-tooltip
+            :disabled="assignSubmitting"
             :remote-method="loadSupplierOptions"
             :loading="supplierLoading"
             :placeholder="t('admin.orders.form.supplierPlaceholder')"
@@ -1711,15 +1751,21 @@
               :value="item.id"
             />
           </el-select>
+          <p v-if="assignRequiresSupplierChoice" class="assign-hint">
+            {{ t("admin.orders.form.singleSupplierRequired") }}
+            <el-button link type="primary" @click="clearLegacySupplierAssignment">{{ t("admin.orders.form.clearExistingSuppliers") }}</el-button>
+          </p>
+          <p class="assign-hint">{{ t("admin.orders.form.assignHint") }}</p>
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="assignDialogVisible = false">
+        <el-button :disabled="assignSubmitting" @click="assignDialogVisible = false">
           {{ t("admin.orders.actions.cancel") }}
         </el-button>
         <el-button
           type="primary"
           :loading="assignSubmitting"
+          :disabled="assignRequiresSupplierChoice"
           @click="submitSupplierAssignment"
         >
           {{ t("admin.orders.actions.save") }}
@@ -1730,13 +1776,12 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, reactive, ref } from "vue"
+import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from "vue"
 import { ElMessage, ElMessageBox } from "element-plus"
 import { useI18n } from "vue-i18n"
 import { useRoute } from "vue-router"
 import {
   detail as getOrderDetail,
-  dispatchSupplier,
   edit as editOrder,
   exportOrders,
   getRefundReasons,
@@ -1787,6 +1832,14 @@ type OrderFulfillmentSupplier = {
   serviceStatusText: string
 }
 
+type AssignedStaffMember = {
+  key: string
+  name: string
+  phone: string
+  fulfillmentId: number | null
+  supplierId: number | string | null
+}
+
 type OrderFulfillment = {
   key: string
   id: number | null
@@ -1807,6 +1860,7 @@ type OrderRow = {
   orderNo: string
   packageOrder: boolean
   fulfillments: OrderFulfillment[]
+  assignedStaff: AssignedStaffMember[]
   userPhone: string
   contactPhone: string
   firstName: string
@@ -2095,17 +2149,22 @@ const supplierOptions = ref<SupplierOption[]>([])
 const assignForm = reactive({
   orderId: null as number | null,
   orderNo: "",
-  fulfillmentId: null as number | null,
-  supplierIds: [] as Array<number | string>,
+  supplierId: null as number | string | null,
 })
-const assignVisits = ref<OrderFulfillment[]>([])
-const assignVisitsLoading = ref(false)
-const assignVisitOptions = computed(() =>
-  assignVisits.value.filter((visit) => visit.assignable),
-)
-const needsVisitChoice = computed(
-  () => assignVisitOptions.value.filter((visit) => visit.id).length > 1,
-)
+const assignRequiresSupplierChoice = ref(false)
+const clearLegacySupplierAssignment = () => {
+  if (assignSubmitting.value) return
+  assignForm.supplierId = null
+  assignRequiresSupplierChoice.value = false
+}
+let assignDialogSequence = 0
+let supplierOptionsSequence = 0
+watch(assignDialogVisible, (visible) => {
+  if (visible) return
+  assignDialogSequence += 1
+  supplierOptionsSequence += 1
+  supplierLoading.value = false
+}, { flush: "sync" })
 const assignSupplierPreview = ref({ supplierName: "", contactInfo: "" })
 
 const formatDateTime = (value?: string) => {
@@ -3242,6 +3301,105 @@ const deDuplicateCustomerName = (value: unknown) => {
   return parts.join(" ")
 }
 
+const parseAssignedStaff = (value: unknown): AssignedStaffMember[] => {
+  let source = value
+  if (typeof source === "string" && source.trim()) {
+    try {
+      source = JSON.parse(source)
+    } catch {
+      return []
+    }
+  }
+  if (!Array.isArray(source)) return []
+  const seen = new Set<string>()
+  const staff: AssignedStaffMember[] = []
+  source.forEach((entry, index) => {
+    if (!entry || typeof entry !== "object") return
+    const item = entry as Record<string, unknown>
+    const name = String(item.name ?? "").trim()
+    const phone = String(item.phone ?? "").trim()
+    if (!name && !phone) return
+    const fulfillmentId = normalizeOrderId(item.fulfillmentId)
+    const supplierId = item.supplierId ?? null
+    const key = String(
+      item.id ?? item.adminUserId ?? `${fulfillmentId || "order"}-${name}-${phone}-${index}`,
+    )
+    if (seen.has(key)) return
+    seen.add(key)
+    staff.push({
+      key,
+      name,
+      phone,
+      fulfillmentId,
+      supplierId: supplierId === "" ? null : (supplierId as number | string | null),
+    })
+  })
+  return staff
+}
+
+const staffPhoneHref = (phone: string) => {
+  const value = String(phone || "").replace(/[^\d+]/g, "")
+  return value ? `tel:${value}` : ""
+}
+
+const assignStaffVisitTitle = (person: AssignedStaffMember) => {
+  const visits = assignTarget.value?.fulfillments ?? []
+  if (visits.length < 2 || person.fulfillmentId == null) return ""
+  return visits.find((visit) => visit.id === person.fulfillmentId)?.title || ""
+}
+
+const staffForVisit = (row: OrderRow, visit: OrderFulfillment) =>
+  row.assignedStaff.filter(
+    (person) =>
+      person.fulfillmentId != null &&
+      visit.id != null &&
+      person.fulfillmentId === visit.id,
+  )
+
+const looseAssignedStaff = (row: OrderRow) => {
+  const visitIds = new Set(
+    row.fulfillments
+      .map((visit) => visit.id)
+      .filter((id): id is number => id != null),
+  )
+  return row.assignedStaff.filter(
+    (person) => person.fulfillmentId == null || !visitIds.has(person.fulfillmentId),
+  )
+}
+
+const staffSupplierName = (row: OrderRow, person: AssignedStaffMember) => {
+  if (person.supplierId == null || person.supplierId === "") return ""
+  const suppliers = [
+    ...row.suppliers,
+    ...row.fulfillments.flatMap((visit) => visit.suppliers),
+  ]
+  return (
+    suppliers.find((supplier) => String(supplier.id) === String(person.supplierId))
+      ?.supplierName || ""
+  )
+}
+
+const collectAssignedStaff = (order: any, item: any) => {
+  const header = Array.isArray(order?.assignedStaff)
+    ? order.assignedStaff
+    : Array.isArray(item?.assignedStaff)
+      ? item.assignedStaff
+      : []
+  const visits = order?.fulfillmentList ?? item?.fulfillmentList
+  const nested = Array.isArray(visits)
+    ? visits.flatMap((visit: any) =>
+        Array.isArray(visit?.assignedStaff)
+          ? visit.assignedStaff.map((person: any) => ({
+              ...person,
+              fulfillmentId:
+                person?.fulfillmentId ?? visit?.id ?? visit?.fulfillmentId,
+            }))
+          : [],
+      )
+    : []
+  return parseAssignedStaff([...header, ...nested])
+}
+
 const parseAssignedSupplierList = (value: unknown): SupplierOption[] => {
   let source = value
   if (typeof source === "string" && source.trim()) {
@@ -3468,6 +3626,7 @@ const parseOrderRow = (item: any): OrderRow => {
     orderNo: String(order.orderNo ?? item.orderNo ?? "").trim(),
     packageOrder: isPackageOrderRecord(order, item),
     fulfillments: parseFulfillments(order.fulfillmentList ?? item.fulfillmentList),
+    assignedStaff: collectAssignedStaff(order, item),
     userPhone: String(
       order.userPhone ?? item.userPhone ?? order.phone ?? item.phone ?? "",
     ).trim(),
@@ -3769,6 +3928,9 @@ const normalizeOrderDetail = (payload: any, fallback: OrderRow): OrderRow => {
       root.taxAmount ?? sumLineItemAmount("taxAmount") ?? fallback.taxText,
     orderStatus: root.orderStatus ?? fallback.orderStatusCode,
     paymentStatus: root.paymentStatus ?? fallback.paymentStatusCode,
+    assignedStaff: Array.isArray(root.assignedStaff)
+      ? root.assignedStaff
+      : fallback.assignedStaff,
   })
   const lineItems = parsed.lineItems.map((lineItem) => {
     const type = lineItem.lineType.toUpperCase()
@@ -4006,6 +4168,10 @@ const normalizeSupplierOptions = (payload: any): SupplierOption[] => {
 }
 
 const loadSupplierOptions = async (keyword = "") => {
+  if (!assignDialogVisible.value) return
+  const sequence = ++supplierOptionsSequence
+  const dialogSequence = assignDialogSequence
+  const isCurrent = () => sequence === supplierOptionsSequence && dialogSequence === assignDialogSequence && assignDialogVisible.value
   supplierLoading.value = true
   try {
     const supplierName = normalizeOptionalParam(keyword)
@@ -4014,24 +4180,18 @@ const loadSupplierOptions = async (keyword = "") => {
       pageSize: 500,
       ...(supplierName ? { supplierName } : {}),
     })
+    if (!isCurrent()) return
     const nextOptions = normalizeSupplierOptions(res)
-    const selectedIds = new Set(assignForm.supplierIds.map((id) => String(id)))
-    const kept = supplierOptions.value.filter((item) =>
-      selectedIds.has(String(item.id)),
-    )
+    const kept = supplierOptions.value.filter((item) => String(item.id) === String(assignForm.supplierId ?? ""))
     const merged = [...kept]
     nextOptions.forEach((item) => {
-      if (!merged.some((option) => String(option.id) === String(item.id))) {
-        merged.push(item)
-      }
+      if (!merged.some((option) => String(option.id) === String(item.id))) merged.push(item)
     })
     supplierOptions.value = merged
   } catch (error: any) {
-    ElMessage.error(
-      error?.message || t("admin.orders.message.supplierFetchFailed"),
-    )
+    if (isCurrent()) ElMessage.error(error?.message || t("admin.orders.message.supplierFetchFailed"))
   } finally {
-    supplierLoading.value = false
+    if (isCurrent()) supplierLoading.value = false
   }
 }
 
@@ -4072,28 +4232,11 @@ const openSupplierView = async (row: OrderRow) => {
   }
 }
 
-const loadAssignVisits = async (orderId: number) => {
-  assignVisitsLoading.value = true
-  try {
-    const response = await getOrderDetail(orderId)
-    const parsed = normalizeOrderDetail(
-      response,
-      assignTarget.value || ({ fulfillments: [] } as OrderRow),
-    )
-    if (assignForm.orderId !== orderId) return
-    assignVisits.value = parsed.fulfillments
-    const open = parsed.fulfillments.filter((visit) => visit.assignable && visit.id)
-    assignForm.fulfillmentId = open.length === 1 ? open[0].id : null
-  } catch (error) {
-    console.warn("load assign visits failed:", error)
-    assignVisits.value = []
-    assignForm.fulfillmentId = null
-  } finally {
-    assignVisitsLoading.value = false
-  }
-}
 
 const openAssignDialog = async (row: OrderRow) => {
+  if (assignSubmitting.value) return
+  const sequence = ++assignDialogSequence
+  supplierOptionsSequence += 1
   if (isSupplierReadOnly(row)) {
     assignDialogVisible.value = false
     assignTarget.value = null
@@ -4113,23 +4256,23 @@ const openAssignDialog = async (row: OrderRow) => {
       : []
   assignForm.orderId = row.orderId
   assignForm.orderNo = row.orderNo
-  assignForm.fulfillmentId = null
-  assignVisits.value = []
-  assignForm.supplierIds = suppliers.map((supplier) => supplier.id)
+  assignRequiresSupplierChoice.value = suppliers.length > 1
+  assignForm.supplierId = suppliers.length === 1 ? suppliers[0]?.id ?? null : null
   assignSupplierPreview.value = {
     supplierName: row.supplierName || "",
     contactInfo: "",
   }
   supplierOptions.value = suppliers.filter((supplier) => supplier.supplierName)
   assignDialogVisible.value = true
-  await Promise.all([loadSupplierOptions(), loadAssignVisits(row.orderId)])
-  if (suppliers.length !== 1 || !suppliers[0]?.id) return
+  await loadSupplierOptions()
+  const isCurrent = () => sequence === assignDialogSequence && assignDialogVisible.value && assignForm.orderId === row.orderId
+  if (!isCurrent() || suppliers.length !== 1 || !suppliers[0]?.id) return
   try {
-    assignSupplierPreview.value = normalizeSupplierCopyInfo(
-      await getSupplierDetail(suppliers[0].id),
-      suppliers[0].supplierName,
-    )
+    const detail = await getSupplierDetail(suppliers[0].id)
+    if (!isCurrent()) return
+    assignSupplierPreview.value = normalizeSupplierCopyInfo(detail, suppliers[0].supplierName)
   } catch {
+    if (!isCurrent()) return
     assignSupplierPreview.value = {
       supplierName: row.supplierName || "",
       contactInfo: "",
@@ -4138,6 +4281,9 @@ const openAssignDialog = async (row: OrderRow) => {
 }
 
 const openBulkAssignDialog = async () => {
+  if (assignSubmitting.value) return
+  assignDialogSequence += 1
+  supplierOptionsSequence += 1
   const targets = selectedRows.value.filter((row) => row.orderId)
   if (targets.some(isSupplierReadOnly)) {
     ElMessage.warning(t("admin.orders.message.supplierReadOnly"))
@@ -4152,9 +4298,8 @@ const openBulkAssignDialog = async () => {
   bulkAssignTargets.value = targets
   assignForm.orderId = null
   assignForm.orderNo = ""
-  assignForm.fulfillmentId = null
-  assignVisits.value = []
-  assignForm.supplierIds = []
+  assignForm.supplierId = null
+  assignRequiresSupplierChoice.value = false
   supplierOptions.value = []
   assignDialogVisible.value = true
   await loadSupplierOptions()
@@ -4162,6 +4307,10 @@ const openBulkAssignDialog = async () => {
 
 const submitSupplierAssignment = async () => {
   if (assignSubmitting.value || !assignDialogVisible.value) return
+  if (assignRequiresSupplierChoice.value) {
+    ElMessage.warning(t("admin.orders.form.singleSupplierRequired"))
+    return
+  }
   const targets = bulkAssignMode.value
     ? bulkAssignTargets.value
     : assignTarget.value
@@ -4183,11 +4332,23 @@ const submitSupplierAssignment = async () => {
     ElMessage.warning(t("admin.orders.message.assignOrderIdMissing"))
     return
   }
+  const selectedId = assignForm.supplierId
+  const clearing = selectedId == null || selectedId === ""
+  const supplierId = clearing ? null : Number(selectedId)
+  if (!clearing && ((typeof selectedId !== "number" && typeof selectedId !== "string")
+    || (typeof selectedId === "string" && !/^[1-9]\d*$/.test(selectedId.trim()))
+    || !Number.isSafeInteger(supplierId) || Number(supplierId) <= 0)) {
+    ElMessage.warning(t("admin.orders.form.supplierInvalid"))
+    return
+  }
+  const supplierIds = supplierId == null ? [] : [supplierId]
+  const sequence = assignDialogSequence
+  const isCurrent = () => sequence === assignDialogSequence && assignDialogVisible.value
+  const bulk = bulkAssignMode.value
+  const targetOrderId = assignForm.orderId
+  const successfulOrderIds = new Set<number>()
   assignSubmitting.value = true
   try {
-    const supplierIds = assignForm.supplierIds
-      .map((id) => Number(id))
-      .filter((id) => Number.isFinite(id))
     const selectedSuppliers = supplierIds.map((id) => {
       const matched = supplierOptions.value.find(
         (item) => Number(item.id) === id,
@@ -4207,29 +4368,23 @@ const submitSupplierAssignment = async () => {
       supplierName,
       suppliers: selectedSuppliers,
     })
-    if (bulkAssignMode.value) {
+    if (bulk) {
       const results = await Promise.allSettled(
-        bulkAssignTargets.value.map((row) =>
-          supplierIds.length
-            ? dispatchSupplier({
-                orderId: row.orderId as number,
-                supplierIds,
-              })
-            : updateSupplier({
-                orderId: row.orderId as number,
-                supplierIds,
-              }),
-        ),
+        targets.map((row) => updateSupplier({ orderId: row.orderId as number, supplierIds })),
       )
+      if (!isCurrent()) return
       const failedIds = new Set(
         results.flatMap((result, index) =>
           result.status === "rejected"
-            ? [bulkAssignTargets.value[index]?.orderId]
+            ? [targets[index]?.orderId]
             : [],
         ),
       )
       const failed = failedIds.size
       const success = results.length - failed
+      targets.forEach((row) => {
+        if (row.orderId && !failedIds.has(row.orderId)) successfulOrderIds.add(row.orderId)
+      })
       if (failed === 0) {
         ElMessage.success(
           t("admin.orders.message.bulkAssignSuccess", { count: success }),
@@ -4250,25 +4405,9 @@ const submitSupplierAssignment = async () => {
           : row,
       )
     } else {
-      const openVisits = assignVisitOptions.value
-      if (supplierIds.length && needsVisitChoice.value && !assignForm.fulfillmentId) {
-        ElMessage.warning(t("admin.orders.form.assignVisitRequired"))
-        return
-      }
-      if (supplierIds.length) {
-        await dispatchSupplier({
-          orderId: assignForm.orderId as number,
-          ...(assignForm.fulfillmentId
-            ? { fulfillmentId: assignForm.fulfillmentId }
-            : {}),
-          supplierIds,
-        })
-      } else {
-        await updateSupplier({
-          orderId: assignForm.orderId as number,
-          supplierIds,
-        })
-      }
+      await updateSupplier({ orderId: targetOrderId as number, supplierIds })
+      if (!isCurrent()) return
+      successfulOrderIds.add(targetOrderId as number)
       ElMessage.success(
         t(
           supplierIds.length
@@ -4286,20 +4425,14 @@ const submitSupplierAssignment = async () => {
     }
     const current = detailRow.value
     if (
-      current?.orderId &&
-      targets.some((row) => row.orderId === current.orderId)
+      detailDrawerVisible.value && current?.orderId &&
+      successfulOrderIds.has(current.orderId)
     ) {
-      const fresh = orders.value.find((row) => row.orderId === current.orderId)
-      if (fresh) {
-        detailRow.value = {
-          ...current,
-          supplierId: fresh.supplierId,
-          supplierName: fresh.supplierName,
-          suppliers: fresh.suppliers,
-        }
-      }
+      const fresh = orders.value.find((row) => row.orderId === current.orderId) || applySelection(current)
+      await openOrderDetail(fresh)
     }
   } catch (error: any) {
+    if (!isCurrent()) return
     ElMessage.error(error?.message || t("admin.orders.message.assignFailed"))
   } finally {
     assignSubmitting.value = false
@@ -4651,6 +4784,8 @@ onMounted(() => {
 })
 
 onBeforeUnmount(() => {
+  assignDialogSequence += 1
+  supplierOptionsSequence += 1
   window.removeEventListener("beforeprint", handleBeforePrint)
   window.removeEventListener("afterprint", handleAfterPrint)
   removeOrderPrintRoot()
@@ -4676,9 +4811,11 @@ onBeforeUnmount(() => {
 }
 .table-stack {
   min-width: 0;
+  max-width: 100%;
   display: flex;
   flex-direction: column;
   gap: 3px;
+  overflow: hidden;
   line-height: 1.35;
 }
 .table-stack strong {
@@ -5081,10 +5218,20 @@ onBeforeUnmount(() => {
 }
 .orders-table :deep(.el-table__header .cell) {
   line-height: 1.3;
-  word-break: normal;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  word-break: keep-all;
 }
 .orders-table :deep(.el-table__body .cell) {
   line-height: 1.4;
+  word-break: normal;
+}
+.orders-table :deep(.el-table__body .cell .el-tooltip__trigger) {
+  display: block;
+  max-width: 100%;
+  min-width: 0;
+  overflow: hidden;
 }
 .orders-table :deep(.el-button.is-link) {
   height: 24px;
@@ -5175,12 +5322,56 @@ onBeforeUnmount(() => {
   color: #05152b;
   font-size: 13px;
 }
+.order-fulfillments__staff {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-top: 8px;
+  border-top: 1px solid #e1e8f0;
+}
+.order-fulfillments__staff strong {
+  color: #05152b;
+  font-size: 13px;
+}
+.order-fulfillments__staff a {
+  color: #1d4f91;
+  text-decoration: none;
+}
 .assign-hint,
 .h5-assign__hint {
   margin: 8px 0 0;
   color: #7a7166;
   font-size: 12px;
   line-height: 1.5;
+}
+.assign-staff {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 100%;
+}
+.assign-staff p {
+  margin: 0;
+  color: #3d3428;
+  font-size: 13px;
+  line-height: 1.5;
+}
+.assign-staff span {
+  margin-right: 6px;
+  color: #7a7166;
+}
+.assign-staff a {
+  color: #1d4f91;
+  text-decoration: none;
+}
+.assign-staff em {
+  display: block;
+  color: #7a7166;
+  font-style: normal;
+  font-size: 12px;
+}
+.assign-staff__empty {
+  color: #7a7166;
 }
 .service-progress {
   display: flex;
@@ -5253,7 +5444,8 @@ onBeforeUnmount(() => {
   background: #fdeaea !important;
 }
 .order-status-select {
-  width: 102px;
+  width: 100%;
+  max-width: 112px;
 }
 .order-status-select--action-needed :deep(.el-select__wrapper) {
   background: #eefaf0;
@@ -5269,7 +5461,7 @@ onBeforeUnmount(() => {
 }
 .order-number-link {
   display: block;
-  max-width: 104px;
+  max-width: 100%;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;

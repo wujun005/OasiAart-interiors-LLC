@@ -37,7 +37,6 @@
             <el-option :label="t('admin.platformSuppliers.quotePendingFilter')" :value="1" />
             <el-option :label="t('admin.platformSuppliers.quoteDraftFilter')" :value="0" />
             <el-option :label="t('admin.platformSuppliers.quoteApprovedFilter')" :value="2" />
-            <el-option :label="t('admin.platformSuppliers.quoteRejectedFilter')" :value="3" />
           </el-select>
           <el-select v-model="onboardingStatus" clearable :placeholder="t('admin.platformSuppliers.onboardingStatus')" class="review-filter" @change="searchFromFilters">
             <el-option :label="t('admin.platformSuppliers.draft')" :value="0" />
@@ -104,15 +103,13 @@
                 <button v-if="quoteBadge(row).pending" type="button" class="status-pill pending" @click="applyQuoteFilter(1)">
                   {{ t('admin.platformSuppliers.quoteUpdatePending', { count: quoteBadge(row).pending }) }}
                 </button>
-                <button v-if="quoteBadge(row).rejected" type="button" class="status-pill bad" @click="applyQuoteFilter(3)">
+                <span v-if="quoteBadge(row).rejected" class="status-pill bad">
                   {{ t('admin.platformSuppliers.quoteRejectedCount', { count: quoteBadge(row).rejected }) }}
-                </button>
+                </span>
                 <button v-if="quoteBadge(row).approved" type="button" class="status-pill ok" @click="applyQuoteFilter(2)">
                   {{ t('admin.platformSuppliers.quoteApprovedCount', { count: quoteBadge(row).approved }) }}
                 </button>
-                <button v-if="quoteBadge(row).none" type="button" class="status-pill" @click="applyQueueFocus('noQuote')">
-                  {{ t('admin.platformSuppliers.quoteNone') }}
-                </button>
+                <span v-if="!quoteBadge(row).pending && !quoteBadge(row).rejected && !quoteBadge(row).approved" class="status-empty">—</span>
               </div>
             </template>
           </el-table-column>
@@ -194,7 +191,7 @@
         </template>
       </nav>
 
-      <el-skeleton v-if="detailLoading && screen !== 'quote'" :rows="12" animated />
+      <el-skeleton v-if="quoteRoutePending || (detailLoading && screen !== 'quote')" :rows="12" animated />
       <div v-else class="supplier-body">
         <header v-if="screen !== 'quote'" class="supplier-hero">
           <div class="avatar">{{ supplierInitials }}</div>
@@ -244,7 +241,10 @@
                     <span :title="serviceName(row)">{{ serviceName(row) }}</span>
                     <div class="service-lines__meta">
                       <em class="status-pill" :class="statusClass(row.priceChangeStatus === 1 ? 1 : row.status)">{{ serviceQuoteStatus(row) }}</em>
-                      <button type="button" @click="openQuote(row)">{{ Number(row.status) === 1 || Number(row.priceChangeStatus) === 1 ? t('admin.platformSuppliers.reviewQuote') : t('admin.platformSuppliers.viewQuote') }}</button>
+                      <div class="service-lines__actions">
+                        <button v-if="Number(row.status) === 1" type="button" class="is-reject" @click="openWholeQuoteReject(row)">{{ t('admin.platformSuppliers.rejectQuote') }}</button>
+                        <button type="button" @click="openQuote(row)">{{ Number(row.status) === 1 || Number(row.priceChangeStatus) === 1 ? t('admin.platformSuppliers.reviewQuote') : t('admin.platformSuppliers.viewQuote') }}</button>
+                      </div>
                     </div>
                   </li>
                   <li v-if="!services.length" class="muted">{{ t('admin.platformSuppliers.noServices') }}</li>
@@ -362,11 +362,15 @@
                 <div>
                   <h3>{{ t('admin.platformSuppliers.services') }}</h3>
                   <p class="quote-sheet-hint">{{ t('admin.platformSuppliers.quoteSheetHint') }}</p>
+                  <p class="quote-sheet-hint">{{ t('admin.platformSuppliers.exportSelectionHint') }}</p>
                   <p v-if="pendingQuoteCount" class="quote-sheet-hint">{{ t('admin.platformSuppliers.quotesToReview') }}: {{ pendingQuoteCount }}</p>
                 </div>
                 <div class="panel-actions">
+                  <button type="button" class="act" :disabled="quoteImporting || !detailId" @click="quoteHistoryOpen = true">
+                    {{ t('admin.platformSuppliers.quoteHistory.title') }}
+                  </button>
                   <button type="button" class="act" :disabled="quoteExporting || !detailId" @click="downloadQuoteSheet">
-                    {{ quoteExporting ? t('admin.platformSuppliers.exportingQuotes') : t('admin.platformSuppliers.exportQuoteSheet') }}
+                    {{ quoteExporting ? t('admin.platformSuppliers.exportingQuotes') : quoteExportLabel }}
                   </button>
                   <button type="button" class="act navy" :disabled="quoteImporting || !detailId" @click="quoteFileInput?.click()">
                     {{ quoteImporting ? t('admin.platformSuppliers.importingQuotes') : t('admin.platformSuppliers.importQuoteSheet') }}
@@ -393,6 +397,28 @@
                 </el-select>
               </div>
               <el-table v-if="services.length" :data="visibleServices" row-key="spuId" :empty-text="t('admin.platformSuppliers.noServices')" @row-click="openQuote">
+                <el-table-column width="52" align="center">
+                  <template #header>
+                    <span class="quote-select" @click.stop>
+                      <el-checkbox
+                        :model-value="allVisibleQuotesSelected"
+                        :indeterminate="someVisibleQuotesSelected"
+                        :disabled="!visibleServices.length"
+                        :aria-label="t('admin.platformSuppliers.selectVisible')"
+                        @change="toggleVisibleQuoteSelection"
+                      />
+                    </span>
+                  </template>
+                  <template #default="{ row }">
+                    <span class="quote-select" @click.stop>
+                      <el-checkbox
+                        :model-value="quoteSpuSelected(row.spuId)"
+                        :aria-label="t('admin.platformSuppliers.selectService', { name: serviceName(row) })"
+                        @change="(checked) => toggleQuoteSpu(row.spuId, checked === true)"
+                      />
+                    </span>
+                  </template>
+                </el-table-column>
                 <el-table-column :label="t('admin.platformSuppliers.service')" min-width="160">
                   <template #default="{ row }"><b>{{ serviceName(row) }}</b></template>
                 </el-table-column>
@@ -409,11 +435,14 @@
                 <el-table-column :label="t('admin.platformSuppliers.workers')" width="120">
                   <template #default="{ row }">{{ row.workerCount ?? '—' }}</template>
                 </el-table-column>
-                <el-table-column :label="t('admin.platformSuppliers.actions')" width="220">
+                <el-table-column :label="t('admin.platformSuppliers.actions')" min-width="280">
                   <template #default="{ row }">
-                    <button type="button" class="act navy" @click.stop="openQuote(row)">{{ Number(row.status) === 1 || Number(row.priceChangeStatus) === 1 ? t('admin.platformSuppliers.reviewQuote') : t('admin.platformSuppliers.viewQuote') }}</button>
-                    <button v-if="Number(row.priceChangeStatus) === 1" type="button" class="act" @click.stop="approvePriceChange(row)">{{ t('admin.platformSuppliers.approvePriceChange') }}</button>
-                    <button v-if="Number(row.priceChangeStatus) === 1" type="button" class="act no" @click.stop="openPriceChangeReject(row)">{{ t('admin.platformSuppliers.rejectPriceChange') }}</button>
+                    <div class="row-actions" @click.stop>
+                      <button type="button" class="act navy" @click="openQuote(row)">{{ Number(row.status) === 1 || Number(row.priceChangeStatus) === 1 ? t('admin.platformSuppliers.reviewQuote') : t('admin.platformSuppliers.viewQuote') }}</button>
+                      <button v-if="Number(row.status) === 1" type="button" class="act no" @click="openWholeQuoteReject(row)">{{ t('admin.platformSuppliers.rejectQuote') }}</button>
+                      <button v-if="Number(row.priceChangeStatus) === 1" type="button" class="act" @click="approvePriceChange(row)">{{ t('admin.platformSuppliers.approvePriceChange') }}</button>
+                      <button v-if="Number(row.priceChangeStatus) === 1" type="button" class="act no" @click="openPriceChangeReject(row)">{{ t('admin.platformSuppliers.rejectPriceChange') }}</button>
+                    </div>
                   </template>
                 </el-table-column>
               </el-table>
@@ -456,7 +485,10 @@
               <p>
                 {{ t('admin.platformSuppliers.reviewStatus') }}: {{ quoteStatusLabel(skuStatus, skuStatusI18n) }}
                 · {{ t('admin.supplierPricing.quoteMode') }}: {{ hourlyQuoteReview ? t('admin.platformSuppliers.unitPrice') : skuQuoteMode === 1 ? t('admin.platformSuppliers.fixedPrice') : t('admin.platformSuppliers.modeUnset') }}
-                <span v-if="hourlyQuoteReview"> {{ t('admin.platformSuppliers.perHour', { price: moneyText(skuUnitPrice) }) }}</span>
+                <span v-if="hourlyQuoteReview" class="quote-head__hourly-rates">
+                  <span>{{ t('admin.platformSuppliers.hourlyRateWithMaterial') }}: {{ hourlyRateText(skuUnitPriceWithMaterial, true) }}</span>
+                  <span>{{ t('admin.platformSuppliers.hourlyRateWithoutMaterial') }}: {{ hourlyRateText(skuUnitPriceWithoutMaterial, true) }}</span>
+                </span>
                 <span v-if="skuRejectReason"> · {{ skuRejectReason }}</span>
               </p>
             </div>
@@ -471,8 +503,12 @@
               </span>
             </div>
             <div class="quote-head__actions">
+              <button type="button" class="act" :disabled="quoteImporting || !detailId" @click="quoteHistoryOpen = true">
+                {{ t('admin.platformSuppliers.quoteHistory.title') }}
+              </button>
+              <button v-if="canRejectWholeQuote" type="button" class="act no" :disabled="saving" @click="openWholeQuoteReject()">{{ t('admin.platformSuppliers.rejectQuote') }}</button>
               <button type="button" class="act" :disabled="quoteExporting || !detailId" @click="downloadQuoteSheet">
-                {{ quoteExporting ? t('admin.platformSuppliers.exportingQuotes') : t('admin.platformSuppliers.exportQuoteSheet') }}
+                {{ quoteExporting ? t('admin.platformSuppliers.exportingQuotes') : quoteExportLabel }}
               </button>
               <button type="button" class="act navy" :disabled="quoteImporting || !detailId" @click="quoteFileInput?.click()">
                 {{ quoteImporting ? t('admin.platformSuppliers.importingQuotes') : t('admin.platformSuppliers.importQuoteSheet') }}
@@ -481,9 +517,17 @@
             </div>
           </header>
           <section v-if="hourlyQuoteReview" v-loading="skuLoading" class="hourly-review">
-            <div>
-              <span>{{ t('admin.platformSuppliers.hourlyRateLabel') }}</span>
-              <strong>AED {{ moneyText(skuUnitPrice) }}</strong>
+            <div class="hourly-review__content">
+              <div class="hourly-review__rates">
+                <div>
+                  <span>{{ t('admin.platformSuppliers.hourlyRateWithMaterial') }}</span>
+                  <strong>{{ hourlyRateText(skuUnitPriceWithMaterial, true) }}</strong>
+                </div>
+                <div>
+                  <span>{{ t('admin.platformSuppliers.hourlyRateWithoutMaterial') }}</span>
+                  <strong>{{ hourlyRateText(skuUnitPriceWithoutMaterial, true) }}</strong>
+                </div>
+              </div>
               <p>{{ t('admin.platformSuppliers.hourlyReviewHint') }}</p>
             </div>
             <div v-if="showHourlyReview" class="hourly-review__actions">
@@ -552,12 +596,18 @@
           </section>
           <footer v-if="showLineReview" class="quote-foot">
             <span class="quote-foot__selection">{{ t('admin.platformSuppliers.selectedLines', { count: selectedReviewLines.length }) }}</span>
-            <button type="button" class="act no" :disabled="saving || !selectedReviewLines.length" @click="openLineReject()">{{ t('admin.platformSuppliers.reject') }}</button>
+            <button type="button" class="act no" :disabled="saving" @click="selectedReviewLines.length ? openLineReject() : openWholeQuoteReject()">{{ selectedReviewLines.length ? t('admin.platformSuppliers.reject') : t('admin.platformSuppliers.rejectQuote') }}</button>
             <button type="button" class="act navy" :disabled="saving || !selectedReviewLines.length" @click="approveSelectedLines">{{ t('admin.platformSuppliers.approve') }}</button>
           </footer>
         </section>
       </div>
     </section>
+
+    <SupplierQuoteImportHistory
+      v-model="quoteHistoryOpen"
+      :supplier-id="detailId"
+      :supplier-name="profile.companyName || current?.supplierName || ''"
+    />
 
     <el-dialog
       v-model="filePreview.open"
@@ -601,8 +651,10 @@
       </template>
     </el-dialog>
 
-    <el-dialog v-model="lineRejectOpen" :title="hourlyRejecting ? t('admin.platformSuppliers.rejectQuote') : lineRejectTargets.length > 1 ? t('admin.platformSuppliers.rejectSelectedTitle') : t('admin.platformSuppliers.rejectQuote')" width="460px" append-to-body @closed="hourlyRejecting = false">
+    <el-dialog v-model="lineRejectOpen" :title="rejectingWholeQuote || hourlyRejecting || lineRejectTargets.length <= 1 ? t('admin.platformSuppliers.rejectQuote') : t('admin.platformSuppliers.rejectSelectedTitle')" width="460px" append-to-body @closed="resetQuoteReject">
       <p v-if="hourlyRejecting" class="line-reject-summary">{{ t('admin.platformSuppliers.hourlyRejectHint') }}</p>
+      <p v-else-if="rejectingWholeQuote && lineRejectTargets.length" class="line-reject-summary">{{ t('admin.platformSuppliers.rejectWholeCountHint', { count: lineRejectTargets.length }) }}</p>
+      <p v-else-if="rejectingWholeQuote" class="line-reject-summary">{{ t('admin.platformSuppliers.rejectWholeHint') }}</p>
       <p v-else class="line-reject-summary">{{ t('admin.platformSuppliers.rejectSelectedHint', { count: lineRejectTargets.length }) }}</p>
       <el-input v-model="lineRejectReason" type="textarea" :rows="4" maxlength="500" show-word-limit :placeholder="t('admin.platformSuppliers.reasonPlaceholder')" />
       <template #footer>
@@ -619,6 +671,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useI18n } from 'vue-i18n'
 import { listBySpu, listSpuAttachCatalog } from '@/modules/admin/api/spu'
+import SupplierQuoteImportHistory from '@/modules/admin/components/SupplierQuoteImportHistory.vue'
 import { pickI18nText } from '@/modules/admin/utils/i18n'
 import { dispatchEligibility, licenceExpiryState } from '@/modules/admin/utils/supplierReviewState'
 import { countQuoteLineStatuses, quotePriceView } from '@/modules/admin/utils/supplierPortal'
@@ -706,18 +759,17 @@ const detailTab = computed(() => {
 const reviewCounts = reactive({
   onboarding: 0,
   quotePending: 0,
-  quoteRejected: 0,
   priceChange: 0,
-  noQuote: 0,
   licence: 0,
 })
-const queueFocus = ref<SupplierQueueFocus | ''>('')
-const rejectedQuoteIds = ref<Set<number>>(new Set())
+const queueFocus = ref<Exclude<SupplierQueueFocus, 'noQuote'> | ''>('')
 const detailLoading = ref(false)
+const quoteRoutePending = ref(false)
 const saving = ref(false)
 const exportingPrices = ref(false)
 const quoteExporting = ref(false)
 const quoteImporting = ref(false)
+const quoteHistoryOpen = ref(false)
 const quoteFileInput = ref<HTMLInputElement | null>(null)
 const current = ref<SupplierRow | null>(null)
 const profile = reactive<Record<string, any>>({})
@@ -881,9 +933,12 @@ const skuRows = ref<any[]>([])
 const skuAttaches = ref<Array<{ attachValueId: number; typeName: string; typeNameI18n?: Record<string, unknown> | null; name: string; nameI18n?: Record<string, unknown> | null; unit?: string; unitI18n?: Record<string, unknown> | null; platformPrice: unknown; approvedPrice: unknown; offered: boolean; quotePrice: unknown }>>([])
 const skuQuoteMode = ref<number | null>(null)
 const skuReviewByUnitPrice = ref(false)
-const skuUnitPrice = ref<number | null>(null)
+const skuUnitPriceWithMaterial = ref<unknown>(null)
+const skuUnitPriceWithoutMaterial = ref<unknown>(null)
 const skuStatusI18n = ref<Record<string, string> | null>(null)
 const hourlyRejecting = ref(false)
+const rejectingWholeQuote = ref(false)
+const pendingQuoteRow = ref<any>(null)
 
 const rejectOpen = ref(false)
 const rejectReason = ref('')
@@ -936,6 +991,22 @@ const lineEffectLabel = (row: any) => {
   if (facts.view === 'underReview') return t('admin.supplierPricing.priceUnderReview')
   if (facts.view === 'active') return t('admin.platformSuppliers.priceEffectActive')
   return lineReviewStatusLabel(row)
+}
+const sheetLineStatus = (row: any, quoteStatus: unknown, priceChangeStatus: unknown) => {
+  const facts = quotePriceView({
+    approvedPrice: row?.approvedPrice,
+    quotePrice: row?.quotePrice,
+    reviewStatus: row?.reviewStatus,
+    quoteStatus,
+    priceChangeStatus,
+    rejected: Number(row?.reviewStatus) === 3,
+  })
+  if (facts.view === 'rejected') return t('admin.supplierPricing.priceRejected')
+  if (facts.view === 'approvedPending') return t('admin.platformSuppliers.priceEffectWaiting')
+  if (facts.view === 'underReview') return t('admin.supplierPricing.priceUnderReview')
+  if (facts.view === 'active') return t('admin.platformSuppliers.priceEffectActive')
+  if (facts.view === 'draft') return t('admin.supplierPricing.quoteDraft')
+  return ''
 }
 const lineReviewTagType = (row: any) => {
   const value = normalizeLineReviewStatus(row?.reviewStatus)
@@ -1008,6 +1079,46 @@ const visibleServices = computed(() => services.value.filter((row) => {
   if (serviceStatusFilter.value !== '' && Number(row.status) !== Number(serviceStatusFilter.value)) return false
   return true
 }))
+const quoteSpuId = (value: unknown) => {
+  const id = Number(value)
+  return Number.isInteger(id) && id > 0 ? id : 0
+}
+const selectedQuoteSpuIds = ref<number[]>([])
+const quoteSpuSelected = (spuId: unknown) => selectedQuoteSpuIds.value.includes(quoteSpuId(spuId))
+const visibleQuoteSpuIds = computed(() => visibleServices.value.map((row) => quoteSpuId(row?.spuId)).filter((id) => id > 0))
+const allVisibleQuotesSelected = computed(() => {
+  const ids = visibleQuoteSpuIds.value
+  return ids.length > 0 && ids.every((id) => selectedQuoteSpuIds.value.includes(id))
+})
+const someVisibleQuotesSelected = computed(() => {
+  const ids = visibleQuoteSpuIds.value
+  const selected = ids.filter((id) => selectedQuoteSpuIds.value.includes(id)).length
+  return selected > 0 && selected < ids.length
+})
+const toggleQuoteSpu = (spuId: unknown, checked: boolean) => {
+  const id = quoteSpuId(spuId)
+  if (!id) return
+  const next = new Set(selectedQuoteSpuIds.value)
+  if (checked) next.add(id)
+  else next.delete(id)
+  selectedQuoteSpuIds.value = [...next]
+}
+const toggleVisibleQuoteSelection = (checked: boolean | string | number) => {
+  const next = new Set(selectedQuoteSpuIds.value)
+  for (const id of visibleQuoteSpuIds.value) {
+    if (checked === true) next.add(id)
+    else next.delete(id)
+  }
+  selectedQuoteSpuIds.value = [...next]
+}
+const quoteExportLabel = computed(() => selectedQuoteSpuIds.value.length
+  ? t('admin.platformSuppliers.exportSelectedQuotes', { count: selectedQuoteSpuIds.value.length })
+  : t('admin.platformSuppliers.exportQuoteSheet'))
+watch(services, (rows) => {
+  const ids = new Set((rows || []).map((row) => quoteSpuId(row?.spuId)).filter((id) => id > 0))
+  const next = selectedQuoteSpuIds.value.filter((id) => ids.has(id))
+  if (next.length !== selectedQuoteSpuIds.value.length) selectedQuoteSpuIds.value = next
+})
 const onboardingText = (status?: number, i18n?: Record<string, unknown> | null) => {
   const localized = specText(i18n)
   return localized !== '—' ? localized : onboardingLabel(status)
@@ -1021,6 +1132,10 @@ const moneyText = (value: unknown) => {
   if (value === null || value === undefined || value === '') return '—'
   const amount = Number(value)
   return Number.isFinite(amount) ? amount.toFixed(2) : '—'
+}
+const hourlyRateText = (value: unknown, withCurrency = false) => {
+  const text = moneyText(value)
+  return text === '—' ? '-' : `${withCurrency ? 'AED ' : ''}${text}`
 }
 const clientPrice = (row: { platformPriceWithTax?: unknown }) => {
   const amount = Number(row.platformPriceWithTax)
@@ -1167,7 +1282,7 @@ const collectOnboarding = async (review: 'yes' | 'no') => {
   return matched
 }
 
-const collectQuoteRows = async (scope: 'list' | 'counts' | 'rejected' = 'list') => {
+const collectQuoteRows = async (scope: 'list' | 'counts' = 'list') => {
   const rows: SupplierRow[] = []
   const scanSize = 100
   let scanPage = 1
@@ -1175,7 +1290,6 @@ const collectQuoteRows = async (scope: 'list' | 'counts' | 'rejected' = 'list') 
   do {
     const payload: Record<string, unknown> = { pageNum: scanPage, pageSize: scanSize }
     if (keyword.value) payload.keyword = keyword.value
-    if (scope === 'rejected') payload.quoteStatus = 3
     if (scope === 'list' && quoteStatus.value !== '') payload.quoteStatus = quoteStatus.value
     if (scope === 'list' && onboardingStatusParam() != null) payload.onboardingStatus = onboardingStatusParam()
     const result = unwrap(await platformSupplierQuotePage(payload)) || {}
@@ -1267,20 +1381,6 @@ const reviewChips = computed(() => [
     active: queueFocus.value === 'priceChange' && quoteStatus.value === '' && onboardingStatusParam() == null && !reviewChoice(),
   },
   {
-    key: 'quoteRejected' as const,
-    count: reviewCounts.quoteRejected,
-    label: t('admin.platformSuppliers.quoteRejectedFilter'),
-    tone: 'tone-bad',
-    active: quoteStatus.value === 3 && onboardingStatusParam() == null && !queueFocus.value && !reviewChoice(),
-  },
-  {
-    key: 'noQuote' as const,
-    count: reviewCounts.noQuote,
-    label: t('admin.platformSuppliers.reviewNoQuote'),
-    tone: '',
-    active: queueFocus.value === 'noQuote' && quoteStatus.value === '' && onboardingStatusParam() == null && !reviewChoice(),
-  },
-  {
     key: 'licence' as const,
     count: reviewCounts.licence,
     label: t('admin.platformSuppliers.reviewLicence'),
@@ -1307,31 +1407,20 @@ const applyQuoteFilter = (status: number) => {
   if (!active) quoteStatus.value = status
   search()
 }
-const applyQueueFocus = (focus: SupplierQueueFocus) => {
+const applyQueueFocus = (focus: Exclude<SupplierQueueFocus, 'noQuote'>) => {
   const active = queueFocus.value === focus && quoteStatus.value === '' && onboardingStatusParam() == null && !reviewChoice()
   clearReviewFilters()
   if (!active) queueFocus.value = focus
   search()
 }
-const toggleReviewChip = (key: 'onboarding' | 'quotePending' | 'quoteRejected' | SupplierQueueFocus) => {
+const toggleReviewChip = (key: 'onboarding' | 'quotePending' | 'priceChange' | 'licence') => {
   if (key === 'onboarding') applyOnboardingFilter(1)
   else if (key === 'quotePending') applyQuoteFilter(1)
-  else if (key === 'quoteRejected') applyQuoteFilter(3)
   else applyQueueFocus(key)
 }
-const isNoQuoteRow = (row: SupplierRow, ids: Set<number>) =>
-  supplierMatchesQueueFocus(row, 'noQuote') && !ids.has(Number(row.id))
-const focusRows = (rows: SupplierRow[], ids = rejectedQuoteIds.value) => {
+const focusRows = (rows: SupplierRow[]) => {
   const focus = queueFocus.value
-  if (focus === 'noQuote') return rows.filter((row) => isNoQuoteRow(row, ids))
   return focus ? rows.filter((row) => supplierMatchesQueueFocus(row, focus)) : rows
-}
-const currentRejectedIds = async () => {
-  if (queueFocus.value !== 'noQuote') return rejectedQuoteIds.value
-  const rejectedRows = await collectQuoteRows('rejected')
-  const ids = new Set(rejectedRows.map((row) => Number(row.id)))
-  rejectedQuoteIds.value = ids
-  return ids
 }
 let supplierLoadGeneration = 0
 
@@ -1369,10 +1458,9 @@ const loadSuppliers = async () => {
         collectQuoteRows(),
       ])
       const quoteById = new Map(quoteRows.map((row) => [Number(row.id), row]))
-      const rejectedIds = await currentRejectedIds()
       const merged = sortSupplierQueue(focusRows(onboardingRows
         .filter((item) => quoteStatus.value === '' || quoteById.has(Number(item.id)))
-        .map((item) => toReviewRow(item, quoteById.get(Number(item.id)))), rejectedIds))
+        .map((item) => toReviewRow(item, quoteById.get(Number(item.id))))))
       if (generation !== supplierLoadGeneration) return
       const pageRows = pageOf(merged)
       suppliers.value = pageRows
@@ -1380,11 +1468,8 @@ const loadSuppliers = async () => {
       void attachRejectedCounts(pageRows, generation)
       return
     }
-    const [attachedRows, rejectedIds] = await Promise.all([
-      attachOnboardingStatus(await collectQuoteRows()),
-      currentRejectedIds(),
-    ])
-    const rows = sortSupplierQueue(focusRows(attachedRows, rejectedIds))
+    const attachedRows = await attachOnboardingStatus(await collectQuoteRows())
+    const rows = sortSupplierQueue(focusRows(attachedRows))
     if (generation !== supplierLoadGeneration) return
     const pageRows = pageOf(rows)
     suppliers.value = pageRows
@@ -1403,20 +1488,15 @@ const refreshReviewCounts = async (generation: number) => {
   try {
     const keywordPayload = keyword.value ? { keyword: keyword.value } : {}
     const countedRowsPromise = collectQuoteRows('counts').then((rows) => attachOnboardingStatus(rows))
-    const [onboardingResult, pendingResult, rejectedRows, countedRows] = await Promise.all([
+    const [onboardingResult, pendingResult, countedRows] = await Promise.all([
       platformSupplierQuotePage({ pageNum: 1, pageSize: 1, onboardingStatus: 1, ...keywordPayload }),
       platformSupplierQuotePage({ pageNum: 1, pageSize: 1, quoteStatus: 1, ...keywordPayload }),
-      collectQuoteRows('rejected'),
       countedRowsPromise,
     ])
     if (generation !== supplierLoadGeneration) return
-    const ids = new Set(rejectedRows.map((row) => Number(row.id)))
-    rejectedQuoteIds.value = ids
     reviewCounts.onboarding = pageTotal(onboardingResult)
     reviewCounts.quotePending = pageTotal(pendingResult)
-    reviewCounts.quoteRejected = rejectedRows.length
     reviewCounts.priceChange = countedRows.filter((row) => supplierMatchesQueueFocus(row, 'priceChange')).length
-    reviewCounts.noQuote = countedRows.filter((row) => isNoQuoteRow(row, ids)).length
     reviewCounts.licence = countedRows.filter((row) => supplierMatchesQueueFocus(row, 'licence')).length
   } catch {
     // Keep the previous counts when a summary request fails.
@@ -1436,14 +1516,20 @@ const changePage = (page: number) => {
   loadSuppliers()
 }
 
-const loadReview = async (supplierId: number) => {
+let reviewTicket = 0
+let reviewRequest: Promise<void> = Promise.resolve()
+
+const loadReview = (supplierId: number) => {
+  const ticket = ++reviewTicket
   detailLoading.value = true
+  const request = (async () => {
   try {
     const [detail, serviceList, catalog] = await Promise.all([
       onboardingDetail(supplierId),
       platformSupplierQuoteServices(supplierId),
       serviceCatalog(supplierId).catch(() => null),
     ])
+    if (ticket !== reviewTicket) return
     const nextProfile = unwrap(detail) || {}
     Object.keys(profile).forEach((key) => delete profile[key])
     Object.assign(profile, nextProfile)
@@ -1489,10 +1575,14 @@ const loadReview = async (supplierId: number) => {
       onboardingStatus: nextProfile.status,
     }
   } catch (error: any) {
+    if (ticket !== reviewTicket) return
     ElMessage.error(error?.message || t('admin.platformSuppliers.reviewLoadFailed'))
   } finally {
-    detailLoading.value = false
+    if (ticket === reviewTicket) detailLoading.value = false
   }
+  })()
+  reviewRequest = request
+  return request
 }
 
 const openReview = (row: SupplierRow) => {
@@ -1552,6 +1642,7 @@ const pendingReviewLines = computed(() => skuRows.value.filter(isPendingReviewLi
 const hourlyQuoteReview = computed(() => skuReviewByUnitPrice.value || skuQuoteMode.value === 2)
 const showHourlyReview = computed(() => hourlyQuoteReview.value && Number(skuStatus.value) === 1)
 const showLineReview = computed(() => !hourlyQuoteReview.value && Number(skuStatus.value) === 1 && pendingReviewLines.value.length > 0)
+const canRejectWholeQuote = computed(() => Number(skuStatus.value) === 1)
 const isLineSelectable = (row: any) => Number(skuStatus.value) === 1 && isPendingReviewLine(row)
 
 const onReviewSelectionChange = (rows: any[]) => {
@@ -1629,8 +1720,96 @@ const reviewHourlyQuote = async (status: 2 | 3, reason?: string) => {
 
 const openHourlyReject = () => {
   if (!showHourlyReview.value || saving.value) return
+  rejectingWholeQuote.value = false
+  pendingQuoteRow.value = null
   hourlyRejecting.value = true
   lineRejectTargets.value = []
+  lineRejectReason.value = ''
+  lineRejectOpen.value = true
+}
+
+const resetQuoteReject = () => {
+  hourlyRejecting.value = false
+  rejectingWholeQuote.value = false
+  pendingQuoteRow.value = null
+}
+
+const quoteLinesToReject = (quote: any, reason: string) =>
+  (Array.isArray(quote?.skus) ? quote.skus : [])
+    .filter((sku: any) => (sku?.quoted === true || Number(sku?.quoted) === 1)
+      && Number(sku?.enabled ?? 1) === 1
+      && normalizeLineReviewStatus(sku?.reviewStatus) == null)
+    .map((sku: any) => ({
+      skuId: sku.skuId,
+      status: 3 as const,
+      rejectReason: reason,
+    }))
+
+const finishQuoteReject = async (spuId: number) => {
+  ElMessage.success(t('admin.platformSuppliers.selectedRejected'))
+  lineRejectOpen.value = false
+  lineRejectReason.value = ''
+  lineRejectTargets.value = []
+  selectedReviewLines.value = []
+  resetQuoteReject()
+  if (screen.value === 'quote' && Number(skuTarget.value?.spuId) === spuId) await refreshCurrentQuote()
+  else if (detailId.value) await loadReview(detailId.value)
+}
+
+const rejectWholeQuote = async (row: any, reason: string) => {
+  const supplierId = detailId.value
+  const spuId = Number(row?.spuId || skuTarget.value?.spuId)
+  if (!supplierId || !spuId || saving.value) return
+  const useLoaded = screen.value === 'quote' && Number(skuTarget.value?.spuId) === spuId
+  saving.value = true
+  try {
+    let versionNo = useLoaded ? skuVersionNo.value : undefined
+    let hourly = useLoaded && hourlyQuoteReview.value
+    let lines: Array<{ skuId: unknown; status: 3; rejectReason: string }> = []
+    if (!useLoaded) {
+      const quote = unwrap(await platformSupplierQuoteSkus(supplierId, spuId)) || {}
+      versionNo = quote.versionNo == null ? undefined : Number(quote.versionNo)
+      hourly = quote.reviewByUnitPrice === true || Number(quote.quoteMode) === 2
+      if (!hourly) lines = quoteLinesToReject(quote, reason)
+    } else if (!hourly) {
+      lines = pendingReviewLines.value.map((item) => ({
+        skuId: item.skuId,
+        status: 3 as const,
+        rejectReason: reason,
+      }))
+    }
+    if (hourly || !lines.length) {
+      await platformSupplierQuoteReview({
+        supplierId,
+        spuId,
+        versionNo,
+        status: 3,
+        rejectReason: reason,
+      })
+    } else {
+      await platformSupplierQuoteReview({
+        supplierId,
+        spuId,
+        versionNo,
+        lines,
+      })
+    }
+    await finishQuoteReject(spuId)
+  } catch (error: any) {
+    ElMessage.error(error?.message || t('admin.platformSuppliers.rejectFailed'))
+  } finally {
+    saving.value = false
+  }
+}
+
+const openWholeQuoteReject = (row?: any) => {
+  if (saving.value) return
+  const spuId = Number(row?.spuId || 0)
+  const useLoaded = screen.value === 'quote' && (!spuId || spuId === Number(skuTarget.value?.spuId))
+  pendingQuoteRow.value = useLoaded ? null : (row || null)
+  rejectingWholeQuote.value = true
+  hourlyRejecting.value = Boolean(useLoaded && showHourlyReview.value)
+  lineRejectTargets.value = useLoaded && !hourlyRejecting.value ? pendingReviewLines.value.slice() : []
   lineRejectReason.value = ''
   lineRejectOpen.value = true
 }
@@ -1677,6 +1856,8 @@ const submitPriceChangeReject = () => {
 }
 
 const openLineReject = (rows?: any[]) => {
+  rejectingWholeQuote.value = false
+  pendingQuoteRow.value = null
   hourlyRejecting.value = false
   const source = Array.isArray(rows) && rows.length ? rows : selectedReviewLines.value
   const targets = source.filter(isLineSelectable)
@@ -1696,6 +1877,7 @@ const rejectSelectedLines = () => {
     return
   }
   if (hourlyRejecting.value) return reviewHourlyQuote(3, reason)
+  if (rejectingWholeQuote.value) return rejectWholeQuote(pendingQuoteRow.value, reason)
   return reviewSelectedLines(3, lineRejectTargets.value, reason)
 }
 
@@ -1748,14 +1930,15 @@ const priceFileName = () => {
   const no = String(current.value?.supplierNo || profile.supplierNo || '').trim()
   return `${safe}${no ? `-${no}` : ''}-price-list.csv`
 }
-const billingLabel = (mode: unknown, unitPrice: unknown) => {
+const billingLabel = (mode: unknown) => {
   const value = Number(mode)
-  if (value === 2) {
-    const rate = sheetMoney(unitPrice)
-    return rate ? `${t('admin.platformSuppliers.unitPrice')} ${rate}` : t('admin.platformSuppliers.unitPrice')
-  }
+  if (value === 2) return t('admin.platformSuppliers.unitPrice')
   if (value === 1) return t('admin.platformSuppliers.fixedPrice')
   return ''
+}
+const sheetMargin = (row: { platformPriceWithTax?: unknown; quotePrice?: unknown }) => {
+  const text = marginText(row)
+  return text === '—' ? '' : text
 }
 const specSheetText = (specs: Record<string, unknown>, columns: { key: string }[]) => columns
   .map((column) => specCell(specs[column.key]))
@@ -1797,6 +1980,7 @@ const loadServicePriceRows = async (row: any) => {
       const enabled = saved.enabled == null || saved.enabled === '' ? 1 : Number(saved.enabled)
       return {
         enabled,
+        skuCode: String(saved.skuCode || catalogSku.skuCode || '').trim(),
         specs: Object.fromEntries(columns.map((column) => [
           column.key,
           saved[column.key] ?? saved.specs?.[column.key] ?? catalogSku[column.key],
@@ -1827,32 +2011,39 @@ const loadServicePriceRows = async (row: any) => {
   const service = serviceName(row)
   const category = serviceCategory(row)
   const status = quoteStatusLabel(quote.status ?? row.status, quote.statusI18n || row.statusI18n)
-  const billing = billingLabel(quote.quoteMode, quote.unitPrice)
+  const billing = billingLabel(quote.quoteMode)
   const hourly = quote.reviewByUnitPrice === true || Number(quote.quoteMode) === 2
   const sheetRows = hourly
-    ? [[
+    ? [
+        { label: 'hourlyRateWithMaterial', price: quote.unitPriceWithMaterial },
+        { label: 'hourlyRateWithoutMaterial', price: quote.unitPriceWithoutMaterial },
+      ].map((rate) => [
         service,
         category,
         status,
         billing,
-        t('admin.platformSuppliers.unitPrice'),
+        t(`admin.platformSuppliers.${rate.label}`),
+        '',
         t('admin.platformSuppliers.perPersonHour'),
-        sheetMoney(quote.unitPrice),
+        '',
+        hourlyRateText(rate.price),
         '',
         '',
         '',
-      ]]
+      ])
     : lines.map((line) => [
         service,
         category,
         status,
         billing,
         t('admin.platformSuppliers.exportSpecItem'),
+        line.skuCode,
         specSheetText(line.specs, columns),
-        sheetMoney(line.quotePrice),
-        sheetMoney(line.approvedPrice),
         sheetMoney(clientPrice(line)),
-        lineReviewStatusLabel(line),
+        sheetMoney(line.quotePrice),
+        sheetMargin(line),
+        sheetMoney(line.approvedPrice),
+        sheetLineStatus(line, quote.status, quote.priceChangeStatus),
       ])
   addons.forEach((item) => {
     sheetRows.push([
@@ -1861,15 +2052,17 @@ const loadServicePriceRows = async (row: any) => {
       status,
       billing,
       t('admin.platformSuppliers.exportAddonItem'),
-      item.name,
-      sheetMoney(item.quotePrice),
-      sheetMoney(item.approvedPrice),
       '',
+      item.name,
+      '',
+      sheetMoney(item.quotePrice),
+      '',
+      sheetMoney(item.approvedPrice),
       '',
     ])
   })
   if (!sheetRows.length) {
-    sheetRows.push([service, category, status, billing, '', '', '', '', '', ''])
+    sheetRows.push([service, category, status, billing, '', '', '', '', '', '', '', ''])
   }
   return sheetRows
 }
@@ -1878,7 +2071,12 @@ const exportPriceList = async () => {
   if (!detailId.value || !services.value.length || exportingPrices.value) return
   exportingPrices.value = true
   try {
-    const groups = await Promise.all(services.value.map((row) => loadServicePriceRows(row)))
+    const groups = []
+    const pending = services.value.slice()
+    while (pending.length) {
+      const chunk = pending.splice(0, 4)
+      groups.push(...await Promise.all(chunk.map((row) => loadServicePriceRows(row))))
+    }
     const company = String(profile.companyName || current.value?.supplierName || '').trim()
     const supplierNo = String(current.value?.supplierNo || profile.supplierNo || '').trim()
     const rows = [
@@ -1890,10 +2088,12 @@ const exportPriceList = async () => {
         t('admin.platformSuppliers.quoteStatus'),
         t('admin.platformSuppliers.billing'),
         t('admin.platformSuppliers.exportItem'),
+        t('admin.platformSuppliers.exportSku'),
         t('admin.platformSuppliers.exportSpec'),
-        t('admin.platformSuppliers.taxQuote'),
-        t('admin.platformSuppliers.effectivePrice'),
         t('admin.platformSuppliers.clientPrice'),
+        t('admin.platformSuppliers.taxQuote'),
+        t('admin.platformSuppliers.margin'),
+        t('admin.platformSuppliers.effectivePrice'),
         t('admin.platformSuppliers.lineReviewStatus'),
       ],
       ...groups.flat(),
@@ -1919,7 +2119,7 @@ const downloadQuoteSheet = async () => {
   if (!detailId.value || quoteExporting.value) return
   quoteExporting.value = true
   try {
-    const data = await exportPlatformQuoteSheet(detailId.value)
+    const data = await exportPlatformQuoteSheet(detailId.value, selectedQuoteSpuIds.value)
     const blob = data instanceof Blob ? data : new Blob([data as BlobPart])
     if (blob.type.includes('json') || blob.type.startsWith('text/')) {
       const text = await blob.text()
@@ -1998,7 +2198,8 @@ const openSkus = async (row: any) => {
   skuRejectReason.value = row.rejectReason || ''
   skuQuoteMode.value = null
   skuReviewByUnitPrice.value = false
-  skuUnitPrice.value = null
+  skuUnitPriceWithMaterial.value = null
+  skuUnitPriceWithoutMaterial.value = null
   skuColumns.value = []
   skuGroupLabel.value = ''
   skuRows.value = []
@@ -2016,7 +2217,8 @@ const openSkus = async (row: any) => {
     skuRejectReason.value = quote.rejectReason || row.rejectReason || ''
     skuQuoteMode.value = quote.quoteMode == null ? null : Number(quote.quoteMode)
     skuReviewByUnitPrice.value = quote.reviewByUnitPrice === true
-    skuUnitPrice.value = quote.unitPrice == null ? null : Number(quote.unitPrice)
+    skuUnitPriceWithMaterial.value = quote.unitPriceWithMaterial ?? null
+    skuUnitPriceWithoutMaterial.value = quote.unitPriceWithoutMaterial ?? null
     const quoteSkus = Array.isArray(quote.skus) ? quote.skus : []
     let columns: { key: string; nameI18n: Record<string, unknown> | null; fallback: string }[] = []
     let specSkus: any[] = []
@@ -2128,16 +2330,41 @@ const openSkus = async (row: any) => {
 }
 
 watch(detailId, (id) => {
-  if (id) loadReview(id)
+  quoteHistoryOpen.value = false
+  selectedQuoteSpuIds.value = []
+  if (id) void loadReview(id)
 }, { immediate: true })
 
-watch(() => [detailId.value, String(route.query.view || ''), String(route.query.spu || '')], () => {
-  if (String(route.query.view) !== 'quote' || !detailId.value) return
-  const spu = Number(route.query.spu)
-  if (!spu || Number(skuTarget.value?.spuId) === spu) return
-  const row = services.value.find((item) => Number(item.spuId) === spu) || { spuId: spu }
-  openSkus(row)
-})
+watch(() => [detailId.value, String(route.query.view || ''), String(route.query.spu || '')] as const, async ([id, view, spuText]) => {
+  if (view !== 'quote' || !id) {
+    quoteRoutePending.value = false
+    return
+  }
+  const spu = Number(spuText)
+  if (!spu) {
+    quoteRoutePending.value = false
+    return
+  }
+  const sameSupplier = Number(current.value?.id) === id
+  const serviceReady = sameSupplier && services.value.some((item) => Number(item.spuId) === spu)
+  if (serviceReady && Number(skuTarget.value?.spuId) === spu) {
+    quoteRoutePending.value = false
+    return
+  }
+  const ticket = reviewTicket
+  if (!sameSupplier || !serviceReady) quoteRoutePending.value = true
+  try {
+    await reviewRequest
+    if (ticket !== reviewTicket) return
+    if (detailId.value !== id || String(route.query.view || '') !== 'quote' || Number(route.query.spu) !== spu) return
+    const row = services.value.find((item) => Number(item.spuId) === spu) || { spuId: spu }
+    await openSkus(row)
+  } finally {
+    if (ticket === reviewTicket && detailId.value === id && String(route.query.view || '') === 'quote' && Number(route.query.spu) === spu) {
+      quoteRoutePending.value = false
+    }
+  }
+}, { immediate: true })
 
 watch(() => route.query.onboardingStatus, (value) => {
   if (value == null || value === '') return
@@ -2175,7 +2402,7 @@ button.status-pill:hover { box-shadow: inset 0 0 0 1px rgba(5, 21, 43, 0.2); }
 .status-pill.ok { background: #e7f6ee; color: #1f7a4a; }
 .status-pill.bad { background: #fdecec; color: #b42318; }
 .muted-pill { background: #eef2f7; color: #6d7686; }
-.row-actions, .hero-actions, .quote-foot { display: flex; gap: 8px; }
+.row-actions, .hero-actions, .quote-foot, .line-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
 .row-updates { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; margin-bottom: 6px; }
 .act, .open-link { border: 1px solid #d7dee8; border-radius: 8px; background: #fff; color: #05152b; font: inherit; font-size: 13px; cursor: pointer; }
 .act { padding: 6px 10px; }
@@ -2262,6 +2489,8 @@ button.status-pill:hover { box-shadow: inset 0 0 0 1px rgba(5, 21, 43, 0.2); }
 .service-lines li.muted { grid-column: 1 / -1; min-height: 0; border: 0; background: transparent; }
 .service-lines li > span { display: -webkit-box; overflow: hidden; -webkit-box-orient: vertical; -webkit-line-clamp: 2; color: #05152b; font-weight: 650; line-height: 1.35; }
 .service-lines__meta { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.service-lines__actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 10px; }
+.service-lines button.is-reject { color: #b42318; border-color: #e7b8b4; }
 .service-lines .status-pill { font-style: normal; white-space: nowrap; }
 .service-lines button { padding: 4px 8px; color: #102b44; background: #fff; border: 1px solid #d7deea; border-radius: 8px; font: inherit; font-size: 12px; white-space: nowrap; cursor: pointer; }
 .service-lines::-webkit-scrollbar { width: 8px; }
@@ -2281,6 +2510,7 @@ button.status-pill:hover { box-shadow: inset 0 0 0 1px rgba(5, 21, 43, 0.2); }
 .panel-head h3 { margin: 0; }
 .panel-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; }
 .quote-sheet-hint { margin: 6px 0 0; color: #6d7686; font-size: 12px; line-height: 1.5; }
+.quote-select { display: inline-flex; align-items: center; }
 .quote-file-input { display: none; }
 .quote-head__actions { display: flex; align-items: center; align-self: start; flex-wrap: wrap; justify-content: flex-end; gap: 8px; }
 .kv { display: grid; grid-template-columns: 1fr 1fr; gap: 12px 16px; margin: 0; }
@@ -2297,11 +2527,12 @@ button.status-pill:hover { box-shadow: inset 0 0 0 1px rgba(5, 21, 43, 0.2); }
 .doc-row small { display: block; color: #6d7686; }
 .doc-row .miss { color: #b42318; }
 .quote-head { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 12px 28px; margin-bottom: 12px; }
-.quote-head__copy { grid-column: 1; }
+.quote-head__copy { grid-column: 1; min-width: 0; }
 .quote-status-counts { grid-column: 2; }
 .quote-head__actions { grid-column: 3; }
 .quote-head h2 { margin: 0 0 6px; color: #05152b; }
 .quote-head p { margin: 0; color: #6d7686; }
+.quote-head__hourly-rates { display: flex; flex-wrap: wrap; gap: 4px 16px; margin-top: 6px; font-size: 13px; }
 .quote-status-counts { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 8px; }
 .quote-status-count { display: inline-flex; align-items: baseline; gap: 6px; min-height: 32px; padding: 6px 12px; border-radius: 999px; background: #f4f1ea; color: #526070; font-size: 13px; line-height: 1.2; white-space: nowrap; }
 .quote-status-count b { color: #05152b; font-size: 16px; font-variant-numeric: tabular-nums; }
@@ -2314,13 +2545,15 @@ button.status-pill:hover { box-shadow: inset 0 0 0 1px rgba(5, 21, 43, 0.2); }
 .quote-status-count.is-waiting { background: #e8f1fb; color: #1f4e79; }
 .quote-status-count.is-waiting b { color: #1f4e79; }
 .hourly-review { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 14px; padding: 16px 18px; background: #f7f3ec; border: 1px solid #eadfce; border-radius: 14px; }
+.hourly-review__content { flex: 1; min-width: 0; }
+.hourly-review__rates { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px 24px; margin-bottom: 8px; }
 .hourly-review span { display: block; color: #74685a; font-size: 12px; font-weight: 700; }
 .hourly-review strong { display: block; margin: 4px 0; color: #05152b; font-size: 28px; line-height: 1.1; }
 .hourly-review p { max-width: 520px; margin: 0; color: #6d7686; font-size: 13px; line-height: 1.5; }
 .hourly-review__actions { display: flex; flex: 0 0 auto; gap: 8px; }
 .quote-foot { justify-content: flex-end; align-items: center; flex-wrap: wrap; margin-top: 14px; }
 .quote-foot__selection { margin-right: auto; color: #6d7686; font-size: 13px; }
-.line-actions { display: flex; gap: 6px; }
+.act { flex: 0 0 auto; }
 .line-review-result { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; }
 .line-review-result small { color: #b42318; white-space: normal; }
 .line-reject-summary { margin: 0 0 12px; color: #6d7686; }
@@ -2329,6 +2562,10 @@ button.status-pill:hover { box-shadow: inset 0 0 0 1px rgba(5, 21, 43, 0.2); }
   .quote-status-counts { justify-content: flex-start; }
   .supplier-hero { flex-wrap: wrap; }
   .hourly-review { align-items: flex-start; flex-direction: column; }
+  .hourly-review__content { width: 100%; }
+}
+@media (max-width: 560px) {
+  .hourly-review__rates { grid-template-columns: 1fr; }
 }
 .supplier-review__head--detail .el-button { margin-bottom: 8px; padding-left: 0; }
 .board { padding: 14px; background: #fff; border: 1px solid #e7ebf2; border-radius: 14px; }

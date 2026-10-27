@@ -22,27 +22,27 @@
           </div>
         </article>
         <article class="stat-card">
-          <i class="status-dot status-dot--available" aria-hidden="true"></i>
+          <i class="status-dot status-dot--idle" aria-hidden="true"></i>
           <div>
-            <small>{{ t("admin.supplierStaff.available") }}</small>
-            <strong>{{ stats.available }}</strong>
-            <em>{{ t("admin.supplierStaff.availableHint") }}</em>
+            <small>{{ t("admin.supplierStaff.idle") }}</small>
+            <strong>{{ stats.idle }}</strong>
+            <em>{{ t("admin.supplierStaff.idleHint") }}</em>
           </div>
         </article>
         <article class="stat-card">
-          <i class="status-dot status-dot--onJob" aria-hidden="true"></i>
+          <i class="status-dot status-dot--enRoute" aria-hidden="true"></i>
           <div>
-            <small>{{ t("admin.supplierStaff.onJobs") }}</small>
-            <strong>{{ stats.onJob }}</strong>
-            <em>{{ t("admin.supplierStaff.onJobsHint") }}</em>
+            <small>{{ t("admin.supplierStaff.enRoute") }}</small>
+            <strong>{{ stats.enRoute }}</strong>
+            <em>{{ t("admin.supplierStaff.enRouteHint") }}</em>
           </div>
         </article>
         <article class="stat-card">
-          <i class="status-dot status-dot--offline" aria-hidden="true"></i>
+          <i class="status-dot status-dot--serving" aria-hidden="true"></i>
           <div>
-            <small>{{ t("admin.supplierStaff.away") }}</small>
-            <strong>{{ stats.away }}</strong>
-            <em>{{ t("admin.supplierStaff.awayHint") }}</em>
+            <small>{{ t("admin.supplierStaff.serving") }}</small>
+            <strong>{{ stats.serving }}</strong>
+            <em>{{ t("admin.supplierStaff.servingHint") }}</em>
           </div>
         </article>
       </div>
@@ -54,13 +54,6 @@
           :prefix-icon="Search"
           :placeholder="t('admin.supplierStaff.search')"
         />
-        <el-select v-model="statusFilter">
-          <el-option value="all" :label="t('admin.supplierStaff.allStatuses')" />
-          <el-option value="available" :label="t('admin.supplierStaff.jobAvailable')" />
-          <el-option value="onJob" :label="t('admin.supplierStaff.jobOnJob')" />
-          <el-option value="offline" :label="t('admin.supplierStaff.jobOffline')" />
-          <el-option value="unavailable" :label="t('admin.supplierStaff.jobUnavailable')" />
-        </el-select>
         <el-select v-model="serviceFilter">
           <el-option :value="0" :label="t('admin.supplierStaff.allServices')" />
           <el-option
@@ -155,8 +148,8 @@
                 </td>
                 <td>
                   <span v-if="row.jobStatus" class="job-status">
-                    <i class="status-dot" :class="`status-dot--${row.jobStatus}`"></i>
-                    {{ jobLabel(row.jobStatus) }}
+                    <i class="status-dot" :class="`status-dot--${row.jobStatus}`" aria-hidden="true"></i>
+                    {{ t(`admin.supplierStaff.${row.jobStatus}`) }}
                   </span>
                   <span v-else class="muted">—</span>
                 </td>
@@ -222,7 +215,12 @@
         </p>
         <footer class="staff-footer">
           <span>{{
-            t("admin.supplierStaff.showing", { shown: pageRows.length, total: filtered.length })
+            t(
+              filtered.length === 1
+                ? "admin.supplierStaff.showingOne"
+                : "admin.supplierStaff.showing",
+              { shown: pageRows.length, total: filtered.length },
+            )
           }}</span>
           <div class="pager">
             <button type="button" :disabled="page <= 1" :aria-label="t('admin.supplierStaff.prev')" @click="page -= 1">
@@ -268,14 +266,6 @@
           accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
           @change="importFile"
         />
-      </section>
-      <section class="rail-block guide">
-        <h3>{{ t("admin.supplierStaff.guideTitle") }}</h3>
-        <p><i class="status-dot status-dot--available"></i><span><b>{{ t("admin.supplierStaff.jobAvailable") }}</b><small>{{ t("admin.supplierStaff.guideAvailable") }}</small></span></p>
-        <p><i class="status-dot status-dot--onJob"></i><span><b>{{ t("admin.supplierStaff.jobOnJob") }}</b><small>{{ t("admin.supplierStaff.guideOnJob") }}</small></span></p>
-        <p><i class="status-dot status-dot--offline"></i><span><b>{{ t("admin.supplierStaff.jobOffline") }}</b><small>{{ t("admin.supplierStaff.guideOffline") }}</small></span></p>
-        <p><i class="status-dot status-dot--unavailable"></i><span><b>{{ t("admin.supplierStaff.jobUnavailable") }}</b><small>{{ t("admin.supplierStaff.guideUnavailable") }}</small></span></p>
-        <p><i class="status-dot status-dot--suspended"></i><span><b>{{ t("admin.supplierStaff.accountSuspended") }}</b><small>{{ t("admin.supplierStaff.guideSuspended") }}</small></span></p>
       </section>
     </aside>
 
@@ -344,11 +334,11 @@ import {
   updateSupplierStaffState,
 } from "@/modules/admin/api/supplierWorkbench"
 import {
-  deriveStaffJob,
   dubaiDateKey,
   serviceLabel,
+  staffPresence,
   tallyStaffJobs,
-  type StaffJobStatus,
+  type StaffPresence,
 } from "@/modules/admin/utils/staffBoard"
 
 type ServiceChip = {
@@ -363,7 +353,7 @@ type StaffRow = {
   name: string
   phone: string
   email: string
-  jobStatus: StaffJobStatus | ""
+  jobStatus: StaffPresence | ""
   accountStatus: string
   acceptJobs: boolean | null
   suspended: boolean
@@ -384,7 +374,6 @@ const exporting = ref(false)
 const importing = ref(false)
 const templating = ref(false)
 const query = ref("")
-const statusFilter = ref("all")
 const serviceFilter = ref(0)
 const accountFilter = ref("all")
 const moreOpen = ref(false)
@@ -406,15 +395,13 @@ const suspended = (row: StaffRow) => row.suspended || row.accountStatus === "sus
 const labelOf = (service: ServiceChip) => serviceLabel(service, String(locale.value))
 const stats = computed(() => ({
   total: staff.value.length,
-  available: staff.value.filter((row) => row.jobStatus === "available").length,
-  onJob: staff.value.filter((row) => row.jobStatus === "onJob").length,
-  away: staff.value.filter((row) => row.jobStatus === "offline" || row.jobStatus === "unavailable")
-    .length,
+  idle: staff.value.filter((row) => row.jobStatus === "idle").length,
+  enRoute: staff.value.filter((row) => row.jobStatus === "enRoute").length,
+  serving: staff.value.filter((row) => row.jobStatus === "serving").length,
 }))
 const filtered = computed(() => {
   const keyword = query.value.trim().toLowerCase()
   return staff.value.filter((row) => {
-    if (statusFilter.value !== "all" && row.jobStatus !== statusFilter.value) return false
     if (serviceFilter.value && !row.services.some((service) => service.id === serviceFilter.value))
       return false
     if (accountFilter.value === "active" && suspended(row)) return false
@@ -439,7 +426,7 @@ const selectedRows = computed(() =>
 const selectedActive = computed(() => selectedRows.value.filter((row) => !suspended(row)))
 const selectedSuspended = computed(() => selectedRows.value.filter((row) => suspended(row)))
 
-watch([query, statusFilter, serviceFilter, accountFilter], () => {
+watch([query, serviceFilter, accountFilter], () => {
   page.value = 1
 })
 watch(filtered, (rows) => {
@@ -472,14 +459,6 @@ const prettyPhone = (phone: string) => {
   }
   return phone || "—"
 }
-const jobLabel = (status: string) => {
-  if (status === "available") return t("admin.supplierStaff.jobAvailable")
-  if (status === "onJob") return t("admin.supplierStaff.jobOnJob")
-  if (status === "offline") return t("admin.supplierStaff.jobOffline")
-  if (status === "unavailable") return t("admin.supplierStaff.jobUnavailable")
-  return "—"
-}
-
 const readServices = (value: any): ServiceChip[] =>
   (Array.isArray(value) ? value : [])
     .map((item: any) => ({
@@ -498,7 +477,7 @@ const readStaff = (row: any): StaffRow => {
     name: String(row?.name || ""),
     phone: String(row?.phone || ""),
     email: String(row?.email || ""),
-    jobStatus: deriveStaffJob({ serverStatus: row?.jobStatus }),
+    jobStatus: staffPresence(row?.jobStatus),
     accountStatus: String(row?.accountStatus || ""),
     acceptJobs: accept === true || accept === 1 ? true : accept === false || accept === 0 ? false : null,
     suspended: row?.suspended === true || row?.suspended === 1 || row?.accountStatus === "suspended",
@@ -547,13 +526,7 @@ const fillFromOrders = async () => {
       return {
         ...row,
         todayJobCount: row.todayJobCount == null ? tally.count : row.todayJobCount,
-        jobStatus:
-          row.jobStatus ||
-          deriveStaffJob({
-            suspended: row.suspended,
-            acceptJobs: row.acceptJobs,
-            onJob: tally.onJob,
-          }),
+        jobStatus: row.jobStatus || tally.presence,
       }
     })
   } catch {
@@ -876,10 +849,12 @@ onMounted(load)
   display: block;
   margin: 2px 0;
   color: #102033;
-  font-family: Fraunces, Georgia, serif;
+  font-family: var(--hx-font-numeric);
   font-size: 32px;
-  font-weight: 560;
+  font-weight: 600;
   line-height: 1;
+  letter-spacing: normal;
+  font-variant-numeric: lining-nums tabular-nums;
 }
 .stat-card em {
   font-size: 12px;
@@ -900,10 +875,9 @@ onMounted(load)
   background: #9aa3af;
   flex: 0 0 auto;
 }
-.status-dot--available { background: #1f9d55; }
-.status-dot--onJob { background: #2f6fed; }
-.status-dot--offline { background: #9aa3af; }
-.status-dot--unavailable { background: #e39b2b; }
+.status-dot--idle { background: #1f9d55; }
+.status-dot--enRoute { background: #e39b2b; }
+.status-dot--serving { background: #2f6fed; }
 .status-dot--suspended { background: #e15b64; }
 .staff-filters {
   display: grid;

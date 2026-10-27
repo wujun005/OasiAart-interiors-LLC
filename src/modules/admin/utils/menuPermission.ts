@@ -57,9 +57,17 @@ const DEVELOPER_PATH = '/admin/developer';
 const WHITELIST_PATH = '/admin/developer/supplier-registration-whitelist';
 const PACKAGE_PATH = '/admin/package';
 const PACKAGE_CATEGORY_PATH = '/admin/package/categories';
+const PACKAGE_SERVICE_SUBCATEGORY_PATH = '/admin/package/service-subcategories';
+const PACKAGE_SPEC_TYPE_PATH = '/admin/package/spec-types';
+const PACKAGE_SPEC_PATH = '/admin/package/specs';
+const PACKAGE_SERVICE_PATH = '/admin/package/services';
 const PACKAGE_LIST_PATH = '/admin/package/packages';
 const FIXED_PACKAGE_MENU_ID = 'fixed-packages';
 const FIXED_PACKAGE_CATEGORY_MENU_ID = 'fixed-package-categories';
+const FIXED_PACKAGE_SERVICE_SUBCATEGORY_MENU_ID = 'fixed-package-service-subcategories';
+const FIXED_PACKAGE_SPEC_TYPE_MENU_ID = 'fixed-package-spec-types';
+const FIXED_PACKAGE_SPEC_MENU_ID = 'fixed-package-specs';
+const FIXED_PACKAGE_SERVICE_MENU_ID = 'fixed-package-services';
 const FIXED_PACKAGE_LIST_MENU_ID = 'fixed-package-list';
 const MENU_PATH_ALIASES: Record<string, string> = {
   '/admin/supplier': '/admin/supplier-management',
@@ -252,15 +260,18 @@ const findMenuByPath = (
   return undefined;
 };
 
-const packageListMenu = (parentId: number | string): AdminMenuPermissionItem => ({
-  id: FIXED_PACKAGE_LIST_MENU_ID,
-  name: '套餐列表',
-  path: PACKAGE_LIST_PATH,
-  icon: 'tickets',
-  parentId,
-  sortOrder: 2,
-  children: [],
-});
+const supplierPortalOrder = [
+  `${SUPPLIER_PATH}/overview`,
+  `${SUPPLIER_PATH}/profile`,
+  `${SUPPLIER_PATH}/coverage-availability`,
+  `${SUPPLIER_PATH}/service-area`,
+  `${SUPPLIER_PATH}/availability`,
+  `${SUPPLIER_PATH}/pricing`,
+  `${SUPPLIER_PATH}/orders`,
+  `${SUPPLIER_PATH}/staff`,
+  `${SUPPLIER_PATH}/schedule`,
+  `${SUPPLIER_PATH}/settlement`,
+];
 
 const pinSupplierStaffMenu = (roots: AdminMenuPermissionItem[]) => {
   const staffPath = `${SUPPLIER_PATH}/staff`;
@@ -273,42 +284,71 @@ const pinSupplierStaffMenu = (roots: AdminMenuPermissionItem[]) => {
     path: staffPath,
     icon: 'userfilled',
     parentId: parent.id,
-    sortOrder: 6,
+    sortOrder: 80,
     children: [],
   });
 };
 
+const orderSupplierPortalMenus = (roots: AdminMenuPermissionItem[]) => {
+  const parent = findMenuByPath(roots, SUPPLIER_PATH);
+  if (!parent) return;
+  parent.children.forEach((child) => {
+    const index = supplierPortalOrder.indexOf(child.path);
+    if (index >= 0) child.sortOrder = (index + 1) * 10;
+  });
+};
+
 const pinPackageMenu = (roots: AdminMenuPermissionItem[]) => {
-  if (hasMenuPath(roots, PACKAGE_LIST_PATH)) return;
   const paths = collectPaths(roots);
   if (!paths.length) return;
   const supplierOnly = paths.every((path) => path.startsWith('/admin/supplier-management'));
   if (supplierOnly) return;
-  const parent = findMenuByPath(roots, PACKAGE_PATH);
-  if (parent) {
-    parent.children.push(packageListMenu(parent.id));
-    return;
-  }
-  const item: AdminMenuPermissionItem = {
-    id: FIXED_PACKAGE_MENU_ID,
-    name: '套餐管理',
-    path: PACKAGE_PATH,
-    icon: 'present',
-    parentId: 0,
-    sortOrder: 0,
-    children: [{
-      id: FIXED_PACKAGE_CATEGORY_MENU_ID,
-      name: '套餐分类',
-      path: PACKAGE_CATEGORY_PATH,
-      icon: 'collection',
-      parentId: FIXED_PACKAGE_MENU_ID,
-      sortOrder: 1,
+  let parent = findMenuByPath(roots, PACKAGE_PATH);
+  if (!parent) {
+    parent = {
+      id: FIXED_PACKAGE_MENU_ID,
+      name: '套餐管理',
+      path: PACKAGE_PATH,
+      icon: 'present',
+      parentId: 0,
+      sortOrder: 0,
       children: [],
-    }, packageListMenu(FIXED_PACKAGE_MENU_ID)],
+    };
+    const productIndex = roots.findIndex((node) => node.path === '/admin/products');
+    if (productIndex >= 0) roots.splice(productIndex + 1, 0, parent);
+    else roots.push(parent);
+  }
+
+  const defaults = [
+    { id: FIXED_PACKAGE_CATEGORY_MENU_ID, name: '套餐分类', path: PACKAGE_CATEGORY_PATH, icon: 'collection' },
+    { id: FIXED_PACKAGE_SERVICE_SUBCATEGORY_MENU_ID, name: '套餐服务子类', path: PACKAGE_SERVICE_SUBCATEGORY_PATH, icon: 'folder-opened' },
+    { id: FIXED_PACKAGE_SPEC_TYPE_MENU_ID, name: '套餐计价方式类型', path: PACKAGE_SPEC_TYPE_PATH, icon: 'ticket' },
+    { id: FIXED_PACKAGE_SPEC_MENU_ID, name: '套餐计价方式', path: PACKAGE_SPEC_PATH, icon: 'tickets' },
+    { id: FIXED_PACKAGE_SERVICE_MENU_ID, name: '套餐服务管理', path: PACKAGE_SERVICE_PATH, icon: 'goods' },
+    { id: FIXED_PACKAGE_LIST_MENU_ID, name: '套餐列表', path: PACKAGE_LIST_PATH, icon: 'tickets' },
+  ];
+  const existing = new Map(defaults.map((item) => [item.path, findMenuByPath(roots, item.path)]));
+  const childPaths = new Set(defaults.map((item) => item.path));
+  // Reuse server menu IDs even when an older menu response puts pages at the root.
+  // Remove duplicate destinations before attaching them to the package group.
+  const detachPackageChildren = (nodes: AdminMenuPermissionItem[]) => {
+    for (let index = nodes.length - 1; index >= 0; index -= 1) {
+      const node = nodes[index]!;
+      detachPackageChildren(node.children);
+      if (childPaths.has(node.path)) nodes.splice(index, 1);
+    }
   };
-  const productIndex = roots.findIndex((node) => node.path === '/admin/products');
-  if (productIndex >= 0) roots.splice(productIndex + 1, 0, item);
-  else roots.push(item);
+  detachPackageChildren(roots);
+  const packageParent = parent;
+  defaults.forEach((item, index) => {
+    const child = existing.get(item.path) || { ...item, children: [] };
+    packageParent.children.push({
+      ...child,
+      parentId: packageParent.id,
+      sortOrder: index + 1,
+    });
+  });
+  sortMenus(parent.children);
 };
 
 const pinSuperAdminOverview = (roots: AdminMenuPermissionItem[]) => {
@@ -414,8 +454,11 @@ const hydrateMenuState = (list: RawMenuItem[], pinOverview = false, pinStaff = f
   const prunedRoots = pruneMenus(roots);
   sortMenus(prunedRoots);
   pinPackageMenu(prunedRoots);
-  if (pinStaff) pinSupplierStaffMenu(prunedRoots);
-  if (pinStaff) sortMenus(prunedRoots);
+  if (pinStaff) {
+    pinSupplierStaffMenu(prunedRoots);
+    orderSupplierPortalMenus(prunedRoots);
+    sortMenus(prunedRoots);
+  }
 
   const flat = flattenMenus(prunedRoots, []);
   const allowedPaths = Array.from(

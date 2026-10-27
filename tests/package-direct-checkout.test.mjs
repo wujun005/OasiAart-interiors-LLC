@@ -36,7 +36,15 @@ const code = transpile(script.content)
 const plainTextExports = {}
 runInNewContext(transpile(read("src/modules/client/utils/plain-text.ts")), { exports: plainTextExports })
 const packageBookingCode = transpile(read("src/modules/client/composables/usePackageFirstBooking.ts"))
-const packageCard = { items: [{ skuId: 201, spuId: 12, redeemTimes: 3, spuNameI18n: { en: "Home cleaning", zh: "家庭清洁" } }] }
+const packageTimesCode = transpile(read("src/modules/client/utils/package-booking-times.ts"))
+const purchasedOrder = (orderId = 42, packageId = 2, spuIds = [12, 13]) => ({
+  orderId, packageOrder: true, packageItems: [],
+  packageSnapshot: { packageId, items: [
+    { skuId: 201, chosenSkuId: 204, bindType: 1, spuId: spuIds[0], redeemTimes: 3, spuNameI18n: { en: "Home cleaning", zh: "家庭清洁" },
+      specs: [{ specTypeNameI18n: { en: "Home size" }, specValueNameI18n: { en: "4 BHK" } }] },
+    { skuId: 301, bindType: 2, spuId: spuIds[1], redeemTimes: 2, spuNameI18n: { en: "Home painting", zh: "家庭油漆" } },
+  ] },
+})
 const timeOptions = [{ time: "09:00", timeRange: 7, available: true }]
 const mutationCalls = (calls) => calls.api.filter((call) => ["saveContactAddress", "createPay"].includes(call.name))
 const completeBooking = async (state) => {
@@ -58,14 +66,14 @@ async function harness(t, overrides = {}) {
   const locale = Vue.ref("en")
   const controls = {
     payment: overrides.payment || (async () => ({ data: { clientSecret: "pi_mock_secret", customerSessionClientSecret: "cuss_mock" } })),
-    packageDetail: overrides.packageDetail || (async () => packageCard),
+    orderDetail: overrides.orderDetail || (async () => purchasedOrder()),
     availableTimes: overrides.availableTimes || (async () => timeOptions),
     saveContact: overrides.saveContact || (async () => 1),
   }
   const api = new Proxy({}, { get: (_, key) => async (...args) => {
     calls.api.push({ name: key, args: clone(args) })
     if (key === "createPay") return controls.payment(...args)
-    if (key === "packageDetail") return controls.packageDetail(...args)
+    if (key === "getClientOrderDetailById") return controls.orderDetail(...args)
     if (key === "getAvailableSelectTime") return controls.availableTimes(...args)
     if (key === "saveContactAddress") return controls.saveContact(...args)
     if (key === "getClientAddressList") return []
@@ -77,6 +85,11 @@ async function harness(t, overrides = {}) {
     if (name === "@/modules/client/api") return api
     if (name === "@/modules/client/utils/plain-text") return plainTextExports
     throw new Error(`Unexpected booking dependency: ${name}`)
+  } })
+  const packageTimesExports = {}
+  runInNewContext(packageTimesCode, { exports: packageTimesExports, require: (name) => {
+    if (name === "@/modules/client/api") return api
+    throw new Error(`Unexpected availability dependency: ${name}`)
   } })
   const browser = {
     location: { origin: "http://localhost:5173", pathname: "/order-confirm", href: "" },
@@ -103,6 +116,7 @@ async function harness(t, overrides = {}) {
       if (name.startsWith("element-plus/es/locale")) return {}
       if (name === "@/modules/client/api") return api
       if (name === "@/modules/client/composables/usePackageFirstBooking") return packageBookingExports
+      if (name === "@/modules/client/utils/package-booking-times") return packageTimesExports
       if (name === "@/modules/client/composables/useCart") return { useCart: (options) => {
         calls.cartOptions.push(clone(options))
         return Object.fromEntries(["addItem", "refreshCart", "removeItems"].map((key) => [key, async (...args) => calls.cart.push({ name: key, args: clone(args) })]))
@@ -129,11 +143,12 @@ async function harness(t, overrides = {}) {
   return { state, calls, controls, route, locale, browser }
 }
 
-test("PC package confirmation compiles with first-service, address, time and note forms", () => {
+test("PC package confirmation compiles with a read-only included-service list, address, time and note forms", () => {
   const result = compileTemplate({ source: descriptor.template.content, filename, id: "package-direct-checkout", compilerOptions: { bindingMetadata: script.bindings } })
   assert.deepEqual(result.errors, [])
   assert.match(descriptor.template.content, /v-if="isPackageMode"/)
-  assert.match(descriptor.template.content, /v-model="packageSkuId"/)
+  assert.match(descriptor.template.content, /v-for="option in packageServiceOptions"/)
+  assert.doesNotMatch(descriptor.template.content, /v-model="packageSkuId"/)
   assert.match(descriptor.template.content, /v-model="form\.serviceDate"/)
   assert.match(descriptor.template.content, /v-model(?:\.trim)?="form\.remark"/)
   assert.doesNotMatch(descriptor.template.content, /<section v-if="!isPackageMode" class="order-card"/)
@@ -154,13 +169,15 @@ test("PC package checkout requires address/time/policy, saves first booking befo
   const { state, calls } = await harness(t)
   assert.equal(state.isPackageMode, true)
   assert.deepEqual(calls.cartOptions, [{ initialize: false }])
-  assert.ok(calls.api.some((call) => call.name === "packageDetail"))
+  assert.ok(calls.api.some((call) => call.name === "getClientOrderDetailById" && call.args[0] === "42"))
+  assert.equal(calls.api.some((call) => call.name === "packageDetail"), false)
   assert.ok(calls.api.some((call) => call.name === "getClientAddressList"))
   assert.notEqual(state.getValidationMessage(), "")
-  assert.equal(state.packageSkuId, "201")
+  assert.deepEqual(clone(state.packageServiceOptions.map((service) => service.value)), ["204", "301"])
+  assert.equal(state.packageServiceOptions[0].spec, "Home size: 4 BHK")
   await completeBooking(state)
   assert.equal(state.getValidationMessage(), "")
-  assert.ok(calls.api.some((call) => call.name === "getAvailableSelectTime" && call.args[0].spuId === 12))
+  assert.deepEqual(calls.api.filter((call) => call.name === "getAvailableSelectTime").map((call) => call.args[0].spuId), [12, 13])
   state.handleConfirm()
   assert.equal(state.policyDialogVisible, true)
   assert.equal(state.agreedPolicy, false)
@@ -171,7 +188,7 @@ test("PC package checkout requires address/time/policy, saves first booking befo
   await state.confirmPolicyAndContinue()
   const writes = mutationCalls(calls)
   assert.deepEqual(writes.map((call) => call.name), ["saveContactAddress", "createPay"])
-  assert.equal(writes[0].args[0].packageSkuId, 201)
+  assert.equal(Object.hasOwn(writes[0].args[0], "packageSkuId"), false)
   assert.equal(writes[0].args[0].orderId, 42)
   assert.equal(writes[0].args[0].serviceTime, "2099-01-01")
   assert.equal(writes[0].args[0].timeRange, 7)
@@ -187,14 +204,21 @@ test("PC package checkout requires address/time/policy, saves first booking befo
 })
 
 test("PC package payment double clicks are deduplicated and failure remains retryable", async (t) => {
+  const saving = deferred()
   const gate = deferred()
-  const { state, calls, controls } = await harness(t, { payment: () => gate.promise })
+  const { state, calls, controls } = await harness(t, { saveContact: () => saving.promise, payment: () => gate.promise })
   await completeBooking(state)
   state.agreedPolicy = true
   const pending = state.submitBooking()
   await flush()
   await state.submitBooking()
+  assert.deepEqual(mutationCalls(calls).map((call) => call.name), ["saveContactAddress"])
+  assert.equal(state.isSubmitting, true)
+  saving.resolve(1)
+  await flush()
+  await state.submitBooking()
   assert.equal(calls.api.filter((call) => call.name === "createPay").length, 1)
+  assert.equal(calls.api.filter((call) => call.name === "saveContactAddress").length, 1)
   assert.equal(state.isSubmitting, true)
   gate.resolve(null)
   await pending
@@ -216,18 +240,17 @@ test("PC never creates payment if saving the first booking fails", async (t) => 
   assert.equal(calls.messages.at(-1).message, "First booking unavailable")
 })
 
-test("PC switching the first service ignores available times from the previous service", async (t) => {
+test("PC switching package orders ignores stale shared availability and keeps the purchased service list", async (t) => {
   const old = deferred()
   const current = deferred()
-  const { state, calls } = await harness(t, {
-    packageDetail: async () => ({ items: [packageCard.items[0], { ...packageCard.items[0], skuId: 202, spuId: 13 }] }),
-    availableTimes: ({ spuId }) => spuId === 12 ? old.promise : current.promise,
+  const { state, calls, route } = await harness(t, {
+    orderDetail: async (id) => id === "42" ? purchasedOrder() : purchasedOrder(43, 3, [14, 15]),
+    availableTimes: ({ spuId }) => spuId < 14 ? old.promise : current.promise,
   })
-  assert.equal(state.packageSkuId, "")
-  state.packageSkuId = "201"
   state.form.serviceDate = "2099-01-01"
   await flush()
-  state.packageSkuId = "202"
+  route.query.orderId = "43"
+  route.query.packageId = "3"
   await flush()
   current.resolve([{ time: "10:00", timeRange: 9, available: true }])
   await flush()
@@ -235,8 +258,70 @@ test("PC switching the first service ignores available times from the previous s
   await flush()
   assert.equal(state.availableTimeRecords[0].timeRange, 9)
   assert.equal(state.form.timeRange, "9")
-  assert.equal(calls.api.filter((call) => call.name === "getAvailableSelectTime").at(-1).args[0].spuId, 13)
+  assert.deepEqual(clone(state.packageServiceOptions.map((service) => service.spuId)), ["14", "15"])
+  assert.deepEqual(calls.api.filter((call) => call.name === "getAvailableSelectTime").map((call) => call.args[0].spuId), [12, 13, 14, 15])
   assert.deepEqual(mutationCalls(calls), [])
+})
+
+test("PC cannot pay when any included service has no common slot or its availability fails", async (t) => {
+  for (const scenario of ["no-common-slot", "failed"]) {
+    const { state, calls } = await harness(t, { availableTimes: async ({ spuId }) => {
+      if (spuId === 12) return timeOptions
+      if (scenario === "failed") throw new Error("Painting availability failed")
+      return [{ time: "10:00", timeRange: 9, available: true }]
+    } })
+    await completeBooking(state)
+    state.agreedPolicy = true
+    assert.deepEqual(clone(state.availableTimeRecords), [])
+    if (scenario === "failed") {
+      state.availableTimeRecords = clone(timeOptions)
+      state.form.timeRange = "7"
+    }
+    assert.notEqual(state.getValidationMessage(), "")
+    await state.submitBooking()
+    assert.deepEqual(mutationCalls(calls), [])
+  }
+})
+
+test("PC rejects a manually restored old slot while the new date is loading and after no common slot is found", async (t) => {
+  const gate = deferred()
+  const { state, calls } = await harness(t, { availableTimes: ({ serviceTime }) =>
+    serviceTime === "2099-01-01" ? Promise.resolve(timeOptions) : gate.promise })
+  await completeBooking(state)
+  assert.equal(state.getValidationMessage(), "")
+  state.agreedPolicy = true
+  state.form.serviceDate = "2099-01-02"
+  await flush()
+  state.availableTimeRecords = clone(timeOptions)
+  state.form.timeRange = "7"
+  assert.equal(state.isTimeOptionsLoading, true)
+  assert.notEqual(state.getValidationMessage(), "")
+  await state.submitBooking()
+  assert.deepEqual(mutationCalls(calls), [])
+  gate.resolve([{ time: "09:00", timeRange: 7, available: false }])
+  await flush()
+  state.form.timeRange = "7"
+  assert.deepEqual(clone(state.availableTimeRecords), [])
+  await state.submitBooking()
+  assert.deepEqual(mutationCalls(calls), [])
+})
+
+test("PC deduplicates a pending first-booking save and does not pay after navigating to another order", async (t) => {
+  const saving = deferred()
+  const { state, calls, route } = await harness(t, { saveContact: () => saving.promise })
+  await completeBooking(state)
+  state.agreedPolicy = true
+  const pending = state.submitBooking()
+  await flush()
+  await state.submitBooking()
+  assert.deepEqual(mutationCalls(calls).map((call) => call.name), ["saveContactAddress"])
+  assert.equal(mutationCalls(calls)[0].args[0].orderId, 42)
+  route.query.orderId = "43"
+  await flush()
+  saving.resolve(1)
+  await pending
+  assert.deepEqual(mutationCalls(calls).map((call) => call.name), ["saveContactAddress"])
+  assert.equal(state.isSubmitting, false)
 })
 
 test("PC package confirmation rejects invalid identifiers without API mutations", async (t) => {

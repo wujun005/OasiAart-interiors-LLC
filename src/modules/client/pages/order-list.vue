@@ -4,8 +4,8 @@
       <div class="order-list-container">
         <header class="order-list-head">
           <div>
-            <h1>{{ t("client.orderList.title") }}</h1>
-            <p>{{ t("client.orderList.subtitle") }}</p>
+            <h1>{{ listTitle }}</h1>
+            <p>{{ listSubtitle }}</p>
           </div>
 
           <div class="order-list-search">
@@ -59,7 +59,7 @@
             </button>
           </div>
           <p v-else-if="!orderCards.length" class="order-list-empty">
-            {{ t("client.orderList.empty") }}
+            {{ emptyLabel }}
           </p>
 
           <template v-else>
@@ -128,6 +128,14 @@
                   </div>
                 </div>
 
+                <ul v-if="item.packageServices.length" class="order-card__services">
+                  <li v-for="service in item.packageServices" :key="service.key">
+                    <b>{{ service.name }}</b>
+                    <span v-if="service.spec">{{ service.spec }}</span>
+                    <em>{{ service.timesText }}</em>
+                  </li>
+                </ul>
+
                 <div
                   v-if="item.specText || item.addOnsText"
                   class="order-card__selections"
@@ -195,6 +203,27 @@
               </div>
             </article>
           </template>
+          <nav
+            v-if="!isLoading && !loadError && pageCount > 1"
+            class="order-list-pager"
+            :aria-label="t('client.orderList.pagerStatus', { page: pageNum, pages: pageCount })"
+          >
+            <button
+              type="button"
+              :disabled="listRefreshing || pageNum <= 1"
+              @click="changePage(pageNum - 1)"
+            >
+              {{ t("client.orderList.pagerPrev") }}
+            </button>
+            <span>{{ t("client.orderList.pagerStatus", { page: pageNum, pages: pageCount }) }}</span>
+            <button
+              type="button"
+              :disabled="listRefreshing || pageNum >= pageCount"
+              @click="changePage(pageNum + 1)"
+            >
+              {{ t("client.orderList.pagerNext") }}
+            </button>
+          </nav>
         </section>
       </div>
     </section>
@@ -436,13 +465,21 @@ import {
   formatOrderSpecs,
 } from "@/modules/client/utils/order-localization"
 import {
+  matchesOrderListKind,
+  narrowOrderList,
+  orderListKind,
+  orderTypeForListKind,
+  packageServiceLines,
+  packageTimesText,
+} from "@/modules/client/utils/order-list-page"
+import {
   cancelOrder,
   checkOrderRefund,
   getAvailableSelectTime,
   getOrderByOrderNo,
   getOrderRefundAmount,
   getRefundReasons,
-  getOrderList,
+  getOrderListPage,
   requestOrderRefund,
   rescheduleOrder,
   type OrderListRecord,
@@ -501,6 +538,12 @@ type OrderCardView = {
   canRebook: boolean
   specSelections: RebookSpecSelection[]
   attachSelections: RebookAttachSelection[]
+  packageServices: Array<{
+    key: string
+    name: string
+    spec: string
+    timesText: string
+  }>
   record: OrderListRecord
 }
 
@@ -538,6 +581,22 @@ const fallbackImages = [
 const { t, locale } = useI18n({ useScope: "global" })
 const router = useRouter()
 const route = useRoute()
+const listKind = computed(() => orderListKind(route.query.kind))
+const listTitle = computed(() =>
+  listKind.value === "package"
+    ? t("client.orderList.packagesTitle")
+    : t("client.orderList.bookingsTitle"),
+)
+const listSubtitle = computed(() =>
+  listKind.value === "package"
+    ? t("client.orderList.packagesSubtitle")
+    : t("client.orderList.bookingsSubtitle"),
+)
+const emptyLabel = computed(() =>
+  listKind.value === "package"
+    ? t("client.orderList.emptyPackages")
+    : t("client.orderList.emptyBookings"),
+)
 
 const statusTabs = computed(() => [
   {
@@ -554,10 +613,17 @@ const statusTabs = computed(() => [
   },
 ])
 
+const ORDER_PAGE_SIZE = 10
 const selectedStatus = ref<OrderListTab>("ACTIVE")
 const searchKeyword = ref("")
-const orderRecords = ref<OrderListRecord[]>([])
+const recordsByTab = ref<Record<OrderListTab, OrderListRecord[]>>({
+  ACTIVE: [],
+  HISTORY: [],
+})
+const pageByTab = ref<Record<OrderListTab, number>>({ ACTIVE: 1, HISTORY: 1 })
+const totalByTab = ref<Record<OrderListTab, number>>({ ACTIVE: 0, HISTORY: 0 })
 const tabCounts = ref<Record<OrderListTab, number>>({ ACTIVE: 0, HISTORY: 0 })
+const listRefreshing = ref(false)
 const isLoading = ref(false)
 const loadError = ref(false)
 const reviewDialogVisible = ref(false)
@@ -998,8 +1064,15 @@ const packageStillValid = (item: OrderListRecord) => {
   return Number.isNaN(end.getTime()) || end.getTime() >= Date.now()
 }
 
+const packageVisitLabels = {
+  total: "client.orderList.visitTotal",
+  completed: "client.orderList.visitCompleted",
+  inProgress: "client.orderList.visitInProgress",
+  remaining: "client.orderList.visitRemaining",
+} as const
+
 const orderCards = computed<OrderCardView[]>(() =>
-  (orderRecords.value || [])
+  (recordsByTab.value[selectedStatus.value] || [])
     .map((item, index) => {
       const statusCode = getStatusCode(item)
       const orderStatus = getRawOrderStatus(item)
@@ -1014,6 +1087,18 @@ const orderCards = computed<OrderCardView[]>(() =>
       const remainingVisits = Number(item.remainingTimes)
       const totalVisits = Number(item.redeemTimes)
       const validUntil = String(item.validUntil || "").trim()
+      const packageServices = isPackage
+        ? packageServiceLines(item.packageItems, (map) =>
+            pickI18nValue(map || undefined, ""),
+          ).map((line) => ({
+            key: line.key,
+            name: line.name || t("client.orderList.unknownService"),
+            spec: line.spec,
+            timesText: packageTimesText(line, (key, count) =>
+              t(packageVisitLabels[key], { count }),
+            ),
+          }))
+        : []
       const title = isPackage
         ? pickI18nValue(
             item.packageNameI18n || item.nameI18n,
@@ -1059,19 +1144,25 @@ const orderCards = computed<OrderCardView[]>(() =>
         refundHandlingFeeText:
           orderStatus === 5 ? formatAmount(item.refundHandlingFee, "") : "",
         serviceTimeText: isPackage
-          ? Number.isFinite(remainingVisits) && Number.isFinite(totalVisits)
-            ? t("client.home.packages.remaining", {
-                remaining: remainingVisits,
-                total: totalVisits,
+          ? packageServices.length
+            ? t("client.orderList.packageServiceCount", {
+                count: packageServices.length,
               })
-            : t("client.home.packages.visitLater")
+            : Number.isFinite(remainingVisits) && Number.isFinite(totalVisits)
+              ? t("client.home.packages.remaining", {
+                  remaining: remainingVisits,
+                  total: totalVisits,
+                })
+              : t("client.home.packages.visitLater")
           : formatServiceSchedule(
               item.serviceDateTime,
               locale.value,
               t("client.orderList.notProvided"),
             ),
         scheduleLabel: isPackage
-          ? t("client.home.packages.remainingLabel")
+          ? packageServices.length
+            ? t("client.orderList.packageServices")
+            : t("client.home.packages.remainingLabel")
           : undefined,
         createdTimeText: formatCreatedAt(
           item.createTime,
@@ -1112,49 +1203,112 @@ const orderCards = computed<OrderCardView[]>(() =>
         canRebook: !isPackage && [2, 3, 4, 5].includes(orderStatus ?? -1),
         specSelections,
         attachSelections,
+        packageServices,
         record: item,
       }
     })
-    .filter((item) => matchesSelectedStatus(item.rawOrderStatus)),
+    .filter((item) => matchesSelectedStatus(item.rawOrderStatus))
+    .filter((item) => matchesOrderListKind(listKind.value, item.record)),
 )
+
+const keepTabRecords = (records: OrderListRecord[], tab: OrderListTab) =>
+  records.filter((item) =>
+    tab === "ACTIVE"
+      ? getRawOrderStatus(item) === 1
+      : [2, 3, 4, 5, 6].includes(getRawOrderStatus(item) ?? -1),
+  )
 
 const loadOrders = async () => {
   const requestId = ++loadRequestId
-  isLoading.value = true
+  isLoading.value = (recordsByTab.value[selectedStatus.value] || []).length === 0
+  listRefreshing.value = true
   loadError.value = false
   try {
     const keyWord = searchKeyword.value || undefined
-    const [activeResult, historyResult] = await Promise.all([
-      getOrderList({ tab: "ACTIVE", keyWord }),
-      getOrderList({ tab: "HISTORY", keyWord }),
+    const loadTab = (tab: OrderListTab) =>
+      getOrderListPage({
+        tab,
+        keyWord,
+        orderType: orderTypeForListKind(listKind.value),
+        pageNum: pageByTab.value[tab],
+        pageSize: ORDER_PAGE_SIZE,
+      })
+    let [activePage, historyPage] = await Promise.all([
+      loadTab("ACTIVE"),
+      loadTab("HISTORY"),
     ])
     if (requestId !== loadRequestId) return
-    const activeRecords = Array.isArray(activeResult)
-      ? (activeResult as OrderListRecord[]).filter(
-          (item) => getRawOrderStatus(item) === 1,
-        )
-      : []
-    const historyRecords = Array.isArray(historyResult)
-      ? (historyResult as OrderListRecord[]).filter((item) =>
-          [2, 3, 4, 5, 6].includes(getRawOrderStatus(item) ?? -1),
-        )
-      : []
-    const records = [...activeRecords, ...historyRecords]
-    orderRecords.value = records
-    tabCounts.value = {
-      ACTIVE: activeRecords.length,
-      HISTORY: historyRecords.length,
+    const pagesFor = (total: number) =>
+      Math.max(1, Math.ceil(Number(total || 0) / ORDER_PAGE_SIZE))
+    const activeTooFar = pageByTab.value.ACTIVE > pagesFor(activePage.total)
+    const historyTooFar = pageByTab.value.HISTORY > pagesFor(historyPage.total)
+    if (activeTooFar || historyTooFar) {
+      pageByTab.value = {
+        ACTIVE: activeTooFar ? pagesFor(activePage.total) : pageByTab.value.ACTIVE,
+        HISTORY: historyTooFar
+          ? pagesFor(historyPage.total)
+          : pageByTab.value.HISTORY,
+      }
+      ;[activePage, historyPage] = await Promise.all([
+        loadTab("ACTIVE"),
+        loadTab("HISTORY"),
+      ])
+      if (requestId !== loadRequestId) return
     }
+    const activeRecords = keepTabRecords(activePage.list, "ACTIVE")
+    const historyRecords = keepTabRecords(historyPage.list, "HISTORY")
     const requestedOrderNo = String(route.query.orderNo || "")
     const requestedAction = String(route.query.action || "")
-    if (!pendingActionHandled && requestedOrderNo && requestedAction) {
-      const requestedRecord = records.find(
+    let requestedRecord = [...activeRecords, ...historyRecords].find(
+      (item) => String(item.orderNo || "") === requestedOrderNo,
+    )
+    if (
+      !pendingActionHandled &&
+      requestedOrderNo &&
+      requestedAction &&
+      !requestedRecord
+    ) {
+      const [activeLookup, historyLookup] = await Promise.all([
+        getOrderListPage({
+          tab: "ACTIVE",
+          keyWord: requestedOrderNo,
+          pageNum: 1,
+          pageSize: ORDER_PAGE_SIZE,
+        }),
+        getOrderListPage({
+          tab: "HISTORY",
+          keyWord: requestedOrderNo,
+          pageNum: 1,
+          pageSize: ORDER_PAGE_SIZE,
+        }),
+      ])
+      if (requestId !== loadRequestId) return
+      requestedRecord = [...activeLookup.list, ...historyLookup.list].find(
         (item) => String(item.orderNo || "") === requestedOrderNo,
       )
       if (requestedRecord) {
-        selectedStatus.value =
-          getRawOrderStatus(requestedRecord) === 1 ? "ACTIVE" : "HISTORY"
+        const bucket =
+          getRawOrderStatus(requestedRecord) === 1 ? activeRecords : historyRecords
+        bucket.unshift(requestedRecord)
       }
+    }
+    const activeView = narrowOrderList(listKind.value, activeRecords, activePage.total)
+    const historyView = narrowOrderList(listKind.value, historyRecords, historyPage.total)
+    recordsByTab.value = { ACTIVE: activeView.records, HISTORY: historyView.records }
+    totalByTab.value = { ACTIVE: activeView.total, HISTORY: historyView.total }
+    tabCounts.value = { ACTIVE: activeView.total, HISTORY: historyView.total }
+    pageByTab.value = {
+      ACTIVE: activePage.pageNum || pageByTab.value.ACTIVE,
+      HISTORY: historyPage.pageNum || pageByTab.value.HISTORY,
+    }
+    if (
+      !pendingActionHandled &&
+      requestedOrderNo &&
+      requestedAction &&
+      requestedRecord
+    ) {
+      selectedStatus.value =
+        getRawOrderStatus(requestedRecord) === 1 ? "ACTIVE" : "HISTORY"
       const target = orderCards.value.find(
         (item) => item.orderNo === requestedOrderNo,
       )
@@ -1173,12 +1327,32 @@ const loadOrders = async () => {
   } catch (error) {
     if (requestId !== loadRequestId) return
     console.error("load order list failed:", error)
-    orderRecords.value = []
+    recordsByTab.value = { ACTIVE: [], HISTORY: [] }
+    totalByTab.value = { ACTIVE: 0, HISTORY: 0 }
     tabCounts.value = { ACTIVE: 0, HISTORY: 0 }
     loadError.value = true
   } finally {
-    if (requestId === loadRequestId) isLoading.value = false
+    if (requestId === loadRequestId) {
+      isLoading.value = false
+      listRefreshing.value = false
+    }
   }
+}
+
+const pageNum = computed(() => pageByTab.value[selectedStatus.value] || 1)
+const pageCount = computed(() => {
+  const total = Number(totalByTab.value[selectedStatus.value] || 0)
+  return Math.max(1, Math.ceil(total / ORDER_PAGE_SIZE))
+})
+const changePage = (page: number) => {
+  const tab = selectedStatus.value
+  const next = Math.min(pageCount.value, Math.max(1, page))
+  if (next === pageByTab.value[tab] || listRefreshing.value) return
+  pageByTab.value = { ...pageByTab.value, [tab]: next }
+  void loadOrders()
+}
+const resetPages = () => {
+  pageByTab.value = { ACTIVE: 1, HISTORY: 1 }
 }
 
 const onStatusChange = (nextStatus: OrderListTab) => {
@@ -1190,6 +1364,7 @@ const onSearchNow = () => {
     clearTimeout(searchTimer)
     searchTimer = null
   }
+  resetPages()
   void loadOrders()
 }
 
@@ -1510,12 +1685,21 @@ onMounted(() => {
 })
 
 watch(
+  () => route.query.kind,
+  () => {
+    resetPages()
+    void loadOrders()
+  },
+)
+
+watch(
   () => searchKeyword.value,
   () => {
     if (searchTimer) {
       clearTimeout(searchTimer)
     }
     searchTimer = setTimeout(() => {
+      resetPages()
       void loadOrders()
     }, 300)
   },
@@ -1942,6 +2126,68 @@ onBeforeUnmount(() => {
 
 .order-card__selections span {
   overflow-wrap: anywhere;
+}
+
+.order-card__services {
+  margin: 10px 0 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.order-card__services li {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px 12px;
+  border-radius: 10px;
+  background: #f8fafc;
+}
+
+.order-card__services b {
+  color: rgba(15, 23, 42, 0.86);
+  font-size: 14px;
+  line-height: 20px;
+}
+
+.order-card__services span,
+.order-card__services em {
+  color: rgba(15, 23, 42, 0.56);
+  font-size: 13px;
+  line-height: 18px;
+  font-style: normal;
+}
+
+.order-list-pager {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+}
+
+.order-list-pager button {
+  min-width: 88px;
+  height: 36px;
+  padding: 0 14px;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  background: #fff;
+  color: #0f172a;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.order-list-pager button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.order-list-pager span {
+  color: rgba(15, 23, 42, 0.62);
+  font-size: 13px;
+  font-weight: 600;
 }
 
 .order-card__selections b {

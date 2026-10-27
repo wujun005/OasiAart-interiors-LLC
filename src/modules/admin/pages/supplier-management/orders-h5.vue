@@ -35,13 +35,13 @@
             aria-controls="staff-order-results"
             :class="{ 'is-on': orderStage === stage.value }"
             @click="changeStage(stage.value)"
-          >{{ stage.label }}</button>
+          >{{ stage.label }}<b v-if="stage.count != null">{{ stage.count }}</b></button>
         </div>
       </div>
 
       <div class="staff-orders__results-heading" aria-live="polite">
         <strong>{{ stages.find(stage => stage.value === orderStage)?.label }}</strong>
-        <span>{{ loading ? t('admin.supplierOrders.loading') : t('admin.supplierOrders.results', { count: total }) }}</span>
+        <span>{{ loading ? t('admin.supplierOrders.loading') : t(total === 1 ? 'admin.supplierOrders.resultsOne' : 'admin.supplierOrders.results', { count: total }) }}</span>
       </div>
       <div id="staff-order-results" role="tabpanel" :aria-labelledby="'staff-stage-' + orderStage" :aria-busy="loading">
         <div v-if="loading" class="staff-orders__cards staff-orders__skeletons" role="status">
@@ -72,6 +72,8 @@
                 <em class="staff-status" :class="statusClass(row)">{{ statusText(row) }}</em>
               </span>
               <strong class="staff-card__title">{{ serviceTitle(row) }}</strong>
+              <span v-if="packageOrderTitle(row)" class="staff-card__spec staff-card__package">{{ packageOrderTitle(row) }}</span>
+              <span v-if="packageVisitText(row)" class="staff-card__spec staff-card__package">{{ packageVisitText(row) }}</span>
               <span v-if="assignedStaffText(row)" class="staff-card__spec">{{ t('admin.supplierOrders.assignedStaff') }} · {{ assignedStaffText(row) }}</span>
               <span v-if="specText(row) !== '—'" class="staff-card__spec">{{ specText(row) }}</span>
               <span class="staff-card__schedule">
@@ -134,6 +136,11 @@
         <section class="staff-detail__hero">
           <div class="staff-detail__hero-top"><span>{{ t('admin.supplierOrders.assignedOrder') }}</span><em class="staff-status" :class="statusClass(order)">{{ statusText(order) }}</em></div>
           <h1>{{ serviceTitle(order) }}</h1>
+          <p v-if="packageOrderTitle(order) || packageVisitText(order)" class="staff-detail__package">
+            <template v-if="packageOrderTitle(order)">{{ packageOrderTitle(order) }}</template>
+            <template v-if="packageOrderTitle(order) && packageVisitText(order)"> · </template>
+            {{ packageVisitText(order) }}
+          </p>
           <p class="staff-detail__no">{{ order?.orderNo || '—' }}</p>
           <p v-if="cancelled(order)" class="staff-notice staff-notice--cancelled">{{ order?.cancelReason ? t('admin.supplierOrders.cancelReason', { reason: order.cancelReason }) : t('admin.supplierOrders.orderCancelled') }}</p>
           <p v-else-if="order?.rescheduled" class="staff-notice">{{ t('admin.supplierOrders.rescheduleNotice') }}</p>
@@ -256,6 +263,7 @@ import {
   uploadFile,
 } from '@/modules/admin/api/supplierWorkbench'
 import { pickI18nText } from '@/modules/admin/utils/i18n'
+import { packageVisitProgress, supplierMineCounts } from '@/modules/admin/utils/supplier-mine'
 import { googleNavigateUrl } from '@/modules/admin/utils/supplierMap'
 
 type Stage = 'all' | 'newRequests' | 'upcoming' | 'inProgress' | 'completed' | 'cancelled'
@@ -291,13 +299,14 @@ const action = reactive({
   saving: false,
 })
 
+const stageCounts = ref<Partial<Record<Stage, number>>>({})
 const stages = computed(() => [
-  { value: 'all' as Stage, label: t('admin.supplierPortal.allOrders') },
-  { value: 'newRequests' as Stage, label: t('admin.supplierPortal.newRequests') },
-  { value: 'upcoming' as Stage, label: t('admin.supplierPortal.upcoming') },
-  { value: 'inProgress' as Stage, label: t('admin.supplierPortal.inProgress') },
-  { value: 'completed' as Stage, label: t('admin.supplierPortal.completed') },
-  { value: 'cancelled' as Stage, label: t('admin.supplierPortal.cancelled') },
+  { value: 'all' as Stage, label: t('admin.supplierPortal.allOrders'), count: null as number | null },
+  { value: 'newRequests' as Stage, label: t('admin.supplierPortal.newRequests'), count: stageCounts.value.newRequests ?? null },
+  { value: 'upcoming' as Stage, label: t('admin.supplierPortal.upcoming'), count: stageCounts.value.upcoming ?? null },
+  { value: 'inProgress' as Stage, label: t('admin.supplierPortal.inProgress'), count: stageCounts.value.inProgress ?? null },
+  { value: 'completed' as Stage, label: t('admin.supplierPortal.completed'), count: stageCounts.value.completed ?? null },
+  { value: 'cancelled' as Stage, label: t('admin.supplierPortal.cancelled'), count: null as number | null },
 ])
 const pageCount = computed(() => Math.max(1, Math.ceil(total.value / pageSize)))
 
@@ -349,6 +358,18 @@ const localized = (value: unknown, plain?: unknown) => {
   return fallback || '—'
 }
 const serviceTitle = (row: any) => localized(row?.spuNameI18n, row?.spuName)
+const packageOrderTitle = (row: any) => {
+  if (row?.packageOrder !== true && Number(row?.orderType) !== 2) return ''
+  const name = localized(row?.packageNameI18n, row?.packageName)
+  return name === '—' ? '' : name
+}
+const packageVisitText = (row: any) => {
+  const visit = packageVisitProgress(row)
+  if (!visit) return ''
+  if (visit.seq != null && visit.total != null) return t('admin.supplierOrders.packageVisit', visit)
+  if (visit.seq != null) return t('admin.supplierOrders.packageVisitSeq', visit)
+  return t('admin.supplierOrders.packageVisitTotal', visit)
+}
 const assignedStaffText = (row: any) => {
   const list = Array.isArray(row?.assignedStaff) ? row.assignedStaff : []
   return list.map((item: any) => String(item?.name || item?.phone || '').trim()).filter(Boolean).join('、')
@@ -451,6 +472,7 @@ const loadOrders = async () => {
       pageSize,
     }))
     if (disposed || request !== listRequest) return
+    stageCounts.value = supplierMineCounts(result)
     const count = Number(result?.total || 0)
     total.value = Number.isFinite(count) && count >= 0 ? Math.floor(count) : 0
     // A status change can remove the last row from a filtered last page.
@@ -464,6 +486,7 @@ const loadOrders = async () => {
     if (disposed || request !== listRequest) return
     orders.value = []
     total.value = 0
+    stageCounts.value = {}
     failed.value = true
     ElMessage.error(error?.message || t('admin.supplierOrders.loadFailed'))
   } finally {
@@ -777,6 +800,8 @@ onBeforeUnmount(() => {
 .staff-orders__stages::-webkit-scrollbar { display: none; }
 .staff-orders__stages button { position: relative; flex: 0 0 auto; min-height: 49px; padding: 0 1px; border: 0; background: transparent; color: var(--staff-muted); font-size: 12px; font-weight: 600; white-space: nowrap; }
 .staff-orders__stages button.is-on { color: var(--staff-ink); font-weight: 750; }
+.staff-orders__stages b { margin-left: 4px; font-weight: 750; }
+.staff-card__package, .staff-detail__package { color: #8d5a32; font-weight: 650; }
 .staff-orders__stages button.is-on::after { position: absolute; right: 0; bottom: 0; left: 0; height: 3px; border-radius: 3px; background: var(--staff-gold); content: ''; }
 .staff-orders__results-heading { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 19px 1px 13px; }
 .staff-orders__results-heading strong { font-size: 14px; font-weight: 700; }

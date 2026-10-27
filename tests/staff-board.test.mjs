@@ -1,15 +1,40 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { deriveStaffJob, serviceLabel, tallyStaffJobs } from '../src/modules/admin/utils/staffBoard.ts'
+import { serviceLabel, staffPresence, tallyStaffJobs } from '../src/modules/admin/utils/staffBoard.ts'
 
-test('staff job status follows the board priority', () => {
-  assert.equal(deriveStaffJob({ serverStatus: 'onJob', suspended: true }), 'onJob')
-  assert.equal(deriveStaffJob({ suspended: true, onJob: true }), 'unavailable')
-  assert.equal(deriveStaffJob({ onJob: true, acceptJobs: false }), 'onJob')
-  assert.equal(deriveStaffJob({ acceptJobs: false }), 'unavailable')
-  assert.equal(deriveStaffJob({ acceptJobs: true, loggedInToday: false }), 'offline')
-  assert.equal(deriveStaffJob({ acceptJobs: true, loggedInToday: true }), 'available')
-  assert.equal(deriveStaffJob({ acceptJobs: true }), '')
+test('staff presence only accepts the three service states', () => {
+  assert.equal(staffPresence('serving'), 'serving')
+  assert.equal(staffPresence('enRoute'), 'enRoute')
+  assert.equal(staffPresence('idle'), 'idle')
+  assert.equal(staffPresence('onJob'), '')
+  assert.equal(staffPresence('available'), '')
+})
+
+test('staff presence follows depart, arrive, and complete', () => {
+  const assigned = [{ adminUserId: 9 }]
+  assert.deepEqual(
+    tallyStaffJobs([{ serviceDate: '2026-10-20', serviceStatus: 4, assignedStaff: assigned }], 9, '2026-10-20'),
+    { count: 1, presence: 'idle' },
+  )
+  assert.deepEqual(
+    tallyStaffJobs([{ serviceDate: '2026-10-20', serviceStatus: 3, assignedStaff: assigned }], 9, '2026-10-20'),
+    { count: 1, presence: 'enRoute' },
+  )
+  assert.deepEqual(
+    tallyStaffJobs([{ serviceDate: '2026-10-20', serviceStatus: 1, assignedStaff: assigned }], 9, '2026-10-20'),
+    { count: 1, presence: 'serving' },
+  )
+  assert.deepEqual(
+    tallyStaffJobs([{ serviceDate: '2026-10-20', serviceStatus: 2, assignedStaff: assigned }], 9, '2026-10-20'),
+    { count: 1, presence: 'idle' },
+  )
+  assert.deepEqual(
+    tallyStaffJobs([
+      { serviceDate: '2026-10-20', serviceStatus: 3, assignedStaff: assigned },
+      { serviceDate: '2026-10-20', serviceStatus: 1, assignedStaff: assigned },
+    ], 9, '2026-10-20'),
+    { count: 2, presence: 'serving' },
+  )
 })
 
 test('today jobs ignore cancelled visits and other days', () => {
@@ -21,7 +46,7 @@ test('today jobs ignore cancelled visits and other days', () => {
     { serviceDate: '2026-10-20', serviceStatus: 1, scheduleStatus: 2, assignedStaff: [{ adminUserId: 9 }] },
     { serviceDate: '2026-10-20', serviceStatus: 1, assignedStaff: [{ adminUserId: 4 }] },
   ], 9, '2026-10-20')
-  assert.deepEqual(tally, { count: 2, onJob: true })
+  assert.deepEqual(tally, { count: 2, presence: 'serving' })
 })
 
 test('service chips follow the current language', () => {

@@ -165,6 +165,8 @@ const en = {
       help: 'Help',
     },
     menu: {
+      bookings: 'My Bookings',
+      packages: 'My Packages',
       personal: 'Personal Information',
       addresses: 'Saved Addresses',
       payments: 'Payment Methods',
@@ -203,7 +205,7 @@ const en = {
       bookingQuestion: 'How do I book a service?',
       bookingAnswer: 'Choose a service, review its details, and submit your booking online.',
       ordersQuestion: 'Where can I check my booking?',
-      ordersAnswer: 'Open Orders from the bottom navigation to view your booking status.',
+      ordersAnswer: 'Open My Bookings in My Account to view your booking status.',
     },
     partner: {
       title: 'Become a Service Partner',

@@ -76,11 +76,18 @@
         <el-table-column :label="t('admin.packageList.table.category')" min-width="120" show-overflow-tooltip>
           <template #default="{ row }">{{ row.categoryName || '-' }}</template>
         </el-table-column>
-        <el-table-column :label="t('admin.packageList.table.content')" min-width="220">
+        <el-table-column :label="t('admin.packageList.table.services')" min-width="220">
           <template #default="{ row }">
-            <el-tooltip :content="row.contentText || '-'" placement="top" :show-after="250">
-              <span class="content-chip">{{ row.contentText || '-' }}</span>
-            </el-tooltip>
+            <ul v-if="row.services.length" class="bound-services">
+              <li v-for="service in row.services" :key="service.key" class="bound-service">
+                <RouterLink
+                  v-if="service.id != null"
+                  :to="{ path: '/admin/package/services', query: { editId: String(service.id) } }"
+                >{{ service.name }}</RouterLink>
+                <span v-else>{{ service.name }}</span>
+              </li>
+            </ul>
+            <span v-else>-</span>
           </template>
         </el-table-column>
         <el-table-column :label="t('admin.packageList.table.status')" width="92">
@@ -93,8 +100,9 @@
         <el-table-column :label="t('admin.packageList.table.price')" width="120">
           <template #default="{ row }">
             <div class="price">
-              <strong>{{ money(row.salePrice) }}</strong>
-              <span>{{ money(row.originalPrice) }}</span>
+              <strong>{{ money(row.displaySalePrice) }}</strong>
+              <span v-if="struckTotal(row)">{{ money(row.displayTotalPrice) }}</span>
+              <em v-if="row.discount != null">{{ discountPercentText(row.discount) }}</em>
             </div>
           </template>
         </el-table-column>
@@ -140,7 +148,7 @@
       width="980px"
       top="6vh"
     >
-      <el-form :key="formKey" label-width="110px" v-loading="detailLoading">
+      <el-form :key="formKey" label-width="110px" :disabled="detailLoading || submitLoading" v-loading="detailLoading">
         <el-form-item :label="t('admin.packageList.form.category')" required>
           <el-select v-model="form.categoryId" filterable :placeholder="t('admin.packageList.form.categoryPlaceholder')" style="width: 320px">
             <el-option v-for="item in formCategoryOptions" :key="item.id" :label="item.label" :value="item.id" />
@@ -149,11 +157,14 @@
         <el-form-item :label="t('admin.packageList.form.validDays')" required>
           <el-input-number v-model="form.validDays" :min="1" :step="1" :precision="0" />
         </el-form-item>
-        <el-form-item :label="t('admin.packageList.form.originalPrice')" required>
-          <el-input-number v-model="form.originalPrice" :min="0" :precision="2" :step="1" />
-        </el-form-item>
-        <el-form-item :label="t('admin.packageList.form.salePrice')" required>
-          <el-input-number v-model="form.salePrice" :min="0" :precision="2" :step="1" />
+        <el-form-item :label="t('admin.packageList.form.discount')" required>
+          <div class="discount-field">
+            <div class="discount-input">
+              <el-input-number v-model="form.discountPercent" :min="1" :max="999" :precision="0" :step="1" />
+              <span>%</span>
+            </div>
+            <p class="field-hint">{{ t('admin.packageList.form.discountHint') }}</p>
+          </div>
         </el-form-item>
         <el-form-item :label="t('admin.packageList.form.images')">
           <el-upload
@@ -279,29 +290,44 @@
                   <el-option v-for="item in spuOptionsFor(block)" :key="item.id" :label="item.name" :value="item.id" />
                 </el-select>
               </div>
-              <div v-if="block.spuId" class="field-row">
+              <div v-if="block.spuId" class="field-row sku-row">
                 <span class="field-label">{{ t('admin.packageList.form.sku') }}</span>
-                <el-select v-model="block.selectedSkuId" :placeholder="t('admin.packageList.form.skuPlaceholder')">
-                  <el-option
-                    v-for="sku in block.skus"
-                    :key="sku.skuId"
-                    :label="skuOptionLabel(sku)"
-                    :value="sku.skuId"
-                  />
-                </el-select>
+                <div>
+                  <ul v-if="block.skus.length" class="sku-list">
+                    <li v-for="sku in block.skus" :key="sku.skuId">
+                      <span>{{ sku.specLabel }}</span>
+                      <span v-if="sku.price != null" class="sku-prices">
+                        <span>{{ t('admin.packageList.form.optionPrice') }} {{ money(sku.price) }}</span>
+                        <span>{{ t('admin.packageList.form.optionDiscountPrice') }} {{ money(discountedSkuPrice(sku.price)) }}</span>
+                      </span>
+                      <span v-if="!sku.available">{{ t('admin.packageList.form.unavailable') }}</span>
+                    </li>
+                  </ul>
+                  <p v-else class="field-hint">{{ t('admin.packageList.form.skuEmpty') }}</p>
+                  <p class="field-hint">{{ t('admin.packageList.form.skuHint') }}</p>
+                </div>
               </div>
-              <div v-if="skuOf(block)" class="field-row">
+              <div v-if="block.spuId" class="field-row">
                 <span class="field-label">{{ t('admin.packageList.form.times') }}</span>
-                <el-input-number
-                  :model-value="skuOf(block)?.redeemTimes"
-                  :min="1"
-                  :step="1"
-                  :precision="0"
-                  @update:model-value="(value: number | undefined) => setRedeemTimes(block, value)"
-                />
+                <el-input-number v-model="block.redeemTimes" :min="1" :step="1" :precision="0" />
               </div>
             </section>
-            <el-button @click="addServiceBlock">{{ t('admin.packageList.actions.addService') }}</el-button>
+            <div class="spu-picker-actions">
+              <el-button @click="addServiceBlock">{{ t('admin.packageList.actions.addService') }}</el-button>
+              <el-button :loading="spuLoading" @click="refreshSpus">{{ t('admin.packageList.actions.refreshServices') }}</el-button>
+              <a href="/admin/package/services" target="_blank" rel="noopener noreferrer">{{ t('admin.packageList.actions.manageServices') }}</a>
+            </div>
+            <div v-if="hasSelectedService" class="package-total">
+              <div>
+                <span>{{ t('admin.packageList.form.packageOriginal') }}</span>
+                <strong>{{ money(packagePriceSummary.total) }}</strong>
+              </div>
+              <div>
+                <span>{{ t('admin.packageList.form.packageSale') }}</span>
+                <strong>{{ money(packagePriceSummary.sale) }}</strong>
+              </div>
+              <p class="field-hint">{{ t('admin.packageList.form.displayHint') }}</p>
+            </div>
           </div>
         </el-form-item>
         <p class="draft-hint">{{ t('admin.packageList.form.draftHint') }}</p>
@@ -315,7 +341,8 @@
 </template>
 
 <script setup lang="ts">
-import { computed, nextTick, onMounted, reactive, ref, watch } from 'vue';
+import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
 import type { UploadRequestOptions, UploadUserFile } from 'element-plus';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { Plus } from '@element-plus/icons-vue';
@@ -335,10 +362,19 @@ import {
 import { listBySpu, page as spuPage } from '@/modules/admin/api/spu';
 import { pickI18nText } from '@/modules/admin/utils/i18n';
 import { useBizTagPicker } from '@/modules/admin/utils/bizTagPicker';
+import { bizTagsByRef } from '@/modules/admin/api/bizTag';
 import type { BizTag } from '@/modules/client/utils/biz-tag';
 
 const LANG_ZH = 'zh';
 const LANG_EN = 'en';
+const route = useRoute();
+const router = useRouter();
+const packageListPath = '/admin/package/packages';
+const positiveId = (value: unknown): number | null => {
+  if (typeof value !== 'number' && (typeof value !== 'string' || !/^[1-9]\d*$/.test(value))) return null;
+  const id = Number(value);
+  return Number.isSafeInteger(id) && id > 0 ? id : null;
+};
 const tagPicker = useBizTagPicker();
 const tagAdderOpen = ref(false);
 const tagDraft = ref('');
@@ -382,12 +418,14 @@ type PackageRow = {
   id: number;
   name: string;
   categoryName: string;
-  contentText: string;
+  services: Array<{ key: string; id: number | null; name: string }>;
   images: string[];
   previewUrl: string;
   onShelf: boolean;
-  salePrice: number | null;
-  originalPrice: number | null;
+  discount: number | null;
+  displayTotalPrice: number | null;
+  displaySalePrice: number | null;
+  displaySavedPrice: number | null;
   createdAt: string;
   updatedAt: string;
 };
@@ -408,7 +446,7 @@ type SpuBlock = {
   key: number;
   spuId: number | null;
   spuName: string;
-  selectedSkuId: number | null;
+  redeemTimes: number;
   skus: SkuRow[];
   skuSeq: number;
 };
@@ -481,25 +519,37 @@ const hasFilters = computed(() => Boolean(
 const loadedFiltered = ref(true);
 const canSort = computed(() => !hasFilters.value && !loadedFiltered.value);
 
-const contentLabel = (item: any) => {
-  const name = pickI18nText(item?.spuNameI18n, locale.value, '');
-  const specs = Object.values(item?.specValueNameI18n || {})
-    .map((value) => pickI18nText(value as Record<string, string>, locale.value, ''))
-    .filter(Boolean);
-  const times = t('admin.packageList.message.timesCount', { count: item?.redeemTimes || 0 });
-  return [name, specs.join(' / '), times].filter(Boolean).join(' · ');
+const boundServices = (items: any): PackageRow['services'] => {
+  const seen = new Set<string>();
+  return (Array.isArray(items) ? items : []).flatMap((item: any, index: number) => {
+    if (!item || typeof item !== 'object') return [];
+    const id = positiveId(item.spuId);
+    const hasId = id != null;
+    const name = plainText(pickI18nText(item.spuNameI18n, locale.value, item.spuName || ''));
+    if (!hasId && !name) return [];
+    const key = hasId ? `spu:${id}` : `name:${name}`;
+    if (seen.has(key)) return [];
+    seen.add(key);
+    return [{
+      key,
+      id,
+      name: name || t('admin.packageList.message.serviceFallback', { index: index + 1 }),
+    }];
+  });
 };
 
 const mapRow = (item: any): PackageRow => ({
   id: Number(item.id),
   name: plainText(pickI18nText(item.nameI18n, locale.value, item.packageName || '')),
   categoryName: pickI18nText(item.categoryNameI18n, locale.value, ''),
-  contentText: (Array.isArray(item.items) ? item.items : []).map(contentLabel).filter(Boolean).join('、'),
+  services: boundServices(item.items),
   images: Array.isArray(item.imageUrls) ? item.imageUrls.filter(Boolean) : [],
   previewUrl: typeof item.previewUrl === 'string' ? item.previewUrl : '',
   onShelf: Number(item.status) === 1,
-  salePrice: item.salePrice == null ? null : Number(item.salePrice),
-  originalPrice: item.originalPrice == null ? null : Number(item.originalPrice),
+  discount: moneyNumber(item.discount),
+  displayTotalPrice: moneyNumber(item.displayTotalPrice),
+  displaySalePrice: moneyNumber(item.displaySalePrice),
+  displaySavedPrice: moneyNumber(item.displaySavedPrice),
   createdAt: item.createTime || '',
   updatedAt: item.modifyTime || '',
 });
@@ -635,7 +685,18 @@ const handleDrop = async (event: DragEvent) => {
   }
 };
 
+const moneyNumber = (value: unknown) => {
+  if (value == null || value === '') return null;
+  const number = Number(value);
+  return Number.isFinite(number) ? number : null;
+};
 const money = (value?: number | null) => (value == null || Number.isNaN(Number(value)) ? '-' : Number(value).toFixed(2));
+const struckTotal = (row: PackageRow) =>
+  row.displayTotalPrice != null
+  && row.displaySalePrice != null
+  && row.displayTotalPrice > row.displaySalePrice;
+const discountPercentText = (multiplier: number) => `${Math.round(multiplier * 100)}%`;
+const percentToDiscount = (percent: number) => Number((percent / 100).toFixed(2));
 const formatDate = (value?: string) => {
   if (!value) return '-';
   const date = new Date(value);
@@ -686,11 +747,17 @@ const isEdit = ref(false);
 const detailLoading = ref(false);
 const submitLoading = ref(false);
 const editingId = ref<number | null>(null);
+let detailRequestVersion = 0;
+let linkedEditId: number | null = null;
+let editLinkReady = false;
+let componentActive = false;
 const form = reactive({
   categoryId: null as number | null,
   validDays: 30,
-  originalPrice: null as number | null,
-  salePrice: null as number | null,
+  discountPercent: 100 as number | null,
+  displayTotalPrice: null as number | null,
+  displaySalePrice: null as number | null,
+  displaySavedPrice: null as number | null,
   name: '',
 });
 const loadedNameI18n = ref<Record<string, string>>({});
@@ -703,7 +770,6 @@ const spuLoading = ref(false);
 const spuCatalog = ref<SpuCatalogItem[]>([]);
 const spuCatalogLoaded = ref(false);
 let spuCatalogInflight: Promise<void> | null = null;
-const skuCatalog = new Map<number, { specTypes: any[]; skus: any[] }>();
 const skuCatalogInflight = new Map<number, Promise<{ specTypes: any[]; skus: any[] }>>();
 let serviceBlockSeed = 1;
 
@@ -758,7 +824,7 @@ const blankServiceBlock = (): SpuBlock => ({
   key: serviceBlockSeed++,
   spuId: null,
   spuName: '',
-  selectedSkuId: null,
+  redeemTimes: 1,
   skus: [],
   skuSeq: 0,
 });
@@ -767,8 +833,10 @@ const resetForm = () => {
   editingId.value = null;
   form.categoryId = null;
   form.validDays = 30;
-  form.originalPrice = null;
-  form.salePrice = null;
+  form.discountPercent = 100;
+  form.displayTotalPrice = null;
+  form.displaySalePrice = null;
+  form.displaySavedPrice = null;
   form.name = '';
   loadedNameI18n.value = {};
   descRows.value = defaultLangRows();
@@ -782,16 +850,44 @@ const resetForm = () => {
   tagDraft.value = '';
 };
 
+const specValueName = (value: any) => {
+  const id = String(value?.specValueId ?? '');
+  const localized = pickI18nText(value?.nameI18n, locale.value, '');
+  const plain = String(value?.specValueName || '').trim();
+  if (localized && localized !== id) return localized;
+  if (plain && plain !== id) return plain;
+  return localized || plain;
+};
+const skuCellText = (cell: any) => {
+  if (cell == null) return '';
+  if (typeof cell === 'string' || typeof cell === 'number') return String(cell).trim();
+  if (typeof cell !== 'object') return '';
+  const named = cell.nameI18n && typeof cell.nameI18n === 'object' ? cell.nameI18n : cell;
+  return pickI18nText(named, locale.value, '') || String(cell.specValueName || '').trim();
+};
 const skuLabelFromList = (sku: any, specTypes: any[]) => {
-  const labels = specTypes
-    .map((spec) => pickI18nText(sku?.[String(spec.specKey ?? spec.specTypeId)], locale.value, ''))
+  const labels = (specTypes || [])
+    .map((spec) => {
+      const values = Array.isArray(spec?.values) ? spec.values : [];
+      const raw = skuCellText(sku?.[String(spec?.specKey ?? spec?.specTypeId)]);
+      if (/^\d+$/.test(raw)) {
+        const match = values.find((value: any) => String(value?.specValueId) === raw);
+        const name = match ? specValueName(match) : '';
+        if (name) return name;
+      }
+      return raw;
+    })
     .filter(Boolean);
   return labels.join(' / ') || sku.skuCode || String(sku.skuId);
 };
 const skuLabelFromDetail = (item: any) => {
   const labels = Object.values(item?.specValueNameI18n || {})
-    .map((value) => pickI18nText(value as Record<string, string>, locale.value, ''))
-    .filter(Boolean);
+    .map((value) => pickI18nText(
+      value && typeof value === 'object' && (value as any).nameI18n ? (value as any).nameI18n : value as Record<string, string>,
+      locale.value,
+      '',
+    ))
+    .filter((label) => Boolean(label) && !/^\d+$/.test(String(label)));
   return labels.join(' / ') || String(item.skuId);
 };
 
@@ -802,7 +898,7 @@ const fetchSpuCatalog = async () => {
   let total = 0;
   const collected: any[] = [];
   do {
-    const res = await spuPage({ pageNum, pageSize, shelfStatus: 1 });
+    const res = await spuPage({ pageNum, pageSize, packageService: 1 });
     const data = unwrap(res);
     const list = Array.isArray(data.list) ? data.list : [];
     collected.push(...list);
@@ -816,7 +912,9 @@ const fetchSpuCatalog = async () => {
   } while (true);
 
   const seen = new Set<number>();
-  spuCatalog.value = collected.map((item: any) => {
+  spuCatalog.value = collected.filter((item: any) =>
+    Number((item?.spu || item)?.packageService) === 1,
+  ).map((item: any) => {
     const spu = item?.spu || item || {};
     return {
       id: Number(spu.id ?? item?.id),
@@ -846,21 +944,22 @@ const ensureSpus = () => {
   return spuCatalogInflight;
 };
 
+const refreshSpus = () => {
+  spuCatalogLoaded.value = false;
+  return ensureSpus();
+};
+
 const loadSkuCatalog = async (spuId: number) => {
-  const cached = skuCatalog.get(spuId);
-  if (cached) return cached;
   const inflight = skuCatalogInflight.get(spuId);
   if (inflight) return inflight;
 
   const request = (async () => {
     const res = await listBySpu(spuId);
     const data = unwrap(res);
-    const raw = {
+    return {
       specTypes: Array.isArray(data.specTypes) ? [...data.specTypes] : [],
       skus: Array.isArray(data.skus) ? [...data.skus] : [],
     };
-    skuCatalog.set(spuId, raw);
-    return raw;
   })();
   skuCatalogInflight.set(spuId, request);
   try {
@@ -874,46 +973,34 @@ const loadSkuCatalog = async (spuId: number) => {
 };
 
 const loadSpuBlock = async (spuId: number, saved: SavedSku[]) => {
-  const savedMap = new Map(saved.map((item) => [item.skuId, item]));
-  let skus: SkuRow[] = [];
   try {
     const raw = await loadSkuCatalog(spuId);
-    skus = raw.skus.map((sku: any) => {
-      const skuId = Number(sku.skuId);
-      const picked = savedMap.get(skuId);
+    if (raw.skus.length) {
       return {
-        skuId,
-        specLabel: skuLabelFromList(sku, raw.specTypes),
-        price: sku.price == null ? null : Number(sku.price),
-        redeemTimes: picked?.redeemTimes || 1,
-        available: true,
+        skus: raw.skus.map((sku: any) => ({
+          skuId: Number(sku.skuId),
+          specLabel: skuLabelFromList(sku, raw.specTypes),
+          price: sku.price == null ? null : Number(sku.price),
+          redeemTimes: 1,
+          available: true,
+        })),
       };
-    });
+    }
   } catch {}
-  saved.forEach((item) => {
-    if (skus.some((sku) => sku.skuId === item.skuId)) return;
-    skus.push({
+  return {
+    skus: saved.map((item) => ({
       skuId: item.skuId,
       specLabel: item.specLabel,
       price: item.price,
       redeemTimes: item.redeemTimes,
       available: item.available,
-    });
-  });
-  const selected = saved.find((item) => skus.some((sku) => sku.skuId === item.skuId));
-  return { skus, selectedSkuId: selected?.skuId ?? null };
+    })),
+  };
 };
-
-const skuOf = (block: SpuBlock) => block.skus.find((sku) => sku.skuId === block.selectedSkuId);
-const setRedeemTimes = (block: SpuBlock, value?: number) => {
-  const sku = skuOf(block);
-  if (!sku) return;
-  sku.redeemTimes = Math.max(1, Number(value) || 1);
-};
-const skuOptionLabel = (sku: SkuRow) => {
-  const price = sku.price == null ? '' : ` · ${money(sku.price)}`;
-  const unavailable = sku.available ? '' : ` · ${t('admin.packageList.form.unavailable')}`;
-  return `${sku.specLabel}${price}${unavailable}`;
+const discountedSkuPrice = (price: number) => {
+  const percent = Number(form.discountPercent);
+  if (!Number.isInteger(percent) || percent < 1 || percent > 999) return null;
+  return Math.round((price * (percent / 100) + Number.EPSILON) * 100) / 100;
 };
 
 const changeSpu = async (block: SpuBlock, spuId: number | null) => {
@@ -921,7 +1008,7 @@ const changeSpu = async (block: SpuBlock, spuId: number | null) => {
     block.skuSeq += 1;
     block.spuId = null;
     block.spuName = '';
-    block.selectedSkuId = null;
+    block.redeemTimes = 1;
     block.skus = [];
     return;
   }
@@ -933,7 +1020,7 @@ const changeSpu = async (block: SpuBlock, spuId: number | null) => {
   const seq = ++block.skuSeq;
   block.spuId = spuId;
   block.spuName = option?.name || String(spuId);
-  block.selectedSkuId = null;
+  block.redeemTimes = 1;
   block.skus = [];
   const loaded = await loadSpuBlock(spuId, []);
   if (seq !== block.skuSeq) return;
@@ -951,12 +1038,15 @@ const removeBlock = (key: number) => {
   spuBlocks.value = spuBlocks.value.filter((block) => block.key !== key);
 };
 
-const fillFromDetail = async (detail: any) => {
+const fillFromDetail = async (detail: any, isCurrent = () => true) => {
   editingId.value = Number(detail.id);
   form.categoryId = detail.categoryId ? Number(detail.categoryId) : null;
   form.validDays = Number(detail.validDays || 1);
-  form.originalPrice = detail.originalPrice == null ? null : Number(detail.originalPrice);
-  form.salePrice = detail.salePrice == null ? null : Number(detail.salePrice);
+  const loadedDiscount = moneyNumber(detail.discount);
+  form.discountPercent = loadedDiscount == null ? 100 : Math.round(loadedDiscount * 100);
+  form.displayTotalPrice = moneyNumber(detail.displayTotalPrice);
+  form.displaySalePrice = moneyNumber(detail.displaySalePrice);
+  form.displaySavedPrice = moneyNumber(detail.displaySavedPrice);
   loadedNameI18n.value = { ...(detail.nameI18n || {}) };
   form.name = packageNameText(detail.nameI18n);
   descRows.value = toLangRows(detail.descI18n);
@@ -964,20 +1054,37 @@ const fillFromDetail = async (detail: any) => {
   noticeRows.value = toLangRows(detail.bookingNoticeI18n);
   const images = Array.isArray(detail.imageUrls) ? detail.imageUrls.filter(Boolean) : [];
   imageFiles.value = images.map((url: string, index: number) => ({ name: `image-${index + 1}`, url }));
-  const grouped = new Map<number, { name: string; skus: SavedSku[] }>();
+  const grouped = new Map<number, { name: string; redeemTimes: number; skus: SavedSku[] }>();
   (Array.isArray(detail.items) ? detail.items : []).forEach((item: any) => {
     const spuId = Number(item.spuId);
     if (!spuId) return;
+    const wholeService = Number(item.bindType) === 1 || !Number(item.skuId);
     const bucket = grouped.get(spuId) || {
       name: pickI18nText(item.spuNameI18n, locale.value, String(spuId)),
+      redeemTimes: Math.max(1, Number(item.redeemTimes) || 1),
       skus: [],
     };
-    bucket.skus.push({
-      skuId: Number(item.skuId),
-      redeemTimes: Number(item.redeemTimes || 1),
-      available: item.available !== false,
-      specLabel: skuLabelFromDetail(item),
-      price: item.skuPrice == null ? null : Number(item.skuPrice),
+    if (wholeService) bucket.redeemTimes = Math.max(1, Number(item.redeemTimes) || 1);
+    const skuId = Number(item.skuId);
+    if (skuId) {
+      bucket.skus.push({
+        skuId,
+        redeemTimes: 1,
+        available: item.available !== false,
+        specLabel: skuLabelFromDetail(item),
+        price: item.skuPrice == null ? null : Number(item.skuPrice),
+      });
+    }
+    (Array.isArray(item.skuOptions) ? item.skuOptions : []).forEach((option: any) => {
+      const optionId = Number(option?.skuId);
+      if (!optionId || bucket.skus.some((sku) => sku.skuId === optionId)) return;
+      bucket.skus.push({
+        skuId: optionId,
+        redeemTimes: 1,
+        available: true,
+        specLabel: skuLabelFromDetail(option),
+        price: option?.skuPrice == null ? null : Number(option.skuPrice),
+      });
     });
     grouped.set(spuId, bucket);
   });
@@ -988,16 +1095,29 @@ const fillFromDetail = async (detail: any) => {
         key: serviceBlockSeed++,
         spuId,
         spuName: bucket.name,
-        selectedSkuId: loaded.selectedSkuId,
+        redeemTimes: bucket.redeemTimes,
         skus: loaded.skus,
         skuSeq: 0,
       };
     }),
   );
-  spuBlocks.value = blocks.length ? blocks : [blankServiceBlock()];
+  if (isCurrent()) spuBlocks.value = blocks.length ? blocks : [blankServiceBlock()];
+};
+
+const clearEditQuery = (expectedId?: number) => {
+  if (route.path !== packageListPath || !Object.prototype.hasOwnProperty.call(route.query, 'editId')) return;
+  if (expectedId != null && positiveId(route.query.editId) !== expectedId) return;
+  const query = { ...route.query };
+  delete query.editId;
+  return router.replace({ path: route.path, query, hash: route.hash }).catch(() => {});
 };
 
 const openCreate = () => {
+  if (submitLoading.value) return;
+  detailRequestVersion += 1;
+  linkedEditId = null;
+  detailLoading.value = false;
+  void clearEditQuery();
   isEdit.value = false;
   resetForm();
   formKey.value += 1;
@@ -1008,36 +1128,110 @@ const openCreate = () => {
   });
 };
 
-const openEdit = async (row: PackageRow) => {
+const openEditById = async (id: number, linked = false) => {
+  const version = ++detailRequestVersion;
+  linkedEditId = linked ? id : null;
   isEdit.value = true;
   resetForm();
   dialogVisible.value = true;
   detailLoading.value = true;
+  const isCurrent = () => componentActive && version === detailRequestVersion && dialogVisible.value
+    && (!linked || (linkedEditId === id && route.path === packageListPath && positiveId(route.query.editId) === id));
   ensureSpus();
   try {
-    const res = await getPackageDetail(row.id);
-    await fillFromDetail(unwrap(res));
-    await tagPicker.loadOptions();
-    await tagPicker.loadBound(2, row.id);
+    const [res, tagRes] = await Promise.all([getPackageDetail(id), bizTagsByRef(2, id), tagPicker.loadOptions()]);
+    if (!isCurrent()) return;
+    const detail = unwrap(res);
+    if (!detail || typeof detail !== 'object' || positiveId(detail.id) !== id) {
+      throw new Error(t('admin.packageList.message.detailFailed'));
+    }
+    await fillFromDetail(detail, isCurrent);
+    if (!isCurrent()) return;
+    const tagData = unwrap(tagRes);
+    const tags: BizTag[] = Array.isArray(tagData) ? tagData : Array.isArray(tagData?.list) ? tagData.list : [];
+    tagPicker.options.value = [...new Map([...tagPicker.options.value, ...tags].map((tag) => [Number(tag.id), tag])).values()];
+    tagPicker.selectedIds.value = tags.map((tag) => Number(tag.id)).filter((tagId) => Number.isSafeInteger(tagId) && tagId > 0);
     formKey.value += 1;
   } catch (error: any) {
+    if (!isCurrent()) return;
+    linkedEditId = null;
+    if (linked) void clearEditQuery(id);
     dialogVisible.value = false;
+    editingId.value = null;
     ElMessage.error(error?.message || t('admin.packageList.message.detailFailed'));
   } finally {
-    detailLoading.value = false;
+    if (version === detailRequestVersion) detailLoading.value = false;
   }
 };
 
-const selectedItems = () => {
-  const items: Array<{ spuId: number; skuId: number; quantity: number; redeemTimes: number; sort: number }> = [];
+const openEdit = (row: PackageRow) => {
+  if (submitLoading.value) return;
+  linkedEditId = null;
+  void clearEditQuery();
+  const id = positiveId(row.id);
+  if (id == null) {
+    detailRequestVersion += 1;
+    detailLoading.value = false;
+    dialogVisible.value = false;
+    ElMessage.error(t('admin.packageList.message.detailFailed'));
+    return;
+  }
+  return openEditById(id);
+};
+
+const syncLinkedEdit = () => {
+  if (!editLinkReady || !componentActive) return;
+  const hasQuery = route.path === packageListPath && Object.prototype.hasOwnProperty.call(route.query, 'editId');
+  const id = hasQuery ? positiveId(route.query.editId) : null;
+  if (id == null) {
+    if (linkedEditId != null) {
+      linkedEditId = null;
+      detailRequestVersion += 1;
+      detailLoading.value = false;
+      dialogVisible.value = false;
+    }
+    if (hasQuery) {
+      void clearEditQuery();
+      ElMessage.error(t('admin.packageList.message.detailFailed'));
+    }
+    return;
+  }
+  if (linkedEditId === id && dialogVisible.value) return;
+  void openEditById(id, true);
+};
+
+const roundMoney = (value: number) => Math.round((value + Number.EPSILON) * 100) / 100;
+const hasSelectedService = computed(() => spuBlocks.value.some((block) => block.spuId));
+const packagePriceSummary = computed(() => {
+  const percent = Number(form.discountPercent);
+  const discountReady = Number.isInteger(percent) && percent >= 1 && percent <= 999;
+  let total = 0;
+  let sale = 0;
+  let hasPrice = false;
   spuBlocks.value.forEach((block) => {
-    const sku = block.skus.find((item) => item.skuId === block.selectedSkuId);
-    if (!block.spuId || !sku) return;
+    if (!block.spuId) return;
+    const times = Math.max(1, Number(block.redeemTimes) || 1);
+    block.skus.forEach((sku) => {
+      if (sku.price == null) return;
+      hasPrice = true;
+      total += Number(sku.price) * times;
+      const discounted = discountedSkuPrice(Number(sku.price));
+      if (discounted != null) sale += discounted * times;
+    });
+  });
+  if (!hasPrice || !discountReady) return { total: null, sale: null };
+  return { total: roundMoney(total), sale: roundMoney(sale) };
+});
+
+const selectedItems = () => {
+  const items: Array<{ bindType: 1; spuId: number; quantity: number; redeemTimes: number; sort: number }> = [];
+  spuBlocks.value.forEach((block) => {
+    if (!block.spuId) return;
     items.push({
+      bindType: 1,
       spuId: block.spuId,
-      skuId: sku.skuId,
       quantity: 1,
-      redeemTimes: Number(sku.redeemTimes),
+      redeemTimes: Math.max(1, Number(block.redeemTimes) || 1),
       sort: items.length,
     });
   });
@@ -1045,16 +1239,14 @@ const selectedItems = () => {
 };
 
 const save = async () => {
+  if (detailLoading.value || submitLoading.value) return;
   if (!form.categoryId) {
     ElMessage.warning(t('admin.packageList.validation.categoryRequired'));
     return;
   }
-  if (form.salePrice == null || Number(form.salePrice) <= 0) {
-    ElMessage.warning(t('admin.packageList.validation.salePrice'));
-    return;
-  }
-  if (form.originalPrice == null || Number(form.originalPrice) < Number(form.salePrice)) {
-    ElMessage.warning(t('admin.packageList.validation.originalPrice'));
+  const discountPercent = Number(form.discountPercent);
+  if (!Number.isInteger(discountPercent) || discountPercent < 1 || discountPercent > 999) {
+    ElMessage.warning(t('admin.packageList.validation.discount'));
     return;
   }
   if (!form.validDays || form.validDays < 1) {
@@ -1062,8 +1254,7 @@ const save = async () => {
     return;
   }
   const items = selectedItems();
-  const started = spuBlocks.value.filter((block) => block.spuId);
-  if (!started.length || items.length !== started.length) {
+  if (!items.length) {
     ElMessage.warning(t('admin.packageList.validation.skuRequired'));
     return;
   }
@@ -1084,13 +1275,13 @@ const save = async () => {
     return;
   }
   submitLoading.value = true;
+  const version = detailRequestVersion;
   try {
     await addOrUpdatePackage({
       id: editingId.value || undefined,
       categoryId: form.categoryId,
       validDays: form.validDays,
-      originalPrice: form.originalPrice,
-      salePrice: form.salePrice,
+      discount: percentToDiscount(discountPercent),
       nameI18n: packageNamePayload(),
       descI18n: rowsToMap(descRows.value),
       serviceContentI18n: rowsToMap(serviceRows.value, true),
@@ -1099,11 +1290,16 @@ const save = async () => {
       items,
       tags: tagPicker.saveItems(pendingTagNames.value),
     });
+    if (version !== detailRequestVersion || !dialogVisible.value) return;
     pendingTagNames.value = [];
     ElMessage.success(t('admin.packageList.message.saveSuccess'));
     dialogVisible.value = false;
     fetchList();
   } catch (error: any) {
+    if (version !== detailRequestVersion || !dialogVisible.value) return;
+    const linkedId = linkedEditId;
+    linkedEditId = null;
+    if (linkedId != null) void clearEditQuery(linkedId);
     ElMessage.error(error?.message || t('admin.packageList.message.saveFailed'));
   } finally {
     submitLoading.value = false;
@@ -1128,10 +1324,28 @@ const handleImageUpload = (options: UploadRequestOptions) => {
     });
 };
 
-onMounted(() => {
-  fetchCategories();
-  fetchList();
-  ensureSpus();
+onMounted(async () => {
+  componentActive = true;
+  await Promise.allSettled([fetchCategories(), fetchList(), ensureSpus()]);
+  if (!componentActive) return;
+  editLinkReady = true;
+  syncLinkedEdit();
+});
+
+onBeforeUnmount(() => {
+  componentActive = false;
+  detailRequestVersion += 1;
+});
+
+watch(() => [route.path, route.query.editId], syncLinkedEdit);
+
+watch(dialogVisible, (open) => {
+  if (open) return;
+  const linkedId = linkedEditId;
+  linkedEditId = null;
+  detailRequestVersion += 1;
+  detailLoading.value = false;
+  if (linkedId != null) void clearEditQuery(linkedId);
 });
 
 watch(() => locale.value, () => {
@@ -1141,6 +1355,11 @@ watch(() => locale.value, () => {
 </script>
 
 <style scoped>
+.bound-service a { color: var(--el-color-primary); text-decoration: none; }
+.bound-service a:hover { text-decoration: underline; }
+.spu-picker-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; }
+.spu-picker-actions .el-button + .el-button { margin-left: 0; }
+.spu-picker-actions a { color: var(--el-color-primary); font-size: 14px; text-decoration: none; }
 .biz-tag-picks {
   display: flex;
   flex-wrap: wrap;
@@ -1274,17 +1493,24 @@ watch(() => locale.value, () => {
   font-size: 10px;
   line-height: 16px;
 }
-.content-chip {
-  display: block;
-  overflow: hidden;
+.bound-services {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.bound-service {
   padding: 3px 7px;
   border-radius: 4px;
   background: #eaf2ff;
   color: #2f7ee0;
   font-size: 11px;
-  line-height: 1.35;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  line-height: 1.5;
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 .table-actions {
   display: flex;
@@ -1320,9 +1546,53 @@ watch(() => locale.value, () => {
   flex-direction: column;
   line-height: 1.3;
 }
-.price span {
+.price span,
+.price em {
   color: #94a3b8;
+  font-style: normal;
+  font-size: 12px;
+}
+.price span {
   text-decoration: line-through;
+}
+.discount-field {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+}
+.discount-input {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.package-total {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 28px;
+  margin-top: 4px;
+  padding: 12px 14px;
+  border-radius: 8px;
+  background: #f8f5f0;
+  color: #334155;
+}
+.package-total div {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+.package-total strong {
+  font-size: 18px;
+  color: #1f2937;
+}
+.package-total .field-hint {
+  flex-basis: 100%;
+}
+.field-hint {
+  margin: 0;
+  color: #8a8176;
+  font-size: 12px;
+  line-height: 1.5;
 }
 .date-line {
   color: #606266;
@@ -1375,6 +1645,26 @@ watch(() => locale.value, () => {
 }
 .field-row :deep(.el-select) {
   width: 100%;
+}
+.sku-row {
+  align-items: flex-start;
+}
+.sku-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  color: #334155;
+  line-height: 1.6;
+}
+.sku-list li {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 16px;
+}
+.sku-prices {
+  display: inline-flex;
+  gap: 12px;
+  color: #64748b;
 }
 .field-label {
   color: #606266;

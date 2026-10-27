@@ -4,33 +4,32 @@
       <div class="toolbar">
         <el-input
           v-model="query.nameKeyword"
-          :placeholder="t('admin.subcategory.searchPlaceholder')"
+          :placeholder="text('admin.subcategory.searchPlaceholder')"
           clearable
           @keyup.enter="handleSearch"
         />
-        <el-button type="primary" @click="handleSearch">{{ t('admin.subcategory.actions.search') }}</el-button>
-        <el-button @click="reset">{{ t('admin.subcategory.actions.reset') }}</el-button>
-        <el-button type="primary" @click="openCreate">{{ t('admin.subcategory.actions.create') }}</el-button>
+        <el-button type="primary" @click="handleSearch">{{ text('admin.subcategory.actions.search') }}</el-button>
+        <el-button @click="reset">{{ text('admin.subcategory.actions.reset') }}</el-button>
+        <el-button type="primary" @click="openCreate">{{ text('admin.subcategory.actions.create') }}</el-button>
       </div>
 
       <el-table :data="displayList" border stripe row-key="id" v-loading="tableLoading">
-        <el-table-column prop="sort" :label="t('admin.subcategory.table.sort')" width="72" />
-        <el-table-column :label="t('admin.subcategory.table.name')" min-width="180">
+        <el-table-column :label="text('admin.subcategory.table.name')" min-width="180">
           <template #default="{ row }">{{ row.displayName }}</template>
         </el-table-column>
-        <el-table-column :label="t('admin.subcategory.table.createdAt')" width="148">
+        <el-table-column :label="text('admin.subcategory.table.createdAt')" width="148">
           <template #default="{ row }">{{ formatDate(row.createdAt) }}</template>
         </el-table-column>
-        <!-- <el-table-column :label="t('admin.subcategory.table.updateBy')" min-width="140">
+        <!-- <el-table-column :label="text('admin.subcategory.table.updateBy')" min-width="140">
           <template #default="{ row }">{{ row.updateBy || '-' }}</template>
         </el-table-column> -->
-        <el-table-column :label="t('admin.subcategory.table.actions')" width="132" fixed="right">
+        <el-table-column :label="text('admin.subcategory.table.actions')" width="132" fixed="right">
           <template #default="{ row }">
             <el-button link type="primary" size="small" @click="openEdit(row)">
-              {{ t('admin.subcategory.actions.edit') }}
+              {{ text('admin.subcategory.actions.edit') }}
             </el-button>
             <el-button link type="danger" size="small" @click="remove(row)">
-              {{ t('admin.subcategory.actions.delete') }}
+              {{ text('admin.subcategory.actions.delete') }}
             </el-button>
           </template>
         </el-table-column>
@@ -51,30 +50,30 @@
 
     <el-dialog
       v-model="dialogVisible"
-      :title="isEdit ? t('admin.subcategory.dialog.editTitle') : t('admin.subcategory.dialog.createTitle')"
+      :title="isEdit ? text('admin.subcategory.dialog.editTitle') : text('admin.subcategory.dialog.createTitle')"
       :close-on-click-modal="false"
       width="520px"
     >
       <el-form ref="formRef" :model="form" :rules="rules" label-width="110px">
-        <el-form-item :label="t('admin.subcategory.form.nameI18n')" prop="nameI18n">
+        <el-form-item :label="text('admin.subcategory.form.nameI18n')" prop="nameI18n">
           <div class="i18n-list">
             <div v-for="(item, idx) in nameI18nList" :key="idx" class="i18n-row">
-              <el-select v-model="item.lang" :placeholder="t('admin.subcategory.form.languagePlaceholder')" style="width: 140px">
+              <el-select v-model="item.lang" :placeholder="text('admin.subcategory.form.languagePlaceholder')" style="width: 140px">
                 <el-option :label="t('admin.common.langZhCn')" value="zh-CN" />
                 <el-option :label="t('admin.common.langEnCode')" value="en" />
               </el-select>
-              <el-input v-model="item.value" :placeholder="t('admin.subcategory.form.namePlaceholder')" />
+              <el-input v-model="item.value" :placeholder="text('admin.subcategory.form.namePlaceholder')" />
               <el-button link type="danger" :disabled="nameI18nList.length===1" @click="removeI18n(idx)">
-                {{ t('admin.subcategory.actions.removeLang') }}
+                {{ text('admin.subcategory.actions.removeLang') }}
               </el-button>
             </div>
-            <el-button link type="primary" @click="addI18n">{{ t('admin.subcategory.actions.addLang') }}</el-button>
+            <el-button link type="primary" @click="addI18n">{{ text('admin.subcategory.actions.addLang') }}</el-button>
           </div>
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="dialogVisible = false">{{ t('admin.subcategory.actions.cancel') }}</el-button>
-        <el-button type="primary" :loading="submitLoading" @click="save">{{ t('admin.subcategory.actions.save') }}</el-button>
+        <el-button @click="dialogVisible = false">{{ text('admin.subcategory.actions.cancel') }}</el-button>
+        <el-button type="primary" :loading="submitLoading" @click="save">{{ text('admin.subcategory.actions.save') }}</el-button>
       </template>
     </el-dialog>
   </div>
@@ -85,8 +84,15 @@ import { computed, onMounted, reactive, ref, watch } from 'vue';
 import type { FormInstance, FormRules } from 'element-plus';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { useI18n } from 'vue-i18n';
-import { getPage, add, update, del } from '@/modules/admin/api/category';
+import * as serviceCategoryApi from '@/modules/admin/api/category';
+import * as packageCategoryApi from '@/modules/admin/api/packageServiceCategory';
 import { ADMIN_LANG_EN, pickI18nText } from '@/modules/admin/utils/i18n';
+
+const props = withDefaults(defineProps<{ catalog?: 'service' | 'package' }>(), {
+  catalog: 'service',
+});
+const categoryApi = () => (props.catalog === 'package' ? packageCategoryApi : serviceCategoryApi);
+const categoryDomain = () => (props.catalog === 'package' ? '4' : '2');
 
 type SubCategoryRow = {
   id: number;
@@ -104,6 +110,16 @@ type SubCategoryForm = {
 };
 
 const { locale, t } = useI18n({ useScope: 'global' });
+const packageLabelKey: Record<string, string> = {
+  'admin.subcategory.searchPlaceholder': 'admin.packageCatalog.subcategory.searchPlaceholder',
+  'admin.subcategory.actions.create': 'admin.packageCatalog.subcategory.actions.create',
+  'admin.subcategory.dialog.createTitle': 'admin.packageCatalog.subcategory.dialog.createTitle',
+  'admin.subcategory.dialog.editTitle': 'admin.packageCatalog.subcategory.dialog.editTitle',
+  'admin.subcategory.message.fetchFailed': 'admin.packageCatalog.subcategory.message.fetchFailed',
+  'admin.subcategory.message.deleteConfirm': 'admin.packageCatalog.subcategory.message.deleteConfirm',
+};
+const text = (key: string, values?: Record<string, unknown>) =>
+  t(props.catalog === 'package' ? packageLabelKey[key] || key : key, values || {});
 const createEmptyI18nItem = (value = '') => ({
   lang: ADMIN_LANG_EN,
   value,
@@ -135,7 +151,7 @@ const rules: FormRules = {
     {
       validator: (_r, _v, cb) => {
         const invalid = nameI18nList.value.find((i) => !i.lang?.trim() || !i.value?.trim());
-        if (invalid) return cb(new Error(t('admin.subcategory.validation.nameI18nIncomplete')));
+        if (invalid) return cb(new Error(text('admin.subcategory.validation.nameI18nIncomplete')));
         cb();
       },
       trigger: 'change',
@@ -195,7 +211,7 @@ const save = () => {
   formRef.value.validate((valid) => {
     if (!valid) return;
     submitLoading.value = true;
-    const action = isEdit.value ? update : add;
+    const action = isEdit.value ? categoryApi().update : categoryApi().add;
     const zhName = nameI18nList.value.find((i) => i.lang === 'zh-CN')?.value || nameI18nList.value[0]?.value || '';
     const enName = nameI18nList.value.find((i) => i.lang === 'en')?.value || '';
     const payload = {
@@ -208,16 +224,16 @@ const save = () => {
       }, {}),
       pcategoryId: '0',
       rootId: '0',
-      categoryDomain: '2',
+      categoryDomain: categoryDomain(),
     };
     action(payload)
       .then(() => {
-        ElMessage.success(t('admin.subcategory.message.saveSuccess'));
+        ElMessage.success(text('admin.subcategory.message.saveSuccess'));
         dialogVisible.value = false;
         fetchList();
       })
       .catch((err: any) => {
-        ElMessage.error(err?.message || t('admin.subcategory.message.saveFailed'));
+        ElMessage.error(err?.message || text('admin.subcategory.message.saveFailed'));
       })
       .finally(() => {
         submitLoading.value = false;
@@ -232,13 +248,13 @@ const remove = (row: SubCategoryRow) => {
     row.displayName || '',
   );
   ElMessageBox.confirm(
-    t('admin.subcategory.message.deleteConfirm', { label }),
+    text('admin.subcategory.message.deleteConfirm', { label }),
     t('admin.common.confirmTitle'),
     { type: 'warning' },
   )
-    .then(() => del({ id: row.id }))
+    .then(() => categoryApi().del({ id: row.id }))
     .then(() => {
-      ElMessage.success(t('admin.subcategory.message.deleteSuccess'));
+      ElMessage.success(text('admin.subcategory.message.deleteSuccess'));
       fetchList();
     })
     .catch((err: any) => {
@@ -265,11 +281,11 @@ const formatDate = (val?: string) => {
 const fetchList = async () => {
   tableLoading.value = true;
   try {
-    const res = await getPage({
+    const res = await categoryApi().getPage({
       pageNum: query.pageNum,
       pageSize: query.pageSize,
       nameKeyword: query.nameKeyword?.trim() || undefined,
-      categoryDomain: '2',
+      categoryDomain: categoryDomain(),
     });
     const data = res?.data ?? res ?? {};
     const records = Array.isArray(data.list) ? data.list : [];
@@ -296,7 +312,7 @@ const fetchList = async () => {
     }));
     total.value = data.total ?? records.length;
   } catch (error: any) {
-    ElMessage.error(error?.message || t('admin.subcategory.message.fetchFailed'));
+    ElMessage.error(error?.message || text('admin.subcategory.message.fetchFailed'));
   } finally {
     tableLoading.value = false;
   }

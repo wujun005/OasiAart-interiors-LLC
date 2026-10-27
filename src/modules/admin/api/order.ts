@@ -122,7 +122,7 @@ export function querySuppliers(payload: any) {
   return http.post('/api/supplier/query', payload);
 }
 
-// 更新订单供应商。supplierIds 覆盖本单全部分配，空数组表示解除分配。
+// 整单更新供应商。页面传一个 ID，覆盖全部未完成服务及后续预约；空数组解除分配。
 export function updateSupplier(payload: {
   orderId: number;
   supplierIds: Array<number | string>;

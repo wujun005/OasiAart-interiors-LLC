@@ -32,33 +32,21 @@
         </div>
       </div>
 
-      <div class="hero-status-grid">
-        <article v-for="item in heroStatuses" :key="item.key" class="hero-status">
-          <span class="hero-status__icon">
-            <component :is="item.icon" aria-hidden="true" />
-          </span>
-          <div>
-            <strong>{{ item.title }}</strong>
-            <p>{{ item.description }}</p>
-          </div>
-        </article>
-      </div>
+      <button
+        v-if="pendingOnboarding.value != null && pendingOnboarding.value > 0"
+        class="review-alert"
+        type="button"
+        @click="openPendingSuppliers"
+      >
+        <Bell class="review-alert__bell" aria-hidden="true" />
+        <strong>{{ numberFormatter.format(pendingOnboarding.value) }}</strong>
+        <span>
+          <b>{{ t('admin.home.pendingReview.title') }}</b>
+          <small>{{ t('admin.home.pendingReview.desc') }}</small>
+        </span>
+        <ArrowRight class="review-alert__arrow" aria-hidden="true" />
+      </button>
     </section>
-
-    <button
-      v-if="pendingOnboarding.value != null && pendingOnboarding.value > 0"
-      class="review-alert"
-      type="button"
-      @click="openPendingSuppliers"
-    >
-      <Bell class="review-alert__bell" aria-hidden="true" />
-      <strong>{{ numberFormatter.format(pendingOnboarding.value) }}</strong>
-      <span>
-        <b>{{ t('admin.home.pendingReview.title') }}</b>
-        <small>{{ t('admin.home.pendingReview.desc') }}</small>
-      </span>
-      <ArrowRight class="review-alert__arrow" aria-hidden="true" />
-    </button>
 
     <section class="metric-grid" aria-live="polite">
       <article
@@ -136,8 +124,7 @@
         </header>
 
         <div class="focus-list">
-          <article v-for="(item, index) in focusItems" :key="item.key" class="focus-item">
-            <span class="focus-item__number">{{ String(index + 1).padStart(2, '0') }}</span>
+          <article v-for="item in focusItems" :key="item.key" class="focus-item">
             <span class="focus-item__icon">
               <component :is="item.icon" aria-hidden="true" />
             </span>
@@ -193,12 +180,11 @@
 
         <div class="system-grid">
           <article
-            v-for="(item, index) in systemItems"
+            v-for="item in systemItems"
             :key="item.key"
             class="system-item"
             :class="`is-${item.state}`"
           >
-            <span class="system-item__index">{{ String(index + 1).padStart(2, '0') }}</span>
             <span class="system-item__icon"><component :is="item.icon" aria-hidden="true" /></span>
             <div>
               <strong>{{ item.title }}</strong>
@@ -380,24 +366,6 @@ const healthSignal = computed<SignalState>(() => {
   return summaryFailed.value ? 'warning' : 'ready';
 });
 
-const heroStatuses = computed(() => [
-  {
-    key: 'permission', icon: CircleCheck,
-    title: t('admin.home.hero.status.permissionTitle'),
-    description: t('admin.home.hero.status.permissionDesc'),
-  },
-  {
-    key: 'locale', icon: CollectionTag,
-    title: t('admin.home.hero.status.localeTitle'),
-    description: t('admin.home.hero.status.localeDesc'),
-  },
-  {
-    key: 'payment', icon: Wallet,
-    title: t('admin.home.hero.status.paymentTitle'),
-    description: t('admin.home.hero.status.paymentDesc'),
-  },
-]);
-
 const metrics = computed(() => [
   {
     key: 'orders', tone: 'navy', icon: Tickets,
@@ -520,7 +488,8 @@ const systemItems = computed(() => [
 
 .hero-panel {
   position: relative;
-  min-height: 520px;
+  display: flex;
+  flex-direction: column;
   overflow: hidden;
   border: 1px solid rgba(226, 194, 132, 0.22);
   border-radius: 28px;
@@ -564,8 +533,10 @@ const systemItems = computed(() => [
 }
 
 .hero-panel__content {
+  position: relative;
+  z-index: 1;
   width: min(620px, 58%);
-  padding: 50px 48px 176px;
+  padding: 50px 48px 8px;
 }
 
 .hero-panel__eyebrow {
@@ -602,7 +573,7 @@ const systemItems = computed(() => [
   margin: 25px 0 0;
   color: #fffdf8;
   font-family: Fraunces, "Songti SC", "Noto Serif SC", Georgia, serif;
-  font-size: clamp(40px, 4.2vw, 62px);
+  font-size: clamp(32px, 3.2vw, 46px);
   font-weight: 520;
   line-height: 1.06;
   letter-spacing: -0.045em;
@@ -690,56 +661,6 @@ const systemItems = computed(() => [
   outline-offset: 3px;
 }
 
-.hero-status-grid {
-  position: absolute;
-  right: 30px;
-  bottom: 28px;
-  left: 30px;
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  overflow: hidden;
-  border: 1px solid rgba(255, 255, 255, 0.13);
-  border-radius: 18px;
-  background: rgba(4, 20, 38, 0.7);
-  box-shadow: 0 18px 34px rgba(0, 0, 0, 0.17), inset 0 1px rgba(255, 255, 255, 0.06);
-  backdrop-filter: blur(18px);
-}
-
-.hero-status {
-  min-width: 0;
-  padding: 18px 19px;
-  display: grid;
-  grid-template-columns: 36px minmax(0, 1fr);
-  align-items: center;
-  gap: 12px;
-}
-
-.hero-status + .hero-status { border-left: 1px solid rgba(255, 255, 255, 0.1); }
-
-.hero-status__icon {
-  width: 36px;
-  height: 36px;
-  border: 1px solid rgba(232, 194, 122, 0.25);
-  border-radius: 10px;
-  display: grid;
-  place-items: center;
-  color: #e8c27a;
-  background: rgba(232, 194, 122, 0.08);
-}
-
-.hero-status__icon svg { width: 17px; }
-
-.hero-status strong,
-.hero-status p {
-  display: block;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.hero-status strong { color: #f9f5ed; font-size: 11px; }
-.hero-status p { margin: 5px 0 0; color: rgba(225, 233, 241, 0.5); font-size: 9px; }
-
 .metric-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -816,12 +737,12 @@ const systemItems = computed(() => [
   min-height: 41px;
   margin-top: 13px;
   color: var(--home-ink);
-  font-family: Fraunces, Georgia, serif;
+  font-family: var(--hx-font-numeric);
   font-size: 34px;
-  font-weight: 520;
+  font-weight: 600;
   line-height: 1;
-  letter-spacing: -0.035em;
-  font-variant-numeric: tabular-nums;
+  letter-spacing: normal;
+  font-variant-numeric: lining-nums tabular-nums;
 }
 
 .metric-skeleton {
@@ -870,11 +791,13 @@ const systemItems = computed(() => [
 .metric-card:hover .metric-card__arrow { color: var(--metric-accent); transform: translateX(2px); }
 
 .review-alert {
+  position: relative;
+  z-index: 1;
   display: flex;
   align-items: center;
   gap: 14px;
-  width: 100%;
-  margin-top: 16px;
+  width: auto;
+  margin: 18px 28px 24px;
   padding: 14px 16px;
   color: #05152b;
   text-align: left;
@@ -882,6 +805,7 @@ const systemItems = computed(() => [
   border: 1px solid #ead7b0;
   border-left: 5px solid #05152b;
   border-radius: 16px;
+  box-shadow: 0 10px 24px rgba(2, 10, 22, 0.18);
   cursor: pointer;
 }
 
@@ -1023,7 +947,7 @@ const systemItems = computed(() => [
 
 .focus-item {
   display: grid;
-  grid-template-columns: 30px 34px minmax(0, 1fr);
+  grid-template-columns: 34px minmax(0, 1fr);
   align-items: start;
   gap: 11px;
   padding: 16px 0;
@@ -1031,7 +955,6 @@ const systemItems = computed(() => [
 }
 
 .focus-item:last-child { border-bottom: 0; }
-.focus-item__number { padding-top: 8px; color: #b4a797; font-family: Fraunces, Georgia, serif; font-size: 12px; }
 
 .focus-item__icon {
   width: 34px;
@@ -1157,7 +1080,7 @@ const systemItems = computed(() => [
   min-width: 0;
   padding: 18px 12px 18px 0;
   display: grid;
-  grid-template-columns: 28px 36px minmax(0, 1fr);
+  grid-template-columns: 36px minmax(0, 1fr);
   align-items: start;
   gap: 10px;
   border-bottom: 1px solid #eee7dd;
@@ -1181,7 +1104,6 @@ const systemItems = computed(() => [
 
 .system-item.is-loading::after { background: #c4a36a; box-shadow: 0 0 0 4px rgba(196, 163, 106, 0.1); animation: signal-pulse 1.2s ease-in-out infinite; }
 .system-item.is-warning::after { background: #b7545d; box-shadow: 0 0 0 4px rgba(183, 84, 93, 0.09); }
-.system-item__index { padding-top: 9px; color: #b3a695; font-family: Fraunces, Georgia, serif; font-size: 11px; }
 
 .system-item__icon {
   width: 36px;
@@ -1219,17 +1141,14 @@ const systemItems = computed(() => [
 }
 
 @media (max-width: 900px) {
-  .hero-panel { min-height: 650px; }
   .hero-panel__image { object-position: 64% center; }
   .hero-panel__veil {
     background:
       linear-gradient(90deg, rgba(2, 13, 27, 0.98), rgba(3, 18, 35, 0.74)),
       linear-gradient(0deg, rgba(2, 13, 26, 0.92) 0%, transparent 55%);
   }
-  .hero-panel__content { width: auto; padding: 44px 34px 264px; }
-  .hero-status-grid { grid-template-columns: 1fr; }
-  .hero-status { padding: 13px 16px; }
-  .hero-status + .hero-status { border-top: 1px solid rgba(255, 255, 255, 0.1); border-left: 0; }
+  .hero-panel__content { width: auto; padding: 44px 34px 8px; }
+  .review-alert { margin: 16px 20px 20px; }
   .system-grid { grid-template-columns: 1fr; }
   .system-item,
   .system-item:nth-child(odd),
@@ -1239,21 +1158,21 @@ const systemItems = computed(() => [
 
 @media (max-width: 640px) {
   .home-page { padding-bottom: 18px; }
-  .hero-panel { min-height: 710px; border-radius: 21px; }
-  .hero-panel__content { padding: 34px 22px 294px; }
+  .hero-panel { border-radius: 21px; }
+  .hero-panel__content { padding: 34px 22px 4px; }
+  .review-alert { margin: 14px 14px 16px; }
   .hero-panel__eyebrow { flex-wrap: wrap; }
   .hero-panel__date { width: 100%; margin: 2px 0 0 17px; padding-left: 0; border-left: 0; }
-  .hero-panel h1 { margin-top: 20px; font-size: clamp(34px, 11vw, 46px); }
+  .hero-panel h1 { margin-top: 20px; font-size: clamp(28px, 8vw, 34px); }
   .hero-panel__actions { align-items: stretch; flex-direction: column; }
   .hero-action { width: 100%; }
-  .hero-status-grid { right: 14px; bottom: 14px; left: 14px; }
   .metric-grid, .quick-grid { grid-template-columns: 1fr; }
   .metric-card { min-height: 150px; }
   .dashboard-panel { border-radius: 18px; }
   .section-heading { padding: 18px; }
   .quick-grid { padding: 12px; }
   .focus-list { padding-inline: 16px; }
-  .focus-item { grid-template-columns: 26px 32px minmax(0, 1fr); gap: 8px; }
+  .focus-item { grid-template-columns: 32px minmax(0, 1fr); gap: 8px; }
   .radar-map { width: min(286px, calc(100% - 20px)); }
   .radar-node { width: 94px; }
   .system-grid { padding-inline: 16px; }

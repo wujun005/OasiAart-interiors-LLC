@@ -29,6 +29,8 @@ const transpile = (content) =>
     },
   }).outputText
 const code = transpile(script.content)
+const mineExports = {}
+runInNewContext(transpile(read("src/modules/admin/utils/supplier-mine.ts")), { exports: mineExports })
 const template = compileTemplate({
   source: descriptor.template.content,
   filename,
@@ -194,6 +196,7 @@ async function harness(t, overrides = {}) {
       if (name === "@/modules/admin/api/supplierWorkbench") return api
       if (name === "@/modules/admin/utils/i18n") return i18n
       if (name === "@/modules/admin/utils/supplierMap") return supplierMap
+      if (name === "@/modules/admin/utils/supplier-mine") return mineExports
       throw new Error(`Unexpected dependency: ${name}`)
     },
   })

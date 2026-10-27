@@ -45,7 +45,6 @@
             </van-swipe-item>
           </van-swipe>
           <div v-else class="h5-package-gallery-empty" aria-hidden="true">{{ view.mark }}</div>
-          <span v-if="view.badge" class="h5-detail-gallery__badge">{{ view.badge }}</span>
           <div v-if="view.images.length > 1" class="h5-detail-gallery__dots" aria-hidden="true">
             <span
               v-for="(image, index) in view.images"
@@ -66,6 +65,10 @@
               {{ t('client.home.packages.originalPrice') }} AED {{ view.original }}
             </del>
             <strong v-if="view.save">{{ view.save }}</strong>
+          </div>
+          <div v-if="!priceReady" class="package-price-status" :class="{ 'is-error': !!priceError }" :aria-busy="priceLoading" role="status">
+            <span>{{ priceLoading ? t('client.home.packages.priceLoading') : priceError || t('client.home.packages.chooseSkuRequired') }}</span>
+            <button v-if="priceError" type="button" @click="emit('retry-price')">{{ t('client.home.packages.retryPrice') }}</button>
           </div>
           <div v-if="view.tags.length" class="biz-tags">
             <span v-for="tag in view.tags" :key="tag">{{ tag }}</span>
@@ -90,11 +93,37 @@
             <h3>{{ t('client.home.packages.included') }}</h3>
           </div>
           <p class="h5-package-booking-note">{{ t('client.home.packages.visitLater') }}</p>
+          <PackageSharedSpecs
+            v-if="view.hasSharedSpecs"
+            :groups="view.sharedGroups"
+            :separate="view.separateSpecs"
+            :disabled="selectionLocked"
+            @select="(typeKey, valueKey) => emit('select-shared-spec', typeKey, valueKey)"
+            @toggle-separate="emit('toggle-separate-specs')"
+          />
           <div v-if="view.items.length" class="h5-attach-list h5-package-service-list">
             <div v-for="item in view.items" :key="item.id" class="h5-attach-item">
               <div class="h5-attach-item__meta">
                 <strong>{{ item.name }}</strong>
-                <span v-if="item.spec">{{ item.spec }}</span>
+                <span v-if="item.sharedSummary" class="package-shared-applied">{{ t('client.home.packages.sharedApplied', { specs: item.sharedSummary }) }}</span>
+                <span v-else-if="item.spec && !item.groups.length">{{ item.spec }}</span>
+                <div v-if="item.groups.length" class="package-sku-groups">
+                  <div v-for="group in item.groups" :key="group.id" class="package-sku-group">
+                    <p class="package-sku-group__label">{{ group.label }}</p>
+                    <div class="package-sku-options" role="radiogroup" :aria-label="group.label">
+                      <button
+                        v-for="option in group.options"
+                        :key="option.id"
+                        type="button"
+                        class="package-sku-option"
+                        :class="{ 'is-selected': group.selectedId === option.id }"
+                        :aria-pressed="group.selectedId === option.id"
+                        :disabled="selectionLocked || option.disabled"
+                        @click="emit('select-spec', item.id, group.id, option.id)"
+                      >{{ option.label }}</button>
+                    </div>
+                  </div>
+                </div>
               </div>
               <strong class="h5-package-service-times">{{ item.times }}</strong>
             </div>
@@ -176,7 +205,7 @@
           :disabled="!purchasable || busy"
           @click="purchasable && !busy && emit('checkout')"
         >
-          {{ t(busy ? 'client.profile.actions.submitting' : 'client.productDetail.booking.bookNow') }}
+          {{ t(priceLoading ? 'client.home.packages.priceLoading' : busy ? 'client.profile.actions.submitting' : 'client.productDetail.booking.bookNow') }}
         </button>
       </div>
     </footer>
@@ -184,25 +213,43 @@
 </template>
 
 <script lang="ts">
+import type { SharedSpecGroup } from '@/modules/client/utils/package-shared-specs'
+
 export interface PackageDetailView {
   title: string
   tags: string[]
   mark: string
   category: string
-  badge: string
   visits: string
   descHtml: string
   aboutHtml: string
   noticeHtml: string
-  saleAmount: number
+  saleAmount: number | null
   original: string
   perVisit: string
   save: string
   validDays: string
-  vat: number
-  total: number
+  vat: number | null
+  total: number | null
   images: string[]
-  items: Array<{ id: string; name: string; spec: string; times: string }>
+  hasSharedSpecs: boolean
+  separateSpecs: boolean
+  sharedGroups: Array<SharedSpecGroup & { serviceNames: string }>
+  items: Array<{
+    id: string
+    name: string
+    spec: string
+    times: string
+    sharedSummary: string
+    selectionSummary: string
+    groups: Array<{
+      id: string
+      label: string
+      selectedId: string
+      options: Array<{ id: string; label: string; disabled: boolean }>
+    }>
+    selectedSkuId: string
+  }>
 }
 </script>
 
@@ -210,12 +257,17 @@ export interface PackageDetailView {
 import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { Icon as VanIcon, Swipe as VanSwipe, SwipeItem as VanSwipeItem, type SwipeInstance } from 'vant'
+import PackageSharedSpecs from '@/modules/client/components/PackageSharedSpecs.vue'
 
 const props = defineProps<{
   view: PackageDetailView | null
   loading: boolean
   missing: boolean
   busy: boolean
+  priceReady: boolean
+  priceLoading: boolean
+  priceError: string
+  selectionLocked: boolean
   selectedImageIndex: number
   cartCount: number
 }>()
@@ -226,12 +278,16 @@ const emit = defineEmits<{
   'image-change': [index: number]
   'add-to-cart': []
   checkout: []
+  'select-spec': [itemId: string, typeKey: string, valueKey: string]
+  'retry-price': []
+  'select-shared-spec': [typeKey: string, valueKey: string]
+  'toggle-separate-specs': []
 }>()
 
 const { t } = useI18n()
 const swipeRef = ref<SwipeInstance>()
-const purchasable = computed(() => !!props.view && !props.loading && !props.missing)
-const formatAed = (value: number) => `AED ${Number(value || 0).toFixed(2)}`
+const purchasable = computed(() => !!props.view && !props.loading && !props.missing && props.priceReady)
+const formatAed = (value: number | null) => value == null ? '—' : `AED ${value.toFixed(2)}`
 
 watch(() => props.selectedImageIndex, (index) => {
   swipeRef.value?.swipeTo(index, { immediate: true })
@@ -307,6 +363,66 @@ watch(() => props.selectedImageIndex, (index) => {
   flex-shrink: 0;
   color: var(--hourx-brand);
   font-size: 12px;
+}
+
+.package-shared-applied { color: #527279; }
+
+.package-sku-groups {
+  display: grid;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.package-sku-group__label {
+  margin: 0 0 6px;
+  color: #61738a;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.package-sku-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.package-sku-option {
+  border: 1px solid #d7dee8;
+  background: #fff;
+  border-radius: 999px;
+  padding: 6px 12px;
+  color: #334155;
+  font: inherit;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.package-sku-option.is-selected {
+  border-color: var(--hourx-brand);
+  background: var(--hourx-brand-soft);
+  color: var(--hourx-brand);
+  font-weight: 650;
+}
+
+.package-sku-option:disabled { opacity: .6; }
+.package-price-status {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+  color: #61738a;
+  font-size: 12px;
+  line-height: 1.5;
+}
+.package-price-status.is-error { color: #a23928; }
+.package-price-status button {
+  padding: 5px 10px;
+  color: var(--hourx-brand);
+  background: #fff;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  font: inherit;
 }
 
 .h5-package-price-breakdown {

@@ -234,7 +234,21 @@
             </div>
             <dl class="client-order-detail__facts">
               <template v-if="isPackageOrder">
-                <div>
+                <div
+                  v-for="service in packageServiceSummaries"
+                  :key="service.key"
+                >
+                  <dt>◷</dt>
+                  <dd>
+                    <small
+                      >{{ service.name
+                      }}<template v-if="service.spec">
+                        · {{ service.spec }}</template
+                      ></small
+                    ><strong>{{ service.timesText }}</strong>
+                  </dd>
+                </div>
+                <div v-if="!packageServiceSummaries.length">
                   <dt>◷</dt>
                   <dd>
                     <small>{{ t("client.home.packages.remainingLabel") }}</small
@@ -648,7 +662,7 @@
       @click.self="closeBookVisit"
     >
       <section
-        class="client-order-detail__review-dialog client-order-detail__reschedule-dialog"
+        class="client-order-detail__review-dialog client-order-detail__reschedule-dialog client-order-detail__book-dialog"
         role="dialog"
         aria-modal="true"
         :aria-label="locale.startsWith('zh') ? '预约上门' : 'Book a visit'"
@@ -669,22 +683,24 @@
         <p>
           {{
             locale.startsWith("zh")
-              ? "每次预约占用所选服务的 1 次。同一服务第一次填写地点后，之后都用这个地点。"
-              : "Each booking uses one visit for the selected service. After the first visit, that service keeps the same address."
+              ? "本次将为所有还有次数的服务各预约 1 次，使用同一上门时间。已有锁定地点的服务将各自沿用原地址。"
+              : "Book one visit for every service with visits remaining, at the same time. Each service keeps its own locked address."
           }}
         </p>
 
-        <label class="client-order-detail__book-field">
-          <span>{{ locale.startsWith("zh") ? "服务" : "Service" }}</span>
-          <select v-model="bookForm.skuId" :disabled="bookVisitSubmitting" @change="handleBookServiceChange">
-            <option value="" disabled>
-              {{ locale.startsWith("zh") ? "请选择服务" : "Select a service" }}
-            </option>
-            <option v-for="item in packageBookableServices" :key="item.skuId" :value="item.skuId">
-              {{ item.name }} · {{ locale.startsWith("zh") ? `剩余 ${item.remaining} 次` : `${item.remaining} left` }}
-            </option>
-          </select>
-        </label>
+        <ul class="client-order-detail__book-services">
+          <li v-for="item in packageBookableServices" :key="item.id">
+            <div class="client-order-detail__book-service-heading">
+              <strong>{{ item.name }}</strong>
+              <span>{{ locale.startsWith("zh") ? `1 次 · 剩余 ${item.remaining} 次` : `1 visit · ${item.remaining} left` }}</span>
+            </div>
+            <small v-if="item.spec">{{ item.spec }}</small>
+            <p v-if="item.lockedAddress" class="client-order-detail__book-lock">
+              <b>{{ locale.startsWith("zh") ? "沿用锁定地址" : "Keep the locked address" }}</b>
+              {{ item.lockedAddress }}
+            </p>
+          </li>
+        </ul>
 
         <div class="client-order-detail__reschedule-grid">
           <label>
@@ -701,7 +717,6 @@
                 :disabled="bookVisitSubmitting"
                 :disabled-date="isRescheduleDateDisabled"
                 :placeholder="locale.startsWith('zh') ? '请选择日期' : 'Select a date'"
-                @change="handleBookDateChange"
               />
             </el-config-provider>
           </label>
@@ -709,7 +724,7 @@
             <span>{{ locale.startsWith("zh") ? "上门时段" : "Time slot" }}</span>
             <select
               v-model.number="bookForm.timeRange"
-              :disabled="bookVisitSubmitting"
+              :disabled="bookVisitSubmitting || bookTimeLoading"
               @mousedown="fetchBookAvailableTimes"
             >
               <option :value="null" disabled>{{ bookTimePlaceholder }}</option>
@@ -725,11 +740,18 @@
           </label>
         </div>
 
-        <p v-if="lockedBookAddress" class="client-order-detail__book-lock">
-          <b>{{ locale.startsWith("zh") ? "上门地点已锁定" : "Visit address is locked" }}</b>
-          {{ lockedBookAddress }}
+        <p v-if="bookTimeError" class="client-order-detail__book-error" role="alert">
+          {{ bookTimeError }}
+          <button type="button" :disabled="bookTimeLoading" @click="fetchBookAvailableTimes">
+            {{ locale.startsWith("zh") ? "重试" : "Retry" }}
+          </button>
         </p>
-        <template v-else>
+        <template v-if="needsBookAddress">
+          <p class="client-order-detail__book-address-hint">
+            {{ locale.startsWith("zh")
+              ? "尚未锁定地点的服务将使用下面填写的同一地址；已有锁定地点的服务继续使用各自原地址。"
+              : "Services without a locked address will use the address below. Other services keep their own addresses." }}
+          </p>
           <label v-if="savedAddresses.length" class="client-order-detail__book-field">
             <span>{{ locale.startsWith("zh") ? "已保存地址" : "Saved address" }}</span>
             <select :disabled="bookVisitSubmitting" @change="applySavedAddress">
@@ -774,7 +796,7 @@
             <input v-model.trim="bookForm.community" :disabled="bookVisitSubmitting" />
           </label>
         </template>
-        <label v-if="!lockedBookAddress" class="client-order-detail__book-field">
+        <label v-if="needsBookAddress" class="client-order-detail__book-field">
           <span>{{ locale.startsWith("zh") ? "备注" : "Notes" }}</span>
           <input v-model.trim="bookForm.remark" :disabled="bookVisitSubmitting" />
         </label>
@@ -791,7 +813,7 @@
           <button
             class="client-order-detail__review-submit"
             type="button"
-            :disabled="bookVisitSubmitting || bookTimeLoading"
+            :disabled="bookVisitSubmitting || bookTimeLoading || !bookTimeReady"
             @click="submitBookVisit"
           >
             {{
@@ -836,7 +858,7 @@
 import { ElMessage } from "element-plus"
 import elLocaleEn from "element-plus/es/locale/lang/en"
 import elLocaleZhCn from "element-plus/es/locale/lang/zh-cn"
-import { computed, onMounted, reactive, ref } from "vue"
+import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from "vue"
 import { useI18n } from "vue-i18n"
 import { useRoute, useRouter } from "vue-router"
 import fallbackImage from "@/assets/images/client/kv.png"
@@ -864,6 +886,7 @@ import {
 } from "@/modules/client/api"
 import { useCart } from "@/modules/client/composables/useCart"
 import { normalizeRichTextHtml } from "@/modules/client/utils/richText"
+import { loadPackageBookingTimes } from "@/modules/client/utils/package-booking-times"
 import {
   formatCreatedAt,
   formatServiceSchedule,
@@ -873,6 +896,10 @@ import {
   formatOrderAddOns,
   localizeOrderText,
 } from "@/modules/client/utils/order-localization"
+import {
+  packageServiceLines,
+  packageTimesText,
+} from "@/modules/client/utils/order-list-page"
 
 const props = withDefaults(defineProps<{ mobile?: boolean }>(), {
   mobile: false,
@@ -934,8 +961,11 @@ const preferred = computed(() =>
     ? ["zh-CN", "zh", "en"]
     : ["en", "en-US", "zh-CN"],
 )
-const i18nText = (map?: Record<string, string>, fallback = "") => {
-  for (const lang of preferred.value) if (map?.[lang]) return map[lang]
+const i18nText = (map?: Record<string, string>, fallback = ""): string => {
+  for (const lang of preferred.value) {
+    const value = map?.[lang]
+    if (value) return value
+  }
   return Object.values(map || {}).find(Boolean) || fallback
 }
 const fallbackRefundReasons: RefundReasonRecord[] = [
@@ -1154,7 +1184,7 @@ const packageFulfillmentViews = computed(() =>
   }),
 )
 const packageVisitRemaining = (item: NonNullable<OrderListRecord["packageItems"]>[number]) => {
-  const remaining = Number(item.remainingTimes)
+  const remaining = item.remainingTimes == null ? NaN : Number(item.remainingTimes)
   if (Number.isFinite(remaining)) return remaining
   const redeem = Number(item.redeemTimes)
   const occupied = Number(item.occupiedTimes)
@@ -1169,24 +1199,40 @@ const packageExpired = computed(() => {
 })
 const packageBookableServices = computed(() =>
   (order.value?.packageItems || [])
-    .map((item) => {
-      const skuId = Number(item.skuId)
-      const spec = (item.specI18n || [])
-        .map((row) => i18nText(row.specValueNameI18n))
+    .map((item, index) => {
+      const spuId = String(item.spuId ?? "").trim()
+      const spuBound = Number(item.bindType) === 1 || item.skuId == null
+      const snapshot = order.value?.packageSnapshot?.items?.find((row) =>
+        spuBound
+          ? String(row.spuId ?? "") === spuId && (Number(row.bindType) === 1 || row.skuId == null)
+          : String(row.skuId ?? "") === String(item.skuId),
+      )
+      const skuId = String(spuBound ? snapshot?.chosenSkuId ?? "" : item.skuId ?? "")
+      const specs = item.specI18n?.length ? item.specI18n : snapshot?.specs || snapshot?.specI18n || []
+      const spec = specs
+        .map((row) => [i18nText(row.specTypeNameI18n), i18nText(row.specValueNameI18n)].filter(Boolean).join(": "))
         .filter(Boolean)
         .join(" / ")
       const name = i18nText(
         item.spuNameI18n,
         locale.value.startsWith("zh") ? "套餐服务" : "Package service",
       )
+      const previousVisit = (order.value?.fulfillmentList || []).find((row) =>
+        Number(row.scheduleStatus) !== 2 && String(row.serviceAddress || "").trim()
+        && (skuId ? String(row.skuId ?? "") === skuId : String(row.spuId ?? "") === spuId),
+      )
+      const locked = String(item.serviceAddress || "").trim() ? item : previousVisit
       return {
-        skuId: String(skuId),
-        spuId: String(item.spuId || ""),
-        name: spec ? `${name} · ${spec}` : name,
+        id: `${spuBound ? "spu" : "sku"}:${spuId}:${skuId}:${index}`,
+        spuId,
+        name,
+        spec,
+        lockedAddress: locked ? [locked.serviceAddress, locked.building, locked.roomNo, locked.community]
+          .map((part) => String(part || "").trim()).filter(Boolean).join(" · ") : "",
         remaining: packageVisitRemaining(item),
       }
     })
-    .filter((item) => Number(item.skuId) > 0 && item.remaining > 0),
+    .filter((item) => item.remaining > 0),
 )
 const canBookPackageVisit = computed(
   () =>
@@ -1194,6 +1240,25 @@ const canBookPackageVisit = computed(
     rawStatus.value === 1 &&
     !packageExpired.value &&
     packageBookableServices.value.length > 0,
+)
+const packageVisitLabels = {
+  total: "client.orderList.visitTotal",
+  completed: "client.orderList.visitCompleted",
+  inProgress: "client.orderList.visitInProgress",
+  remaining: "client.orderList.visitRemaining",
+} as const
+const packageServiceSummaries = computed(() =>
+  packageServiceLines(order.value?.packageItems, (map) =>
+    i18nText(map || undefined, ""),
+  ).map((line) => ({
+    ...line,
+    name:
+      line.name ||
+      (locale.value.startsWith("zh") ? "套餐服务" : "Package service"),
+    timesText: packageTimesText(line, (key, count) =>
+      t(packageVisitLabels[key], { count }),
+    ),
+  })),
 )
 const packageRemainingText = computed(() => {
   const remaining = Number(order.value?.remainingTimes)
@@ -1226,7 +1291,7 @@ const naturalSpecText = computed(() =>
       if (!valueName) return ""
       if (
         !locale.value.startsWith("zh") &&
-        /unit types?/i.test(typeName) &&
+        /unit types?/i.test(typeName || "") &&
         /^\d+\s+bedrooms?$/i.test(valueName)
       ) {
         return `${valueName} Apartment`
@@ -1986,13 +2051,15 @@ const submitCancellation = async () => {
 const bookVisitVisible = ref(false)
 const bookVisitSubmitting = ref(false)
 const bookTimeLoading = ref(false)
+const bookTimeError = ref("")
 const bookTimeOptions = ref<
   Array<{ time: string; timeRange: number; available: boolean }>
 >([])
 const savedAddresses = ref<ClientAddressRecord[]>([])
 const lastBookTimeKey = ref("")
+let bookTimesRequestSequence = 0
+let pendingBookTimeKey = ""
 const bookForm = reactive({
-  skuId: "",
   serviceDate: "",
   timeRange: null as number | null,
   firstName: "",
@@ -2005,28 +2072,21 @@ const bookForm = reactive({
   community: "",
   remark: "",
 })
-const selectedBookService = computed(
-  () =>
-    packageBookableServices.value.find((item) => item.skuId === bookForm.skuId) ||
-    null,
-)
-const lockedBookSource = computed(() => {
-  const skuId = bookForm.skuId
-  if (!skuId) return null
-  const rows = (order.value?.fulfillmentList || []).filter(
-    (item) =>
-      String(item.skuId || "") === skuId &&
-      String(item.serviceAddress || "").trim(),
-  )
-  return rows.find((item) => Number(item.scheduleStatus) !== 2) || rows[0] || null
+const needsBookAddress = computed(() => packageBookableServices.value.some((item) => !item.lockedAddress))
+const bookServiceSpuIds = computed(() => [...new Set(packageBookableServices.value.map((item) => item.spuId))].sort())
+const bookTimeContextKey = computed(() => {
+  const orderNo = String(order.value?.orderNo || "").trim()
+  const routeOrderNo = String(route.params.orderNo || "").trim()
+  const date = bookForm.serviceDate.trim()
+  if (!bookVisitVisible.value || !canBookPackageVisit.value || !orderNo || !date
+    || (routeOrderNo && routeOrderNo !== orderNo)) return ""
+  const services = packageBookableServices.value.map((item) => item.id).sort().join(",")
+  return `${orderNo}:${services}:${bookServiceSpuIds.value.join(",")}:${date}`
 })
-const lockedBookAddress = computed(() => {
-  const item = lockedBookSource.value
-  if (!item) return ""
-  return [item.serviceAddress, item.building, item.roomNo, item.community]
-    .map((part) => String(part || "").trim())
-    .filter(Boolean)
-    .join(" · ")
+const bookTimeReady = computed(() => {
+  const slot = bookTimeOptions.value.find((item) => item.timeRange === bookForm.timeRange)
+  return Boolean(bookTimeContextKey.value && lastBookTimeKey.value === bookTimeContextKey.value
+    && !bookTimeLoading.value && !bookTimeError.value && slot?.available)
 })
 const bookTimePlaceholder = computed(() => {
   if (!bookForm.serviceDate)
@@ -2035,6 +2095,8 @@ const bookTimePlaceholder = computed(() => {
       : "Please select a date first"
   if (bookTimeLoading.value)
     return locale.value.startsWith("zh") ? "时间加载中…" : "Loading times…"
+  if (bookTimeError.value)
+    return locale.value.startsWith("zh") ? "时间加载失败，请重试" : "Unable to load times. Retry."
   if (!bookTimeOptions.value.length)
     return locale.value.startsWith("zh") ? "暂无可选时间" : "No available times"
   return locale.value.startsWith("zh") ? "请选择时段" : "Select a time slot"
@@ -2050,71 +2112,58 @@ const clearBookContact = () => {
   bookForm.community = ""
   bookForm.remark = ""
 }
-const applyLockedBookContact = () => {
-  const item = lockedBookSource.value
-  if (!item) return
-  bookForm.firstName = String(item.firstName || "").trim()
-  bookForm.lastName = String(item.lastName || "").trim()
-  bookForm.phone = String(item.phone || "").trim()
-  bookForm.email = String(item.email || "").trim()
-  bookForm.serviceAddress = String(item.serviceAddress || "").trim()
-  bookForm.building = String(item.building || "").trim()
-  bookForm.roomNo = String(item.roomNo || "").trim()
-  bookForm.community = String(item.community || "").trim()
+const clearBookAvailableTimes = () => {
+  bookTimesRequestSequence += 1
+  pendingBookTimeKey = ""
+  bookForm.timeRange = null
+  bookTimeOptions.value = []
+  lastBookTimeKey.value = ""
+  bookTimeError.value = ""
+  bookTimeLoading.value = false
 }
 const fetchBookAvailableTimes = async () => {
+  const cacheKey = bookTimeContextKey.value
   const serviceTime = bookForm.serviceDate.trim()
-  const spuId = String(selectedBookService.value?.spuId || "").trim()
-  if (!serviceTime || !spuId) return
-  const cacheKey = `${spuId}:${serviceTime}`
+  if (!cacheKey) return
   if (cacheKey === lastBookTimeKey.value && bookTimeOptions.value.length) return
+  if (bookTimeLoading.value && pendingBookTimeKey === cacheKey) return
+  const sequence = ++bookTimesRequestSequence
+  pendingBookTimeKey = cacheKey
+  bookForm.timeRange = null
+  bookTimeOptions.value = []
+  lastBookTimeKey.value = ""
+  bookTimeError.value = ""
   bookTimeLoading.value = true
   try {
-    const payload = await getAvailableSelectTime({
-      spuId: Number.isFinite(Number(spuId)) ? Number(spuId) : spuId,
-      serviceTime,
-    })
-    const rows = Array.isArray(payload) ? (payload as AvailableTimeRecord[]) : []
-    bookTimeOptions.value = rows
-      .map((item) => {
-        const time = String(item.time || "").trim()
-        const timeRange = Number(item.timeRange)
-        if (!time || !Number.isFinite(timeRange)) return null
-        return {
-          time,
-          timeRange,
-          available: Boolean(item.avaiable ?? item.available ?? false),
-        }
-      })
-      .filter(
-        (
-          item,
-        ): item is { time: string; timeRange: number; available: boolean } =>
-          Boolean(item),
-      )
+    const slots = await loadPackageBookingTimes(bookServiceSpuIds.value, serviceTime)
+    if (sequence !== bookTimesRequestSequence || cacheKey !== bookTimeContextKey.value) return
+    bookTimeOptions.value = slots
     lastBookTimeKey.value = cacheKey
   } catch (error) {
+    if (sequence !== bookTimesRequestSequence || cacheKey !== bookTimeContextKey.value) return
     console.error("load package visit times failed:", error)
     bookTimeOptions.value = []
     lastBookTimeKey.value = ""
+    bookTimeError.value = locale.value.startsWith("zh")
+      ? "无法加载所有服务共同可约的时段，请重试。"
+      : "Unable to load time slots for all services. Please retry."
   } finally {
-    bookTimeLoading.value = false
+    if (sequence === bookTimesRequestSequence && cacheKey === bookTimeContextKey.value) {
+      bookTimeLoading.value = false
+      pendingBookTimeKey = ""
+    }
   }
 }
-const handleBookServiceChange = () => {
-  bookForm.timeRange = null
-  bookTimeOptions.value = []
-  lastBookTimeKey.value = ""
+watch(bookTimeContextKey, (key) => {
+  clearBookAvailableTimes()
+  if (key) void fetchBookAvailableTimes()
+}, { flush: "sync" })
+watch(() => route.params.orderNo, () => {
+  bookVisitVisible.value = false
+  clearBookAvailableTimes()
   clearBookContact()
-  applyLockedBookContact()
-  void fetchBookAvailableTimes()
-}
-const handleBookDateChange = () => {
-  bookForm.timeRange = null
-  bookTimeOptions.value = []
-  lastBookTimeKey.value = ""
-  void fetchBookAvailableTimes()
-}
+}, { flush: "sync" })
+onBeforeUnmount(clearBookAvailableTimes)
 const applySavedAddress = (event: Event) => {
   const id = Number((event.target as HTMLSelectElement | null)?.value)
   const item = savedAddresses.value.find((row) => row.id === id)
@@ -2139,16 +2188,14 @@ const applySavedAddress = (event: Event) => {
   bookForm.remark = String(item.additionalNotes || "").trim()
 }
 const openBookVisit = async () => {
-  if (!canBookPackageVisit.value) return
-  bookForm.skuId = packageBookableServices.value[0]?.skuId || ""
+  if (!canBookPackageVisit.value || bookVisitSubmitting.value) return
+  const routeOrderNo = String(route.params.orderNo || "").trim()
+  if (routeOrderNo && routeOrderNo !== String(order.value?.orderNo || "").trim()) return
   bookForm.serviceDate = ""
-  bookForm.timeRange = null
-  bookTimeOptions.value = []
-  lastBookTimeKey.value = ""
+  clearBookAvailableTimes()
   clearBookContact()
-  applyLockedBookContact()
   bookVisitVisible.value = true
-  if (!lockedBookSource.value && !savedAddresses.value.length) {
+  if (needsBookAddress.value && !savedAddresses.value.length) {
     try {
       savedAddresses.value = await getClientAddressList()
     } catch (error) {
@@ -2158,14 +2205,16 @@ const openBookVisit = async () => {
   }
 }
 const closeBookVisit = () => {
-  if (!bookVisitSubmitting.value) bookVisitVisible.value = false
+  if (!bookVisitSubmitting.value) {
+    bookVisitVisible.value = false
+    clearBookAvailableTimes()
+  }
 }
 const submitBookVisit = async () => {
   if (bookVisitSubmitting.value) return
-  const skuId = Number(bookForm.skuId)
-  if (!skuId) {
+  if (!bookVisitVisible.value || !canBookPackageVisit.value) {
     ElMessage.warning(
-      locale.value.startsWith("zh") ? "请选择服务" : "Select a service",
+      locale.value.startsWith("zh") ? "当前没有可预约的套餐服务" : "No package services are available to book",
     )
     return
   }
@@ -2184,17 +2233,17 @@ const submitBookVisit = async () => {
   const selectedSlot = bookTimeOptions.value.find(
     (slot) => slot.timeRange === bookForm.timeRange,
   )
-  if (selectedSlot && !selectedSlot.available) {
+  if (bookTimeLoading.value || bookTimeError.value || !selectedSlot?.available
+    || !bookTimeContextKey.value || lastBookTimeKey.value !== bookTimeContextKey.value) {
     ElMessage.warning(
       locale.value.startsWith("zh")
-        ? "这个时段已经约满"
-        : "This time slot is unavailable",
+        ? "请等待所有服务时段加载完成，并选择有效时段"
+        : "Wait for all service times to load and select an available slot",
     )
     return
   }
-  const locked = lockedBookSource.value
   if (
-    !locked &&
+    needsBookAddress.value &&
     (!bookForm.firstName || !bookForm.phone || !bookForm.serviceAddress)
   ) {
     ElMessage.warning(
@@ -2210,27 +2259,21 @@ const submitBookVisit = async () => {
   try {
     const fulfillmentNo = await fulfillPackageOrder({
       orderNo,
-      skuId,
       serviceDate: bookForm.serviceDate,
       timeRange: bookForm.timeRange,
-      firstName: locked
-        ? String(locked.firstName || "").trim()
-        : bookForm.firstName,
-      lastName: locked
-        ? String(locked.lastName || "").trim()
-        : bookForm.lastName,
-      phone: locked ? String(locked.phone || "").trim() : bookForm.phone,
-      email: locked ? String(locked.email || "").trim() : bookForm.email,
-      serviceAddress: locked
-        ? String(locked.serviceAddress || "").trim()
-        : bookForm.serviceAddress,
-      building: locked ? String(locked.building || "").trim() : bookForm.building,
-      roomNo: locked ? String(locked.roomNo || "").trim() : bookForm.roomNo,
-      community: locked
-        ? String(locked.community || "").trim()
-        : bookForm.community,
-      remark: locked ? String(locked.remark || "").trim() : bookForm.remark,
+      ...(needsBookAddress.value ? {
+        firstName: bookForm.firstName,
+        lastName: bookForm.lastName,
+        phone: bookForm.phone,
+        email: bookForm.email,
+        serviceAddress: bookForm.serviceAddress,
+        building: bookForm.building,
+        roomNo: bookForm.roomNo,
+        community: bookForm.community,
+        remark: bookForm.remark,
+      } : {}),
     })
+    if (String(route.params.orderNo || "").trim() !== orderNo) return
     ElMessage.success(
       locale.value.startsWith("zh")
         ? `已预约上门${fulfillmentNo ? `：${fulfillmentNo}` : ""}`
@@ -2599,6 +2642,64 @@ onMounted(async () => {
 .client-order-detail__book-visit:disabled {
   cursor: default;
   opacity: 0.6;
+}
+.client-order-detail__book-services {
+  display: grid;
+  gap: 10px;
+  margin: 0 0 18px;
+  padding: 0;
+  list-style: none;
+}
+.client-order-detail__book-dialog {
+  max-height: calc(100dvh - 36px);
+  overflow-y: auto;
+}
+.client-order-detail__book-services li {
+  padding: 12px;
+  border: 1px solid #e2eaf2;
+  border-radius: 12px;
+  background: #f8fbfe;
+}
+.client-order-detail__book-service-heading {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 6px 10px;
+  color: #05152b;
+  font-size: 13px;
+}
+.client-order-detail__book-service-heading span,
+.client-order-detail__book-services small {
+  color: #526176;
+  font-size: 12px;
+}
+.client-order-detail__book-services small {
+  display: block;
+  margin-top: 5px;
+  overflow-wrap: anywhere;
+}
+.client-order-detail__book-services .client-order-detail__book-lock {
+  margin: 8px 0 0;
+  padding: 0;
+  background: transparent;
+  font-size: 12px;
+}
+.client-order-detail__book-error {
+  color: #b42318;
+  font-size: 13px;
+}
+.client-order-detail__book-error button {
+  margin-left: 8px;
+  border: 0;
+  background: transparent;
+  color: #1769c2;
+  font: inherit;
+  cursor: pointer;
+}
+.client-order-detail__book-address-hint {
+  color: #526176;
+  font-size: 13px;
+  line-height: 1.6;
 }
 .client-order-detail__book-field {
   display: flex;

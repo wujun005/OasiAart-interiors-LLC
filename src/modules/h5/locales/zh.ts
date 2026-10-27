@@ -164,6 +164,8 @@ const zh = {
       help: '帮助',
     },
     menu: {
+      bookings: '我的预约',
+      packages: '我的套餐',
       personal: '个人信息',
       addresses: '常用地址',
       payments: '支付方式',
@@ -202,7 +204,7 @@ const zh = {
       bookingQuestion: '如何预约服务？',
       bookingAnswer: '选择服务、查看详情，然后在线提交预约信息。',
       ordersQuestion: '在哪里查看预约？',
-      ordersAnswer: '从底部导航进入订单，即可查看预约状态。',
+      ordersAnswer: '进入“我的账户”中的“我的预约”，即可查看预约状态。',
     },
     partner: {
       title: '成为服务合作伙伴',

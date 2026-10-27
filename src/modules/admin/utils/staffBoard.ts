@@ -1,6 +1,6 @@
-export type StaffJobStatus = "available" | "onJob" | "offline" | "unavailable"
+export type StaffPresence = "idle" | "enRoute" | "serving"
 
-const JOBS: StaffJobStatus[] = ["available", "onJob", "offline", "unavailable"]
+const PRESENCE: StaffPresence[] = ["idle", "enRoute", "serving"]
 
 export function dubaiDateKey(date = new Date()) {
   return new Intl.DateTimeFormat("en-CA", {
@@ -11,21 +11,10 @@ export function dubaiDateKey(date = new Date()) {
   }).format(date)
 }
 
-export function deriveStaffJob(input: {
-  serverStatus?: string | null
-  suspended?: boolean
-  acceptJobs?: boolean | null
-  onJob?: boolean
-  loggedInToday?: boolean | null
-}): StaffJobStatus | "" {
-  if (input.serverStatus && JOBS.includes(input.serverStatus as StaffJobStatus)) {
-    return input.serverStatus as StaffJobStatus
+export function staffPresence(serverStatus?: string | null): StaffPresence | "" {
+  if (serverStatus && PRESENCE.includes(serverStatus as StaffPresence)) {
+    return serverStatus as StaffPresence
   }
-  if (input.suspended) return "unavailable"
-  if (input.onJob) return "onJob"
-  if (input.acceptJobs === false) return "unavailable"
-  if (input.loggedInToday === false) return "offline"
-  if (input.loggedInToday === true) return "available"
   return ""
 }
 
@@ -40,20 +29,22 @@ type StaffOrder = {
 
 export function tallyStaffJobs(orders: StaffOrder[], adminUserId: number, today: string) {
   let count = 0
-  let onJob = false
+  let presence: StaffPresence = "idle"
   for (const order of orders || []) {
     if (!order) continue
     if (Number(order.orderStatus) === 3) continue
     if (Number(order.scheduleStatus) === 2) continue
     if (String(order.supplierStage || "").toUpperCase() === "CANCELLED") continue
-    if (String(order.serviceDate || "").slice(0, 10) !== today) continue
     const assigned = Array.isArray(order.assignedStaff) ? order.assignedStaff : []
     if (!assigned.some((item) => Number(item?.adminUserId) === adminUserId)) continue
-    count += 1
     const status = Number(order.serviceStatus)
-    if (status === 1 || status === 3) onJob = true
+    const sameDay = String(order.serviceDate || "").slice(0, 10) === today
+    if (sameDay) count += 1
+    if (!sameDay && status !== 1 && status !== 3) continue
+    if (status === 1) presence = "serving"
+    else if (status === 3 && presence !== "serving") presence = "enRoute"
   }
-  return { count, onJob }
+  return { count, presence }
 }
 
 export function serviceLabel(

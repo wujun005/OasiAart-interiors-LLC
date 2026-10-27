@@ -37,7 +37,6 @@
         <p>{{ t("admin.supplierPortal.workspaceHint") }}</p>
         <div class="setup-cards">
           <article>
-            <span class="setup-number">01</span>
             <h3>{{ t("admin.supplierPortal.profile") }}</h3>
             <p>{{ t("admin.supplierPortal.profileHint") }}</p>
             <p class="setup-status-label">
@@ -53,7 +52,7 @@
                 :class="[item.tone, { 'has-count': Number(item.count) > 0 }]"
               >
                 <span>{{ item.label }}</span>
-                <b>{{ item.count }}</b>
+                <b class="portal-numeric">{{ item.count }}</b>
               </li>
             </ul>
             <el-button type="primary" @click="goTo('profile')"
@@ -61,7 +60,6 @@
             /></el-button>
           </article>
           <article>
-            <span class="setup-number">02</span>
             <h3>{{ t("admin.supplierPortal.coverage") }}</h3>
             <p>{{ t("admin.supplierPortal.coverageHint") }}</p>
             <p class="setup-status-label">
@@ -77,7 +75,7 @@
                 :class="[item.tone, { 'has-count': Number(item.count) > 0 }]"
               >
                 <span>{{ item.label }}</span>
-                <b>{{ item.count == null ? "—" : item.count }}</b>
+                <b class="portal-numeric">{{ item.count == null ? "—" : item.count }}</b>
               </li>
             </ul>
             <el-button @click="goTo('coverage-availability')"
@@ -85,7 +83,6 @@
             /></el-button>
           </article>
           <article>
-            <span class="setup-number">03</span>
             <h3>{{ t("admin.supplierPortal.services") }}</h3>
             <p>{{ t("admin.supplierPortal.servicesHint") }}</p>
             <p class="setup-status-label">
@@ -101,7 +98,7 @@
                 :class="[item.tone, { 'has-count': Number(item.count) > 0 }]"
               >
                 <span>{{ item.label }}</span>
-                <b>{{ item.count }}</b>
+                <b class="portal-numeric">{{ item.count }}</b>
               </li>
             </ul>
             <el-button @click="goTo('pricing')"
@@ -126,6 +123,7 @@
                   profileView === 'section' &&
                   (profileSection === item.index ||
                     (item.index === 0 && profileSection === 1)),
+                'is-alert': profileStepIncomplete(item.index),
               }"
               @click="openProfileSection(item.index)"
             >
@@ -143,7 +141,7 @@
             </button>
           </nav>
           <div class="profile-progress">
-            <span>{{
+            <span class="portal-numeric">{{
               t("admin.supplierPortal.sectionsComplete", {
                 count: profileNav.filter(
                   (item) => !profileStepIncomplete(item.index),
@@ -189,10 +187,7 @@
             <div>
               <p>{{ lightboxCrumb }}</p>
               <h2>
-                <span v-if="profileView === 'section'">{{
-                  activeProfileSection.num
-                }}</span
-                >{{ lightboxTitle }}
+                {{ lightboxTitle }}
               </h2>
               <small>{{ lightboxDesc }}</small>
             </div>
@@ -230,7 +225,6 @@
           >
             <section v-show="showProfileSection(0)">
               <header class="sec-h">
-                <span>01</span>
                 <div>
                   <h2>{{ t("admin.supplierProfile.companyTitle") }}</h2>
                 </div>
@@ -388,7 +382,6 @@
                 {{ t("admin.supplierProfile.contactTitle") }}
               </h3>
               <header v-else class="sec-h">
-                <span>02</span>
                 <div>
                   <h2>{{ t("admin.supplierProfile.contactTitle") }}</h2>
                 </div>
@@ -510,7 +503,6 @@
 
             <section v-show="showProfileSection(2)">
               <header class="sec-h">
-                <span>03</span>
                 <div>
                   <h2>{{ t("admin.supplierProfile.capacityTitle") }}</h2>
                 </div>
@@ -595,6 +587,9 @@
                       )
                     "
                 /></label>
+                <h3 class="profile-group-title span-2">
+                  {{ t("admin.supplierAvailability.workingHours") }}
+                </h3>
                 <label class="profile-field"
                   ><span>{{ t("admin.supplierProfile.workStart") }}</span
                   ><el-time-select
@@ -895,13 +890,32 @@
                   <small v-if="issueOf('tradeLicense')" class="err">{{
                     issueOf("tradeLicense")
                   }}</small>
+                  <small v-if="docUploading('trade')" class="doc-uploading">{{
+                    uploadStatusText("trade")
+                  }}</small>
+                  <div
+                    v-if="docUploading('trade')"
+                    class="doc-progress"
+                    role="progressbar"
+                    :aria-valuenow="docUploadPercent('trade')"
+                    aria-valuemin="0"
+                    aria-valuemax="100"
+                    :aria-label="uploadStatusText('trade')"
+                  >
+                    <span
+                      :style="{
+                        width: `${Math.max(docUploadPercent('trade'), 8)}%`,
+                      }"
+                    ></span>
+                  </div>
                 </div>
                 <el-upload
                   v-if="!profileReadOnly"
+                  :disabled="docUploading('trade')"
                   :show-file-list="false"
                   :http-request="(options) => uploadDocFile('trade', options)"
                 >
-                  <el-button>{{
+                  <el-button :loading="docUploading('trade')">{{
                     tradeLicenseFiles.length
                       ? t("admin.supplierProfile.replaceFile")
                       : t("admin.supplierProfile.upload")
@@ -943,13 +957,32 @@
                   <small v-if="!doc.files.length">{{
                     t("admin.supplierProfile.notUploaded")
                   }}</small>
+                  <small v-if="docUploading(doc.id)" class="doc-uploading">{{
+                    uploadStatusText(doc.id)
+                  }}</small>
+                  <div
+                    v-if="docUploading(doc.id)"
+                    class="doc-progress"
+                    role="progressbar"
+                    :aria-valuenow="docUploadPercent(doc.id)"
+                    aria-valuemin="0"
+                    aria-valuemax="100"
+                    :aria-label="uploadStatusText(doc.id)"
+                  >
+                    <span
+                      :style="{
+                        width: `${Math.max(docUploadPercent(doc.id), 8)}%`,
+                      }"
+                    ></span>
+                  </div>
                 </div>
                 <el-upload
                   v-if="!profileReadOnly"
+                  :disabled="docUploading(doc.id)"
                   :show-file-list="false"
                   :http-request="(options) => uploadDocFile(doc.id, options)"
                 >
-                  <el-button>{{
+                  <el-button :loading="docUploading(doc.id)">{{
                     doc.files.length
                       ? t("admin.supplierProfile.replaceFile")
                       : t("admin.supplierProfile.upload")
@@ -998,14 +1031,100 @@
                   <small v-if="issueOf('bankCertificate')" class="err">{{
                     issueOf("bankCertificate")
                   }}</small>
+                  <small v-if="docUploading('other')" class="doc-uploading">{{
+                    uploadStatusText("other")
+                  }}</small>
+                  <div
+                    v-if="docUploading('other')"
+                    class="doc-progress"
+                    role="progressbar"
+                    :aria-valuenow="docUploadPercent('other')"
+                    aria-valuemin="0"
+                    aria-valuemax="100"
+                    :aria-label="uploadStatusText('other')"
+                  >
+                    <span
+                      :style="{
+                        width: `${Math.max(docUploadPercent('other'), 8)}%`,
+                      }"
+                    ></span>
+                  </div>
                 </div>
                 <el-upload
                   v-if="!profileReadOnly"
+                  :disabled="docUploading('other')"
                   :show-file-list="false"
                   :http-request="(options) => uploadDocFile('other', options)"
                 >
-                  <el-button>{{
+                  <el-button :loading="docUploading('other')">{{
                     otherDocumentFiles.length
+                      ? t("admin.supplierProfile.replaceFile")
+                      : t("admin.supplierProfile.upload")
+                  }}</el-button>
+                </el-upload>
+              </div>
+              <div id="profile-field-vatCertificate" class="doc-row">
+                <div>
+                  <strong
+                    >{{ t("admin.supplierProfile.vatCertificate") }}
+                    <el-tag
+                      size="small"
+                      :type="vatCertificateFiles.length ? 'success' : 'info'"
+                      >{{
+                        t(
+                          vatCertificateFiles.length
+                            ? "admin.supplierPortal.uploaded"
+                            : "admin.supplierPortal.notUploaded",
+                        )
+                      }}</el-tag
+                    ></strong
+                  >
+                  <p
+                    v-for="(url, index) in vatCertificateFiles"
+                    :key="`vat-${url}-${index}`"
+                  >
+                    <button type="button" @click="openFilePreview(url)">
+                      {{ fileNameFromUrl(url) }}
+                    </button>
+                    <button
+                      v-if="!profileReadOnly"
+                      type="button"
+                      class="is-remove"
+                      @click="removeDocFile('vat', index)"
+                    >
+                      {{ t("admin.supplierProfile.remove") }}
+                    </button>
+                  </p>
+                  <small v-if="!vatCertificateFiles.length">{{
+                    t("admin.supplierProfile.notUploaded")
+                  }}</small>
+                  <small v-if="docUploading('vat')" class="doc-uploading">{{
+                    uploadStatusText("vat")
+                  }}</small>
+                  <div
+                    v-if="docUploading('vat')"
+                    class="doc-progress"
+                    role="progressbar"
+                    :aria-valuenow="docUploadPercent('vat')"
+                    aria-valuemin="0"
+                    aria-valuemax="100"
+                    :aria-label="uploadStatusText('vat')"
+                  >
+                    <span
+                      :style="{
+                        width: `${Math.max(docUploadPercent('vat'), 8)}%`,
+                      }"
+                    ></span>
+                  </div>
+                </div>
+                <el-upload
+                  v-if="!profileReadOnly"
+                  :disabled="docUploading('vat')"
+                  :show-file-list="false"
+                  :http-request="(options) => uploadDocFile('vat', options)"
+                >
+                  <el-button :loading="docUploading('vat')">{{
+                    vatCertificateFiles.length
                       ? t("admin.supplierProfile.replaceFile")
                       : t("admin.supplierProfile.upload")
                   }}</el-button>
@@ -1315,7 +1434,7 @@
             @click="showToast('已切换到上一周')"
           />
           <div>
-            <strong>2026年9月21日 – 9月27日</strong
+            <strong class="portal-numeric">2026年9月21日 – 9月27日</strong
             ><span>Asia/Dubai · GST</span>
           </div>
           <el-button
@@ -1371,8 +1490,8 @@
             :class="{ today: day.today }"
           >
             <span>{{ day.weekday }}</span
-            ><strong>{{ day.date }}</strong
-            ><small>{{ day.orders }} orders</small>
+            ><strong class="portal-numeric">{{ day.date }}</strong
+            ><small class="portal-numeric">{{ day.orders }} orders</small>
           </div>
         </div>
         <div
@@ -1399,7 +1518,7 @@
           >
             <template v-if="shiftFor(person.id, day.key).label"
               ><strong>{{ shiftFor(person.id, day.key).label }}</strong
-              ><span>{{ shiftFor(person.id, day.key).time }}</span
+              ><span class="portal-numeric">{{ shiftFor(person.id, day.key).time }}</span
               ><small>{{
                 shiftFor(person.id, day.key).orders
               }}</small></template
@@ -1434,17 +1553,23 @@
         class="portal-orders-metrics"
         :aria-label="t('admin.supplierPortal.orderManagement')"
       >
-        <article
+        <button
           v-for="metric in orderMetrics"
           :key="metric.key"
-          :class="`portal-orders-metric--${metric.key}`"
+          type="button"
+          :class="[
+            `portal-orders-metric--${metric.key}`,
+            { 'is-selected': orderStage === metric.key },
+          ]"
+          :aria-pressed="orderStage === metric.key"
+          @click="selectOrderMetric(metric.key)"
         >
           <span>{{ metric.label }}</span>
-          <strong>{{ metric.value ?? "—" }}</strong>
+          <strong class="portal-numeric">{{ metric.value ?? "—" }}</strong>
           <small v-if="metric.value === null">{{
             t("admin.supplierPortal.metricsPending")
           }}</small>
-        </article>
+        </button>
       </section>
 
       <el-card
@@ -1457,7 +1582,12 @@
             <div>
               <strong>{{ t("admin.supplierPortal.orderManagement") }}</strong>
               <span>{{
-                t("admin.supplierOrders.count", { count: orderTotal })
+                t(
+                  orderTotal === 1
+                    ? "admin.supplierOrders.countOne"
+                    : "admin.supplierOrders.count",
+                  { count: orderTotal },
+                )
               }}</span>
             </div>
             <el-button v-if="hasOrderFilters" link @click="resetOrderFilters">{{
@@ -1483,6 +1613,7 @@
               @click="changeOrderStage(stage.value)"
             >
               {{ stage.label }}
+              <b v-if="stage.count != null" class="portal-numeric">{{ stage.count }}</b>
             </button>
           </nav>
           <div class="order-filters portal-orders-filters">
@@ -1577,6 +1708,12 @@
               <template #default="{ row }">
                 <div class="order-cell">
                   <strong>{{ orderServiceTitle(row) }}</strong>
+                  <small v-if="packageOrderTitle(row)" class="order-package-visit">{{
+                    packageOrderTitle(row)
+                  }}</small>
+                  <small v-if="packageVisitText(row)" class="order-package-visit">{{
+                    packageVisitText(row)
+                  }}</small>
                   <small
                     v-if="orderSpecText(row) !== '—'"
                     class="order-clamp"
@@ -1594,14 +1731,23 @@
                     class="order-reschedule"
                     >{{ t("admin.supplierOrders.rescheduleNotice") }}</small
                   >
-                  <small
-                    v-if="assignedStaffText(row) || canAssignStaff(row)"
-                    class="order-staff"
-                    >{{
-                      assignedStaffText(row) ||
-                      t("admin.supplierOrders.assignedStaffEmpty")
-                    }}</small
-                  >
+                </div>
+              </template>
+            </el-table-column>
+            <el-table-column
+              class-name="order-wrap"
+              :label="t('admin.supplierOrders.assignedStaff')"
+              min-width="120"
+            >
+              <template #default="{ row }">
+                <div class="order-cell">
+                  <strong v-if="assignedStaffText(row)" class="order-staff-name">{{
+                    assignedStaffText(row)
+                  }}</strong>
+                  <span v-else-if="canAssignStaff(row)" class="order-staff-name is-empty">{{
+                    t("admin.supplierOrders.assignedStaffEmpty")
+                  }}</span>
+                  <span v-else>—</span>
                 </div>
               </template>
             </el-table-column>
@@ -1612,8 +1758,8 @@
             >
               <template #default="{ row }">
                 <div class="order-cell">
-                  <strong>{{ row.serviceDate || "—" }}</strong>
-                  <small v-if="orderStartTime(row.serviceTime)">{{
+                  <strong class="portal-numeric">{{ row.serviceDate || "—" }}</strong>
+                  <small class="portal-numeric" v-if="orderStartTime(row.serviceTime)">{{
                     orderStartTime(row.serviceTime)
                   }}</small>
                 </div>
@@ -1638,7 +1784,7 @@
             >
               <template #default="{ row }">
                 <div class="order-cell order-cell--end">
-                  <strong class="money-value"
+                  <strong class="money-value portal-numeric portal-numeric--money"
                     ><small>AED</small>{{ orderMoney(row.quotePrice) }}</strong
                   >
                   <small v-if="row.quoteMode != null">{{
@@ -1692,21 +1838,21 @@
                     >{{ t("admin.supplierOrders.acceptAction") }}</el-button
                   >
                   <el-button
-                    v-else-if="serviceStep(row) === 4 && !orderCancelled(row)"
+                    v-else-if="canOperateVisit(row) && serviceStep(row) === 4"
                     link
                     type="primary"
                     @click="departForService(row)"
                     >{{ t("admin.supplierOrders.departAction") }}</el-button
                   >
                   <el-button
-                    v-else-if="serviceStep(row) === 3 && !orderCancelled(row)"
+                    v-else-if="canOperateVisit(row) && serviceStep(row) === 3"
                     link
                     type="primary"
                     @click="openServiceAction(row, 'arrive')"
                     >{{ t("admin.supplierOrders.arriveAction") }}</el-button
                   >
                   <el-button
-                    v-else-if="serviceStep(row) === 1 && !orderCancelled(row)"
+                    v-else-if="canOperateVisit(row) && serviceStep(row) === 1"
                     link
                     type="primary"
                     @click="openServiceAction(row, 'complete')"
@@ -1756,24 +1902,37 @@
             <dl>
               <div>
                 <dt>{{ t("admin.supplierOrders.serviceTime") }}</dt>
-                <dd>{{ orderWhen(row) }}</dd>
+                <dd class="portal-numeric">{{ orderWhen(row) }}</dd>
               </div>
               <div>
                 <dt>{{ t("admin.supplierOrders.price") }}</dt>
-                <dd>AED {{ orderMoney(row.quotePrice) }}</dd>
+                <dd class="portal-numeric portal-numeric--money">AED {{ orderMoney(row.quotePrice) }}</dd>
               </div>
               <div class="is-wide">
                 <dt>{{ t("admin.supplierPortal.customerArea") }}</dt>
                 <dd>{{ orderCustomerArea(row) }}</dd>
+              </div>
+              <div
+                v-if="assignedStaffText(row) || canAssignStaff(row)"
+                class="is-wide"
+              >
+                <dt>{{ t("admin.supplierOrders.assignedStaff") }}</dt>
+                <dd>{{
+                  assignedStaffText(row) ||
+                  t("admin.supplierOrders.assignedStaffEmpty")
+                }}</dd>
               </div>
             </dl>
             <footer>
               <el-button @click="openAssignedOrder(row)">{{
                 t("admin.supplierOrders.viewDetail")
               }}</el-button>
-              <el-button v-if="canAssignStaff(row)" @click="openAssignStaff(row)">{{
-                t("admin.supplierOrders.assignStaff")
-              }}</el-button>
+              <el-button
+                v-if="canAssignStaff(row)"
+                type="primary"
+                @click="openAssignStaff(row)"
+                >{{ t("admin.supplierOrders.assignStaff") }}</el-button
+              >
               <el-button
                 v-if="serviceStep(row) === 0 && !orderCancelled(row)"
                 @click="rejectOrder(row)"
@@ -1786,19 +1945,19 @@
                 >{{ t("admin.supplierOrders.acceptAction") }}</el-button
               >
               <el-button
-                v-else-if="serviceStep(row) === 4 && !orderCancelled(row)"
+                v-else-if="canOperateVisit(row) && serviceStep(row) === 4"
                 type="primary"
                 @click="departForService(row)"
                 >{{ t("admin.supplierOrders.departAction") }}</el-button
               >
               <el-button
-                v-else-if="serviceStep(row) === 3 && !orderCancelled(row)"
+                v-else-if="canOperateVisit(row) && serviceStep(row) === 3"
                 type="primary"
                 @click="openServiceAction(row, 'arrive')"
                 >{{ t("admin.supplierOrders.arriveAction") }}</el-button
               >
               <el-button
-                v-else-if="serviceStep(row) === 1 && !orderCancelled(row)"
+                v-else-if="canOperateVisit(row) && serviceStep(row) === 1"
                 type="primary"
                 @click="openServiceAction(row, 'complete')"
                 >{{ t("admin.supplierOrders.completeAction") }}</el-button
@@ -1889,7 +2048,7 @@
               :loading="quoteExporting"
               :disabled="!supplierRecordId"
               @click="downloadQuoteTemplate"
-              >{{ t("admin.supplierPricing.downloadTemplate") }}</el-button
+              >{{ quoteExportLabel }}</el-button
             >
             <el-button
               :icon="Upload"
@@ -1955,12 +2114,22 @@
                   t("admin.supplierPricing.service")
                 }}</span>
                 <h2>{{ selectedPricingCategory }}</h2>
-                <p>
-                  {{
+                <p class="portal-quote-select">
+                  <el-checkbox
+                    :model-value="allVisibleQuotesSelected"
+                    :indeterminate="someVisibleQuotesSelected"
+                    :disabled="!filteredServiceRows.length"
+                    :aria-label="t('admin.supplierPricing.selectVisible')"
+                    @change="toggleVisibleQuoteSelection"
+                  />
+                  <span>{{
                     t("admin.supplierPricing.count", {
                       count: filteredServiceRows.length,
                     })
-                  }}
+                  }}</span>
+                </p>
+                <p class="portal-quote-select-hint">
+                  {{ t("admin.supplierPricing.exportSelectionHint") }}
                 </p>
               </div>
               <div class="portal-service-filters">
@@ -1986,7 +2155,7 @@
                 :class="{ 'is-active': quoteStatusFilter === item.value }"
                 @click="quoteStatusFilter = item.value"
               >
-                <strong>{{ item.count }}</strong>
+                <strong class="portal-numeric">{{ item.count }}</strong>
                 <span>{{ item.label }}</span>
               </button>
             </div>
@@ -1997,6 +2166,17 @@
                 class="portal-service-row"
               >
                 <div class="portal-service-name">
+                  <el-checkbox
+                    class="portal-quote-check"
+                    :model-value="quoteSpuSelected(row.spuId)"
+                    :aria-label="
+                      t('admin.supplierPricing.selectService', {
+                        name: serviceTitle(row.name, row.spuNameI18n),
+                      })
+                    "
+                    @click.stop
+                    @change="(checked) => toggleQuoteSpu(row.spuId, checked === true)"
+                  />
                   <span class="portal-service-avatar">{{
                     String(serviceTitle(row.name, row.spuNameI18n) || "S")
                       .slice(0, 1)
@@ -2005,15 +2185,14 @@
                   <div>
                     <h3>{{ serviceTitle(row.name, row.spuNameI18n) }}</h3>
                     <div class="portal-service-meta">
-                      <p class="portal-service-price">{{ yourPriceText(row) }}</p>
+                      <p class="portal-service-price portal-numeric portal-numeric--money">{{ yourPriceText(row) }}</p>
                       <button
                         type="button"
                         class="portal-contact-summary"
                         :aria-label="
-                          t('admin.supplierPortal.editContactSummary', {
+                          t('admin.supplierPortal.editStaffSummary', {
                             service: serviceTitle(row.name, row.spuNameI18n),
                             staff: Number(row.workerCount) || 0,
-                            contacts: listedPhones(row.phones).length,
                           })
                         "
                         @click="openServiceEditor(row)"
@@ -2021,14 +2200,7 @@
                         <span class="portal-contact-summary__item">
                           <UserFilled aria-hidden="true" />
                           <span>{{ t("admin.supplierPortal.staff") }}</span>
-                          <strong>{{ Number(row.workerCount) || "—" }}</strong>
-                        </span>
-                        <span class="portal-contact-summary__item">
-                          <Phone aria-hidden="true" />
-                          <span>{{
-                            t("admin.supplierPortal.orderContact")
-                          }}</span>
-                          <strong>{{ listedPhones(row.phones).length || "—" }}</strong>
+                          <strong class="portal-numeric">{{ Number(row.workerCount) || "—" }}</strong>
                         </span>
                         <ArrowRight
                           class="portal-contact-summary__arrow"
@@ -2217,7 +2389,13 @@
                   })
                 }}
               </p>
-              <p>{{ t("admin.supplierPricing.lineRejectedHint") }}</p>
+              <p>{{
+                t(
+                  quoteRevisionLocked
+                    ? "admin.supplierPricing.lineRejectedHint"
+                    : "admin.supplierPricing.rejectedEditableHint",
+                )
+              }}</p>
             </div>
           </div>
           <div class="pricing-editor-layout">
@@ -2232,18 +2410,23 @@
                     <p>{{ t("admin.supplierPortal.hourlyRule") }}</p>
                   </div>
                 </header>
-                <div
-                  class="rate-card"
-                  :class="{ 'is-quote-target': quoteGapFocusId === 'rate' }"
-                >
-                  <label class="rate-field">
-                    <span>{{ t("admin.supplierPricing.rateLabel") }}</span>
+                <div class="rate-card">
+                  <label
+                    v-for="rate in hourlyRateFields"
+                    :key="rate.key"
+                    class="rate-field"
+                    :data-quote-rate="rate.key"
+                    :class="{ 'is-quote-target': quoteGapFocusId === rate.key }"
+                  >
+                    <span><b class="rate-required" aria-hidden="true">*</b> {{ t(rate.label) }}</span>
                     <span class="currency-input">
                       <b>AED</b>
                       <el-input-number
-                        v-model="quoteDialog.unitPrice"
+                        v-model="quoteDialog[rate.key]"
+                        :aria-label="t(rate.label)"
                         :min="0"
                         :precision="2"
+                        :value-on-clear="null"
                         :disabled="quoteRevisionLocked || quotePriceLocked"
                         controls-position="right"
                       />
@@ -2371,12 +2554,12 @@
                             t("admin.supplierPricing.discontinued")
                           }}</small>
                           <small v-else class="quote-rate-facts">
-                            <span v-if="linePriceFacts(row).showActive">{{
+                            <span class="portal-numeric portal-numeric--money" v-if="linePriceFacts(row).showActive">{{
                               t("admin.supplierPricing.activeRate", {
                                 price: moneyText(row.approvedPrice),
                               })
                             }}</span>
-                            <span v-if="linePriceFacts(row).showPending">{{
+                            <span class="portal-numeric portal-numeric--money" v-if="linePriceFacts(row).showPending">{{
                               t("admin.supplierPricing.pendingQuote", {
                                 price: moneyText(row.quotePrice),
                               })
@@ -2414,7 +2597,7 @@
                     <h2>{{ t("admin.supplierPricing.addonStep") }}</h2>
                     <p>{{ t("admin.supplierPricing.addonStepHint") }}</p>
                   </div>
-                  <em
+                  <em class="portal-numeric"
                     >{{ selectedAttachCount }}/{{
                       quoteDialog.attaches.length
                     }}</em
@@ -2446,7 +2629,7 @@
                           / {{ attachUnit(item) }}</template
                         >
                       </el-checkbox>
-                      <small
+                      <small class="portal-numeric portal-numeric--money"
                         >{{ attachDisplay(item, "type") }} ·
                         {{
                           t("admin.supplierPricing.activeRate", {
@@ -2475,7 +2658,7 @@
               <dl>
                 <div>
                   <dt>{{ t("admin.supplierPortal.pricingProgress") }}</dt>
-                  <dd>
+                  <dd class="portal-numeric">
                     {{
                       enabledQuoteRows.filter((row) =>
                         positiveAmount(row.quotePrice),
@@ -2500,14 +2683,14 @@
                 </div>
                 <div v-if="quoteDialog.quoteMode !== 2">
                   <dt>{{ t("admin.supplierPortal.enabledOptions") }}</dt>
-                  <dd>
+                  <dd class="portal-numeric">
                     {{ enabledQuoteRows.length }} /
                     {{ quoteDialog.rows.length }}
                   </dd>
                 </div>
                 <div>
                   <dt>{{ t("admin.supplierPricing.missingPriceLabel") }}</dt>
-                  <dd
+                  <dd class="portal-numeric"
                     :class="{ 'portal-price-missing': quoteMissingCount > 0 }"
                   >
                     {{ quoteMissingCount }}
@@ -2515,7 +2698,7 @@
                 </div>
                 <div v-if="quoteDialog.quoteMode === 1">
                   <dt>{{ t("admin.supplierPortal.completedPrices") }}</dt>
-                  <dd>
+                  <dd class="portal-numeric">
                     {{
                       enabledQuoteRows.filter((row) =>
                         positiveAmount(row.quotePrice),
@@ -2526,7 +2709,7 @@
                 </div>
                 <div>
                   <dt>{{ t("admin.supplierPricing.addons") }}</dt>
-                  <dd>{{ selectedAttachCount }}</dd>
+                  <dd class="portal-numeric">{{ selectedAttachCount }}</dd>
                 </div>
               </dl>
               <button
@@ -2541,7 +2724,7 @@
                       : "admin.supplierPortal.viewPriceChanges",
                   )
                 }}</span>
-                <small>{{ quotePriceChanges.length }}</small>
+                <small class="portal-numeric">{{ quotePriceChanges.length }}</small>
                 <b>→</b>
               </button>
               <ul v-if="priceChangesOpen" class="quote-price-changes">
@@ -2579,13 +2762,6 @@
               </small>
             </div>
             <div>
-              <el-button
-                v-if="quoteDialog.canApplyPriceChange"
-                type="warning"
-                :loading="quoteDialog.saving"
-                @click="requestPriceChange"
-                >{{ t("admin.supplierPricing.priceChangeApply") }}</el-button
-              >
               <el-button
                 :loading="quoteDialog.saving"
                 :disabled="quoteUnderReview || quotePriceLocked"
@@ -2627,13 +2803,15 @@
               <dt>{{ t("admin.supplierPricing.quoteMode") }}</dt>
               <dd>{{ quoteModeLabel(quoteDialog.quoteMode ?? undefined) }}</dd>
             </div>
-            <div v-if="quoteDialog.quoteMode === 2">
-              <dt>{{ t("admin.supplierPricing.rateLabel") }}</dt>
-              <dd>AED {{ moneyText(quoteDialog.unitPrice) }}</dd>
-            </div>
+            <template v-if="quoteDialog.quoteMode === 2">
+              <div v-for="rate in hourlyRateFields" :key="rate.key">
+                <dt>{{ t(rate.label) }}</dt>
+                <dd class="portal-numeric portal-numeric--money">AED {{ moneyText(quoteDialog[rate.key]) }}</dd>
+              </div>
+            </template>
             <div v-else>
               <dt>{{ t("admin.supplierPortal.enabledOptions") }}</dt>
-              <dd>{{ enabledQuoteRows.length }} / {{ quoteDialog.rows.length }}</dd>
+              <dd class="portal-numeric">{{ enabledQuoteRows.length }} / {{ quoteDialog.rows.length }}</dd>
             </div>
           </dl>
           <div
@@ -2653,14 +2831,14 @@
                   "
                   >{{ row.lineLabel || quoteSpecLabel(row) }}</span
                 >
-                <strong>AED {{ moneyText(row.quotePrice) }}</strong>
+                <strong class="portal-numeric portal-numeric--money">AED {{ moneyText(row.quotePrice) }}</strong>
               </div>
             </section>
           </div>
           <div class="quote-review-dialog__addons">
             <h3>
               {{ t("admin.supplierPricing.addons") }}
-              <small>{{ selectedAttachCount }}</small>
+              <small class="portal-numeric">{{ selectedAttachCount }}</small>
             </h3>
             <div
               v-for="item in quoteDialog.attaches.filter((item) => item.offered)"
@@ -2672,7 +2850,7 @@
                   / {{ attachUnit(item) }}</template
                 ></span
               >
-              <strong>AED {{ moneyText(item.quotePrice) }}</strong>
+              <strong class="portal-numeric portal-numeric--money">AED {{ moneyText(item.quotePrice) }}</strong>
             </div>
             <p v-if="!selectedAttachCount">
               {{ t("admin.supplierOrders.noAddons") }}
@@ -2683,9 +2861,16 @@
             {{ t("admin.supplierPortal.lockNotice") }}
           </p>
           <template #footer>
-            <el-checkbox v-model="quoteConfirmed">{{
-              t("admin.supplierPortal.confirmQuote")
-            }}</el-checkbox>
+            <el-checkbox
+              v-model="quoteConfirmed"
+              class="quote-review-dialog__confirmation"
+              :class="{ 'is-confirmed': quoteConfirmed }"
+            >
+              <span class="quote-review-dialog__confirmation-copy">
+                <strong>{{ t(quoteConfirmed ? 'admin.supplierPortal.quoteConfirmedLabel' : 'admin.supplierPortal.confirmQuotePrompt') }}</strong>
+                <span>{{ t("admin.supplierPortal.confirmQuote") }}</span>
+              </span>
+            </el-checkbox>
             <div class="quote-review-dialog__actions">
               <el-button
                 :disabled="quoteDialog.saving"
@@ -2724,7 +2909,7 @@
                   {{ t("admin.supplierPortal.lockNotice") }}
                   {{ t("admin.supplierPortal.reviewEta") }}
                 </p>
-                <small v-if="quoteDialog.submittedAt">{{
+                <small class="portal-numeric" v-if="quoteDialog.submittedAt">{{
                   t("admin.supplierPortal.submittedOn", {
                     date: orderClock(quoteDialog.submittedAt),
                   })
@@ -2748,13 +2933,15 @@
                     {{ quoteModeLabel(quoteDialog.quoteMode ?? undefined) }}
                   </dd>
                 </div>
-                <div v-if="quoteDialog.quoteMode === 2">
-                  <dt>{{ t("admin.supplierPricing.rateLabel") }}</dt>
-                  <dd>AED {{ moneyText(quoteDialog.unitPrice) }}</dd>
-                </div>
+                <template v-if="quoteDialog.quoteMode === 2">
+                  <div v-for="rate in hourlyRateFields" :key="rate.key">
+                    <dt>{{ t(rate.label) }}</dt>
+                    <dd class="portal-numeric portal-numeric--money">AED {{ moneyText(quoteDialog[rate.key]) }}</dd>
+                  </div>
+                </template>
                 <div v-if="quoteDialog.quoteMode !== 2">
                   <dt>{{ t("admin.supplierPortal.enabledOptions") }}</dt>
-                  <dd>
+                  <dd class="portal-numeric">
                     {{ enabledQuoteRows.length }} /
                     {{ quoteDialog.rows.length }}
                   </dd>
@@ -2807,7 +2994,7 @@
                     <dl>
                       <div>
                         <dt>{{ t("admin.supplierPortal.customerPrice") }}</dt>
-                        <dd class="portal-review-price">
+                        <dd class="portal-review-price portal-numeric portal-numeric--money">
                           AED {{ moneyText(row.quotePrice) }}
                         </dd>
                       </div>
@@ -2836,11 +3023,11 @@
                 </div>
                 <div>
                   <dt>{{ t("admin.supplierPricing.headcount") }}</dt>
-                  <dd>{{ quoteContact?.workerCount ?? "—" }}</dd>
+                  <dd class="portal-numeric">{{ quoteContact?.workerCount ?? "—" }}</dd>
                 </div>
                 <div>
                   <dt>{{ t("admin.supplierPricing.phone") }}</dt>
-                  <dd>
+                  <dd class="portal-numeric">
                     {{
                       quoteContact?.phones.filter(Boolean).join(" / ") || "—"
                     }}
@@ -2851,7 +3038,7 @@
             <section class="portal-review-card">
               <h2>
                 {{ t("admin.supplierPricing.addons") }}
-                <small>{{ selectedAttachCount }}</small>
+                <small class="portal-numeric">{{ selectedAttachCount }}</small>
               </h2>
               <div
                 v-for="item in quoteDialog.attaches.filter(
@@ -2865,7 +3052,7 @@
                   }}<template v-if="attachUnit(item)">
                     / {{ attachUnit(item) }}</template
                   ></span
-                ><strong>AED {{ moneyText(item.quotePrice) }}</strong>
+                ><strong class="portal-numeric portal-numeric--money">AED {{ moneyText(item.quotePrice) }}</strong>
               </div>
               <p v-if="!selectedAttachCount" class="portal-review-note">
                 {{ t("admin.supplierOrders.noAddons") }}
@@ -2890,15 +3077,15 @@
               </div>
               <div v-if="quoteDialog.quoteMode !== 2">
                 <dt>{{ t("admin.supplierPortal.enabledOptions") }}</dt>
-                <dd>{{ enabledQuoteRows.length }}</dd>
+                <dd class="portal-numeric">{{ enabledQuoteRows.length }}</dd>
               </div>
               <div>
                 <dt>{{ t("admin.supplierPortal.missingFields") }}</dt>
-                <dd>{{ quoteMissingCount }}</dd>
+                <dd class="portal-numeric">{{ quoteMissingCount }}</dd>
               </div>
               <div>
                 <dt>{{ t("admin.supplierPricing.addons") }}</dt>
-                <dd>{{ selectedAttachCount }}</dd>
+                <dd class="portal-numeric">{{ selectedAttachCount }}</dd>
               </div>
             </dl>
             <p>{{ t("admin.supplierPortal.vatNote") }}</p>
@@ -3169,8 +3356,8 @@
               <el-table-column label="Web Order / Job ID" min-width="205"
                 ><template #default="{ row }"
                   ><div class="order-id">
-                    <strong>{{ row.webOrder }}</strong
-                    ><small>{{ row.jobId }} · {{ row.date }}</small>
+                    <strong class="portal-numeric">{{ row.webOrder }}</strong
+                    ><small class="portal-numeric">{{ row.jobId }} · {{ row.date }}</small>
                   </div></template
                 ></el-table-column
               >
@@ -3183,7 +3370,7 @@
               >
               <el-table-column label="调整" min-width="110" align="right"
                 ><template #default="{ row }"
-                  ><span
+                  ><span class="portal-numeric portal-numeric--money"
                     :class="row.adjustment < 0 ? 'negative' : 'muted-text'"
                     >{{
                       row.adjustment ? `- AED ${Math.abs(row.adjustment)}` : "—"
@@ -3193,7 +3380,7 @@
               >
               <el-table-column label="最终应付" min-width="130" align="right"
                 ><template #default="{ row }"
-                  ><strong class="money-value"
+                  ><strong class="money-value portal-numeric portal-numeric--money"
                     >AED {{ row.payable }}</strong
                   ></template
                 ></el-table-column
@@ -3226,7 +3413,7 @@
                 width="88"
               /><el-table-column label="应付金额" width="120"
                 ><template #default="{ row }"
-                  ><strong>AED {{ row.amount }}</strong></template
+                  ><strong class="portal-numeric portal-numeric--money">AED {{ row.amount }}</strong></template
                 ></el-table-column
               ><el-table-column
                 label="付款日"
@@ -3320,6 +3507,11 @@
               selectedOrder.orderNo || "—"
             }}</strong>
             <h2>{{ orderServiceTitle(selectedOrder) }}</h2>
+            <p v-if="packageOrderTitle(selectedOrder) || packageVisitText(selectedOrder)" class="order-package-visit">
+              <template v-if="packageOrderTitle(selectedOrder)">{{ packageOrderTitle(selectedOrder) }}</template>
+              <template v-if="packageOrderTitle(selectedOrder) && packageVisitText(selectedOrder)"> · </template>
+              <template v-if="packageVisitText(selectedOrder)">{{ packageVisitText(selectedOrder) }}</template>
+            </p>
             <p>{{ t("admin.supplierOrders.detailHint") }}</p>
             <p v-if="orderCancelled(selectedOrder)" class="order-alert">
               {{
@@ -3337,13 +3529,13 @@
               <div>
                 <Calendar /><span
                   ><small>{{ t("admin.supplierOrders.serviceTime") }}</small
-                  ><strong>{{ orderWhen(selectedOrder) }}</strong></span
+                  ><strong class="portal-numeric">{{ orderWhen(selectedOrder) }}</strong></span
                 >
               </div>
               <div>
                 <Money /><span
                   ><small>{{ t("admin.supplierOrders.quoteTotal") }}</small
-                  ><strong
+                  ><strong class="portal-numeric portal-numeric--money"
                     >AED
                     {{
                       orderMoney(
@@ -3359,7 +3551,7 @@
           <div class="order-detail-grid">
             <section class="order-panel order-panel--wide">
               <h3>
-                <span>01</span>{{ t("admin.supplierOrders.serviceBlock") }}
+                {{ t("admin.supplierOrders.serviceBlock") }}
               </h3>
               <div class="order-facts">
                 <div class="is-wide">
@@ -3372,7 +3564,7 @@
                 </div>
                 <div class="is-wide">
                   <span>{{ t("admin.supplierOrders.serviceTime") }}</span
-                  ><strong>{{ orderWhen(selectedOrder) }}</strong>
+                  ><strong class="portal-numeric">{{ orderWhen(selectedOrder) }}</strong>
                 </div>
                 <div class="is-wide">
                   <span>{{ t("admin.supplierOrders.assignedStaff") }}</span
@@ -3383,17 +3575,17 @@
                 </div>
                 <div>
                   <span>{{ t("admin.supplierOrders.staffCount") }}</span
-                  ><strong>{{ selectedOrder.staffCount ?? "—" }}</strong>
+                  ><strong class="portal-numeric">{{ selectedOrder.staffCount ?? "—" }}</strong>
                 </div>
                 <div>
                   <span>{{ t("admin.supplierOrders.serviceHours") }}</span
-                  ><strong>{{ orderHours(selectedOrder.serviceHours) }}</strong>
+                  ><strong class="portal-numeric">{{ orderHours(selectedOrder.serviceHours) }}</strong>
                 </div>
               </div>
             </section>
 
             <section class="order-panel">
-              <h3><span>02</span>{{ t("admin.supplierOrders.placeBlock") }}</h3>
+              <h3>{{ t("admin.supplierOrders.placeBlock") }}</h3>
               <p class="order-address">
                 {{ selectedOrder.serviceAddress || "—" }}
               </p>
@@ -3416,11 +3608,11 @@
             </section>
 
             <section class="order-panel">
-              <h3><span>03</span>{{ t("admin.supplierOrders.quoteBlock") }}</h3>
+              <h3>{{ t("admin.supplierOrders.quoteBlock") }}</h3>
               <div class="order-quote">
                 <div>
                   <span>{{ t("admin.supplierOrders.taxPrice") }}</span>
-                  <strong
+                  <strong class="portal-numeric portal-numeric--money"
                     ><small>AED</small
                     >{{ orderMoney(selectedOrder.quotePrice) }}</strong
                   >
@@ -3428,7 +3620,7 @@
                 </div>
                 <div>
                   <span>{{ t("admin.supplierOrders.quoteTotal") }}</span>
-                  <strong
+                  <strong class="portal-numeric portal-numeric--money"
                     ><small>AED</small
                     >{{ orderMoney(selectedOrder.quoteAmount) }}</strong
                   >
@@ -3438,7 +3630,7 @@
 
             <section class="order-panel order-panel--wide">
               <h3>
-                <span>04</span>{{ t("admin.supplierOrders.contactBlock") }}
+                {{ t("admin.supplierOrders.contactBlock") }}
               </h3>
               <div class="order-facts">
                 <div>
@@ -3457,7 +3649,7 @@
                 </div>
                 <div v-if="selectedOrder.customerPhoneTail">
                   <span>{{ t("admin.supplierOrders.customerTail") }}</span>
-                  <strong>{{ selectedOrder.customerPhoneTail }}</strong>
+                  <strong class="portal-numeric">{{ selectedOrder.customerPhoneTail }}</strong>
                 </div>
               </div>
             </section>
@@ -3467,7 +3659,7 @@
               class="order-panel order-panel--wide"
             >
               <h3>
-                <span>05</span>{{ t("admin.supplierOrders.serviceName") }}
+                {{ t("admin.supplierOrders.serviceName") }}
               </h3>
               <div class="order-lines">
                 <article
@@ -3481,15 +3673,15 @@
                   <dl>
                     <div>
                       <dt>{{ t("admin.supplierOrders.staffCount") }}</dt>
-                      <dd>{{ line.staffCount ?? "—" }}</dd>
+                      <dd class="portal-numeric">{{ line.staffCount ?? "—" }}</dd>
                     </div>
                     <div>
                       <dt>{{ t("admin.supplierOrders.serviceHours") }}</dt>
-                      <dd>{{ orderHours(line.serviceHours) }}</dd>
+                      <dd class="portal-numeric">{{ orderHours(line.serviceHours) }}</dd>
                     </div>
                     <div>
                       <dt>{{ t("admin.supplierOrders.price") }}</dt>
-                      <dd>AED {{ orderMoney(line.quotePrice) }}</dd>
+                      <dd class="portal-numeric portal-numeric--money">AED {{ orderMoney(line.quotePrice) }}</dd>
                     </div>
                   </dl>
                 </article>
@@ -3506,12 +3698,12 @@
               class="order-panel order-panel--wide"
             >
               <h3>
-                <span>06</span>{{ t("admin.supplierOrders.executionBlock") }}
+                {{ t("admin.supplierOrders.executionBlock") }}
               </h3>
               <div class="order-facts">
                 <div v-if="selectedOrder.departTime">
                   <span>{{ t("admin.supplierOrders.departTime") }}</span
-                  ><strong>{{ orderClock(selectedOrder.departTime) }}</strong>
+                  ><strong class="portal-numeric">{{ orderClock(selectedOrder.departTime) }}</strong>
                 </div>
                 <div v-if="selectedOrder.additionalNotes" class="is-wide">
                   <span>{{ t("admin.supplierOrders.additionalNotes") }}</span
@@ -3533,7 +3725,7 @@
               class="order-panel order-panel--wide order-photos"
             >
               <h3>
-                <span>07</span>{{ t("admin.supplierOrders.arrivePhotos") }}
+                {{ t("admin.supplierOrders.arrivePhotos") }}
               </h3>
               <button
                 v-for="(url, index) in orderPhotos(selectedOrder.arrivePhotos)"
@@ -3553,7 +3745,7 @@
               class="order-panel order-panel--wide order-photos"
             >
               <h3>
-                <span>08</span>{{ t("admin.supplierOrders.completePhotos") }}
+                {{ t("admin.supplierOrders.completePhotos") }}
               </h3>
               <button
                 v-for="(url, index) in orderPhotos(
@@ -3581,6 +3773,7 @@
           </div>
           <el-button
             v-if="canAssignStaff(selectedOrder)"
+            type="primary"
             @click="openAssignStaff(selectedOrder)"
             >{{ t("admin.supplierOrders.assignStaff") }}</el-button
           >
@@ -3601,7 +3794,8 @@
           >
           <el-button
             v-else-if="
-              serviceStep(selectedOrder) === 4 && !orderCancelled(selectedOrder)
+              canOperateVisit(selectedOrder) &&
+              serviceStep(selectedOrder) === 4
             "
             type="primary"
             @click="departForService(selectedOrder)"
@@ -3609,7 +3803,8 @@
           >
           <el-button
             v-else-if="
-              serviceStep(selectedOrder) === 3 && !orderCancelled(selectedOrder)
+              canOperateVisit(selectedOrder) &&
+              serviceStep(selectedOrder) === 3
             "
             type="primary"
             @click="openServiceAction(selectedOrder, 'arrive')"
@@ -3617,13 +3812,16 @@
           >
           <el-button
             v-else-if="
-              serviceStep(selectedOrder) === 1 && !orderCancelled(selectedOrder)
+              canOperateVisit(selectedOrder) &&
+              serviceStep(selectedOrder) === 1
             "
             type="primary"
             @click="openServiceAction(selectedOrder, 'complete')"
             >{{ t("admin.supplierOrders.completeAction") }}</el-button
           >
-          <span v-else class="order-drawer-footer__done"
+          <span
+            v-else-if="!canAssignStaff(selectedOrder)"
+            class="order-drawer-footer__done"
             ><CircleCheck />{{ t("admin.supplierOrders.noAction") }}</span
           >
         </div>
@@ -3785,7 +3983,6 @@ import {
   onboardingResubmit,
   onboardingSave,
   serviceCommunityPage,
-  applyQuotePriceChange,
   exportQuoteSheet,
   importQuoteSheet,
   saveQuoteDraft,
@@ -3807,6 +4004,10 @@ import {
   supplierComplete,
   uploadFile,
 } from "@/modules/admin/api/supplierWorkbench"
+import {
+  packageVisitProgress,
+  supplierMineCounts,
+} from "@/modules/admin/utils/supplier-mine"
 import { listBySpu, listSpuAttachCatalog } from "@/modules/admin/api/spu"
 import SupplierAvailability from "@/modules/admin/pages/supplier-management/availability.vue"
 import StaffBoard from "@/modules/admin/pages/supplier-management/staff-board.vue"
@@ -3853,7 +4054,6 @@ import {
   Money,
   OfficeBuilding,
   Plus,
-  Phone,
   Search,
   Tickets,
   Upload,
@@ -4014,6 +4214,25 @@ const submitTried = ref(false)
 const whatsappSame = ref(false)
 const tradeLicenseFiles = ref<string[]>([])
 const otherDocumentFiles = ref<string[]>([])
+const vatCertificateFiles = ref<string[]>([])
+const docUploadProgress = ref<Record<string, number>>({})
+const docUploading = (id: string) => docUploadProgress.value[id] != null
+const docUploadPercent = (id: string) => docUploadProgress.value[id] ?? 0
+const uploadStatusText = (id: string) => {
+  const percent = docUploadPercent(id)
+  return percent > 0
+    ? t("admin.supplierProfile.uploadingPercent", { percent })
+    : t("admin.supplierProfile.uploading")
+}
+const setDocUploadProgress = (id: string, percent: number) => {
+  docUploadProgress.value = { ...docUploadProgress.value, [id]: percent }
+}
+const clearDocUploadProgress = (id: string) => {
+  if (docUploadProgress.value[id] == null) return
+  const next = { ...docUploadProgress.value }
+  delete next[id]
+  docUploadProgress.value = next
+}
 const profileExtra = ref<Record<string, unknown>>({})
 const independentOperationsReady = ref(false)
 const profileSubmittedOpen = ref(false)
@@ -4029,25 +4248,21 @@ const profileReadOnly = computed(
 const profileSections = computed(() => [
   {
     id: "company",
-    num: "01",
     title: t("admin.supplierPortal.companyDetails"),
     desc: t("admin.supplierProfile.companyHint"),
   },
   {
     id: "contact",
-    num: "02",
     title: t("admin.supplierPortal.contactDetails"),
     desc: t("admin.supplierProfile.contactHint"),
   },
   {
     id: "capacity",
-    num: "03",
     title: t("admin.supplierPortal.capacity"),
     desc: t("admin.supplierProfile.capacityHint"),
   },
   {
     id: "bank",
-    num: "04",
     title: t("admin.supplierPortal.payouts"),
     desc: t("admin.supplierPortal.payoutsHint"),
   },
@@ -4093,11 +4308,7 @@ const backToFullProfile = () => {
 const profileNav = computed(() =>
   profileSections.value
     .map((item, index) => ({ ...item, index }))
-    .filter((item) => item.id !== "contact")
-    .map((item, order) => ({
-      ...item,
-      num: String(order + 1).padStart(2, "0"),
-    })),
+    .filter((item) => item.id !== "contact"),
 )
 const adjacentProfileIndex = (step: number) => {
   const order = profileNav.value.map((item) => item.index)
@@ -4764,11 +4975,46 @@ const assignedStaffText = (row: any) => {
     .filter(Boolean)
     .join("、")
 }
+const selectedAssignedStaff = () =>
+  assignStaffDialog.staffUserIds
+    .map((id) => {
+      const person = assignStaffDialog.options.find(
+        (item) => item.adminUserId === id,
+      )
+      const [name, phone] = String(person?.label || "").split(" · ")
+      return {
+        adminUserId: id,
+        name: String(name || "").trim(),
+        phone: String(phone || "").trim(),
+      }
+    })
+    .filter((item) => item.adminUserId > 0)
+const paintAssignedStaff = (
+  staff: Array<{ adminUserId: number; name: string; phone: string }>,
+) => {
+  const orderId = assignStaffDialog.orderId
+  const fulfillmentId = assignStaffDialog.fulfillmentId
+  const matches = (item: any) => {
+    if (Number(item?.orderId) !== orderId) return false
+    if (!fulfillmentId) return true
+    const current = Number(item?.fulfillmentId)
+    return !current || current === fulfillmentId
+  }
+  supplierOrders.value = supplierOrders.value.map((item) =>
+    matches(item) ? { ...item, assignedStaff: staff } : item,
+  )
+  if (selectedOrder.value && matches(selectedOrder.value)) {
+    selectedOrder.value = { ...selectedOrder.value, assignedStaff: staff }
+  }
+}
+const supplierOwnsOrders = () => !isSupplierStaffOrdersOnly()
+const canOperateVisit = (row: any) =>
+  !supplierOwnsOrders() && !orderCancelled(row)
 const canAssignStaff = (row: any) =>
-  !isSupplierStaffOrdersOnly() &&
+  supplierOwnsOrders() &&
   !orderCancelled(row) &&
-  serviceStep(row) !== 2 &&
-  Number(row?.fulfillmentId) > 0
+  [1, 3, 4].includes(serviceStep(row)) &&
+  Number(row?.orderId) > 0
 const assignStaffDialog = reactive({
   open: false,
   saving: false,
@@ -4781,7 +5027,7 @@ const assignStaffDialog = reactive({
 })
 const openAssignStaff = async (row: any) => {
   const ids = visitIds(row)
-  if (!ids.orderId || !ids.fulfillmentId || !canAssignStaff(row)) return
+  if (!ids.orderId || !canAssignStaff(row)) return
   assignStaffDialog.orderId = ids.orderId
   assignStaffDialog.fulfillmentId = ids.fulfillmentId
   assignStaffDialog.orderNo = String(row?.orderNo || "")
@@ -4813,18 +5059,22 @@ const openAssignStaff = async (row: any) => {
   }
 }
 const saveAssignStaff = async () => {
-  if (!assignStaffDialog.orderId || !assignStaffDialog.fulfillmentId) return
+  if (!assignStaffDialog.orderId) return
   assignStaffDialog.saving = true
+  const staff = selectedAssignedStaff()
   try {
     unwrap(
       await assignOrderStaff({
         orderId: assignStaffDialog.orderId,
-        fulfillmentId: assignStaffDialog.fulfillmentId,
+        ...(assignStaffDialog.fulfillmentId
+          ? { fulfillmentId: assignStaffDialog.fulfillmentId }
+          : {}),
         staffUserIds: assignStaffDialog.staffUserIds,
       }),
     )
     ElMessage.success(t("admin.supplierOrders.assignStaffSaved"))
     assignStaffDialog.open = false
+    paintAssignedStaff(staff)
     await loadOrders()
     if (
       orderDrawerVisible.value &&
@@ -4834,6 +5084,19 @@ const saveAssignStaff = async () => {
         assignStaffDialog.orderId,
         assignStaffDialog.fulfillmentId,
       )
+    }
+    const savedVisit = supplierOrders.value.find((item) => {
+      if (Number(item?.orderId) !== assignStaffDialog.orderId) return false
+      if (!assignStaffDialog.fulfillmentId) return true
+      const current = Number(item?.fulfillmentId)
+      return !current || current === assignStaffDialog.fulfillmentId
+    })
+    const detailMissing =
+      selectedOrder.value &&
+      Number(selectedOrder.value.orderId) === assignStaffDialog.orderId &&
+      !assignedStaffText(selectedOrder.value)
+    if (staff.length && ((savedVisit && !assignedStaffText(savedVisit)) || detailMissing)) {
+      paintAssignedStaff(staff)
     }
   } catch (error: any) {
     ElMessage.error(error?.message || t("admin.supplierOrders.actionFailed"))
@@ -5001,7 +5264,7 @@ const acceptOrder = async (row: any) => {
   if (!orderId || orderCancelled(row) || serviceStep(row) !== 0) return
   try {
     await ElMessageBox.confirm(
-      t("admin.supplierOrders.acceptConfirm", {
+      t("admin.supplierOrders.acceptAssignConfirm", {
         orderNo: row?.orderNo || orderId,
       }),
       t("admin.supplierOrders.acceptTitle"),
@@ -5115,6 +5378,8 @@ const quoteDialog = reactive({
   priceChangeRejectReason: "",
   quoteMode: null as 1 | 2 | null,
   unitPrice: null as number | null,
+  unitPriceWithMaterial: null as number | null,
+  unitPriceWithoutMaterial: null as number | null,
   columns: [] as {
     key: string
     nameI18n: Record<string, unknown> | null
@@ -5148,14 +5413,34 @@ const quoteEffectiveStatus = computed(() =>
     : quoteDialog.status,
 )
 const quoteRevisionLocked = computed(() => Number(quoteDialog.status) === 1)
-const quotePriceLocked = computed(
-  () => Number(quoteDialog.status) === 2 && quoteDialog.priceEditable !== true,
+const quoteDirectEdit = computed(
+  () =>
+    Number(quoteDialog.status) === 2 ||
+    Number(quoteDialog.status) === 3 ||
+    Number(quoteDialog.priceChangeStatus) === 3 ||
+    Boolean(String(quoteDialog.rejectReason || "").trim()) ||
+    quoteHasRejectedLines.value,
 )
-const quoteLineHeld = (row: { reviewStatus?: number | null }) =>
-  quotePriceLocked.value ||
-  (quoteRevisionLocked.value && Number(row.reviewStatus) !== 3)
+const quotePriceLocked = computed(
+  () =>
+    Number(quoteDialog.status) === 2 &&
+    quoteDialog.priceEditable !== true &&
+    !quoteDirectEdit.value,
+)
+const quoteLineHeld = (row: {
+  reviewStatus?: number | null
+  rejectReason?: string
+}) => {
+  if (quoteDirectEdit.value && Number(quoteDialog.status) !== 1) return false
+  return (
+    quotePriceLocked.value ||
+    (quoteRevisionLocked.value &&
+      Number(row.reviewStatus) !== 3 &&
+      !String(row.rejectReason || "").trim())
+  )
+}
 const quoteUnderReview = computed(
-  () => quoteRevisionLocked.value && !quoteHasRejectedLines.value,
+  () => quoteRevisionLocked.value && !quoteDirectEdit.value,
 )
 const enabledQuoteRows = computed(() =>
   quoteDialog.rows.filter(
@@ -5245,6 +5530,20 @@ watch(quoteGroupTabs, (tabs) => {
   if (!tabs.some((group) => group.key === quoteGroupTab.value))
     quoteGroupTab.value = tabs[0]?.key || ""
 })
+const hourlyRateFields = [
+  { key: 'unitPriceWithMaterial', label: 'admin.supplierPricing.rateWithMaterial' },
+  { key: 'unitPriceWithoutMaterial', label: 'admin.supplierPricing.rateWithoutMaterial' },
+] as const
+const hourlyRateProblem = (allowMissing = false) => {
+  for (const rate of hourlyRateFields) {
+    const value = quoteDialog[rate.key]
+    if (allowMissing && value == null) continue
+    if (!positiveAmount(value)) {
+      return t('admin.supplierPricing.hourlyRateRequired', { name: t(rate.label) })
+    }
+  }
+  return ''
+}
 const quoteContact = computed(() =>
   savedServices.value.find((service) => service.spuId === quoteDialog.spuId),
 )
@@ -5274,14 +5573,18 @@ const quoteGaps = computed(() => {
       label: "",
       targetId: "",
     })
-  if (quoteDialog.quoteMode === 2 && !positiveAmount(quoteDialog.unitPrice))
-    gaps.push({
-      kind: "rate",
-      groupKey: "",
-      groupTitle: "",
-      label: "",
-      targetId: "rate",
-    })
+  if (quoteDialog.quoteMode === 2) {
+    for (const rate of hourlyRateFields) {
+      if (positiveAmount(quoteDialog[rate.key])) continue
+      gaps.push({
+        kind: "rate",
+        groupKey: "",
+        groupTitle: "",
+        label: t(rate.label),
+        targetId: rate.key,
+      })
+    }
+  }
   if (quoteDialog.quoteMode !== 2) {
     for (const row of enabledQuoteRows.value) {
       if (
@@ -5325,7 +5628,7 @@ const quoteGapText = computed(() => {
       ? `${gap.groupTitle} · ${gap.label}`
       : gap.groupTitle || gap.label
   if (gap.kind === "contact") return t("admin.supplierPortal.contactRequired")
-  if (gap.kind === "rate") return t("admin.supplierPricing.hourlyRequired")
+  if (gap.kind === "rate") return t("admin.supplierPricing.hourlyRateRequired", { name: gap.label })
   if (gap.kind === "mode") return t("admin.supplierPricing.modeRequired")
   if (gap.kind === "addon")
     return t(
@@ -5390,7 +5693,7 @@ const focusQuoteGap = () => {
         : gap.kind === "addon"
           ? `[data-quote-addon="${gap.targetId}"]`
           : gap.kind === "rate"
-            ? ".rate-card"
+            ? `[data-quote-rate="${gap.targetId}"]`
             : gap.kind === "contact"
               ? ".pricing-review-panel > button"
               : ".pricing-editor-section"
@@ -5998,6 +6301,8 @@ const serviceRows = computed(() => {
       priceChangeRejectReason: quote?.priceChangeRejectReason || "",
       quoteMode: assignedQuoteMode(quote),
       unitPrice: quote?.unitPrice,
+      unitPriceWithMaterial: quote?.unitPriceWithMaterial,
+      unitPriceWithoutMaterial: quote?.unitPriceWithoutMaterial,
       prices: (quote?.skus || [])
         .filter((line: any) => Number(line.enabled ?? 1) !== 0)
         .map((line: any) => Number(line.approvedPrice ?? line.quotePrice))
@@ -6139,6 +6444,62 @@ const assignedQuoteMode = (source?: {
   if (locked && savedMode) return savedMode
   return configuredMode ?? savedMode ?? 1
 }
+const quoteSpuId = (value: unknown) => {
+  const id = Number(value)
+  return Number.isInteger(id) && id > 0 ? id : 0
+}
+const selectedQuoteSpuIds = ref<number[]>([])
+const quoteSpuSelected = (spuId: unknown) =>
+  selectedQuoteSpuIds.value.includes(quoteSpuId(spuId))
+const visibleQuoteSpuIds = computed(() =>
+  filteredServiceRows.value
+    .map((row) => quoteSpuId(row.spuId))
+    .filter((id) => id > 0),
+)
+const allVisibleQuotesSelected = computed(() => {
+  const ids = visibleQuoteSpuIds.value
+  return (
+    ids.length > 0 && ids.every((id) => selectedQuoteSpuIds.value.includes(id))
+  )
+})
+const someVisibleQuotesSelected = computed(() => {
+  const ids = visibleQuoteSpuIds.value
+  const selected = ids.filter((id) =>
+    selectedQuoteSpuIds.value.includes(id),
+  ).length
+  return selected > 0 && selected < ids.length
+})
+const toggleQuoteSpu = (spuId: unknown, checked: boolean) => {
+  const id = quoteSpuId(spuId)
+  if (!id) return
+  const next = new Set(selectedQuoteSpuIds.value)
+  if (checked) next.add(id)
+  else next.delete(id)
+  selectedQuoteSpuIds.value = [...next]
+}
+const toggleVisibleQuoteSelection = (checked: boolean | string | number) => {
+  const next = new Set(selectedQuoteSpuIds.value)
+  for (const id of visibleQuoteSpuIds.value) {
+    if (checked === true) next.add(id)
+    else next.delete(id)
+  }
+  selectedQuoteSpuIds.value = [...next]
+}
+const quoteExportLabel = computed(() =>
+  selectedQuoteSpuIds.value.length
+    ? t("admin.supplierPricing.exportSelected", {
+        count: selectedQuoteSpuIds.value.length,
+      })
+    : t("admin.supplierPricing.downloadTemplate"),
+)
+watch(serviceRows, (rows) => {
+  const ids = new Set(
+    rows.map((row) => quoteSpuId(row.spuId)).filter((id) => id > 0),
+  )
+  const next = selectedQuoteSpuIds.value.filter((id) => ids.has(id))
+  if (next.length !== selectedQuoteSpuIds.value.length)
+    selectedQuoteSpuIds.value = next
+})
 const phoneOk = (value: string) =>
   /^[1-9]\d{7,14}$/.test(value.replace(/\D/g, ""))
 const supplierOrders = ref<any[]>([])
@@ -6185,14 +6546,16 @@ const orderMetrics = computed(() =>
   })),
 )
 const orderStages = computed(() => [
-  { value: "all" as OrderStage, label: t("admin.supplierPortal.allOrders") },
+  { value: "all" as OrderStage, label: t("admin.supplierPortal.allOrders"), count: null as number | null },
   ...orderMetricKeys.map((value) => ({
     value: value as OrderStage,
     label: t(`admin.supplierPortal.${value}`),
+    count: orderSummary.value[value] ?? null,
   })),
   {
     value: "cancelled" as OrderStage,
     label: t("admin.supplierPortal.cancelled"),
+    count: null as number | null,
   },
 ])
 const orderPageRange = computed(() => {
@@ -6234,6 +6597,9 @@ const changeOrderStage = (stage: OrderStage) => {
   if (stage === orderStage.value) return
   orderStage.value = stage
   searchOrders()
+}
+const selectOrderMetric = (key: OrderMetricKey) => {
+  changeOrderStage(orderStage.value === key ? "all" : key)
 }
 
 const profileStatusItems = computed(() => {
@@ -6634,15 +7000,17 @@ const moneyText = (value: unknown) => {
 const yourPriceText = (row: {
   quoteMode?: number
   unitPrice?: unknown
+  unitPriceWithMaterial?: unknown
+  unitPriceWithoutMaterial?: unknown
   prices?: number[]
 }) => {
-  if (
-    Number(row.quoteMode) === 2 &&
-    row.unitPrice != null &&
-    row.unitPrice !== ""
-  ) {
-    return t("admin.supplierPricing.priceHourly", {
-      price: moneyText(row.unitPrice),
+  if (Number(row.quoteMode) === 2) {
+    if (row.unitPriceWithMaterial == null && row.unitPriceWithoutMaterial == null) {
+      return t("admin.supplierPricing.priceNotSet")
+    }
+    return t("admin.supplierPricing.priceHourlyMaterials", {
+      withMaterial: moneyText(row.unitPriceWithMaterial),
+      withoutMaterial: moneyText(row.unitPriceWithoutMaterial),
     })
   }
   if (Number(row.quoteMode) === 1 && row.prices?.length) {
@@ -6722,6 +7090,21 @@ const orderCategoryOptions = computed(() => {
     }
   })
 })
+const packageOrderTitle = (row: any) => {
+  if (row?.packageOrder !== true && Number(row?.orderType) !== 2) return ""
+  const localized = specText(row?.packageNameI18n)
+  if (localized !== "—") return localized
+  return String(row?.packageName || "").trim()
+}
+const packageVisitText = (row: any) => {
+  const visit = packageVisitProgress(row)
+  if (!visit) return ""
+  if (visit.seq != null && visit.total != null) {
+    return t("admin.supplierOrders.packageVisit", visit)
+  }
+  if (visit.seq != null) return t("admin.supplierOrders.packageVisitSeq", visit)
+  return t("admin.supplierOrders.packageVisitTotal", visit)
+}
 const orderServiceTitle = (row: any) => {
   const localized = specText(row?.spuNameI18n)
   if (localized !== "—") return localized
@@ -6893,6 +7276,7 @@ const buildProfilePayload = (status?: number, areaIds?: number[]) => ({
     },
     tradeLicenseFiles: [...tradeLicenseFiles.value],
     otherDocuments: [...otherDocumentFiles.value],
+    vatFile: [...vatCertificateFiles.value],
     documentNames: { ...documentNames.value },
   },
 })
@@ -6974,6 +7358,7 @@ const applyProfile = (detail: any) => {
   bankForm.currency = "AED"
   tradeLicenseFiles.value = asFileList(extra.tradeLicenseFiles)
   otherDocumentFiles.value = asFileList(extra.otherDocuments)
+  vatCertificateFiles.value = asFileList(extra.vatFile)
   if (!profileEditable.value) {
     profileView.value = "all"
     profileFromAll.value = false
@@ -7512,15 +7897,14 @@ const submitProfileForm = async () => {
   if (needsResubmit.value) return resubmitProfile()
   return saveProfile(1)
 }
-const docFiles = (id: "trade" | "public" | "employee" | "other") => {
+type ProfileDocId = "trade" | "public" | "employee" | "other" | "vat"
+const docFiles = (id: ProfileDocId) => {
   if (id === "trade") return tradeLicenseFiles.value
   if (id === "other") return otherDocumentFiles.value
+  if (id === "vat") return vatCertificateFiles.value
   return id === "public" ? complianceItems[0].files : complianceItems[1].files
 }
-const removeDocFile = (
-  id: "trade" | "public" | "employee" | "other",
-  index: number,
-) => {
+const removeDocFile = (id: ProfileDocId, index: number) => {
   docFiles(id).splice(index, 1)
 }
 
@@ -7602,10 +7986,8 @@ const uploadInsurance = async (fileKey: string | undefined, options: any) => {
   }
 }
 
-const uploadDocFile = async (
-  id: "trade" | "public" | "employee" | "other",
-  options: any,
-) => {
+const uploadDocFile = async (id: ProfileDocId, options: any) => {
+  if (docUploading(id)) return
   try {
     const file = options.file as File
     if (!/\.(pdf|jpe?g|png)$/i.test(file.name) || file.size > 10 * 1024 * 1024)
@@ -7613,7 +7995,13 @@ const uploadDocFile = async (
     const files = docFiles(id)
     if (files.length >= 20)
       throw new Error(t("admin.supplierProfile.uploadLimit"))
-    const url = unwrap(await uploadFile(options.file as File))
+    setDocUploadProgress(id, 0)
+    const url = unwrap(
+      await uploadFile(file, (percent) => {
+        setDocUploadProgress(id, percent)
+        options.onProgress?.({ percent })
+      }),
+    )
     const fileUrl = typeof url === "string" ? url : url?.url || ""
     if (fileUrl && !files.includes(fileUrl)) files.push(fileUrl)
     if (fileUrl) documentNames.value[fileUrl] = file.name
@@ -7622,6 +8010,8 @@ const uploadDocFile = async (
   } catch (error: any) {
     options.onError?.(error)
     ElMessage.error(error?.message || t("admin.supplierProfile.uploadFailed"))
+  } finally {
+    clearDocUploadProgress(id)
   }
 }
 
@@ -7980,7 +8370,7 @@ const downloadQuoteTemplate = async () => {
   if (!supplierRecordId.value || quoteExporting.value) return
   quoteExporting.value = true
   try {
-    const data = await exportQuoteSheet()
+    const data = await exportQuoteSheet(selectedQuoteSpuIds.value)
     const blob = data instanceof Blob ? data : new Blob([data as BlobPart])
     if (blob.type.includes("json") || blob.type.startsWith("text/")) {
       const text = await blob.text()
@@ -8091,13 +8481,9 @@ const quoteItems = () =>
     const enabled = hourly
       ? row.available !== false
       : skuEnabled(row.enabled, row.available !== false)
-    const quotePrice = hourly
-      ? positiveAmount(quoteDialog.unitPrice)
-        ? Number(quoteDialog.unitPrice)
-        : null
-      : row.quotePrice == null || row.quotePrice === ""
-        ? null
-        : Number(row.quotePrice)
+    const quotePrice = row.quotePrice == null || row.quotePrice === ""
+      ? null
+      : Number(row.quotePrice)
     return {
       skuId: row.skuId,
       staffCount: blankPositive(row.staffCount) ?? 0,
@@ -8108,13 +8494,7 @@ const quoteItems = () =>
   })
 
 const draftProblem = () => {
-  if (
-    quoteDialog.quoteMode === 2 &&
-    quoteDialog.unitPrice != null &&
-    !(Number(quoteDialog.unitPrice) > 0)
-  ) {
-    return t("admin.supplierPricing.unitPositive")
-  }
+  if (quoteDialog.quoteMode === 2 && hourlyRateProblem(true)) return hourlyRateProblem(true)
   for (const item of quoteItems()) {
     if (item.enabled !== 1 || quoteDialog.quoteMode !== 1) continue
     if (item.quotePrice != null && !(item.quotePrice > 0))
@@ -8210,8 +8590,7 @@ const toggleAttach = (
 const submitProblem = () => {
   if (quoteDialog.quoteMode !== 1 && quoteDialog.quoteMode !== 2)
     return t("admin.supplierPricing.modeRequired")
-  if (quoteDialog.quoteMode === 2 && !(Number(quoteDialog.unitPrice) > 0))
-    return t("admin.supplierPricing.hourlyRequired")
+  if (quoteDialog.quoteMode === 2 && hourlyRateProblem()) return hourlyRateProblem()
   if (
     quoteDialog.attaches.some(
       (item) => item.offered && !addonPriceOk(item.quotePrice),
@@ -8238,9 +8617,10 @@ const quotePayload = () => {
   }
   if (quoteDialog.quoteMode === 1 || quoteDialog.quoteMode === 2)
     payload.quoteMode = quoteDialog.quoteMode
-  if (quoteDialog.quoteMode === 2)
-    payload.unitPrice =
-      quoteDialog.unitPrice == null ? null : Number(quoteDialog.unitPrice)
+  if (quoteDialog.quoteMode === 2) {
+    payload.unitPriceWithMaterial = quoteDialog.unitPriceWithMaterial == null ? null : Number(quoteDialog.unitPriceWithMaterial)
+    payload.unitPriceWithoutMaterial = quoteDialog.unitPriceWithoutMaterial == null ? null : Number(quoteDialog.unitPriceWithoutMaterial)
+  }
   payload.attaches = quoteDialog.attaches
     .filter((item) => item.offered && addonPriceOk(item.quotePrice))
     .map((item) => ({
@@ -8268,6 +8648,8 @@ const applySavedQuote = (saved: any) => {
     saved.unitPrice == null || saved.unitPrice === ""
       ? null
       : Number(saved.unitPrice)
+  quoteDialog.unitPriceWithMaterial = blankPositive(saved.unitPriceWithMaterial)
+  quoteDialog.unitPriceWithoutMaterial = blankPositive(saved.unitPriceWithoutMaterial)
   const quoted = new Map(
     (saved.skus || []).map((sku: any) => [Number(sku.skuId), sku]),
   )
@@ -8283,7 +8665,9 @@ const applySavedQuote = (saved: any) => {
         : undefined
     row.rejectReason = next.rejectReason || ""
     const lineRejected =
-      Number(next.reviewStatus) === 3 || String(next.rejectReason || "").trim()
+      Number(saved.status) === 3 ||
+      Number(next.reviewStatus) === 3 ||
+      String(next.rejectReason || "").trim()
     row.enabled = lineRejected
       ? row.available !== false
       : skuEnabled(next.enabled, row.available !== false)
@@ -8309,6 +8693,8 @@ const openServiceQuote = async (row: {
   rejectReason?: string
   quoteMode?: number
   unitPrice?: number | null
+  unitPriceWithMaterial?: number | null
+  unitPriceWithoutMaterial?: number | null
 }) => {
   quoteDialog.visible = true
   quoteConfirmed.value = false
@@ -8336,6 +8722,8 @@ const openServiceQuote = async (row: {
     (row as any).priceChangeRejectReason || ""
   quoteDialog.quoteMode = assignedQuoteMode(row)
   quoteDialog.unitPrice = row.unitPrice == null ? null : Number(row.unitPrice)
+  quoteDialog.unitPriceWithMaterial = blankPositive(row.unitPriceWithMaterial)
+  quoteDialog.unitPriceWithoutMaterial = blankPositive(row.unitPriceWithoutMaterial)
   quoteDialog.columns = []
   quoteDialog.rows = []
   quoteDialog.attaches = []
@@ -8424,6 +8812,7 @@ const openServiceQuote = async (row: {
         approvedPrice: saved.approvedPrice ?? sku.approvedPrice ?? null,
         available,
         enabled:
+          Number(quote?.status) === 3 ||
           Number(saved.reviewStatus) === 3 ||
           String(saved.rejectReason || "").trim()
             ? available
@@ -8503,6 +8892,8 @@ const openServiceQuote = async (row: {
         quote.unitPrice == null || quote.unitPrice === ""
           ? quoteDialog.unitPrice
           : Number(quote.unitPrice)
+      quoteDialog.unitPriceWithMaterial = blankPositive(quote.unitPriceWithMaterial)
+      quoteDialog.unitPriceWithoutMaterial = blankPositive(quote.unitPriceWithoutMaterial)
       quoteDialog.submittedAt = String(
         quote.submitTime || quote.submittedAt || "",
       )
@@ -8567,53 +8958,6 @@ const reviewServiceQuote = () => {
 const closeQuoteReview = (open: boolean) => {
   if (open || quoteDialog.saving) return
   backToQuoteSetup()
-}
-
-const requestPriceChange = async () => {
-  if (
-    !supplierRecordId.value ||
-    !quoteDialog.canApplyPriceChange ||
-    quoteDialog.saving
-  )
-    return
-  let reason = ""
-  try {
-    const result = await ElMessageBox.prompt(
-      t("admin.supplierPricing.priceChangeHint"),
-      t("admin.supplierPricing.priceChangeApply"),
-      {
-        inputType: "textarea",
-        inputPlaceholder: t("admin.supplierPricing.priceChangeReason"),
-        inputValidator: (value) =>
-          String(value || "").trim()
-            ? true
-            : t("admin.supplierPricing.priceChangeReasonRequired"),
-        confirmButtonText: t("admin.supplierPricing.priceChangeApply"),
-      },
-    )
-    reason = String(result.value || "").trim()
-  } catch {
-    return
-  }
-  quoteDialog.saving = true
-  try {
-    const saved = unwrap(
-      await applyQuotePriceChange({
-        supplierId: supplierRecordId.value,
-        spuId: quoteDialog.spuId,
-        reason,
-      }),
-    )
-    applySavedQuote(saved)
-    ElMessage.success(t("admin.supplierPricing.priceChangeSent"))
-    await loadQuotes(true)
-  } catch (error: any) {
-    ElMessage.error(
-      error?.message || t("admin.supplierPricing.priceChangeFailed"),
-    )
-  } finally {
-    quoteDialog.saving = false
-  }
 }
 
 const saveServiceQuote = async () => {
@@ -8741,15 +9085,7 @@ const loadOrders = async () => {
       }),
     )
     if (requestId !== orderListRequest) return
-    const summary: Partial<Record<OrderMetricKey, number>> = {}
-    for (const key of orderMetricKeys) {
-      const raw = page?.summary?.[key]
-      if (typeof raw !== "number" && (typeof raw !== "string" || !raw.trim()))
-        continue
-      const count = Number(raw)
-      if (Number.isSafeInteger(count) && count >= 0) summary[key] = count
-    }
-    orderSummary.value = summary
+    orderSummary.value = supplierMineCounts(page)
     supplierOrders.value = Array.isArray(page?.list) ? page.list : []
     orderTotal.value = Number(page?.total || 0)
   } catch (error: any) {
@@ -8857,6 +9193,8 @@ watch(
     JSON.stringify([
       quoteDialog.quoteMode,
       quoteDialog.unitPrice,
+      quoteDialog.unitPriceWithMaterial,
+      quoteDialog.unitPriceWithoutMaterial,
       quoteDialog.rows,
       quoteDialog.attaches,
       quoteContact.value,
@@ -8920,6 +9258,28 @@ watch(areaKeyword, (keyword) => {
 .supplier-demo--profile {
   padding: 0 0 28px;
   background: transparent;
+}
+/* Numeric data stays distinct from editorial headings and brand typography. */
+.supplier-demo .portal-numeric,
+.order-sheet .portal-numeric,
+.quote-review-dialog .portal-numeric,
+.supplier-demo :deep(.el-input-number .el-input__inner),
+.supplier-demo :deep(input[inputmode="decimal"]),
+.supplier-demo :deep(.el-date-editor .el-input__inner),
+.supplier-form-dialog :deep(.el-input-number .el-input__inner),
+.supplier-form-dialog :deep(input[inputmode="decimal"]) {
+  font-family: var(--hx-font-numeric);
+  font-weight: 600;
+  letter-spacing: normal;
+  font-variant-numeric: lining-nums tabular-nums;
+}
+.supplier-demo .portal-numeric--money,
+.order-sheet .portal-numeric--money,
+.quote-review-dialog .portal-numeric--money {
+  font-weight: 650;
+}
+.setup-cards article > h3 {
+  margin-top: 0;
 }
 .supplier-demo--profile .page-header {
   align-items: center;
@@ -9076,9 +9436,11 @@ watch(areaKeyword, (keyword) => {
   text-transform: uppercase;
 }
 .supplier-facts strong {
-  font-family: Fraunces, Georgia, serif;
+  font-family: var(--hx-font-numeric);
   font-size: 18px;
-  font-weight: 520;
+  font-weight: 650;
+  letter-spacing: normal;
+  font-variant-numeric: lining-nums tabular-nums;
 }
 .supplier-facts .progress-value {
   color: #8d5a32;
@@ -9148,10 +9510,11 @@ watch(areaKeyword, (keyword) => {
 .metric-card strong {
   margin: 8px 0 4px;
   color: #05152b;
-  font-family: Fraunces, Georgia, serif;
+  font-family: var(--hx-font-numeric);
   font-size: 28px;
-  font-weight: 520;
-  letter-spacing: -0.03em;
+  font-weight: 650;
+  letter-spacing: normal;
+  font-variant-numeric: lining-nums tabular-nums;
 }
 .metric-card p {
   margin: 0;
@@ -9320,12 +9683,6 @@ watch(areaKeyword, (keyword) => {
   width: 2px;
   background: #e8c27a;
 }
-.dossier-rail a span,
-.dossier-rail button span {
-  width: 22px;
-  color: #d7b48a;
-  font-family: Fraunces, Georgia, serif;
-}
 .dossier-rail small {
   display: block;
   margin-top: 18px;
@@ -9361,10 +9718,6 @@ watch(areaKeyword, (keyword) => {
   font-size: 28px;
   font-weight: 520;
   color: #05152b;
-}
-.lightbox h2 span {
-  margin-right: 8px;
-  color: #b98a3a;
 }
 .lightbox small {
   color: #7a8090;
@@ -9594,6 +9947,25 @@ watch(areaKeyword, (keyword) => {
 .doc-row .is-remove {
   color: #c0392b;
 }
+.doc-uploading {
+  display: block;
+  margin-top: 6px;
+  color: #0c243b;
+  font-weight: 700;
+}
+.doc-progress {
+  height: 4px;
+  margin-top: 8px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: #efe4d4;
+}
+.doc-progress > span {
+  display: block;
+  height: 100%;
+  background: #0c243b;
+  transition: width 0.2s linear;
+}
 .profile-footer {
   display: flex;
   justify-content: space-between;
@@ -9614,12 +9986,6 @@ watch(areaKeyword, (keyword) => {
   align-items: flex-start;
   gap: 14px;
   margin-bottom: 18px;
-}
-.dossier-sheet header > span {
-  font-family: Fraunces, Georgia, serif;
-  font-size: 28px;
-  color: #8d5a32;
-  line-height: 1;
 }
 .dossier-sheet h2 {
   margin: 0;
@@ -10420,9 +10786,11 @@ watch(areaKeyword, (keyword) => {
 .mini-metric strong {
   margin: 5px 0 2px;
   color: #05152b;
-  font-family: Fraunces, Georgia, serif;
+  font-family: var(--hx-font-numeric);
   font-size: 26px;
-  font-weight: 520;
+  font-weight: 650;
+  letter-spacing: normal;
+  font-variant-numeric: lining-nums tabular-nums;
 }
 .mini-metric small {
   color: var(--muted);
@@ -10598,6 +10966,10 @@ watch(areaKeyword, (keyword) => {
 .money-value {
   color: #263348;
   font-size: 12px;
+  font-family: var(--hx-font-numeric);
+  font-weight: 650;
+  letter-spacing: normal;
+  font-variant-numeric: lining-nums tabular-nums;
 }
 .order-status {
   display: inline-flex;
@@ -10791,6 +11163,7 @@ watch(areaKeyword, (keyword) => {
 }
 .quote-line.is-quote-target,
 .rate-card.is-quote-target,
+.rate-field.is-quote-target,
 .quote-attach.is-quote-target {
   border-color: #c89447;
   box-shadow: 0 0 0 3px rgba(200, 148, 71, 0.28);
@@ -11174,11 +11547,15 @@ watch(areaKeyword, (keyword) => {
 .rate-field {
   display: grid;
   gap: 6px;
-  max-width: 320px;
+  min-width: 0;
+  max-width: 100%;
   margin-top: 14px;
   color: #5c564c;
   font-size: 13px;
   font-weight: 700;
+}
+.rate-required {
+  color: #b24f3e;
 }
 .sv-quote__foot {
   padding: 14px 18px;
@@ -11298,6 +11675,10 @@ watch(areaKeyword, (keyword) => {
 .price-value {
   color: #27334a;
   font-size: 13px;
+  font-family: var(--hx-font-numeric);
+  font-weight: 650;
+  letter-spacing: normal;
+  font-variant-numeric: lining-nums tabular-nums;
 }
 .pricing-table :deep(.el-input-number) {
   width: 128px;
@@ -12226,10 +12607,12 @@ watch(areaKeyword, (keyword) => {
   display: block;
   margin: 8px 0 4px;
   color: #fffdf8;
-  font-family: Fraunces, Georgia, serif;
+  font-family: var(--hx-font-numeric);
   font-size: 28px;
-  font-weight: 520;
+  font-weight: 650;
   line-height: 1;
+  letter-spacing: normal;
+  font-variant-numeric: lining-nums tabular-nums;
 }
 .orders-card :deep(.el-card__body) {
   padding: 0;
@@ -12472,8 +12855,11 @@ watch(areaKeyword, (keyword) => {
   margin-top: 20px;
   color: #e8c27a !important;
   font-size: 12px !important;
-  letter-spacing: 0.08em;
+  letter-spacing: normal;
   text-transform: uppercase;
+  font-family: var(--hx-font-numeric);
+  font-weight: 600;
+  font-variant-numeric: lining-nums tabular-nums;
 }
 .order-lead h2 {
   max-width: 560px;
@@ -12562,28 +12948,12 @@ watch(areaKeyword, (keyword) => {
   text-transform: uppercase;
 }
 .order-sheet h3 {
-  display: flex;
-  align-items: center;
-  gap: 9px;
   margin: 0 0 16px;
   color: #74685a;
   font-size: 11px;
   font-weight: 750;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-}
-.order-sheet h3 > span {
-  display: grid;
-  place-items: center;
-  flex: 0 0 auto;
-  width: 25px;
-  height: 25px;
-  color: #8d5a32;
-  background: #f5ecdf;
-  border-radius: 8px;
-  font-family: Fraunces, Georgia, serif;
-  font-size: 11px;
-  letter-spacing: 0;
 }
 .order-facts {
   display: grid;
@@ -12646,11 +13016,12 @@ watch(areaKeyword, (keyword) => {
   gap: 5px;
   margin-top: 6px;
   color: #05152b;
-  font-family: Fraunces, Georgia, serif;
+  font-family: var(--hx-font-numeric);
   font-size: 25px;
-  font-weight: 520;
-  letter-spacing: -0.03em;
+  font-weight: 650;
+  letter-spacing: normal;
   overflow-wrap: anywhere;
+  font-variant-numeric: lining-nums tabular-nums;
 }
 .order-quote strong > small {
   color: #8d5a32;
@@ -13167,10 +13538,12 @@ watch(areaKeyword, (keyword) => {
   display: block;
   margin: 10px 0 5px;
   color: #fffdf8;
-  font-family: Fraunces, Georgia, serif;
+  font-family: var(--hx-font-numeric);
   font-size: 30px;
-  font-weight: 520;
+  font-weight: 650;
   line-height: 1;
+  letter-spacing: normal;
+  font-variant-numeric: lining-nums tabular-nums;
 }
 .pricing-command__metrics span {
   color: rgba(247, 241, 230, 0.62);
@@ -13465,9 +13838,9 @@ watch(areaKeyword, (keyword) => {
 }
 .mode-cards button {
   position: relative;
-  grid-template-columns: 32px minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr);
   grid-template-rows: auto auto;
-  gap: 4px 10px;
+  gap: 4px;
   min-width: 0;
   min-height: 104px;
   padding: 16px;
@@ -13491,27 +13864,10 @@ watch(areaKeyword, (keyword) => {
   cursor: not-allowed;
   opacity: 0.68;
 }
-.mode-card__mark {
-  display: grid;
-  grid-row: 1 / 3;
-  place-items: center;
-  width: 30px;
-  height: 30px;
-  color: #8d5a32;
-  background: #f5ecdf;
-  border-radius: 9px;
-  font-family: Fraunces, Georgia, serif;
-  font-size: 11px;
-  font-weight: 700;
-}
 .mode-cards button.is-on {
   background: linear-gradient(145deg, #071a31, #0e2b46);
   border-color: #163c5a;
   box-shadow: 0 14px 28px rgba(5, 21, 43, 0.14);
-}
-.mode-cards button.is-on .mode-card__mark {
-  color: #071a31;
-  background: #e8c27a;
 }
 .mode-cards button strong,
 .mode-cards button small {
@@ -13529,7 +13885,8 @@ watch(areaKeyword, (keyword) => {
   display: grid;
   align-content: start;
   gap: 7px;
-  max-width: 320px;
+  min-width: 0;
+  max-width: 100%;
   margin: 0;
   padding: 0;
 }
@@ -14431,7 +14788,92 @@ watch(areaKeyword, (keyword) => {
 }
 .quote-review-dialog .el-dialog__footer {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: 12px;
+}
+.quote-review-dialog__confirmation.el-checkbox {
+  display: flex;
+  width: 100%;
+  height: auto;
+  margin: 0;
+  padding: 14px 16px;
+  align-items: flex-start;
+  box-sizing: border-box;
+  border: 2px solid #c79443;
+  border-radius: 10px;
+  background: #fff5df;
+  color: #75501e;
+  text-align: left;
+  white-space: normal;
+  transition: border-color 160ms ease, background-color 160ms ease;
+}
+.quote-review-dialog__confirmation.el-checkbox:hover {
+  border-color: #a87526;
+  background: #fff0cf;
+}
+.quote-review-dialog__confirmation:focus-within {
+  outline: 3px solid rgba(167, 117, 38, 0.25);
+  outline-offset: 3px;
+}
+.quote-review-dialog__confirmation .el-checkbox__input {
+  flex: none;
+  margin-top: 1px;
+}
+.quote-review-dialog__confirmation .el-checkbox__inner {
+  width: 24px;
+  height: 24px;
+  border: 2px solid #a87526;
+  border-radius: 6px;
+  background: #fff;
+}
+.quote-review-dialog__confirmation .el-checkbox__inner::after {
+  top: 2px;
+  left: 7px;
+  width: 6px;
+  height: 12px;
+  border-width: 2px;
+}
+.quote-review-dialog__confirmation .el-checkbox__label {
+  flex: 1;
+  min-width: 0;
+  padding-left: 12px;
+  color: inherit;
+  white-space: normal;
+}
+.quote-review-dialog__confirmation-copy {
+  display: block;
+}
+.quote-review-dialog__confirmation-copy strong {
+  display: block;
+  font-size: 15px;
+  font-weight: 750;
+  line-height: 1.5;
+}
+.quote-review-dialog__confirmation-copy > span {
+  display: block;
+  margin-top: 4px;
+  color: #503e25;
+  font-size: 14px;
+  line-height: 1.65;
+}
+.quote-review-dialog__confirmation.is-confirmed,
+.quote-review-dialog__confirmation.is-confirmed:hover {
+  border-color: #3c9971;
+  background: #eef8f2;
+  color: #1c5f43;
+}
+.quote-review-dialog__confirmation .el-checkbox__input.is-checked .el-checkbox__inner {
+  border-color: #20734e;
+  background: #20734e;
+}
+.quote-review-dialog__confirmation .el-checkbox__input.is-checked + .el-checkbox__label {
+  color: inherit;
+}
+.quote-review-dialog__confirmation.is-confirmed:focus-within {
+  outline-color: rgba(32, 115, 78, 0.25);
+}
+.quote-review-dialog__confirmation.is-confirmed .quote-review-dialog__confirmation-copy > span {
+  color: #315747;
 }
 .quote-review-dialog__hint,
 .quote-review-dialog__note {
@@ -14532,6 +14974,16 @@ watch(areaKeyword, (keyword) => {
   .supplier-form-dialog .el-dialog__footer {
     padding: 12px 17px 14px;
   }
+  .quote-review-dialog__confirmation.el-checkbox {
+    padding: 12px;
+  }
+  .quote-review-dialog__actions {
+    flex-direction: column;
+  }
+  .quote-review-dialog__actions .el-button {
+    min-height: 44px;
+    margin-left: 0;
+  }
 }
 </style>
 
@@ -14567,16 +15019,30 @@ watch(areaKeyword, (keyword) => {
   min-width: 0;
   margin-bottom: 20px;
 }
-.portal-orders-metrics article {
+.portal-orders-metrics button {
   position: relative;
+  width: 100%;
   min-width: 0;
   min-height: 112px;
   padding: 18px 20px;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
   background: #fff;
   border: 1px solid #e7e5df;
   border-radius: 12px;
 }
-.portal-orders-metrics article::before {
+.portal-orders-metrics button.is-selected {
+  background: #fffaf3;
+  border-color: #c4a36a;
+  box-shadow: inset 0 0 0 1px #c4a36a;
+}
+.portal-orders-metrics button:focus-visible {
+  outline: 2px solid #8d5a32;
+  outline-offset: 2px;
+}
+.portal-orders-metrics button::before {
   position: absolute;
   top: 20px;
   right: 18px;
@@ -14635,6 +15101,9 @@ watch(areaKeyword, (keyword) => {
   padding-bottom: 2px;
 }
 .portal-orders-stages button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   min-height: 36px;
   padding: 8px 12px;
   color: #627082;
@@ -14645,6 +15114,20 @@ watch(areaKeyword, (keyword) => {
   font-size: 12px;
   font-weight: 600;
   cursor: pointer;
+}
+.portal-orders-stages b {
+  min-width: 1.2em;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: #f3efe8;
+  color: #8d5a32;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 18px;
+}
+.order-package-visit {
+  color: #8d5a32;
+  font-weight: 650;
 }
 .portal-orders-stages button:hover:not(:disabled),
 .portal-orders-stages button.is-active {
@@ -14705,6 +15188,14 @@ watch(areaKeyword, (keyword) => {
 .portal-orders-table .order-no {
   max-width: 100%;
   overflow-wrap: anywhere;
+}
+.order-staff-name {
+  color: #1b2839;
+  font-weight: 650;
+}
+.order-staff-name.is-empty {
+  color: #8a7d70;
+  font-weight: 500;
 }
 .portal-orders-table .order-row-actions {
   align-items: flex-end;
@@ -14865,11 +15356,11 @@ watch(areaKeyword, (keyword) => {
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 10px;
   }
-  .portal-orders-metrics article {
+  .portal-orders-metrics button {
     min-height: 106px;
     padding: 16px;
   }
-  .portal-orders-metrics article::before {
+  .portal-orders-metrics button::before {
     top: 19px;
     right: 14px;
   }

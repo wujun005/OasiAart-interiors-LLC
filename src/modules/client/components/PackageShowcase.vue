@@ -57,10 +57,11 @@
             <span v-if="activeGroup">
               {{ t('client.home.packages.showing', { count: activeGroup.cards.length }) }}
             </span>
-            <div v-if="activeGroup && activeGroup.cards.length > 3" class="packages__nav">
+            <div v-if="hasOverflow" class="packages__nav">
               <button
                 type="button"
                 :aria-label="t('client.home.packages.previousPackage')"
+                :disabled="!canScrollPrevious"
                 @click="scrollPackages(-1)"
               >
                 <svg aria-hidden="true" viewBox="0 0 20 20">
@@ -70,6 +71,7 @@
               <button
                 type="button"
                 :aria-label="t('client.home.packages.nextPackage')"
+                :disabled="!canScrollNext"
                 @click="scrollPackages(1)"
               >
                 <svg aria-hidden="true" viewBox="0 0 20 20">
@@ -80,69 +82,108 @@
           </div>
         </div>
 
+        <p v-if="hasOverflow" class="packages__scroll-hint">
+          <svg aria-hidden="true" viewBox="0 0 24 24">
+            <path d="M4 12h16M8 8l-4 4 4 4m8-8 4 4-4 4" />
+          </svg>
+          <span>{{ t('client.home.packages.scrollHint') }}</span>
+        </p>
+
         <p v-if="activeGroup && !activeGroup.cards.length" class="packages__empty">
           {{ t('client.home.packages.emptyCategory') }}
         </p>
 
-        <div
-          v-if="activeGroup"
-          ref="gridRef"
-          :id="`package-panel-${activeGroup.id}`"
-          class="packages__grid"
-          :class="{
-            'is-single': activeGroup.cards.length === 1,
-            'is-double': activeGroup.cards.length === 2,
-            'is-scrollable': activeGroup.cards.length > 3,
-          }"
-          role="tabpanel"
-          :aria-labelledby="`package-tab-${activeGroup.id}`"
-        >
-          <RouterLink
-            v-for="card in activeGroup.cards"
-            :key="card.id"
-            class="package-card"
-            :to="{ name: platform === 'h5' ? 'h5-package-detail' : 'package-detail', params: { id: card.id } }"
+        <div v-if="activeGroup" class="packages__carousel" :class="{ 'can-scroll-next': canScrollNext }">
+          <div
+            ref="gridRef"
+            :id="`package-panel-${activeGroup.id}`"
+            class="packages__grid"
+            :class="{
+              'is-single': activeGroup.cards.length === 1,
+              'is-double': activeGroup.cards.length === 2,
+              'is-scrollable': activeGroup.cards.length > 2,
+            }"
+            role="tabpanel"
+            :aria-labelledby="`package-tab-${activeGroup.id}`"
+            @scroll.passive="updateScrollState"
           >
-            <div class="package-card__media" :class="{ 'is-empty': !card.image }">
-              <img v-if="card.image" :src="card.image" alt="" />
-              <span v-else class="package-card__mark" aria-hidden="true">{{ card.mark }}</span>
-              <span class="package-card__badge" :class="card.badgeTone">{{ card.badge }}</span>
-              <span v-if="card.discount" class="package-card__discount">{{ card.discount }}</span>
-              <span v-if="card.visits" class="package-card__visits">{{ card.visits }}</span>
-            </div>
-            <div class="package-card__body">
-              <div class="package-card__copy">
-                <h3>{{ card.title }}</h3>
-                <div v-if="card.tags.length" class="biz-tags">
-                  <span v-for="tag in card.tags" :key="tag">{{ tag }}</span>
-                </div>
-                <p v-if="card.desc">{{ card.desc }}</p>
+            <RouterLink
+              v-for="card in activeGroup.cards"
+              :key="card.id"
+              class="package-card"
+              :to="{ name: platform === 'h5' ? 'h5-package-detail' : 'package-detail', params: { id: card.id } }"
+            >
+              <div class="package-card__media" :class="{ 'is-empty': !card.image }">
+                <img v-if="card.image" :src="card.image" alt="" />
+                <span v-else class="package-card__mark" aria-hidden="true">{{ card.mark }}</span>
+                <span class="package-card__badge" :class="card.badgeTone">{{ card.badge }}</span>
+                <span v-if="card.discount" class="package-card__discount">{{ card.discount }}</span>
+                <span v-if="card.visits" class="package-card__visits">{{ card.visits }}</span>
               </div>
-              <div v-if="card.perVisit || card.save" class="package-card__meta">
-                <span v-if="card.perVisit">{{ card.perVisit }}</span>
-                <span v-if="card.save" class="is-save">{{ card.save }}</span>
-              </div>
-              <div class="package-card__foot">
-                <div class="package-card__price">
-                  <span class="package-card__price-label">{{ t('client.home.packages.dealPrice') }}</span>
-                  <div>
-                    <small>AED</small>
-                    <strong>{{ card.sale }}</strong>
+              <div class="package-card__body">
+                <div class="package-card__copy">
+                  <h3>{{ card.title }}</h3>
+                  <div v-if="card.tags.length" class="biz-tags">
+                    <span v-for="tag in card.tags" :key="tag">{{ tag }}</span>
                   </div>
-                  <div v-if="card.original" class="package-card__original">
-                    <span>{{ t('client.home.packages.originalPrice') }}</span>
-                    <s>AED {{ card.original }}</s>
-                  </div>
+                  <p v-if="card.desc">{{ card.desc }}</p>
                 </div>
-                <span class="package-card__action">
-                  <span>{{ t('client.home.packages.viewPackage') }}</span>
-                  <svg aria-hidden="true" viewBox="0 0 20 20">
-                    <path d="M4.5 10h10m-4-4 4 4-4 4" />
-                  </svg>
-                </span>
+                <div v-if="card.services.length" class="package-card__services">
+                  <span>{{ t('client.home.packages.includedServices') }}</span>
+                  <ul>
+                    <li v-for="service in card.services" :key="service.key">{{ service.name }}</li>
+                  </ul>
+                </div>
+                <div v-if="card.perVisit || card.save" class="package-card__meta">
+                  <span v-if="card.perVisit">{{ card.perVisit }}</span>
+                  <span v-if="card.save" class="is-save">{{ card.save }}</span>
+                </div>
+                <div class="package-card__foot">
+                  <div class="package-card__price">
+                    <span class="package-card__price-label">{{ t('client.home.packages.dealPrice') }}</span>
+                    <div>
+                      <small>AED</small>
+                      <strong>{{ card.sale }}</strong>
+                    </div>
+                    <div v-if="card.original" class="package-card__original">
+                      <span>{{ t('client.home.packages.originalPrice') }}</span>
+                      <s>AED {{ card.original }}</s>
+                    </div>
+                  </div>
+                  <span class="package-card__action">
+                    <span>{{ t('client.home.packages.viewPackage') }}</span>
+                    <svg aria-hidden="true" viewBox="0 0 20 20">
+                      <path d="M4.5 10h10m-4-4 4 4-4 4" />
+                    </svg>
+                  </span>
+                </div>
               </div>
-            </div>
-          </RouterLink>
+            </RouterLink>
+          </div>
+          <button
+            v-if="canScrollPrevious"
+            type="button"
+            class="packages__edge packages__edge--previous"
+            :aria-label="t('client.home.packages.previousPackage')"
+            :aria-controls="`package-panel-${activeGroup.id}`"
+            @click="scrollPackages(-1)"
+          >
+            <svg aria-hidden="true" viewBox="0 0 20 20">
+              <path d="M15.5 10h-10m4-4-4 4 4 4" />
+            </svg>
+          </button>
+          <button
+            v-if="canScrollNext"
+            type="button"
+            class="packages__edge packages__edge--next"
+            :aria-label="t('client.home.packages.nextPackage')"
+            :aria-controls="`package-panel-${activeGroup.id}`"
+            @click="scrollPackages(1)"
+          >
+            <svg aria-hidden="true" viewBox="0 0 20 20">
+              <path d="M4.5 10h10m-4-4 4 4-4 4" />
+            </svg>
+          </button>
         </div>
       </div>
     </div>
@@ -150,7 +191,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import {
   packageCatalog,
@@ -169,6 +210,19 @@ const categories = ref<PackageCatalogCategory[]>([])
 const activeId = ref('')
 const loaded = ref(false)
 const gridRef = ref<HTMLElement | null>(null)
+const hasOverflow = ref(false)
+const canScrollPrevious = ref(false)
+const canScrollNext = ref(false)
+let resizeObserver: ResizeObserver | undefined
+
+const updateScrollState = () => {
+  const grid = gridRef.value
+  const overflow = grid ? grid.scrollWidth - grid.clientWidth : 0
+  const left = grid?.scrollLeft || 0
+  hasOverflow.value = overflow > 1
+  canScrollPrevious.value = hasOverflow.value && left > 1
+  canScrollNext.value = hasOverflow.value && left < overflow - 1
+}
 
 const preferredLangs = () =>
   locale.value === 'zh' ? ['zh-CN', 'zh', 'en', 'en-US'] : ['en', 'en-US', 'zh-CN', 'zh']
@@ -219,6 +273,23 @@ type CardView = {
   badgeTone: string
   image: string
   tags: string[]
+  services: Array<{ key: string; name: string }>
+}
+
+const boundServices = (item: PackageCatalogCard): CardView['services'] => {
+  const sources = Array.isArray(item.spus) && item.spus.length ? item.spus : item.items
+  const seen = new Set<string>()
+  return (Array.isArray(sources) ? sources : []).flatMap((service, index) => {
+    if (!service || typeof service !== 'object') return []
+    const nameMap = ('nameI18n' in service ? service.nameI18n : undefined)
+      || ('spuNameI18n' in service ? service.spuNameI18n : undefined)
+    const name = pickText(nameMap, t('client.home.packages.serviceFallback', { index: index + 1 }))
+    const id = Number(service.spuId)
+    const key = Number.isFinite(id) && id > 0 ? `spu:${id}` : `name:${name}`
+    if (seen.has(key)) return []
+    seen.add(key)
+    return [{ key, name }]
+  })
 }
 
 const groups = computed(() =>
@@ -227,7 +298,7 @@ const groups = computed(() =>
       const id = String(category.categoryId ?? '')
       const name = pickText(category.nameI18n, category.categoryName || '')
       const packages = Array.isArray(category.packages) ? category.packages : []
-      const savings = packages.map((item) => Math.max(0, amount(item.savedAmount) || 0))
+      const savings = packages.map((item) => Math.max(0, amount(item.displaySavedPrice) || 0))
       const bestSaving = Math.max(0, ...savings)
       const cards = packages
         .map((item, index) => toCard(item, name, index, bestSaving))
@@ -239,10 +310,10 @@ const groups = computed(() =>
 
 const toCard = (item: PackageCatalogCard, categoryName: string, index: number, bestSaving: number): CardView | null => {
   const id = String(item.id ?? '')
-  const sale = amount(item.salePrice)
+  const sale = amount(item.displaySalePrice)
   if (!id || sale == null) return null
-  const original = amount(item.originalPrice)
-  const saved = Math.max(0, amount(item.savedAmount) ?? (original != null ? original - sale : 0))
+  const original = amount(item.displayTotalPrice)
+  const saved = Math.max(0, amount(item.displaySavedPrice) ?? (original != null ? original - sale : 0))
   const discount = original != null && original > sale
     ? Math.round(((original - sale) / original) * 100)
     : 0
@@ -265,6 +336,7 @@ const toCard = (item: PackageCatalogCard, categoryName: string, index: number, b
     badgeTone: isBest ? 'is-best' : tones[index % tones.length],
     image: item.imageUrls?.find((url) => String(url || '').trim()) || '',
     tags: bizTagLabels(item.tags, locale.value),
+    services: boundServices(item),
   }
 }
 
@@ -283,8 +355,10 @@ const activateSibling = (index: number, direction: number, event: KeyboardEvent)
 const scrollPackages = (direction: number) => {
   const grid = gridRef.value
   if (!grid) return
+  const card = grid.querySelector<HTMLElement>('.package-card')
+  const gap = Number.parseFloat(getComputedStyle(grid).columnGap) || 0
   grid.scrollBy({
-    left: direction * Math.max(grid.clientWidth * 0.9, 280),
+    left: direction * (card ? card.getBoundingClientRect().width + gap : grid.clientWidth),
     behavior: 'smooth',
   })
 }
@@ -295,9 +369,24 @@ watch(groups, (list) => {
   }
 })
 
-watch(activeId, () => {
-  gridRef.value?.scrollTo({ left: 0, behavior: 'auto' })
-})
+watch(gridRef, (grid) => {
+  resizeObserver?.disconnect()
+  if (grid && typeof ResizeObserver !== 'undefined') {
+    resizeObserver = new ResizeObserver(updateScrollState)
+    resizeObserver.observe(grid)
+  }
+  updateScrollState()
+}, { flush: 'post' })
+
+watch(activeGroup, async (group, previous) => {
+  await nextTick()
+  if (group?.id !== previous?.id) {
+    gridRef.value?.scrollTo({ left: 0, behavior: 'auto' })
+  }
+  updateScrollState()
+}, { flush: 'post' })
+
+onBeforeUnmount(() => resizeObserver?.disconnect())
 
 onMounted(async () => {
   try {
@@ -322,7 +411,8 @@ onMounted(async () => {
   --package-mint-pale: #e4f8f4;
   --package-line: #dfe6ec;
   --package-muted: #68778a;
-  padding: 44px 0 48px;
+  --package-media-height: 112px;
+  padding: 32px 0 36px;
   overflow: hidden;
   background: #f3f6f8;
   font-family: "Inter", "Noto Sans SC", "PingFang SC", sans-serif;
@@ -330,15 +420,15 @@ onMounted(async () => {
 
 .packages--page {
   min-height: 68vh;
-  padding: 36px 0 72px;
+  padding: 28px 0 48px;
 }
 
 .packages__inner {
   width: min(1200px, calc(100% - 48px));
   margin: 0 auto;
-  padding: 26px 28px 30px;
+  padding: 20px 22px 22px;
   border: 1px solid #e1e7ec;
-  border-radius: 24px;
+  border-radius: 20px;
   background: #fff;
   box-sizing: border-box;
   box-shadow: 0 14px 40px rgba(5, 21, 43, 0.07);
@@ -352,7 +442,7 @@ onMounted(async () => {
   display: flex;
   align-items: flex-end;
   justify-content: space-between;
-  gap: 28px;
+  gap: 20px;
 }
 
 .packages__head-copy {
@@ -364,7 +454,7 @@ onMounted(async () => {
   display: flex;
   align-items: center;
   gap: 9px;
-  margin: 0 0 7px !important;
+  margin: 0 0 5px !important;
   color: #247f72 !important;
   font-size: 10px !important;
   font-weight: 850;
@@ -383,7 +473,7 @@ onMounted(async () => {
 .packages__head h2 {
   margin: 0;
   color: var(--package-navy);
-  font-size: clamp(27px, 2.6vw, 32px);
+  font-size: clamp(24px, 2.3vw, 28px);
   font-weight: 850;
   letter-spacing: -0.035em;
   line-height: 1.12;
@@ -391,9 +481,9 @@ onMounted(async () => {
 
 .packages__head-copy > p:last-child {
   max-width: 640px;
-  margin: 8px 0 0;
+  margin: 6px 0 0;
   color: var(--package-muted);
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 500;
   line-height: 1.55;
 }
@@ -404,8 +494,8 @@ onMounted(async () => {
   align-items: center;
   justify-content: center;
   gap: 8px;
-  min-height: 40px;
-  padding: 0 6px 0 15px;
+  min-height: 36px;
+  padding: 0 5px 0 12px;
   border: 1px solid #cdd7e0;
   border-radius: 999px;
   background: #fff;
@@ -433,9 +523,9 @@ onMounted(async () => {
 
 .packages__all svg,
 .package-card__action svg {
-  width: 28px;
-  height: 28px;
-  padding: 7px;
+  width: 26px;
+  height: 26px;
+  padding: 6px;
   border-radius: 50%;
   box-sizing: border-box;
   fill: none;
@@ -451,8 +541,8 @@ onMounted(async () => {
 }
 
 .packages__catalog {
-  margin-top: 20px;
-  padding-top: 16px;
+  margin-top: 16px;
+  padding-top: 12px;
   border-top: 1px solid var(--package-line);
 }
 
@@ -481,10 +571,10 @@ onMounted(async () => {
 .packages__tabs button {
   flex: 0 0 auto;
   display: inline-flex;
-  min-height: 36px;
+  min-height: 32px;
   align-items: center;
-  gap: 8px;
-  padding: 0 7px 0 13px;
+  gap: 6px;
+  padding: 0 6px 0 11px;
   border: 1px solid #dce3e9;
   border-radius: 999px;
   background: #f6f8fa;
@@ -502,15 +592,16 @@ onMounted(async () => {
 }
 
 .packages__tabs button:focus-visible,
-.packages__nav button:focus-visible {
+.packages__nav button:focus-visible,
+.packages__edge:focus-visible {
   outline: 2px solid var(--package-mint);
   outline-offset: 2px;
 }
 
 .packages__tabs button small {
   display: grid;
-  min-width: 23px;
-  height: 23px;
+  min-width: 20px;
+  height: 20px;
   padding: 0 6px;
   place-items: center;
   border-radius: 999px;
@@ -566,13 +657,20 @@ onMounted(async () => {
   transition: background 180ms ease, border-color 180ms ease, transform 180ms ease;
 }
 
-.packages__nav button:hover {
+.packages__nav button:hover:not(:disabled) {
   transform: translateY(-1px);
   border-color: var(--package-navy);
   background: #f4f7f9;
 }
 
-.packages__nav svg {
+.packages__nav button:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.packages__nav svg,
+.packages__edge svg,
+.packages__scroll-hint svg {
   width: 16px;
   height: 16px;
   fill: none;
@@ -582,17 +680,77 @@ onMounted(async () => {
   stroke-width: 1.9;
 }
 
+.packages__scroll-hint {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 7px;
+  margin: 8px 0 -4px;
+  color: #126c60;
+  font-size: 12px;
+  font-weight: 750;
+}
+
+.packages__scroll-hint svg {
+  width: 20px;
+  height: 20px;
+}
+
+.packages__carousel {
+  position: relative;
+  margin-top: 12px;
+}
+
+.packages__carousel.can-scroll-next::after {
+  position: absolute;
+  z-index: 1;
+  inset: 0 0 4px auto;
+  width: 52px;
+  background: linear-gradient(90deg, rgba(255, 255, 255, 0), #fff);
+  pointer-events: none;
+  content: '';
+}
+
+.packages__edge {
+  position: absolute;
+  z-index: 2;
+  top: calc(var(--package-media-height) / 2);
+  display: grid;
+  width: 48px;
+  height: 48px;
+  padding: 0;
+  place-items: center;
+  transform: translateY(-50%);
+  border: 3px solid #fff;
+  border-radius: 50%;
+  background: var(--package-navy);
+  color: #fff;
+  box-shadow: 0 4px 18px rgba(5, 21, 43, 0.25);
+  cursor: pointer;
+}
+
+.packages__edge:hover {
+  background: #174b53;
+}
+
+.packages__edge svg {
+  width: 22px;
+  height: 22px;
+}
+
+.packages__edge--previous { left: -14px; }
+.packages__edge--next { right: -14px; }
+
 .packages__grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 16px;
-  margin-top: 16px;
   align-items: stretch;
 }
 
 .packages__grid.is-scrollable {
   grid-template-columns: none;
-  grid-auto-columns: calc((100% - 32px) / 3);
+  grid-auto-columns: calc((100% - 48px) / 3.15);
   grid-auto-flow: column;
   padding-bottom: 4px;
   overflow-x: auto;
@@ -609,24 +767,24 @@ onMounted(async () => {
 }
 
 .packages__grid.is-single {
-  grid-template-columns: minmax(0, calc((100% - 32px) / 3));
+  grid-template-columns: minmax(0, calc((100% - 48px) / 3.15));
   justify-content: start;
 }
 
 .packages__grid.is-double {
-  grid-template-columns: repeat(2, minmax(0, calc((100% - 32px) / 3)));
+  grid-template-columns: repeat(2, minmax(0, calc((100% - 48px) / 3.15)));
   justify-content: start;
 }
 
 .package-card {
   display: flex;
-  height: 382px;
+  min-height: 328px;
   min-width: 0;
   box-sizing: border-box;
   flex-direction: column;
   overflow: hidden;
   border: 1px solid #dce4ea;
-  border-radius: 17px;
+  border-radius: 15px;
   background: #fff;
   color: inherit;
   text-decoration: none;
@@ -642,8 +800,8 @@ onMounted(async () => {
 
 .package-card__media {
   position: relative;
-  flex: 0 0 136px;
-  height: 136px;
+  flex: 0 0 var(--package-media-height);
+  height: var(--package-media-height);
   overflow: hidden;
   background: linear-gradient(145deg, #17334e, var(--package-navy));
 }
@@ -677,7 +835,7 @@ onMounted(async () => {
   display: grid;
   place-items: center;
   color: rgba(255, 255, 255, 0.88);
-  font-size: 54px;
+  font-size: 44px;
   font-weight: 350;
   letter-spacing: -0.05em;
 }
@@ -693,7 +851,7 @@ onMounted(async () => {
   box-sizing: border-box;
   font-size: 10px;
   font-weight: 850;
-  line-height: 25px;
+  line-height: 22px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -701,7 +859,7 @@ onMounted(async () => {
 .package-card__badge {
   top: 10px;
   left: 10px;
-  height: 25px;
+  height: 22px;
   padding: 0 9px;
   border: 1px solid rgba(255, 255, 255, 0.18);
   background: rgba(5, 21, 43, 0.82);
@@ -726,7 +884,7 @@ onMounted(async () => {
   top: 10px;
   right: 10px;
   min-width: 48px;
-  height: 25px;
+  height: 22px;
   padding: 0 9px;
   box-shadow: 0 4px 12px rgba(5, 21, 43, 0.12);
 }
@@ -734,12 +892,12 @@ onMounted(async () => {
 .package-card__visits {
   right: 10px;
   bottom: 9px;
-  height: 24px;
+  height: 22px;
   padding: 0 9px;
   border: 1px solid rgba(255, 255, 255, 0.16);
   background: rgba(5, 21, 43, 0.72);
   color: #fff;
-  line-height: 23px;
+  line-height: 21px;
   backdrop-filter: blur(8px);
 }
 
@@ -748,22 +906,21 @@ onMounted(async () => {
   min-height: 0;
   flex: 1;
   flex-direction: column;
-  padding: 14px 15px 15px;
+  padding: 11px 12px 12px;
 }
 
 .package-card__copy {
-  flex: 0 0 82px;
-  height: 82px;
-  overflow: hidden;
+  flex: 0 0 auto;
+  min-height: 58px;
 }
 
 .package-card h3 {
   display: -webkit-box;
-  max-height: 42px;
+  max-height: 40px;
   margin: 0;
   overflow: hidden;
   color: var(--package-navy);
-  font-size: 17px;
+  font-size: 16px;
   font-weight: 820;
   letter-spacing: -0.02em;
   line-height: 1.24;
@@ -776,13 +933,13 @@ onMounted(async () => {
 
 .package-card__copy > p {
   display: -webkit-box;
-  height: 35px;
-  margin: 5px 0 0;
+  max-height: 33px;
+  margin: 4px 0 0;
   overflow: hidden;
   color: var(--package-muted);
   font-size: 11.5px;
   font-weight: 500;
-  line-height: 1.5;
+  line-height: 1.4;
   overflow-wrap: anywhere;
   text-overflow: ellipsis;
   -webkit-box-orient: vertical;
@@ -792,20 +949,59 @@ onMounted(async () => {
 
 .package-card__meta {
   display: flex;
-  min-height: 24px;
+  min-height: 22px;
+  flex-shrink: 0;
   flex-wrap: nowrap;
   gap: 6px;
-  margin-top: 7px;
+  margin-top: 5px;
+  margin-bottom: 8px;
   overflow: hidden;
   color: #58677a;
   font-size: 10px;
   line-height: 1.35;
 }
 
+.package-card__services {
+  flex-shrink: 0;
+  margin-top: 6px;
+  padding: 6px 8px;
+  border-radius: 9px;
+  background: #f4f8f8;
+  font-size: 10px;
+  line-height: 1.35;
+}
+
+.package-card__services > span {
+  color: #68778a;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.package-card__services ul {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px 5px;
+  margin: 4px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.package-card__services li {
+  max-width: 100%;
+  padding: 1px 5px;
+  border: 1px solid #dfe8e8;
+  border-radius: 5px;
+  background: #fff;
+  color: #264d49;
+  font-size: 11px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
 .package-card__meta span {
   display: inline-flex;
   min-width: 0;
-  min-height: 24px;
+  min-height: 22px;
   align-items: center;
   padding: 0 8px;
   overflow: hidden;
@@ -829,7 +1025,7 @@ onMounted(async () => {
   justify-content: space-between;
   gap: 10px;
   margin-top: auto;
-  padding-top: 10px;
+  padding-top: 8px;
   border-top: 1px solid #edf1f4;
 }
 
@@ -856,7 +1052,7 @@ onMounted(async () => {
 
 .package-card__price strong {
   color: var(--package-navy);
-  font-size: 27px;
+  font-size: 24px;
   font-weight: 880;
   font-variant-numeric: tabular-nums;
   letter-spacing: -0.045em;
@@ -938,7 +1134,7 @@ onMounted(async () => {
 
 @media (max-width: 900px) {
   .packages {
-    padding: 40px 0 44px;
+    padding: 28px 0 32px;
   }
 
   .packages__grid,
@@ -946,7 +1142,7 @@ onMounted(async () => {
   .packages__grid.is-single,
   .packages__grid.is-double {
     grid-template-columns: none;
-    grid-auto-columns: calc((100% - 14px) / 2);
+    grid-auto-columns: calc((100% - 28px) / 2.15);
     grid-auto-flow: column;
     gap: 14px;
     justify-content: initial;
@@ -967,28 +1163,29 @@ onMounted(async () => {
 @media (max-width: 640px) {
   .packages,
   .packages--page {
-    padding: 40px 0 46px;
+    --package-media-height: 104px;
+    padding: 28px 0 32px;
   }
 
   .packages__inner {
     width: calc(100% - 20px);
-    padding: 20px 14px 18px;
-    border-radius: 19px;
+    padding: 16px 14px;
+    border-radius: 16px;
   }
 
   .packages__head {
     align-items: flex-start;
     flex-direction: column;
-    gap: 14px;
+    gap: 10px;
   }
 
   .packages__head h2 {
-    font-size: 27px;
+    font-size: 24px;
   }
 
   .packages__head-copy > p:last-child {
     margin-top: 6px;
-    font-size: 12.5px;
+    font-size: 12px;
   }
 
   .packages__all {
@@ -996,8 +1193,8 @@ onMounted(async () => {
   }
 
   .packages__catalog {
-    margin-top: 16px;
-    padding-top: 13px;
+    margin-top: 12px;
+    padding-top: 10px;
   }
 
   .packages__toolbar {
@@ -1026,32 +1223,33 @@ onMounted(async () => {
   .packages__grid.is-scrollable,
   .packages__grid.is-single,
   .packages__grid.is-double {
-    grid-auto-columns: calc((100% - 10px) / 1.1);
+    grid-auto-columns: calc((100% - 10px) / 1.15);
     gap: 10px;
-    margin-top: 13px;
   }
+
+  .packages__carousel { margin-top: 10px; }
+  .packages__scroll-hint { font-size: 12px; }
+  .packages__edge { width: 44px; height: 44px; }
+  .packages__edge--previous { left: -10px; }
+  .packages__edge--next { right: -10px; }
 
   .package-card {
-    height: 370px;
-    border-radius: 15px;
-  }
-
-  .package-card__media {
-    flex-basis: 128px;
-    height: 128px;
+    min-height: 316px;
+    border-radius: 13px;
   }
 
   .package-card__body {
-    padding: 13px 14px 14px;
+    padding: 10px 11px 11px;
   }
 }
 
 .packages--compact {
-  padding: 24px 0;
+  --package-media-height: 96px;
+  padding: 20px 0;
 
   .packages__inner {
     width: calc(100% - 24px);
-    padding: 16px 12px;
+    padding: 14px 12px;
     border-radius: 16px;
     box-shadow: 0 4px 16px rgba(5, 21, 43, 0.04);
   }
@@ -1063,11 +1261,11 @@ onMounted(async () => {
   }
 
   .packages__head h2 {
-    font-size: 23px;
+    font-size: 21px;
   }
 
   .packages__head-copy > p:last-child {
-    font-size: 12px;
+    font-size: 11.5px;
     font-weight: 400;
   }
 
@@ -1083,8 +1281,8 @@ onMounted(async () => {
   }
 
   .packages__catalog {
-    margin-top: 14px;
-    padding-top: 12px;
+    margin-top: 12px;
+    padding-top: 10px;
   }
 
   .packages__toolbar {
@@ -1109,30 +1307,24 @@ onMounted(async () => {
   }
 
   .package-card {
-    height: 344px;
+    min-height: 304px;
     border-radius: 13px;
   }
 
-  .package-card__media {
-    flex-basis: 104px;
-    height: 104px;
-  }
-
   .package-card__body {
-    padding: 12px;
+    padding: 10px;
   }
 
   .package-card h3 {
-    font-size: 16px;
+    font-size: 15px;
   }
 
   .package-card__copy {
-    flex-basis: 78px;
-    height: 78px;
+    min-height: 54px;
   }
 
   .package-card__price strong {
-    font-size: 25px;
+    font-size: 23px;
   }
 }
 

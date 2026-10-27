@@ -1,4 +1,5 @@
 import http from '@/modules/client/utils/request';
+import { parseOrderListPage, type OrderListPage } from '@/modules/client/utils/order-list-page';
 
 export interface Level1CategoryRecord {
   category?: {
@@ -25,6 +26,7 @@ export interface ExclusiveSpuRecord {
 }
 
 export interface PackageOrderItemRecord {
+  bindType?: number | string;
   skuId?: number | string;
   spuId?: number | string;
   spuNameI18n?: Record<string, string>;
@@ -36,6 +38,19 @@ export interface PackageOrderItemRecord {
   redeemTimes?: number | string;
   occupiedTimes?: number | string;
   remainingTimes?: number | string;
+  totalTimes?: number | string;
+  completedTimes?: number | string;
+  inProgressTimes?: number | string;
+  serviceAddress?: string;
+  building?: string;
+  roomNo?: string;
+  community?: string;
+}
+
+export interface PackageOrderSnapshotItem extends PackageOrderItemRecord {
+  packageItemId?: number | string;
+  chosenSkuId?: number | string;
+  specs?: PackageOrderItemRecord['specI18n'];
 }
 
 export interface PackageFulfillmentRecord {
@@ -93,6 +108,10 @@ export interface OrderListRecord {
   remainingTimes?: number | string;
   validUntil?: string;
   packageItems?: PackageOrderItemRecord[];
+  packageSnapshot?: {
+    packageId?: number | string;
+    items?: PackageOrderSnapshotItem[];
+  };
   fulfillmentList?: PackageFulfillmentRecord[];
   status?: number | string;
   orderStatus?: number | string;
@@ -649,9 +668,12 @@ export async function addCartItem(params: AddCartItemPayload) {
   );
 }
 
-export async function addPackageToCart(packageId: string | number) {
+export async function addPackageToCart(packageId: string | number, selections: PackageSkuSelection[] = []) {
   return getEnvelopeData<ClientCartItemRecord>(
-    await http.post('/client/cart/add', { packageId }),
+    await http.post('/client/cart/add', {
+      packageId,
+      ...(selections.length ? { packageSelections: selections } : {}),
+    }),
   );
 }
 
@@ -719,9 +741,10 @@ export interface PackageCatalogCard {
   descI18n?: Record<string, string>;
   packageName?: string;
   packageDesc?: string;
-  originalPrice?: number | string | null;
-  salePrice?: number | string | null;
-  savedAmount?: number | string | null;
+  discount?: number | string | null;
+  displayTotalPrice?: number | string | null;
+  displaySalePrice?: number | string | null;
+  displaySavedPrice?: number | string | null;
   imageUrls?: string[];
   validDays?: number | null;
   redeemTimes?: number | null;
@@ -731,18 +754,56 @@ export interface PackageCatalogCard {
   bookingNoticeI18n?: Record<string, string>;
   tags?: Array<{ id?: number | string; name?: string; nameI18n?: Record<string, string> }>;
   items?: PackageCatalogItem[];
+  spus?: PackageBoundService[];
+}
+
+export interface PackageBoundService {
+  spuId?: number | string;
+  nameI18n?: Record<string, string>;
+  imageUrls?: string[];
+}
+
+export interface PackageSpecLine {
+  specTypeId?: number | string;
+  specValueId?: number | string;
+  specTypeNameI18n?: Record<string, string>;
+  specValueNameI18n?: Record<string, string>;
+}
+
+export interface PackageSkuOption {
+  skuId?: number | string;
+  specI18n?: PackageSpecLine[];
+}
+
+export interface PackageSkuSelection {
+  packageItemId?: number;
+  spuId?: number;
+  skuId: number;
+}
+
+export interface PackagePriceQuote {
+  originalPrice: number | string;
+  salePrice: number | string;
+  savedPrice: number | string;
+  taxPrice: number | string;
+  totalPriceWithTax: number | string;
+  discount: number | string;
+}
+
+export interface PackagePricePayload {
+  packageId: string | number;
+  selections: PackageSkuSelection[];
 }
 
 export interface PackageCatalogItem {
   packageItemId?: number | string;
   spuId?: number | string;
+  bindType?: number | string;
   skuId?: number | string;
+  skuOptions?: PackageSkuOption[];
   redeemTimes?: number | null;
   spuNameI18n?: Record<string, string>;
-  specI18n?: Array<{
-    specTypeNameI18n?: Record<string, string>;
-    specValueNameI18n?: Record<string, string>;
-  }>;
+  specI18n?: PackageSpecLine[];
   imageUrls?: string[];
 }
 
@@ -761,6 +822,10 @@ export async function packageCatalog() {
 
 export async function packageDetail(id: string | number) {
   return getEnvelopeData<PackageCatalogCard>(await http.get(`/client/package/detail/${id}`));
+}
+
+export async function packagePrice(params: PackagePricePayload) {
+  return getEnvelopeData<PackagePriceQuote>(await http.post('/client/package/price', params));
 }
 
 // /client/product/onShelfSpus 上架商品列表
@@ -795,16 +860,36 @@ export async function getAvailableSelectTime(params: any) {
   return payload && typeof payload === 'object' && 'data' in payload ? payload.data : null;
 }
 
-// /client/order/list 获取订单列表
-export async function getOrderList(params?: any) {
-  const payload = await http.get('/client/order/list', { params: params });
-  return getDataList<OrderListRecord>(payload);
+export type ClientOrderListParams = {
+  tab?: string
+  keyWord?: string
+  status?: number
+  orderType?: 1 | 2
+  pageNum?: number
+  pageSize?: number
+}
+
+// /client/order/list 分页返回 PageResult。拦截器可能给出整包、data 或旧数组。
+export async function getOrderListPage(params?: ClientOrderListParams): Promise<OrderListPage<OrderListRecord>> {
+  const payload = await http.get('/client/order/list', { params })
+  return parseOrderListPage<OrderListRecord>(payload)
+}
+
+export async function getOrderList(params?: ClientOrderListParams) {
+  return (await getOrderListPage(params)).list
 }
 
 // /client/order/detail 返回完整订单详情；套餐订单包含逐次履约列表。
 export async function getClientOrderDetail(orderNo: string) {
   return getEnvelopeData<OrderListRecord>(await http.get('/client/order/detail', {
     params: { orderNo },
+  }));
+}
+
+// 结算使用已创建订单的套餐快照，保留下单时选定的规格。
+export async function getClientOrderDetailById(orderId: string | number) {
+  return getEnvelopeData<OrderListRecord>(await http.get('/client/order/detail', {
+    params: { orderId },
   }));
 }
 
@@ -865,7 +950,7 @@ export async function rescheduleOrder(params: OrderReschedulePayload) {
 
 export interface PackageFulfillPayload {
   orderNo: string;
-  skuId: number;
+  skuId?: number;
   serviceDate: string;
   timeRange: number;
   firstName?: string;
@@ -879,7 +964,7 @@ export interface PackageFulfillPayload {
   remark?: string;
 }
 
-// /client/order/package/fulfill 为套餐里的一个服务再发起一次履约，占用 1 次。
+// /client/order/package/fulfill 为所有仍有次数的套餐服务各预约一次。
 export async function fulfillPackageOrder(params: PackageFulfillPayload) {
   return getEnvelopeData<string>(await http.post('/client/order/package/fulfill', params));
 }
@@ -895,8 +980,12 @@ export async function createOrder(params: any) {
 }
 
 // 套餐直购：只创建订单，支付沿用订单确认页，不经过购物车。
-export async function createPackageOrder(packageId: number | string) {
-  return getEnvelopeData<number | string>(await http.post('/client/order/placePackage', { packageId, bookFirstVisit: true }));
+export async function createPackageOrder(packageId: number | string, selections: PackageSkuSelection[] = []) {
+  return getEnvelopeData<number | string>(await http.post('/client/order/placePackage', {
+    packageId,
+    bookFirstVisit: true,
+    ...(selections.length ? { selections } : {}),
+  }));
 }
 
 // /client/order/getLatestAddress 获取最新地址

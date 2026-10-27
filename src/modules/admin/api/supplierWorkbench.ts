@@ -93,8 +93,25 @@ export function saveQuoteDraft(payload: Record<string, unknown>) {
   return http.post('/api/supplier/tools/quotes/draft', payload);
 }
 
-export function exportQuoteSheet() {
-  return http.get('/api/supplier/tools/quotes/export', { responseType: 'blob' });
+/** 勾选的服务 ID。空字符串表示不限制，由后端导出全部已加入的服务。 */
+export function quoteSpuIdsParam(spuIds?: Array<number | string> | null) {
+  const ids: number[] = [];
+  const seen = new Set<number>();
+  for (const value of spuIds ?? []) {
+    const id = Number(value);
+    if (!Number.isInteger(id) || id <= 0 || seen.has(id)) continue;
+    seen.add(id);
+    ids.push(id);
+  }
+  return ids.join(',');
+}
+
+export function exportQuoteSheet(spuIds?: Array<number | string> | null) {
+  const spuIdText = quoteSpuIdsParam(spuIds);
+  return http.get('/api/supplier/tools/quotes/export', {
+    params: spuIdText ? { spuIds: spuIdText } : {},
+    responseType: 'blob',
+  });
 }
 
 export function importQuoteSheet(file: File) {
@@ -115,9 +132,13 @@ export function reviewQuotePriceChange(payload: { supplierId: number; spuId: num
   return http.post('/api/platform/supplierQuote/priceChange/review', payload);
 }
 
-export function exportPlatformQuoteSheet(supplierId: number) {
+export function exportPlatformQuoteSheet(supplierId: number, spuIds?: Array<number | string> | null) {
+  const spuIdText = quoteSpuIdsParam(spuIds);
   return http.get('/api/platform/supplierQuote/quotes/export', {
-    params: { supplierId },
+    params: {
+      supplierId,
+      ...(spuIdText ? { spuIds: spuIdText } : {}),
+    },
     responseType: 'blob',
   });
 }
@@ -127,6 +148,44 @@ export function importPlatformQuoteSheet(supplierId: number, file: File) {
   body.append('supplierId', String(supplierId));
   body.append('file', file);
   return http.post('/api/platform/supplierQuote/quotes/import', body);
+}
+
+export interface SupplierQuoteImportLog {
+  id?: number | string;
+  supplierId?: number | string;
+  supplierNo?: string;
+  supplierName?: string;
+  operatorId?: number | string;
+  operatorName?: string;
+  operatorType?: string;
+  importBy?: string;
+  importByI18n?: Record<string, string>;
+  fileName?: string;
+  fileUrl?: string;
+  serviceCount?: number | string;
+  skuCount?: number | string;
+  skippedCount?: number | string;
+  messages?: string[];
+  error?: string;
+  /** Already formatted in Dubai time by the server. */
+  operateTime?: string;
+  contentI18n?: Record<string, string>;
+}
+
+export async function listPlatformQuoteImports(supplierId: number): Promise<SupplierQuoteImportLog[]> {
+  if (!Number.isSafeInteger(supplierId) || supplierId <= 0) throw new Error('Invalid supplier');
+  const raw: unknown = await http.get('/api/platform/supplierQuote/quotes/imports', { params: { supplierId } });
+  const envelope = raw && typeof raw === 'object' && !Array.isArray(raw) ? raw as Record<string, unknown> : null;
+  const failedCode = envelope && 'code' in envelope && ![0, 200, '0', '200'].includes(envelope.code as number | string);
+  if (envelope?.success === false || failedCode) {
+    throw new Error(typeof envelope.message === 'string' && envelope.message.trim()
+      ? envelope.message : 'Unable to load quote import history');
+  }
+  const rows = Array.isArray(raw) ? raw : envelope?.data;
+  if (!Array.isArray(rows) || rows.some((row) => !row || typeof row !== 'object' || Array.isArray(row))) {
+    throw new Error('Invalid quote import history response');
+  }
+  return rows as SupplierQuoteImportLog[];
 }
 
 export function serviceAreaList(payload: Record<string, unknown> = { status: 1 }) {
@@ -160,6 +219,10 @@ export function supplierEventPage(payload: Record<string, unknown> = {}) {
 
 export function supplierEventSave(payload: Record<string, unknown>) {
   return http.post('/api/supplier/event/save', payload);
+}
+
+export function supplierEventDelete(id: number) {
+  return http.post('/api/supplier/event/delete', { id });
 }
 
 export function supplierChangeAcceptDispatch(payload: { id: number; acceptDispatch: 0 | 1 }) {
@@ -203,10 +266,17 @@ export function supplierComplete(payload: { orderId: number; fulfillmentId?: num
   return http.post('/api/orderHeader/supplier/complete', payload);
 }
 
-export function uploadFile(file: File) {
+export function uploadFile(file: File, onProgress?: (percent: number) => void) {
   const formData = new FormData();
   formData.append('file', file);
-  return http.post('/api/file/upload', formData);
+  return http.post('/api/file/upload', formData, {
+    timeout: 120_000,
+    onUploadProgress: (event) => {
+      if (!onProgress) return;
+      const total = event.total || 0;
+      onProgress(total > 0 ? Math.min(99, Math.round((event.loaded / total) * 100)) : 0);
+    },
+  });
 }
 
 export function supplierStaffPage(payload: { pageNum?: number; pageSize?: number; keyword?: string } = {}) {

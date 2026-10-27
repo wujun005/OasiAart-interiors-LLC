@@ -250,8 +250,8 @@ export const useCart = (options: { initialize?: boolean } = {}) => {
     return cartItemId;
   };
 
-  const addPackage = async (packageId: string | number) => {
-    const cartItem = await addPackageToCart(packageId);
+  const addPackage = async (packageId: string | number, selections: Parameters<typeof addPackageToCart>[1] = []) => {
+    const cartItem = await addPackageToCart(packageId, selections);
     await refreshCart();
     return cartItem;
   };

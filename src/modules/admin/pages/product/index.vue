@@ -1,5 +1,9 @@
 <template>
   <div class="page">
+    <div v-if="isPackageService" class="package-service-heading">
+      <h2>{{ t('admin.packageService.title') }}</h2>
+      <p>{{ t('admin.packageService.description') }}</p>
+    </div>
     <el-card>
       <div class="toolbar">
         <div class="toolbar-fields">
@@ -21,7 +25,7 @@
           </el-select>
           <el-select
             v-model="query.serviceSubCategoryId"
-            :placeholder="t('admin.product.filters.serviceSubCategoryPlaceholder')"
+            :placeholder="productText('admin.product.filters.serviceSubCategoryPlaceholder')"
             clearable
             filterable
             remote
@@ -36,6 +40,7 @@
             />
           </el-select>
           <el-select
+            v-if="!isPackageService"
             v-model="query.shelfStatus"
             :placeholder="t('admin.product.filters.shelfStatusPlaceholder')"
             clearable
@@ -54,6 +59,7 @@
             @keyup.enter="handleSearch"
           />
           <el-select
+            v-if="!isPackageService"
             v-model="query.exclusive"
             :placeholder="t('admin.product.filters.exclusivePlaceholder')"
             clearable
@@ -69,10 +75,10 @@
         <div class="toolbar-actions">
           <el-button type="primary" @click="handleSearch">{{ t('admin.product.actions.search') }}</el-button>
           <el-button @click="reset">{{ t('admin.product.actions.reset') }}</el-button>
-          <el-button :loading="exportLoading" @click="handleExportI18n">
+          <el-button v-if="!isPackageService" :loading="exportLoading" @click="handleExportI18n">
             {{ t('admin.product.actions.export') }}
           </el-button>
-          <el-button type="primary" @click="openCreate">{{ t('admin.product.actions.create') }}</el-button>
+          <el-button type="primary" @click="openCreate">{{ t(isPackageService ? 'admin.packageService.create' : 'admin.product.actions.create') }}</el-button>
         </div>
       </div>
 
@@ -134,6 +140,17 @@
           min-width="130"
           show-overflow-tooltip
         />
+        <el-table-column v-if="isPackageService" :label="t('admin.product.table.packages')" min-width="200">
+          <template #default="{ row }">
+            <ul v-if="row.packages.length" class="bound-packages">
+              <li v-for="pkg in row.packages" :key="pkg.key">
+                <RouterLink v-if="pkg.id" :to="{ path: '/admin/package/packages', query: { editId: String(pkg.id) } }">{{ pkg.name }}</RouterLink>
+                <span v-else>{{ pkg.name }}</span>
+              </li>
+            </ul>
+            <span v-else class="unbound-package">{{ t('admin.product.text.noPackages') }}</span>
+          </template>
+        </el-table-column>
         <el-table-column :label="t('admin.product.table.tags')" min-width="160">
           <template #default="{ row }">
             <div v-if="productTagLabels(row).length" class="biz-tag-list">
@@ -155,7 +172,7 @@
         />
         <el-table-column
           prop="subCategoryName"
-          :label="t('admin.product.table.subcategory')"
+          :label="productText('admin.product.table.subcategory')"
           min-width="120"
           show-overflow-tooltip
         />
@@ -172,7 +189,7 @@
             </el-tooltip>
           </template>
         </el-table-column>
-        <el-table-column :label="t('admin.product.table.saleStatus')" width="92">
+        <el-table-column v-if="!isPackageService" :label="t('admin.product.table.saleStatus')" width="92">
           <template #default="{ row }">
             <el-button
               class="sale-status-button"
@@ -226,6 +243,7 @@
                 {{ t('admin.product.actions.edit') }}
               </el-button>
               <el-button
+                v-if="!isPackageService"
                 link
                 type="primary"
                 size="small"
@@ -240,7 +258,7 @@
             </div>
           </template>
         </el-table-column>
-        <el-table-column :label="t('admin.product.table.limitedOffer')" width="78">
+        <el-table-column v-if="!isPackageService" :label="t('admin.product.table.limitedOffer')" width="78">
           <template #default="{ row }">
             <el-button
               link
@@ -269,15 +287,39 @@
 
     <el-dialog
       v-model="dialogVisible"
-      :title="isEdit ? t('admin.product.dialog.editTitle') : t('admin.product.dialog.createTitle')"
+      :title="isPackageService
+        ? t(isEdit ? 'admin.packageService.editTitle' : 'admin.packageService.createTitle')
+        : t(isEdit ? 'admin.product.dialog.editTitle' : 'admin.product.dialog.createTitle')"
       :close-on-click-modal="false"
+      :close-on-press-escape="!submitLoading"
+      :show-close="!submitLoading"
       width="min(760px, calc(100vw - 32px))"
     >
+      <el-form v-if="isPackageService && !isEdit" label-width="110px">
+        <el-form-item :label="t('admin.packageService.sourceLabel')">
+          <div class="source-service-field">
+            <el-select
+              :model-value="sourceServiceId"
+              filterable
+              clearable
+              :loading="sourceServicesLoading || detailLoading"
+              :disabled="submitLoading || uploading"
+              :placeholder="t('admin.packageService.sourcePlaceholder')"
+              @visible-change="(open) => open && ensureSourceServices()"
+              @change="importSourceService"
+            >
+              <el-option v-for="item in sourceServiceOptions" :key="item.id" :value="item.id" :label="item.name" />
+            </el-select>
+            <p>{{ t('admin.packageService.sourceHint') }}</p>
+          </div>
+        </el-form-item>
+      </el-form>
       <el-form
         ref="formRef"
         :model="form"
         :rules="rules"
         label-width="110px"
+        :disabled="detailLoading || submitLoading"
         v-loading="detailLoading"
       >
         <el-form-item :label="t('admin.product.form.category')" prop="product.categoryId">
@@ -299,10 +341,10 @@
             />
           </el-select>
         </el-form-item>
-        <el-form-item :label="t('admin.product.form.subcategory')" prop="product.subCategoryId">
+        <el-form-item :label="productText('admin.product.form.subcategory')" prop="product.subCategoryId">
           <el-select
             v-model="form.product.subCategoryId"
-            :placeholder="t('admin.product.form.subcategoryPlaceholder')"
+            :placeholder="productText('admin.product.form.subcategoryPlaceholder')"
             filterable
             remote
             :remote-method="remoteSearchSubCategoryOptions"
@@ -363,7 +405,7 @@
                 "
               >
                 <el-option
-                  v-for="item in filteredSpecTypeOptions"
+                  v-for="item in specTypeOptionsFor(group)"
                   :key="item.value"
                   :label="item.label"
                   :value="item.value"
@@ -392,6 +434,12 @@
                   :value="item.value"
                 />
               </el-select>
+              <div v-if="pricedSpecLines(group).length" class="spec-price-lines">
+                <p v-for="item in pricedSpecLines(group)" :key="item.value">
+                  {{ item.label }}
+                  <span>+{{ formatSkuMoney(item.price) }}</span>
+                </p>
+              </div>
             </el-form-item>
           </div>
           <el-form-item label="" prop="specGroups">
@@ -439,7 +487,7 @@
                 "
               >
                 <el-option
-                  v-for="item in addonCategoryOptions"
+                  v-for="item in addonCategoryOptionsFor(group)"
                   :key="item.value"
                   :label="item.label"
                   :value="item.value"
@@ -473,7 +521,7 @@
             >
           </el-form-item>
         </div>
-        <el-form-item :label="t('admin.product.form.sale')" prop="product.isOnSale">
+        <el-form-item v-if="!isPackageService" :label="t('admin.product.form.sale')" prop="product.isOnSale">
           <el-switch v-model="form.product.isOnSale" />
         </el-form-item>
         <el-form-item :label="t('admin.bizTag.label')">
@@ -785,12 +833,32 @@
             </div>
           </div>
         </el-form-item>
+        <el-form-item v-if="isPackageService && importedPriceEditor" :label="t('admin.packageService.importPrices')">
+          <div class="imported-prices">
+            <p>{{ t('admin.packageService.priceCopyHint') }}</p>
+            <el-table :data="importedPriceEditor.rows" border>
+              <el-table-column v-for="col in importedPriceEditor.columns" :key="col.key" :label="col.label" min-width="100">
+                <template #default="{ row }">{{ row.specMap[col.key] }}</template>
+              </el-table-column>
+              <el-table-column :label="t('admin.product.table.originPrice')" min-width="155">
+                <template #default="{ row }">
+                  <el-input-number v-model="row.originPrice" :min="0" :precision="2" :value-on-clear="null" controls-position="right" />
+                </template>
+              </el-table-column>
+              <el-table-column :label="t('admin.product.table.discountPrice')" min-width="155">
+                <template #default="{ row }">
+                  <el-input-number v-model="row.discountPrice" :min="0" :precision="2" :value-on-clear="null" controls-position="right" />
+                </template>
+              </el-table-column>
+            </el-table>
+          </div>
+        </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="dialogVisible = false">{{ t('admin.product.actions.cancel') }}</el-button>
+        <el-button :disabled="submitLoading" @click="dialogVisible = false">{{ t('admin.product.actions.cancel') }}</el-button>
         <el-button
           type="primary"
-          :disabled="uploading"
+          :disabled="uploading || detailLoading"
           :loading="submitLoading"
           @click="save"
         >
@@ -804,9 +872,21 @@
       class="price-maintain-dialog"
       :title="t('admin.product.dialog.priceTitle')"
       :close-on-click-modal="false"
-      width="min(720px, calc(100vw - 32px))"
+      width="min(1040px, calc(100vw - 32px))"
     >
-      <el-table :data="priceRows" border stripe class="price-table">
+      <div v-if="priceAddons.length" class="price-addon-hint">
+        <p>{{ t('admin.product.message.priceAddonHint') }}</p>
+        <div class="price-addon-list">
+          <span v-for="group in priceAddons" :key="group.key">
+            <strong>{{ group.label }}</strong>
+            <template v-for="(option, index) in group.options" :key="option.id">
+              {{ index ? t('admin.product.text.separator') : (String(locale).startsWith('en') ? ': ' : '：') }}{{ option.label }}
+              {{ option.price == null ? t('admin.product.message.optionPriceMissing') : `+${formatSkuMoney(option.price)}` }}
+            </template>
+          </span>
+        </div>
+      </div>
+      <el-table v-loading="priceLoading" :data="priceRows" border stripe class="price-table">
         <el-table-column
           v-for="col in priceColumns"
           :key="col.key"
@@ -818,14 +898,48 @@
             {{ row.specMap[col.key] }}
           </template>
         </el-table-column>
-        <el-table-column :label="t('admin.product.table.originPrice')" width="160">
+        <el-table-column :label="t('admin.product.table.originPrice')" width="168">
           <template #default="{ row }">
-            <el-input-number v-model="row.originPrice" :min="0" :step="1" />
+            <el-input-number
+              :model-value="row.originPrice ?? undefined"
+              :min="0"
+              :precision="2"
+              :step="1"
+              :value-on-clear="null"
+              @update:model-value="(value) => { row.originPrice = value == null ? null : Number(value) }"
+            />
           </template>
         </el-table-column>
-        <el-table-column :label="t('admin.product.table.discountPrice')" width="160">
+        <el-table-column :label="t('admin.product.table.discountPrice')" width="168">
           <template #default="{ row }">
-            <el-input-number v-model="row.discountPrice" :min="0" :step="1" />
+            <el-input-number
+              :model-value="row.discountPrice ?? undefined"
+              :min="0"
+              :precision="2"
+              :step="1"
+              :value-on-clear="null"
+              @update:model-value="(value) => { row.discountPrice = value == null ? null : Number(value) }"
+            />
+          </template>
+        </el-table-column>
+        <el-table-column
+          v-if="priceAddons.length"
+          :label="t('admin.product.table.totalPrice')"
+          min-width="240"
+        >
+          <template #default="{ row }">
+            <div
+              v-for="(line, index) in priceTotalLines(row)"
+              :key="`${row.id}-${index}`"
+              class="price-total-line"
+            >
+              <span v-if="line.label" class="price-total-line__name">{{ line.label }}</span>
+              <span v-if="line.missingPrice">{{ t('admin.product.message.optionPriceMissing') }}</span>
+              <template v-else>
+                <span>{{ t('admin.product.table.originPrice') }} {{ formatSkuMoney(line.origin) }}</span>
+                <span>{{ t('admin.product.table.discountPrice') }} {{ formatSkuMoney(line.sale) }}</span>
+              </template>
+            </div>
           </template>
         </el-table-column>
       </el-table>
@@ -838,7 +952,8 @@
 </template>
 
 <script setup lang="ts">
-import { computed, nextTick, onMounted, reactive, ref, watch } from 'vue';
+import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue';
+import { RouterLink, useRoute, useRouter } from 'vue-router';
 import type {
   FormInstance,
   FormRules,
@@ -870,6 +985,10 @@ import {
   searchCategory,
 } from '@/modules/admin/api/category';
 import {
+  fuzzySearch as fuzzySearchPackageServiceCategory,
+  getPage as getPackageServiceCategoryPage,
+} from '@/modules/admin/api/packageServiceCategory';
+import {
   fuzzySearchSpecType,
   getSpecTypePage,
 } from '@/modules/admin/api/specType';
@@ -877,9 +996,43 @@ import { getSpecValuePage } from '@/modules/admin/api/spec';
 import { getPage as getAddonTypePage } from '@/modules/admin/api/addonType';
 import { getPage as getAddonPage } from '@/modules/admin/api/addon';
 import { ADMIN_LANG_EN, ADMIN_LANG_ZH, pickI18nText } from '@/modules/admin/utils/i18n';
+import {
+  buildSkuPriceEditor,
+  effectiveSalePrice,
+  formatSkuMoney,
+  skuPriceTotals,
+  type SkuPriceAddonGroup,
+  type SkuPriceRow,
+  type SkuPriceEditor,
+} from '@/modules/admin/utils/skuPriceTable';
+import { bizTagsByRef } from '@/modules/admin/api/bizTag';
 import { useBizTagPicker } from '@/modules/admin/utils/bizTagPicker';
 import { bizTagLabels, type BizTag } from '@/modules/client/utils/biz-tag';
 import { getAdminAuthStorageValue } from '@/utils/auth-state';
+
+const props = withDefaults(defineProps<{ packageService?: 0 | 1 }>(), {
+  packageService: 0,
+});
+const isPackageService = computed(() => props.packageService === 1);
+const packageProductLabelKey: Record<string, string> = {
+  'admin.product.filters.serviceSubCategoryPlaceholder': 'admin.packageCatalog.subcategory.placeholder',
+  'admin.product.table.subcategory': 'admin.packageCatalog.subcategory.label',
+  'admin.product.form.subcategory': 'admin.packageCatalog.subcategory.label',
+  'admin.product.form.subcategoryPlaceholder': 'admin.packageCatalog.subcategory.placeholder',
+};
+const productText = (key: string, values?: Record<string, unknown>) =>
+  t(isPackageService.value ? packageProductLabelKey[key] || key : key, values || {});
+const specCategoryDomain = computed(() => (isPackageService.value ? '4' : '2'));
+const route = useRoute();
+const router = useRouter();
+const editorPath = computed(() => isPackageService.value ? '/admin/package/services' : '/admin/products');
+let pageMounted = false;
+let linkedEditorActive = false;
+const clearLinkedEditQuery = () => {
+  if (route.path !== editorPath.value || route.query.editId === undefined) return;
+  const { editId: _editId, ...query } = route.query;
+  void router.replace({ path: route.path, query, hash: route.hash });
+};
 
 type ProductEntity = {
   id?: number;
@@ -915,6 +1068,7 @@ type ProductImage = {
 type ProductRow = {
   id: number;
   name: string;
+  packages: Array<{ id: number | null; key: string; name: string }>;
   images: string[];
   previewUrl?: string;
   price: number;
@@ -953,8 +1107,12 @@ const normalizeOptionalId = (value: unknown): number | null => {
 
 type CategoryOption = { label: string; value: number };
 type SubCategoryOption = CategoryOption & { parentId: number | null };
-type SpecTypeOption = CategoryOption & { subCategoryId: number | null };
-type SpecOption = SpecTypeOption & { typeId: number | null };
+type SpecTypeOption = CategoryOption & { subCategoryId: number | null; priced: boolean };
+type SpecOption = CategoryOption & {
+  typeId: number | null;
+  subCategoryId: number | null;
+  price: number | null;
+};
 
 const subCategoryOptions = ref<SubCategoryOption[]>([]);
 const { locale, t } = useI18n({ useScope: 'global' });
@@ -1068,12 +1226,36 @@ const filteredSpecOptions = (
 ) =>
   specOptions.value.filter((item) => {
     const typeMatched = !typeId || item.typeId === typeId;
-    const subCategoryMatched =
-      !subCategoryId ||
-      !item.subCategoryId ||
-      item.subCategoryId === subCategoryId;
+    const subCategoryMatched = isPackageService.value
+      ? subCategoryId != null && item.subCategoryId === subCategoryId
+      : !subCategoryId || !item.subCategoryId || item.subCategoryId === subCategoryId;
     return typeMatched && subCategoryMatched;
   });
+
+const specMoney = (value: unknown): number | null => {
+  if (value == null || value === '') return null;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : null;
+};
+
+const specTypeIsPriced = (typeId: number | null) =>
+  typeId != null &&
+  specTypeOptions.value.some((item) => item.value === typeId && item.priced);
+
+const pricedSpecLines = (group: SpecGroup) => {
+  if (!specTypeIsPriced(group.specTypeId)) return [];
+  const byId = new Map(
+    filteredSpecOptions(group.specTypeId, form.product.subCategoryId).map((item) => [
+      item.value,
+      item,
+    ]),
+  );
+  return group.specIds.flatMap((id) => {
+    const item = byId.get(id);
+    if (!item || item.price == null) return [];
+    return [{ value: item.value, label: item.label, price: item.price }];
+  });
+};
 
 const query = reactive({
   pageNum: 1,
@@ -1090,11 +1272,11 @@ const hasProductFilterConditions = computed(
   () =>
     Boolean(query.spuCode.trim()) ||
     normalizeOptionalId(query.categoryId) !== null ||
-    Boolean(String(query.shelfStatus ?? '').trim()) ||
+    (!isPackageService.value && Boolean(String(query.shelfStatus ?? '').trim())) ||
     normalizeOptionalId(query.serviceSubCategoryId) !== null ||
     Boolean(query.nameKeyword.trim()) ||
-    Boolean(String(query.status ?? '').trim()) ||
-    Boolean(String(query.exclusive ?? '').trim()),
+    (!isPackageService.value && Boolean(String(query.status ?? '').trim())) ||
+    (!isPackageService.value && Boolean(String(query.exclusive ?? '').trim())),
 );
 // 默认先禁用，只有一次无筛选查询成功后，才能确认当前列表是全量顺序的一部分。
 const loadedProductsAreFiltered = ref(true);
@@ -1114,6 +1296,24 @@ const isEdit = ref(false);
 const formRef = ref<FormInstance>();
 const detailLoading = ref(false);
 const submitLoading = ref(false);
+const sourceServiceId = ref<number | null>(null);
+let appliedSourceServiceId: number | null = null;
+const sourceServicesLoading = ref(false);
+const sourceServiceCatalog = ref<any[]>([]);
+const sourceServiceOptions = computed(() => sourceServiceCatalog.value.map((item) => ({
+  id: Number(item.spu?.id ?? item.id),
+  name: pickName(item.nameI18n, item.spu?.spuName || String(item.spu?.id ?? item.id)),
+})));
+let sourceCatalogLoaded = false;
+let sourceCatalogInflight: Promise<void> | null = null;
+let sourceImportVersion = 0;
+let applyingServiceDetail = false;
+let metadataReady: Promise<unknown> = Promise.resolve();
+const importedPriceEditor = ref<SkuPriceEditor | null>(null);
+const importedPriceSpecSignature = ref('');
+const specSignature = () => JSON.stringify(form.specGroups
+  .map((group) => ({ type: group.specTypeId, values: [...group.specIds].sort((a, b) => a - b) }))
+  .sort((a, b) => Number(a.type) - Number(b.type)));
 const priceDialogVisible = ref(false);
 const priceLoading = ref(false);
 const uploadList = ref<UploadUserFile[]>([]);
@@ -1124,15 +1324,11 @@ const currencyOptions = ref<{ label: string; value: string }[]>([]);
 const currencyLoading = ref(false);
 const uploading = computed(() => uploadCount.value > 0);
 
-type PriceRow = {
-  id: string;
-  specMap: Record<string, string>;
-  originPrice: number;
-  discountPrice?: number;
-};
 type PriceColumn = { key: string; label: string };
-const priceRows = ref<PriceRow[]>([]);
+const priceProductId = ref<number | null>(null);
+const priceRows = ref<SkuPriceRow[]>([]);
 const priceColumns = ref<PriceColumn[]>([]);
+const priceAddons = ref<SkuPriceAddonGroup[]>([]);
 
 const normalizeCurrencyOptions = (
   list: any,
@@ -1168,7 +1364,7 @@ const defaultProduct = (): ProductEntity => ({
   id: undefined,
   price: undefined as any,
   stock: undefined as any,
-  isOnSale: true,
+  isOnSale: !isPackageService.value,
   currency: 'CNY',
   sort: undefined,
   categoryId: categoryOptions.value[0]?.value,
@@ -1228,15 +1424,39 @@ const searchSubCategoryOptions = computed(() =>
 );
 
 const filteredSpecTypeOptions = computed(() =>
-  specTypeOptions.value.filter(
-    (item) =>
+  specTypeOptions.value.filter((item) => {
+    if (isPackageService.value) {
+      return (
+        form.product.subCategoryId != null &&
+        item.subCategoryId === form.product.subCategoryId
+      );
+    }
+    return (
       !form.product.subCategoryId ||
       !item.subCategoryId ||
-      item.subCategoryId === form.product.subCategoryId,
-  ),
+      item.subCategoryId === form.product.subCategoryId
+    );
+  }),
 );
 
-const getDefaultSpecTypeId = () => filteredSpecTypeOptions.value[0]?.value ?? null;
+const getDefaultSpecTypeId = (group?: SpecGroup) => filteredSpecTypeOptions.value.find(
+  (item) => !group || !form.specGroups.some((other) => other !== group && other.specTypeId === item.value),
+)?.value ?? null;
+
+const specTypeOptionsFor = (group: SpecGroup) => filteredSpecTypeOptions.value.filter(
+  (item) => item.value === group.specTypeId || !form.specGroups.some(
+    (other) => other !== group && other.specTypeId === item.value,
+  ),
+);
+const addonCategoryOptionsFor = (group: AddonGroup) => addonCategoryOptions.value.filter(
+  (item) => item.value === group.categoryId || !form.addonGroups.some(
+    (other) => other !== group && other.categoryId === item.value,
+  ),
+);
+const hasDuplicateIds = (ids: Array<number | null>) => {
+  const selected = ids.filter((id) => id != null && id > 0);
+  return new Set(selected).size !== selected.length;
+};
 
 const normalizeSpecGroup = (group: SpecGroup, autoFillType = true) => {
   const availableTypeIds = new Set(
@@ -1246,9 +1466,9 @@ const normalizeSpecGroup = (group: SpecGroup, autoFillType = true) => {
     group.specTypeId &&
     !availableTypeIds.has(group.specTypeId)
   ) {
-    group.specTypeId = autoFillType ? getDefaultSpecTypeId() : null;
+    group.specTypeId = autoFillType ? getDefaultSpecTypeId(group) : null;
   } else if (!group.specTypeId && autoFillType) {
-    group.specTypeId = getDefaultSpecTypeId();
+    group.specTypeId = getDefaultSpecTypeId(group);
   }
   const availableSpecIds = new Set(
     filteredSpecOptions(
@@ -1333,6 +1553,10 @@ const rules: FormRules = {
           callback(new Error(t('admin.product.validation.specGroupRequired')));
           return;
         }
+        if (hasDuplicateIds(value.map((group) => group.specTypeId))) {
+          callback(new Error(t('admin.product.validation.specTypeDuplicate')));
+          return;
+        }
         const invalid = value.find(
           (g) => !g.specTypeId || !g.specIds || g.specIds.length === 0,
         );
@@ -1350,6 +1574,10 @@ const rules: FormRules = {
       validator: (_rule, value: AddonGroup[], callback) => {
         if (!value || !value.length) {
           callback();
+          return;
+        }
+        if (hasDuplicateIds(value.map((group) => group.categoryId))) {
+          callback(new Error(t('admin.product.validation.addonTypeDuplicate')));
           return;
         }
         const filledGroups = value.filter(
@@ -1421,6 +1649,13 @@ const isRichTextEmpty = (html?: string) => {
 };
 
 const resetForm = () => {
+  sourceImportVersion += 1;
+  applyingServiceDetail = false;
+  sourceServiceId.value = null;
+  appliedSourceServiceId = null;
+  importedPriceEditor.value = null;
+  importedPriceSpecSignature.value = '';
+  detailLoading.value = false;
   form.product = defaultProduct();
   if (!form.product.subCategoryId && filteredSubCategoryOptions.value.length) {
     form.product.subCategoryId = filteredSubCategoryOptions.value[0].value;
@@ -1448,6 +1683,24 @@ const resetForm = () => {
   ensureCurrencyOption(form.product.currency);
   normalizeSpecGroups(true);
   nextTick(() => formRef.value?.clearValidate());
+};
+
+const boundPackages = (packages: unknown): ProductRow['packages'] => {
+  const seen = new Set<string>();
+  return (Array.isArray(packages) ? packages : []).flatMap((pkg: any) => {
+    if (!pkg || typeof pkg !== 'object') return [];
+    const id = Number(pkg.id);
+    const hasId = Number.isInteger(id) && id > 0;
+    const name = pickName({
+      [ADMIN_LANG_ZH]: pkg.packageName,
+      [ADMIN_LANG_EN]: pkg.packageEnglishName,
+    });
+    if (!hasId && !name) return [];
+    const key = hasId ? `package:${id}` : `name:${name}`;
+    if (seen.has(key)) return [];
+    seen.add(key);
+    return [{ id: hasId ? id : null, key, name: name || t('admin.product.fallback.package', { id }) }];
+  });
 };
 
 const toRow = (item: any): ProductRow => {
@@ -1498,6 +1751,7 @@ const toRow = (item: any): ProductRow => {
   return {
     id: spu.id ?? item.id ?? 0,
     name,
+    packages: boundPackages(item?.packages),
     images,
     previewUrl: typeof previewUrl === 'string' ? previewUrl : '',
     price: spu.price ?? undefined,
@@ -1649,10 +1903,12 @@ const remoteSearchSubCategoryOptions = async (rawKeyword: string) => {
   }
   subCategorySearchLoading.value = true;
   try {
-    const res = await fuzzySearchCategory({
-      nameKeyword: keyword,
-      categoryDomain: '2',
-    });
+    const res = isPackageService.value
+      ? await fuzzySearchPackageServiceCategory({ nameKeyword: keyword })
+      : await fuzzySearchCategory({
+          nameKeyword: keyword,
+          categoryDomain: specCategoryDomain.value,
+        });
     if (sequence !== subCategorySearchSequence) return;
     const matches = unwrapSearchList(res)
       .map(mapCategoryOption)
@@ -1682,7 +1938,10 @@ const searchSpecOptions = async (rawKeyword: string) => {
   }
   specSearchLoading.value = true;
   try {
-    const res = await fuzzySearchSpecType({ nameKeyword: keyword });
+    const res = await fuzzySearchSpecType({
+      nameKeyword: keyword,
+      categoryDomain: specCategoryDomain.value,
+    });
     if (sequence !== specSearchSequence) return;
     const typeMatches: SpecTypeOption[] = [];
     const valueMatches: SpecOption[] = [];
@@ -1703,6 +1962,7 @@ const searchSpecOptions = async (rawKeyword: string) => {
           specType.typeName || item?.name || '',
         ),
         subCategoryId,
+        priced: Number(specType.priced ?? item?.priced) === 1,
       });
       const values = Array.isArray(item?.values) ? item.values : [];
       values.forEach((valueItem: any) => {
@@ -1718,18 +1978,30 @@ const searchSpecOptions = async (rawKeyword: string) => {
           typeId,
           subCategoryId:
             normalizeOptionalId(valueItem?.categoryId) ?? subCategoryId,
+          price: specMoney(specValue.price ?? valueItem?.price),
         });
       });
     });
+    const allowedSubcategoryIds = new Set(baseSubCategoryOptions.value.map((item) => item.value));
+    const allowedTypeIds = new Set(baseSpecTypeOptions.value.map((item) => item.value));
+    const visibleTypes = typeMatches.filter(
+      (item) =>
+        allowedTypeIds.has(item.value) ||
+        (item.subCategoryId != null && allowedSubcategoryIds.has(item.subCategoryId)),
+    );
+    const visibleTypeIds = new Set(visibleTypes.map((item) => item.value));
+    const visibleValues = valueMatches.filter(
+      (item) => item.typeId != null && visibleTypeIds.has(item.typeId),
+    );
     const selectedTypeIds = form.specGroups.map((group) => group.specTypeId);
     const selectedValueIds = form.specGroups.flatMap((group) => group.specIds);
     specTypeOptions.value = mergeWithSelected(
-      typeMatches,
+      visibleTypes,
       [...specTypeOptions.value, ...baseSpecTypeOptions.value],
       selectedTypeIds,
     );
     specOptions.value = mergeWithSelected(
-      valueMatches,
+      visibleValues,
       [...specOptions.value, ...baseSpecOptions.value],
       selectedValueIds,
     );
@@ -1744,13 +2016,15 @@ const fetchCategories = async () => {
   try {
     const [level1Res, level2Res] = await Promise.all([
       getCategoryPage({ pageNum: 1, pageSize: 200, level: '1' }),
-      searchCategory({
-        pageNum: 1,
-        pageSize: 500,
-        categoryDomain: '2',
-        nameKeyword: '',
-        offset: 0,
-      }),
+      isPackageService.value
+        ? getPackageServiceCategoryPage({ pageNum: 1, pageSize: 500 })
+        : searchCategory({
+            pageNum: 1,
+            pageSize: 500,
+            categoryDomain: specCategoryDomain.value,
+            nameKeyword: '',
+            offset: 0,
+          }),
     ]);
     const normalizeList = (res: any) => {
       const payload = res?.data ?? res ?? {};
@@ -1820,7 +2094,11 @@ const fetchCategories = async () => {
 
 const fetchSpecTypes = async () => {
   try {
-    const res = await getSpecTypePage({ pageNum: 1, pageSize: 500 });
+    const res = await getSpecTypePage({
+      pageNum: 1,
+      pageSize: 500,
+      categoryDomain: specCategoryDomain.value,
+    });
     const payload = res?.data ?? res ?? {};
     const records = Array.isArray(payload)
       ? payload
@@ -1848,13 +2126,18 @@ const fetchSpecTypes = async () => {
             item.categoryId ??
             item.pcategoryId,
         );
-        return { value: id, label, subCategoryId };
+        const priced = Number(specType.priced ?? item.priced) === 1;
+        return { value: id, label, subCategoryId, priced };
       })
       .filter(
         (
           item,
-        ): item is { label: string; value: number; subCategoryId: number | null } =>
-          Boolean(item),
+        ): item is {
+          label: string;
+          value: number;
+          subCategoryId: number | null;
+          priced: boolean;
+        } => Boolean(item),
       );
     baseSpecTypeOptions.value = options;
     specTypeOptions.value = [...options];
@@ -1866,7 +2149,11 @@ const fetchSpecTypes = async () => {
 
 const fetchSpecs = async () => {
   try {
-    const res = await getSpecValuePage({ pageNum: 1, pageSize: 500 });
+    const res = await getSpecValuePage({
+      pageNum: 1,
+      pageSize: 500,
+      categoryDomain: specCategoryDomain.value,
+    });
     const payload = res?.data ?? res ?? {};
     const records = Array.isArray(payload)
       ? payload
@@ -1897,7 +2184,8 @@ const fetchSpecs = async () => {
         );
         const nameI18n = item.nameI18n || specValue.nameI18n || {};
         const label = pickName(nameI18n, specValue.specValue || item.name || '');
-        return { value: id, label, typeId, subCategoryId };
+        const price = specMoney(specValue.price ?? item.price);
+        return { value: id, label, typeId, subCategoryId, price };
       })
       .filter(
         (
@@ -1907,6 +2195,7 @@ const fetchSpecs = async () => {
           value: number;
           typeId: number | null;
           subCategoryId: number | null;
+          price: number | null;
         } => Boolean(item),
       );
     baseSpecOptions.value = options;
@@ -1959,6 +2248,7 @@ const fetchProducts = async () => {
     const payload: Record<string, unknown> = {
       pageNum: query.pageNum,
       pageSize: query.pageSize,
+      packageService: props.packageService,
     };
     const spuCode = query.spuCode?.trim();
     if (spuCode) payload.spuCode = spuCode;
@@ -1967,7 +2257,7 @@ const fetchProducts = async () => {
     if (categoryId !== null) payload.categoryId = String(categoryId);
 
     const shelfStatus = String(query.shelfStatus ?? '').trim();
-    if (shelfStatus) payload.shelfStatus = shelfStatus;
+    if (!isPackageService.value && shelfStatus) payload.shelfStatus = shelfStatus;
 
     const serviceSubCategoryId = normalizeOptionalId(query.serviceSubCategoryId);
     if (serviceSubCategoryId !== null) {
@@ -1978,10 +2268,10 @@ const fetchProducts = async () => {
     if (nameKeyword) payload.nameKeyword = nameKeyword;
 
     const status = String(query.status ?? '').trim();
-    if (status) payload.status = status;
+    if (!isPackageService.value && status) payload.status = status;
 
     const exclusive = String(query.exclusive ?? '').trim();
-    if (exclusive) payload.exclusive = exclusive;
+    if (!isPackageService.value && exclusive) payload.exclusive = exclusive;
 
     const res = await page(payload);
     const { list, total: t, pageNum, pageSize } = extractPage(res);
@@ -2304,12 +2594,16 @@ const handleImageDrop = (index: number) => {
 };
 
 const openCreate = () => {
+  if (submitLoading.value) return;
+  linkedEditorActive = false;
+  clearLinkedEditQuery();
   isEdit.value = false;
   resetForm();
   if (!form.product.subCategoryId && filteredSubCategoryOptions.value.length) {
     form.product.subCategoryId = filteredSubCategoryOptions.value[0].value;
   }
   dialogVisible.value = true;
+  if (isPackageService.value) ensureSourceServices();
   tagPicker.loadOptions().catch((error: any) => {
     ElMessage.error(error?.message || t('admin.bizTag.saveFailed'));
   });
@@ -2321,120 +2615,243 @@ const openPreview = (row: ProductRow) => {
   window.open(url, '_blank', 'noopener,noreferrer');
 };
 
-const openEdit = async (row: ProductRow) => {
+const ensureSourceServices = () => {
+  if (sourceCatalogLoaded) return Promise.resolve();
+  if (sourceCatalogInflight) return sourceCatalogInflight;
+  sourceServicesLoading.value = true;
+  sourceCatalogInflight = (async () => {
+    const collected: any[] = [];
+    for (let pageNum = 1; ; pageNum += 1) {
+      const res = await page({ pageNum, pageSize: 200, packageService: 0 });
+      const data = res?.data ?? res ?? {};
+      const list = Array.isArray(data.list) ? data.list : [];
+      collected.push(...list);
+      if (!list.length || collected.length >= Number(data.total ?? collected.length)) break;
+    }
+    sourceServiceCatalog.value = [...new Map(collected
+      .filter((item) => Number(item.spu?.id ?? item.id) > 0)
+      .map((item) => [Number(item.spu?.id ?? item.id), item])).values()];
+    sourceCatalogLoaded = true;
+  })().catch((error: any) => {
+    ElMessage.error(error?.message || t('admin.packageService.sourceLoadFailed'));
+  }).finally(() => {
+    sourceServicesLoading.value = false;
+    sourceCatalogInflight = null;
+  });
+  return sourceCatalogInflight;
+};
+
+const importSourceService = async (id: number | null) => {
+  if (!isPackageService.value || isEdit.value || submitLoading.value || uploading.value) return;
+  const previousId = appliedSourceServiceId;
+  const version = ++sourceImportVersion;
+  sourceServiceId.value = id || null;
+  detailLoading.value = Boolean(id);
+  if (!id) {
+    appliedSourceServiceId = null;
+    applyingServiceDetail = false;
+    return;
+  }
+  try {
+    const [detailRes, tagRes] = await Promise.all([
+      detial(id), bizTagsByRef(1, id), metadataReady,
+    ]);
+    if (version !== sourceImportVersion || !dialogVisible.value) return;
+    const detail = detailRes?.data ?? detailRes ?? {};
+    if (Number(detail.spu?.id) !== Number(id) || Number(detail.spu?.packageService ?? 0) !== 0) {
+      throw new Error(t('admin.packageService.sourceImportFailed'));
+    }
+    const selected = sourceServiceCatalog.value.find((item) => Number(item.spu?.id ?? item.id) === Number(id));
+    const selectedRow = selected ? toRow(selected) : {} as Partial<ProductRow>;
+    const categoryId = normalizeOptionalId(detail.categoryIds?.[0]);
+    if (categoryId && !categoryOptions.value.some((item) => item.value === categoryId)) {
+      const option = { value: categoryId, label: selectedRow.categoryName || String(categoryId) };
+      categoryOptions.value.push(option);
+      baseCategoryOptions.value.push(option);
+    }
+    applyingServiceDetail = true;
+    applyServiceDetail(detail, selectedRow, true);
+    const tags: BizTag[] = unwrapSearchList(tagRes);
+    tagPicker.options.value = [...new Map([...tagPicker.options.value, ...tags].map((tag) => [Number(tag.id), tag])).values()];
+    tagPicker.selectedIds.value = tags.map((tag) => Number(tag.id)).filter((tagId) => tagId > 0);
+    pendingTagNames.value = [];
+    closeTagAdder();
+    importedPriceEditor.value = null;
+    importedPriceSpecSignature.value = '';
+    appliedSourceServiceId = id;
+    await nextTick();
+    formRef.value?.clearValidate();
+    ElMessage.success(t('admin.packageService.sourceImported'));
+  } catch (error: any) {
+    if (version !== sourceImportVersion || !dialogVisible.value) return;
+    sourceServiceId.value = previousId;
+    ElMessage.error(error?.message || t('admin.packageService.sourceImportFailed'));
+  } finally {
+    if (version === sourceImportVersion) {
+      applyingServiceDetail = false;
+      detailLoading.value = false;
+    }
+  }
+};
+
+const applyServiceDetail = (detail: any, row: Partial<ProductRow> = {}, copy = false) => {
+  const spu = detail.spu ?? {};
+  const nameI18n = detail.nameI18n || {};
+  const descI18n = detail.descI18n || {};
+  const serviceContentI18n = detail.serviceContentI18n || {};
+  const bookingNoticeI18n = detail.bookingNoticeI18n || {};
+  const images = Array.isArray(detail.imageUrls) ? detail.imageUrls : [];
+  const categoryIds = Array.isArray(detail.categoryIds)
+    ? detail.categoryIds
+    : [];
+  const specBindings: any[] = Array.isArray(detail.specBindings)
+    ? detail.specBindings
+    : [];
+  const attachBindings: any[] = Array.isArray(detail.attachBindings)
+    ? detail.attachBindings
+    : [];
+
+  const categoryId =
+    (categoryIds[0] !== undefined ? Number(categoryIds[0]) : undefined) ??
+    row.categoryId ??
+    categoryOptions.value[0]?.value;
+  const subCategoryId = copy
+    ? undefined
+    : (categoryIds[1] !== undefined ? Number(categoryIds[1]) : undefined) ??
+      row.subCategoryId;
+  form.product = {
+    id: copy ? undefined : spu.id,
+    price: spu.price ?? row.price,
+    stock: spu.stock ?? row.stock,
+    isOnSale: !copy && (
+      spu.status === 1 ||
+      spu.status === '1' ||
+      spu.status === true ||
+      spu.status === 'ON' ||
+      spu.status === 'on'),
+    currency: spu.currency ?? row.currency ?? 'CNY',
+    sort: undefined,
+    categoryId,
+    subCategoryId,
+    specTypeId: undefined,
+    specIds: [],
+  };
+  const mappedSpecGroups: SpecGroup[] = copy || !specBindings.length
+    ? [
+        {
+          specTypeId: null,
+          specIds: [],
+        },
+      ]
+    : specBindings.map((g: any) => ({
+        specTypeId: g.specTypeId ?? null,
+        specIds: Array.isArray(g.specValueIds) ? [...g.specValueIds] : [],
+      }));
+  form.specGroups = mappedSpecGroups;
+  if (!copy) normalizeSpecGroups(true);
+  form.product.specIds = mappedSpecGroups[0]?.specIds ?? [];
+  form.product.specTypeId = mappedSpecGroups[0]?.specTypeId ?? undefined;
+
+  const mappedAddonGroups: AddonGroup[] = attachBindings.length
+    ? attachBindings.map((g: any) => ({
+        categoryId: g.attachTypeId ?? null,
+        addonIds: Array.isArray(g.attachValueIds) ? [...g.attachValueIds] : [],
+      }))
+    : [];
+  form.addonGroups = mappedAddonGroups;
+
+  const i18nList =
+    Object.keys(nameI18n).length > 0
+      ? Object.keys(nameI18n).map((lang) => ({
+          langCode: lang,
+          name: nameI18n[lang],
+          details: descI18n?.[lang] || '',
+        }))
+      : defaultI18nList();
+  form.productI18nList = i18nList;
+  form.descI18nList = Object.keys(descI18n || {}).length
+    ? Object.keys(descI18n).map((lang) => ({ lang, value: descI18n[lang] }))
+    : [createEmptyLangValue()];
+  form.serviceContentI18nList = Object.keys(serviceContentI18n || {}).length
+    ? Object.keys(serviceContentI18n).map((lang) => ({
+        lang,
+        value: serviceContentI18n[lang],
+      }))
+    : [createEmptyLangValue()];
+  form.bookingNoticeI18nList = Object.keys(bookingNoticeI18n || {}).length
+    ? Object.keys(bookingNoticeI18n).map((lang) => ({
+        lang,
+        value: bookingNoticeI18n[lang],
+      }))
+    : [createEmptyLangValue()];
+
+  form.productImages = images.map((url: string) => ({
+    productId: copy ? undefined : spu.id,
+    imageUrl: url,
+  }));
+  setUploadList(form.productImages);
+  ensureCurrencyOption(form.product.currency);
+};
+
+const openEdit = async (row: Partial<ProductRow> & { id: number }, linked = false) => {
+  if (submitLoading.value) return;
+  if (!Number.isSafeInteger(row.id) || row.id <= 0) return;
+  if (!linked) {
+    linkedEditorActive = false;
+    clearLinkedEditQuery();
+  }
   isEdit.value = true;
   resetForm();
+  const version = sourceImportVersion;
+  const current = () => version === sourceImportVersion && dialogVisible.value
+    && (!linked || (route.path === editorPath.value && route.query.editId === String(row.id)));
   dialogVisible.value = true;
   detailLoading.value = true;
   try {
-    const detailRes = await detial(row.id);
+    const [detailRes] = await Promise.all([detial(row.id), metadataReady]);
+    if (!current()) return;
     const detail = detailRes?.data ?? detailRes ?? {};
-    const spu = detail.spu ?? {};
-    const nameI18n = detail.nameI18n || {};
-    const descI18n = detail.descI18n || {};
-    const serviceContentI18n = detail.serviceContentI18n || {};
-    const bookingNoticeI18n = detail.bookingNoticeI18n || {};
-    const images = Array.isArray(detail.imageUrls) ? detail.imageUrls : [];
-    const categoryIds = Array.isArray(detail.categoryIds)
-      ? detail.categoryIds
-      : [];
-    const specBindings: any[] = Array.isArray(detail.specBindings)
-      ? detail.specBindings
-      : [];
-    const attachBindings: any[] = Array.isArray(detail.attachBindings)
-      ? detail.attachBindings
-      : [];
-
-    const categoryId =
-      (categoryIds[0] !== undefined ? Number(categoryIds[0]) : undefined) ??
-      row.categoryId ??
-      categoryOptions.value[0]?.value;
-    const subCategoryId =
-      (categoryIds[1] !== undefined ? Number(categoryIds[1]) : undefined) ??
-      row.subCategoryId;
-    form.product = {
-      id: spu.id,
-      price: spu.price ?? row.price,
-      stock: spu.stock ?? row.stock,
-      isOnSale:
-        spu.status === 1 ||
-        spu.status === '1' ||
-        spu.status === true ||
-        spu.status === 'ON' ||
-        spu.status === 'on',
-      currency: spu.currency ?? row.currency ?? 'CNY',
-      sort: undefined,
-      categoryId,
-      subCategoryId,
-      specTypeId: undefined,
-      specIds: [],
-    };
-    const mappedSpecGroups: SpecGroup[] = specBindings.length
-      ? specBindings.map((g: any) => ({
-          specTypeId: g.specTypeId ?? null,
-          specIds: Array.isArray(g.specValueIds) ? g.specValueIds : [],
-        }))
-      : [
-          {
-            specTypeId: null,
-            specIds: [],
-          },
-        ];
-    form.specGroups = mappedSpecGroups;
-    normalizeSpecGroups(true);
-    form.product.specIds = mappedSpecGroups[0]?.specIds ?? [];
-    form.product.specTypeId = mappedSpecGroups[0]?.specTypeId ?? undefined;
-
-    const mappedAddonGroups: AddonGroup[] = attachBindings.length
-      ? attachBindings.map((g: any) => ({
-          categoryId: g.attachTypeId ?? null,
-          addonIds: Array.isArray(g.attachValueIds) ? g.attachValueIds : [],
-        }))
-      : [];
-    form.addonGroups = mappedAddonGroups;
-
-    const i18nList =
-      Object.keys(nameI18n).length > 0
-        ? Object.keys(nameI18n).map((lang) => ({
-            langCode: lang,
-            name: nameI18n[lang],
-            details: descI18n?.[lang] || '',
-          }))
-        : defaultI18nList();
-    form.productI18nList = i18nList;
-    form.descI18nList = Object.keys(descI18n || {}).length
-      ? Object.keys(descI18n).map((lang) => ({ lang, value: descI18n[lang] }))
-      : [createEmptyLangValue()];
-    form.serviceContentI18nList = Object.keys(serviceContentI18n || {}).length
-      ? Object.keys(serviceContentI18n).map((lang) => ({
-          lang,
-          value: serviceContentI18n[lang],
-        }))
-      : [createEmptyLangValue()];
-    form.bookingNoticeI18nList = Object.keys(bookingNoticeI18n || {}).length
-      ? Object.keys(bookingNoticeI18n).map((lang) => ({
-          lang,
-          value: bookingNoticeI18n[lang],
-        }))
-      : [createEmptyLangValue()];
-
-    await tagPicker.loadOptions();
-    if (spu.id) await tagPicker.loadBound(1, Number(spu.id));
-    form.productImages = images.map((url: string, idx: number) => ({
-      id: undefined,
-      productId: spu.id,
-      imageUrl: url,
-      sort: undefined,
-      createdAt: '',
-    }));
-    setUploadList(form.productImages);
-    ensureCurrencyOption(form.product.currency);
+    if (Number(detail.spu?.id) !== row.id) {
+      throw new Error(t('admin.product.message.fetchDetailFailed'));
+    }
+    const actualPackageService = Number(detail.spu?.packageService ?? 0) === 1 ? 1 : 0;
+    if (linked && actualPackageService !== props.packageService) {
+      linkedEditorActive = false;
+      await router.replace({
+        path: actualPackageService === 1 ? '/admin/package/services' : '/admin/products',
+        query: { ...route.query, editId: String(row.id) },
+        hash: route.hash,
+      });
+      if (version === sourceImportVersion) dialogVisible.value = false;
+      return;
+    }
+    const [tagRes] = await Promise.all([bizTagsByRef(1, row.id), tagPicker.loadOptions()]);
+    if (!current()) return;
+    applyServiceDetail(detail, row);
+    const tags: BizTag[] = unwrapSearchList(tagRes);
+    tagPicker.options.value = [...new Map([...tagPicker.options.value, ...tags].map((tag) => [Number(tag.id), tag])).values()];
+    tagPicker.selectedIds.value = tags.map((tag) => Number(tag.id)).filter((id) => Number.isFinite(id) && id > 0);
     nextTick(() => formRef.value?.clearValidate());
   } catch (error: any) {
+    if (!current()) return;
+    dialogVisible.value = false;
     ElMessage.error(error?.message || t('admin.product.message.fetchDetailFailed'));
   } finally {
-    detailLoading.value = false;
+    if (version === sourceImportVersion) detailLoading.value = false;
   }
+};
+
+const openLinkedEditor = () => {
+  if (!pageMounted || route.path !== editorPath.value) return;
+  const value = route.query.editId;
+  const id = typeof value === 'string' && /^[1-9]\d*$/.test(value) ? Number(value) : 0;
+  if (!Number.isSafeInteger(id) || id <= 0) {
+    if (linkedEditorActive) dialogVisible.value = false;
+    linkedEditorActive = false;
+    return;
+  }
+  linkedEditorActive = true;
+  void openEdit({ id }, true);
 };
 
 const handleUpload = async (options: UploadRequestOptions) => {
@@ -2468,7 +2885,9 @@ const removeImage = (index: number) => {
 
 const addSpecGroup = () => {
   form.specGroups.push({
-    specTypeId: getDefaultSpecTypeId(),
+    specTypeId: filteredSpecTypeOptions.value.find(
+      (item) => !form.specGroups.some((group) => group.specTypeId === item.value),
+    )?.value ?? null,
     specIds: [],
   });
 };
@@ -2489,7 +2908,9 @@ const onCategoryChange = () => {
 
 const addAddonGroup = () => {
   form.addonGroups.push({
-    categoryId: addonCategoryOptions.value[0]?.value ?? null,
+    categoryId: addonCategoryOptions.value.find(
+      (item) => !form.addonGroups.some((group) => group.categoryId === item.value),
+    )?.value ?? null,
     addonIds: [],
   });
 };
@@ -2518,127 +2939,62 @@ const toggleSale = async (row: ProductRow) => {
   }
 };
 
-const buildPriceTable = (
-  specList: SpecGroup[],
-  priceList?: {
-    specKey: string;
-    price?: number;
-    originPrice?: number;
-    discountPrice?: number;
-  }[],
-) => {
-  priceColumns.value = specList.map((g, idx) => {
-    const typeLabel =
-      specTypeOptions.value.find((t) => t.value === g.specTypeId)?.label ||
-      t('admin.product.fallback.specTypeIndex', { index: idx + 1 });
-    return { key: `type${idx}`, label: typeLabel };
-  });
+const filledMoney = (value: number | null | undefined) =>
+  value != null && Number.isFinite(Number(value)) && Number(value) >= 0;
 
-  // 生成规格组合的笛卡尔积
-  const specOptionsMap = new Map<number, string>();
-  specOptions.value.forEach((s) => specOptionsMap.set(s.value, s.label));
-
-  const originMap = new Map<string, number>();
-  const discountMap = new Map<string, number>();
-  (priceList || []).forEach((p) => {
-    if (!p?.specKey) return;
-    if (p.originPrice !== undefined)
-      originMap.set(p.specKey, Number(p.originPrice) || 0);
-    if (p.discountPrice !== undefined)
-      discountMap.set(p.specKey, Number(p.discountPrice) || 0);
-    if (p.price !== undefined && !originMap.has(p.specKey))
-      originMap.set(p.specKey, Number(p.price) || 0);
-  });
-  const combos: PriceRow[] = [];
-  const dfs = (depth: number, path: number[], pathLabels: string[]) => {
-    if (depth === specList.length) {
-      const specMap: Record<string, string> = {};
-      pathLabels.forEach((label, i) => {
-        specMap[`type${i}`] = label;
-      });
-      const key = path.join('-');
-      const mockOrigin =
-        originMap.get(key) ?? (path.reduce((a, b) => a + b, 0) || 1) * 10; // 模拟原价
-      const mockDiscount = discountMap.get(key);
-      combos.push({
-        id: key,
-        specMap,
-        originPrice: mockOrigin,
-        discountPrice: mockDiscount,
-      });
-      return;
-    }
-    const group = specList[depth];
-    const ids = Array.isArray(group.specIds) ? group.specIds : [];
-    ids.forEach((id) => {
-      dfs(
-        depth + 1,
-        [...path, id],
-        [...pathLabels, specOptionsMap.get(id) || `${id}`],
-      );
-    });
-  };
-  if (specList.length > 0) dfs(0, [], []);
-  priceRows.value = combos;
-};
+const priceTotalLines = (row: SkuPriceRow) =>
+  skuPriceTotals(row.originPrice, row.discountPrice, priceAddons.value);
 
 const openPriceDialog = async (row: ProductRow) => {
+  priceProductId.value = row.id;
   priceDialogVisible.value = true;
   priceLoading.value = true;
+  priceRows.value = [];
+  priceColumns.value = [];
+  priceAddons.value = [];
   try {
     const res = await listBySpu(row.id);
     const data = res?.data ?? res ?? {};
-    const specTypes = Array.isArray(data.specTypes) ? data.specTypes : [];
-    priceColumns.value = specTypes.map((st: any, idx: number) => {
-      const label = pickName(st.nameI18n, st.specTypeName || t('admin.product.fallback.specTypeIndex', { index: idx + 1 }));
-      const key = String(st.specKey ?? st.specTypeId ?? idx);
-      return { key, label };
-    });
-    const skus = Array.isArray(data.skus) ? data.skus : [];
-    priceRows.value = skus.map((sku: any) => {
-      const specMap: Record<string, string> = {};
-      priceColumns.value.forEach((col) => {
-        const cell = sku[col.key];
-        specMap[col.key] = pickName(cell, '');
-      });
-      return {
-        id:
-          sku.skuId ??
-          sku.id ??
-          sku.skuCode ??
-          Math.random().toString(36).slice(2),
-        specMap,
-        originPrice: Number(sku.originalPrice ?? sku.originPrice ?? 0),
-        discountPrice: Number(sku.price ?? sku.discountPrice ?? 0),
-      };
-    });
+    const editor = buildSkuPriceEditor(
+      Array.isArray(data.specTypes) ? data.specTypes : [],
+      Array.isArray(data.skus) ? data.skus : [],
+      (value, fallback = '') => pickName(value, fallback),
+    );
+    priceColumns.value = editor.columns;
+    priceRows.value = editor.rows;
+    priceAddons.value = editor.addons;
   } catch (error: any) {
     ElMessage.error(error?.message || t('admin.product.message.fetchSpecFailed'));
     priceRows.value = [];
     priceColumns.value = [];
+    priceAddons.value = [];
   } finally {
     priceLoading.value = false;
   }
 };
 
 const savePrice = () => {
-  const invalid = priceRows.value.find(
-    (r) =>
-      r.originPrice === null ||
-      r.originPrice === undefined ||
-      r.originPrice === '' ||
-      Number.isNaN(Number(r.originPrice)),
+  if (priceProductId.value == null) return;
+  const missingAddon = priceAddons.value.some((group) =>
+    group.options.some((option) => option.price == null),
   );
-  if (invalid) {
+  if (missingAddon) {
+    ElMessage.error(t('admin.product.message.optionPriceMissing'));
+    return;
+  }
+  const missingOrigin = priceRows.value.find((row) => !filledMoney(row.originPrice));
+  if (missingOrigin) {
     ElMessage.error(t('admin.product.message.originPriceRequired'));
     return;
   }
-  const payload = priceRows.value.map((r) => ({
-    skuId: r.id,
-    skuCode: r.id,
-    price: Number(r.discountPrice ?? 0),
-    originalPrice: Number(r.originPrice ?? 0),
-  }));
+  const payload = {
+    productId: priceProductId.value,
+    bases: priceRows.value.map((row) => ({
+      specValueIds: row.specValueIds,
+      price: Number(effectiveSalePrice(row.originPrice, row.discountPrice)),
+      originalPrice: Number(row.originPrice),
+    })),
+  };
   batchUpdatePrices(payload)
     .then(() => {
       ElMessage.success(t('admin.product.message.priceSaved'));
@@ -2650,13 +3006,33 @@ const savePrice = () => {
 };
 
 const save = () => {
+  if (detailLoading.value || submitLoading.value) return;
+  if (hasDuplicateIds(form.specGroups.map((group) => group.specTypeId))) {
+    ElMessage.warning(t('admin.product.validation.specTypeDuplicate'));
+    return;
+  }
+  if (hasDuplicateIds(form.addonGroups.map((group) => group.categoryId))) {
+    ElMessage.warning(t('admin.product.validation.addonTypeDuplicate'));
+    return;
+  }
   formRef.value?.validate(async (valid) => {
-    if (!valid) return;
+    if (!valid || detailLoading.value || submitLoading.value) return;
     if (uploading.value) {
       ElMessage.warning(t('admin.product.message.uploadingTip'));
       return;
     }
+    const copiedPrices = importedPriceEditor.value;
+    if (copiedPrices && (!copiedPrices.rows.length || copiedPrices.rows.some((row) => !filledMoney(row.originPrice)))) {
+      ElMessage.error(t('admin.packageService.priceUnavailable'));
+      return;
+    }
+    if (copiedPrices?.addons.some((group) => group.options.some((option) => option.price == null))) {
+      ElMessage.error(t('admin.product.message.optionPriceMissing'));
+      return;
+    }
     submitLoading.value = true;
+    const wasEdit = isEdit.value;
+    let copyingPrices = false;
     try {
       // 同步兼容字段：取第一个规格组
       const firstGroup = form.specGroups[0] || {
@@ -2695,6 +3071,7 @@ const save = () => {
       }, {});
       const payload = {
         id: form.product.id,
+        packageService: props.packageService,
         spuCode: '',
         categoryId: form.product.categoryId
           ? String(form.product.categoryId)
@@ -2705,7 +3082,7 @@ const save = () => {
         descI18n,
         serviceContentI18n,
         bookingNoticeI18n,
-        status: form.product.isOnSale ? 1 : 0,
+        ...(!isPackageService.value ? { status: form.product.isOnSale ? 1 : 0 } : {}),
         sort: undefined,
         imageUrl: form.productImages[0]?.imageUrl,
         imageUrls: form.productImages
@@ -2726,15 +3103,39 @@ const save = () => {
           })),
         tags: tagPicker.saveItems(pendingTagNames.value),
       };
-      await addOrUpdate(payload);
+      const saved = await addOrUpdate(payload);
+      if (copiedPrices) {
+        const newId = payload.id ?? normalizeOptionalId(saved?.data ?? saved?.id ?? saved);
+        if (!newId) {
+          ElMessage.warning(t('admin.packageService.createdIdMissing'));
+          dialogVisible.value = false;
+          fetchProducts();
+          return;
+        }
+        // Keep the created ID before saving prices so retry updates this service.
+        form.product.id = newId;
+        isEdit.value = true;
+        copyingPrices = true;
+        await batchUpdatePrices({
+          productId: newId,
+          bases: copiedPrices.rows.map((row) => ({
+            specValueIds: [...row.specValueIds],
+            price: Number(effectiveSalePrice(row.originPrice, row.discountPrice)),
+            originalPrice: Number(row.originPrice),
+          })),
+        });
+        importedPriceEditor.value = null;
+      }
       pendingTagNames.value = [];
       ElMessage.success(
-        t(isEdit.value ? 'admin.product.message.updateSuccess' : 'admin.product.message.createSuccess'),
+        t(wasEdit ? 'admin.product.message.updateSuccess' : 'admin.product.message.createSuccess'),
       );
       dialogVisible.value = false;
       fetchProducts();
     } catch (error: any) {
-      ElMessage.error(error?.message || t('admin.product.message.saveFailed'));
+      ElMessage.error(copyingPrices
+        ? t('admin.packageService.priceCopyFailed')
+        : error?.message || t('admin.product.message.saveFailed'));
     } finally {
       submitLoading.value = false;
     }
@@ -2770,17 +3171,40 @@ const remove = async (row: ProductRow) => {
 
 onMounted(() => {
   fetchCurrencies();
-  fetchCategories();
-  fetchSpecTypes();
-  fetchSpecs();
-  fetchAddonCategories();
-  fetchAddons();
+  metadataReady = Promise.all([
+    fetchCategories(), fetchSpecTypes(), fetchSpecs(), fetchAddonCategories(), fetchAddons(),
+  ]);
   fetchProducts();
+  pageMounted = true;
+  openLinkedEditor();
 });
+
+watch([() => route.path, () => route.query.editId], openLinkedEditor);
+onBeforeUnmount(() => {
+  pageMounted = false;
+  sourceImportVersion += 1;
+});
+
+watch(dialogVisible, (open) => {
+  if (open) return;
+  linkedEditorActive = false;
+  clearLinkedEditQuery();
+  sourceImportVersion += 1;
+  detailLoading.value = false;
+  applyingServiceDetail = false;
+});
+
+watch(() => form.specGroups, () => {
+  if (!importedPriceEditor.value || applyingServiceDetail) return;
+  if (specSignature() === importedPriceSpecSignature.value) return;
+  importedPriceEditor.value = null;
+  ElMessage.warning(t('admin.packageService.pricesChanged'));
+}, { deep: true });
 
 watch(
   () => form.product.subCategoryId,
   () => {
+    if (applyingServiceDetail) return;
     normalizeSpecGroups(true);
   },
 );
@@ -2813,6 +3237,19 @@ watch(
 </script>
 
 <style scoped>
+.source-service-field, .imported-prices { width: 100%; min-width: 0; }
+.source-service-field p, .imported-prices > p { margin: 8px 0 0; color: var(--el-text-color-secondary); font-size: 12px; line-height: 1.6; }
+.imported-prices > p { margin: 0 0 10px; }
+.imported-prices :deep(.el-input-number) { width: 130px; }
+.package-service-heading { margin-bottom: 20px; }
+.package-service-heading h2 { margin: 0 0 8px; font-size: 20px; }
+.package-service-heading p { margin: 0; color: var(--el-text-color-secondary); font-size: 14px; }
+.bound-packages { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; margin: 0; padding: 0; list-style: none; }
+.bound-packages li { max-width: 100%; box-sizing: border-box; padding: 3px 7px; border-radius: 4px; background: #eaf2ff; color: #2f7ee0; font-size: 12px; line-height: 1.5; white-space: normal; overflow-wrap: anywhere; }
+.bound-packages a { color: inherit; text-decoration: underline; text-underline-offset: 2px; }
+.bound-packages a:hover { color: #1557b0; }
+.bound-packages a:focus-visible { outline: 2px solid var(--el-color-primary); outline-offset: 2px; }
+.unbound-package { color: var(--el-text-color-secondary); }
 .biz-tag-list { display: flex; flex-wrap: wrap; gap: 4px; }
 .biz-tag-picks {
   display: flex;
@@ -3048,11 +3485,56 @@ watch(
   align-items: center;
   margin-bottom: 8px;
 }
+.spec-price-lines {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-top: 6px;
+}
+.spec-price-lines p {
+  margin: 0;
+  color: #61738a;
+  font-size: 12px;
+  line-height: 1.5;
+}
+.spec-price-lines span {
+  margin-left: 8px;
+  color: var(--hx-champagne-600, #a97b38);
+  font-variant-numeric: tabular-nums;
+}
 .spec-box__title {
   font-weight: 600;
 }
 .price-table {
   margin-bottom: 0;
+}
+.price-addon-hint {
+  margin-bottom: 12px;
+  color: #61738a;
+  font-size: 13px;
+  line-height: 1.6;
+}
+.price-addon-hint p {
+  margin: 0;
+}
+.price-addon-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 16px;
+  margin-top: 6px;
+  color: #243044;
+}
+.price-total-line {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  line-height: 1.7;
+}
+.price-total-line + .price-total-line {
+  margin-top: 4px;
+}
+.price-total-line__name {
+  color: #61738a;
 }
 .price-maintain-dialog.el-dialog {
   display: flex;

@@ -359,10 +359,10 @@
               t("client.footer.services")
             }}</a>
             <a
-              href="/h5/#/orders"
-              @click.prevent="router.push({ name: 'h5-orders' })"
+              href="/h5/#/orders?kind=booking"
+              @click.prevent="router.push({ name: 'h5-orders', query: { kind: 'booking' } })"
             >
-              {{ t("client.header.nav.orders") }}
+              {{ t("client.profile.menu.bookings") }}
             </a>
             <a
               href="/h5/#/join-us/apply"
@@ -414,14 +414,6 @@
           <b v-if="cartCount">{{ cartCount > 99 ? "99+" : cartCount }}</b>
         </span>
         <span>{{ t("client.header.nav.cart") }}</span>
-      </button>
-      <button
-        class="h5-tabbar__item"
-        type="button"
-        @click="router.push({ name: 'h5-orders' })"
-      >
-        <van-icon name="orders-o" />
-        <span>{{ t("client.header.nav.orders") }}</span>
       </button>
       <button
         class="h5-tabbar__item"
@@ -1896,7 +1888,7 @@ onMounted(() => {
   max-width: 430px;
   transform: translateX(-50%);
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   border-top: 1px solid #e5e7eb;
   background: rgba(255, 255, 255, 0.98);
   box-shadow: 0 -10px 30px rgba(15, 23, 42, 0.08);

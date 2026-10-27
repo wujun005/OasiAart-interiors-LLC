@@ -36,7 +36,6 @@
       <section class="workspace-card coverage-card" v-loading="coverageLoading">
         <header class="workspace-card__header">
           <div>
-            <span class="workspace-card__index">01</span>
             <div>
               <h2>{{ copy.serviceCoverage }}</h2>
               <p>{{ t('admin.supplierArea.description') }}</p>
@@ -75,7 +74,6 @@
     <section class="workspace-card blocked-card">
       <header class="workspace-card__header blocked-card__header">
         <div>
-          <span class="workspace-card__index">02</span>
           <div>
             <h2>{{ copy.blockedTime }}</h2>
             <p>{{ t('admin.supplierAvailability.blockHint') }}</p>
@@ -119,9 +117,12 @@
         <el-table-column :label="t('admin.supplierAvailability.reason')" min-width="126">
           <template #default="{ row }">{{ row.reason || '—' }}</template>
         </el-table-column>
-        <el-table-column :label="t('admin.supplierAvailability.actions')" width="76" fixed="right">
+        <el-table-column :label="t('admin.supplierAvailability.actions')" width="148" fixed="right">
           <template #default="{ row }">
-            <el-button link type="primary" @click="openBlock(row)">{{ t('admin.supplierAvailability.edit') }}</el-button>
+            <div class="row-actions">
+              <el-button link type="primary" @click="openBlock(row)">{{ t('admin.supplierAvailability.edit') }}</el-button>
+              <el-button link type="danger" :loading="deletingId === row.id" @click="removeBlock(row)">{{ t('admin.supplierAvailability.delete') }}</el-button>
+            </div>
           </template>
         </el-table-column>
       </el-table>
@@ -133,7 +134,10 @@
               <strong>{{ weeklyClosureText(row) || eventDate(row) }}</strong>
               <small>{{ eventTime(row) }} · {{ weekdayText(row) }}<template v-if="weeklyClosureText(row)"> · {{ eventDate(row) }}</template></small>
             </span>
-            <el-button link type="primary" @click="openBlock(row)">{{ t('admin.supplierAvailability.edit') }}</el-button>
+            <span class="row-actions">
+              <el-button link type="primary" @click="openBlock(row)">{{ t('admin.supplierAvailability.edit') }}</el-button>
+              <el-button link type="danger" :loading="deletingId === row.id" @click="removeBlock(row)">{{ t('admin.supplierAvailability.delete') }}</el-button>
+            </span>
           </header>
           <dl>
             <div>
@@ -262,9 +266,9 @@
 
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from 'vue'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import { useI18n } from 'vue-i18n'
-import { supplierEventSave } from '@/modules/admin/api/supplierWorkbench'
+import { supplierEventDelete, supplierEventSave } from '@/modules/admin/api/supplierWorkbench'
 import { useAdminSessionStore } from '@/modules/admin/stores/session'
 import {
   ALL_AVAILABILITY_SCOPE,
@@ -333,13 +337,13 @@ const copy = computed(() => (isZh.value ? {
   activeCoverage: '已覆盖',
   inactiveCoverage: '未覆盖',
 } : {
-  workspace: 'Coverage & Availability',
-  acceptingNewJobs: 'Accepting New Jobs',
+  workspace: 'Service areas & Availability',
+  acceptingNewJobs: 'Accept new bookings',
   serviceCoverage: 'Service Coverage',
-  manageCoverage: 'Manage Coverage',
+  manageCoverage: 'Manage service areas',
   blockedTime: 'Blocked Time',
   viewCalendar: 'View Calendar',
-  addBlockedTime: 'Add Blocked Time',
+  addBlockedTime: 'Add Unavailable Time',
   zones: 'Zones',
   communities: 'Communities covered',
   fullCoverage: 'Full coverage',
@@ -414,6 +418,7 @@ const page = ref(1)
 const pageSize = 8
 const blockOpen = ref(false)
 const blockSaving = ref(false)
+const deletingId = ref<number | null>(null)
 const extraServices = ref<{ spuId: number; name: string }[]>([])
 const extraAreas = ref<{ areaId: number; name: string }[]>([])
 const blockForm = reactive({
@@ -503,6 +508,8 @@ const loadEvents = async (fresh = false) => {
     const result = await useAdminSessionStore().supplierEvents(fresh)
     allEvents.value = result.list
     total.value = result.total
+    const maxPage = Math.max(1, Math.ceil(total.value / pageSize))
+    if (page.value > maxPage) page.value = maxPage
     loadError.value = ''
   } catch (error: any) {
     allEvents.value = []
@@ -619,6 +626,32 @@ const saveBlock = async () => {
     blockSaving.value = false
   }
 }
+const blockLabel = (row: SupplierEvent) => weeklyClosureText(row) || eventDate(row)
+const removeBlock = async (row: SupplierEvent) => {
+  try {
+    await ElMessageBox.confirm(
+      t('admin.supplierAvailability.deleteConfirm', { label: blockLabel(row) }),
+      t('admin.common.confirmTitle'),
+      {
+        type: 'warning',
+        confirmButtonText: t('admin.supplierAvailability.delete'),
+        cancelButtonText: t('admin.supplierAvailability.cancel'),
+      },
+    )
+  } catch {
+    return
+  }
+  deletingId.value = row.id
+  try {
+    await supplierEventDelete(row.id)
+    ElMessage.success(t('admin.supplierAvailability.deleted'))
+    await loadEvents(true)
+  } catch (error: any) {
+    ElMessage.error(error?.message || t('admin.supplierAvailability.deleteFailed'))
+  } finally {
+    deletingId.value = null
+  }
+}
 
 const monthLabel = computed(() => cursor.value.toLocaleDateString(locale.value === 'zh' ? 'zh-CN' : 'en-US', { month: 'long', year: 'numeric' }))
 const weekdayLabels = computed(() => {
@@ -696,7 +729,6 @@ onMounted(loadEvents)
 .workspace-card__header { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; padding: 20px; border-bottom: 1px solid #eee3d3; }
 .workspace-card__header > div:first-child { display: flex; align-items: flex-start; gap: 12px; min-width: 0; }
 .workspace-card__header > div:first-child > div { min-width: 0; }
-.workspace-card__index { display: grid; flex: 0 0 34px; place-items: center; width: 34px; height: 34px; color: #8d5a32; background: #f4eadc; border-radius: 10px; font-family: Fraunces, Georgia, serif; font-size: 11px; font-weight: 700; }
 .workspace-card h2 { margin: 0; color: #05152b; font-family: Fraunces, Georgia, serif; font-size: 24px; font-weight: 520; line-height: 1.12; letter-spacing: -.025em; }
 .workspace-card__header p { margin: 5px 0 0; color: #74685a; font-size: 12px; line-height: 1.45; }
 .workspace-card__header :deep(.el-button) { flex: 0 0 auto; min-height: 38px; border-color: #d8c8b2; border-radius: 10px; color: #05152b; background: #fff; font-weight: 650; }
@@ -705,7 +737,7 @@ onMounted(loadEvents)
 .coverage-totals { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; padding: 16px 20px 10px; }
 .coverage-totals > div { min-width: 0; padding: 13px 14px; background: #f7f3ec; border: 1px solid #eee2d1; border-radius: 13px; }
 .coverage-totals span { display: block; color: #8a7d70; font-size: 9px; font-weight: 750; letter-spacing: .08em; text-transform: uppercase; }
-.coverage-totals strong { display: block; margin-top: 6px; color: #05152b; font-family: Fraunces, Georgia, serif; font-size: 25px; font-weight: 520; line-height: 1; }
+.coverage-totals strong { display: block; margin-top: 6px; color: #05152b; font-family: var(--hx-font-numeric); font-size: 25px; font-weight: 600; line-height: 1; letter-spacing: normal; font-variant-numeric: lining-nums tabular-nums; }
 .coverage-list { display: flex; max-height: 246px; padding: 0 20px 18px; overflow-y: auto; flex-direction: column; }
 .coverage-list article { display: flex; align-items: center; justify-content: space-between; gap: 14px; min-width: 0; padding: 12px 2px; border-bottom: 1px solid #efe5d7; }
 .coverage-list article:last-child { border-bottom: 0; }
@@ -728,6 +760,7 @@ onMounted(loadEvents)
 .avail-table :deep(.cell) { line-height: 1.45; overflow-wrap: anywhere; }
 .tag-row { display: flex; flex-wrap: wrap; gap: 5px; min-width: 0; }
 .tag-row em { max-width: 100%; padding: 3px 7px; overflow: hidden; border-radius: 999px; background: #f7f3ec; color: #05152b; font-style: normal; font-size: 10px; font-weight: 650; text-overflow: ellipsis; white-space: nowrap; }
+.row-actions { display: inline-flex; align-items: center; gap: 8px; white-space: nowrap; }
 .blocked-cards { display: none; }
 .blocked-cards > article { min-width: 0; padding: 15px; background: #fff; border: 1px solid #eadfce; border-radius: 14px; }
 .blocked-cards > article > header { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
@@ -764,7 +797,7 @@ onMounted(loadEvents)
 .weekday-picks button.is-on .weekday-check::after { content: ''; width: 6px; height: 11px; margin-top: -2px; border: solid #fff; border-width: 0 2.5px 2.5px 0; transform: rotate(45deg); }
 .cal-hint { margin: 0 0 14px; color: #74685a; font-size: 13px; line-height: 1.5; }
 .cal-nav { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
-.cal-nav strong { color: #05152b; font-family: Fraunces, Georgia, serif; font-size: 22px; font-weight: 520; }
+.cal-nav strong { color: #05152b; font-family: var(--hx-font-numeric); font-size: 22px; font-weight: 600; letter-spacing: normal; font-variant-numeric: lining-nums tabular-nums; }
 .cal-week, .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; }
 .cal-week { margin-bottom: 6px; color: #8a7d70; font-size: 11px; font-weight: 700; text-align: center; }
 .cal-grid button { position: relative; height: 44px; border: 0; border-radius: 10px; background: #fffdf8; color: #05152b; font: inherit; cursor: pointer; }

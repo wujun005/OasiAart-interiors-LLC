@@ -228,72 +228,57 @@
           <p>
             {{
               locale === "zh"
-                ? "请选择套餐内一项服务，并填写首次上门地址和时间。支付成功后会自动创建首次预约，剩余次数可在订单中继续预约。"
-                : "Choose one included service and enter the address and time for your first visit. Payment automatically creates this booking; later visits can be booked from Orders."
+                ? "支付成功后，套餐内每项服务将各创建一次首次预约，使用同一地址和时间。后续次数可在订单中继续预约。"
+                : "Payment books one first visit for each included service at the same address and time. Book later visits from Orders."
             }}
           </p>
-          <label class="h5-order-field h5-package-service">
+          <div class="h5-order-field h5-package-service">
             <span class="h5-order-field__label">
-              {{ locale === "zh" ? "首次预约服务" : "First visit service" }}
+              {{ locale === "zh" ? "首次预约服务" : "First visit services" }}
             </span>
-            <div class="h5-order-input">
-              <van-icon name="wap-home-o" />
-              <select
-                v-model="packageSkuId"
-                :disabled="packageServicesLoading || Boolean(packageServicesError)"
-                required
-              >
-                <option value="" disabled>
-                  {{
-                    packageServicesLoading
-                      ? locale === "zh"
-                        ? "服务加载中..."
-                        : "Loading services..."
-                      : locale === "zh"
-                        ? "请选择首次预约服务"
-                        : "Select a service for the first visit"
-                  }}
-                </option>
-                <option
-                  v-for="option in packageServiceOptions"
-                  :key="option.value"
-                  :value="option.value"
-                >
-                  {{ option.label }}{{ option.spec ? ` · ${option.spec}` : "" }}
-                </option>
-              </select>
-            </div>
-          </label>
-          <div
-            v-if="packageServicesError"
-            class="h5-package-service__state h5-package-service__state--error"
-            role="alert"
-          >
-            <span>{{ packageServicesError }}</span>
-            <button
-              type="button"
-              :disabled="packageServicesLoading"
-              @click="reloadPackageServices"
+            <p
+              v-if="packageServicesLoading"
+              class="h5-package-service__state"
+              role="status"
             >
-              {{ locale === "zh" ? "重试" : "Retry" }}
-            </button>
+              {{ locale === "zh" ? "套餐服务加载中..." : "Loading included services..." }}
+            </p>
+            <div
+              v-else-if="packageServicesError"
+              class="h5-package-service__state h5-package-service__state--error"
+              role="alert"
+            >
+              <span>{{ packageServicesError }}</span>
+              <button
+                type="button"
+                :disabled="packageServicesLoading"
+                @click="reloadPackageServices"
+              >
+                {{ locale === "zh" ? "重试" : "Retry" }}
+              </button>
+            </div>
+            <p
+              v-else-if="!packageServiceOptions.length"
+              class="h5-package-service__state"
+            >
+              {{
+                locale === "zh"
+                  ? "当前套餐暂无可预约服务"
+                  : "No bookable service is available in this package."
+              }}
+            </p>
+            <ul v-else class="h5-package-service__list">
+              <li v-for="option in packageServiceOptions" :key="option.value">
+                <div>
+                  <strong>{{ option.label }}</strong>
+                  <small v-if="option.spec">{{ option.spec }}</small>
+                </div>
+                <span class="h5-package-service__visits">
+                  {{ locale === "zh" ? "1 次" : "1 visit" }}
+                </span>
+              </li>
+            </ul>
           </div>
-          <p
-            v-else-if="!packageServicesLoading && !packageServiceOptions.length"
-            class="h5-package-service__state"
-          >
-            {{
-              locale === "zh"
-                ? "当前套餐暂无可预约服务"
-                : "No bookable service is available in this package."
-            }}
-          </p>
-          <p
-            v-else-if="packageFirstService?.spec"
-            class="h5-package-service__state"
-          >
-            {{ packageFirstService.spec }}
-          </p>
         </div>
       </section>
 
@@ -711,7 +696,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, nextTick, onMounted, reactive, ref, watch } from "vue"
+import { computed, nextTick, onMounted, onScopeDispose, reactive, ref, watch } from "vue"
 import { useI18n } from "vue-i18n"
 import { useRoute, useRouter } from "vue-router"
 import { showConfirmDialog, showFailToast, showSuccessToast } from "vant"
@@ -750,6 +735,7 @@ import {
 } from "@/modules/client/utils/order-localization"
 import { toPlainText } from "@/modules/client/utils/plain-text"
 import { usePackageFirstBooking } from "@/modules/client/composables/usePackageFirstBooking"
+import { loadPackageBookingTimes } from "@/modules/client/utils/package-booking-times"
 
 type I18nText = Record<string, string>
 
@@ -806,16 +792,20 @@ const getQueryText = (key: string) => {
 const isPackageMode = computed(() => getQueryText("mode") === "package")
 const {
   options: packageServiceOptions,
-  selectedSkuId: packageSkuId,
-  selectedService: packageFirstService,
   loading: packageServicesLoading,
   error: packageServicesError,
   reload: reloadPackageServices,
   validationMessage: packageServiceValidationMessage,
 } = usePackageFirstBooking(
   isPackageMode,
-  () => getQueryText("packageId"),
+  () => getQueryText("orderId"),
   locale,
+  () => getQueryText("packageId"),
+)
+const packageServiceSpuIds = computed(() =>
+  Array.from(new Set(packageServiceOptions.value
+    .map((option) => String(option.spuId || "").trim())
+    .filter(Boolean))).sort(),
 )
 const { addItem, refreshCart, removeItems } = useCart({
   initialize: !isPackageMode.value,
@@ -873,6 +863,7 @@ const lastLoadedServiceDate = ref("")
 const pendingTimeText = ref("")
 const pendingTimeRange = ref("")
 let availableTimesRequestSeq = 0
+onScopeDispose(() => { availableTimesRequestSeq += 1 })
 const agreedPolicy = ref(false)
 const policyPopupVisible = ref(false)
 const isSubmitting = ref(false)
@@ -1581,10 +1572,12 @@ const handleServiceDateConfirm = (date: Date) => {
 }
 
 const serviceTimePlaceholder = computed(() => {
-  if (isPackageMode.value && !packageFirstService.value) {
-    return locale.value === "zh"
-      ? "请先选择首次预约服务"
-      : "Select the first visit service first"
+  if (isPackageMode.value && (
+    packageServicesLoading.value || packageServicesError.value || !packageServiceOptions.value.length
+  )) {
+    return packageServiceValidationMessage.value || (locale.value === "zh"
+      ? "套餐服务暂不可预约"
+      : "Included services are unavailable")
   }
   if (!normalizeText(form.serviceDate)) {
     return locale.value === "zh" ? "请先选择日期" : "Please select a date first"
@@ -1612,15 +1605,14 @@ const clearAvailableTimes = (clearPendingRange = true) => {
 
 const fetchAvailableTimes = async (force = false) => {
   const serviceDate = normalizeText(form.serviceDate)
-  const spuIdText = normalizeText(
-    isPackageMode.value
-      ? packageFirstService.value?.spuId
-      : getQueryText("spuId"),
-  )
-  if (!serviceDate || !spuIdText) {
+  const spuIdText = normalizeText(getQueryText("spuId"))
+  const packageSpuIds = packageServiceSpuIds.value
+  if (!serviceDate || (isPackageMode.value
+    ? packageServicesLoading.value || packageServicesError.value || !packageSpuIds.length
+    : !spuIdText)) {
     return
   }
-  const requestKey = `${spuIdText}:${serviceDate}`
+  const requestKey = `${isPackageMode.value ? getQueryText("orderId") : "service"}:${isPackageMode.value ? packageSpuIds.join(",") : spuIdText}:${serviceDate}`
   if (
     !force &&
     lastLoadedServiceDate.value === requestKey &&
@@ -1630,12 +1622,18 @@ const fetchAvailableTimes = async (force = false) => {
   }
 
   const requestSeq = ++availableTimesRequestSeq
+  if (isPackageMode.value) {
+    availableTimeRecords.value = []
+    form.timeRange = ""
+  }
   isTimeOptionsLoading.value = true
   try {
-    const payload = await getAvailableSelectTime({
-      spuId: Number.isFinite(Number(spuIdText)) ? Number(spuIdText) : spuIdText,
-      serviceTime: serviceDate,
-    })
+    const payload = isPackageMode.value
+      ? await loadPackageBookingTimes(packageSpuIds, serviceDate)
+      : await getAvailableSelectTime({
+        spuId: Number.isFinite(Number(spuIdText)) ? Number(spuIdText) : spuIdText,
+        serviceTime: serviceDate,
+      })
     if (requestSeq !== availableTimesRequestSeq) {
       return
     }
@@ -1657,12 +1655,14 @@ const fetchAvailableTimes = async (force = false) => {
 }
 
 const handleServiceTimeOpen = async () => {
-  if (isPackageMode.value && !packageFirstService.value) {
+  if (isPackageMode.value && (
+    packageServicesLoading.value || packageServicesError.value || !packageServiceOptions.value.length
+  )) {
     showFailToast(
       packageServiceValidationMessage.value ||
         (locale.value === "zh"
-          ? "请先选择首次预约服务"
-          : "Please select a service for the first visit"),
+          ? "套餐服务暂不可预约"
+          : "Included services are unavailable"),
     )
     return
   }
@@ -1690,20 +1690,19 @@ watch(
 )
 
 watch(
-  () => [packageSkuId.value, packageFirstService.value?.spuId || ""] as const,
-  ([skuId, spuId], [previousSkuId, previousSpuId]) => {
-    if (!isPackageMode.value) {
-      return
-    }
-    if (skuId === previousSkuId && spuId === previousSpuId) {
+  () => [
+    isPackageMode.value,
+    getQueryText("orderId"),
+    packageServiceSpuIds.value.join(","),
+    packageServicesLoading.value,
+    packageServicesError.value,
+  ] as const,
+  ([packageMode], [previousPackageMode]) => {
+    if (!packageMode && !previousPackageMode) {
       return
     }
     clearAvailableTimes()
-    if (
-      normalizeText(skuId) &&
-      normalizeText(spuId) &&
-      normalizeText(form.serviceDate)
-    ) {
+    if (normalizeText(form.serviceDate)) {
       void fetchAvailableTimes(true)
     }
   },
@@ -1816,10 +1815,6 @@ const packageId = computed(() => {
   const numeric = Number(getQueryText("packageId"))
   return Number.isSafeInteger(numeric) && numeric > 0 ? numeric : null
 })
-const selectedPackageSkuId = computed(() => {
-  const numeric = Number(packageSkuId.value)
-  return Number.isSafeInteger(numeric) && numeric > 0 ? numeric : null
-})
 const isCartEditMode = computed(() => getQueryText("mode") === "cart-edit")
 const editingCartItemId = computed(() => getQueryText("cartItemId"))
 const isCartMode = computed(() =>
@@ -1841,6 +1836,9 @@ const summaryTitle = computed(() => {
 })
 
 const summaryMeta = computed(() => {
+  if (isPackageMode.value) {
+    return getQueryText("specSummary") || (locale.value === "zh" ? "每个服务各预约 1 次" : "One visit for every included service")
+  }
   const selectedSpecValueIds = parseQueryJson<string[]>(
     "selectedSpecValueIds",
     [],
@@ -2136,6 +2134,7 @@ const handleStripeSuccess = async () => {
     name: "h5-booking-success",
     query: {
       orderId: String(orderId.value || ""),
+      kind: isPackageMode.value ? "package" : "booking",
       service: summaryTitle.value,
       scheduled:
         `${form.serviceDate} ${selectedTimeOption.value?.time || ""}`.trim(),
@@ -2409,10 +2408,10 @@ const getValidationMessage = (): string => {
     if (packageServiceValidationMessage.value) {
       return packageServiceValidationMessage.value
     }
-    if (selectedPackageSkuId.value === null || !packageFirstService.value) {
+    if (!packageServiceOptions.value.length) {
       return locale.value === "zh"
-        ? "请选择首次预约服务"
-        : "Please select a service for the first visit"
+        ? "当前套餐暂无可预约服务"
+        : "No bookable service is available in this package."
     }
   }
   if (!isCartMode.value && orderId.value === null) {
@@ -2452,6 +2451,14 @@ const getValidationMessage = (): string => {
     return t("client.orderConfirm.validation.requiredField", {
       field: t("client.orderConfirm.fields.serviceTime"),
     })
+  }
+  if (isPackageMode.value && (
+    isTimeOptionsLoading.value || !selectedTimeOption.value?.available ||
+    lastLoadedServiceDate.value !== `${getQueryText("orderId")}:${packageServiceSpuIds.value.join(",")}:${normalizeText(form.serviceDate)}`
+  )) {
+    return locale.value === "zh"
+      ? "请选择所有套餐服务均可预约的时段"
+      : "Select a time available for every included service."
   }
   if (!buildServiceDateTime()) {
     return t("client.orderConfirm.validation.futureTime")
@@ -2529,6 +2536,7 @@ const submitBooking = async () => {
     paymentMethod: ORDER_PAYMENT_METHOD,
   }
 
+  const checkoutOrderId = orderId.value
   isSubmitting.value = true
   try {
     if (isCartMode.value) {
@@ -2565,16 +2573,14 @@ const submitBooking = async () => {
     } else {
       await saveContactAddress({
         ...addressPayload,
-        ...(isPackageMode.value && selectedPackageSkuId.value !== null
-          ? { packageSkuId: selectedPackageSkuId.value }
-          : {}),
         fullName: selectedAddress.value
           ? getAddressFullName(selectedAddress.value)
           : formatContactName(form.firstName, form.lastName),
-        orderId: orderId.value,
+        orderId: checkoutOrderId,
       })
+      if (orderId.value !== checkoutOrderId) return
       policyPopupVisible.value = false
-      await startStripePayment(orderId.value as number)
+      await startStripePayment(checkoutOrderId as number)
     }
   } catch (error: any) {
     console.error("save contact address failed:", error)
@@ -2756,8 +2762,51 @@ onMounted(async () => {
   margin-top: 12px;
 }
 
-.h5-package-service .h5-order-input {
-  background: rgba(255, 255, 255, 0.86);
+.h5-package-service__list {
+  margin: 2px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.h5-package-service__list li {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 9px 0;
+  border-bottom: 1px solid #d7ebe4;
+}
+
+.h5-package-service__list li:last-child {
+  padding-bottom: 0;
+  border-bottom: 0;
+}
+
+.h5-package-service__list li > div {
+  min-width: 0;
+}
+
+.h5-package-service__list strong {
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+
+.h5-package-service__list small {
+  display: block;
+  margin-top: 3px;
+  color: #4e6e67;
+  font-size: 11px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.h5-package-service__visits {
+  flex-shrink: 0;
+  color: #177966;
+  font-size: 11px;
+  line-height: 1.6;
+  font-weight: 700;
+  white-space: nowrap;
 }
 
 .h5-package-service__state {

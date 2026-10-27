@@ -60,7 +60,7 @@ const renderer = Vue.createRenderer({
 })
 
 async function harness(t, section = 'pricing') {
-  const calls = { drafts: [], submissions: [], profileSaves: [], profileResubmits: [], coverage: [], messages: [], routes: [], scrolledFields: [], focusedFields: [] }
+  const calls = { drafts: [], submissions: [], profileSaves: [], profileResubmits: [], coverage: [], messages: [], routes: [], scrolledFields: [], focusedFields: [], uploads: [], releaseUpload: null, exports: [] }
   const locale = Vue.ref('en')
   const translate = (key, params = {}) => {
     const text = key.split('.').reduce((node, part) => node?.[part], messages[locale.value])
@@ -78,12 +78,29 @@ async function harness(t, section = 'pricing') {
     onboardingMine: async () => ({ data: profile }),
     onboardingSave: async (payload) => { calls.profileSaves.push(clone(payload)); return { data: 10 } },
     onboardingResubmit: async (payload) => { calls.profileResubmits.push(clone(payload)); return { data: 10 } },
+    uploadFile: (file, onProgress) => new Promise((resolve, reject) => {
+      calls.uploads.push(file?.name || '')
+      calls.releaseUpload = (result) => {
+        if (result instanceof Error) reject(result)
+        else {
+          onProgress?.(70)
+          resolve(result)
+        }
+      }
+    }),
     supplierOperationsMine: async () => ({}),
     supplierCoverageSave: async (payload) => { calls.coverage.push(clone(payload)); return { coverage: payload } },
-    saveQuoteDraft: async (payload) => { calls.drafts.push(clone(payload)); return { data: { status: 0 } } },
+    saveQuoteDraft: async (payload) => {
+      calls.drafts.push(clone(payload))
+      return { data: { ...clone(payload), status: 0, skus: clone(payload.items) } }
+    },
     submitQuote: async (payload) => {
       calls.submissions.push(clone(payload))
-      return { data: { status: 1, submittedAt: '2026-10-16T01:00:00Z', skus: calls.drafts.at(-1)?.items || [] } }
+      return { data: { ...clone(calls.drafts.at(-1) || {}), status: 1, submittedAt: '2026-10-16T01:00:00Z', skus: calls.drafts.at(-1)?.items || [] } }
+    },
+    exportQuoteSheet: async (spuIds) => {
+      calls.exports.push([...(spuIds || [])])
+      return new Blob(['quote'], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })
     },
   }
   const session = {
@@ -97,7 +114,10 @@ async function harness(t, section = 'pricing') {
   const exports = {}
   runInNewContext(code, {
     exports,
+    Blob,
+    URL: { createObjectURL: () => 'blob:quote', revokeObjectURL() {} },
     document: {
+      createElement: () => ({ href: '', download: '', click() {} }),
       querySelector: () => null,
       getElementById: (id) => ({
         scrollIntoView: () => calls.scrolledFields.push(id),
@@ -127,6 +147,7 @@ async function harness(t, section = 'pricing') {
       if (name === '@/modules/admin/utils/supplierPortal') return portal
       if (name === '@/modules/admin/utils/i18n') return i18n
       if (name === '@/modules/admin/utils/supplierMap') return loadModule('src/modules/admin/utils/supplierMap.ts')
+      if (name === '@/modules/admin/utils/supplier-mine') return loadModule('src/modules/admin/utils/supplier-mine.ts')
       if (name === '@/modules/admin/utils/menuPermission') return { isSupplierStaffOrdersOnly: () => false }
       if (name === '@/modules/admin/utils/supplierReviewState') return loadModule('src/modules/admin/utils/supplierReviewState.ts')
       if (name === '@/utils/phone-dial') return phones
@@ -137,6 +158,7 @@ async function harness(t, section = 'pricing') {
         serviceCategoryLabel: (option) => option.categoryName || option.categoryId,
       }
       if (name === '@/modules/admin/pages/supplier-management/availability.vue') return { default: {} }
+      if (name === '@/modules/admin/pages/supplier-management/staff-board.vue') return { default: {} }
       if (name === '@element-plus/icons-vue') return {}
       throw new Error(`Unexpected dependency: ${name}`)
     },
@@ -157,7 +179,7 @@ async function readyQuote(context, overrides = {}) {
   }]
   Object.assign(state.quoteDialog, {
     visible: true, spuId: 501, name: 'Apartment Cleaning', category: 'Cleaning',
-    status: 0, quoteMode: 1, unitPrice: null, priceEditable: true,
+    status: 0, quoteMode: 1, unitPrice: null, unitPriceWithMaterial: null, unitPriceWithoutMaterial: null, priceEditable: true,
     rows: [{ skuId: 601, enabled: true, available: true, staffCount: 2, serviceHours: 3, quotePrice: '329' }],
     attaches: [], ...overrides,
   })
@@ -222,38 +244,144 @@ test('select all and select none change only the current specification tab', asy
   assert.deepEqual(state.quoteDialog.rows.map((row) => row.enabled), [false, false, true])
 })
 
-test('hourly quotes preserve structured workload while submitting the shared rate', async (t) => {
+test('hourly drafts save independent material rates while retaining existing SKU prices and workload', async (t) => {
   const context = await harness(t)
-  await readyQuote(context, { quoteMode: 2, unitPrice: 80 })
-  const { state } = context
+  await readyQuote(context, {
+    quoteMode: 2, unitPrice: 99, unitPriceWithMaterial: 80, unitPriceWithoutMaterial: 65.5,
+    rows: [
+      { skuId: 601, enabled: true, available: true, staffCount: 2, serviceHours: 3, quotePrice: '329' },
+      { skuId: 602, enabled: false, available: true, staffCount: 4, serviceHours: 1.5, quotePrice: null },
+    ],
+  })
+  const { state, calls } = context
   assert.equal(state.firstPositive(0, 2), 2)
   assert.equal(state.firstPositive('', null, 1.5), 1.5)
   assert.equal(state.firstPositive(0, null, ''), null)
-  const row = state.quoteDialog.rows[0]
-  assert.deepEqual(clone(state.quoteItems()[0]), {
-    skuId: 601, staffCount: 2, serviceHours: 3, quotePrice: 80, enabled: 1,
-  })
-  state.quoteDialog.unitPrice = 79.99
-  row.staffCount = 3
-  row.serviceHours = 1.5
+  state.quoteDialog.rows[0].staffCount = 3
+  state.quoteDialog.rows[0].serviceHours = 1.5
   await flush()
-  assert.deepEqual(clone(state.quotePayload().items[0]), {
-    skuId: 601, staffCount: 3, serviceHours: 1.5, quotePrice: 79.99, enabled: 1,
-  })
-  assert.equal(row.quotePrice, '329')
-  state.quoteDialog.unitPrice = null
+  const payload = state.quotePayload()
+  assert.equal(payload.unitPriceWithMaterial, 80)
+  assert.equal(payload.unitPriceWithoutMaterial, 65.5)
+  assert.equal(Object.hasOwn(payload, 'unitPrice'), false)
+  assert.deepEqual(clone(payload.items), [
+    { skuId: 601, staffCount: 3, serviceHours: 1.5, quotePrice: 329, enabled: 1 },
+    { skuId: 602, staffCount: 4, serviceHours: 1.5, quotePrice: null, enabled: 1 },
+  ])
+  assert.equal(state.quoteMissingCount, 0)
+  assert.equal(state.submitProblem(), '')
+  await state.saveServiceQuote()
+  assert.equal(calls.drafts.length, 1)
+  assert.equal(calls.drafts[0].unitPriceWithMaterial, 80)
+  assert.equal(calls.drafts[0].unitPriceWithoutMaterial, 65.5)
+  assert.equal(Object.hasOwn(calls.drafts[0], 'unitPrice'), false)
+  assert.equal(state.quoteDialog.unitPriceWithMaterial, 80)
+  assert.equal(state.quoteDialog.unitPriceWithoutMaterial, 65.5)
+
+  state.liveQuotes = [{
+    ...calls.drafts[0], status: 0, skus: calls.drafts[0].items,
+    skuGroups: [{ specValueId: 1, specValueName: 'Standard', skus: calls.drafts[0].items }],
+  }]
+  state.quoteDialog.unitPriceWithMaterial = null
+  state.quoteDialog.unitPriceWithoutMaterial = null
+  await state.openServiceQuote(state.savedServices[0])
+  await flush()
+  assert.equal(state.quoteDialog.unitPriceWithMaterial, 80)
+  assert.equal(state.quoteDialog.unitPriceWithoutMaterial, 65.5)
+  state.quoteDialog.unitPriceWithMaterial = 82.25
+  state.quoteDialog.unitPriceWithoutMaterial = 61.75
+  await flush()
+  await state.saveServiceQuote()
+  assert.equal(calls.drafts[1].unitPriceWithMaterial, 82.25)
+  assert.equal(calls.drafts[1].unitPriceWithoutMaterial, 61.75)
+  assert.equal(calls.drafts[1].items[0].quotePrice, 329)
+  assert.equal(calls.drafts[1].items[1].quotePrice, null)
+  assert.equal(Object.hasOwn(calls.drafts[1], 'unitPrice'), false)
+
+  state.reviewServiceQuote()
+  await flush()
+  assert.equal(state.quoteScreen, 'review')
+  state.quoteConfirmed = true
+  await state.submitServiceQuote()
+  assert.equal(calls.submissions.length, 1)
+  assert.equal(calls.drafts.at(-1).unitPriceWithMaterial, 82.25)
+  assert.equal(calls.drafts.at(-1).unitPriceWithoutMaterial, 61.75)
+})
+
+test('either missing or nonpositive material rate blocks Review and direct submission despite a positive legacy rate', async (t) => {
+  const context = await harness(t)
+  const { state, calls } = context
+  for (const field of ['unitPriceWithMaterial', 'unitPriceWithoutMaterial']) {
+    for (const invalid of [null, 0, -1]) {
+      await readyQuote(context, { quoteMode: 2, unitPrice: 99, unitPriceWithMaterial: 80, unitPriceWithoutMaterial: 65 })
+      state.quoteDialog[field] = invalid
+      state.quoteScreen = 'setup'
+      await flush()
+      assert.equal(state.quoteMissingCount, 1, `${field}=${invalid}`)
+      assert.ok(state.submitProblem())
+      state.reviewServiceQuote()
+      assert.equal(state.quoteScreen, 'setup')
+      assert.equal(calls.messages.at(-1).type, 'warning')
+      state.quoteScreen = 'review'
+      state.quoteConfirmed = true
+      assert.equal(controlDisabled('submitServiceQuote', state), true)
+      await state.submitServiceQuote()
+      assert.equal(calls.drafts.length, 0)
+      assert.equal(calls.submissions.length, 0)
+    }
+  }
+})
+
+test('changing either reviewed material rate clears confirmation and prevents submission', async (t) => {
+  const context = await harness(t)
+  await readyQuote(context, { quoteMode: 2, unitPriceWithMaterial: 80, unitPriceWithoutMaterial: 65 })
+  const { state, calls } = context
+  state.reviewServiceQuote()
+  await flush()
+  assert.equal(state.quoteScreen, 'review')
+  for (const field of ['unitPriceWithMaterial', 'unitPriceWithoutMaterial']) {
+    state.quoteConfirmed = true
+    state.quoteDialog[field] += 1
+    await flush()
+    assert.equal(state.quoteConfirmed, false)
+    assert.equal(controlDisabled('submitServiceQuote', state), true)
+    await state.submitServiceQuote()
+    assert.equal(calls.drafts.length, 0)
+    assert.equal(calls.submissions.length, 0)
+  }
+})
+
+test('reopening a legacy hourly quote leaves both material rates to be completed instead of duplicating unitPrice', async (t) => {
+  const context = await harness(t)
+  await readyQuote(context)
+  const { state, calls } = context
+  state.liveQuotes = [{
+    spuId: 501, status: 0, quoteMode: 2, unitPrice: 99,
+    skus: [{ skuId: 601, enabled: 1, available: true, quotePrice: 329, staffCount: 2, serviceHours: 3 }],
+    skuGroups: [{
+      specValueId: 1, specValueName: 'Standard',
+      skus: [{ skuId: 601, enabled: 1, available: true, quotePrice: 329, staffCount: 2, serviceHours: 3 }],
+    }],
+  }]
+  await state.openServiceQuote(state.savedServices[0])
+  await flush()
+  assert.equal(state.quoteDialog.unitPrice, 99)
+  assert.equal(state.quoteDialog.unitPriceWithMaterial, null)
+  assert.equal(state.quoteDialog.unitPriceWithoutMaterial, null)
+  assert.equal(state.quoteMissingCount, 2)
+  state.reviewServiceQuote()
+  assert.equal(state.quoteScreen, 'setup')
+  state.quoteDialog.unitPriceWithMaterial = 90
   await flush()
   assert.equal(state.quoteMissingCount, 1)
   state.reviewServiceQuote()
   assert.equal(state.quoteScreen, 'setup')
-  state.quoteDialog.unitPrice = 80
-  row.staffCount = null
-  row.serviceHours = null
+  state.quoteDialog.unitPriceWithoutMaterial = 75
   await flush()
-  assert.equal(clone(state.quoteItems()[0]).staffCount, 0)
-  assert.equal(clone(state.quoteItems()[0]).serviceHours, 0)
   assert.equal(state.quoteMissingCount, 0)
-  assert.equal(state.submitProblem(), '')
+  state.reviewServiceQuote()
+  assert.equal(state.quoteScreen, 'review')
+  assert.equal(calls.submissions.length, 0)
 })
 
 test('disabled and unavailable options require no fields and are excluded from enabled counts', async (t) => {
@@ -309,6 +437,93 @@ test('only confirmed Review submits; submitted quotes lock edits and reject repe
   assert.equal(state.quoteScreen, 'submitted')
   assert.equal(calls.drafts.length, 1)
   assert.equal(calls.submissions.length, 1)
+})
+
+test('an approved quote can be edited and resubmitted without a price-change request', async (t) => {
+  const context = await harness(t)
+  await readyQuote(context, {
+    status: 2,
+    priceEditable: false,
+    canApplyPriceChange: true,
+    rejectReason: '',
+    rows: [{ skuId: 601, enabled: true, available: true, staffCount: 2, serviceHours: 3, quotePrice: '329', reviewStatus: 2 }],
+  })
+  const { state, calls } = context
+  assert.equal(state.quoteDirectEdit, true)
+  assert.equal(state.quotePriceLocked, false)
+  assert.equal(state.quoteUnderReview, false)
+  assert.equal(state.quoteDialog.canApplyPriceChange && !state.quoteDirectEdit, false)
+  assert.equal(state.quoteLineHeld(state.quoteDialog.rows[0]), false)
+  assert.equal(controlDisabled('saveServiceQuote', state), false)
+  state.quoteDialog.rows[0].quotePrice = '310'
+  state.reviewServiceQuote()
+  await flush()
+  assert.equal(state.quoteScreen, 'review')
+  state.quoteConfirmed = true
+  await state.submitServiceQuote()
+  await flush()
+  assert.equal(calls.drafts.length, 1)
+  assert.equal(calls.drafts[0].items[0].quotePrice, 310)
+  assert.equal(calls.submissions.length, 1)
+  assert.equal(state.quoteScreen, 'submitted')
+
+  state.liveQuotes = [{
+    spuId: 501,
+    status: 3,
+    rejectReason: 'Price is too high',
+    priceEditable: false,
+    canApplyPriceChange: true,
+    quoteMode: 1,
+    skus: [{ skuId: 601, enabled: 0, available: true, quotePrice: 329, staffCount: 2, serviceHours: 3 }],
+    skuGroups: [{
+      specValueId: 1,
+      specValueName: 'Standard',
+      skus: [{ skuId: 601, enabled: 0, available: true, quotePrice: 329, staffCount: 2, serviceHours: 3 }],
+    }],
+  }]
+  await state.openServiceQuote(state.savedServices[0])
+  await flush()
+  assert.equal(state.quoteDialog.status, 3)
+  assert.equal(state.quoteDirectEdit, true)
+  assert.equal(state.quoteUnderReview, false)
+  assert.equal(state.quotePriceLocked, false)
+  assert.equal(state.quoteScreen, 'setup')
+  assert.equal(state.quoteDialog.canApplyPriceChange && !state.quoteDirectEdit, false)
+  assert.equal(state.quoteDialog.rows[0].enabled, true)
+  assert.equal(state.quoteLineHeld(state.quoteDialog.rows[0]), false)
+  assert.equal(controlDisabled('saveServiceQuote', state), false)
+  state.quoteDialog.rows[0].quotePrice = '280'
+  state.reviewServiceQuote()
+  await flush()
+  assert.equal(state.quoteScreen, 'review')
+  state.quoteConfirmed = true
+  await state.submitServiceQuote()
+  await flush()
+  assert.equal(calls.drafts.length, 2)
+  assert.equal(calls.drafts[1].items[0].quotePrice, 280)
+  assert.equal(calls.submissions.length, 2)
+  assert.equal(state.quoteScreen, 'submitted')
+
+  state.quoteDialog.status = 2
+  state.quoteDialog.rejectReason = ''
+  state.quoteDialog.priceEditable = false
+  state.quoteDialog.canApplyPriceChange = true
+  state.quoteDialog.rows[0].reviewStatus = 3
+  state.quoteDialog.rows[0].rejectReason = 'Adjust this option'
+  state.quoteScreen = 'setup'
+  await flush()
+  assert.equal(state.quoteDirectEdit, true)
+  assert.equal(state.quotePriceLocked, false)
+  assert.equal(state.quoteLineHeld(state.quoteDialog.rows[0]), false)
+
+  state.quoteDialog.status = 1
+  state.quoteDialog.rejectReason = 'Quote was returned'
+  state.quoteDialog.rows[0].reviewStatus = undefined
+  state.quoteDialog.rows[0].rejectReason = ''
+  await flush()
+  assert.equal(state.quoteUnderReview, false)
+  assert.equal(state.quotePriceLocked, false)
+  assert.equal(state.quoteLineHeld(state.quoteDialog.rows[0]), true)
 })
 
 test('editing a reviewed quote clears its confirmation and prevents submission', async (t) => {
@@ -402,6 +617,37 @@ test('resubmitting from the last step points to company issues and submits after
   assert.equal(calls.profileSaves.length, 0)
 })
 
+test('VAT certificate uploads with visible progress and is stored beside the bank certificate', async (t) => {
+  const { state, calls } = await harness(t, 'profile')
+  const pending = state.uploadDocFile('vat', {
+    file: { name: 'vat-certificate.pdf', size: 1024 },
+    onProgress() {},
+    onSuccess() {},
+    onError() {},
+  })
+  await flush()
+  assert.equal(state.docUploading('vat'), true)
+  assert.equal(state.docUploadPercent('vat'), 0)
+  assert.equal(calls.uploads.at(-1), 'vat-certificate.pdf')
+  calls.releaseUpload({ data: 'https://example.com/vat-certificate.pdf' })
+  await pending
+  await flush()
+  assert.equal(state.docUploading('vat'), false)
+  assert.deepEqual(clone(state.vatCertificateFiles), ['https://example.com/vat-certificate.pdf'])
+  assert.equal(state.profileIssues.some(issue => issue.id === 'vatCertificate'), false)
+  const payload = state.buildProfilePayload(0)
+  assert.deepEqual(clone(payload.extra.vatFile), ['https://example.com/vat-certificate.pdf'])
+
+  state.applyProfile({
+    id: 10,
+    status: 0,
+    editable: true,
+    extra: { vatFile: ['https://example.com/saved-vat.pdf'], otherDocuments: ['https://example.com/bank.pdf'] },
+  })
+  assert.deepEqual(clone(state.vatCertificateFiles), ['https://example.com/saved-vat.pdf'])
+  assert.deepEqual(clone(state.otherDocumentFiles), ['https://example.com/bank.pdf'])
+})
+
 test('review-period coverage saves independently without changing the onboarding snapshot', async (t) => {
   const { state, calls } = await harness(t)
   state.onboardingStatus = 1
@@ -437,6 +683,40 @@ test('review-period operational saves stop safely when the server capability is 
   assert.equal(calls.profileSaves.length, 0)
   assert.deepEqual(calls.messages.map(message => message.type), ['warning'])
   assert.ok(calls.messages.every(message => /upgrad/i.test(message.message)))
+})
+
+test('checked services export only those quote rows and keep the rest of the selection', async (t) => {
+  const { state, calls } = await harness(t)
+  state.supplierRecordId = 10
+  state.savedServices = [
+    { spuId: 501, categoryId: 11, category: 'Cleaning', name: 'Apartment', workerCount: 1, phones: [], acceptOrder: 1 },
+    { spuId: 502, categoryId: 11, category: 'Cleaning', name: 'Villa', workerCount: 1, phones: [], acceptOrder: 1 },
+    { spuId: 503, categoryId: 12, category: 'Move', name: 'Move', workerCount: 1, phones: [], acceptOrder: 1 },
+  ]
+  await flush()
+  assert.equal(state.quoteCategory, '11')
+  assert.equal(state.quoteExportLabel, messages.en.admin.supplierPricing.downloadTemplate)
+  state.toggleQuoteSpu(501, true)
+  assert.equal(state.quoteExportLabel, 'Export selected (1)')
+  await state.downloadQuoteTemplate()
+  assert.deepEqual(calls.exports[0], [501])
+  state.toggleVisibleQuoteSelection(true)
+  assert.deepEqual(clone(state.selectedQuoteSpuIds), [501, 502])
+  state.quoteCategory = '12'
+  await flush()
+  state.toggleVisibleQuoteSelection(true)
+  assert.deepEqual(clone(state.selectedQuoteSpuIds), [501, 502, 503])
+  await state.downloadQuoteTemplate()
+  assert.deepEqual(calls.exports[1], [501, 502, 503])
+  state.savedServices = state.savedServices.filter((row) => row.spuId !== 502)
+  await flush()
+  assert.deepEqual(clone(state.selectedQuoteSpuIds), [501, 503])
+  state.selectedQuoteSpuIds = []
+  await state.downloadQuoteTemplate()
+  assert.deepEqual(calls.exports[2], [])
+  assert.match(descriptor.template.content, /toggleQuoteSpu\(row\.spuId, checked === true\)/)
+  assert.match(descriptor.template.content, /quoteExportLabel/)
+  assert.match(descriptor.template.content, /admin\.supplierPricing\.exportSelectionHint/)
 })
 
 test('actual supplier portal template compiles with the tested setup bindings', () => {

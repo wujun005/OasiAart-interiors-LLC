@@ -67,8 +67,8 @@
           <RouterLink :to="{ path: '/', hash: '#services' }">{{
             t("client.footer.services")
           }}</RouterLink>
-          <RouterLink :to="{ name: 'order-list' }">{{
-            t("client.header.nav.orders")
+          <RouterLink :to="{ name: 'order-list', query: { kind: 'booking' } }">{{
+            t("client.profile.menu.bookings")
           }}</RouterLink>
           <RouterLink :to="{ name: 'join-us' }">{{
             t("client.footer.about")

@@ -19,6 +19,20 @@
           </header>
 
           <div class="profile-sections">
+            <article class="profile-section">
+              <button class="profile-section__trigger" type="button" @click="openAccountList('booking')">
+                <span class="profile-section__icon"><el-icon><Calendar /></el-icon></span>
+                <span class="profile-section__label">{{ t("client.profile.menu.bookings") }}</span>
+                <el-icon class="profile-section__arrow"><ArrowRight /></el-icon>
+              </button>
+            </article>
+            <article class="profile-section">
+              <button class="profile-section__trigger" type="button" @click="openAccountList('package')">
+                <span class="profile-section__icon"><el-icon><Box /></el-icon></span>
+                <span class="profile-section__label">{{ t("client.profile.menu.packages") }}</span>
+                <el-icon class="profile-section__arrow"><ArrowRight /></el-icon>
+              </button>
+            </article>
             <article class="profile-section" :class="{ 'is-open': activeSection === 'personal' }">
               <button class="profile-section__trigger" type="button" @click="toggleSection('personal')">
                 <span class="profile-section__icon"><el-icon><User /></el-icon></span>
@@ -285,21 +299,21 @@
           </button>
         </main>
 
-        <aside class="profile-sidebar">
-          <section class="partner-card">
-            <img src="@/assets/images/client/icon16.png" alt="" />
+        <section class="partner-card">
+          <img src="@/assets/images/client/icon16.png" alt="" />
+          <div class="partner-card__copy">
             <h2>{{ t("client.profile.partner.title") }}</h2>
             <p>{{ t("client.profile.partner.desc") }}</p>
-            <a href="mailto:partners@hourxportal.com">
-              <img src="@/assets/images/client/email.png" alt="" />
-              <span>partners@hourxportal.com</span>
-            </a>
-          </section>
+          </div>
+          <a href="mailto:partners@hourxportal.com">
+            <img src="@/assets/images/client/email.png" alt="" />
+            <span>partners@hourxportal.com</span>
+          </a>
+        </section>
 
-          <button v-if="isLoggedIn" type="button" class="logout-button" @click="handleLogout">
-            {{ t("client.profile.logOut") }}
-          </button>
-        </aside>
+        <button v-if="isLoggedIn" type="button" class="logout-button" @click="handleLogout">
+          {{ t("client.profile.logOut") }}
+        </button>
       </div>
     </div>
     <ForgotPasswordDialog
@@ -315,7 +329,7 @@ import { computed, onMounted, reactive, ref, watch } from "vue"
 import { useI18n } from "vue-i18n"
 import { useRoute, useRouter } from "vue-router"
 import { ElMessage, ElMessageBox } from "element-plus"
-import { ArrowRight, Bell, CreditCard, Location, Lock, Operation, Service, User } from "@element-plus/icons-vue"
+import { ArrowRight, Bell, Box, Calendar, CreditCard, Location, Lock, Operation, Service, User } from "@element-plus/icons-vue"
 import { getClientProfile, updateClientProfile, type ClientProfileRecord } from "../api"
 import { changePasswordByOld } from "../api/login"
 import {
@@ -516,6 +530,10 @@ const goLogin = () => {
   router.push({ name: "login", query: { redirect: route.fullPath } })
 }
 
+const openAccountList = (kind: "booking" | "package") => {
+  router.push({ name: "order-list", query: { kind } })
+}
+
 const toggleSection = (section: ProfileSection) => {
   if (!isLoggedIn.value && (section === "personal" || section === "addresses" || section === "payments")) {
     goLogin()
@@ -654,8 +672,8 @@ watch(
 
 .profile-layout {
   display: grid;
-  grid-template-columns: minmax(0, 1.65fr) minmax(300px, 0.82fr);
-  gap: 24px;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 16px;
   align-items: start;
   margin-top: 24px;
 }
@@ -1122,40 +1140,45 @@ watch(
   font-weight: 700;
 }
 
-.profile-sidebar {
-  display: grid;
-  gap: 16px;
-}
-
 .partner-card {
-  padding: 28px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 16px 20px;
 }
 
 .partner-card > img {
-  width: 58px;
-  height: 58px;
+  width: 42px;
+  height: 42px;
+  flex: 0 0 auto;
   object-fit: contain;
 }
 
+.partner-card__copy {
+  min-width: 0;
+  flex: 1;
+}
+
 .partner-card h2 {
-  margin: 18px 0 10px;
-  font-size: 20px;
+  margin: 0;
+  font-size: 16px;
 }
 
 .partner-card p {
-  margin: 0;
+  margin: 4px 0 0;
   color: #6c7a8e;
-  font-size: 14px;
-  line-height: 1.7;
+  font-size: 13px;
+  line-height: 1.5;
 }
 
 .partner-card a {
   display: flex;
+  flex: 0 0 auto;
   align-items: center;
-  gap: 10px;
-  margin-top: 20px;
-  padding-top: 18px;
-  border-top: 1px solid #e8edf3;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  border: 0;
   color: #1769c2;
   font-size: 13px;
   font-weight: 700;
@@ -1185,7 +1208,8 @@ watch(
 }
 
 .logout-button {
-  justify-self: center;
+  justify-self: start;
+  margin-left: 8px;
   padding: 8px 16px;
   border: 0;
   background: transparent;
@@ -1235,6 +1259,22 @@ watch(
   .partner-card {
     padding-right: 18px;
     padding-left: 18px;
+  }
+
+  .partner-card {
+    flex-wrap: wrap;
+  }
+
+  .partner-card a {
+    width: 100%;
+  }
+
+  .partner-card {
+    flex-wrap: wrap;
+  }
+
+  .partner-card a {
+    width: 100%;
   }
 
   .profile-section__content {

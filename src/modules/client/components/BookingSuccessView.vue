@@ -6,7 +6,7 @@
       </div>
       <span class="booking-success__eyebrow hourx-wordmark">HOURX HOME</span>
       <h1>{{ locale.startsWith('zh') ? '预订成功！' : 'Your booking is confirmed!' }}</h1>
-      <p>{{ locale.startsWith('zh') ? '感谢您的预订。支付和订单状态同步后，可在订单列表中查看最新进度。' : 'Thank you for booking with HourX. Your latest status will appear in Orders as soon as payment synchronization completes.' }}</p>
+      <p>{{ locale.startsWith('zh') ? '感谢您的预订。支付和预约状态同步后，可在我的预约中查看最新进度。' : 'Thank you for booking with HourX. Your latest status will appear in My Bookings as soon as payment synchronization completes.' }}</p>
 
       <dl class="booking-success__summary">
         <div><dt>{{ locale.startsWith('zh') ? '订单编号' : 'Order ID' }}</dt><dd>{{ orderReference }}</dd></div>
@@ -21,7 +21,7 @@
       </div>
 
       <div class="booking-success__actions">
-        <button type="button" class="primary" @click="router.push({ name: ordersRoute })">{{ locale.startsWith('zh') ? '查看订单' : 'View Orders' }}</button>
+        <button type="button" class="primary" @click="router.push({ name: ordersRoute, query: { kind: listKind } })">{{ listKind === 'package' ? (locale.startsWith('zh') ? '查看我的套餐' : 'View My Packages') : (locale.startsWith('zh') ? '查看我的预约' : 'View My Bookings') }}</button>
         <button type="button" class="secondary" @click="router.push(mobile ? { name: 'h5-home' } : { path: '/' })">{{ locale.startsWith('zh') ? '返回首页' : 'Back to Home' }}</button>
       </div>
     </section>
@@ -50,6 +50,7 @@ const amount = computed(() => {
   return value ? `AED ${Number(value).toFixed(2)}` : '';
 });
 const ordersRoute = computed(() => props.mobile ? 'h5-orders' : 'order-list');
+const listKind = computed(() => textQuery('kind') === 'package' ? 'package' : 'booking');
 </script>
 
 <style scoped lang="scss">

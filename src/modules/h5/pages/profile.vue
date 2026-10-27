@@ -18,6 +18,24 @@
       </section>
 
       <section class="h5-profile-card h5-profile-card--menu">
+        <div class="h5-profile-item">
+          <button class="h5-profile-row" type="button" @click="openAccountList('booking')">
+            <span class="h5-profile-row__left">
+              <van-icon name="orders-o" />
+              <span>{{ t('h5.profile.menu.bookings') }}</span>
+            </span>
+            <van-icon class="h5-profile-row__arrow" name="arrow" />
+          </button>
+        </div>
+        <div class="h5-profile-item">
+          <button class="h5-profile-row" type="button" @click="openAccountList('package')">
+            <span class="h5-profile-row__left">
+              <van-icon name="gift-o" />
+              <span>{{ t('h5.profile.menu.packages') }}</span>
+            </span>
+            <van-icon class="h5-profile-row__arrow" name="arrow" />
+          </button>
+        </div>
         <div class="h5-profile-item" :class="{ 'h5-profile-item--open': activeSection === 'personal' }">
           <button class="h5-profile-row" type="button" @click="toggleSection('personal')">
             <span class="h5-profile-row__left">
@@ -217,10 +235,6 @@
         </span>
         <span>{{ t('client.header.nav.cart') }}</span>
       </button>
-      <button class="h5-profile-tabbar__item" type="button" @click="router.push({ name: 'h5-orders' })">
-        <van-icon name="orders-o" />
-        <span>{{ t('client.header.nav.orders') }}</span>
-      </button>
       <button class="h5-profile-tabbar__item h5-profile-tabbar__item--active" type="button">
         <van-icon name="contact-o" />
         <span>{{ t('client.header.profile') }}</span>
@@ -332,6 +346,10 @@ const saveProfile = async () => {
   } catch (error: any) {
     showFailToast(error?.message || (locale.value === 'zh' ? '个人信息更新失败' : 'Failed to update profile'));
   } finally { profileSubmitting.value = false; }
+};
+
+const openAccountList = (kind: 'booking' | 'package') => {
+  router.push({ name: 'h5-orders', query: { kind } });
 };
 
 const goLogin = () => {

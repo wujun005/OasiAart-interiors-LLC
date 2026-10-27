@@ -170,13 +170,13 @@
             <label v-if="mode === 'reset'" class="form-field">
               <span class="form-field__label">{{ t('admin.login.newPassword') }}</span>
               <span class="form-field__control">
-                <input v-model="form.newPassword" type="password" autocomplete="new-password" :placeholder="t('admin.login.passwordPlaceholder')" />
+                <input ref="newPasswordInput" v-model="form.newPassword" type="password" autocomplete="new-password" :placeholder="t('admin.login.passwordPlaceholder')" />
               </span>
             </label>
             <label v-if="mode === 'reset'" class="form-field">
               <span class="form-field__label">{{ t('admin.login.confirmPassword') }}</span>
               <span class="form-field__control">
-                <input v-model="form.confirmPassword" type="password" autocomplete="new-password" :placeholder="t('admin.login.confirmPassword')" />
+                <input ref="confirmPasswordInput" v-model="form.confirmPassword" type="password" autocomplete="new-password" :placeholder="t('admin.login.confirmPassword')" />
               </span>
             </label>
           </template>
@@ -257,6 +257,9 @@ const form = reactive({
   newPassword: '',
   confirmPassword: '',
 });
+const newPasswordInput = ref<HTMLInputElement | null>(null);
+const confirmPasswordInput = ref<HTMLInputElement | null>(null);
+const fieldValue = (input: HTMLInputElement | null, model: string) => (input?.value || model || '').trim();
 const fullPhone = () => joinPhone(form.dialCode, form.phone);
 const startCodeWait = () => {
   codeWait.value = 60;
@@ -330,10 +333,11 @@ const submitLogin = async () => {
     if (!fullPhone()) return ElMessage.warning(t('admin.login.phoneRequired'));
     if (!/^\d{6}$/.test(form.code)) return ElMessage.warning(t('admin.login.codeRequired'));
   }
+  const resetPassword = mode.value === 'reset' ? fieldValue(newPasswordInput.value, form.newPassword) : '';
   if (mode.value === 'reset') {
-    const next = form.newPassword.trim();
-    if (next.length < 6) return ElMessage.warning(t('admin.login.passwordMin'));
-    if (next !== form.confirmPassword.trim()) return ElMessage.warning(t('admin.login.passwordMismatch'));
+    const confirmPassword = fieldValue(confirmPasswordInput.value, form.confirmPassword);
+    if (resetPassword.length < 6) return ElMessage.warning(t('admin.login.passwordMin'));
+    if (resetPassword !== confirmPassword) return ElMessage.warning(t('admin.login.passwordMismatch'));
   }
 
   submitting.value = true;
@@ -342,10 +346,11 @@ const submitLogin = async () => {
       const result = await resetAdminPassword({
         phone: fullPhone(),
         verifyCode: form.code,
-        newPassword: form.newPassword.trim(),
+        newPassword: resetPassword,
       });
       ElMessage.success(result?.message || t('admin.login.passwordReset'));
       mode.value = 'password';
+      form.account = fullPhone();
       form.password = '';
       form.code = '';
       form.newPassword = '';
@@ -401,9 +406,10 @@ const submitLogin = async () => {
     } catch (error) {
       if (!isNavigationFailure(error)) throw error;
     }
-  } catch (error) {
+  } catch (error: any) {
     console.error(error);
-    ElMessage.error(t('admin.login.loginFailed'));
+    const message = typeof error === 'string' ? error : error?.message;
+    ElMessage.error(message || (mode.value === 'reset' ? t('admin.login.passwordResetFailed') : t('admin.login.loginFailed')));
   } finally {
     submitting.value = false;
   }

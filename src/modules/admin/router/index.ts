@@ -54,6 +54,26 @@ const routes: RouteRecordRaw[] = [
             component: () => import('@/modules/admin/pages/package-category/index.vue'),
           },
           {
+            path: 'service-subcategories',
+            name: 'admin-package-service-subcategories',
+            component: () => import('@/modules/admin/pages/package-service-category/index.vue'),
+          },
+          {
+            path: 'spec-types',
+            name: 'admin-package-spec-types',
+            component: () => import('@/modules/admin/pages/package-spec-type/index.vue'),
+          },
+          {
+            path: 'specs',
+            name: 'admin-package-specs',
+            component: () => import('@/modules/admin/pages/package-spec/index.vue'),
+          },
+          {
+            path: 'services',
+            name: 'admin-package-services',
+            component: () => import('@/modules/admin/pages/package-service/index.vue'),
+          },
+          {
             path: 'packages',
             name: 'admin-package-list',
             component: () => import('@/modules/admin/pages/package/index.vue'),

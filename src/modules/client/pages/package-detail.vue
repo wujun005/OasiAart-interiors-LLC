@@ -6,6 +6,10 @@
       :loading="loading"
       :missing="missing"
       :busy="busy"
+      :price-ready="priceReady"
+      :price-loading="priceLoading"
+      :price-error="priceError"
+      :selection-locked="selectionLocked"
       :selected-image-index="selectedImageIndex"
       :cart-count="cartCount"
       @back="goBack"
@@ -13,6 +17,10 @@
       @image-change="selectedImageIndex = $event"
       @add-to-cart="addToCart"
       @checkout="openCheckout"
+      @select-spec="selectSpec"
+      @retry-price="loadPrice"
+      @select-shared-spec="selectSharedSpec"
+      @toggle-separate-specs="toggleSeparateSpecs"
     />
     <div v-else class="product-detail-page">
     <section class="product-detail-subheader">
@@ -70,7 +78,6 @@
               >
                 <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 18 6-6-6-6" /></svg>
               </button>
-              <span v-if="view.badge" class="product-gallery__badge">{{ view.badge }}</span>
               <div v-if="galleryImages.length > 1" class="product-gallery__dots">
                 <button
                   v-for="(image, index) in galleryImages"
@@ -149,7 +156,7 @@
                 <li v-for="item in view.items" :key="item.id">
                   <div>
                     <strong>{{ item.name }}</strong>
-                    <small v-if="item.spec">{{ item.spec }}</small>
+                    <small v-if="item.selectionSummary">{{ item.selectionSummary }}</small>
                   </div>
                   <em>{{ item.times }}</em>
                 </li>
@@ -208,15 +215,28 @@
               </div>
             </div>
 
-            <div class="booking-price-card">
+            <div class="booking-price-card" :aria-busy="priceLoading">
               <span class="booking-price-card__label">{{ t('client.home.packages.dealPrice') }}</span>
-              <div class="booking-price-card__main"><span>AED</span><strong>{{ view.saleAmount.toFixed(2) }}</strong></div>
+              <div class="booking-price-card__main"><span v-if="priceReady">AED</span><strong>{{ view.saleAmount == null ? '—' : view.saleAmount.toFixed(2) }}</strong></div>
               <div v-if="view.original" class="booking-price-card__offer">
                 <del>AED {{ view.original }}</del>
                 <span v-if="view.save">{{ view.save }}</span>
               </div>
               <p v-if="view.perVisit" class="package-price-per-visit">{{ view.perVisit }}</p>
+              <div v-if="!priceReady" class="package-price-status" :class="{ 'is-error': !!priceError }" role="status">
+                <span>{{ priceLoading ? t('client.home.packages.priceLoading') : priceError || t('client.home.packages.chooseSkuRequired') }}</span>
+                <button v-if="priceError" type="button" @click="loadPrice">{{ t('client.home.packages.retryPrice') }}</button>
+              </div>
             </div>
+
+            <PackageSharedSpecs
+              v-if="view.hasSharedSpecs"
+              :groups="view.sharedGroups"
+              :separate="view.separateSpecs"
+              :disabled="selectionLocked"
+              @select="selectSharedSpec"
+              @toggle-separate="toggleSeparateSpecs"
+            />
 
             <div class="booking-card__section-heading">
               <div class="booking-card__section-title-row">
@@ -230,7 +250,25 @@
                 <div v-for="item in view.items" :key="`side-${item.id}`" class="booking-attach-item">
                   <div class="booking-attach-item__meta">
                     <span class="booking-attach-item__name">{{ item.name }}</span>
-                    <span v-if="item.spec" class="booking-attach-item__price">{{ item.spec }}</span>
+                    <span v-if="item.sharedSummary" class="package-shared-applied">{{ t('client.home.packages.sharedApplied', { specs: item.sharedSummary }) }}</span>
+                    <span v-else-if="item.spec && !item.groups.length" class="booking-attach-item__price">{{ item.spec }}</span>
+                    <div v-if="item.groups.length" class="package-sku-groups">
+                      <div v-for="group in item.groups" :key="group.id" class="package-sku-group">
+                        <p class="package-sku-group__label">{{ group.label }}</p>
+                        <div class="package-sku-options" role="radiogroup" :aria-label="group.label">
+                          <button
+                            v-for="option in group.options"
+                            :key="option.id"
+                            type="button"
+                            class="package-sku-option"
+                            :class="{ 'is-selected': group.selectedId === option.id }"
+                            :aria-pressed="group.selectedId === option.id"
+                            :disabled="selectionLocked || option.disabled"
+                            @click="selectSpec(item.id, group.id, option.id)"
+                          >{{ option.label }}</button>
+                        </div>
+                      </div>
+                    </div>
                   </div>
                   <span class="package-times">{{ item.times }}</span>
                 </div>
@@ -260,7 +298,7 @@
             </div>
             <div class="booking-card__footer">
             <div class="booking-actions">
-              <button class="booking-add-cart" type="button" :disabled="busy" @click="addToCart">
+              <button class="booking-add-cart" type="button" :disabled="busy || !priceReady" @click="addToCart">
                 <svg class="booking-add-cart__icon" viewBox="0 0 24 24" aria-hidden="true">
                   <path d="M3 4h2.2l1.7 9.1a2 2 0 0 0 2 1.6h7.8a2 2 0 0 0 1.9-1.4L20 8H7" />
                   <circle cx="9.5" cy="19" r="1.3" />
@@ -269,7 +307,7 @@
                 </svg>
                 <span>{{ t('client.productDetail.booking.addToCart') }}</span>
               </button>
-              <button class="booking-submit" type="button" :disabled="busy" @click="openCheckout">
+              <button class="booking-submit" type="button" :disabled="busy || !priceReady" @click="openCheckout">
                 {{ t('client.productDetail.booking.bookNow') }}
                 <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M14 7l5 5-5 5" /></svg>
               </button>
@@ -292,16 +330,19 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import { bizTagLabels } from '@/modules/client/utils/biz-tag'
 import { toPlainText as plainText } from '@/modules/client/utils/plain-text'
+import { findSharedSpecs, getSharedSpecGroups, resolveSharedSpecs, type SkuChoice, type SpecItem } from '@/modules/client/utils/package-shared-specs'
+import { hydratePackageSpecIds } from '@/modules/client/utils/package-spec-identity'
 import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import 'element-plus/es/components/message/style/css'
-import { createPackageOrder, packageDetail, type PackageCatalogCard } from '@/modules/client/api'
+import { createPackageOrder, getProductDetail, packageDetail, packagePrice, type PackageCatalogCard, type PackagePricePayload, type PackageSkuSelection, type PackageSpecLine } from '@/modules/client/api'
 import { useCart } from '@/modules/client/composables/useCart'
 import PackageDetailMobile from '@/modules/h5/components/PackageDetailMobile.vue'
+import PackageSharedSpecs from '@/modules/client/components/PackageSharedSpecs.vue'
 import { getStoredAuthSnapshot, clearStoredAuthState } from '@/utils/auth-state'
 
 const props = withDefaults(defineProps<{
@@ -315,9 +356,23 @@ const router = useRouter()
 const { t, locale } = useI18n({ useScope: 'global' })
 const { addPackage, cartCount } = useCart({ initialize: false })
 const detail = ref<PackageCatalogCard | null>(null)
+const detailPackageId = ref('')
 const loading = ref(false)
 const missing = ref(false)
 let loadRequestSeq = 0
+type PriceQuote = {
+  originalPrice: number
+  salePrice: number
+  savedPrice: number
+  taxPrice: number
+  totalPriceWithTax: number
+  discount: number
+}
+const priceQuote = ref<PriceQuote | null>(null)
+const priceLoading = ref(false)
+const priceError = ref('')
+const quotedSignature = ref('')
+let priceRequestSeq = 0
 const adding = ref(false)
 const buying = ref(false)
 const selectedImageIndex = ref(0)
@@ -339,12 +394,13 @@ const handleDetailTabKeydown = (event: KeyboardEvent, currentKey: DetailTabKey) 
   else if (event.key === 'End') nextIndex = detailTabOrder.length - 1
   else return
   event.preventDefault()
-  const nextKey = detailTabOrder[nextIndex]
+  const nextKey = detailTabOrder[nextIndex] || 'description'
   activeDetailTab.value = nextKey
   const tabList = (event.currentTarget as HTMLElement).closest('[role="tablist"]')
   tabList?.querySelector<HTMLButtonElement>(`#package-detail-tab-${nextKey}`)?.focus()
 }
-const busy = computed(() => loading.value || adding.value || buying.value)
+const busy = computed(() => loading.value || adding.value || buying.value || priceLoading.value)
+const selectionLocked = computed(() => loading.value || adding.value || buying.value)
 const routeNames = computed(() => props.platform === 'h5'
   ? {
       login: 'h5-login',
@@ -388,51 +444,195 @@ const money = (value: number) =>
     maximumFractionDigits: 2,
   }).format(value)
 
-const roundMoney = (value: number) => Math.round((value + Number.EPSILON) * 100) / 100
-const formatAed = (value: number) => `AED ${Number(value || 0).toFixed(2)}`
+const formatAed = (value: number | null) => value == null ? '—' : `AED ${value.toFixed(2)}`
+const selectedSkuIds = ref<Record<string, string>>({})
+const positiveId = (value: unknown) => /^[1-9]\d*$/.test(String(value ?? '')) && Number.isSafeInteger(Number(value))
+const itemKey = (item: NonNullable<PackageCatalogCard['items']>[number], index: number) => String(item.packageItemId || item.skuId || index)
+const pricePayload = computed<PackagePricePayload | null>(() => {
+  const card = detail.value
+  const packageId = String(route.params.id || '').trim()
+  if (!card || detailPackageId.value !== packageId || !positiveId(packageId)) return null
+  const selections: PackageSkuSelection[] = []
+  for (const [index, item] of (card.items || []).entries()) {
+    const options = (item.skuOptions || []).filter((option) => positiveId(option.skuId))
+    const selectable = Number(item.bindType) !== 2 && (Number(item.bindType) === 1 || (item.skuOptions || []).length > 0)
+    if (!selectable) continue
+    const skuId = selectedSkuIds.value[itemKey(item, index)]
+    if (!positiveId(skuId) || !options.some((option) => String(option.skuId) === skuId)) return null
+    const packageItemId = positiveId(item.packageItemId) ? Number(item.packageItemId) : undefined
+    const spuId = positiveId(item.spuId) ? Number(item.spuId) : undefined
+    if (!packageItemId && !spuId) return null
+    selections.push({ ...(packageItemId ? { packageItemId } : {}), ...(spuId ? { spuId } : {}), skuId: Number(skuId) })
+  }
+  return { packageId, selections }
+})
+const priceSignature = computed(() => pricePayload.value ? JSON.stringify(pricePayload.value) : '')
+const priceReady = computed(() => Boolean(priceQuote.value && !priceLoading.value && quotedSignature.value === priceSignature.value))
+
+const loadPrice = async () => {
+  const requestSeq = ++priceRequestSeq
+  const payload = pricePayload.value
+  const signature = priceSignature.value
+  priceQuote.value = null
+  quotedSignature.value = ''
+  priceError.value = ''
+  priceLoading.value = Boolean(payload)
+  if (!payload) return
+  try {
+    const result = await packagePrice(payload)
+    if (requestSeq !== priceRequestSeq || signature !== priceSignature.value) return
+    const fields = ['originalPrice', 'salePrice', 'savedPrice', 'taxPrice', 'totalPriceWithTax', 'discount'] as const
+    const values = Object.fromEntries(fields.map((key) => [key, amount(result?.[key])]))
+    if (fields.some((key) => values[key] == null || values[key] < 0) || !(Number(values.discount) > 0)) {
+      throw new Error(t('client.home.packages.priceFailed'))
+    }
+    priceQuote.value = values as PriceQuote
+    quotedSignature.value = signature
+  } catch (error: any) {
+    if (requestSeq !== priceRequestSeq || signature !== priceSignature.value) return
+    priceError.value = error?.message || t('client.home.packages.priceFailed')
+  } finally {
+    if (requestSeq === priceRequestSeq) priceLoading.value = false
+  }
+}
+
+const specLabel = (lines?: PackageSpecLine[]) => (lines || [])
+  .map((line) => {
+    const type = plainText(pickRaw(line.specTypeNameI18n))
+    const value = plainText(pickRaw(line.specValueNameI18n))
+    return [type, value].filter(Boolean).join(': ')
+  })
+  .filter(Boolean)
+  .join(' · ')
+
+const skuChoices = (options: Array<{ skuId?: number | string; specI18n?: PackageSpecLine[] }>): SkuChoice[] =>
+  options
+    .filter((option) => positiveId(option.skuId))
+    .map((option) => {
+      const parts = (option.specI18n || []).map((line, index) => {
+        const typeLabel = plainText(pickRaw(line.specTypeNameI18n))
+        const valueLabel = plainText(pickRaw(line.specValueNameI18n))
+        const typeId = positiveId(line.specTypeId) ? String(line.specTypeId) : undefined
+        const valueId = positiveId(line.specValueId) ? String(line.specValueId) : undefined
+        const typeKey = typeId ? `type:${typeId}` : typeLabel || `type-${index}`
+        return {
+          typeKey,
+          typeId,
+          valueId,
+          typeLabel: typeLabel || t('client.home.packages.chooseSku'),
+          valueKey: typeId && valueId ? `value:${valueId}` : `${typeKey}::${valueLabel || index}`,
+          valueLabel: valueLabel || String(option.skuId),
+        }
+      })
+      return {
+        id: String(option.skuId),
+        label: specLabel(option.specI18n) || String(option.skuId),
+        parts,
+      }
+    })
+
+const specItemsFor = (card: PackageCatalogCard | null): SpecItem[] => (card?.items || []).map((item, index) => ({
+  id: itemKey(item, index),
+  choices: Number(item.bindType) === 2 ? [] : skuChoices(item.skuOptions || []),
+}))
+const specItems = computed(() => specItemsFor(detail.value))
+const separateSpecs = ref(false)
+const sharedDefinitions = computed(() => findSharedSpecs(specItems.value))
+const activeSharedDefinitions = computed(() => separateSpecs.value ? [] : sharedDefinitions.value)
+const sharedGroups = computed(() => getSharedSpecGroups(specItems.value, activeSharedDefinitions.value, selectedSkuIds.value))
+const itemSharesSpecs = (itemId: string) => activeSharedDefinitions.value.some((group) => group.itemIds.includes(itemId))
+const exactLocalChoice = (choices: SkuChoice[], selectedId: string, typeKey: string, valueKey: string) => {
+  const current = choices.find((choice) => choice.id === selectedId) || choices[0]
+  if (!current) return undefined
+  const desired = new Map(current.parts.map((part) => [part.typeKey, part.valueKey]))
+  desired.set(typeKey, valueKey)
+  return choices.find((choice) => [...desired].every(([key, value]) => choice.parts.some((part) => part.typeKey === key && part.valueKey === value)))
+}
+
+const specGroups = (choices: SkuChoice[], selectedId: string) => {
+  const selected = choices.find((choice) => choice.id === selectedId) || choices[0]
+  const order: string[] = []
+  const types = new Map<string, { label: string; values: Map<string, string> }>()
+  choices.forEach((choice) => {
+    choice.parts.forEach((part) => {
+      const type = types.get(part.typeKey)
+      if (!type) {
+        types.set(part.typeKey, { label: part.typeLabel, values: new Map([[part.valueKey, part.valueLabel]]) })
+        order.push(part.typeKey)
+        return
+      }
+      type.values.set(part.valueKey, part.valueLabel)
+    })
+  })
+  return order.map((typeKey) => {
+    const type = types.get(typeKey)
+    const selectedPart = selected?.parts.find((part) => part.typeKey === typeKey)
+    return {
+      id: typeKey,
+      label: type?.label || '',
+      selectedId: selectedPart?.valueKey || '',
+      options: [...(type?.values.entries() || [])].map(([id, label]) => ({ id, label, disabled: false })),
+    }
+  }).filter((group) => group.options.length)
+}
 
 const view = computed(() => {
   const card = detail.value
   if (!card) return null
-  const sale = amount(card.salePrice)
-  if (sale == null || sale < 0) return null
-  const original = amount(card.originalPrice)
-  const saved = Math.max(0, amount(card.savedAmount) ?? (original != null ? original - sale : 0))
+  const quote = priceReady.value ? priceQuote.value : null
+  const sale = quote?.salePrice ?? null
+  const original = quote?.originalPrice ?? null
+  const saved = quote?.savedPrice ?? 0
   const visits = Number(card.redeemTimes || 0)
   const name = plainText(pickRaw(card.nameI18n, card.packageName || ''))
-  const vat = roundMoney(sale * 0.05)
   return {
     title: name,
     tags: bizTagLabels(card.tags, locale.value),
     mark: Array.from(name)[0] || 'H',
     category: plainText(pickRaw(card.categoryNameI18n)),
-    badge: visits > 0 ? t('client.home.packages.visits', { count: visits }) : '',
     visits: visits > 0 ? t('client.home.packages.visits', { count: visits }) : '',
     descHtml: asHtml(pickRaw(card.descI18n, card.packageDesc || '')),
     aboutHtml: asHtml(pickRaw(card.serviceContentTextI18n)),
     noticeHtml: asHtml(pickRaw(card.bookingNoticeI18n)),
     saleAmount: sale,
-    original: original != null && original > sale ? money(original) : '',
-    perVisit: visits > 1 ? t('client.home.packages.perVisit', { price: money(sale / visits) }) : '',
+    original: original != null && sale != null && original > sale ? money(original) : '',
+    perVisit: sale != null && visits > 1 ? t('client.home.packages.perVisit', { price: money(sale / visits) }) : '',
     save: saved > 0 ? t('client.home.packages.save', { price: money(saved) }) : '',
     validDays: Number(card.validDays) > 0 ? t('client.home.packages.validDays', { days: card.validDays }) : '',
-    vat,
-    total: roundMoney(sale + vat),
+    vat: quote?.taxPrice ?? null,
+    total: quote?.totalPriceWithTax ?? null,
     images: (card.imageUrls || []).map((url) => String(url || '').trim()).filter(Boolean),
+    hasSharedSpecs: sharedDefinitions.value.length > 0,
+    separateSpecs: separateSpecs.value,
+    sharedGroups: sharedGroups.value.map((group) => ({
+      ...group,
+      serviceNames: (card.items || []).filter((item, index) => group.itemIds.includes(itemKey(item, index)))
+        .map((item) => plainText(pickRaw(item.spuNameI18n)) || t('client.orderList.unknownService')).join(locale.value === 'zh' ? '、' : ', '),
+    })),
     items: (card.items || []).map((item, index) => {
-      const spec = (item.specI18n || [])
-        .map((line) => {
-          const type = plainText(pickRaw(line.specTypeNameI18n))
-          const value = plainText(pickRaw(line.specValueNameI18n))
-          return [type, value].filter(Boolean).join(': ')
-        })
-        .filter(Boolean)
-        .join(' · ')
+      const id = itemKey(item, index)
+      const choices = Number(item.bindType) === 2 ? [] : skuChoices(item.skuOptions || [])
+      const selectedSkuId = selectedSkuIds.value[id] || ''
+      const selected = choices.find((choice) => choice.id === selectedSkuId)
+      const sharedKeys = new Set(activeSharedDefinitions.value.filter((group) => group.itemIds.includes(id)).map((group) => group.id))
+      const groups = specGroups(choices, selectedSkuId).filter((group) => !sharedKeys.has(group.id)).map((group) => ({
+        ...group,
+        options: group.options.map((option) => ({ ...option, disabled: itemSharesSpecs(id) && !exactLocalChoice(choices, selectedSkuId, group.id, option.id) })),
+      }))
       return {
-        id: String(item.packageItemId || item.skuId || index),
+        id,
+        packageItemId: item.packageItemId != null && String(item.packageItemId) !== '' ? String(item.packageItemId) : '',
+        spuId: item.spuId != null && String(item.spuId) !== '' ? String(item.spuId) : '',
         name: plainText(pickRaw(item.spuNameI18n)) || t('client.orderList.unknownService'),
-        spec,
+        spec: specLabel(item.specI18n),
         times: t('client.home.packages.itemTimes', { count: Number(item.redeemTimes || 0) }),
+        choices,
+        options: choices.map((choice) => ({ id: choice.id, label: choice.label })),
+        groups,
+        sharedSummary: selected?.parts.filter((part) => sharedKeys.has(part.typeKey)).map((part) => part.valueLabel).join(' · ') || '',
+        selectionSummary: selected?.label || specLabel(item.specI18n),
+        selectable: Number(item.bindType) !== 2 && (Number(item.bindType) === 1 || choices.length > 0),
+        selectedSkuId,
       }
     }),
   }
@@ -457,6 +657,7 @@ const load = async (id: string) => {
   const requestSeq = ++loadRequestSeq
   loading.value = true
   missing.value = false
+  detailPackageId.value = ''
   detail.value = null
   selectedImageIndex.value = 0
   activeDetailTab.value = 'description'
@@ -468,7 +669,10 @@ const load = async (id: string) => {
   try {
     const card = await packageDetail(id)
     if (requestSeq !== loadRequestSeq) return
-    detail.value = card
+    const hydrated = card ? await hydratePackageSpecIds(card, getProductDetail) : null
+    if (requestSeq !== loadRequestSeq) return
+    detailPackageId.value = id
+    detail.value = hydrated
     missing.value = !view.value
   } catch (error) {
     if (requestSeq !== loadRequestSeq) return
@@ -492,14 +696,84 @@ const ensureLogin = async () => {
   return false
 }
 
+const selectSku = (itemId: string, skuId: string) => {
+  if (selectionLocked.value) return
+  const item = view.value?.items.find((entry) => entry.id === itemId)
+  if (!item?.options.some((option) => option.id === skuId)) return
+  const next = { ...selectedSkuIds.value, [itemId]: skuId }
+  const choice = item.choices.find((choice) => choice.id === skuId)
+  const patch = Object.fromEntries((choice?.parts || []).filter((part) => activeSharedDefinitions.value.some((group) => group.id === part.typeKey && group.itemIds.includes(itemId))).map((part) => [part.typeKey, part.valueKey]))
+  const resolved = resolveSharedSpecs(specItems.value, activeSharedDefinitions.value, next, patch)
+  if (resolved) selectedSkuIds.value = resolved
+}
+
+const selectSharedSpec = (typeKey: string, valueKey: string) => {
+  if (selectionLocked.value) return
+  const group = sharedGroups.value.find((group) => group.id === typeKey)
+  if (!group?.options.some((option) => option.id === valueKey && !option.disabled)) return
+  const next = resolveSharedSpecs(specItems.value, activeSharedDefinitions.value, selectedSkuIds.value, { [typeKey]: valueKey })
+  if (next) selectedSkuIds.value = next
+}
+
+const toggleSeparateSpecs = () => {
+  if (selectionLocked.value) return
+  if (!separateSpecs.value) {
+    separateSpecs.value = true
+    return
+  }
+  const next = resolveSharedSpecs(specItems.value, sharedDefinitions.value, selectedSkuIds.value)
+  if (!next) {
+    ElMessage.warning(t('client.home.packages.sharedConflict'))
+    return
+  }
+  separateSpecs.value = false
+  selectedSkuIds.value = next
+}
+
+const selectSpec = (itemId: string, typeKey: string, valueKey: string) => {
+  if (selectionLocked.value) return
+  const item = view.value?.items.find((entry) => entry.id === itemId)
+  if (!item?.groups.some((group) => group.id === typeKey && group.options.some((option) => option.id === valueKey && !option.disabled))) return
+  const choices = item?.choices || []
+  const current = choices.find((choice) => choice.id === item?.selectedSkuId) || choices[0]
+  if (!current) return
+  const desired = new Map(current.parts.map((part) => [part.typeKey, part.valueKey]))
+  desired.set(typeKey, valueKey)
+  const matches = (choice: SkuChoice) => choice.parts.every((part) => desired.get(part.typeKey) === part.valueKey)
+  const exact = choices.find(matches)
+  const partial = choices.find((choice) => choice.parts.some((part) => part.typeKey === typeKey && part.valueKey === valueKey))
+  const next = itemSharesSpecs(itemId) ? exactLocalChoice(choices, item.selectedSkuId, typeKey, valueKey) : exact || partial
+  if (!next) return
+  selectedSkuIds.value = { ...selectedSkuIds.value, [itemId]: next.id }
+}
+
+const packageSelections = (): PackageSkuSelection[] => (pricePayload.value?.selections || []).map((selection) => ({ ...selection }))
+
+const ensureSkuSelections = () => {
+  if (pricePayload.value) return true
+  ElMessage.warning(t('client.home.packages.chooseSkuRequired'))
+  return false
+}
+
+const ensurePriceReady = () => {
+  if (priceReady.value) return true
+  ElMessage.warning(priceError.value || t('client.home.packages.priceLoading'))
+  return false
+}
+
 const addToCart = async () => {
   const packageId = String(route.params.id || '').trim()
   if (!packageId || !view.value || missing.value || busy.value) return
+  if (!ensureSkuSelections()) return
+  if (!ensurePriceReady()) return
+  const signature = priceSignature.value
+  const selections = packageSelections()
   if (!(await ensureLogin())) return
-  if (busy.value || !view.value || String(route.params.id || '').trim() !== packageId) return
+  if (busy.value || !priceReady.value || signature !== priceSignature.value || !view.value || String(route.params.id || '').trim() !== packageId) return
   adding.value = true
   try {
-    await addPackage(packageId)
+    await addPackage(packageId, selections)
+    if (String(route.params.id || '').trim() !== packageId) return
     ElMessage.success(t('client.home.packages.added'))
     await router.push({ name: routeNames.value.cart })
   } catch (error: any) {
@@ -512,8 +786,12 @@ const addToCart = async () => {
 const openCheckout = async () => {
   const packageId = String(route.params.id || '').trim()
   if (!packageId || !view.value || missing.value || busy.value) return
+  if (!ensureSkuSelections()) return
+  if (!ensurePriceReady()) return
+  const signature = priceSignature.value
+  const selections = packageSelections()
   if (!(await ensureLogin())) return
-  if (busy.value || !view.value || String(route.params.id || '').trim() !== packageId) return
+  if (busy.value || !priceReady.value || signature !== priceSignature.value || !view.value || String(route.params.id || '').trim() !== packageId) return
   const selectedPackage = view.value
   const titleI18n = Object.fromEntries(
     Object.entries(detail.value?.nameI18n || {})
@@ -521,7 +799,7 @@ const openCheckout = async () => {
   )
   buying.value = true
   try {
-    const createdOrderId = await createPackageOrder(packageId)
+    const createdOrderId = await createPackageOrder(packageId, selections)
     if (!/^[1-9]\d*$/.test(String(createdOrderId ?? ''))) {
       throw new Error(t('client.productDetail.booking.createOrderFailed'))
     }
@@ -548,7 +826,28 @@ const openCheckout = async () => {
   }
 }
 
+watch(detail, (card) => {
+  separateSpecs.value = false
+  const next: Record<string, string> = {}
+  ;(card?.items || []).forEach((item, index) => {
+    const id = itemKey(item, index)
+    const options = (item.skuOptions || []).filter((option) => positiveId(option.skuId))
+    if (!options.length) return
+    const current = selectedSkuIds.value[id]
+    const match = options.find((option) => String(option.skuId) === current)
+    const selected = match || options[0]
+    if (selected) next[id] = String(selected.skuId)
+  })
+  const items = specItemsFor(card)
+  selectedSkuIds.value = resolveSharedSpecs(items, findSharedSpecs(items), next, {}, false) || next
+}, { flush: 'sync' })
+
+watch(priceSignature, () => { void loadPrice() }, { flush: 'sync' })
 watch(() => String(route.params.id || ''), load, { immediate: true })
+onBeforeUnmount(() => {
+  loadRequestSeq += 1
+  priceRequestSeq += 1
+})
 </script>
 
 <style scoped lang="scss" src="../styles/product-detail.scss"></style>
@@ -592,7 +891,7 @@ watch(() => String(route.params.id || ''), load, { immediate: true })
 
 .package-includes li {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
   gap: 12px;
   padding: 10px 0;
@@ -626,17 +925,143 @@ watch(() => String(route.params.id || ''), load, { immediate: true })
   white-space: nowrap;
 }
 
+.package-shared-applied { display: block; margin-top: 6px; color: #527279; font-size: 11px; line-height: 1.5; }
+.booking-card__scroll > .package-shared-specs { margin: 8px 16px; }
+
+.booking-side .booking-card__hero { padding: 12px 16px 10px; }
+.booking-side .booking-card__eyebrow { display: none; }
+.booking-side .booking-card__hero h1 { margin-top: 0; font-size: 20px; line-height: 1.2; }
+.booking-side .booking-card__meta { margin-top: 6px; gap: 8px; }
+.booking-side .booking-card__hero .biz-tags { margin-top: 6px; gap: 4px; }
+.booking-side .booking-card__trust svg { width: 14px; height: 14px; }
+.booking-side .booking-price-card { margin: 8px 16px 0; padding: 8px 10px; }
+.booking-side .package-shared-specs { padding: 10px 12px; }
+.booking-side :deep(.package-shared-specs h3) { font-size: 13px; }
+.booking-side :deep(.package-shared-specs__toggle) { font-size: 11px; }
+.booking-side :deep(.package-shared-specs__group) {
+  display: grid;
+  grid-template-columns: fit-content(38%) minmax(0, 1fr);
+  align-items: center;
+  gap: 4px 8px;
+  margin-top: 8px;
+}
+.booking-side :deep(.package-shared-specs__group > strong) { overflow-wrap: anywhere; font-size: 11px; }
+.booking-side :deep(.package-shared-specs__options) { gap: 6px; margin-top: 0; }
+.booking-side :deep(.package-shared-specs__options button) { min-height: 28px; padding: 4px 10px; font-size: 12px; line-height: 1.35; }
+.booking-side :deep(.package-shared-specs__group > small) { grid-column: 1 / -1; margin-top: 0; font-size: 10px; line-height: 1.35; }
+.booking-side .booking-card__section-heading { padding: 8px 16px 0; }
+.booking-side .booking-card__section-heading h2 { font-size: 14px; }
+.booking-side .booking-field { margin-top: 6px; padding: 0 16px; }
+.booking-side .booking-attach-item { gap: 6px; }
+.booking-side .booking-attach-item__meta { flex: 1 1 auto; flex-direction: row; flex-wrap: wrap; align-items: baseline; gap: 2px 8px; }
+.booking-side .package-shared-applied { margin-top: 0; font-size: 10px; line-height: 1.35; }
+.booking-side .package-times { align-self: flex-start; }
+.booking-side .package-sku-groups { flex-basis: 100%; min-width: 0; gap: 6px; margin-top: 4px; }
+.booking-side .package-sku-group { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; }
+.booking-side .package-sku-group__label { margin: 0; font-size: 11px; line-height: 1.35; }
+.booking-side .package-sku-options { flex: 1 1 180px; gap: 6px; }
+.booking-side .package-sku-option { min-height: 28px; padding: 4px 9px; font-size: 12px; line-height: 1.35; }
+.booking-side .booking-summary { margin-top: 10px; padding: 10px 16px 8px; gap: 4px; }
+.booking-side .booking-summary__caption { margin-bottom: 0; font-size: 13px; }
+.booking-side .booking-summary__row { font-size: 11px; }
+.booking-side .booking-summary__row > span small { display: none; }
+.booking-side .booking-summary__row strong { font-size: 13px; }
+.booking-side .booking-summary__row--total { margin-top: 2px; padding-top: 6px; }
+.booking-side .booking-summary__row--total span { font-size: 15px; }
+.booking-side .booking-summary__row--total strong { font-size: 20px; }
+.booking-side .booking-card__footer .booking-actions { padding: 8px 16px 0; }
+.booking-side .booking-add-cart,
+.booking-side .booking-submit { height: 40px; }
+.booking-side .booking-card__policy { margin: 6px 16px 8px; line-height: 1.25; }
+
+.booking-price-card {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 8px;
+  padding: 10px 12px;
+}
+.booking-price-card__label { font-size: 9px; letter-spacing: .02em; white-space: nowrap; }
+.booking-price-card__main { flex: 0 0 auto; gap: 4px; margin: 0; white-space: nowrap; }
+.booking-price-card__main span { font-size: 11px; }
+.booking-price-card__main strong { font-size: 22px; }
+.booking-price-card__offer { gap: 6px; margin: 0; white-space: nowrap; }
+.booking-price-card__offer del { font-size: 11px; }
+.booking-price-card__offer span { min-height: 20px; padding: 2px 6px; font-size: 10px; }
+.booking-price-card .package-price-status { flex-basis: 100%; margin: 0; }
+
 .package-price-per-visit {
-  margin: 8px 0 0;
+  margin: 0;
+  color: #61738a;
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.package-price-status {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  margin-top: 12px;
   color: #61738a;
   font-size: 12px;
+  line-height: 1.5;
 }
+.package-price-status.is-error { color: #a23928; }
+.package-price-status button {
+  padding: 5px 10px;
+  color: var(--hourx-brand);
+  background: #fff;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  font: inherit;
+  cursor: pointer;
+}
+.package-sku-option:disabled { cursor: not-allowed; opacity: .6; }
 
 .package-includes strong,
 .package-includes small,
 .booking-attach-item__name,
 .booking-attach-item__price {
   overflow-wrap: anywhere;
+}
+
+.package-sku-groups {
+  display: grid;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.package-sku-group__label {
+  margin: 0 0 6px;
+  color: #61738a;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.package-sku-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.package-sku-option {
+  border: 1px solid #d7dee8;
+  background: #fff;
+  border-radius: 999px;
+  padding: 6px 12px;
+  color: #334155;
+  font: inherit;
+  font-size: 12px;
+  line-height: 1.4;
+  cursor: pointer;
+}
+
+.package-sku-option.is-selected {
+  border-color: var(--hourx-brand);
+  background: var(--hourx-brand-soft);
+  color: var(--hourx-brand);
+  font-weight: 650;
 }
 
 </style>

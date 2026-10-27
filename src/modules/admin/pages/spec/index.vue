@@ -4,13 +4,13 @@
       <div class="toolbar">
         <el-input
           v-model="query.nameKeyword"
-          :placeholder="t('admin.spec.searchPlaceholder')"
+          :placeholder="text('admin.spec.searchPlaceholder')"
           clearable
           @keyup.enter="handleSearch"
         />
         <el-select
           v-model="query.subCategoryId"
-          :placeholder="t('admin.spec.subcategoryPlaceholder')"
+          :placeholder="text('admin.spec.subcategoryPlaceholder')"
           clearable
           style="width: 200px"
         >
@@ -22,26 +22,35 @@
           />
         </el-select>
         <el-select
+          v-model="query.priced"
+          :placeholder="text('admin.specType.table.priced')"
+          clearable
+          style="width: 200px"
+        >
+          <el-option :label="text('admin.specType.form.pricedNo')" :value="0" />
+          <el-option :label="text('admin.specType.form.pricedYes')" :value="1" />
+        </el-select>
+        <el-select
           v-model="query.specTypeId"
-          :placeholder="t('admin.spec.specTypePlaceholder')"
+          :placeholder="text('admin.spec.specTypePlaceholder')"
           clearable
           style="width: 180px"
         >
-          <el-option
-            v-for="item in filteredQuerySpecTypeOptions"
-            :key="item.id"
-            :label="item.displayName"
-            :value="item.id"
-          />
+            <el-option
+              v-for="item in filteredQuerySpecTypeOptions"
+              :key="item.id"
+              :label="item.displayName"
+              :value="item.id"
+            />
         </el-select>
         <el-button type="primary" @click="handleSearch">{{
-          t('admin.spec.actions.search')
+          text('admin.spec.actions.search')
         }}</el-button>
         <el-button @click="reset">{{
-          t('admin.spec.actions.reset')
+          text('admin.spec.actions.reset')
         }}</el-button>
         <el-button type="primary" @click="openCreate">{{
-          t('admin.spec.actions.create')
+          text('admin.spec.actions.create')
         }}</el-button>
       </div>
 
@@ -52,31 +61,34 @@
         row-key="id"
         v-loading="tableLoading"
       >
-        <el-table-column
-          prop="sort"
-          :label="t('admin.spec.table.sort')"
-          width="72"
-        />
-        <el-table-column :label="t('admin.spec.table.name')" min-width="160">
+        <el-table-column :label="text('admin.spec.table.name')" min-width="160">
           <template #default="{ row }">{{ row.displayName }}</template>
         </el-table-column>
         <el-table-column
           prop="subCategoryName"
-          :label="t('admin.spec.table.subcategory')"
+          :label="text('admin.spec.table.subcategory')"
           min-width="140"
         />
         <el-table-column
           prop="typeName"
-          :label="t('admin.spec.table.specType')"
+          :label="text('admin.spec.table.specType')"
           min-width="140"
         />
-        <el-table-column :label="t('admin.spec.table.remark')" min-width="200">
+        <el-table-column
+          prop="pricingText"
+          :label="text('admin.specType.table.priced')"
+          min-width="180"
+        />
+        <el-table-column :label="text('admin.spec.table.price')" width="120">
+          <template #default="{ row }">{{ row.priceText }}</template>
+        </el-table-column>
+        <el-table-column :label="text('admin.spec.table.remark')" min-width="200">
           <template #default="{ row }">
             <span class="remark-cell">{{ row.displayRemark || '-' }}</span>
           </template>
         </el-table-column>
         <el-table-column
-          :label="t('admin.spec.table.createdAt')"
+          :label="text('admin.spec.table.createdAt')"
           width="148"
         >
           <template #default="{ row }">{{
@@ -84,16 +96,16 @@
           }}</template>
         </el-table-column>
         <el-table-column
-          :label="t('admin.spec.table.actions')"
+          :label="text('admin.spec.table.actions')"
           width="132"
           fixed="right"
         >
           <template #default="{ row }">
             <el-button link type="primary" size="small" @click="openEdit(row)">
-              {{ t('admin.spec.actions.edit') }}
+              {{ text('admin.spec.actions.edit') }}
             </el-button>
             <el-button link type="danger" size="small" @click="remove(row)">
-              {{ t('admin.spec.actions.delete') }}
+              {{ text('admin.spec.actions.delete') }}
             </el-button>
           </template>
         </el-table-column>
@@ -116,20 +128,20 @@
       v-model="dialogVisible"
       :title="
         isEdit
-          ? t('admin.spec.dialog.editTitle')
-          : t('admin.spec.dialog.createTitle')
+          ? text('admin.spec.dialog.editTitle')
+          : text('admin.spec.dialog.createTitle')
       "
       :close-on-click-modal="false"
       width="min(640px, calc(100vw - 32px))"
     >
       <el-form ref="formRef" :model="form" :rules="rules" label-width="100px">
         <el-form-item
-          :label="t('admin.spec.form.subcategory')"
+          :label="text('admin.spec.form.subcategory')"
           prop="subCategoryId"
         >
           <el-select
             v-model="form.subCategoryId"
-            :placeholder="t('admin.spec.form.subcategoryPlaceholder')"
+            :placeholder="text('admin.spec.form.subcategoryPlaceholder')"
             style="width: 100%"
           >
             <el-option
@@ -140,10 +152,10 @@
             />
           </el-select>
         </el-form-item>
-        <el-form-item :label="t('admin.spec.form.specType')" prop="specTypeId">
+        <el-form-item :label="text('admin.spec.form.specType')" prop="specTypeId">
           <el-select
             v-model="form.specTypeId"
-            :placeholder="t('admin.spec.form.specTypePlaceholder')"
+            :placeholder="text('admin.spec.form.specTypePlaceholder')"
             style="width: 100%"
           >
             <el-option
@@ -154,7 +166,34 @@
             />
           </el-select>
         </el-form-item>
-        <el-form-item :label="t('admin.spec.form.nameI18n')" prop="nameI18n">
+        <el-form-item :label="text('admin.specType.form.priced')">
+          <div class="priced-field">
+            <el-radio-group v-model="pricing">
+              <el-radio :value="0">{{ text('admin.specType.form.pricedNo') }}</el-radio>
+              <el-radio :value="1">{{ text('admin.specType.form.pricedYes') }}</el-radio>
+            </el-radio-group>
+            <p class="field-hint">{{ text('admin.specType.form.pricedHint') }}</p>
+          </div>
+        </el-form-item>
+        <el-form-item
+          v-if="selectedSpecTypePriced"
+          :label="text('admin.spec.form.price')"
+          prop="price"
+          required
+        >
+          <el-input-number
+            v-model="form.price"
+            :min="0"
+            :max="99999999.99"
+            :precision="2"
+            :step="1"
+            :placeholder="text('admin.spec.form.pricePlaceholder')"
+            controls-position="right"
+            style="width: 100%"
+          />
+          <p class="field-hint">{{ text('admin.spec.form.priceHint') }}</p>
+        </el-form-item>
+        <el-form-item :label="text('admin.spec.form.nameI18n')" prop="nameI18n">
           <div class="i18n-list">
             <div
               v-for="(item, idx) in nameI18nList"
@@ -163,7 +202,7 @@
             >
               <el-select
                 v-model="item.lang"
-                :placeholder="t('admin.spec.form.languagePlaceholder')"
+                :placeholder="text('admin.spec.form.languagePlaceholder')"
                 style="width: 140px"
               >
                 <el-option :label="t('admin.common.langZhCn')" value="zh-CN" />
@@ -171,7 +210,7 @@
               </el-select>
               <el-input
                 v-model="item.value"
-                :placeholder="t('admin.spec.form.namePlaceholder')"
+                :placeholder="text('admin.spec.form.namePlaceholder')"
               />
               <el-button
                 link
@@ -179,15 +218,15 @@
                 :disabled="nameI18nList.length === 1"
                 @click="removeI18n(idx)"
               >
-                {{ t('admin.spec.actions.removeLang') }}
+                {{ text('admin.spec.actions.removeLang') }}
               </el-button>
             </div>
             <el-button link type="primary" @click="addI18n">{{
-              t('admin.spec.actions.addLang')
+              text('admin.spec.actions.addLang')
             }}</el-button>
           </div>
         </el-form-item>
-        <el-form-item :label="t('admin.spec.form.remarkI18n')">
+        <el-form-item :label="text('admin.spec.form.remarkI18n')">
           <div class="i18n-list">
             <div
               v-for="(item, idx) in remarkI18nList"
@@ -196,7 +235,7 @@
             >
               <el-select
                 v-model="item.lang"
-                :placeholder="t('admin.spec.form.languagePlaceholder')"
+                :placeholder="text('admin.spec.form.languagePlaceholder')"
                 style="width: 140px"
               >
                 <el-option :label="t('admin.common.langZhCn')" value="zh-CN" />
@@ -208,7 +247,7 @@
                 :rows="2"
                 maxlength="500"
                 show-word-limit
-                :placeholder="t('admin.spec.form.remarkPlaceholder')"
+                :placeholder="text('admin.spec.form.remarkPlaceholder')"
               />
               <el-button
                 link
@@ -216,21 +255,21 @@
                 :disabled="remarkI18nList.length === 1"
                 @click="removeRemarkI18n(idx)"
               >
-                {{ t('admin.spec.actions.removeLang') }}
+                {{ text('admin.spec.actions.removeLang') }}
               </el-button>
             </div>
             <el-button link type="primary" @click="addRemarkI18n">{{
-              t('admin.spec.actions.addLang')
+              text('admin.spec.actions.addLang')
             }}</el-button>
           </div>
         </el-form-item>
       </el-form>
       <template #footer>
         <el-button @click="dialogVisible = false">{{
-          t('admin.spec.actions.cancel')
+          text('admin.spec.actions.cancel')
         }}</el-button>
         <el-button type="primary" :loading="submitLoading" @click="save">{{
-          t('admin.spec.actions.save')
+          text('admin.spec.actions.save')
         }}</el-button>
       </template>
     </el-dialog>
@@ -242,7 +281,7 @@ import { computed, onMounted, reactive, ref, watch } from 'vue';
 import type { FormInstance, FormRules } from 'element-plus';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { useI18n } from 'vue-i18n';
-import { getSpecTypePage } from '@/modules/admin/api/specType';
+import { addOrUpdateSpecType, getSpecTypePage } from '@/modules/admin/api/specType';
 import {
   getSpecValuePage,
   addOrUpdateSpecValue,
@@ -250,6 +289,42 @@ import {
 } from '@/modules/admin/api/spec';
 import { ADMIN_LANG_EN, pickI18nText } from '@/modules/admin/utils/i18n';
 import { searchCategory } from '@/modules/admin/api/category';
+import { getPage as getPackageServiceCategoryPage } from '@/modules/admin/api/packageServiceCategory';
+
+const props = withDefaults(defineProps<{ catalog?: 'service' | 'package' }>(), {
+  catalog: 'service',
+});
+const { locale, t } = useI18n({ useScope: 'global' });
+const categoryDomain = computed(() => (props.catalog === 'package' ? '4' : '2'));
+const packageLabelKey: Record<string, string> = {
+  'admin.specType.searchPlaceholder': 'admin.packageCatalog.specType.searchPlaceholder',
+  'admin.specType.actions.create': 'admin.packageCatalog.specType.actions.create',
+  'admin.specType.table.priced': 'admin.packageCatalog.specType.table.priced',
+  'admin.specType.dialog.createTitle': 'admin.packageCatalog.specType.dialog.createTitle',
+  'admin.specType.dialog.editTitle': 'admin.packageCatalog.specType.dialog.editTitle',
+  'admin.specType.form.priced': 'admin.packageCatalog.specType.form.priced',
+  'admin.specType.message.fetchFailed': 'admin.packageCatalog.specType.message.fetchFailed',
+  'admin.specType.message.deleteConfirm': 'admin.packageCatalog.specType.message.deleteConfirm',
+  'admin.spec.searchPlaceholder': 'admin.packageCatalog.spec.searchPlaceholder',
+  'admin.spec.specTypePlaceholder': 'admin.packageCatalog.spec.specTypePlaceholder',
+  'admin.spec.actions.create': 'admin.packageCatalog.spec.actions.create',
+  'admin.spec.table.specType': 'admin.packageCatalog.spec.table.specType',
+  'admin.spec.dialog.createTitle': 'admin.packageCatalog.spec.dialog.createTitle',
+  'admin.spec.dialog.editTitle': 'admin.packageCatalog.spec.dialog.editTitle',
+  'admin.spec.form.remarkPlaceholder': 'admin.packageCatalog.spec.form.remarkPlaceholder',
+  'admin.spec.form.specType': 'admin.packageCatalog.spec.form.specType',
+  'admin.spec.form.specTypePlaceholder': 'admin.packageCatalog.spec.form.specTypePlaceholder',
+  'admin.spec.validation.specTypeRequired': 'admin.packageCatalog.spec.validation.specTypeRequired',
+  'admin.spec.message.fetchFailed': 'admin.packageCatalog.spec.message.fetchFailed',
+  'admin.spec.message.deleteConfirm': 'admin.packageCatalog.spec.message.deleteConfirm',
+  'admin.spec.subcategoryPlaceholder': 'admin.packageCatalog.subcategory.label',
+  'admin.spec.table.subcategory': 'admin.packageCatalog.subcategory.label',
+  'admin.spec.form.subcategory': 'admin.packageCatalog.subcategory.label',
+  'admin.spec.form.subcategoryPlaceholder': 'admin.packageCatalog.subcategory.placeholder',
+  'admin.spec.validation.subcategoryRequired': 'admin.packageCatalog.subcategory.required',
+};
+const text = (key: string, values?: Record<string, unknown>) =>
+  t(props.catalog === 'package' ? packageLabelKey[key] || key : key, values || {});
 
 type Spec = {
   id: number;
@@ -262,12 +337,14 @@ type Spec = {
   nameI18n?: Record<string, string>;
   displayRemark?: string;
   remarkI18n?: Record<string, string>;
+  price: number | null;
 };
 
 type SpecTypeOption = {
   id: number;
   displayName: string;
   subCategoryId: number | null;
+  priced: 0 | 1;
   nameI18n?: Record<string, string>;
 };
 
@@ -283,7 +360,6 @@ const normalizeOptionalId = (value: unknown): number | null => {
 };
 
 const initialMock: Spec[] = [];
-const { locale, t } = useI18n({ useScope: 'global' });
 const createEmptyI18nItem = (value = '') => ({
   lang: ADMIN_LANG_EN,
   value,
@@ -297,18 +373,27 @@ const query = reactive({
   nameKeyword: '',
   subCategoryId: null as number | null,
   specTypeId: null as number | null,
+  priced: null as 0 | 1 | null,
   pageNum: 1,
   pageSize: 10,
 });
 
-const filteredQuerySpecTypeOptions = computed(() => {
-  if (!query.subCategoryId) {
-    return specTypeOptions.value;
-  }
-  return specTypeOptions.value.filter(
-    (item) => item.subCategoryId === query.subCategoryId,
-  );
-});
+const activeCategoryIds = () => {
+  if (props.catalog !== 'package') return [query.subCategoryId || undefined];
+  return query.subCategoryId
+    ? [query.subCategoryId]
+    : subCategoryOptions.value.map((item) => item.id);
+};
+
+const matchesSpecTypeFilter = (item: SpecTypeOption) => {
+  if (query.subCategoryId && item.subCategoryId !== query.subCategoryId) return false;
+  if (query.priced === 0 || query.priced === 1) return item.priced === query.priced;
+  return true;
+};
+
+const filteredQuerySpecTypeOptions = computed(() =>
+  specTypeOptions.value.filter(matchesSpecTypeFilter),
+);
 
 const filteredFormSpecTypeOptions = computed(() => {
   if (!form.subCategoryId) {
@@ -327,6 +412,20 @@ const findSubCategoryIdBySpecTypeId = (specTypeId: unknown) => {
   );
 };
 
+const specTypeById = (specTypeId: unknown) =>
+  specTypeOptions.value.find((item) => item.id === normalizeOptionalId(specTypeId));
+
+const optionPrice = (value: unknown): number | null => {
+  if (value == null || value === '') return null;
+  const amount = Number(value);
+  return Number.isFinite(amount) ? amount : null;
+};
+
+const priceText = (row: Spec) => {
+  if (specTypeById(row.specTypeId)?.priced !== 1 || row.price == null) return '-';
+  return Number(row.price).toFixed(2);
+};
+
 const subCategoryMap = computed(() => {
   const map = new Map<number, string>();
   subCategoryOptions.value.forEach((item) => {
@@ -341,9 +440,12 @@ const displayList = computed(() =>
     subCategoryName:
       (item.subCategoryId ? subCategoryMap.value.get(item.subCategoryId) : '') ||
       '-',
-    typeName:
-      specTypeOptions.value.find((t) => t.id === item.specTypeId)
-        ?.displayName || '-',
+    typeName: specTypeById(item.specTypeId)?.displayName || '-',
+    pricingText:
+      specTypeById(item.specTypeId)?.priced === 1
+        ? text('admin.specType.form.pricedYes')
+        : text('admin.specType.form.pricedNo'),
+    priceText: priceText(item),
   })),
 );
 const total = ref(0);
@@ -363,6 +465,7 @@ const form = reactive<Spec>({
   nameI18n: {},
   displayRemark: '',
   remarkI18n: {},
+  price: null,
 });
 const nameI18nList = ref<{ lang: string; value: string }[]>([
   createEmptyI18nItem(),
@@ -370,6 +473,12 @@ const nameI18nList = ref<{ lang: string; value: string }[]>([
 const remarkI18nList = ref<{ lang: string; value: string }[]>([
   createEmptyI18nItem(),
 ]);
+
+const pricing = ref<0 | 1>(0);
+const selectedSpecTypePriced = computed(() => pricing.value === 1);
+const syncPricing = () => {
+  pricing.value = specTypeById(form.specTypeId)?.priced === 1 ? 1 : 0;
+};
 
 const rules: FormRules = {
   nameI18n: [
@@ -379,7 +488,7 @@ const rules: FormRules = {
           (i) => !i.lang?.trim() || !i.value?.trim(),
         );
         if (invalid)
-          return cb(new Error(t('admin.spec.validation.nameI18nIncomplete')));
+          return cb(new Error(text('admin.spec.validation.nameI18nIncomplete')));
         cb();
       },
       trigger: 'change',
@@ -388,14 +497,31 @@ const rules: FormRules = {
   subCategoryId: [
     {
       required: true,
-      message: t('admin.spec.validation.subcategoryRequired'),
+      message: text('admin.spec.validation.subcategoryRequired'),
       trigger: 'change',
     },
   ],
   specTypeId: [
     {
       required: true,
-      message: t('admin.spec.validation.specTypeRequired'),
+      message: text('admin.spec.validation.specTypeRequired'),
+      trigger: 'change',
+    },
+  ],
+  price: [
+    {
+      validator: (_rule, value, callback) => {
+        if (!selectedSpecTypePriced.value) {
+          callback();
+          return;
+        }
+        const amount = Number(value);
+        if (!Number.isFinite(amount) || amount < 0 || amount > 99999999.99) {
+          callback(new Error(text('admin.spec.validation.priceRequired')));
+          return;
+        }
+        callback();
+      },
       trigger: 'change',
     },
   ],
@@ -410,6 +536,7 @@ const reset = () => {
   query.nameKeyword = '';
   query.subCategoryId = null;
   query.specTypeId = null;
+  query.priced = null;
   query.pageNum = 1;
   query.pageSize = 10;
   fetchList();
@@ -443,9 +570,11 @@ const openCreate = () => {
     nameI18n: {},
     displayRemark: '',
     remarkI18n: {},
+    price: null,
   });
   nameI18nList.value = [createEmptyI18nItem()];
   remarkI18nList.value = [createEmptyI18nItem()];
+  syncPricing();
   dialogVisible.value = true;
 };
 
@@ -468,6 +597,7 @@ const openEdit = (row: Spec) => {
           value: value as string,
         }))
       : [createEmptyI18nItem(row.displayRemark || '')];
+  syncPricing();
   dialogVisible.value = true;
 };
 
@@ -500,6 +630,20 @@ const save = () => {
       findSubCategoryIdBySpecTypeId(form.specTypeId) ??
       undefined;
     const subCategoryIdStr = subCategoryId ? String(subCategoryId) : undefined;
+    const nextPriced = pricing.value === 1 ? 1 : 0;
+    const specType = specTypeById(form.specTypeId);
+    const persistPricing =
+      specType && specType.priced !== nextPriced
+        ? addOrUpdateSpecType({
+            id: specType.id,
+            categoryId: specType.subCategoryId ?? subCategoryId,
+            subCategoryId: specType.subCategoryId ?? subCategoryId,
+            nameI18n: specType.nameI18n || {},
+            priced: nextPriced,
+          }).then(() => {
+            specType.priced = nextPriced;
+          })
+        : Promise.resolve();
     const payload = {
       id: form.id || undefined,
       subCategoryId,
@@ -518,15 +662,19 @@ const save = () => {
       remark,
       remarkI18n,
       ...(isEdit.value ? { sort: form.sort } : {}),
+      ...(selectedSpecTypePriced.value
+        ? { price: Number(form.price) }
+        : {}),
     };
-    addOrUpdateSpecValue(payload)
+    persistPricing
+      .then(() => addOrUpdateSpecValue(payload))
       .then(() => {
-        ElMessage.success(t('admin.spec.message.saveSuccess'));
+        ElMessage.success(text('admin.spec.message.saveSuccess'));
         dialogVisible.value = false;
         fetchList();
       })
       .catch((err: any) => {
-        ElMessage.error(err?.message || t('admin.spec.message.saveFailed'));
+        ElMessage.error(err?.message || text('admin.spec.message.saveFailed'));
       })
       .finally(() => {
         submitLoading.value = false;
@@ -539,13 +687,13 @@ const toggleStatus = (row: Spec) => {};
 const remove = (row: Spec) => {
   const label = pickI18nText(row.nameI18n, locale.value, row.displayName || '');
   ElMessageBox.confirm(
-    t('admin.spec.message.deleteConfirm', { label }),
+    text('admin.spec.message.deleteConfirm', { label }),
     t('admin.common.confirmTitle'),
     { type: 'warning' },
   )
     .then(() => deleteSpecValue({ id: row.id }))
     .then(() => {
-      ElMessage.success(t('admin.spec.message.deleteSuccess'));
+      ElMessage.success(text('admin.spec.message.deleteSuccess'));
       fetchList();
     })
     .catch((err: any) => {
@@ -561,17 +709,33 @@ const formatDate = (val?: string) => {
 };
 
 const fetchSpecTypes = async () => {
-  const res = await getSpecTypePage({ pageNum: 1, pageSize: 500 });
-  const payload = res?.data ?? res ?? {};
-  const records = Array.isArray(payload)
-    ? payload
-    : Array.isArray(payload.list)
-      ? payload.list
-      : Array.isArray(payload.data)
-        ? payload.data
-        : Array.isArray(payload.data?.list)
-          ? payload.data.list
-          : [];
+  const categoryIds = props.catalog === 'package'
+    ? subCategoryOptions.value.map((item) => item.id)
+    : [undefined];
+  if (props.catalog === 'package' && !categoryIds.length) {
+    specTypeOptions.value = [];
+    return;
+  }
+  const records: any[] = [];
+  for (const categoryId of categoryIds) {
+    const res = await getSpecTypePage({
+      pageNum: 1,
+      pageSize: 500,
+      categoryDomain: categoryDomain.value,
+      categoryId,
+    });
+    const payload = res?.data ?? res ?? {};
+    const page = Array.isArray(payload)
+      ? payload
+      : Array.isArray(payload.list)
+        ? payload.list
+        : Array.isArray(payload.data)
+          ? payload.data
+          : Array.isArray(payload.data?.list)
+            ? payload.data.list
+            : [];
+    records.push(...page);
+  }
   specTypeOptions.value = records
     .map((item: any) => {
       const specType = item.specType ?? item;
@@ -595,6 +759,7 @@ const fetchSpecTypes = async () => {
           locale.value,
           specType.typeName || item.name || '',
         ),
+        priced: Number(specType.priced ?? item.priced) === 1 ? 1 : 0,
         nameI18n: item.nameI18n || specType.nameI18n,
       };
     })
@@ -619,54 +784,175 @@ const fetchSpecTypes = async () => {
   }
 };
 
+const mapSpecRecord = (item: any): Spec => ({
+  id: item.specValue?.id ?? item.id,
+  nameI18n: item.nameI18n || item.specValue?.nameI18n,
+  remarkI18n: item.remarkI18n || item.specValue?.remarkI18n || {},
+  displayName: pickI18nText(
+    item.nameI18n || item.specValue?.nameI18n,
+    locale.value,
+    item.specValue?.specValue || item.name || '',
+  ),
+  displayRemark: pickI18nText(
+    item.remarkI18n || item.specValue?.remarkI18n,
+    locale.value,
+    item.specValue?.remark || item.remark || '',
+  ),
+  sort: item.sort ?? item.specValue?.sort ?? 0,
+  specTypeId: normalizeOptionalId(
+    item.specValue?.specTypeId ?? item.specTypeId,
+  ),
+  subCategoryId:
+    normalizeOptionalId(
+      item.specValue?.subCategoryId ??
+        item.specValue?.categoryId ??
+        item.specValue?.pcategoryId ??
+        item.subCategoryId ??
+        item.categoryId ??
+        item.pcategoryId,
+    ) ??
+    findSubCategoryIdBySpecTypeId(
+      item.specValue?.specTypeId ?? item.specTypeId,
+    ),
+  createdAt:
+    item.specValue?.createTime || item.createTime || item.createdAt || '',
+  price: optionPrice(item.specValue?.price ?? item.price),
+});
+
+const pageRecords = (res: any) => {
+  const data = res?.data ?? res ?? {};
+  const records = Array.isArray(data.list)
+    ? data.list
+    : Array.isArray(data)
+      ? data
+      : [];
+  const reported = Number(data.total);
+  return {
+    records,
+    total: Number.isFinite(reported) ? reported : records.length,
+  };
+};
+
+const loadPricedTypeIds = async () => {
+  const ids = new Set<number>();
+  const categoryIds = activeCategoryIds();
+  if (props.catalog === 'package' && !categoryIds.length) return ids;
+  for (const categoryId of categoryIds) {
+  let pageNum = 1;
+  let seen = 0;
+  let reported = 0;
+  do {
+    const res = await getSpecTypePage({
+      pageNum,
+      pageSize: 200,
+      priced: query.priced,
+      categoryId: categoryId || undefined,
+      categoryDomain: categoryDomain.value,
+    });
+    const page = pageRecords(res);
+    page.records.forEach((item: any) => {
+      const id = Number(item.specType?.id ?? item.id);
+      if (Number.isFinite(id) && id > 0) ids.add(id);
+    });
+    reported = page.total;
+    seen += page.records.length;
+    if (!page.records.length || seen >= reported) break;
+    pageNum += 1;
+  } while (pageNum <= 20);
+  }
+  return ids;
+};
+
 const fetchList = async () => {
   tableLoading.value = true;
   try {
-    const res = await getSpecValuePage({
-      pageNum: query.pageNum,
-      pageSize: query.pageSize,
+    const filtering = query.priced === 0 || query.priced === 1;
+    const categoryIds = activeCategoryIds();
+    if (props.catalog === 'package' && !categoryIds.length) {
+      list.value = [];
+      total.value = 0;
+      return;
+    }
+    const request = {
       nameKeyword: query.nameKeyword?.trim() || undefined,
-      categoryId: query.subCategoryId || undefined,
+      categoryId: categoryIds.length === 1 ? categoryIds[0] : query.subCategoryId || undefined,
       specTypeId: query.specTypeId || undefined,
-    });
-    const data = res?.data ?? res ?? {};
-    const records = Array.isArray(data.list) ? data.list : [];
-    list.value = records.map((item: any) => ({
-      id: item.specValue?.id ?? item.id,
-      nameI18n: item.nameI18n || item.specValue?.nameI18n,
-      remarkI18n: item.remarkI18n || item.specValue?.remarkI18n || {},
-      displayName: pickI18nText(
-        item.nameI18n || item.specValue?.nameI18n,
-        locale.value,
-        item.specValue?.specValue || item.name || '',
-      ),
-      displayRemark: pickI18nText(
-        item.remarkI18n || item.specValue?.remarkI18n,
-        locale.value,
-        item.specValue?.remark || item.remark || '',
-      ),
-      sort: item.sort ?? item.specValue?.sort ?? 0,
-      specTypeId: normalizeOptionalId(
-        item.specValue?.specTypeId ?? item.specTypeId,
-      ),
-      subCategoryId:
-        normalizeOptionalId(
-          item.specValue?.subCategoryId ??
-            item.specValue?.categoryId ??
-            item.specValue?.pcategoryId ??
-            item.subCategoryId ??
-            item.categoryId ??
-            item.pcategoryId,
-        ) ??
-        findSubCategoryIdBySpecTypeId(
-          item.specValue?.specTypeId ?? item.specTypeId,
-        ),
-      createdAt:
-        item.specValue?.createTime || item.createTime || item.createdAt || '',
-    }));
-    total.value = data.total ?? records.length;
+      categoryDomain: categoryDomain.value,
+    };
+    if (!filtering && categoryIds.length > 1) {
+      const collected: any[] = [];
+      for (const categoryId of categoryIds) {
+        let pageNum = 1;
+        let seen = 0;
+        let reported = 0;
+        do {
+          const page = pageRecords(await getSpecValuePage({
+            ...request,
+            categoryId,
+            pageNum,
+            pageSize: 200,
+          }));
+          collected.push(...page.records);
+          reported = page.total;
+          seen += page.records.length;
+          if (!page.records.length || seen >= reported) break;
+          pageNum += 1;
+        } while (pageNum <= 25);
+      }
+      const matched = collected.map(mapSpecRecord);
+      total.value = matched.length;
+      const start = (query.pageNum - 1) * query.pageSize;
+      list.value = matched.slice(start, start + query.pageSize);
+      return;
+    }
+    if (!filtering) {
+      const page = pageRecords(await getSpecValuePage({
+        ...request,
+        pageNum: query.pageNum,
+        pageSize: query.pageSize,
+      }));
+      list.value = page.records.map(mapSpecRecord);
+      total.value = page.total;
+      return;
+    }
+    const allowed = await loadPricedTypeIds();
+    if (query.specTypeId && !allowed.has(query.specTypeId)) {
+      list.value = [];
+      total.value = 0;
+      return;
+    }
+    const typeIds = query.specTypeId
+      ? [query.specTypeId]
+      : allowed.size <= 15
+        ? [...allowed]
+        : [undefined];
+    const collected: any[] = [];
+    for (const specTypeId of typeIds) {
+      let pageNum = 1;
+      let seen = 0;
+      let reported = 0;
+      do {
+        const page = pageRecords(await getSpecValuePage({
+          ...request,
+          specTypeId,
+          pageNum,
+          pageSize: 200,
+        }));
+        collected.push(...page.records);
+        reported = page.total;
+        seen += page.records.length;
+        if (!page.records.length || seen >= reported) break;
+        pageNum += 1;
+      } while (pageNum <= 25);
+    }
+    const matched = collected
+      .map(mapSpecRecord)
+      .filter((row) => row.specTypeId != null && allowed.has(row.specTypeId));
+    total.value = matched.length;
+    const start = (query.pageNum - 1) * query.pageSize;
+    list.value = matched.slice(start, start + query.pageSize);
   } catch (error: any) {
-    ElMessage.error(error?.message || t('admin.spec.message.fetchFailed'));
+    ElMessage.error(error?.message || text('admin.spec.message.fetchFailed'));
   } finally {
     tableLoading.value = false;
   }
@@ -674,13 +960,15 @@ const fetchList = async () => {
 
 const fetchSubCategoryOptions = async () => {
   try {
-    const res = await searchCategory({
-      pageNum: 1,
-      pageSize: 500,
-      categoryDomain: '2',
-      nameKeyword: '',
-      offset: 0,
-    });
+    const res = props.catalog === 'package'
+      ? await getPackageServiceCategoryPage({ pageNum: 1, pageSize: 500 })
+      : await searchCategory({
+          pageNum: 1,
+          pageSize: 500,
+          categoryDomain: categoryDomain.value,
+          nameKeyword: '',
+          offset: 0,
+        });
     const payload = res?.data ?? res ?? {};
     const records = Array.isArray(payload)
       ? payload
@@ -738,12 +1026,13 @@ const removeRemarkI18n = (idx: number) => {
 };
 
 onMounted(async () => {
-  await Promise.allSettled([fetchSubCategoryOptions(), fetchSpecTypes()]);
+  await fetchSubCategoryOptions();
+  await fetchSpecTypes();
   fetchList();
 });
 
 watch(
-  () => query.subCategoryId,
+  () => [query.subCategoryId, query.priced],
   () => {
     if (
       !filteredQuerySpecTypeOptions.value.some(
@@ -752,6 +1041,13 @@ watch(
     ) {
       query.specTypeId = null;
     }
+  },
+);
+
+watch(
+  () => form.specTypeId,
+  () => {
+    if (dialogVisible.value) syncPricing();
   },
 );
 
@@ -771,7 +1067,8 @@ watch(
 watch(
   () => locale.value,
   async () => {
-    await Promise.allSettled([fetchSubCategoryOptions(), fetchSpecTypes()]);
+    await fetchSubCategoryOptions();
+    await fetchSpecTypes();
     fetchList();
   },
 );
@@ -791,6 +1088,18 @@ watch(
   margin-top: 16px;
   display: flex;
   justify-content: flex-end;
+}
+.priced-field {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+}
+.field-hint {
+  margin: 0;
+  color: #8a8176;
+  font-size: 12px;
+  line-height: 1.5;
 }
 .i18n-list {
   width: 100%;

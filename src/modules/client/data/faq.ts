@@ -39,7 +39,7 @@ const chineseFaqGroups: FaqGroup[] = [
   {
     title: "管理预约",
     items: [
-      { question: "在哪里查看我的预约？", answer: [text("进入账户中的“订单”页面，即可查看全部预约及其状态。") ] },
+      { question: "在哪里查看我的预约？", answer: [text("进入“我的账户”中的“我的预约”，即可查看全部预约及其状态。") ] },
       { question: "预约后可以修改地址吗？", answer: [text("请立即联系支持团队。团队分配完成后，可能无法再修改地址。") ] },
     ],
   },
@@ -62,7 +62,7 @@ const chineseFaqGroups: FaqGroup[] = [
       {
         question: "可以取消预约吗？",
         answer: [
-          text("可以，在“订单”页面操作。是否退款取决于取消政策，请参阅"),
+          text("可以，在“我的预约”里操作。是否退款取决于取消政策，请参阅"),
           terms("《条款与条件》"),
           text("第 8 节“取消、改期与退款”。"),
         ],
@@ -130,7 +130,7 @@ const englishFaqGroups: FaqGroup[] = [
   {
     title: "Managing Your Booking",
     items: [
-      { question: "Where can I check my booking?", answer: [text('Go to "Orders" in your account to see all your bookings and their status.')] },
+      { question: "Where can I check my booking?", answer: [text('Go to My Bookings in My Account to see all your bookings and their status.')] },
       { question: "Can I change my address after booking?", answer: [text("Contact support right away. Once a team is assigned, it may be too late to change.")] },
     ],
   },
@@ -153,7 +153,7 @@ const englishFaqGroups: FaqGroup[] = [
       {
         question: "Can I cancel a booking?",
         answer: [
-          text("Yes, from the Orders page. Whether you get a refund depends on our cancellation policy - see our "),
+          text("Yes, from My Bookings. Whether you get a refund depends on our cancellation policy - see our "),
           terms(),
           text(" (Section 8: Cancellation, Rescheduling & Refunds)."),
         ],

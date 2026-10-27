@@ -163,10 +163,6 @@
         </span>
         <span>{{ t('client.header.nav.cart') }}</span>
       </button>
-      <button type="button" @click="router.push({ name: 'h5-orders' })">
-        <van-icon name="orders-o" />
-        <span>{{ t('client.header.nav.orders') }}</span>
-      </button>
       <button type="button" @click="router.push({ name: 'h5-profile' })">
         <van-icon name="contact-o" />
         <span>{{ t('client.header.profile') }}</span>
@@ -912,7 +908,7 @@ onMounted(async () => {
   padding: 0 8px env(safe-area-inset-bottom);
   transform: translateX(-50%);
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(3, 1fr);
   background: #fff;
   border-top: 1px solid #edf1f5;
 }

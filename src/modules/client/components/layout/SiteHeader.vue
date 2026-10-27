@@ -22,9 +22,6 @@
           :to="{ path: '/', hash: '#packages' }"
           >{{ t("client.header.nav.packages") }}</RouterLink
         >
-        <RouterLink class="site-header__link" :to="{ name: 'order-list' }">{{
-          t("client.header.nav.orders")
-        }}</RouterLink>
         <RouterLink class="site-header__link" :to="{ name: 'join-us' }">{{
           t("client.header.nav.joinUs")
         }}</RouterLink>
