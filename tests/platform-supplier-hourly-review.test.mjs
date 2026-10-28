@@ -46,8 +46,8 @@ const hourly = {
 }
 
 async function harness(t, quote = hourly, query = { id: '10' }) {
-  const calls = { reviews: [], skus: [], messages: [], downloads: [], blobs: [], quoteExports: [] }
-  const controls = { quote }
+  const calls = { reviews: [], skus: [], messages: [], downloads: [], blobs: [], quoteExports: [], confirms: [] }
+  const controls = { quote, confirm: async () => {} }
   const locale = Vue.ref('en')
   const translate = (key, params = {}) => {
     const value = key.split('.').reduce((node, part) => node?.[part], messages[locale.value])
@@ -94,7 +94,14 @@ async function harness(t, quote = hourly, query = { id: '10' }) {
         ElMessage: Object.fromEntries(['warning', 'success', 'error', 'info'].map(type => [
           type, (message) => calls.messages.push({ type, message }),
         ])),
-        ElMessageBox: { alert: async () => {}, confirm: async () => {}, prompt: async () => {} },
+        ElMessageBox: {
+          alert: async () => {},
+          confirm: async (...args) => {
+            calls.confirms.push(args.map((item) => typeof item === 'string' ? item : { ...item }))
+            return controls.confirm(...args)
+          },
+          prompt: async () => {},
+        },
       }
       if (name === '@/modules/admin/api/supplierWorkbench') return api
       if (name === '@/modules/admin/components/SupplierQuoteImportHistory.vue') return {}
@@ -210,6 +217,22 @@ test('approving or rejecting hourly rates still sends one whole-quote decision w
     { supplierId: 10, spuId: 501, versionNo: 3, status: 2 },
     { supplierId: 10, spuId: 501, versionNo: 3, status: 3, rejectReason: 'Please revise both rates' },
   ])
+  assert.equal(calls.confirms.length, 2)
+  assert.match(calls.confirms[0][0], /Cleaning/)
+  assert.match(calls.confirms[1][0], /Cleaning/)
+  assert.equal(calls.confirms[0][1], 'Approve quote')
+  assert.equal(calls.confirms[1][1], 'Reject quote')
+})
+
+test('cancelling the quote confirmation sends no review', async (t) => {
+  const { state, calls, controls } = await harness(t)
+  await state.openSkus(service)
+  controls.confirm = async () => { throw new Error('cancel') }
+  await state.reviewHourlyQuote(2)
+  await state.reviewHourlyQuote(3, 'Please revise both rates')
+  assert.deepEqual(calls.reviews, [])
+  assert.equal(calls.confirms.length, 2)
+  assert.deepEqual(calls.messages, [])
 })
 
 test('a quote notice deep link loads the service list before opening quote lines', async (t) => {

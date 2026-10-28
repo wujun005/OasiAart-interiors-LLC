@@ -1657,6 +1657,34 @@ const refreshCurrentQuote = async () => {
   await openSkus(current)
 }
 
+const quoteDecisionName = (row?: any) => {
+  const named = row ? serviceName(row) : ''
+  if (named && named !== '—') return named
+  const current = skuDialogTitle.value
+  return current && current !== '—' ? current : t('admin.platformSuppliers.thisService')
+}
+
+const confirmQuoteDecision = async (action: 'approve' | 'reject', name: string, count?: number) => {
+  const whole = count == null
+  const messageKey = action === 'approve'
+    ? (whole ? 'admin.platformSuppliers.approveQuoteConfirm' : 'admin.platformSuppliers.approveQuoteLinesConfirm')
+    : (whole ? 'admin.platformSuppliers.rejectQuoteConfirm' : 'admin.platformSuppliers.rejectQuoteLinesConfirm')
+  try {
+    await ElMessageBox.confirm(
+      t(messageKey, { name, count }),
+      t(action === 'approve' ? 'admin.platformSuppliers.approveQuoteTitle' : 'admin.platformSuppliers.rejectQuote'),
+      {
+        type: 'warning',
+        confirmButtonText: t(action === 'approve' ? 'admin.platformSuppliers.approveQuoteTitle' : 'admin.platformSuppliers.confirmReject'),
+        cancelButtonText: t('admin.platformSuppliers.cancel'),
+      },
+    )
+    return true
+  } catch {
+    return false
+  }
+}
+
 const reviewSelectedLines = async (status: 2 | 3, rows: any[], reason?: string) => {
   if (!detailId.value || !skuTarget.value?.spuId || saving.value) return
   const lines = rows
@@ -1670,6 +1698,7 @@ const reviewSelectedLines = async (status: 2 | 3, rows: any[], reason?: string) 
     ElMessage.warning(t('admin.platformSuppliers.selectReviewLines'))
     return
   }
+  if (!await confirmQuoteDecision(status === 2 ? 'approve' : 'reject', quoteDecisionName(), lines.length)) return
   saving.value = true
   try {
     await platformSupplierQuoteReview({
@@ -1697,6 +1726,7 @@ const approveLine = (row: any) => reviewSelectedLines(2, [row])
 
 const reviewHourlyQuote = async (status: 2 | 3, reason?: string) => {
   if (!detailId.value || !skuTarget.value?.spuId || saving.value || !hourlyQuoteReview.value) return
+  if (!await confirmQuoteDecision(status === 2 ? 'approve' : 'reject', quoteDecisionName())) return
   saving.value = true
   try {
     await platformSupplierQuoteReview({
@@ -1760,6 +1790,7 @@ const rejectWholeQuote = async (row: any, reason: string) => {
   const supplierId = detailId.value
   const spuId = Number(row?.spuId || skuTarget.value?.spuId)
   if (!supplierId || !spuId || saving.value) return
+  if (!await confirmQuoteDecision('reject', quoteDecisionName(row))) return
   const useLoaded = screen.value === 'quote' && Number(skuTarget.value?.spuId) === spuId
   saving.value = true
   try {
