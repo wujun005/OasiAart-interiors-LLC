@@ -131,6 +131,21 @@ test('a complete server package group keeps its identities and remains stable af
   ]);
 });
 
+test('platform menus include usage analytics and supplier menus do not', async () => {
+  const platform = await loadMenus([{ id: 1, path: '/admin/products', name: 'Services' }]);
+  assert.equal(platform.adminMenuState.menus[1].path, '/admin/package');
+  assert.equal(platform.adminMenuState.menus[2].path, '/admin/analytics');
+  assert.equal(platform.resolveAllowedAdminPath('/admin/analytics'), '/admin/analytics');
+
+  const supplier = await loadMenus([{
+    id: 1,
+    path: '/admin/supplier-management',
+    children: [{ id: 2, path: '/admin/supplier-management/orders' }],
+  }], ['SUPPLIER']);
+  assert.equal(supplier.adminMenuState.allowedPaths.includes('/admin/analytics'), false);
+  assert.equal(supplier.resolveAllowedAdminPath('/admin/analytics'), '');
+});
+
 test('supplier-only and empty-menu accounts receive no package grants', async () => {
   for (const [menus, roles] of [
     [[], []],

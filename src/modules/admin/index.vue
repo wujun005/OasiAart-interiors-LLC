@@ -610,6 +610,7 @@ const resolveMenuIcon = (item: AdminMenuPermissionItem) => {
   if (path.startsWith('/admin/package/spec-types')) return Ticket;
   if (path.startsWith('/admin/package/specs')) return Tickets;
   if (path.startsWith('/admin/package') || path.startsWith('/admin/packages')) return Present;
+  if (path.startsWith('/admin/analytics')) return DataAnalysis;
   if (path.startsWith('/admin/orders')) return Document;
   if (path.startsWith('/admin/users')) return User;
   if (path.startsWith('/admin/supplier-management/overview')) return DataAnalysis;
@@ -637,6 +638,7 @@ const resolveMenuIcon = (item: AdminMenuPermissionItem) => {
 
 const menuLabelKeyByPath: Record<string, string> = {
   '/admin': 'admin.layout.overview',
+  '/admin/analytics': 'admin.layout.analytics',
   '/admin/orders': 'admin.layout.order',
   '/admin/products': 'admin.layout.product',
   '/admin/packages': 'admin.layout.packages',

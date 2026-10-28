@@ -1,5 +1,6 @@
 import { createRouter, createWebHashHistory, RouteRecordRaw } from 'vue-router';
 import { clearStoredAuthState, getStoredAuthSnapshot } from '@/utils/auth-state';
+import { startUsageAnalytics, trackUsageRoute } from '@/utils/usage-analytics';
 
 const routes: RouteRecordRaw[] = [
   {
@@ -115,7 +116,9 @@ router.beforeEach((to) => {
   };
 });
 
+startUsageAnalytics('h5');
 router.afterEach((to) => {
+  trackUsageRoute(to.path, to.query as Record<string, unknown>);
   if (to.meta?.title) {
     document.title = String(to.meta.title);
   }

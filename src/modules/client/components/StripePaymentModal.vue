@@ -46,6 +46,7 @@
 
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue';
+import { trackUsagePaymentSuccess, trackUsagePaymentView } from '@/utils/usage-analytics';
 
 const props = defineProps<{
   visible: boolean;
@@ -55,6 +56,7 @@ const props = defineProps<{
   subtotal?: number;
   tax?: number;
   total?: number;
+  orderNo?: string;
 }>();
 const emit = defineEmits<{
   close: [];
@@ -111,6 +113,7 @@ const handleExpressCheckoutConfirm = async () => {
 const initialize = async () => {
   destroy();
   if (!props.visible || !props.clientSecret) return;
+  trackUsagePaymentView(props.orderNo || '');
   loading.value = true;
   errorText.value = '';
   try {
@@ -158,6 +161,7 @@ const confirmPayment = async () => {
       redirect: 'if_required',
     });
     if (result?.error) throw new Error(result.error.message || 'Payment failed');
+    trackUsagePaymentSuccess(props.orderNo || '', result?.paymentIntent);
     emit('paid');
   } catch (error: any) {
     errorText.value = String(error?.message || 'Payment failed');

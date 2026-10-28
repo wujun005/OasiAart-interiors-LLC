@@ -1,6 +1,7 @@
 import { createRouter, createWebHistory, RouteRecordRaw } from 'vue-router';
 import ProfilePage from '@/modules/client/pages/profile.vue';
 import { clearStoredAuthState, getStoredAuthSnapshot } from '@/utils/auth-state';
+import { startUsageAnalytics, trackUsageRoute } from '@/utils/usage-analytics';
 
 const routes: RouteRecordRaw[] = [
   // C端：/index 开头
@@ -131,6 +132,11 @@ export const router = createRouter({
     }
     return { top: 0, left: 0 };
   },
+});
+
+startUsageAnalytics('web');
+router.afterEach((to) => {
+  trackUsageRoute(to.path, to.query as Record<string, unknown>);
 });
 
 router.beforeEach((to) => {

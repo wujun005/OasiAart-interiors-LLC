@@ -486,6 +486,7 @@ import {
 import { toPlainText } from "@/modules/client/utils/plain-text"
 import { usePackageFirstBooking } from "@/modules/client/composables/usePackageFirstBooking"
 import { loadPackageBookingTimes } from "@/modules/client/utils/package-booking-times"
+import { trackUsagePaymentSuccess, trackUsagePaymentView } from "@/utils/usage-analytics"
 
 type I18nText = Record<string, string>
 
@@ -1566,6 +1567,7 @@ const handleStripeConfirmResult = async (
     status === "processing" ||
     status === "requires_capture"
   ) {
+    trackUsagePaymentSuccess(String(orderId.value || ""), confirmResult.paymentIntent)
     await handleStripeSuccess()
     return
   }
@@ -1769,6 +1771,7 @@ const startStripePayment = async (targetOrderId: number) => {
 
   const clientSecret = normalizeText(paymentData.clientSecret)
   if (clientSecret) {
+    trackUsagePaymentView(String(targetOrderId))
     await openStripeDialog(
       clientSecret,
       normalizeText(paymentData.customerSessionClientSecret),
@@ -1782,6 +1785,7 @@ const startStripePayment = async (targetOrderId: number) => {
       paymentData.checkoutUrl,
   )
   if (approvalUrl && typeof window !== "undefined") {
+    trackUsagePaymentView(String(targetOrderId))
     window.location.href = approvalUrl
     return
   }

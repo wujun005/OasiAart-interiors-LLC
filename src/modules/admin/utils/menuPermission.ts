@@ -62,6 +62,7 @@ const PACKAGE_SPEC_TYPE_PATH = '/admin/package/spec-types';
 const PACKAGE_SPEC_PATH = '/admin/package/specs';
 const PACKAGE_SERVICE_PATH = '/admin/package/services';
 const PACKAGE_LIST_PATH = '/admin/package/packages';
+const ANALYTICS_PATH = '/admin/analytics';
 const FIXED_PACKAGE_MENU_ID = 'fixed-packages';
 const FIXED_PACKAGE_CATEGORY_MENU_ID = 'fixed-package-categories';
 const FIXED_PACKAGE_SERVICE_SUBCATEGORY_MENU_ID = 'fixed-package-service-subcategories';
@@ -351,6 +352,25 @@ const pinPackageMenu = (roots: AdminMenuPermissionItem[]) => {
   sortMenus(parent.children);
 };
 
+const pinUsageAnalytics = (roots: AdminMenuPermissionItem[]) => {
+  const paths = collectPaths(roots);
+  if (!paths.length) return;
+  if (paths.every((path) => path.startsWith('/admin/supplier-management'))) return;
+  if (hasMenuPath(roots, ANALYTICS_PATH)) return;
+  const item: AdminMenuPermissionItem = {
+    id: 'fixed-usage-analytics',
+    name: '数据分析',
+    path: ANALYTICS_PATH,
+    icon: 'data-analysis',
+    parentId: 0,
+    sortOrder: 1,
+    children: [],
+  };
+  const packageIndex = roots.findIndex((node) => node.path === PACKAGE_PATH);
+  if (packageIndex >= 0) roots.splice(packageIndex + 1, 0, item);
+  else roots.push(item);
+};
+
 const pinSuperAdminOverview = (roots: AdminMenuPermissionItem[]) => {
   releaseOverviewPathFromGroups(roots);
   if (!hasOverviewLeaf(roots)) {
@@ -454,6 +474,7 @@ const hydrateMenuState = (list: RawMenuItem[], pinOverview = false, pinStaff = f
   const prunedRoots = pruneMenus(roots);
   sortMenus(prunedRoots);
   pinPackageMenu(prunedRoots);
+  pinUsageAnalytics(prunedRoots);
   if (pinStaff) {
     pinSupplierStaffMenu(prunedRoots);
     orderSupplierPortalMenus(prunedRoots);

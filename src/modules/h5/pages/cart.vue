@@ -216,6 +216,7 @@
       :subtotal="checkoutSubtotal"
       :tax="checkoutTax"
       :total="checkoutTotal"
+      :order-no="checkoutSummary.orderNo"
       @close="stripeVisible = false"
       @error="handleStripeError"
       @paid="handlePaymentSuccess"
@@ -232,6 +233,7 @@ import { showConfirmDialog, showFailToast, showSuccessToast } from 'vant';
 import fallbackImage from '@/assets/images/client/kv.png';
 import { useCart, type CartItem, type CartLocalizedText } from '@/modules/client/composables/useCart';
 import { checkoutCart } from '@/modules/client/api';
+import { trackUsagePaymentView } from '@/utils/usage-analytics';
 import StripePaymentModal from '@/modules/client/components/StripePaymentModal.vue';
 import AgreementDialog from '@/modules/client/components/agreement-dialog.vue';
 import BookingPolicyDetails from '@/modules/client/components/booking-policy-details.vue';
@@ -417,6 +419,7 @@ const confirmCheckout = async () => {
     const approvalUrl = String(payment?.approvalUrl || '').trim();
     const clientSecret = String(payment?.clientSecret || '').trim();
     if (approvalUrl) {
+      trackUsagePaymentView(checkoutSummary.value.orderNo);
       window.location.href = approvalUrl;
       return;
     }
