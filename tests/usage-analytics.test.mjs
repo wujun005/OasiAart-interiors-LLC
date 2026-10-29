@@ -39,6 +39,18 @@ function event(partial) {
   }
 }
 
+test('a chosen date range covers each selected day', () => {
+  const now = new Date(2026, 9, 29, 15, 0, 0).getTime()
+  const week = api.usageRange(7, now)
+  assert.equal(api.formatUsageDay(week.startMs), '2026-10-23')
+  assert.equal(api.formatUsageDay(week.endMs - 1), '2026-10-29')
+  const custom = api.usageRangeFromDates('2026-10-01', '2026-10-03')
+  assert.equal(custom.startMs, new Date(2026, 9, 1).getTime())
+  assert.equal(custom.endMs, new Date(2026, 9, 4).getTime())
+  assert.equal(api.usageRangeFromDates('2026-10-03', '2026-10-01'), null)
+  assert.equal(api.usageRangeFromDates('2026-02-31', '2026-03-01'), null)
+})
+
 test('route mapping follows the booking path', () => {
   assert.equal(api.usageStepForLocation('/').name, 'home_view')
   assert.equal(api.usageStepForLocation('/services/detail/spu-1').targetId, 'spu-1')
