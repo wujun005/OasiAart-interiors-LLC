@@ -37,6 +37,10 @@ const specIdentityExports = {}
 runInNewContext(transpile(read("src/modules/client/utils/package-spec-identity.ts")), {
   exports: specIdentityExports,
 })
+const packageVisitExports = {}
+runInNewContext(transpile(read("src/modules/client/utils/package-visits.ts")), {
+  exports: packageVisitExports,
+})
 const clone = (value) => JSON.parse(JSON.stringify(value))
 const flush = async () => {
   for (let index = 0; index < 32; index += 1) await Promise.resolve()
@@ -151,6 +155,7 @@ async function harness(t, overrides = {}) {
       if (name === "@/modules/client/utils/plain-text") return plainTextExports
       if (name === "@/modules/client/utils/package-shared-specs") return sharedSpecExports
       if (name === "@/modules/client/utils/package-spec-identity") return specIdentityExports
+      if (name === "@/modules/client/utils/package-visits") return packageVisitExports
       if (name.endsWith(".vue") || name.includes("/style/")) return {}
       throw new Error(`Unexpected dependency: ${name}`)
     },
@@ -187,6 +192,8 @@ test("PC package details compile with the ordinary product-detail stylesheet, ta
   assert.match(descriptor.template.content, /class="booking-card__footer"/)
   assert.match(descriptor.template.content, /<del>AED \{\{ view\.original \}\}<\/del>/)
   assert.match(descriptor.template.content, /<PackageDetailMobile[\s\S]+?v-if="props\.platform === 'h5'"/)
+  assert.match(descriptor.template.content, /class="package-visit-note"[\s\S]*class="booking-summary"/)
+  assert.doesNotMatch(descriptor.template.content, /booking-card__section-heading[\s\S]{0,240}visitLater/)
 })
 
 test("loaded PC package executes the compiled template without missing setup bindings", async (t) => {
@@ -240,6 +247,8 @@ test("H5 package details compile with ordinary H5 detail styling and safe fixed 
   assert.match(mobile.template.content, /emit\('checkout'\)/)
   assert.match(mobile.template.content, /view\.original/)
   assert.match(mobile.template.content, /view\.save/)
+  assert.match(mobile.template.content, /class="h5-package-booking-note"[\s\S]*client\.productDetail\.booking\.subtotal/)
+  assert.doesNotMatch(mobile.template.content, /h5-package-booking-note[\s\S]*PackageSharedSpecs/)
   assert.doesNotMatch(mobileScript.content, /checkoutCart|addPackageToCart|useRouter/)
 })
 
@@ -262,6 +271,21 @@ test("package view uses server original price, savings and tax while preserving 
   assert.equal(state.cartCount, 3)
   assert.equal(state.loading, false)
   assert.equal(state.missing, false)
+})
+
+test("package visit count uses the longest included service when a shorter service shares that visit", async (t) => {
+  const { state } = await harness(t, {
+    packageDetail: async (id) => packageCard(id, {
+      redeemTimes: 5,
+      items: [
+        { packageItemId: 20, spuId: 12, bindType: 1, redeemTimes: 4, spuNameI18n: { en: "Home Cleaning", zh: "家庭清洁" }, skuOptions: [] },
+        { packageItemId: 21, spuId: 13, bindType: 1, redeemTimes: 1, spuNameI18n: { en: "AC Cleaning", zh: "空调清洁" }, skuOptions: [] },
+      ],
+    }),
+  })
+  assert.match(state.view.visits, /"count":4/)
+  assert.match(state.view.items[0].times, /"count":4/)
+  assert.match(state.view.items[1].times, /"count":1/)
 })
 
 test("package detail lists every service option and submits the chosen sku", async (t) => {

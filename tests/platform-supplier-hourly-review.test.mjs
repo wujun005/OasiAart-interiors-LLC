@@ -46,7 +46,7 @@ const hourly = {
 }
 
 async function harness(t, quote = hourly, query = { id: '10' }) {
-  const calls = { reviews: [], skus: [], messages: [], downloads: [], blobs: [], quoteExports: [], confirms: [] }
+  const calls = { reviews: [], skus: [], messages: [], downloads: [], blobs: [], quoteExports: [], confirms: [], onboarding: [], priceChanges: [] }
   const controls = { quote, confirm: async () => {} }
   const locale = Vue.ref('en')
   const translate = (key, params = {}) => {
@@ -67,6 +67,8 @@ async function harness(t, quote = hourly, query = { id: '10' }) {
       return { data: controls.quote }
     },
     platformSupplierQuoteReview: async (payload) => { calls.reviews.push(clone(payload)); return { data: controls.quote } },
+    onboardingChangeStatus: async (payload) => { calls.onboarding.push(clone(payload)); return { data: {} } },
+    reviewQuotePriceChange: async (payload) => { calls.priceChanges.push(clone(payload)); return { data: {} } },
     exportPlatformQuoteSheet: async (supplierId, spuIds) => {
       calls.quoteExports.push({ supplierId, spuIds: [...(spuIds || [])] })
       return new Blob(['quote'], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })
@@ -222,6 +224,56 @@ test('approving or rejecting hourly rates still sends one whole-quote decision w
   assert.match(calls.confirms[1][0], /Cleaning/)
   assert.equal(calls.confirms[0][1], 'Approve quote')
   assert.equal(calls.confirms[1][1], 'Reject quote')
+})
+
+test('onboarding and price-change decisions wait for confirmation', async (t) => {
+  const { state, calls, controls } = await harness(t)
+  controls.confirm = async () => { throw new Error('cancel') }
+  await state.approveOnboarding()
+  state.rejectReason = 'Need a clearer licence'
+  await state.submitReject()
+  await state.reviewPriceChange({ spuId: 501, spuName: 'Cleaning' }, 2)
+  assert.deepEqual(calls.onboarding, [])
+  assert.deepEqual(calls.priceChanges, [])
+  assert.equal(calls.confirms.length, 3)
+  assert.match(calls.confirms[0][0], /Test Supplier/)
+  assert.match(calls.confirms[2][0], /Cleaning/)
+  controls.confirm = async () => {}
+  await state.approveOnboarding()
+  await state.submitReject()
+  await state.reviewPriceChange({ spuId: 501, spuName: 'Cleaning' }, 2)
+  assert.deepEqual(calls.onboarding.map((item) => item.status), [2, 3])
+  assert.equal(calls.onboarding[1].rejectReason, 'Need a clearer licence')
+  assert.deepEqual(calls.priceChanges, [{ supplierId: 10, spuId: 501, status: 2 }])
+})
+
+test('an offered add-on can be approved or rejected on its own', async (t) => {
+  const quote = {
+    spuId: 501, quoteMode: 1, reviewByUnitPrice: false, status: 1, versionNo: 4,
+    skus: [{ skuId: 601, skuCode: 'FIXED', quoted: true, enabled: 1, quotePrice: 150, reviewStatus: null }],
+    attaches: [{
+      attachValueId: 9, attachTypeName: 'Extra', attachValueName: 'Oven',
+      canServe: true, quotePrice: 25, platformPrice: 30, reviewStatus: null,
+    }],
+  }
+  const { state, calls } = await harness(t, quote)
+  await state.openSkus(service)
+  assert.equal(state.skuAttaches.length, 1)
+  assert.equal(state.showQuoteFoot, true)
+  assert.equal(state.isAttachSelectable(state.skuAttaches[0]), true)
+  renderFragment('sku-attaches', state)
+  await state.approveAttach(state.skuAttaches[0])
+  await state.openLineReject([], [state.skuAttaches[0]])
+  state.lineRejectReason = 'Too expensive'
+  await state.rejectSelectedLines()
+  assert.deepEqual(calls.reviews, [
+    { supplierId: 10, spuId: 501, versionNo: 4, attaches: [{ attachValueId: 9, status: 2 }] },
+    {
+      supplierId: 10, spuId: 501, versionNo: 4,
+      attaches: [{ attachValueId: 9, status: 3, rejectReason: 'Too expensive' }],
+    },
+  ])
+  assert.equal(calls.confirms.length, 2)
 })
 
 test('cancelling the quote confirmation sends no review', async (t) => {

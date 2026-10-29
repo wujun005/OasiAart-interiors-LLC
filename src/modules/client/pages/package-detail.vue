@@ -239,10 +239,7 @@
             />
 
             <div class="booking-card__section-heading">
-              <div class="booking-card__section-title-row">
-                <h2>{{ t('client.home.packages.included') }}</h2>
-                <p>{{ t('client.home.packages.visitLater') }}</p>
-              </div>
+              <h2>{{ t('client.home.packages.included') }}</h2>
             </div>
 
             <div v-if="view.items.length" class="booking-field">
@@ -275,6 +272,7 @@
               </div>
             </div>
             <p v-else class="booking-card__empty">{{ t('client.productDetail.emptyDesc') }}</p>
+            <p class="package-visit-note">{{ t('client.home.packages.visitLater') }}</p>
 
             <div class="booking-summary">
               <div class="booking-summary__caption">{{ t('client.productDetail.booking.summaryTitle') }}</div>
@@ -334,6 +332,7 @@ import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import { bizTagLabels } from '@/modules/client/utils/biz-tag'
 import { toPlainText as plainText } from '@/modules/client/utils/plain-text'
 import { findSharedSpecs, getSharedSpecGroups, resolveSharedSpecs, type SkuChoice, type SpecItem } from '@/modules/client/utils/package-shared-specs'
+import { packageVisitCount } from '@/modules/client/utils/package-visits'
 import { hydratePackageSpecIds } from '@/modules/client/utils/package-spec-identity'
 import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
@@ -583,7 +582,7 @@ const view = computed(() => {
   const sale = quote?.salePrice ?? null
   const original = quote?.originalPrice ?? null
   const saved = quote?.savedPrice ?? 0
-  const visits = Number(card.redeemTimes || 0)
+  const visits = packageVisitCount(card)
   const name = plainText(pickRaw(card.nameI18n, card.packageName || ''))
   return {
     title: name,
@@ -995,6 +994,13 @@ onBeforeUnmount(() => {
   color: #61738a;
   font-size: 11px;
   white-space: nowrap;
+}
+
+.package-visit-note {
+  margin: 14px 20px 0;
+  color: #7a8ba0;
+  font-size: 12px;
+  line-height: 1.45;
 }
 
 .package-price-status {

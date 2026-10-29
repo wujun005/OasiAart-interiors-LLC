@@ -2372,7 +2372,7 @@
             </div>
           </div>
           <div
-            v-if="quoteDialog.rejectReason || quoteHasRejectedLines"
+            v-if="quoteDialog.rejectReason || quoteHasRejectedLines || quoteHasRejectedAttaches"
             class="pricing-editor-alert is-rejected"
           >
             <span>!</span>
@@ -2618,7 +2618,7 @@
                     <div class="quote-attach__name">
                       <el-checkbox
                         :model-value="item.offered"
-                        :disabled="quoteRevisionLocked || quotePriceLocked"
+                        :disabled="attachHeld(item)"
                         @change="
                           (value: boolean | string | number) =>
                             toggleAttach(item, Boolean(value))
@@ -2637,12 +2637,17 @@
                           })
                         }}</small
                       >
+                      <small v-if="item.rejectReason" class="line-reject">{{
+                        t("admin.supplierPricing.lineRejected", {
+                          reason: item.rejectReason,
+                        })
+                      }}</small>
                     </div>
                     <el-input
                       v-if="item.offered"
                       v-model="item.quotePrice"
                       inputmode="decimal"
-                      :disabled="quoteRevisionLocked || quotePriceLocked"
+                      :disabled="attachHeld(item)"
                       :placeholder="t('admin.supplierPricing.taxPrice')"
                     >
                       <template #prepend>AED</template>
@@ -2851,6 +2856,9 @@
                 ></span
               >
               <strong class="portal-numeric portal-numeric--money">AED {{ moneyText(item.quotePrice) }}</strong>
+              <small v-if="item.rejectReason">{{
+                t("admin.supplierPricing.lineRejected", { reason: item.rejectReason })
+              }}</small>
             </div>
             <p v-if="!selectedAttachCount">
               {{ t("admin.supplierOrders.noAddons") }}
@@ -3053,6 +3061,9 @@
                     / {{ attachUnit(item) }}</template
                   ></span
                 ><strong class="portal-numeric portal-numeric--money">AED {{ moneyText(item.quotePrice) }}</strong>
+                <small v-if="item.rejectReason">{{
+                  t("admin.supplierPricing.lineRejected", { reason: item.rejectReason })
+                }}</small>
               </div>
               <p v-if="!selectedAttachCount" class="portal-review-note">
                 {{ t("admin.supplierOrders.noAddons") }}
@@ -5396,6 +5407,8 @@ const quoteDialog = reactive({
     approvedPrice: unknown
     offered: boolean
     quotePrice: string
+    reviewStatus?: number
+    rejectReason?: string
   }>,
 })
 const selectedAttachCount = computed(
@@ -5407,8 +5420,14 @@ const quoteHasRejectedLines = computed(() =>
       Number(row.reviewStatus) === 3 || String(row.rejectReason || "").trim(),
   ),
 )
+const quoteHasRejectedAttaches = computed(() =>
+  quoteDialog.attaches.some(
+    (item) =>
+      Number(item.reviewStatus) === 3 || String(item.rejectReason || "").trim(),
+  ),
+)
 const quoteEffectiveStatus = computed(() =>
-  quoteDialog.rejectReason || quoteHasRejectedLines.value
+  quoteDialog.rejectReason || quoteHasRejectedLines.value || quoteHasRejectedAttaches.value
     ? 3
     : quoteDialog.status,
 )
@@ -5419,8 +5438,14 @@ const quoteDirectEdit = computed(
     Number(quoteDialog.status) === 3 ||
     Number(quoteDialog.priceChangeStatus) === 3 ||
     Boolean(String(quoteDialog.rejectReason || "").trim()) ||
-    quoteHasRejectedLines.value,
+    quoteHasRejectedLines.value ||
+    quoteHasRejectedAttaches.value,
 )
+const attachHeld = (item: { reviewStatus?: number | null; rejectReason?: string }) => {
+  if (quotePriceLocked.value) return true
+  if (!quoteRevisionLocked.value) return false
+  return Number(item.reviewStatus) !== 3 && !String(item.rejectReason || "").trim()
+}
 const quotePriceLocked = computed(
   () =>
     Number(quoteDialog.status) === 2 &&
@@ -8547,6 +8572,8 @@ const mergeAttaches = (
         approvedPrice: quote.approvedPrice ?? null,
         canServe: quote.canServe,
         quotePrice: quote.quotePrice,
+        reviewStatus: quote.reviewStatus,
+        rejectReason: quote.rejectReason,
       }
     }),
   )
@@ -8570,6 +8597,11 @@ const mapAttaches = (list: any[]) =>
       item.unitI18n && typeof item.unitI18n === "object" ? item.unitI18n : null,
     platformPrice: item.platformPrice ?? null,
     approvedPrice: item.approvedPrice ?? null,
+    reviewStatus:
+      Number(item.reviewStatus) === 2 || Number(item.reviewStatus) === 3
+        ? Number(item.reviewStatus)
+        : undefined,
+    rejectReason: item.rejectReason ? String(item.rejectReason) : "",
     offered:
       item.canServe === true ||
       (item.quotePrice != null && item.quotePrice !== ""),

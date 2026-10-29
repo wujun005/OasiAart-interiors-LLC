@@ -135,7 +135,6 @@ const clientExtraMessages = {
           off: '{percent}% OFF',
           previousPackage: 'Previous packages',
           nextPackage: 'Next packages',
-          scrollHint: 'Swipe or use the arrows to see more packages',
           viewAll: 'View all packages',
           viewPackage: 'View package',
           bestValue: 'Best value',
@@ -174,7 +173,7 @@ const clientExtraMessages = {
           remaining: '{remaining} of {total} visits left',
           validUntil: 'Valid until {date}',
           validity: 'Validity',
-          visitLater: 'Book your first visit at checkout, then schedule remaining visits from Orders.',
+          visitLater: 'Book your first visit at checkout, then schedule remaining visits from Booking.',
         },
         serviceTile: {
           action: 'View services',
@@ -922,7 +921,6 @@ const clientExtraMessages = {
           off: '省 {percent}%',
           previousPackage: '查看上一组套餐',
           nextPackage: '查看下一组套餐',
-          scrollHint: '左右滑动或点击箭头，查看更多套餐',
           viewAll: '查看全部套餐',
           viewPackage: '查看套餐',
           bestValue: '最划算',
@@ -961,7 +959,7 @@ const clientExtraMessages = {
           remaining: '剩余 {remaining} / {total} 次',
           validUntil: '有效期至 {date}',
           validity: '有效期',
-          visitLater: '下单时预约首次服务，剩余次数可在订单中继续预约。',
+          visitLater: '下单时预约首次服务，剩余次数可在「我的预约」中继续预约。',
         },
         serviceCard: {
           badge: '限时特价',

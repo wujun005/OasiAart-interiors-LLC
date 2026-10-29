@@ -92,7 +92,6 @@
             <span />
             <h3>{{ t('client.home.packages.included') }}</h3>
           </div>
-          <p class="h5-package-booking-note">{{ t('client.home.packages.visitLater') }}</p>
           <PackageSharedSpecs
             v-if="view.hasSharedSpecs"
             :groups="view.sharedGroups"
@@ -164,6 +163,7 @@
             <span />
             <h3>{{ t('client.productDetail.booking.summaryTitle') }}</h3>
           </div>
+          <p class="h5-package-booking-note">{{ t('client.home.packages.visitLater') }}</p>
           <dl class="h5-package-price-breakdown">
             <div>
               <dt>{{ t('client.productDetail.booking.subtotal') }}</dt>

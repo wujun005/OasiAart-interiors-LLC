@@ -8,6 +8,10 @@ import * as Vue from 'vue';
 
 const filename = 'src/modules/client/components/PackageShowcase.vue';
 const source = readFileSync(new URL(`../${filename}`, import.meta.url), 'utf8');
+const packageVisitExports = {};
+runInNewContext(ts.transpileModule(readFileSync(new URL('../src/modules/client/utils/package-visits.ts', import.meta.url), 'utf8'), {
+  compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
+}).outputText, { exports: packageVisitExports });
 const { descriptor, errors } = parse(source, { filename });
 assert.deepEqual(errors, []);
 const code = ts.transpileModule(compileScript(descriptor, { id: 'bound-services' }).content, {
@@ -33,8 +37,13 @@ async function harness(t, { cardCount = 1 } = {}) {
     getComputedStyle: (grid) => ({ columnGap: grid.columnGap || '0px' }),
     require(name) {
       if (name === 'vue') return Vue;
-      if (name === 'vue-i18n') return { useI18n: () => ({ locale, t: (_key, params) => `Service ${params?.index || ''}`.trim() }) };
+      if (name === 'vue-i18n') return { useI18n: () => ({ locale, t: (_key, params) => {
+        if (params?.count != null) return String(params.count);
+        if (params?.price != null) return String(params.price);
+        return `Service ${params?.index || ''}`.trim();
+      } }) };
       if (name === '@/modules/client/utils/biz-tag') return { bizTagLabels: () => [] };
+      if (name === '@/modules/client/utils/package-visits') return packageVisitExports;
       if (name === '@/modules/client/api') return {
         packageCatalog: async () => {
           catalogCalls += 1;
@@ -151,4 +160,30 @@ test('package navigation moves one card plus the measured gap in either directio
     ]);
     assert.equal(grid.scrollLeft, 0);
   }
+});
+
+test('package cards count shared visits once and do not repeat the scroll instruction', async (t) => {
+  assert.doesNotMatch(source, /packages__scroll-hint|scrollHint/);
+  const { state } = await harness(t);
+  const card = state.toCard({
+    id: 4,
+    displaySalePrice: 400,
+    redeemTimes: 5,
+    nameI18n: { en: 'Home Cleaning & AC - 4 Visits' },
+    items: [
+      { spuId: 1, redeemTimes: 4, spuNameI18n: { en: 'Home Cleaning' } },
+      { spuId: 2, redeemTimes: 1, spuNameI18n: { en: 'AC Cleaning' } },
+    ],
+  }, 'Home', 0, 0);
+  assert.equal(card.visits, '4');
+  assert.equal(card.perVisit, '100');
+  const listed = state.toCard({
+    id: 38,
+    displaySalePrice: 400,
+    redeemTimes: 5,
+    items: [],
+    nameI18n: { en: 'Home Cleaning + AC - 4 Visits' },
+  }, 'Home', 0, 0);
+  assert.equal(listed.visits, '4');
+  assert.equal(listed.perVisit, '100');
 });

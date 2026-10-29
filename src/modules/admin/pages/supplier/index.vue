@@ -481,39 +481,43 @@
         <section v-else class="panel quote-page">
           <header class="quote-head">
             <div class="quote-head__copy">
-              <h2>{{ skuDialogTitle }}</h2>
-              <p>
-                {{ t('admin.platformSuppliers.reviewStatus') }}: {{ quoteStatusLabel(skuStatus, skuStatusI18n) }}
-                · {{ t('admin.supplierPricing.quoteMode') }}: {{ hourlyQuoteReview ? t('admin.platformSuppliers.unitPrice') : skuQuoteMode === 1 ? t('admin.platformSuppliers.fixedPrice') : t('admin.platformSuppliers.modeUnset') }}
-                <span v-if="hourlyQuoteReview" class="quote-head__hourly-rates">
-                  <span>{{ t('admin.platformSuppliers.hourlyRateWithMaterial') }}: {{ hourlyRateText(skuUnitPriceWithMaterial, true) }}</span>
-                  <span>{{ t('admin.platformSuppliers.hourlyRateWithoutMaterial') }}: {{ hourlyRateText(skuUnitPriceWithoutMaterial, true) }}</span>
-                </span>
-                <span v-if="skuRejectReason"> · {{ skuRejectReason }}</span>
+              <div class="quote-head__title">
+                <h2>{{ skuDialogTitle }}</h2>
+                <span class="status-pill" :class="statusClass(skuStatus)">{{ quoteStatusLabel(skuStatus, skuStatusI18n) }}</span>
+              </div>
+              <p class="quote-head__meta">
+                <span>{{ t('admin.platformSuppliers.reviewStatus') }}: {{ quoteStatusLabel(skuStatus, skuStatusI18n) }}</span>
+                <span>{{ t('admin.supplierPricing.quoteMode') }}: {{ hourlyQuoteReview ? t('admin.platformSuppliers.unitPrice') : skuQuoteMode === 1 ? t('admin.platformSuppliers.fixedPrice') : t('admin.platformSuppliers.modeUnset') }}</span>
               </p>
+              <div v-if="hourlyQuoteReview" class="quote-head__hourly-rates">
+                <span>{{ t('admin.platformSuppliers.hourlyRateWithMaterial') }}: {{ hourlyRateText(skuUnitPriceWithMaterial, true) }}</span>
+                <span>{{ t('admin.platformSuppliers.hourlyRateWithoutMaterial') }}: {{ hourlyRateText(skuUnitPriceWithoutMaterial, true) }}</span>
+              </div>
+              <p v-if="skuRejectReason" class="quote-head__reason">{{ skuRejectReason }}</p>
             </div>
-            <div
-              v-if="!hourlyQuoteReview && reviewSkuRows.length"
-              class="quote-status-counts"
-              :aria-label="t('admin.platformSuppliers.lineReviewStatus')"
-            >
-              <span v-for="item in lineStatusCounts" :key="item.key" class="quote-status-count" :class="item.tone">
-                <b>{{ item.count }}</b>
-                <span>{{ item.label }}</span>
-              </span>
-            </div>
-            <div class="quote-head__actions">
-              <button type="button" class="act" :disabled="quoteImporting || !detailId" @click="quoteHistoryOpen = true">
-                {{ t('admin.platformSuppliers.quoteHistory.title') }}
-              </button>
-              <button v-if="canRejectWholeQuote" type="button" class="act no" :disabled="saving" @click="openWholeQuoteReject()">{{ t('admin.platformSuppliers.rejectQuote') }}</button>
-              <button type="button" class="act" :disabled="quoteExporting || !detailId" @click="downloadQuoteSheet">
-                {{ quoteExporting ? t('admin.platformSuppliers.exportingQuotes') : quoteExportLabel }}
-              </button>
-              <button type="button" class="act navy" :disabled="quoteImporting || !detailId" @click="quoteFileInput?.click()">
-                {{ quoteImporting ? t('admin.platformSuppliers.importingQuotes') : t('admin.platformSuppliers.importQuoteSheet') }}
-              </button>
-              <span class="status-pill" :class="statusClass(skuStatus)">{{ quoteStatusLabel(skuStatus, skuStatusI18n) }}</span>
+            <div class="quote-toolbar">
+              <div
+                v-if="!hourlyQuoteReview && reviewSkuRows.length"
+                class="quote-status-counts"
+                :aria-label="t('admin.platformSuppliers.lineReviewStatus')"
+              >
+                <span v-for="item in lineStatusCounts" :key="item.key" class="quote-status-count" :class="item.tone">
+                  <b>{{ item.count }}</b>
+                  <span>{{ item.label }}</span>
+                </span>
+              </div>
+              <div class="quote-head__actions">
+                <button type="button" class="act" :disabled="quoteImporting || !detailId" @click="quoteHistoryOpen = true">
+                  {{ t('admin.platformSuppliers.quoteHistory.title') }}
+                </button>
+                <button v-if="canRejectWholeQuote" type="button" class="act no" :disabled="saving" @click="openWholeQuoteReject()">{{ t('admin.platformSuppliers.rejectQuote') }}</button>
+                <button type="button" class="act" :disabled="quoteExporting || !detailId" @click="downloadQuoteSheet">
+                  {{ quoteExporting ? t('admin.platformSuppliers.exportingQuotes') : quoteExportLabel }}
+                </button>
+                <button type="button" class="act navy" :disabled="quoteImporting || !detailId" @click="quoteFileInput?.click()">
+                  {{ quoteImporting ? t('admin.platformSuppliers.importingQuotes') : t('admin.platformSuppliers.importQuoteSheet') }}
+                </button>
+              </div>
             </div>
           </header>
           <section v-if="hourlyQuoteReview" v-loading="skuLoading" class="hourly-review">
@@ -538,6 +542,8 @@
           <p v-if="!hourlyQuoteReview" class="muted">{{ t('admin.platformSuppliers.grossMarginHint') }}</p>
           <el-table
             v-if="!hourlyQuoteReview"
+            class="quote-table"
+            scrollbar-always-on
             v-loading="skuLoading"
             :data="reviewSkuRows"
             row-key="skuId"
@@ -552,19 +558,19 @@
               <template #default="{ row }">{{ specCell(row.specs[column.key]) }}</template>
             </el-table-column>
             <el-table-column v-if="showSkuCodeColumn" label="SKU" prop="skuCode" min-width="120" />
-            <el-table-column :label="t('admin.platformSuppliers.clientPrice')" min-width="150">
+            <el-table-column :label="t('admin.platformSuppliers.clientPrice')" min-width="150" align="right">
               <template #default="{ row }">{{ moneyText(clientPrice(row)) }}</template>
             </el-table-column>
-            <el-table-column :label="t('admin.platformSuppliers.taxQuote')" width="160">
+            <el-table-column :label="t('admin.platformSuppliers.taxQuote')" width="160" align="right">
               <template #default="{ row }">
                 {{ moneyText(row.quotePrice) }}
                 <small v-if="priceDiffers(row)" class="price-change-note">{{ t('admin.platformSuppliers.pendingDifferent') }}</small>
               </template>
             </el-table-column>
-            <el-table-column :label="t('admin.platformSuppliers.margin')" width="110">
+            <el-table-column :label="t('admin.platformSuppliers.margin')" width="110" align="right">
               <template #default="{ row }">{{ marginText(row) }}</template>
             </el-table-column>
-            <el-table-column :label="t('admin.platformSuppliers.effectivePrice')" width="150">
+            <el-table-column :label="t('admin.platformSuppliers.effectivePrice')" width="150" align="right">
               <template #default="{ row }">{{ moneyText(row.approvedPrice) }}</template>
             </el-table-column>
             <el-table-column :label="t('admin.platformSuppliers.lineReviewStatus')" min-width="150">
@@ -575,7 +581,7 @@
                 </div>
               </template>
             </el-table-column>
-            <el-table-column v-if="showLineReview" :label="t('admin.platformSuppliers.actions')" width="148" fixed="right">
+            <el-table-column v-if="showLineReview" :label="t('admin.platformSuppliers.actions')" width="184" fixed="right">
               <template #default="{ row }">
                 <div v-if="isLineSelectable(row)" class="line-actions">
                   <button type="button" class="act no" :disabled="saving" @click="openLineReject([row])">{{ t('admin.platformSuppliers.reject') }}</button>
@@ -587,17 +593,33 @@
           <section v-if="skuAttaches.length" class="sku-attaches">
             <h4>{{ t('admin.platformSuppliers.addons') }}</h4>
             <div v-for="item in skuAttaches" :key="item.attachValueId" class="sku-attach">
+              <label v-if="isAttachSelectable(item)" class="sku-attach__check">
+                <input
+                  type="checkbox"
+                  :checked="isAttachSelected(item)"
+                  :disabled="saving"
+                  @change="onAttachCheck(item, $event)"
+                />
+              </label>
               <div>
                 <strong>{{ attachName(item) }}<template v-if="attachUnit(item)"> / {{ attachUnit(item) }}</template></strong>
                 <small>{{ t('admin.platformSuppliers.addonMeta', { type: attachTypeName(item), platform: moneyText(item.platformPrice), quote: moneyText(item.quotePrice), approved: moneyText(item.approvedPrice) }) }}</small>
+                <small v-if="Number(item.reviewStatus) === 3 && item.rejectReason">{{ item.rejectReason }}</small>
               </div>
-              <span>{{ item.offered ? moneyText(item.quotePrice) : t('admin.platformSuppliers.unavailable') }}</span>
+              <div class="sku-attach__side">
+                <el-tag v-if="attachEffectLabel(item)" :type="lineReviewTagType(item)" effect="light">{{ attachEffectLabel(item) }}</el-tag>
+                <span>{{ item.offered ? moneyText(item.quotePrice) : t('admin.platformSuppliers.unavailable') }}</span>
+                <div v-if="isAttachSelectable(item)" class="line-actions">
+                  <button type="button" class="act no" :disabled="saving" @click="openLineReject([], [item])">{{ t('admin.platformSuppliers.reject') }}</button>
+                  <button type="button" class="act navy" :disabled="saving" @click="approveAttach(item)">{{ t('admin.platformSuppliers.approve') }}</button>
+                </div>
+              </div>
             </div>
           </section>
-          <footer v-if="showLineReview" class="quote-foot">
-            <span class="quote-foot__selection">{{ t('admin.platformSuppliers.selectedLines', { count: selectedReviewLines.length }) }}</span>
-            <button type="button" class="act no" :disabled="saving" @click="selectedReviewLines.length ? openLineReject() : openWholeQuoteReject()">{{ selectedReviewLines.length ? t('admin.platformSuppliers.reject') : t('admin.platformSuppliers.rejectQuote') }}</button>
-            <button type="button" class="act navy" :disabled="saving || !selectedReviewLines.length" @click="approveSelectedLines">{{ t('admin.platformSuppliers.approve') }}</button>
+          <footer v-if="showQuoteFoot" class="quote-foot">
+            <span class="quote-foot__selection">{{ t('admin.platformSuppliers.selectedLines', { count: selectedReviewCount }) }}</span>
+            <button type="button" class="act no" :disabled="saving" @click="selectedReviewCount ? openLineReject() : openWholeQuoteReject()">{{ selectedReviewCount ? t('admin.platformSuppliers.reject') : t('admin.platformSuppliers.rejectQuote') }}</button>
+            <button type="button" class="act navy" :disabled="saving || !selectedReviewCount" @click="approveSelectedLines">{{ t('admin.platformSuppliers.approve') }}</button>
           </footer>
         </section>
       </div>
@@ -651,11 +673,11 @@
       </template>
     </el-dialog>
 
-    <el-dialog v-model="lineRejectOpen" :title="rejectingWholeQuote || hourlyRejecting || lineRejectTargets.length <= 1 ? t('admin.platformSuppliers.rejectQuote') : t('admin.platformSuppliers.rejectSelectedTitle')" width="460px" append-to-body @closed="resetQuoteReject">
+    <el-dialog v-model="lineRejectOpen" :title="rejectingWholeQuote || hourlyRejecting || rejectDialogCount <= 1 ? t('admin.platformSuppliers.rejectQuote') : t('admin.platformSuppliers.rejectSelectedTitle')" width="460px" append-to-body @closed="resetQuoteReject">
       <p v-if="hourlyRejecting" class="line-reject-summary">{{ t('admin.platformSuppliers.hourlyRejectHint') }}</p>
-      <p v-else-if="rejectingWholeQuote && lineRejectTargets.length" class="line-reject-summary">{{ t('admin.platformSuppliers.rejectWholeCountHint', { count: lineRejectTargets.length }) }}</p>
+      <p v-else-if="rejectingWholeQuote && rejectDialogCount" class="line-reject-summary">{{ t('admin.platformSuppliers.rejectWholeCountHint', { count: rejectDialogCount }) }}</p>
       <p v-else-if="rejectingWholeQuote" class="line-reject-summary">{{ t('admin.platformSuppliers.rejectWholeHint') }}</p>
-      <p v-else class="line-reject-summary">{{ t('admin.platformSuppliers.rejectSelectedHint', { count: lineRejectTargets.length }) }}</p>
+      <p v-else class="line-reject-summary">{{ t('admin.platformSuppliers.rejectSelectedHint', { count: rejectDialogCount }) }}</p>
       <el-input v-model="lineRejectReason" type="textarea" :rows="4" maxlength="500" show-word-limit :placeholder="t('admin.platformSuppliers.reasonPlaceholder')" />
       <template #footer>
         <el-button @click="lineRejectOpen = false">{{ t('admin.platformSuppliers.cancel') }}</el-button>
@@ -930,7 +952,7 @@ const skuTarget = ref<any>(null)
 const skuColumns = ref<{ key: string; nameI18n: Record<string, unknown> | null; fallback: string }[]>([])
 const skuGroupLabel = ref('')
 const skuRows = ref<any[]>([])
-const skuAttaches = ref<Array<{ attachValueId: number; typeName: string; typeNameI18n?: Record<string, unknown> | null; name: string; nameI18n?: Record<string, unknown> | null; unit?: string; unitI18n?: Record<string, unknown> | null; platformPrice: unknown; approvedPrice: unknown; offered: boolean; quotePrice: unknown }>>([])
+const skuAttaches = ref<Array<{ attachValueId: number; typeName: string; typeNameI18n?: Record<string, unknown> | null; name: string; nameI18n?: Record<string, unknown> | null; unit?: string; unitI18n?: Record<string, unknown> | null; platformPrice: unknown; approvedPrice: unknown; offered: boolean; quotePrice: unknown; reviewStatus?: number; rejectReason?: string }>>([])
 const skuQuoteMode = ref<number | null>(null)
 const skuReviewByUnitPrice = ref(false)
 const skuUnitPriceWithMaterial = ref<unknown>(null)
@@ -946,6 +968,8 @@ const rejectTarget = ref<any>(null)
 const lineRejectOpen = ref(false)
 const lineRejectReason = ref('')
 const lineRejectTargets = ref<any[]>([])
+const lineRejectAttachTargets = ref<any[]>([])
+const selectedReviewAttaches = ref<any[]>([])
 const priceChangeRejectOpen = ref(false)
 const priceChangeRejectReason = ref('')
 const priceChangeTarget = ref<any>(null)
@@ -1038,7 +1062,12 @@ const specCell = (value: unknown) => {
 }
 const reviewSkuRows = computed(() => skuRows.value.filter((row) => Number(row?.enabled) === 1))
 const lineStatusCounts = computed(() => {
-  const counts = countQuoteLineStatuses(reviewSkuRows.value, skuStatus.value)
+  const offeredAttaches = skuAttaches.value.filter((item) => item.offered).map((item) => ({
+    reviewStatus: item.reviewStatus,
+    quotePrice: item.quotePrice,
+    approvedPrice: item.approvedPrice,
+  }))
+  const counts = countQuoteLineStatuses([...reviewSkuRows.value, ...offeredAttaches], skuStatus.value)
   const items = [
     { key: 'underReview', label: t('admin.supplierPricing.priceUnderReview'), count: counts.underReview, tone: 'is-review' },
     { key: 'rejected', label: t('admin.supplierPricing.priceRejected'), count: counts.rejected, tone: 'is-rejected' },
@@ -1605,9 +1634,34 @@ const crumbBack = () => {
   else backToList()
 }
 
+const supplierDecisionName = (row?: { supplierName?: string } | null) => {
+  const named = String(row?.supplierName || profile.companyName || current.value?.supplierName || '').trim()
+  return named || t('admin.platformSuppliers.detailTitle')
+}
+
+const confirmReview = async (message: string, title: string, confirmText: string) => {
+  try {
+    await ElMessageBox.confirm(message, title, {
+      type: 'warning',
+      confirmButtonText: confirmText,
+      cancelButtonText: t('admin.platformSuppliers.cancel'),
+    })
+    return true
+  } catch {
+    return false
+  }
+}
+
 const approveOnboarding = async () => {
   if (!detailId.value || saving.value) return
   const firstReview = onboarding.reviewKind !== 2
+  const name = supplierDecisionName()
+  const confirmed = await confirmReview(
+    t(firstReview ? 'admin.platformSuppliers.approveOnboardingConfirm' : 'admin.platformSuppliers.approveChangesConfirm', { name }),
+    t(firstReview ? 'admin.platformSuppliers.approveOnboardingTitle' : 'admin.platformSuppliers.approveChangesTitle'),
+    t(firstReview ? 'admin.platformSuppliers.approveOnboarding' : 'admin.platformSuppliers.approveChangesTitle'),
+  )
+  if (!confirmed) return
   saving.value = true
   try {
     await onboardingChangeStatus({ id: detailId.value, status: 2 })
@@ -1623,6 +1677,12 @@ const approveOnboarding = async () => {
 
 const approveOnboardingRow = async (row: SupplierRow) => {
   if (saving.value) return
+  const confirmed = await confirmReview(
+    t('admin.platformSuppliers.approveOnboardingConfirm', { name: supplierDecisionName(row) }),
+    t('admin.platformSuppliers.approveOnboardingTitle'),
+    t('admin.platformSuppliers.approve'),
+  )
+  if (!confirmed) return
   saving.value = true
   try {
     await onboardingChangeStatus({ id: row.id, status: 2 })
@@ -1640,8 +1700,35 @@ const isPendingReviewLine = (row: any) => row?.quoted === true
   && normalizeLineReviewStatus(row?.reviewStatus) == null
 const pendingReviewLines = computed(() => skuRows.value.filter(isPendingReviewLine))
 const hourlyQuoteReview = computed(() => skuReviewByUnitPrice.value || skuQuoteMode.value === 2)
-const showHourlyReview = computed(() => hourlyQuoteReview.value && Number(skuStatus.value) === 1)
+const hourlyRatePending = computed(() => {
+  if (!hourlyQuoteReview.value || Number(skuStatus.value) !== 1) return false
+  const enabled = skuRows.value.filter((row) => Number(row?.enabled) === 1)
+  if (!enabled.length) return true
+  return enabled.some((row) => normalizeLineReviewStatus(row?.reviewStatus) == null)
+})
+const showHourlyReview = computed(() => hourlyRatePending.value)
 const showLineReview = computed(() => !hourlyQuoteReview.value && Number(skuStatus.value) === 1 && pendingReviewLines.value.length > 0)
+const isPendingReviewAttach = (item: any) => item?.offered === true && normalizeLineReviewStatus(item?.reviewStatus) == null
+const isAttachSelectable = (item: any) => Number(skuStatus.value) === 1 && isPendingReviewAttach(item)
+const pendingReviewAttaches = computed(() => skuAttaches.value.filter(isAttachSelectable))
+const showAttachReview = computed(() => pendingReviewAttaches.value.length > 0)
+const showQuoteFoot = computed(() => showLineReview.value || showAttachReview.value)
+const selectedReviewCount = computed(() => selectedReviewLines.value.length + selectedReviewAttaches.value.length)
+const rejectDialogCount = computed(() => lineRejectTargets.value.length + lineRejectAttachTargets.value.length)
+const isAttachSelected = (item: any) => selectedReviewAttaches.value.some((row) => Number(row?.attachValueId) === Number(item?.attachValueId))
+const toggleReviewAttach = (item: any, checked: boolean) => {
+  const id = Number(item?.attachValueId)
+  const rest = selectedReviewAttaches.value.filter((row) => Number(row?.attachValueId) !== id)
+  selectedReviewAttaches.value = checked ? [...rest, item] : rest
+}
+const onAttachCheck = (item: any, event: Event) => {
+  toggleReviewAttach(item, Boolean((event.target as HTMLInputElement | null)?.checked))
+}
+const attachEffectLabel = (item: any) => lineEffectLabel({
+  approvedPrice: item?.approvedPrice,
+  quotePrice: item?.quotePrice,
+  reviewStatus: item?.reviewStatus,
+})
 const canRejectWholeQuote = computed(() => Number(skuStatus.value) === 1)
 const isLineSelectable = (row: any) => Number(skuStatus.value) === 1 && isPendingReviewLine(row)
 
@@ -1669,23 +1756,14 @@ const confirmQuoteDecision = async (action: 'approve' | 'reject', name: string, 
   const messageKey = action === 'approve'
     ? (whole ? 'admin.platformSuppliers.approveQuoteConfirm' : 'admin.platformSuppliers.approveQuoteLinesConfirm')
     : (whole ? 'admin.platformSuppliers.rejectQuoteConfirm' : 'admin.platformSuppliers.rejectQuoteLinesConfirm')
-  try {
-    await ElMessageBox.confirm(
-      t(messageKey, { name, count }),
-      t(action === 'approve' ? 'admin.platformSuppliers.approveQuoteTitle' : 'admin.platformSuppliers.rejectQuote'),
-      {
-        type: 'warning',
-        confirmButtonText: t(action === 'approve' ? 'admin.platformSuppliers.approveQuoteTitle' : 'admin.platformSuppliers.confirmReject'),
-        cancelButtonText: t('admin.platformSuppliers.cancel'),
-      },
-    )
-    return true
-  } catch {
-    return false
-  }
+  return confirmReview(
+    t(messageKey, { name, count }),
+    t(action === 'approve' ? 'admin.platformSuppliers.approveQuoteTitle' : 'admin.platformSuppliers.rejectQuote'),
+    t(action === 'approve' ? 'admin.platformSuppliers.approveQuoteTitle' : 'admin.platformSuppliers.confirmReject'),
+  )
 }
 
-const reviewSelectedLines = async (status: 2 | 3, rows: any[], reason?: string) => {
+const reviewSelectedLines = async (status: 2 | 3, rows: any[], reason?: string, attachRows: any[] = []) => {
   if (!detailId.value || !skuTarget.value?.spuId || saving.value) return
   const lines = rows
     .filter(isLineSelectable)
@@ -1694,24 +1772,34 @@ const reviewSelectedLines = async (status: 2 | 3, rows: any[], reason?: string) 
       status,
       rejectReason: status === 3 ? reason : undefined,
     }))
-  if (!lines.length) {
+  const attaches = (attachRows || [])
+    .filter(isAttachSelectable)
+    .map((item) => ({
+      attachValueId: item.attachValueId,
+      status,
+      rejectReason: status === 3 ? reason : undefined,
+    }))
+  if (!lines.length && !attaches.length) {
     ElMessage.warning(t('admin.platformSuppliers.selectReviewLines'))
     return
   }
-  if (!await confirmQuoteDecision(status === 2 ? 'approve' : 'reject', quoteDecisionName(), lines.length)) return
+  if (!await confirmQuoteDecision(status === 2 ? 'approve' : 'reject', quoteDecisionName(), lines.length + attaches.length)) return
   saving.value = true
   try {
     await platformSupplierQuoteReview({
       supplierId: detailId.value,
       spuId: skuTarget.value.spuId,
       versionNo: skuVersionNo.value,
-      lines,
+      ...(lines.length ? { lines } : {}),
+      ...(attaches.length ? { attaches } : {}),
     })
     ElMessage.success(t(status === 2 ? 'admin.platformSuppliers.selectedApproved' : 'admin.platformSuppliers.selectedRejected'))
     lineRejectOpen.value = false
     lineRejectReason.value = ''
     lineRejectTargets.value = []
+    lineRejectAttachTargets.value = []
     selectedReviewLines.value = []
+    selectedReviewAttaches.value = []
     await refreshCurrentQuote()
   } catch (error: any) {
     ElMessage.error(error?.message || t(status === 2 ? 'admin.platformSuppliers.approveQuoteFailed' : 'admin.platformSuppliers.rejectFailed'))
@@ -1720,22 +1808,36 @@ const reviewSelectedLines = async (status: 2 | 3, rows: any[], reason?: string) 
   }
 }
 
-const approveSelectedLines = () => reviewSelectedLines(2, selectedReviewLines.value)
+const approveSelectedLines = () => reviewSelectedLines(2, selectedReviewLines.value, undefined, selectedReviewAttaches.value)
 
 const approveLine = (row: any) => reviewSelectedLines(2, [row])
+
+const approveAttach = (item: any) => reviewSelectedLines(2, [], undefined, [item])
 
 const reviewHourlyQuote = async (status: 2 | 3, reason?: string) => {
   if (!detailId.value || !skuTarget.value?.spuId || saving.value || !hourlyQuoteReview.value) return
   if (!await confirmQuoteDecision(status === 2 ? 'approve' : 'reject', quoteDecisionName())) return
   saving.value = true
   try {
-    await platformSupplierQuoteReview({
-      supplierId: detailId.value,
-      spuId: skuTarget.value.spuId,
-      versionNo: skuVersionNo.value,
-      status,
-      rejectReason: status === 3 ? reason : undefined,
-    })
+    const pendingRateLines = status === 2
+      ? skuRows.value
+        .filter((row) => Number(row?.enabled) === 1 && normalizeLineReviewStatus(row?.reviewStatus) == null)
+        .map((row) => ({ skuId: row.skuId, status: 2 as const }))
+      : []
+    await platformSupplierQuoteReview(pendingRateLines.length
+      ? {
+        supplierId: detailId.value,
+        spuId: skuTarget.value.spuId,
+        versionNo: skuVersionNo.value,
+        lines: pendingRateLines,
+      }
+      : {
+        supplierId: detailId.value,
+        spuId: skuTarget.value.spuId,
+        versionNo: skuVersionNo.value,
+        status,
+        rejectReason: status === 3 ? reason : undefined,
+      })
     ElMessage.success(t(status === 2 ? 'admin.platformSuppliers.selectedApproved' : 'admin.platformSuppliers.selectedRejected'))
     lineRejectOpen.value = false
     lineRejectReason.value = ''
@@ -1754,6 +1856,7 @@ const openHourlyReject = () => {
   pendingQuoteRow.value = null
   hourlyRejecting.value = true
   lineRejectTargets.value = []
+  lineRejectAttachTargets.value = []
   lineRejectReason.value = ''
   lineRejectOpen.value = true
 }
@@ -1775,12 +1878,23 @@ const quoteLinesToReject = (quote: any, reason: string) =>
       rejectReason: reason,
     }))
 
+const quoteAttachesToReject = (quote: any, reason: string) =>
+  (Array.isArray(quote?.attaches) ? quote.attaches : [])
+    .filter((item: any) => item?.canServe === true && normalizeLineReviewStatus(item?.reviewStatus) == null)
+    .map((item: any) => ({
+      attachValueId: item.attachValueId,
+      status: 3 as const,
+      rejectReason: reason,
+    }))
+
 const finishQuoteReject = async (spuId: number) => {
   ElMessage.success(t('admin.platformSuppliers.selectedRejected'))
   lineRejectOpen.value = false
   lineRejectReason.value = ''
   lineRejectTargets.value = []
+  lineRejectAttachTargets.value = []
   selectedReviewLines.value = []
+  selectedReviewAttaches.value = []
   resetQuoteReject()
   if (screen.value === 'quote' && Number(skuTarget.value?.spuId) === spuId) await refreshCurrentQuote()
   else if (detailId.value) await loadReview(detailId.value)
@@ -1797,19 +1911,28 @@ const rejectWholeQuote = async (row: any, reason: string) => {
     let versionNo = useLoaded ? skuVersionNo.value : undefined
     let hourly = useLoaded && hourlyQuoteReview.value
     let lines: Array<{ skuId: unknown; status: 3; rejectReason: string }> = []
+    let attaches: Array<{ attachValueId: unknown; status: 3; rejectReason: string }> = []
     if (!useLoaded) {
       const quote = unwrap(await platformSupplierQuoteSkus(supplierId, spuId)) || {}
       versionNo = quote.versionNo == null ? undefined : Number(quote.versionNo)
       hourly = quote.reviewByUnitPrice === true || Number(quote.quoteMode) === 2
-      if (!hourly) lines = quoteLinesToReject(quote, reason)
+      if (!hourly) {
+        lines = quoteLinesToReject(quote, reason)
+        attaches = quoteAttachesToReject(quote, reason)
+      }
     } else if (!hourly) {
       lines = pendingReviewLines.value.map((item) => ({
         skuId: item.skuId,
         status: 3 as const,
         rejectReason: reason,
       }))
+      attaches = pendingReviewAttaches.value.map((item) => ({
+        attachValueId: item.attachValueId,
+        status: 3 as const,
+        rejectReason: reason,
+      }))
     }
-    if (hourly || !lines.length) {
+    if (hourly || (!lines.length && !attaches.length)) {
       await platformSupplierQuoteReview({
         supplierId,
         spuId,
@@ -1822,7 +1945,8 @@ const rejectWholeQuote = async (row: any, reason: string) => {
         supplierId,
         spuId,
         versionNo,
-        lines,
+        ...(lines.length ? { lines } : {}),
+        ...(attaches.length ? { attaches } : {}),
       })
     }
     await finishQuoteReject(spuId)
@@ -1841,6 +1965,7 @@ const openWholeQuoteReject = (row?: any) => {
   rejectingWholeQuote.value = true
   hourlyRejecting.value = Boolean(useLoaded && showHourlyReview.value)
   lineRejectTargets.value = useLoaded && !hourlyRejecting.value ? pendingReviewLines.value.slice() : []
+  lineRejectAttachTargets.value = useLoaded && !hourlyRejecting.value ? pendingReviewAttaches.value.slice() : []
   lineRejectReason.value = ''
   lineRejectOpen.value = true
 }
@@ -1849,6 +1974,15 @@ const reviewPriceChange = async (row: any, status: 2 | 3, reason?: string) => {
   const supplierId = detailId.value
   const spuId = Number(row?.spuId)
   if (!supplierId || !spuId || saving.value) return
+  const serviceLabel = serviceName(row)
+  const confirmed = await confirmReview(
+    t(status === 2 ? 'admin.platformSuppliers.approvePriceChangeConfirm' : 'admin.platformSuppliers.rejectPriceChangeConfirm', {
+      name: serviceLabel === '—' ? t('admin.platformSuppliers.thisService') : serviceLabel,
+    }),
+    t(status === 2 ? 'admin.platformSuppliers.approvePriceChange' : 'admin.platformSuppliers.rejectPriceChange'),
+    t(status === 2 ? 'admin.platformSuppliers.approvePriceChange' : 'admin.platformSuppliers.confirmReject'),
+  )
+  if (!confirmed) return
   saving.value = true
   try {
     await reviewQuotePriceChange({
@@ -1886,17 +2020,22 @@ const submitPriceChangeReject = () => {
   return reviewPriceChange(priceChangeTarget.value, 3, reason)
 }
 
-const openLineReject = (rows?: any[]) => {
+const openLineReject = (rows?: any[] | null, attaches?: any[] | null) => {
   rejectingWholeQuote.value = false
   pendingQuoteRow.value = null
   hourlyRejecting.value = false
-  const source = Array.isArray(rows) && rows.length ? rows : selectedReviewLines.value
-  const targets = source.filter(isLineSelectable)
-  if (!targets.length) {
+  const lineSource = rows === undefined ? selectedReviewLines.value : (rows || [])
+  const attachSource = attaches === undefined
+    ? (rows === undefined ? selectedReviewAttaches.value : [])
+    : (attaches || [])
+  const targets = lineSource.filter(isLineSelectable)
+  const attachTargets = attachSource.filter(isAttachSelectable)
+  if (!targets.length && !attachTargets.length) {
     ElMessage.warning(t('admin.platformSuppliers.selectReviewLines'))
     return
   }
   lineRejectTargets.value = targets
+  lineRejectAttachTargets.value = attachTargets
   lineRejectReason.value = ''
   lineRejectOpen.value = true
 }
@@ -1909,7 +2048,7 @@ const rejectSelectedLines = () => {
   }
   if (hourlyRejecting.value) return reviewHourlyQuote(3, reason)
   if (rejectingWholeQuote.value) return rejectWholeQuote(pendingQuoteRow.value, reason)
-  return reviewSelectedLines(3, lineRejectTargets.value, reason)
+  return reviewSelectedLines(3, lineRejectTargets.value, reason, lineRejectAttachTargets.value)
 }
 
 const openReject = (_mode: 'onboarding', row?: any) => {
@@ -1926,6 +2065,12 @@ const submitReject = async () => {
   }
   const supplierId = Number(rejectTarget.value?.id || detailId.value)
   if (!supplierId) return
+  const confirmed = await confirmReview(
+    t('admin.platformSuppliers.rejectOnboardingConfirm', { name: supplierDecisionName(rejectTarget.value) }),
+    t('admin.platformSuppliers.rejectOnboarding'),
+    t('admin.platformSuppliers.confirmReject'),
+  )
+  if (!confirmed) return
   saving.value = true
   try {
     await onboardingChangeStatus({ id: supplierId, status: 3, rejectReason: reason })
@@ -2236,7 +2381,9 @@ const openSkus = async (row: any) => {
   skuRows.value = []
   skuAttaches.value = []
   selectedReviewLines.value = []
+  selectedReviewAttaches.value = []
   lineRejectTargets.value = []
+  lineRejectAttachTargets.value = []
   lineRejectOpen.value = false
   skuLoading.value = true
   lineRejectReason.value = ''
@@ -2350,6 +2497,8 @@ const openSkus = async (row: any) => {
         approvedPrice: saved.approvedPrice ?? null,
         offered: saved.canServe === true,
         quotePrice: saved.quotePrice ?? null,
+        reviewStatus: normalizeLineReviewStatus(saved.reviewStatus),
+        rejectReason: saved.rejectReason || '',
       }
     })
   } catch (error: any) {
@@ -2543,7 +2692,7 @@ button.status-pill:hover { box-shadow: inset 0 0 0 1px rgba(5, 21, 43, 0.2); }
 .quote-sheet-hint { margin: 6px 0 0; color: #6d7686; font-size: 12px; line-height: 1.5; }
 .quote-select { display: inline-flex; align-items: center; }
 .quote-file-input { display: none; }
-.quote-head__actions { display: flex; align-items: center; align-self: start; flex-wrap: wrap; justify-content: flex-end; gap: 8px; }
+.quote-head__actions { display: flex; align-items: center; flex-wrap: wrap; justify-content: flex-end; gap: 8px; min-width: 0; max-width: 100%; margin-inline-start: auto; }
 .kv { display: grid; grid-template-columns: 1fr 1fr; gap: 12px 16px; margin: 0; }
 .kv .span-all { grid-column: 1 / -1; }
 .community-picks { display: flex; flex-wrap: wrap; gap: 8px; }
@@ -2557,15 +2706,19 @@ button.status-pill:hover { box-shadow: inset 0 0 0 1px rgba(5, 21, 43, 0.2); }
 .doc-row div { flex: 1; }
 .doc-row small { display: block; color: #6d7686; }
 .doc-row .miss { color: #b42318; }
-.quote-head { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 12px 28px; margin-bottom: 12px; }
-.quote-head__copy { grid-column: 1; min-width: 0; }
-.quote-status-counts { grid-column: 2; }
-.quote-head__actions { grid-column: 3; }
-.quote-head h2 { margin: 0 0 6px; color: #05152b; }
-.quote-head p { margin: 0; color: #6d7686; }
+.supplier-body, .quote-page { min-width: 0; max-width: 100%; }
+.quote-head { display: flex; flex-direction: column; gap: 16px; margin-bottom: 16px; }
+.quote-head__copy { min-width: 0; }
+.quote-head__title { display: flex; align-items: flex-start; justify-content: space-between; flex-wrap: wrap; gap: 8px 16px; }
+.quote-head h2 { min-width: 0; margin: 0; color: #05152b; font-size: 22px; line-height: 1.35; overflow-wrap: anywhere; }
+.quote-head__title > .status-pill { flex: 0 0 auto; margin-top: 3px; }
+.quote-head p { margin: 6px 0 0; color: #6d7686; font-size: 13px; line-height: 1.6; }
+.quote-head__meta { display: flex; flex-wrap: wrap; gap: 2px 20px; }
+.quote-head .quote-head__reason { color: #b42318; overflow-wrap: anywhere; }
 .quote-head__hourly-rates { display: flex; flex-wrap: wrap; gap: 4px 16px; margin-top: 6px; font-size: 13px; }
-.quote-status-counts { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 8px; }
-.quote-status-count { display: inline-flex; align-items: baseline; gap: 6px; min-height: 32px; padding: 6px 12px; border-radius: 999px; background: #f4f1ea; color: #526070; font-size: 13px; line-height: 1.2; white-space: nowrap; }
+.quote-toolbar { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px 20px; min-width: 0; padding-top: 14px; border-top: 1px solid #eef2f6; }
+.quote-status-counts { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; min-width: 0; max-width: 100%; }
+.quote-status-count { display: inline-flex; align-items: baseline; gap: 6px; min-height: 32px; max-width: 100%; box-sizing: border-box; padding: 6px 10px; border-radius: 8px; background: #f4f1ea; color: #526070; font-size: 12px; line-height: 1.4; }
 .quote-status-count b { color: #05152b; font-size: 16px; font-variant-numeric: tabular-nums; }
 .quote-status-count.is-review { background: #fff4df; color: #9a6700; }
 .quote-status-count.is-review b { color: #9a6700; }
@@ -2585,12 +2738,21 @@ button.status-pill:hover { box-shadow: inset 0 0 0 1px rgba(5, 21, 43, 0.2); }
 .quote-foot { justify-content: flex-end; align-items: center; flex-wrap: wrap; margin-top: 14px; }
 .quote-foot__selection { margin-right: auto; color: #6d7686; font-size: 13px; }
 .act { flex: 0 0 auto; }
+.quote-page .act { display: inline-flex; align-items: center; justify-content: center; min-height: 34px; max-width: 100%; box-sizing: border-box; line-height: 1.4; text-align: center; }
+.quote-page .line-actions { flex-wrap: nowrap; gap: 8px; }
+.quote-page .line-actions .act { white-space: nowrap; }
+.quote-table { width: 100%; font-variant-numeric: tabular-nums; }
+.quote-table :deep(th .cell) { word-break: normal; overflow-wrap: anywhere; line-height: 1.5; }
+.quote-table :deep(td .cell) { word-break: normal; overflow-wrap: anywhere; }
+.quote-table :deep(.el-tag) { max-width: 100%; height: auto; min-height: 24px; padding-block: 3px; white-space: normal; line-height: 1.4; }
 .line-review-result { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; }
 .line-review-result small { color: #b42318; white-space: normal; }
 .line-reject-summary { margin: 0 0 12px; color: #6d7686; }
 @media (max-width: 900px) {
-  .stat-row, .split, .kv, .quote-head, .overview-board { grid-template-columns: 1fr; }
+  .stat-row, .split, .kv, .overview-board { grid-template-columns: 1fr; }
   .quote-status-counts { justify-content: flex-start; }
+  .quote-head__actions { justify-content: flex-start; margin-inline-start: 0; }
+  .quote-toolbar > * { flex-basis: 100%; }
   .supplier-hero { flex-wrap: wrap; }
   .hourly-review { align-items: flex-start; flex-direction: column; }
   .hourly-review__content { width: 100%; }
@@ -2618,10 +2780,13 @@ button.status-pill:hover { box-shadow: inset 0 0 0 1px rgba(5, 21, 43, 0.2); }
 .sku-meta { margin: 0 0 10px; color: #6d7686; font-size: 13px; }
 .sku-attaches { display: flex; flex-direction: column; gap: 8px; margin-top: 14px; }
 .sku-attaches h4 { margin: 0; font-size: 14px; }
-.sku-attach { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 12px; border: 1px solid #eadfce; border-radius: 10px; background: #fffdf8; }
-.sku-attach div { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.sku-attach { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 12px; padding: 10px 12px; border: 1px solid #eadfce; border-radius: 10px; background: #fffdf8; }
+.sku-attach__check { display: flex; flex: 0 0 auto; align-items: center; }
+.sku-attach__check input { width: 16px; height: 16px; }
+.sku-attach > div:not(.sku-attach__side) { display: flex; flex: 1 1 240px; flex-direction: column; gap: 3px; min-width: 0; overflow-wrap: anywhere; }
+.sku-attach__side { display: flex; flex: 1 1 220px; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 8px; }
 .sku-attach small { color: #74685a; font-size: 12px; }
-.sku-attach span { flex: 0 0 auto; font-weight: 700; }
+.sku-attach__side > span { flex: 0 0 auto; max-width: 100%; font-weight: 700; overflow-wrap: anywhere; }
 .order-detail { min-height: 100%; color: #05152b; }
 .order-detail__hero { display: flex; align-items: flex-start; justify-content: space-between; gap: 24px; padding: 4px 2px 8px; }
 .order-detail__eyebrow { margin-bottom: 4px; color: #7a8494; font-size: 12px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; }

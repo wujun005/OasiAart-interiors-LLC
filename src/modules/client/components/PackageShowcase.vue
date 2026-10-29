@@ -82,13 +82,6 @@
           </div>
         </div>
 
-        <p v-if="hasOverflow" class="packages__scroll-hint">
-          <svg aria-hidden="true" viewBox="0 0 24 24">
-            <path d="M4 12h16M8 8l-4 4 4 4m8-8 4 4-4 4" />
-          </svg>
-          <span>{{ t('client.home.packages.scrollHint') }}</span>
-        </p>
-
         <p v-if="activeGroup && !activeGroup.cards.length" class="packages__empty">
           {{ t('client.home.packages.emptyCategory') }}
         </p>
@@ -199,6 +192,7 @@ import {
   type PackageCatalogCategory,
 } from '@/modules/client/api'
 import { bizTagLabels } from '@/modules/client/utils/biz-tag'
+import { packageVisitCount } from '@/modules/client/utils/package-visits'
 
 withDefaults(defineProps<{ mode?: 'home' | 'page'; platform?: 'client' | 'h5' }>(), {
   mode: 'home',
@@ -317,7 +311,7 @@ const toCard = (item: PackageCatalogCard, categoryName: string, index: number, b
   const discount = original != null && original > sale
     ? Math.round(((original - sale) / original) * 100)
     : 0
-  const visits = Number(item.redeemTimes || 0)
+  const visits = packageVisitCount(item)
   const name = pickText(item.nameI18n, item.packageName || '')
   const isBest = saved > 0 && saved === bestSaving
   const tones = ['is-mint', 'is-sand', 'is-sky']
@@ -669,8 +663,7 @@ onMounted(async () => {
 }
 
 .packages__nav svg,
-.packages__edge svg,
-.packages__scroll-hint svg {
+.packages__edge svg {
   width: 16px;
   height: 16px;
   fill: none;
@@ -678,22 +671,6 @@ onMounted(async () => {
   stroke-linecap: round;
   stroke-linejoin: round;
   stroke-width: 1.9;
-}
-
-.packages__scroll-hint {
-  display: flex;
-  justify-content: flex-end;
-  align-items: center;
-  gap: 7px;
-  margin: 8px 0 -4px;
-  color: #126c60;
-  font-size: 12px;
-  font-weight: 750;
-}
-
-.packages__scroll-hint svg {
-  width: 20px;
-  height: 20px;
 }
 
 .packages__carousel {
@@ -1228,7 +1205,6 @@ onMounted(async () => {
   }
 
   .packages__carousel { margin-top: 10px; }
-  .packages__scroll-hint { font-size: 12px; }
   .packages__edge { width: 44px; height: 44px; }
   .packages__edge--previous { left: -10px; }
   .packages__edge--next { right: -10px; }
