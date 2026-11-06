@@ -20,15 +20,16 @@
         <dd :class="eligibilityTone"><i aria-hidden="true" />{{ eligibilityLabel }}</dd>
       </div>
     </dl>
-    <p v-if="detail && eligibilityKey !== 'active'" class="supplier-identity__note">{{ t('admin.supplierAvailability.preferenceSaved') }}</p>
+    <p v-if="detail && eligibilityKey === 'notBookable'" class="supplier-identity__note">{{ t('admin.supplierAvailability.operationsRequired') }}</p>
+    <p v-else-if="detail && eligibilityKey !== 'active'" class="supplier-identity__note">{{ t('admin.supplierAvailability.preferenceSaved') }}</p>
   </section>
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useAdminSessionStore } from '@/modules/admin/stores/session';
-import { dispatchEligibility } from '@/modules/admin/utils/supplierReviewState';
+import { dispatchEligibility, supplierOperationsReady } from '@/modules/admin/utils/supplierReviewState';
 
 defineProps<{ compact?: boolean }>();
 const session = useAdminSessionStore();
@@ -59,16 +60,43 @@ const dispatchStatus = computed(() => {
 const acceptPreference = computed(() => t(dispatchStatus.value === 1
   ? 'admin.supplierAvailability.preferenceOn'
   : 'admin.supplierAvailability.preferenceOff'));
+const supplierKey = computed(() => {
+  const id = session.me?.supplierId;
+  return id == null ? '' : String(id);
+});
+const operationsReady = computed(() => {
+  const key = supplierKey.value;
+  if (!key || !detail.value) return false;
+  const quotes = session.quotes[key];
+  const packageQuotes = session.packageQuotes[key];
+  if (!quotes || !packageQuotes) return false;
+  return supplierOperationsReady({
+    quotes,
+    packageQuotes,
+    areas: detail.value.serviceAreas,
+  });
+});
+watch(supplierKey, (key) => {
+  if (!key) return;
+  void session.supplierQuotes(key).catch(() => {
+    if (!session.quotes[key]) session.quotes[key] = [];
+  });
+  void session.supplierPackageQuotes(key).catch(() => {
+    if (!session.packageQuotes[key]) session.packageQuotes[key] = [];
+  });
+}, { immediate: true });
 const eligibilityKey = computed(() => dispatchEligibility({
   reviewStatus: reviewStatus.value,
   enabled: detail.value?.enabled,
   acceptDispatch: detail.value?.acceptDispatch,
+  operationsReady: operationsReady.value,
 }));
 const eligibilityLabel = computed(() => {
   const keys = {
     pendingVerification: 'eligibilityPending',
     verificationApproved: 'eligibilityApproved',
     setupIncomplete: 'eligibilitySetup',
+    notBookable: 'eligibilityNotBookable',
     active: 'eligibilityActive',
     suspended: 'eligibilitySuspended',
     changesRequired: 'eligibilityChanges',
@@ -77,7 +105,7 @@ const eligibilityLabel = computed(() => {
 });
 const dispatchTone = computed(() => dispatchStatus.value === 1 ? 'is-positive' : 'is-paused');
 const eligibilityTone = computed(() => eligibilityKey.value === 'active' ? 'is-positive'
-  : eligibilityKey.value === 'suspended' || eligibilityKey.value === 'changesRequired' ? 'is-negative' : 'is-pending');
+  : eligibilityKey.value === 'suspended' || eligibilityKey.value === 'changesRequired' || eligibilityKey.value === 'notBookable' ? 'is-negative' : 'is-pending');
 </script>
 
 <style scoped>

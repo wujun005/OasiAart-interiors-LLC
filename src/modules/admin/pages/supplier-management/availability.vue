@@ -1,5 +1,5 @@
 <template>
-  <div class="availability" v-loading="loading">
+  <div class="availability" :class="{ 'availability--mobile': mobile }" v-loading="loading">
     <section class="availability-control" :class="{ 'is-off': !dispatchActive }">
       <div class="availability-control__copy">
         <span class="availability-control__kicker">{{ copy.workspace }}</span>
@@ -9,9 +9,12 @@
           <em>{{ t('admin.supplierAvailability.acceptJobs') }} · {{ accepting ? t('admin.supplierAvailability.preferenceOn') : t('admin.supplierAvailability.preferenceOff') }}</em>
           <em>{{ t('admin.supplierAvailability.preference') }} · {{ accepting ? t('admin.supplierAvailability.preferenceOn') : t('admin.supplierAvailability.preferenceOff') }}</em>
         </div>
-        <p v-if="!dispatchActive">{{ t('admin.supplierAvailability.dispatchLater') }}</p>
-        <p v-if="!dispatchActive" class="availability-control__note">{{ t('admin.supplierAvailability.preferenceSaved') }}</p>
-        <p v-else-if="!enabled" class="availability-control__note">{{ t('admin.supplierAvailability.accountOff') }}</p>
+        <p v-if="eligibilityKey === 'notBookable'" class="availability-control__note">{{ t('admin.supplierAvailability.operationsRequired') }}</p>
+        <template v-else>
+          <p v-if="!dispatchActive">{{ t('admin.supplierAvailability.dispatchLater') }}</p>
+          <p v-if="!dispatchActive" class="availability-control__note">{{ t('admin.supplierAvailability.preferenceSaved') }}</p>
+          <p v-else-if="!enabled" class="availability-control__note">{{ t('admin.supplierAvailability.accountOff') }}</p>
+        </template>
       </div>
       <div class="availability-control__action">
         <div class="availability-state" role="status">
@@ -85,7 +88,7 @@
           <el-button type="primary" @click="openBlock()">{{ copy.addBlockedTime }}</el-button>
         </div>
       </header>
-      <el-table :data="events" class="avail-table" row-key="id" :empty-text="loadError ? t('admin.supplierAvailability.loadFailed') : t('admin.supplierAvailability.empty')">
+      <el-table v-if="!mobile" :data="events" class="avail-table" row-key="id" :empty-text="loadError ? t('admin.supplierAvailability.loadFailed') : t('admin.supplierAvailability.empty')">
         <el-table-column :label="t('admin.supplierAvailability.date')" min-width="138">
           <template #default="{ row }">
             <strong v-if="weeklyClosureText(row)">{{ weeklyClosureText(row) }}</strong>
@@ -162,6 +165,7 @@
         </article>
         <div v-if="!events.length" class="blocked-empty">
           {{ loadError ? t('admin.supplierAvailability.loadFailed') : t('admin.supplierAvailability.empty') }}
+          <el-button v-if="loadError" @click="loadEvents(true)">{{ t('admin.common.refresh') }}</el-button>
         </div>
       </div>
       <div v-if="total > pageSize" class="avail-pager">
@@ -169,9 +173,16 @@
       </div>
     </section>
 
-    <el-dialog v-model="blockOpen" :title="blockForm.id ? t('admin.supplierAvailability.blockEdit') : t('admin.supplierAvailability.blockCreate')" width="min(640px, calc(100vw - 32px))" :close-on-click-modal="false">
+    <el-dialog v-model="blockOpen" :class="{ 'supplier-mobile-availability-dialog': mobile }" :fullscreen="mobile" :title="blockForm.id ? t('admin.supplierAvailability.blockEdit') : t('admin.supplierAvailability.blockCreate')" width="min(640px, calc(100vw - 32px))" :close-on-click-modal="false" append-to-body>
       <div class="block-form">
-        <label>
+        <div v-if="mobile" class="mobile-date-field">
+          <span>{{ t('admin.supplierAvailability.date') }}</span>
+          <div class="mobile-date-pair">
+            <label><span>{{ copy.startDate }}</span><input v-model="blockForm.dates[0]" type="date" :max="blockForm.dates[1] || undefined" /></label>
+            <label><span>{{ copy.endDate }}</span><input v-model="blockForm.dates[1]" type="date" :min="blockForm.dates[0] || undefined" /></label>
+          </div>
+        </div>
+        <label v-else>
           <span>{{ t('admin.supplierAvailability.date') }}</span>
           <el-date-picker v-model="blockForm.dates" type="daterange" value-format="YYYY-MM-DD" :start-placeholder="t('admin.supplierAvailability.date')" :end-placeholder="t('admin.supplierAvailability.date')" />
         </label>
@@ -199,14 +210,18 @@
           </span>
           <el-switch v-model="blockForm.fullDay" />
         </label>
-        <label v-if="!blockForm.fullDay">
+        <div v-if="!blockForm.fullDay" class="hours-range-field">
           <span>{{ t('admin.supplierAvailability.time') }}</span>
-          <div class="hours-form__range">
+          <div v-if="mobile" class="mobile-date-pair">
+            <label><span>{{ copy.startTime }}</span><input v-model="blockForm.startTime" type="time" step="1800" /></label>
+            <label><span>{{ copy.endTime }}</span><input v-model="blockForm.endTime" type="time" step="1800" /></label>
+          </div>
+          <div v-else class="hours-form__range">
             <el-time-select v-model="blockForm.startTime" start="00:00" step="00:30" end="23:30" />
             <em>–</em>
             <el-time-select v-model="blockForm.endTime" start="00:00" step="00:30" end="23:30" />
           </div>
-        </label>
+        </div>
         <label>
           <span>{{ t('admin.supplierAvailability.serviceOptional') }}</span>
           <el-select :model-value="blockForm.spuIds" multiple filterable clearable collapse-tags :placeholder="t('admin.supplierAvailability.allServices')" @update:model-value="setServiceScope">
@@ -232,7 +247,7 @@
       </template>
     </el-dialog>
 
-    <el-dialog v-model="calendarOpen" :title="t('admin.supplierAvailability.calendarTitle')" width="min(720px, calc(100vw - 32px))">
+    <el-dialog v-model="calendarOpen" :class="{ 'supplier-mobile-availability-dialog': mobile }" :fullscreen="mobile" :title="t('admin.supplierAvailability.calendarTitle')" width="min(720px, calc(100vw - 32px))" append-to-body>
       <p class="cal-hint">{{ t('admin.supplierAvailability.calendarHint') }}</p>
       <div class="cal-nav">
         <el-button @click="shiftMonth(-1)">‹</el-button>
@@ -260,6 +275,7 @@
           <span>{{ [weekdayText(event), event.reason || eventDate(event)].filter(Boolean).join(' · ') }}</span>
         </li>
       </ul>
+      <p v-else-if="pickedDay" class="cal-hint cal-hint--empty">{{ t('admin.supplierAvailability.empty') }}</p>
     </el-dialog>
   </div>
 </template>
@@ -304,11 +320,13 @@ type SupplierEvent = {
 const ALL_WEEKDAYS = [1, 2, 3, 4, 5, 6, 7]
 
 const props = defineProps<{
+  mobile?: boolean
   enabled: boolean
   acceptDispatch: boolean
   reviewStatus?: number | null
   dispatchSaving: boolean
   canToggle: boolean
+  operationsReady?: boolean
   services?: { spuId: number; name: string }[]
   areas?: { areaId: number; areaName: string }[]
   coverageRows?: CoverageRow[]
@@ -336,6 +354,10 @@ const copy = computed(() => (isZh.value ? {
   partialCoverage: '部分覆盖',
   activeCoverage: '已覆盖',
   inactiveCoverage: '未覆盖',
+  startDate: '开始日期',
+  endDate: '结束日期',
+  startTime: '开始时间',
+  endTime: '结束时间',
 } : {
   workspace: 'Service areas & Availability',
   acceptingNewJobs: 'Accept new bookings',
@@ -350,6 +372,10 @@ const copy = computed(() => (isZh.value ? {
   partialCoverage: 'Partial coverage',
   activeCoverage: 'Covered',
   inactiveCoverage: 'Not covered',
+  startDate: 'Start date',
+  endDate: 'End date',
+  startTime: 'Start time',
+  endTime: 'End time',
 }))
 const normalizedCoverageRows = computed(() => props.coverageRows || [])
 const coverageCommunityTotal = computed(() => normalizedCoverageRows.value.reduce(
@@ -383,12 +409,14 @@ const eligibilityKey = computed(() => dispatchEligibility({
   reviewStatus: props.reviewStatus,
   enabled: props.enabled ? 1 : 0,
   acceptDispatch: props.acceptDispatch ? 1 : 0,
+  operationsReady: props.operationsReady,
 }))
 const eligibilityLabel = computed(() => {
   const keys = {
     pendingVerification: 'eligibilityPending',
     verificationApproved: 'eligibilityApproved',
     setupIncomplete: 'eligibilitySetup',
+    notBookable: 'eligibilityNotBookable',
     active: 'eligibilityActive',
     suspended: 'eligibilitySuspended',
     changesRequired: 'eligibilityChanges',
@@ -634,6 +662,7 @@ const removeBlock = async (row: SupplierEvent) => {
       t('admin.common.confirmTitle'),
       {
         type: 'warning',
+        customClass: props.mobile ? 'supplier-mobile-availability-confirm' : undefined,
         confirmButtonText: t('admin.supplierAvailability.delete'),
         cancelButtonText: t('admin.supplierAvailability.cancel'),
       },
@@ -777,7 +806,7 @@ onMounted(loadEvents)
 
 .block-form, .hours-form { display: flex; flex-direction: column; gap: 16px; }
 .block-form :deep(.el-date-editor), .block-form :deep(.el-select) { width: 100%; }
-.hours-form label, .block-form > label:not(.hours-form__switch) { display: flex; flex-direction: column; gap: 8px; }
+.hours-form label, .block-form > label:not(.hours-form__switch), .hours-range-field { display: flex; flex-direction: column; gap: 8px; }
 .hours-form span, .block-form span { color: #74685a; font-size: 12px; font-weight: 700; }
 .hours-form__range { display: grid; grid-template-columns: 1fr auto 1fr; gap: 8px; align-items: center; }
 .hours-form__range em { color: #74685a; font-style: normal; }
@@ -835,4 +864,82 @@ onMounted(loadEvents)
   .hours-form__range { grid-template-columns: minmax(0, 1fr); }
   .hours-form__range em { display: none; }
 }
+
+.availability--mobile { gap: 16px; color: #102b44; font-size: 14px; }
+.availability--mobile .availability-control { flex-direction: column; align-items: stretch; gap: 18px; min-height: 0; padding: 18px 16px; color: #102b44; border: 1px solid #e4e9ef; border-radius: 16px; background: #fff; box-shadow: none; }
+.availability--mobile .availability-control::after { display: none; }
+.availability--mobile .availability-control.is-off { background: #fff; }
+.availability--mobile .availability-control h2 { color: #102b44; font-family: inherit; font-size: 20px; font-weight: 700; line-height: 1.35; letter-spacing: -.025em; }
+.availability--mobile .availability-control__kicker { margin-bottom: 6px; color: #8e744c; font-size: 10px; letter-spacing: .08em; }
+.availability--mobile .availability-facts { gap: 6px; }
+.availability--mobile .availability-facts em { padding: 5px 8px; color: #44576b; border-radius: 7px; background: #f0f4f8; font-size: 11px; font-weight: 600; line-height: 1.45; }
+.availability--mobile .availability-control p { color: #64748b; font-size: 12px; line-height: 1.65; }
+.availability--mobile .availability-control__note { color: #946d35 !important; }
+.availability--mobile .availability-control__action { justify-content: space-between; align-items: center; width: 100%; padding: 14px; border: 1px solid #e4ece8; border-radius: 12px; background: #f4f9f6; backdrop-filter: none; }
+.availability--mobile .availability-state { gap: 12px; }
+.availability--mobile .availability-state__mark { width: 8px; height: 8px; background: #238266; box-shadow: 0 0 0 4px #23826612; }
+.availability--mobile .is-off .availability-state__mark { background: #b4935c; box-shadow: 0 0 0 4px #b4935c14; }
+.availability--mobile .availability-state strong { color: #1c4b3b; font-size: 13px; }
+.availability--mobile .availability-control :deep(.el-switch) { --el-switch-on-color: #238266; --el-switch-off-color: #a1acb8; }
+.availability--mobile .availability-state small { max-width: none; color: #637d70; white-space: normal; font-size: 11px; line-height: 1.5; }
+.availability--mobile .workspace-card { border-color: #e4e9ef; border-radius: 16px; background: #fff; box-shadow: none; }
+.availability--mobile .workspace-card__header { flex-direction: column; gap: 14px; padding: 17px 16px; border-bottom-color: #edf0f4; }
+.availability--mobile .workspace-card h2 { color: #102b44; font-family: inherit; font-size: 17px; font-weight: 650; line-height: 1.4; letter-spacing: -.02em; }
+.availability--mobile .workspace-card__header p { color: #64748b; font-size: 12px; line-height: 1.65; }
+.availability--mobile .workspace-card__header :deep(.el-button) { width: 100%; min-height: 44px; height: auto; padding: 10px 12px; border-color: #dce4ec; border-radius: 10px; color: #102b44; font-size: 13px; white-space: normal; }
+.availability--mobile .workspace-card__header :deep(.el-button--primary) { border-color: #102b44; color: #fff; background: #102b44; }
+.availability--mobile .coverage-totals { grid-template-columns: repeat(2, minmax(0, 1fr)); padding: 14px 16px 8px; }
+.availability--mobile .coverage-totals > div { padding: 14px 12px; border-color: #e8edf3; border-radius: 12px; background: #f7f9fb; }
+.availability--mobile .coverage-totals span { color: #64748b; font-size: 11px; font-weight: 600; line-height: 1.45; letter-spacing: 0; }
+.availability--mobile .coverage-totals strong { margin-top: 8px; color: #102b44; font-size: 26px; font-weight: 700; }
+.availability--mobile .coverage-list { max-height: none; padding: 0 16px 14px; overflow: visible; }
+.availability--mobile .coverage-list article { gap: 10px; padding-block: 14px; border-bottom-color: #edf0f4; }
+.availability--mobile .coverage-list__zone strong { font-size: 14px; }
+.availability--mobile .coverage-list__zone small { color: #64748b; font-size: 12px; line-height: 1.5; }
+.availability--mobile .coverage-list em { max-width: 45%; padding: 5px 8px; font-size: 11px; line-height: 1.4; text-align: center; }
+.availability--mobile .coverage-empty { margin: 0 16px 16px; border-color: #dce4ec; border-radius: 12px; background: #f7f9fb; }
+.availability--mobile .coverage-empty p { color: #64748b; }
+.availability--mobile .blocked-card__tools { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); width: 100%; gap: 10px; }
+.availability--mobile .blocked-card__tools > span { grid-column: 1 / -1; color: #64748b; font-size: 12px; }
+.availability--mobile .blocked-card__tools :deep(.el-button) { margin: 0; }
+.availability--mobile .blocked-cards { display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; padding: 14px 12px 12px; }
+.availability--mobile .blocked-cards > article { padding: 16px 14px; border-color: #e4e9ef; border-radius: 12px; background: #fff; }
+.availability--mobile .blocked-cards > article > header { flex-direction: column; gap: 12px; }
+.availability--mobile .blocked-cards > article > header strong { font-size: 14px; line-height: 1.5; }
+.availability--mobile .blocked-cards > article > header small { color: #64748b; font-size: 12px; line-height: 1.5; }
+.availability--mobile .blocked-cards > article > header .row-actions { display: flex; width: 100%; gap: 10px; }
+.availability--mobile .row-actions :deep(.el-button) { flex: 1; min-height: 44px; margin: 0; border: 1px solid #e4e9ef; border-radius: 10px; background: #fff; font-size: 13px; }
+.availability--mobile .blocked-cards dl { grid-template-columns: minmax(0, 1fr); gap: 14px; border-top-color: #edf0f4; }
+.availability--mobile .blocked-cards dt { color: #64748b; font-size: 11px; font-weight: 600; letter-spacing: 0; }
+.availability--mobile .tag-row em { padding: 5px 8px; border-radius: 7px; background: #f0f4f8; color: #43566a; font-size: 12px; white-space: normal; overflow-wrap: anywhere; }
+.availability--mobile .blocked-empty { display: grid; justify-items: center; gap: 14px; padding: 32px 18px; color: #64748b; font-size: 13px; line-height: 1.65; }
+.availability--mobile .avail-pager { justify-content: center; padding: 10px 12px 18px; }
+.availability--mobile .avail-pager :deep(.btn-prev), .availability--mobile .avail-pager :deep(.btn-next), .availability--mobile .avail-pager :deep(.el-pager li) { min-width: 38px; height: 42px; }
+
+.mobile-date-field { display: grid; gap: 8px; }
+.mobile-date-pair { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.mobile-date-pair label { display: grid; gap: 6px; min-width: 0; }
+.mobile-date-pair span { font-size: 11px; font-weight: 500; color: #64748b; }
+.mobile-date-pair input { box-sizing: border-box; width: 100%; min-width: 0; min-height: 46px; padding: 10px 8px; color: #102b44; border: 1px solid #dce4ec; border-radius: 10px; background: #fff; font: inherit; font-size: 16px; font-weight: 500; line-height: 1.4; }
+.mobile-date-pair input:focus-visible { outline: 2px solid #b4935c; outline-offset: 2px; }
+
+:global(.supplier-mobile-availability-dialog.el-dialog.is-fullscreen) { display: flex; flex-direction: column; box-sizing: border-box; width: 100% !important; max-width: 100vw; height: 100dvh; max-height: 100dvh; margin: 0 !important; padding: 0; border: 0; border-radius: 0; background: #f5f6f8; }
+:global(.supplier-mobile-availability-dialog .el-dialog__header) { flex: none; margin: 0; padding: calc(16px + env(safe-area-inset-top, 0px)) 52px 16px 18px; border-bottom: 1px solid #e4e9ef; background: #fff; }
+:global(.supplier-mobile-availability-dialog .el-dialog__title) { color: #102b44; font-size: 18px; font-weight: 650; line-height: 1.4; }
+:global(.supplier-mobile-availability-dialog .el-dialog__headerbtn) { top: calc(10px + env(safe-area-inset-top, 0px)); right: 10px; width: 40px; height: 40px; }
+:global(.supplier-mobile-availability-dialog .el-dialog__body) { flex: 1; min-height: 0; padding: 20px 18px; overflow-y: auto; overscroll-behavior: contain; }
+:global(.supplier-mobile-availability-dialog .el-dialog__footer) { flex: none; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; padding: 14px 18px calc(14px + env(safe-area-inset-bottom, 0px)); border-top: 1px solid #e4e9ef; background: #fff; }
+:global(.supplier-mobile-availability-dialog .el-dialog__footer .el-button) { min-height: 46px; height: auto; margin: 0; font-size: 15px; }
+:global(.supplier-mobile-availability-dialog .el-select__wrapper), :global(.supplier-mobile-availability-dialog .el-input__wrapper) { min-height: 44px; }
+:global(.supplier-mobile-availability-dialog .el-input__inner), :global(.supplier-mobile-availability-dialog .el-textarea__inner) { font-size: 16px; }
+:global(.supplier-mobile-availability-dialog .weekday-picks) { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 7px; }
+:global(.supplier-mobile-availability-dialog .weekday-picks button) { justify-content: center; gap: 4px; min-height: 44px; padding: 6px 4px; border-radius: 9px; font-size: 12px; }
+:global(.supplier-mobile-availability-dialog .weekday-check) { width: 17px; height: 17px; border-radius: 5px; }
+:global(.supplier-mobile-availability-dialog .weekday-picks button.is-on .weekday-check::after) { width: 4px; height: 8px; border-width: 0 2px 2px 0; }
+:global(.supplier-mobile-availability-dialog .cal-week), :global(.supplier-mobile-availability-dialog .cal-grid) { grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 4px; }
+:global(.supplier-mobile-availability-dialog .cal-grid button) { min-height: 44px; font-size: 14px; }
+:global(.supplier-mobile-availability-dialog .cal-nav strong) { font-size: 21px; }
+:global(.supplier-mobile-availability-dialog .cal-list li) { flex-direction: column; gap: 5px; font-size: 13px; line-height: 1.5; }
+:global(.supplier-mobile-availability-dialog .cal-hint--empty) { margin-top: 18px; padding: 15px; border: 1px solid #e4e9ef; border-radius: 12px; background: #f7f9fb; }
+:global(.supplier-mobile-availability-confirm) { box-sizing: border-box; width: calc(100vw - 32px); max-width: 390px; }
 </style>

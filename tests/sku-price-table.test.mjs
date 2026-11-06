@@ -6,6 +6,7 @@ import {
   formatSkuMoney,
   skuPriceBases,
   skuPriceTotals,
+  skuValidsFromRows,
 } from '../src/modules/admin/utils/skuPriceTable.ts';
 
 const labelOf = (value, fallback = '') => {
@@ -68,6 +69,30 @@ test('priced specs collapse out of the rows and their prices are added to the to
   assert.deepEqual(skuPriceBases(editor.rows), [
     { specValueIds: [783], price: 80, originalPrice: 100 },
     { specValueIds: [782], price: null, originalPrice: null },
+  ]);
+});
+
+test('each priced combination keeps its sku and can be turned off', () => {
+  const editor = buildSkuPriceEditor([duct, staff], [
+    { skuId: 4961, valid: 1, price: 200, originalPrice: 200, 339: { en: '带家具', price: 100 }, 340: { en: '456' } },
+    { skuId: 4962, valid: 0, price: 110, originalPrice: 110, 339: { en: '不带家具', price: 10 }, 340: { en: '456' } },
+    { skuId: 4963, valid: 1, price: 200, originalPrice: 200, 339: { en: '带家具', price: 100 }, 340: { en: '1212' } },
+    { skuId: 4964, valid: 1, price: 110, originalPrice: 110, 339: { en: '不带家具', price: 10 }, 340: { en: '1212' } },
+  ], labelOf);
+  assert.deepEqual(editor.rows[0].variants.map((variant) => ({
+    skuId: variant.skuId,
+    valid: variant.valid,
+    label: variant.label,
+  })), [
+    { skuId: 4961, valid: true, label: '带家具' },
+    { skuId: 4962, valid: false, label: '不带家具' },
+  ]);
+  editor.rows[0].variants[0].valid = false;
+  assert.deepEqual(skuValidsFromRows(editor.rows), [
+    { skuId: 4961, valid: 0 },
+    { skuId: 4962, valid: 0 },
+    { skuId: 4963, valid: 1 },
+    { skuId: 4964, valid: 1 },
   ]);
 });
 

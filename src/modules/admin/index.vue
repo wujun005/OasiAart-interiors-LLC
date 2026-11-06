@@ -27,16 +27,39 @@
         </div>
         <SupplierIdentityCard v-if="isSupplierPortal" :compact="isSidebarCollapsed" />
         <div v-show="!isSidebarCollapsed" class="navigation-label">{{ navigationLabel }}</div>
+        <label v-if="menuTree.length" v-show="!isSidebarCollapsed" class="menu-search">
+          <el-icon aria-hidden="true"><Search /></el-icon>
+          <input
+            v-model="menuQuery"
+            type="search"
+            enterkeyhint="search"
+            :placeholder="t('admin.layout.menuSearch')"
+            :aria-label="t('admin.layout.menuSearch')"
+            @keydown.enter.prevent="openMenuSearchMatch"
+            @keydown.esc.prevent="menuQuery = ''"
+          />
+          <button
+            v-if="menuQuery"
+            type="button"
+            class="menu-search__clear"
+            :aria-label="t('admin.layout.menuSearchClear')"
+            @click="menuQuery = ''"
+          >
+            ×
+          </button>
+        </label>
         <el-menu
+          v-show="displayedMenuTree.length"
+          :key="menuRenderKey"
           :default-active="activeMenu"
-          :default-openeds="defaultOpeneds"
+          :default-openeds="openedMenuIndexes"
           :collapse="isSidebarCollapsed"
           :collapse-transition="false"
           class="menu"
           @select="handleSelect"
         >
           <PermissionMenuItem
-            v-for="item in menuTree"
+            v-for="item in displayedMenuTree"
             :key="item.id"
             :item="item"
             :resolve-icon="resolveMenuIcon"
@@ -46,6 +69,9 @@
         </el-menu>
         <div v-if="!menuTree.length" class="menu-empty">
           {{ t('admin.layout.noMenuPermission') }}
+        </div>
+        <div v-else-if="!isSidebarCollapsed && normalizedMenuQuery && !displayedMenuTree.length" class="menu-empty">
+          {{ t('admin.layout.menuSearchEmpty') }}
         </div>
         <div class="sidebar-foot">
           <span class="sidebar-foot__signal" aria-hidden="true"><i /></span>
@@ -74,7 +100,7 @@
             </button>
             <div class="page-heading">
               <span class="page-heading__eyebrow">{{ consoleLabel }}</span>
-              <h1 class="breadcrumb">{{ pageTitle }}</h1>
+              <h1 class="breadcrumb" :title="pageTitle">{{ pageTitle }}</h1>
             </div>
           </div>
           <div class="actions">
@@ -262,9 +288,11 @@ import {
   Bell,
   Setting,
   SwitchButton,
+  Search,
   Menu as MenuIcon,
 } from '@element-plus/icons-vue';
-import { ADMIN_LOCALE_STORAGE_KEY, type AdminLocale } from '@/modules/admin/locales';
+import { ADMIN_LOCALE_STORAGE_KEY, adminMessages, type AdminLocale } from '@/modules/admin/locales';
+import { filterAdminMenu } from '@/modules/admin/utils/menuSearch';
 import {
   clearAdminAuthState,
   getAdminAuthStorageValue,
@@ -281,6 +309,7 @@ import {
   type AdminMenuPermissionItem,
 } from '@/modules/admin/utils/menuPermission';
 import { useAdminSessionStore } from '@/modules/admin/stores/session';
+import { supplierShelfNoticeUnread } from '@/modules/admin/utils/supplierShelfNotice';
 import { setInitialAdminPassword, updateAdminUserPassword } from '@/modules/admin/api/user'
 import { resetAdminPassword, sendAdminVerifyCode } from '@/modules/admin/api'
 import { DEFAULT_PHONE_DIAL, PHONE_DIAL_OPTIONS, joinPhone, splitPhone } from '@/utils/phone-dial';
@@ -305,11 +334,13 @@ const getInitialSidebarCollapsed = () => {
   }
 };
 const isSidebarCollapsed = ref(getInitialSidebarCollapsed());
+const menuQuery = ref('');
 const supplierMenuOrder = [
   '/admin/supplier-management/overview',
   '/admin/supplier-management/profile',
   '/admin/supplier-management/coverage-availability',
   '/admin/supplier-management/pricing',
+  '/admin/supplier-management/package-pricing',
   '/admin/supplier-management/orders',
   '/admin/supplier-management/staff',
 ];
@@ -323,10 +354,37 @@ const menuTree = computed(() => {
     if (!supplierMenuOrder.includes(path) || menus.has(path)) return;
     menus.set(path, { ...item, path, children: [] });
   });
-  return supplierMenuOrder.flatMap((path) => menus.has(path) ? [menus.get(path)!] : []);
+  const individual = Number(session.details[String(session.me?.supplierId || '')]?.supplierType) === 2;
+  return supplierMenuOrder.flatMap((path) => {
+    if (!menus.has(path) || (individual && path.endsWith('/staff'))) return [];
+    return [menus.get(path)!];
+  });
 });
 const getMenuIndex = (item: AdminMenuPermissionItem) =>
   item.path || `menu-${item.id}`;
+
+const localeText = (localeName: AdminLocale, key: string) => {
+  const value = key.split('.').reduce<unknown>((node, part) => {
+    if (!node || typeof node !== 'object') return undefined;
+    return (node as Record<string, unknown>)[part];
+  }, adminMessages[localeName]);
+  return typeof value === 'string' ? value : '';
+};
+
+const menuSearchLabels = (item: AdminMenuPermissionItem) => {
+  const key = item.path ? menuLabelKeyByPath[item.path] : '';
+  return key ? [localeText('zh', key), localeText('en', key)] : [];
+};
+
+const normalizedMenuQuery = computed(() => menuQuery.value.trim());
+const displayedMenuTree = computed(() => (
+  isSidebarCollapsed.value
+    ? menuTree.value
+    : filterAdminMenu(menuTree.value, normalizedMenuQuery.value, menuSearchLabels)
+));
+const menuRenderKey = computed(() => (
+  isSidebarCollapsed.value ? 'collapsed' : `expanded:${normalizedMenuQuery.value.toLowerCase()}`
+));
 
 const menuByPath = computed(() => {
   const map = new Map<string, AdminMenuPermissionItem>();
@@ -346,6 +404,19 @@ const defaultOpeneds = computed(() =>
     .filter((item) => Array.isArray(item.children) && item.children.length > 0)
     .map((item) => getMenuIndex(item)),
 );
+const openedMenuIndexes = computed(() => {
+  if (!normalizedMenuQuery.value || isSidebarCollapsed.value) return defaultOpeneds.value;
+  const indexes: string[] = [];
+  const walk = (items: AdminMenuPermissionItem[]) => {
+    items.forEach((item) => {
+      if (!item.children?.length) return;
+      indexes.push(getMenuIndex(item));
+      walk(item.children);
+    });
+  };
+  walk(displayedMenuTree.value);
+  return indexes;
+});
 
 const activeMenu = computed(() => {
   const path = resolveAllowedAdminPath(route.path);
@@ -437,6 +508,17 @@ const handleSelect = (path: string) => {
     return;
   }
   router.push(path);
+};
+const openMenuSearchMatch = () => {
+  const leaves: AdminMenuPermissionItem[] = [];
+  const walk = (items: AdminMenuPermissionItem[]) => {
+    items.forEach((item) => {
+      if (item.children?.length) walk(item.children);
+      else if (item.path) leaves.push(item);
+    });
+  };
+  walk(displayedMenuTree.value);
+  if (leaves.length === 1) handleSelect(leaves[0].path);
 };
 
 const handleLocaleChange = (lang: AdminLocale) => {
@@ -570,6 +652,7 @@ const handleLogout = async () => {
   delete axios.defaults.headers.common.Authorization;
   useAdminSessionStore().reset();
   resetAdminMenuPermissions();
+  supplierShelfNoticeUnread.value = false;
   ElMessage.success(t('admin.common.logoutSuccess'));
   await router.replace('/admin/login');
 };
@@ -620,6 +703,7 @@ const resolveMenuIcon = (item: AdminMenuPermissionItem) => {
   if (path.startsWith('/admin/supplier-management/schedule')) return Calendar;
   if (path.startsWith('/admin/supplier-management/availability')) return Calendar;
   if (path.startsWith('/admin/supplier-management/orders')) return List;
+  if (path.startsWith('/admin/supplier-management/package-pricing')) return Present;
   if (path.startsWith('/admin/supplier-management/pricing')) return PriceTag;
   if (path.startsWith('/admin/supplier-management/settlement')) return Wallet;
   if (path.startsWith('/admin/supplier-management')) return OfficeBuilding;
@@ -627,6 +711,7 @@ const resolveMenuIcon = (item: AdminMenuPermissionItem) => {
   if (path.startsWith('/admin/sys-config')) return Setting;
   if (path.startsWith('/admin/developer')) return Setting;
   if (path.startsWith('/admin/basic/service-areas')) return Location;
+  if (path.startsWith('/admin/basic/quotes')) return PriceTag;
   if (path.startsWith('/admin/basic/suppliers')) return User;
   if (path.startsWith('/admin/basic/spec-types')) return Ticket;
   if (path.startsWith('/admin/basic/specs')) return Tickets;
@@ -656,6 +741,7 @@ const menuLabelKeyByPath: Record<string, string> = {
   '/admin/basic/addon-categories': 'admin.layout.addonCategory',
   '/admin/basic/addons': 'admin.layout.addon',
   '/admin/basic/suppliers': 'admin.layout.supplier',
+  '/admin/basic/quotes': 'admin.layout.supplierQuotes',
   '/admin/basic/service-areas': 'admin.layout.serviceAreas',
   '/admin/notifications': 'admin.layout.notifications',
   '/admin/sys-config': 'admin.layout.sysConfig',
@@ -671,6 +757,7 @@ const menuLabelKeyByPath: Record<string, string> = {
   '/admin/supplier-management/availability': 'admin.supplierPortal.coverage',
   '/admin/supplier-management/orders': 'admin.layout.supplierOrders',
   '/admin/supplier-management/pricing': 'admin.supplierPortal.services',
+  '/admin/supplier-management/package-pricing': 'admin.supplierPortal.packages',
   '/admin/supplier-management/settlement': 'admin.layout.supplierSettlement',
 };
 
@@ -681,8 +768,15 @@ const resolveMenuLabel = (item: AdminMenuPermissionItem) => {
 };
 
 const resolveSupplierBadge = (item: AdminMenuPermissionItem) => {
+  if (!isSupplierPortal.value || isSidebarCollapsed.value) return '';
+  if (
+    item.path === '/admin/supplier-management/pricing' &&
+    supplierShelfNoticeUnread.value
+  ) {
+    return t('admin.supplierPortal.shelfNoticeBadge');
+  }
   const detail = session.details[String(session.me?.supplierId || '')];
-  if (!isSupplierPortal.value || isSidebarCollapsed.value || item.path !== '/admin/supplier-management/coverage-availability' || Number(detail?.status) !== 1) return '';
+  if (item.path !== '/admin/supplier-management/coverage-availability' || Number(detail?.status) !== 1) return '';
   return currentLocale.value === 'zh' ? '下一步' : 'Next Step';
 };
 
@@ -859,6 +953,64 @@ syncPasswordGate();
   letter-spacing: 0.16em;
 }
 
+.menu-search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 16px 8px;
+  padding: 0 10px;
+  height: 36px;
+  border: 1px solid rgba(226, 194, 132, 0.22);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.06);
+  color: rgba(242, 236, 225, 0.72);
+}
+
+.menu-search:focus-within {
+  border-color: rgba(242, 207, 141, 0.7);
+  background: rgba(255, 255, 255, 0.09);
+}
+
+.menu-search .el-icon {
+  flex: none;
+  font-size: 14px;
+  color: rgba(232, 194, 122, 0.8);
+}
+
+.menu-search input {
+  min-width: 0;
+  flex: 1;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: #fffdf8;
+  font: inherit;
+  font-size: 13px;
+}
+
+.menu-search input::placeholder {
+  color: rgba(242, 236, 225, 0.42);
+}
+
+.menu-search input[type="search"]::-webkit-search-cancel-button,
+.menu-search input[type="search"]::-webkit-search-decoration {
+  appearance: none;
+}
+
+.menu-search__clear {
+  flex: none;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.12);
+  color: #fffdf8;
+  font-size: 14px;
+  line-height: 1;
+  cursor: pointer;
+}
+
 .menu {
   min-height: 0;
   flex: 1;
@@ -952,6 +1104,7 @@ syncPasswordGate();
 }
 
 .menu-empty {
+  flex: 1;
   margin: 12px;
   padding: 13px;
   color: rgba(255, 255, 255, 0.64);
@@ -1051,6 +1204,7 @@ syncPasswordGate();
 }
 
 .header-leading {
+  flex: 1 1 0;
   min-width: 0;
   gap: 14px;
 }
@@ -1078,22 +1232,26 @@ syncPasswordGate();
 }
 
 .page-heading {
+  flex: 1 1 0;
   min-width: 0;
 }
 
 .page-heading__eyebrow {
   display: block;
+  overflow: hidden;
   margin-bottom: 4px;
   color: #9b7b45;
   font-size: 9.5px;
   line-height: 1;
   font-weight: 760;
   letter-spacing: 0.15em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .breadcrumb {
   margin: 0;
-  max-width: 480px;
+  max-width: min(100%, 480px);
   overflow: hidden;
   color: #07182d;
   font-family: "Iowan Old Style", "Songti SC", Georgia, serif;
@@ -1254,6 +1412,10 @@ syncPasswordGate();
   pointer-events: none;
 }
 
+.content:has(.admin-breadcrumb) {
+  padding-top: 0;
+}
+
 .admin-route-enter-active,
 .admin-route-leave-active {
   transition: opacity 0.18s ease, transform 0.18s ease;
@@ -1308,7 +1470,7 @@ syncPasswordGate();
 }
 
 .admin-page--orders-h5 .breadcrumb {
-  max-width: 124px;
+  max-width: min(100%, 124px);
   color: #07182d;
   font-family: inherit;
   font-size: 15px;
@@ -1402,7 +1564,7 @@ syncPasswordGate();
   }
 
   .breadcrumb {
-    max-width: 220px;
+    max-width: min(100%, 220px);
     font-family: inherit;
     font-size: 17px;
     font-weight: 720;
@@ -1435,7 +1597,7 @@ syncPasswordGate();
   }
 
   .breadcrumb {
-    max-width: 150px;
+    max-width: min(100%, 150px);
   }
 }
 

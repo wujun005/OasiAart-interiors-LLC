@@ -98,7 +98,7 @@ const skuCatalog = {
 }
 
 async function harness(t, { packageService, wrapper = false, route: initialRoute = {}, ...overrides } = {}) {
-  const calls = { pages: [], saves: [], details: [], prices: [], skuIds: [], tags: [], messages: [], events: [], replaces: [], catalogs: [] }
+  const calls = { pages: [], saves: [], details: [], prices: [], skuIds: [], tags: [], messages: [], events: [], replaces: [], catalogs: [], fetches: [], downloads: [], quoteModes: 0 }
   const route = Vue.reactive({
     path: packageService === 1 || wrapper ? "/admin/package/services" : "/admin/products",
     query: {},
@@ -119,7 +119,7 @@ async function harness(t, { packageService, wrapper = false, route: initialRoute
     save: async () => ({}),
     detail: async (id) => ({
       data: {
-        spu: { id, packageService: packageService === 1 ? 0 : 1, status: 1, currency: "CNY" },
+        spu: { id, packageService: packageService === 1 ? 0 : 1, status: 1, currency: "CNY", quoteMode: 2 },
         categoryIds: ["2", "21"],
         nameI18n: { en: "Existing cleaning", "zh-CN": "清洁服务" },
         descI18n: { en: "<p>Description</p>" },
@@ -162,6 +162,17 @@ async function harness(t, { packageService, wrapper = false, route: initialRoute
       return controls.prices(payload)
     },
     sortProducts: async () => ({}),
+    quoteModes: async () => {
+      calls.quoteModes += 1
+      if (typeof controls.quoteModes === "function") return controls.quoteModes()
+      return {
+        data: [
+          { code: 1, nameI18n: { zh: "一口价", en: "Fixed price" } },
+          { code: 2, nameI18n: { zh: "带材料/不带材料按人小时报价", en: "Hourly rate with/without materials" } },
+          { code: 3, nameI18n: { zh: "接口按人小时", en: "API person-hour" } },
+        ],
+      }
+    },
     deleteProduct: async () => ({}),
     enable: async () => ({}),
     disable: async () => ({}),
@@ -186,6 +197,33 @@ async function harness(t, { packageService, wrapper = false, route: initialRoute
     exports,
     console,
     FormData,
+    fetch: async (url, init) => {
+      calls.fetches.push({
+        url,
+        method: init?.method,
+        headers: init?.headers,
+        body: init?.body,
+      })
+      if (controls.fetch) return controls.fetch(url, init)
+      return new Response(Buffer.from([0x50, 0x4b, 0x03, 0x04]), {
+        status: 200,
+        headers: { "content-type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" },
+      })
+    },
+    window: {
+      URL: {
+        createObjectURL: () => "blob:quote-compare",
+        revokeObjectURL() {},
+      },
+      open() {},
+    },
+    document: {
+      body: { appendChild() {} },
+      createElement: () => ({
+        click() { calls.downloads.push({ href: this.href, download: this.download }) },
+        remove() {},
+      }),
+    },
     require: (name) => {
       if (name === "vue") return Vue
       if (name === "vue-router") return { useRoute: () => route, useRouter: () => router }
@@ -254,6 +292,9 @@ async function harness(t, { packageService, wrapper = false, route: initialRoute
       if (name === "@/modules/admin/utils/bizTagPicker") return { useBizTagPicker: () => tagPicker }
       if (name === "@/modules/client/utils/biz-tag") return { bizTagLabels: () => [] }
       if (name === "@/utils/auth-state") return { getAdminAuthStorageValue: () => "test-token" }
+      if (name === "@/modules/admin/components/SupplierQuoteCompareDialog.vue") {
+        return { default: { name: "SupplierQuoteCompareDialog" } }
+      }
       throw new Error(`Unexpected dependency: ${name}`)
     },
   })
@@ -325,6 +366,7 @@ for (const packageService of [0, 1]) {
     const { state, calls } = await harness(t, { packageService })
     state.openCreate()
     assert.equal(state.form.product.isOnSale, packageService === 0)
+    assert.equal(state.form.product.quoteMode, 1)
     state.form.productI18nList = [{ langCode: "en", name: "New cleaning" }]
     state.form.descI18nList = [{ lang: "en", value: "<p>Description</p>" }]
     state.form.serviceContentI18nList = [{ lang: "en", value: "<p>Cleaning</p>" }]
@@ -338,6 +380,7 @@ for (const packageService of [0, 1]) {
     await flush()
     assert.equal(calls.saves.length, 1)
     assert.equal(calls.saves[0].packageService, packageService)
+    assert.equal(calls.saves[0].quoteMode, 1)
     assert.equal(calls.saves[0].status, packageService === 1 ? undefined : 1)
     assert.equal(calls.saves[0].id, undefined)
     assert.equal(calls.saves[0].spuName, "New cleaning")
@@ -353,6 +396,7 @@ for (const packageService of [0, 1]) {
     await flush()
     assert.deepEqual(calls.details, [71])
     assert.equal(state.isEdit, true)
+    assert.equal(state.form.product.quoteMode, 2)
     assert.deepEqual(clone(state.form.specGroups), [
       { specTypeId: 10, specIds: [101, 102] },
       { specTypeId: 11, specIds: [111, 112] },
@@ -365,6 +409,7 @@ for (const packageService of [0, 1]) {
     const saved = calls.saves[1]
     assert.equal(saved.id, 71)
     assert.equal(saved.packageService, packageService)
+    assert.equal(saved.quoteMode, 2)
     assert.equal(saved.status, packageService === 1 ? undefined : 0)
     assert.deepEqual(saved.nameI18n, { en: "Updated cleaning", "zh-CN": "清洁服务" })
     assert.deepEqual(saved.descI18n, { en: "<p>Description</p>" })
@@ -378,6 +423,65 @@ for (const packageService of [0, 1]) {
     assert.equal(calls.messages.filter((item) => item.type === "error").length, 0)
   })
 }
+
+test("service form loads quote modes from the API and keeps the selected code", async (t) => {
+  const { state, calls, locale, controls } = await harness(t)
+  assert.equal(calls.quoteModes, 1)
+  assert.deepEqual(clone(state.quoteModeOptions.map((item) => item.code)), [1, 2, 3])
+  locale.value = "zh-CN"
+  await flush()
+  assert.equal(state.quoteModeOptionLabel(state.quoteModeOptions[2]), "接口按人小时")
+  locale.value = "en"
+  await flush()
+  assert.equal(state.quoteModeOptionLabel(state.quoteModeOptions[2]), "API person-hour")
+
+  state.openCreate()
+  state.form.product.quoteMode = 3
+  state.form.productI18nList = [{ langCode: "en", name: "Hourly cleaning" }]
+  state.form.descI18nList = [{ lang: "en", value: "<p>Description</p>" }]
+  state.form.serviceContentI18nList = [{ lang: "en", value: "<p>Cleaning</p>" }]
+  state.form.bookingNoticeI18nList = [{ lang: "en", value: "<p>Book ahead</p>" }]
+  state.form.specGroups = [{ specTypeId: 10, specIds: [101] }]
+  state.form.addonGroups = [{ categoryId: 20, addonIds: [201] }]
+  state.save()
+  await flush()
+  assert.equal(calls.saves.at(-1).quoteMode, 3)
+
+  controls.detail = async (id) => ({
+    data: {
+      spu: { id, packageService: 0, status: 1, currency: "CNY", quoteMode: 3 },
+      categoryIds: ["2", "21"],
+      nameI18n: { en: "Hourly cleaning" },
+      descI18n: { en: "<p>Description</p>" },
+      serviceContentI18n: { en: "<p>Cleaning</p>" },
+      bookingNoticeI18n: { en: "<p>Book ahead</p>" },
+      imageUrls: [],
+      specBindings: [{ specTypeId: 10, specValueIds: [101] }],
+      attachBindings: [],
+    },
+  })
+  await state.openEdit({ id: 81 })
+  await flush()
+  assert.equal(state.form.product.quoteMode, 3)
+  state.form.product.quoteMode = 9
+  state.save()
+  await flush()
+  assert.equal(calls.saves.at(-1).quoteMode, 1)
+})
+
+test("service form keeps fallback quote modes when the enum request fails", async (t) => {
+  const { state, calls, locale } = await harness(t, {
+    quoteModes: async () => {
+      throw new Error("down")
+    },
+  })
+  assert.equal(calls.quoteModes, 1)
+  assert.deepEqual(clone(state.quoteModeOptions.map((item) => item.code)), [1, 2, 3])
+  locale.value = "zh-CN"
+  await flush()
+  assert.equal(state.quoteModeOptionLabel(state.quoteModeOptions[2]), "按人小时报价")
+  assert.deepEqual(calls.messages.at(-1), { type: "error", message: "down" })
+})
 
 test("ordinary product management defaults to catalog 0 and the new page mounts catalog 1", async (t) => {
   const ordinary = await harness(t)
@@ -415,6 +519,12 @@ test("package services retain SKU base-price editing and priced-spec additions",
     bases: [
       { specValueIds: [101], price: 100, originalPrice: 100 },
       { specValueIds: [102], price: 75, originalPrice: 120 },
+    ],
+    skuValids: [
+      { skuId: 1, valid: 1 },
+      { skuId: 2, valid: 1 },
+      { skuId: 3, valid: 1 },
+      { skuId: 4, valid: 1 },
     ],
   }])
   assert.equal(state.priceDialogVisible, false)
@@ -1069,4 +1179,51 @@ test("package services load subcategories and pricing methods from the package c
   assert.ok(packaged.calls.catalogs.some((item) => item.api === "packageServiceCategory"))
   assert.equal(packaged.calls.catalogs.some((item) => item.categoryDomain === "2"), false)
   assert.ok(packaged.calls.catalogs.filter((item) => item.categoryDomain).every((item) => item.categoryDomain === "4"))
+})
+
+test("service management exports one service as a supplier quote comparison", async (t) => {
+  const source = read("src/modules/admin/pages/product/index.vue")
+  assert.match(source, /v-if="!isPackageService"[\s\S]{0,220}class="quote-compare-export"/)
+  const { state, calls, controls, locale } = await harness(t)
+  locale.value = "zh-CN"
+
+  await state.exportSupplierQuoteCompare({ id: 0 })
+  await state.exportSupplierQuoteCompare({})
+  assert.deepEqual(calls.fetches, [])
+
+  controls.fetch = async () => new Response(Buffer.from([0x50, 0x4b, 0x03, 0x04]), {
+    status: 200,
+    headers: {
+      "content-type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      "content-disposition": "attachment; filename*=UTF-8''%E4%BE%9B%E5%BA%94%E5%95%86%E6%9C%8D%E5%8A%A1%E6%8A%A5%E4%BB%B7_20261101_110000.xlsx",
+    },
+  })
+  await state.exportSupplierQuoteCompare({ id: 193 })
+  assert.equal(calls.fetches.length, 1)
+  assert.equal(calls.fetches[0].url, "/api/api/supplier/page/export")
+  assert.equal(calls.fetches[0].method, "POST")
+  assert.equal(calls.fetches[0].headers.Authorization, "Bearer test-token")
+  assert.equal(calls.fetches[0].headers.language, "zh")
+  assert.deepEqual(JSON.parse(calls.fetches[0].body), { spuIds: [193] })
+  assert.deepEqual(calls.downloads, [{
+    href: "blob:quote-compare",
+    download: "供应商服务报价_20261101_110000.xlsx",
+  }])
+  assert.equal(state.quoteCompareExportingId, null)
+  assert.deepEqual(calls.messages.at(-1), {
+    type: "success",
+    message: "admin.product.message.exportQuoteCompareDone",
+  })
+
+  controls.fetch = async () => new Response(JSON.stringify({ message: "请先勾选要导出的服务" }), {
+    status: 400,
+    headers: { "content-type": "application/json" },
+  })
+  await state.exportSupplierQuoteCompare({ id: 194 })
+  assert.equal(calls.fetches.length, 2)
+  assert.equal(calls.downloads.length, 1)
+  assert.deepEqual(calls.messages.at(-1), {
+    type: "error",
+    message: "请先勾选要导出的服务",
+  })
 })

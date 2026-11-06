@@ -226,7 +226,7 @@
         <span>{{ t('admin.supplierOrders.remark') }}<small>{{ action.remark.length }}/512</small></span>
         <textarea v-model="action.remark" :disabled="action.saving" maxlength="512" rows="3" :placeholder="t('admin.supplierOrders.remarkPlaceholder')" />
       </label>
-      <div class="staff-action__photos-label"><strong>{{ t('admin.supplierOrders.photos') }}</strong><span>{{ action.photos.length }}/20</span></div>
+      <div class="staff-action__photos-label"><strong>{{ t('admin.supplierOrders.photos') }}</strong><span>{{ t('admin.supplierOrders.photosHint') }} · {{ action.photos.length }}/20</span></div>
       <ul v-if="action.photos.length" class="staff-action__photos">
         <li v-for="(photo, index) in action.photos" :key="photo.url + index">
           <img :src="photo.url" :alt="photo.name" />
@@ -978,6 +978,47 @@ onBeforeUnmount(() => {
   .staff-card__actions { gap: 6px; }
   .staff-card__actions > div { gap: 6px; }
   .staff-card__detail { padding: 0 9px; font-size: 10px; }
+}
+
+/* Keep the employee workspace consistent with the shared supplier H5 shell. */
+.supplier-mobile-workspace .staff-orders {
+  --staff-ink: #102b44;
+  --staff-muted: #64748b;
+  --staff-line: #e4e9ef;
+  min-height: 0;
+  background: transparent;
+  font-family: var(--hx-font-sans, sans-serif);
+}
+.supplier-mobile-workspace .staff-orders__list { padding: 20px 16px 24px; }
+.supplier-mobile-workspace .staff-workspace { min-height: 0; gap: 14px; padding: 20px; border: 1px solid #173d57; border-radius: 16px; background: #102f47; }
+.supplier-mobile-workspace .staff-workspace::after { content: none; }
+.supplier-mobile-workspace .staff-workspace h1 { font-size: 24px; font-weight: 700; letter-spacing: -.025em; line-height: 1.3; }
+.supplier-mobile-workspace .staff-workspace__eyebrow { color: #d5bb8a; font-weight: 650; letter-spacing: .12em; }
+.supplier-mobile-workspace .staff-workspace__hint { margin-top: 8px; color: #bed0dc; font-size: 12px; }
+.supplier-mobile-workspace .staff-workspace__mark { width: 44px; height: 44px; border-radius: 12px; color: #d5bb8a; transform: none; }
+.supplier-mobile-workspace .staff-workspace__mark svg { width: 25px; height: 25px; }
+.supplier-mobile-workspace .staff-orders__bar, .supplier-mobile-workspace .staff-detail__bar { background: #f4f7faf5; }
+.supplier-mobile-workspace .staff-orders__search { height: 54px; border-radius: 12px; box-shadow: none; }
+.supplier-mobile-workspace .staff-orders__search input { font-size: 16px; }
+.supplier-mobile-workspace .staff-orders__search button { min-height: 44px; font-size: 13px; }
+.supplier-mobile-workspace .staff-card { border-radius: 16px; box-shadow: none; }
+.supplier-mobile-workspace .staff-card__no, .supplier-mobile-workspace .staff-card__spec, .supplier-mobile-workspace .staff-card__price > small { color: #64748b; }
+.supplier-mobile-workspace .staff-card__spec, .supplier-mobile-workspace .staff-card__place { font-size: 12px; }
+.supplier-mobile-workspace .staff-card__schedule { background: #f4f7fa; }
+.supplier-mobile-workspace .staff-card__detail { min-height: 44px; padding-inline: 12px; border-radius: 10px; font-size: 12px; }
+.supplier-mobile-workspace .staff-nav--icon { width: 44px; min-height: 44px; }
+.supplier-mobile-workspace .staff-state { min-height: 260px; gap: 12px; padding: 30px 18px; }
+.supplier-mobile-workspace .staff-state__icon { width: 48px; height: 48px; border-radius: 14px; }
+.supplier-mobile-workspace .staff-state h2 { font-size: 16px; color: #334155; }
+.supplier-mobile-workspace .staff-state p { color: #64748b; line-height: 1.6; }
+.supplier-mobile-workspace .staff-detail { min-height: 0; padding-inline: 16px; }
+.supplier-mobile-workspace .staff-detail__hero, .supplier-mobile-workspace .staff-section { padding: 18px; border-radius: 16px; }
+.supplier-mobile-workspace .staff-detail h1 { font-size: 24px; font-weight: 700; line-height: 1.3; }
+.supplier-mobile-workspace .staff-detail__no, .supplier-mobile-workspace .staff-facts dt, .supplier-mobile-workspace .staff-location span, .supplier-mobile-workspace .staff-section__hint { color: #64748b; }
+.supplier-mobile-workspace .staff-detail__foot { bottom: 0; width: 100%; max-width: 820px; padding: 12px 16px calc(12px + env(safe-area-inset-bottom, 0px)); border: 0; border-top: 1px solid #e4e9ef; border-radius: 0; background: #fff; box-shadow: 0 -4px 16px #102b4406; }
+@media (max-width: 360px) {
+  .supplier-mobile-workspace .staff-orders__list { padding-inline: 12px; }
+  .supplier-mobile-workspace .staff-detail { padding-inline: 12px; }
 }
 @media (prefers-reduced-motion: reduce) {
   .staff-skeleton i, .staff-spinner { animation: none; }

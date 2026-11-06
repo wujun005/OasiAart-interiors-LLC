@@ -16,10 +16,38 @@
 
     <form v-else class="apply-sheet" @submit.prevent="submit">
       <p class="apply-legend">{{ copy.requiredHint }}</p>
+      <div class="apply-channel" role="radiogroup" :aria-label="copy.channelLabel">
+        <button type="button" role="radio" :aria-checked="form.supplierType === 1" :class="{ 'is-on': form.supplierType === 1 }" @click="form.supplierType = 1">{{ copy.channelCompany }}</button>
+        <button type="button" role="radio" :aria-checked="form.supplierType === 2" :class="{ 'is-on': form.supplierType === 2 }" @click="form.supplierType = 2">{{ copy.channelIndividual }}</button>
+      </div>
+      <p class="apply-channel__hint">{{ individual ? copy.individualLead : copy.lead }}</p>
 
       <section class="apply-block">
-        <h2>{{ copy.stepCompany }}</h2>
-        <div class="apply-grid">
+        <h2>{{ individual ? copy.stepPerson : copy.stepCompany }}</h2>
+        <div v-if="individual" class="apply-grid">
+          <label class="span-2"><span>{{ copy.fullName }}<i class="req">*</i></span><input v-model="form.fullName" maxlength="255" required /></label>
+          <label>
+            <span>{{ copy.dateOfBirth }}<i class="req">*</i></span>
+            <el-config-provider :locale="datePickerLocale">
+              <el-date-picker
+                v-model="form.dateOfBirth"
+                class="apply-date"
+                type="date"
+                format="YYYY-MM-DD"
+                value-format="YYYY-MM-DD"
+                :editable="false"
+                :clearable="false"
+                :disabled-date="disableBirthDate"
+                :placeholder="copy.datePlaceholder"
+              />
+            </el-config-provider>
+          </label>
+          <label><span>{{ copy.nationality }}<i class="req">*</i></span><input v-model="form.nationality" maxlength="64" required /></label>
+          <label class="span-2"><span>{{ copy.residentialCity }}<i class="req">*</i></span><input v-model="form.residentialCity" maxlength="64" required /></label>
+          <label><span>{{ copy.vat }}</span><input v-model="form.vatTrn" maxlength="128" /></label>
+          <label><span>{{ copy.yearsPersonal }}</span><input :value="wholeText(form.yearsInBusiness)" inputmode="numeric" @input="form.yearsInBusiness = wholeNumber(($event.target as HTMLInputElement).value)" /></label>
+        </div>
+        <div v-else class="apply-grid">
           <label class="span-2"><span>{{ copy.companyName }}<i class="req">*</i></span><input v-model="form.companyName" required /></label>
           <label><span>{{ copy.licenseNo }}<i class="req">*</i></span><input v-model="form.tradeLicenseNo" required /></label>
           <label>
@@ -47,7 +75,7 @@
       <section class="apply-block apply-block--next">
         <h2>{{ copy.stepContact }}</h2>
         <div class="apply-grid">
-          <label><span>{{ copy.contact }}<i class="req">*</i></span><input v-model="form.contactPerson" required /></label>
+          <label v-if="!individual"><span>{{ copy.contact }}<i class="req">*</i></span><input v-model="form.contactPerson" required /></label>
           <label><span>{{ copy.email }}<i class="req">*</i></span><input v-model="form.email" type="email" required /></label>
           <div class="phone-pair span-2">
             <label>
@@ -99,7 +127,7 @@
           </label>
         </div>
         <div class="apply-grid align-fields">
-          <label><span>{{ copy.workers }}</span><input :value="wholeText(form.totalAvailableWorkers)" inputmode="numeric" @input="form.totalAvailableWorkers = wholeNumber(($event.target as HTMLInputElement).value)" /></label>
+          <label v-if="!individual"><span>{{ copy.workers }}</span><input :value="wholeText(form.totalAvailableWorkers)" inputmode="numeric" @input="form.totalAvailableWorkers = wholeNumber(($event.target as HTMLInputElement).value)" /></label>
           <label><span>{{ copy.leadTime }}</span><input :value="wholeText(form.minLeadTimeHours)" inputmode="numeric" @input="form.minLeadTimeHours = wholeNumber(($event.target as HTMLInputElement).value)" /></label>
           <label><span>{{ copy.workStart }}<i class="req">*</i></span><el-time-select v-model="form.workStart" class="apply-time" start="00:00" step="00:15" end="23:45" :clearable="false" /></label>
           <label><span>{{ copy.workEnd }}<i class="req">*</i></span><el-time-select v-model="form.workEnd" class="apply-time" start="00:00" step="00:15" end="23:45" :clearable="false" /></label>
@@ -125,7 +153,7 @@
             </div>
           </article>
         </div>
-        <div class="community-picks">
+        <div v-if="!individual" class="community-picks">
           <strong>{{ copy.communities }}<i class="req">*</i></strong>
           <div class="community-picks__options" role="group" :aria-label="copy.communities">
             <button
@@ -138,7 +166,7 @@
             >{{ item.label }}</button>
           </div>
         </div>
-        <label v-if="form.otherCommunityOnboarded === 1" class="community-note">
+        <label v-if="!individual && form.otherCommunityOnboarded === 1" class="community-note">
           <span>{{ copy.applyRenmark }}<i class="req">*</i></span>
           <textarea v-model="form.applyRenmark" rows="3" maxlength="512" :placeholder="copy.applyRenmarkPlaceholder" />
         </label>
@@ -174,9 +202,15 @@ const categoriesError = ref('');
 const selectedIds = ref<string[]>([]);
 const expectedServiceRemark = ref('');
 const whatsappSame = ref(false);
+const individual = computed(() => form.supplierType === 2);
 const otherSelected = computed(() => categories.value.some((option) => selectedIds.value.includes(option.categoryId) && isOtherService(option)));
 
 const form = reactive({
+  supplierType: 1 as 1 | 2,
+  fullName: '',
+  dateOfBirth: '',
+  nationality: '',
+  residentialCity: '',
   companyName: '',
   tradeLicenseNo: '',
   licenseExpiry: '',
@@ -221,7 +255,18 @@ const copy = computed(() =>
   isZh.value
     ? {
         title: '服务伙伴注册',
-        lead: '填写公司资料和服务能力，提交后进入审核。',
+        lead: '可以选择企业入驻或个人入驻，提交后进入审核。',
+        channelLabel: '入驻类型',
+        channelCompany: '企业入驻',
+        channelIndividual: '个人入驻',
+        individualLead: '填写姓名、出生日期、国籍、居住城市和联系方式。证件、签证和银行资料在审核通过后登录后台补充。',
+        stepPerson: '个人资料',
+        fullName: '姓名',
+        dateOfBirth: '出生日期',
+        birthHint: '出生日期不能晚于今天',
+        nationality: '国籍',
+        residentialCity: '居住城市',
+        yearsPersonal: '从业年限',
         stepCompany: '公司',
         stepContact: '联系方式',
         stepCapacity: '服务能力',
@@ -285,7 +330,18 @@ const copy = computed(() =>
       }
     : {
         title: 'Service Partner Registration',
-        lead: 'Share your company details and capacity. We review every application.',
+        lead: 'Apply as a company or as an individual. We review every application.',
+        channelLabel: 'Application type',
+        channelCompany: 'Company',
+        channelIndividual: 'Individual',
+        individualLead: 'Add your name, date of birth, nationality, city, and contact details. Identity documents, visa, and bank details are added in the workspace after approval.',
+        stepPerson: 'Personal details',
+        fullName: 'Full name',
+        dateOfBirth: 'Date of birth',
+        birthHint: 'Date of birth cannot be in the future',
+        nationality: 'Nationality',
+        residentialCity: 'Residential city',
+        yearsPersonal: 'Years of experience',
         stepCompany: 'Company',
         stepContact: 'Contact',
         stepCapacity: 'Capacity',
@@ -404,6 +460,13 @@ const startOfToday = () => {
   return today;
 };
 const disableLicenseDate = (date: Date) => date.getTime() <= startOfToday().getTime();
+const disableBirthDate = (date: Date) => date.getTime() > startOfToday().getTime();
+const birthNotFuture = (value: string) => {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
+  if (!match) return false;
+  const picked = new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]));
+  return picked.getTime() <= startOfToday().getTime();
+};
 const licenseAfterToday = (value: string) => {
   const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
   if (!match) return false;
@@ -411,26 +474,50 @@ const licenseAfterToday = (value: string) => {
   return picked.getTime() > startOfToday().getTime();
 };
 
-const companyReady = () => {
-  const emailOk = /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(form.email.trim());
-  return Boolean(
-    form.companyName.trim()
-    && form.tradeLicenseNo.trim()
-    && licenseAfterToday(form.licenseExpiry)
-    && form.officeAddress.trim()
-    && form.contactPerson.trim()
-    && emailOk
-    && phoneOk(form.mobile)
-    && phoneOk(form.whatsapp),
-  );
-};
+const emailOk = () => /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(form.email.trim());
+const contactReady = () => emailOk() && phoneOk(form.mobile) && phoneOk(form.whatsapp);
+const companyReady = () => Boolean(
+  form.companyName.trim()
+  && form.tradeLicenseNo.trim()
+  && licenseAfterToday(form.licenseExpiry)
+  && form.officeAddress.trim()
+  && form.contactPerson.trim()
+  && contactReady(),
+);
+const individualReady = () => Boolean(
+  form.fullName.trim()
+  && birthNotFuture(form.dateOfBirth)
+  && form.nationality.trim()
+  && form.residentialCity.trim()
+  && contactReady(),
+);
 
+const sharedPayload = () => ({
+  mobile: joinPhone(form.mobileCode, form.mobile),
+  whatsapp: joinPhone(form.whatsappCode, form.whatsapp),
+  email: form.email.trim(),
+  vatTrn: form.vatTrn.trim() || null,
+  yearsInBusiness: form.yearsInBusiness,
+  totalAvailableWorkers: individual.value ? null : form.totalAvailableWorkers,
+  workingHours: `${form.workStart}-${form.workEnd}`,
+  weekendService: form.saturdayService === 1 || form.sundayService === 1 ? 1 : 0,
+  saturdayService: form.saturdayService,
+  sundayService: form.sundayService,
+  publicHolidayService: form.publicHolidayService,
+  emergencyService: form.emergencyService,
+  minLeadTimeHours: form.minLeadTimeHours,
+  wearUniform: form.wearUniform,
+  expectedServiceCategoryIds: selectedIds.value.length ? categoryIdPayload(selectedIds.value) : null,
+  expectedServiceRemark: otherSelected.value && expectedServiceRemark.value.trim() ? expectedServiceRemark.value.trim() : null,
+});
 const submit = async () => {
   const bits = capacityChoices.value.every((item) => form[item.key] === 0 || form[item.key] === 1);
   const uniformReady = form.wearUniform === 0 || form.wearUniform === 1
-  const noteReady = form.otherCommunityOnboarded !== 1 || Boolean(form.applyRenmark.trim())
-  if (!companyReady() || !bits || !uniformReady || !noteReady || !form.workStart || !form.workEnd) {
-    if (form.licenseExpiry && !licenseAfterToday(form.licenseExpiry)) errorText.value = copy.value.licenseHint;
+  const noteReady = individual.value || form.otherCommunityOnboarded !== 1 || Boolean(form.applyRenmark.trim())
+  const identityReady = individual.value ? individualReady() : companyReady()
+  if (!identityReady || !bits || !uniformReady || !noteReady || !form.workStart || !form.workEnd) {
+    if (individual.value && form.dateOfBirth && !birthNotFuture(form.dateOfBirth)) errorText.value = copy.value.birthHint;
+    else if (!individual.value && form.licenseExpiry && !licenseAfterToday(form.licenseExpiry)) errorText.value = copy.value.licenseHint;
     else if ((form.mobile.trim() || form.whatsapp.trim()) && (!phoneOk(form.mobile) || !phoneOk(form.whatsapp))) errorText.value = copy.value.phone;
     else if (!noteReady) errorText.value = copy.value.communityNoteRequired;
     else errorText.value = copy.value.required;
@@ -439,33 +526,26 @@ const submit = async () => {
   saving.value = true;
   errorText.value = '';
   try {
-    await submitOnboarding({
+    await submitOnboarding(individual.value ? {
+      supplierType: 2,
+      fullName: form.fullName.trim(),
+      dateOfBirth: form.dateOfBirth,
+      nationality: form.nationality.trim(),
+      residentialCity: form.residentialCity.trim(),
+      ...sharedPayload(),
+    } : {
+      supplierType: 1,
       companyName: form.companyName.trim(),
       tradeLicenseNo: form.tradeLicenseNo.trim(),
       licenseExpiry: form.licenseExpiry,
-      vatTrn: form.vatTrn.trim() || null,
       officeAddress: form.officeAddress.trim(),
       contactPerson: form.contactPerson.trim(),
-      mobile: joinPhone(form.mobileCode, form.mobile),
-      whatsapp: joinPhone(form.whatsappCode, form.whatsapp),
-      email: form.email.trim(),
-      yearsInBusiness: form.yearsInBusiness,
-      totalAvailableWorkers: form.totalAvailableWorkers,
-      workingHours: `${form.workStart}-${form.workEnd}`,
-      weekendService: form.saturdayService === 1 || form.sundayService === 1 ? 1 : 0,
-      saturdayService: form.saturdayService,
-      sundayService: form.sundayService,
-      publicHolidayService: form.publicHolidayService,
-      emergencyService: form.emergencyService,
-      minLeadTimeHours: form.minLeadTimeHours,
-      wearUniform: form.wearUniform,
       emaarOnboarded: communityBit(form.emaarOnboarded),
       nakheelOnboarded: communityBit(form.nakheelOnboarded),
       dubaiHoldingsOnboarded: communityBit(form.dubaiHoldingsOnboarded),
       otherCommunityOnboarded: communityBit(form.otherCommunityOnboarded),
       applyRenmark: form.otherCommunityOnboarded === 1 ? form.applyRenmark.trim() : null,
-      expectedServiceCategoryIds: selectedIds.value.length ? categoryIdPayload(selectedIds.value) : null,
-      expectedServiceRemark: otherSelected.value && expectedServiceRemark.value.trim() ? expectedServiceRemark.value.trim() : null,
+      ...sharedPayload(),
     });
     done.value = true;
   } catch (error) {
@@ -486,6 +566,10 @@ const submit = async () => {
 .apply-sheet { width: min(980px, calc(100% - 32px)); margin: -18px auto 48px; padding: 22px; background: #fffdf8; border: 1px solid #e4d8c6; border-radius: 22px; }
 .yes-no button, .apply-actions button, .file-pick { font: inherit; }
 .apply-legend { margin: 0 0 16px; color: #5c564c; font-size: 13px; font-weight: 650; }
+.apply-channel { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.apply-channel button { min-height: 46px; border: 1px solid #e4d8c6; border-radius: 12px; background: #fff; color: #05152b; font: inherit; font-weight: 750; cursor: pointer; }
+.apply-channel button.is-on { border-color: #05152b; background: #05152b; color: #fff; }
+.apply-channel__hint { margin: 10px 0 18px; color: #74685a; font-size: 13px; line-height: 1.55; }
 .phone-pair { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); column-gap: 16px; row-gap: 8px; align-items: start; }
 .phone-pair > label { display: grid; gap: 6px; min-width: 0; }
 .phone-pair > label > span { min-height: 1.35em; }

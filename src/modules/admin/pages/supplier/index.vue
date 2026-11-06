@@ -3,14 +3,19 @@
     <template v-if="!detailId">
       <header class="supplier-review__head">
         <div>
-          <h1>{{ t('admin.platformSuppliers.title') }}</h1>
-          <p>{{ t('admin.platformSuppliers.description') }}</p>
+          <h1>{{ quoteDesk ? t('admin.platformSuppliers.quoteDeskTitle') : t('admin.platformSuppliers.title') }}</h1>
+          <p>{{ quoteDesk ? t('admin.platformSuppliers.quoteDeskDescription') : t('admin.platformSuppliers.description') }}</p>
         </div>
       </header>
 
-      <div class="review-chips" role="group" :aria-label="t('admin.platformSuppliers.reviewFilters')">
+      <div v-if="quoteDesk" class="detail-tabs quote-scope" role="tablist">
+        <button type="button" role="tab" :class="{ on: quoteScope === 'services' }" :aria-selected="quoteScope === 'services'" @click="setQuoteScope('services')">{{ t('admin.platformSuppliers.serviceQuotes') }}</button>
+        <button type="button" role="tab" :class="{ on: quoteScope === 'packages' }" :aria-selected="quoteScope === 'packages'" @click="setQuoteScope('packages')">{{ t('admin.platformSuppliers.packages') }}</button>
+      </div>
+
+      <div v-if="visibleReviewChips.length" class="review-chips" role="group" :aria-label="t('admin.platformSuppliers.reviewFilters')">
         <button
-          v-for="chip in reviewChips"
+          v-for="chip in visibleReviewChips"
           :key="chip.key"
           type="button"
           class="review-chip"
@@ -32,19 +37,63 @@
             @keyup.enter="search"
             @clear="search"
           />
-          <el-select v-model="quoteStatus" filterable :placeholder="t('admin.platformSuppliers.allSuppliers')" @change="searchFromFilters">
-            <el-option :label="t('admin.platformSuppliers.allSuppliers')" value="" />
+          <el-select
+            v-model="serviceIds"
+            class="service-filter"
+            popper-class="supplier-review-select"
+            multiple
+            filterable
+            remote
+            clearable
+            collapse-tags
+            collapse-tags-tooltip
+            reserve-keyword
+            :remote-method="searchServices"
+            :loading="serviceSearchLoading"
+            :placeholder="t('admin.platformSuppliers.serviceSearch')"
+            @change="rememberServiceOptions(); searchFromFilters()"
+            @clear="rememberServiceOptions(); searchFromFilters()"
+          >
+            <el-option v-for="item in serviceOptions" :key="item.id" :label="item.name" :value="item.id" />
+          </el-select>
+          <el-select
+            v-if="quoteDesk && quoteScope === 'services'"
+            popper-class="supplier-review-select"
+            :model-value="quoteStatus === '' ? 'all' : quoteStatus"
+            :placeholder="t('admin.platformSuppliers.allSuppliers')"
+            @change="changeQuoteStatus"
+          >
+            <el-option :label="t('admin.platformSuppliers.allSuppliers')" value="all">
+              <span @click="showEverySupplier">{{ t('admin.platformSuppliers.allSuppliers') }}</span>
+            </el-option>
             <el-option :label="t('admin.platformSuppliers.quotePendingFilter')" :value="1" />
             <el-option :label="t('admin.platformSuppliers.quoteDraftFilter')" :value="0" />
             <el-option :label="t('admin.platformSuppliers.quoteApprovedFilter')" :value="2" />
+            <el-option :label="t('admin.platformSuppliers.quoteRejectedFilter')" :value="3" />
           </el-select>
-          <el-select v-model="onboardingStatus" clearable :placeholder="t('admin.platformSuppliers.onboardingStatus')" class="review-filter" @change="searchFromFilters">
+          <el-select
+            v-if="!quoteDesk"
+            popper-class="supplier-review-select"
+            class="review-filter"
+            :model-value="onboardingStatus === '' || onboardingStatus == null ? 'all' : onboardingStatus"
+            :placeholder="t('admin.platformSuppliers.onboardingStatus')"
+            @change="changeOnboardingStatus"
+          >
+            <el-option :label="t('admin.platformSuppliers.filterAll')" value="all" />
             <el-option :label="t('admin.platformSuppliers.draft')" :value="0" />
             <el-option :label="t('admin.platformSuppliers.pending')" :value="1" />
             <el-option :label="t('admin.platformSuppliers.approved')" :value="2" />
             <el-option :label="t('admin.platformSuppliers.rejected')" :value="3" />
           </el-select>
-          <el-select v-model="needReview" clearable :placeholder="t('admin.platformSuppliers.needReview')" class="review-filter" @change="searchFromFilters">
+          <el-select
+            v-if="!quoteDesk"
+            popper-class="supplier-review-select"
+            class="review-filter"
+            :model-value="needReview === 'yes' || needReview === 'no' ? needReview : 'all'"
+            :placeholder="t('admin.platformSuppliers.needReview')"
+            @change="changeNeedReview"
+          >
+            <el-option :label="t('admin.platformSuppliers.filterAll')" value="all" />
             <el-option :label="t('admin.platformSuppliers.reviewYes')" value="yes" />
             <el-option :label="t('admin.platformSuppliers.reviewNo')" value="no" />
           </el-select>
@@ -59,18 +108,18 @@
           :row-class-name="reviewRowClass"
           @row-click="openReview"
         >
-          <el-table-column :label="t('admin.platformSuppliers.supplierNo')" min-width="140">
+          <el-table-column :label="t('admin.platformSuppliers.supplierNo')" min-width="112">
             <template #default="{ row }">
               <b class="supplier-no">{{ row.supplierNo || row.id }}</b>
             </template>
           </el-table-column>
-          <el-table-column :label="t('admin.platformSuppliers.supplier')" min-width="200">
+          <el-table-column :label="t('admin.platformSuppliers.supplier')" min-width="160">
             <template #default="{ row }">
-              <div class="supplier-cell">{{ row.supplierName || '—' }}</div>
+              <div class="supplier-cell">{{ row.supplierName || '—' }}<span v-if="Number(row.supplierType) === 2" class="type-pill">{{ t('admin.platformSuppliers.individualType') }}</span></div>
               <small v-if="row.contactPerson || row.mobile">{{ [row.contactPerson, row.mobile].filter(Boolean).join(' · ') }}</small>
             </template>
           </el-table-column>
-          <el-table-column class-name="category-col" :label="t('admin.platformSuppliers.categories')" min-width="220">
+          <el-table-column class-name="category-col" :label="t('admin.platformSuppliers.categories')" min-width="176">
             <template #default="{ row }">
               <el-tooltip
                 v-if="displayCategories(row).length"
@@ -85,7 +134,7 @@
               <span v-else>—</span>
             </template>
           </el-table-column>
-          <el-table-column :label="t('admin.platformSuppliers.onboarding')" min-width="120">
+          <el-table-column v-if="!quoteDesk" :label="t('admin.platformSuppliers.onboarding')" min-width="96">
             <template #default="{ row }">
               <button
                 type="button"
@@ -95,9 +144,10 @@
               >
                 {{ onboardingLabel(row.onboardingStatus) }}
               </button>
+              <small v-if="row.profileChangeCount" class="change-count">{{ t('admin.platformSuppliers.profileChangeCount', { count: row.profileChangeCount }) }}</small>
             </template>
           </el-table-column>
-          <el-table-column :label="t('admin.platformSuppliers.quoteStatus')" min-width="220">
+          <el-table-column v-if="quoteDesk && quoteScope === 'services'" :label="t('admin.platformSuppliers.quoteStatus')" min-width="176">
             <template #default="{ row }">
               <div class="row-updates" @click.stop>
                 <button v-if="quoteBadge(row).pending" type="button" class="status-pill pending" @click="applyQuoteFilter(1)">
@@ -113,7 +163,7 @@
               </div>
             </template>
           </el-table-column>
-          <el-table-column :label="t('admin.platformSuppliers.priceChangeColumn')" min-width="150">
+          <el-table-column v-if="quoteDesk && quoteScope === 'services'" :label="t('admin.platformSuppliers.priceChangeColumn')" min-width="120">
             <template #default="{ row }">
               <button
                 v-if="quoteBadge(row).priceChange"
@@ -126,7 +176,7 @@
               <span v-else class="status-empty">—</span>
             </template>
           </el-table-column>
-          <el-table-column :label="t('admin.platformSuppliers.licenceColumn')" min-width="120">
+          <el-table-column v-if="!quoteDesk" :label="t('admin.platformSuppliers.licenceColumn')" min-width="96">
             <template #default="{ row }">
               <button
                 v-if="listLicenceState(row) === 'expired'"
@@ -147,12 +197,12 @@
               <span v-else class="status-empty">—</span>
             </template>
           </el-table-column>
-          <el-table-column :label="t('admin.platformSuppliers.latestSubmit')" min-width="160">
+          <el-table-column :label="t('admin.platformSuppliers.latestSubmit')" min-width="128">
             <template #default="{ row }">{{ formatTime(row.latestSubmitTime) }}</template>
           </el-table-column>
-          <el-table-column :label="t('admin.platformSuppliers.actions')" min-width="220">
+          <el-table-column :label="t('admin.platformSuppliers.actions')" min-width="176">
             <template #default="{ row }">
-              <div v-if="Number(row.onboardingStatus) === 1" class="row-actions" @click.stop>
+              <div v-if="!quoteDesk && Number(row.onboardingStatus) === 1" class="row-actions" @click.stop>
                 <button type="button" class="act ok" :disabled="saving" @click="approveOnboardingRow(row)">{{ t('admin.platformSuppliers.approve') }}</button>
                 <button type="button" class="act no" :disabled="saving" @click="openReject('onboarding', row)">{{ t('admin.platformSuppliers.reject') }}</button>
               </div>
@@ -172,24 +222,7 @@
     </template>
 
     <section v-else class="supplier-page">
-      <nav class="crumbs">
-        <button type="button" class="crumb-back" @click="crumbBack">←</button>
-        <button type="button" class="crumb-home" @click="backToList">{{ t('admin.platformSuppliers.title') }}</button>
-        <template v-if="screen === 'list'" />
-        <template v-else>
-          <span>›</span>
-          <button v-if="screen !== 'supplier'" type="button" @click="openSupplierTab('overview')">{{ profile.companyName || current?.supplierName || '—' }}</button>
-          <b v-else>{{ profile.companyName || current?.supplierName || '—' }}</b>
-        </template>
-        <template v-if="screen === 'quote'">
-          <span>›</span>
-          <button type="button" @click="openQuotes">{{ t('admin.platformSuppliers.services') }}</button>
-        </template>
-        <template v-if="screen === 'quote'">
-          <span>›</span>
-          <b>{{ skuDialogTitle }}</b>
-        </template>
-      </nav>
+      <AdminBreadcrumb class="supplier-breadcrumb" :items="breadcrumbItems" @back="crumbBack" />
 
       <el-skeleton v-if="quoteRoutePending || (detailLoading && screen !== 'quote')" :rows="12" animated />
       <div v-else class="supplier-body">
@@ -199,23 +232,38 @@
             <p>{{ t('admin.platformSuppliers.supplierNo') }} {{ profile.supplierNo || current?.supplierNo || '—' }}<template v-if="onboarding.snapshotVersion"> · {{ t('admin.platformSuppliers.snapshotVersion', { version: onboarding.snapshotVersion }) }}</template></p>
             <h1>{{ profile.companyName || current?.supplierName || '—' }}</h1>
             <div class="hero-pills">
+              <span class="status-pill">{{ individualSupplier ? t('admin.platformSuppliers.individualType') : t('admin.platformSuppliers.companyType') }}</span>
               <span class="status-pill" :class="statusClass(onboarding.status)">{{ t('admin.platformSuppliers.onboarding') }}: {{ onboardingLabel(onboarding.status) }}</span>
               <span class="status-pill" :class="pendingQuoteCount ? 'pending' : 'ok'">{{ t('admin.platformSuppliers.quoteReviewState') }}: {{ quoteRollup }}</span>
               <span class="status-pill" :class="eligibilityKey === 'active' ? 'ok' : 'pending'">{{ t('admin.platformSuppliers.dispatchEligibility') }}: {{ eligibilityLabel }}</span>
             </div>
           </div>
-          <div v-if="Number(onboarding.status) === 1" class="hero-actions">
+          <div v-if="!quoteDesk && Number(onboarding.status) === 1" class="hero-actions">
             <button type="button" class="act no" :disabled="saving" @click="openReject('onboarding')">{{ t('admin.platformSuppliers.reject') }}</button>
             <button type="button" class="act navy" :disabled="saving" @click="approveOnboarding">{{ t('admin.platformSuppliers.approveOnboarding') }}</button>
           </div>
         </header>
-        <p v-if="onboarding.rejectReason" class="reject-note">{{ t('admin.platformSuppliers.rejectReason', { reason: onboarding.rejectReason }) }}</p>
-        <p v-if="onboarding.snapshotVersion && (Number(onboarding.status) === 1 || Number(onboarding.status) === 3)" class="snapshot-note">{{ t('admin.platformSuppliers.snapshotReview') }}</p>
+        <p v-if="!quoteDesk && onboarding.rejectReason" class="reject-note">{{ t('admin.platformSuppliers.rejectReason', { reason: onboarding.rejectReason }) }}</p>
+        <p v-if="!quoteDesk && onboarding.snapshotVersion && (Number(onboarding.status) === 1 || Number(onboarding.status) === 3)" class="snapshot-note">{{ t('admin.platformSuppliers.snapshotReview') }}</p>
+        <section v-if="!quoteDesk && profileChanges.length" class="profile-changes">
+          <h3>{{ t('admin.platformSuppliers.profileChangesTitle', { count: profileChanges.length }) }}</h3>
+          <ul>
+            <li v-for="change in profileChanges" :key="change.field">
+              <b>{{ changeLabel(change) }}</b>
+              <span class="was">{{ changeValue(change, 'before') }}</span>
+              <em>→</em>
+              <span class="now">{{ changeValue(change, 'after') }}</span>
+            </li>
+          </ul>
+        </section>
 
-        <div class="detail-tabs">
+        <div v-if="quoteDesk && screen !== 'quote'" class="detail-tabs">
+          <button type="button" :class="{ on: quoteScope === 'services' }" @click="setQuoteScope('services')">{{ t('admin.platformSuppliers.serviceQuotes') }}</button>
+          <button type="button" :class="{ on: quoteScope === 'packages' }" @click="setQuoteScope('packages')">{{ t('admin.platformSuppliers.packages') }}</button>
+        </div>
+        <div v-else-if="!quoteDesk" class="detail-tabs">
           <button type="button" :class="{ on: detailTab === 'overview' }" @click="openSupplierTab('overview')">{{ t('admin.platformSuppliers.overview') }}</button>
-          <button type="button" :class="{ on: detailTab === 'quotes' }" @click="openQuotes">{{ t('admin.platformSuppliers.services') }}</button>
-          <button type="button" :class="{ on: detailTab === 'company' }" @click="openSupplierTab('company')">{{ t('admin.platformSuppliers.companyTab') }}</button>
+          <button type="button" :class="{ on: detailTab === 'company' }" @click="openSupplierTab('company')">{{ individualSupplier ? t('admin.platformSuppliers.personTab') : t('admin.platformSuppliers.companyTab') }}</button>
           <button type="button" :class="{ on: detailTab === 'capacity' }" @click="openSupplierTab('capacity')">{{ t('admin.platformSuppliers.capacityTab') }}</button>
           <button type="button" :class="{ on: detailTab === 'bank' }" @click="openSupplierTab('bank')">{{ t('admin.platformSuppliers.bankTab') }}</button>
           <button type="button" :class="{ on: detailTab === 'docs' }" @click="openSupplierTab('docs')">{{ t('admin.platformSuppliers.documents') }}</button>
@@ -225,61 +273,49 @@
 
           <div v-if="detailTab === 'overview'" class="tab-panel">
             <div class="stat-row">
-              <button type="button" @click="openQuotes"><small>{{ t('admin.platformSuppliers.servicesOffered') }}</small><b>{{ services.length }}</b><em>{{ t('admin.platformSuppliers.bookableServices', { count: bookableServiceCount }) }}</em></button>
+              <button type="button" @click="openQuoteDesk('services')"><small>{{ t('admin.platformSuppliers.servicesOffered') }}</small><b>{{ services.length }}</b><em>{{ t('admin.platformSuppliers.bookableServices', { count: bookableServiceCount }) }}</em></button>
               <div><small>{{ t('admin.platformSuppliers.approvedQuotes') }}</small><b>{{ approvedQuoteCount }}</b><em>{{ t('admin.platformSuppliers.draftQuotes', { count: draftQuoteCount }) }}</em></div>
-              <button type="button" @click="openQuotes"><small>{{ t('admin.platformSuppliers.quotesToReview') }}</small><b>{{ pendingQuoteCount }}</b></button>
+              <button type="button" @click="openQuoteDesk('services')"><small>{{ t('admin.platformSuppliers.quotesToReview') }}</small><b>{{ pendingQuoteCount }}</b></button>
               <div><small>{{ t('admin.platformSuppliers.dispatchEligibility') }}</small><b>{{ eligibilityLabel }}</b></div>
             </div>
             <div class="overview-board">
-              <section class="quote-link">
-                <button type="button" class="quote-link__head" @click="openQuotes">
-                  <h3>{{ t('admin.platformSuppliers.services') }} →</h3>
-                  <p>{{ t('admin.platformSuppliers.quotesLinkBody') }}</p>
-                </button>
-                <ul class="service-lines">
-                  <li v-for="row in services" :key="row.spuId">
-                    <span :title="serviceName(row)">{{ serviceName(row) }}</span>
-                    <div class="service-lines__meta">
-                      <em class="status-pill" :class="statusClass(row.priceChangeStatus === 1 ? 1 : row.status)">{{ serviceQuoteStatus(row) }}</em>
-                      <div class="service-lines__actions">
-                        <button v-if="Number(row.status) === 1" type="button" class="is-reject" @click="openWholeQuoteReject(row)">{{ t('admin.platformSuppliers.rejectQuote') }}</button>
-                        <button type="button" @click="openQuote(row)">{{ Number(row.status) === 1 || Number(row.priceChangeStatus) === 1 ? t('admin.platformSuppliers.reviewQuote') : t('admin.platformSuppliers.viewQuote') }}</button>
-                      </div>
-                    </div>
-                  </li>
-                  <li v-if="!services.length" class="muted">{{ t('admin.platformSuppliers.noServices') }}</li>
-                </ul>
+              <section class="panel">
+                <h3>{{ t('admin.platformSuppliers.keyDetails') }}</h3>
+                <dl class="kv">
+                  <div><dt>{{ t('admin.platformSuppliers.primaryContact') }}</dt><dd>{{ text(profile.contactPerson) }}</dd></div>
+                  <div><dt>{{ t('admin.platformSuppliers.phone') }}</dt><dd>{{ text(profile.mobile) }}</dd></div>
+                  <div><dt>{{ t('admin.platformSuppliers.categories') }}</dt><dd>{{ expectedServiceNames.length || displayCategoryCount }}</dd></div>
+                  <div><dt>{{ t('admin.platformSuppliers.serviceAreas') }}</dt><dd>{{ areaTags.length || '—' }}</dd></div>
+                  <div v-if="!individualSupplier"><dt>{{ t('admin.platformSuppliers.availableWorkers') }}</dt><dd>{{ text(profile.totalAvailableWorkers) }}<small class="field-note">{{ t('admin.platformSuppliers.workersNote') }}</small></dd></div>
+                  <div><dt>{{ t('admin.platformSuppliers.workingHours') }}</dt><dd>{{ scheduleText }}</dd></div>
+                </dl>
               </section>
-              <div class="overview-side">
-                <section class="panel">
-                  <h3>{{ t('admin.platformSuppliers.keyDetails') }}</h3>
-                  <dl class="kv">
-                    <div><dt>{{ t('admin.platformSuppliers.primaryContact') }}</dt><dd>{{ text(profile.contactPerson) }}</dd></div>
-                    <div><dt>{{ t('admin.platformSuppliers.phone') }}</dt><dd>{{ text(profile.mobile) }}</dd></div>
-                    <div><dt>{{ t('admin.platformSuppliers.categories') }}</dt><dd>{{ expectedServiceNames.length || displayCategoryCount }}</dd></div>
-                    <div><dt>{{ t('admin.platformSuppliers.serviceAreas') }}</dt><dd>{{ areaTags.length || '—' }}</dd></div>
-                    <div><dt>{{ t('admin.platformSuppliers.availableWorkers') }}</dt><dd>{{ text(profile.totalAvailableWorkers) }}<small class="field-note">{{ t('admin.platformSuppliers.workersNote') }}</small></dd></div>
-                    <div><dt>{{ t('admin.platformSuppliers.workingHours') }}</dt><dd>{{ scheduleText }}</dd></div>
-                  </dl>
-                </section>
-                <section class="panel">
-                  <h3>{{ t('admin.platformSuppliers.documents') }}</h3>
-                  <dl class="kv">
-                    <div v-for="group in documentGroups" :key="group.label">
-                      <dt>{{ group.label }}</dt>
-                      <dd :class="group.files.length ? 'yes' : 'no'">{{ group.files.length ? t('admin.platformSuppliers.uploaded') : t('admin.platformSuppliers.missing') }}</dd>
-                    </div>
-                    <div><dt>{{ t('admin.platformSuppliers.licenceExpiryDate') }}</dt><dd :class="licenceState === 'soon' || licenceState === 'expired' ? 'expiry-soon' : ''">{{ text(profile.licenseExpiry) }}<small v-if="licenceState === 'soon'" class="field-note">{{ t('admin.platformSuppliers.expiringSoon') }}</small><small v-else-if="licenceState === 'expired'" class="field-note">{{ t('admin.platformSuppliers.licenceExpired') }}</small></dd></div>
-                  </dl>
-                </section>
-              </div>
+              <section class="panel">
+                <h3>{{ t('admin.platformSuppliers.documents') }}</h3>
+                <dl class="kv">
+                  <div v-for="group in documentGroups" :key="group.label">
+                    <dt>{{ group.label }}</dt>
+                    <dd :class="group.files.length ? 'yes' : 'no'">{{ group.files.length ? t('admin.platformSuppliers.uploaded') : t('admin.platformSuppliers.missing') }}</dd>
+                  </div>
+                  <div v-if="!individualSupplier"><dt>{{ t('admin.platformSuppliers.licenceExpiryDate') }}</dt><dd :class="licenceState === 'soon' || licenceState === 'expired' ? 'expiry-soon' : ''">{{ text(profile.licenseExpiry) }}<small v-if="licenceState === 'soon'" class="field-note">{{ t('admin.platformSuppliers.expiringSoon') }}</small><small v-else-if="licenceState === 'expired'" class="field-note">{{ t('admin.platformSuppliers.licenceExpired') }}</small></dd></div>
+                </dl>
+              </section>
             </div>
           </div>
 
           <div v-else-if="detailTab === 'company'" class="split">
             <section class="panel">
-              <h3>{{ t('admin.platformSuppliers.company') }}</h3>
-              <dl class="kv">
+              <h3>{{ individualSupplier ? t('admin.platformSuppliers.personTab') : t('admin.platformSuppliers.company') }}</h3>
+              <dl v-if="individualSupplier" class="kv">
+                <div><dt>{{ t('admin.platformSuppliers.fullName') }}</dt><dd>{{ text(profile.fullName || profile.companyName) }}</dd></div>
+                <div><dt>{{ t('admin.platformSuppliers.dateOfBirth') }}</dt><dd>{{ text(profile.dateOfBirth) }}</dd></div>
+                <div><dt>{{ t('admin.platformSuppliers.nationality') }}</dt><dd>{{ text(profile.nationality) }}</dd></div>
+                <div><dt>{{ t('admin.platformSuppliers.residentialCity') }}</dt><dd>{{ text(profile.residentialCity) }}</dd></div>
+                <div><dt>{{ t('admin.platformSuppliers.vatRegistration') }}</dt><dd>{{ profile.vatTrn ? text(profile.vatTrn) : t('admin.platformSuppliers.notProvided') }}</dd></div>
+                <div><dt>{{ t('admin.platformSuppliers.yearsPersonal') }}</dt><dd>{{ Number(profile.yearsInBusiness) > 0 ? text(profile.yearsInBusiness) : t('admin.platformSuppliers.notProvided') }}</dd></div>
+                <div><dt>{{ t('admin.platformSuppliers.uniformAgreement') }}</dt><dd>{{ yesNo(profile.wearUniform) }}</dd></div>
+              </dl>
+              <dl v-else class="kv">
                 <div><dt>{{ t('admin.platformSuppliers.legalCompanyName') }}</dt><dd>{{ text(profile.companyName) }}</dd></div>
                 <div><dt>{{ t('admin.platformSuppliers.licenseNo') }}</dt><dd>{{ text(profile.tradeLicenseNo) }}</dd></div>
                 <div><dt>{{ t('admin.platformSuppliers.licensingAuthority') }}</dt><dd>{{ licenseIssuerText(profile) }}</dd></div>
@@ -314,9 +350,9 @@
               <section class="panel">
                 <h3>{{ t('admin.platformSuppliers.capacity') }}</h3>
                 <dl class="kv">
-                  <div><dt>{{ t('admin.platformSuppliers.availableWorkers') }}</dt><dd>{{ text(profile.totalAvailableWorkers) }}<small class="field-note">{{ t('admin.platformSuppliers.workersNote') }}</small></dd></div>
-                  <div><dt>{{ t('admin.platformSuppliers.femaleStaff') }}</dt><dd>{{ staffText(profile.femaleStaffAvailable, profile.femaleStaffCount) }}</dd></div>
-                  <div><dt>{{ t('admin.platformSuppliers.maleStaff') }}</dt><dd>{{ staffText(profile.maleStaffAvailable, profile.maleStaffCount) }}</dd></div>
+                  <div v-if="!individualSupplier"><dt>{{ t('admin.platformSuppliers.availableWorkers') }}</dt><dd>{{ text(profile.totalAvailableWorkers) }}<small class="field-note">{{ t('admin.platformSuppliers.workersNote') }}</small></dd></div>
+                  <div v-if="!individualSupplier"><dt>{{ t('admin.platformSuppliers.femaleStaff') }}</dt><dd>{{ staffText(profile.femaleStaffAvailable, profile.femaleStaffCount) }}</dd></div>
+                  <div v-if="!individualSupplier"><dt>{{ t('admin.platformSuppliers.maleStaff') }}</dt><dd>{{ staffText(profile.maleStaffAvailable, profile.maleStaffCount) }}</dd></div>
                   <div><dt>{{ t('admin.platformSuppliers.leadTime') }}</dt><dd>{{ profile.minLeadTimeHours == null ? '—' : t('admin.platformSuppliers.leadHours', { hours: profile.minLeadTimeHours }) }}</dd></div>
                   <div><dt>{{ t('admin.platformSuppliers.workingHours') }}</dt><dd>{{ scheduleText }}</dd></div>
                 </dl>
@@ -334,7 +370,7 @@
                   <div><dt>{{ t('admin.platformSuppliers.ownEquipment') }}</dt><dd>{{ yesNo(profile.ownEquipment) }}</dd></div>
                   <div><dt>{{ t('admin.platformSuppliers.wearUniform') }}</dt><dd>{{ yesNo(profile.wearUniform) }}</dd></div>
                   <div><dt>{{ t('admin.platformSuppliers.taxInvoice') }}</dt><dd>{{ yesNo(profile.taxInvoiceAvailable) }}</dd></div>
-                  <div class="span-all">
+                  <div v-if="!individualSupplier" class="span-all">
                     <dt>{{ t('admin.platformSuppliers.communities') }}</dt>
                     <dd>
                       <div v-if="registeredCommunities.length" class="community-picks">
@@ -343,7 +379,7 @@
                       <template v-else>—</template>
                     </dd>
                   </div>
-                  <div><dt>{{ t('admin.platformSuppliers.otherNote') }}</dt><dd>{{ text(profile.applyRenmark) }}</dd></div>
+                  <div v-if="!individualSupplier"><dt>{{ t('admin.platformSuppliers.otherNote') }}</dt><dd>{{ text(profile.applyRenmark) }}</dd></div>
                 </dl>
               </section>
             </div>
@@ -386,10 +422,10 @@
               </div>
               <div v-else class="service-filters">
                 <el-input v-model.trim="serviceKeyword" clearable :placeholder="t('admin.platformSuppliers.serviceSearch')" />
-                <el-select v-model="serviceCategoryFilter" clearable :placeholder="t('admin.platformSuppliers.category')">
+                <el-select popper-class="supplier-review-select" v-model="serviceCategoryFilter" clearable :placeholder="t('admin.platformSuppliers.category')">
                   <el-option v-for="name in serviceCategoryOptions" :key="name" :label="name" :value="name" />
                 </el-select>
-                <el-select v-model="serviceStatusFilter" clearable :placeholder="t('admin.platformSuppliers.quoteStatus')">
+                <el-select popper-class="supplier-review-select" v-model="serviceStatusFilter" clearable :placeholder="t('admin.platformSuppliers.quoteStatus')">
                   <el-option :label="t('admin.supplierPricing.quotationDraft')" :value="0" />
                   <el-option :label="t('admin.supplierPricing.priceUnderReview')" :value="1" />
                   <el-option :label="t('admin.supplierPricing.priceActive')" :value="2" />
@@ -397,7 +433,7 @@
                 </el-select>
               </div>
               <el-table v-if="services.length" :data="visibleServices" row-key="spuId" :empty-text="t('admin.platformSuppliers.noServices')" @row-click="openQuote">
-                <el-table-column width="52" align="center">
+                <el-table-column width="42" align="center">
                   <template #header>
                     <span class="quote-select" @click.stop>
                       <el-checkbox
@@ -419,26 +455,88 @@
                     </span>
                   </template>
                 </el-table-column>
-                <el-table-column :label="t('admin.platformSuppliers.service')" min-width="160">
+                <el-table-column :label="t('admin.platformSuppliers.service')" min-width="128">
                   <template #default="{ row }"><b>{{ serviceName(row) }}</b></template>
                 </el-table-column>
-                <el-table-column :label="t('admin.platformSuppliers.category')" min-width="140">
+                <el-table-column :label="t('admin.platformSuppliers.category')" min-width="112">
                   <template #default="{ row }">{{ serviceCategory(row) }}</template>
                 </el-table-column>
-                <el-table-column :label="t('admin.platformSuppliers.quoteStatus')" width="180">
+                <el-table-column :label="t('admin.platformSuppliers.contactTitle')" min-width="120">
+                  <template #default="{ row }">{{ row.contactName || '—' }}</template>
+                </el-table-column>
+                <el-table-column :label="t('admin.platformSuppliers.phones')" min-width="156">
+                  <template #default="{ row }">
+                    <span v-if="listedPhones(row.contactPhones).length" class="contact-lines">
+                      <span v-for="phone in listedPhones(row.contactPhones)" :key="phone">{{ phone }}</span>
+                    </span>
+                    <template v-else>—</template>
+                  </template>
+                </el-table-column>
+                <el-table-column :label="t('admin.platformSuppliers.quoteStatus')" width="144">
                   <template #default="{ row }">
                     <span class="status-pill" :class="statusClass(row.priceChangeStatus === 1 ? 1 : row.status)">{{ serviceQuoteStatus(row) }}</span>
                     <small v-if="Number(row.priceChangeStatus) === 1" class="price-change-note">{{ t('admin.platformSuppliers.priceChangePending') }}</small>
                     <small v-if="Number(row.priceChangeStatus) === 1 && row.priceChangeReason" class="price-change-note">{{ t('admin.platformSuppliers.priceChangeReasonLabel', { reason: row.priceChangeReason }) }}</small>
                   </template>
                 </el-table-column>
-                <el-table-column :label="t('admin.platformSuppliers.workers')" width="120">
+                <el-table-column v-if="!individualSupplier" :label="t('admin.platformSuppliers.workers')" width="96">
                   <template #default="{ row }">{{ row.workerCount ?? '—' }}</template>
                 </el-table-column>
-                <el-table-column :label="t('admin.platformSuppliers.actions')" min-width="280">
+                <el-table-column :label="t('admin.platformSuppliers.actions')" min-width="224">
                   <template #default="{ row }">
                     <div class="row-actions" @click.stop>
                       <button type="button" class="act navy" @click="openQuote(row)">{{ Number(row.status) === 1 || Number(row.priceChangeStatus) === 1 ? t('admin.platformSuppliers.reviewQuote') : t('admin.platformSuppliers.viewQuote') }}</button>
+                      <button v-if="Number(row.status) === 1" type="button" class="act no" @click="openWholeQuoteReject(row)">{{ t('admin.platformSuppliers.rejectQuote') }}</button>
+                      <button v-if="Number(row.priceChangeStatus) === 1" type="button" class="act" @click="approvePriceChange(row)">{{ t('admin.platformSuppliers.approvePriceChange') }}</button>
+                      <button v-if="Number(row.priceChangeStatus) === 1" type="button" class="act no" @click="openPriceChangeReject(row)">{{ t('admin.platformSuppliers.rejectPriceChange') }}</button>
+                    </div>
+                  </template>
+                </el-table-column>
+              </el-table>
+            </section>
+          </div>
+
+          <div v-else-if="detailTab === 'packages'" class="tab-panel">
+            <section class="panel">
+              <div class="panel-head">
+                <div>
+                  <h3>{{ t('admin.platformSuppliers.packages') }}</h3>
+                  <p class="quote-sheet-hint">{{ t('admin.platformSuppliers.packagesHint') }}</p>
+                </div>
+              </div>
+              <p v-if="!packageServiceRows.length" class="muted">{{ t('admin.platformSuppliers.noPackages') }}</p>
+              <div v-else class="service-filters">
+                <el-input v-model.trim="packageKeyword" clearable :placeholder="t('admin.platformSuppliers.serviceSearch')" />
+                <el-select popper-class="supplier-review-select" v-model="packageCategoryFilter" clearable :placeholder="t('admin.platformSuppliers.category')">
+                  <el-option v-for="name in packageCategoryOptions" :key="name" :label="name" :value="name" />
+                </el-select>
+                <el-select popper-class="supplier-review-select" v-model="packageStatusFilter" clearable :placeholder="t('admin.platformSuppliers.quoteStatus')">
+                  <el-option :label="t('admin.supplierPricing.quotationDraft')" :value="0" />
+                  <el-option :label="t('admin.supplierPricing.priceUnderReview')" :value="1" />
+                  <el-option :label="t('admin.supplierPricing.priceActive')" :value="2" />
+                  <el-option :label="t('admin.supplierPricing.priceRejected')" :value="3" />
+                </el-select>
+              </div>
+              <el-table v-if="packageServiceRows.length" :data="visiblePackageServices" row-key="key" :empty-text="t('admin.platformSuppliers.noPackages')" @row-click="openPackageQuote">
+                <el-table-column :label="t('admin.platformSuppliers.packageName')" min-width="160">
+                  <template #default="{ row }"><b>{{ row.packageName }}</b></template>
+                </el-table-column>
+                <el-table-column :label="t('admin.platformSuppliers.category')" min-width="120">
+                  <template #default="{ row }">{{ row.categoryName }}</template>
+                </el-table-column>
+                <el-table-column :label="t('admin.platformSuppliers.service')" min-width="160">
+                  <template #default="{ row }"><b>{{ serviceName(row) }}</b></template>
+                </el-table-column>
+                <el-table-column :label="t('admin.platformSuppliers.quoteStatus')" width="144">
+                  <template #default="{ row }">
+                    <span class="status-pill" :class="statusClass(row.priceChangeStatus === 1 ? 1 : row.status)">{{ serviceQuoteStatus(row) }}</span>
+                    <small v-if="Number(row.priceChangeStatus) === 1" class="price-change-note">{{ t('admin.platformSuppliers.priceChangePending') }}</small>
+                  </template>
+                </el-table-column>
+                <el-table-column :label="t('admin.platformSuppliers.actions')" min-width="224">
+                  <template #default="{ row }">
+                    <div class="row-actions" @click.stop>
+                      <button type="button" class="act navy" @click="openPackageQuote(row)">{{ Number(row.status) === 1 || Number(row.priceChangeStatus) === 1 ? t('admin.platformSuppliers.reviewQuote') : t('admin.platformSuppliers.viewQuote') }}</button>
                       <button v-if="Number(row.status) === 1" type="button" class="act no" @click="openWholeQuoteReject(row)">{{ t('admin.platformSuppliers.rejectQuote') }}</button>
                       <button v-if="Number(row.priceChangeStatus) === 1" type="button" class="act" @click="approvePriceChange(row)">{{ t('admin.platformSuppliers.approvePriceChange') }}</button>
                       <button v-if="Number(row.priceChangeStatus) === 1" type="button" class="act no" @click="openPriceChangeReject(row)">{{ t('admin.platformSuppliers.rejectPriceChange') }}</button>
@@ -486,12 +584,16 @@
                 <span class="status-pill" :class="statusClass(skuStatus)">{{ quoteStatusLabel(skuStatus, skuStatusI18n) }}</span>
               </div>
               <p class="quote-head__meta">
+                <span v-if="packageQuoteLabel">{{ packageQuoteLabel }}</span>
                 <span>{{ t('admin.platformSuppliers.reviewStatus') }}: {{ quoteStatusLabel(skuStatus, skuStatusI18n) }}</span>
-                <span>{{ t('admin.supplierPricing.quoteMode') }}: {{ hourlyQuoteReview ? t('admin.platformSuppliers.unitPrice') : skuQuoteMode === 1 ? t('admin.platformSuppliers.fixedPrice') : t('admin.platformSuppliers.modeUnset') }}</span>
+                <span>{{ t('admin.supplierPricing.quoteMode') }}: {{ quoteModeText }}</span>
               </p>
               <div v-if="hourlyQuoteReview" class="quote-head__hourly-rates">
-                <span>{{ t('admin.platformSuppliers.hourlyRateWithMaterial') }}: {{ hourlyRateText(skuUnitPriceWithMaterial, true) }}</span>
-                <span>{{ t('admin.platformSuppliers.hourlyRateWithoutMaterial') }}: {{ hourlyRateText(skuUnitPriceWithoutMaterial, true) }}</span>
+                <span v-if="staffHourQuote">{{ t('admin.platformSuppliers.hourlyRateLabel') }}: {{ hourlyRateText(skuUnitPrice, true) }}</span>
+                <template v-else>
+                  <span>{{ t('admin.platformSuppliers.hourlyRateWithMaterial') }}: {{ hourlyRateText(skuUnitPriceWithMaterial, true) }}</span>
+                  <span>{{ t('admin.platformSuppliers.hourlyRateWithoutMaterial') }}: {{ hourlyRateText(skuUnitPriceWithoutMaterial, true) }}</span>
+                </template>
               </div>
               <p v-if="skuRejectReason" class="quote-head__reason">{{ skuRejectReason }}</p>
             </div>
@@ -507,14 +609,14 @@
                 </span>
               </div>
               <div class="quote-head__actions">
-                <button type="button" class="act" :disabled="quoteImporting || !detailId" @click="quoteHistoryOpen = true">
+                <button v-if="!packageQuoteReview" type="button" class="act" :disabled="quoteImporting || !detailId" @click="quoteHistoryOpen = true">
                   {{ t('admin.platformSuppliers.quoteHistory.title') }}
                 </button>
                 <button v-if="canRejectWholeQuote" type="button" class="act no" :disabled="saving" @click="openWholeQuoteReject()">{{ t('admin.platformSuppliers.rejectQuote') }}</button>
-                <button type="button" class="act" :disabled="quoteExporting || !detailId" @click="downloadQuoteSheet">
+                <button v-if="!packageQuoteReview" type="button" class="act" :disabled="quoteExporting || !detailId" @click="downloadQuoteSheet">
                   {{ quoteExporting ? t('admin.platformSuppliers.exportingQuotes') : quoteExportLabel }}
                 </button>
-                <button type="button" class="act navy" :disabled="quoteImporting || !detailId" @click="quoteFileInput?.click()">
+                <button v-if="!packageQuoteReview" type="button" class="act navy" :disabled="quoteImporting || !detailId" @click="quoteFileInput?.click()">
                   {{ quoteImporting ? t('admin.platformSuppliers.importingQuotes') : t('admin.platformSuppliers.importQuoteSheet') }}
                 </button>
               </div>
@@ -523,16 +625,28 @@
           <section v-if="hourlyQuoteReview" v-loading="skuLoading" class="hourly-review">
             <div class="hourly-review__content">
               <div class="hourly-review__rates">
-                <div>
-                  <span>{{ t('admin.platformSuppliers.hourlyRateWithMaterial') }}</span>
-                  <strong>{{ hourlyRateText(skuUnitPriceWithMaterial, true) }}</strong>
+                <div v-if="staffHourQuote">
+                  <span>{{ t('admin.platformSuppliers.hourlyRateLabel') }}</span>
+                  <strong>{{ hourlyRateText(skuUnitPrice, true) }}</strong>
+                  <small v-if="hourlyCompareLabel(null)" class="hourly-review__compare" :class="{ 'is-negative': hourlyCompareNegative(null) }">{{ hourlyCompareLabel(null) }}</small>
+                  <small v-else class="hourly-review__compare is-muted">{{ hourlyCompareGapText(null) }}</small>
                 </div>
-                <div>
-                  <span>{{ t('admin.platformSuppliers.hourlyRateWithoutMaterial') }}</span>
-                  <strong>{{ hourlyRateText(skuUnitPriceWithoutMaterial, true) }}</strong>
-                </div>
+                <template v-else>
+                  <div>
+                    <span>{{ t('admin.platformSuppliers.hourlyRateWithMaterial') }}</span>
+                    <strong>{{ hourlyRateText(skuUnitPriceWithMaterial, true) }}</strong>
+                    <small v-if="hourlyCompareLabel('with')" class="hourly-review__compare" :class="{ 'is-negative': hourlyCompareNegative('with') }">{{ hourlyCompareLabel('with') }}</small>
+                    <small v-else class="hourly-review__compare is-muted">{{ hourlyCompareGapText('with') }}</small>
+                  </div>
+                  <div>
+                    <span>{{ t('admin.platformSuppliers.hourlyRateWithoutMaterial') }}</span>
+                    <strong>{{ hourlyRateText(skuUnitPriceWithoutMaterial, true) }}</strong>
+                    <small v-if="hourlyCompareLabel('without')" class="hourly-review__compare" :class="{ 'is-negative': hourlyCompareNegative('without') }">{{ hourlyCompareLabel('without') }}</small>
+                    <small v-else class="hourly-review__compare is-muted">{{ hourlyCompareGapText('without') }}</small>
+                  </div>
+                </template>
               </div>
-              <p>{{ t('admin.platformSuppliers.hourlyReviewHint') }}</p>
+              <p>{{ t(staffHourQuote ? 'admin.platformSuppliers.staffHourReviewHint' : 'admin.platformSuppliers.hourlyReviewHint') }}</p>
             </div>
             <div v-if="showHourlyReview" class="hourly-review__actions">
               <button type="button" class="act no" :disabled="saving" @click="openHourlyReject">{{ t('admin.platformSuppliers.reject') }}</button>
@@ -540,6 +654,7 @@
             </div>
           </section>
           <p v-if="!hourlyQuoteReview" class="muted">{{ t('admin.platformSuppliers.grossMarginHint') }}</p>
+          <div v-if="!hourlyQuoteReview || orderedSkuAttaches.length" class="quote-lines" :class="{ 'is-review-attaches': pendingReviewAttaches.length }">
           <el-table
             v-if="!hourlyQuoteReview"
             class="quote-table"
@@ -550,30 +665,30 @@
             :empty-text="t('admin.platformSuppliers.noSpecs')"
             @selection-change="onReviewSelectionChange"
           >
-            <el-table-column v-if="showLineReview" type="selection" width="48" align="center" :selectable="isLineSelectable" />
-            <el-table-column v-if="skuGroupLabel" :label="skuGroupLabel" min-width="140">
+            <el-table-column v-if="showLineReview" type="selection" width="38" align="center" fixed="left" :selectable="isLineSelectable" />
+            <el-table-column v-if="skuGroupLabel" :label="skuGroupLabel" width="148" fixed="left">
               <template #default="{ row }">{{ row.groupValue || '—' }}</template>
             </el-table-column>
-            <el-table-column v-for="column in skuColumns" :key="column.key" :label="specColumnLabel(column)" min-width="120">
+            <el-table-column v-for="column in skuColumns" :key="column.key" :label="specColumnLabel(column)" width="132" fixed="left">
               <template #default="{ row }">{{ specCell(row.specs[column.key]) }}</template>
             </el-table-column>
-            <el-table-column v-if="showSkuCodeColumn" label="SKU" prop="skuCode" min-width="120" />
-            <el-table-column :label="t('admin.platformSuppliers.clientPrice')" min-width="150" align="right">
+            <el-table-column v-if="showSkuCodeColumn" label="SKU" prop="skuCode" width="112" fixed="left" />
+            <el-table-column class-name="quote-price-col" label-class-name="quote-price-col" :label="t('admin.platformSuppliers.clientPrice')" min-width="176" align="right">
               <template #default="{ row }">{{ moneyText(clientPrice(row)) }}</template>
             </el-table-column>
-            <el-table-column :label="t('admin.platformSuppliers.taxQuote')" width="160" align="right">
+            <el-table-column class-name="quote-price-col" label-class-name="quote-price-col" :label="t('admin.platformSuppliers.taxQuote')" min-width="196" align="right">
               <template #default="{ row }">
-                {{ moneyText(row.quotePrice) }}
+                {{ moneyText(reviewQuoteAmount(row)) }}
                 <small v-if="priceDiffers(row)" class="price-change-note">{{ t('admin.platformSuppliers.pendingDifferent') }}</small>
               </template>
             </el-table-column>
-            <el-table-column :label="t('admin.platformSuppliers.margin')" width="110" align="right">
+            <el-table-column class-name="quote-price-col" label-class-name="quote-price-col" :label="t('admin.platformSuppliers.margin')" min-width="112" align="right">
               <template #default="{ row }">{{ marginText(row) }}</template>
             </el-table-column>
-            <el-table-column :label="t('admin.platformSuppliers.effectivePrice')" width="150" align="right">
+            <el-table-column class-name="quote-price-col" label-class-name="quote-price-col" :label="t('admin.platformSuppliers.effectivePrice')" min-width="128" align="right">
               <template #default="{ row }">{{ moneyText(row.approvedPrice) }}</template>
             </el-table-column>
-            <el-table-column :label="t('admin.platformSuppliers.lineReviewStatus')" min-width="150">
+            <el-table-column :label="t('admin.platformSuppliers.lineReviewStatus')" width="168" fixed="right">
               <template #default="{ row }">
                 <div class="line-review-result">
                   <el-tag v-if="lineEffectLabel(row)" :type="lineReviewTagType(row)" effect="light">{{ lineEffectLabel(row) }}</el-tag>
@@ -581,7 +696,7 @@
                 </div>
               </template>
             </el-table-column>
-            <el-table-column v-if="showLineReview" :label="t('admin.platformSuppliers.actions')" width="184" fixed="right">
+            <el-table-column v-if="showLineReview" :label="t('admin.platformSuppliers.actions')" width="147" fixed="right">
               <template #default="{ row }">
                 <div v-if="isLineSelectable(row)" class="line-actions">
                   <button type="button" class="act no" :disabled="saving" @click="openLineReject([row])">{{ t('admin.platformSuppliers.reject') }}</button>
@@ -590,9 +705,9 @@
               </template>
             </el-table-column>
           </el-table>
-          <section v-if="skuAttaches.length" class="sku-attaches">
+          <section v-if="orderedSkuAttaches.length" class="sku-attaches">
             <h4>{{ t('admin.platformSuppliers.addons') }}</h4>
-            <div v-for="item in skuAttaches" :key="item.attachValueId" class="sku-attach">
+            <div v-for="item in orderedSkuAttaches" :key="item.attachValueId" class="sku-attach">
               <label v-if="isAttachSelectable(item)" class="sku-attach__check">
                 <input
                   type="checkbox"
@@ -603,11 +718,12 @@
               </label>
               <div>
                 <strong>{{ attachName(item) }}<template v-if="attachUnit(item)"> / {{ attachUnit(item) }}</template></strong>
-                <small>{{ t('admin.platformSuppliers.addonMeta', { type: attachTypeName(item), platform: moneyText(item.platformPrice), quote: moneyText(item.quotePrice), approved: moneyText(item.approvedPrice) }) }}</small>
+                <small>{{ t('admin.platformSuppliers.addonMeta', { type: attachTypeName(item), platform: moneyText(item.platformPriceWithTax ?? item.platformPrice), quote: moneyText(item.quotePrice), margin: profitRateText(item.profitRate), approved: moneyText(item.approvedPrice), approvedMargin: profitRateText(item.approvedProfitRate) }) }}</small>
                 <small v-if="Number(item.reviewStatus) === 3 && item.rejectReason">{{ item.rejectReason }}</small>
               </div>
               <div class="sku-attach__side">
                 <el-tag v-if="attachEffectLabel(item)" :type="lineReviewTagType(item)" effect="light">{{ attachEffectLabel(item) }}</el-tag>
+                <span class="sku-attach__margin" :class="{ 'is-negative': Number(item.profitRate) < 0 }">{{ profitRateText(item.profitRate) }}</span>
                 <span>{{ item.offered ? moneyText(item.quotePrice) : t('admin.platformSuppliers.unavailable') }}</span>
                 <div v-if="isAttachSelectable(item)" class="line-actions">
                   <button type="button" class="act no" :disabled="saving" @click="openLineReject([], [item])">{{ t('admin.platformSuppliers.reject') }}</button>
@@ -616,6 +732,7 @@
               </div>
             </div>
           </section>
+          </div>
           <footer v-if="showQuoteFoot" class="quote-foot">
             <span class="quote-foot__selection">{{ t('admin.platformSuppliers.selectedLines', { count: selectedReviewCount }) }}</span>
             <button type="button" class="act no" :disabled="saving" @click="selectedReviewCount ? openLineReject() : openWholeQuoteReject()">{{ selectedReviewCount ? t('admin.platformSuppliers.reject') : t('admin.platformSuppliers.rejectQuote') }}</button>
@@ -633,18 +750,20 @@
 
     <el-dialog
       v-model="filePreview.open"
-      class="policy-preview"
+      class="policy-preview supplier-review-dialog"
       :title="filePreview.name"
-      width="min(960px, 92vw)"
+      width="min(768px, 92vw)"
       append-to-body
       :z-index="6000"
       destroy-on-close
     >
-      <div class="policy-preview__stage">
-        <img v-if="filePreview.kind === 'image'" :src="filePreview.url" :alt="filePreview.name" />
-        <iframe v-else-if="filePreview.kind === 'pdf'" :src="filePreview.url" :title="filePreview.name" />
-        <p v-else>{{ t('admin.platformSuppliers.previewUnsupported') }}</p>
-      </div>
+      <SupplierDocumentPreview
+        :url="filePreview.url"
+        :name="filePreview.name"
+        :kind="filePreview.kind"
+        :active="filePreview.open"
+        compact
+      />
     </el-dialog>
 
 
@@ -656,7 +775,7 @@
       @change="importQuoteFile"
     />
 
-    <el-dialog v-model="rejectOpen" :title="t('admin.platformSuppliers.rejectOnboarding')" width="460px" append-to-body>
+    <el-dialog v-model="rejectOpen" :title="t('admin.platformSuppliers.rejectOnboarding')" class="supplier-review-dialog" width="min(368px, calc(100vw - 32px))" append-to-body>
       <el-input v-model="rejectReason" type="textarea" :rows="4" maxlength="500" show-word-limit :placeholder="t('admin.platformSuppliers.reasonPlaceholder')" />
       <template #footer>
         <el-button @click="rejectOpen = false">{{ t('admin.platformSuppliers.cancel') }}</el-button>
@@ -664,7 +783,7 @@
       </template>
     </el-dialog>
 
-    <el-dialog v-model="priceChangeRejectOpen" :title="t('admin.platformSuppliers.rejectPriceChange')" width="460px" append-to-body>
+    <el-dialog v-model="priceChangeRejectOpen" :title="t('admin.platformSuppliers.rejectPriceChange')" class="supplier-review-dialog" width="min(368px, calc(100vw - 32px))" append-to-body>
       <p v-if="priceChangeTarget?.priceChangeReason" class="line-reject-summary">{{ t('admin.platformSuppliers.priceChangeReasonLabel', { reason: priceChangeTarget.priceChangeReason }) }}</p>
       <el-input v-model="priceChangeRejectReason" type="textarea" :rows="4" maxlength="500" show-word-limit :placeholder="t('admin.platformSuppliers.reasonPlaceholder')" />
       <template #footer>
@@ -673,7 +792,7 @@
       </template>
     </el-dialog>
 
-    <el-dialog v-model="lineRejectOpen" :title="rejectingWholeQuote || hourlyRejecting || rejectDialogCount <= 1 ? t('admin.platformSuppliers.rejectQuote') : t('admin.platformSuppliers.rejectSelectedTitle')" width="460px" append-to-body @closed="resetQuoteReject">
+    <el-dialog v-model="lineRejectOpen" :title="rejectingWholeQuote || hourlyRejecting || rejectDialogCount <= 1 ? t('admin.platformSuppliers.rejectQuote') : t('admin.platformSuppliers.rejectSelectedTitle')" class="supplier-review-dialog" width="min(368px, calc(100vw - 32px))" append-to-body @closed="resetQuoteReject">
       <p v-if="hourlyRejecting" class="line-reject-summary">{{ t('admin.platformSuppliers.hourlyRejectHint') }}</p>
       <p v-else-if="rejectingWholeQuote && rejectDialogCount" class="line-reject-summary">{{ t('admin.platformSuppliers.rejectWholeCountHint', { count: rejectDialogCount }) }}</p>
       <p v-else-if="rejectingWholeQuote" class="line-reject-summary">{{ t('admin.platformSuppliers.rejectWholeHint') }}</p>
@@ -692,11 +811,14 @@ import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useI18n } from 'vue-i18n'
-import { listBySpu, listSpuAttachCatalog } from '@/modules/admin/api/spu'
+import AdminBreadcrumb from '@/modules/admin/components/AdminBreadcrumb.vue'
+import SupplierDocumentPreview from '@/modules/admin/components/SupplierDocumentPreview.vue'
+import { listBySpu, listSpuAttachCatalog, page as productPage } from '@/modules/admin/api/spu'
+import { page as supplierPage } from '@/modules/admin/api/supplier'
 import SupplierQuoteImportHistory from '@/modules/admin/components/SupplierQuoteImportHistory.vue'
 import { pickI18nText } from '@/modules/admin/utils/i18n'
-import { dispatchEligibility, licenceExpiryState } from '@/modules/admin/utils/supplierReviewState'
-import { countQuoteLineStatuses, quotePriceView } from '@/modules/admin/utils/supplierPortal'
+import { dispatchEligibility, licenceExpiryState, supplierOperationsReady } from '@/modules/admin/utils/supplierReviewState'
+import { countQuoteLineStatuses, hourlyCompareGap, hourlyMarginPercent, hourlySupplierCost, quotePriceView, summarizeHourlyCompare } from '@/modules/admin/utils/supplierPortal'
 import {
   sortSupplierQueue,
   supplierMatchesQueueFocus,
@@ -713,10 +835,12 @@ import {
   reviewQuotePriceChange,
   platformSupplierQuoteServices,
   platformSupplierQuoteSkus,
+  supplierPackageQuotes,
   exportPlatformQuoteSheet,
   importPlatformQuoteSheet,
   serviceCatalog,
 } from '@/modules/admin/api/supplierWorkbench'
+import { packageServiceSpuIds } from '@/modules/admin/utils/supplierServiceCatalog'
 
 type ServiceCategory = {
   categoryId: number
@@ -740,14 +864,32 @@ type SupplierRow = {
   effectiveCount?: number
   rejectedCount?: number
   licenseExpiry?: string
+  supplierType?: number
+  nationality?: string
+  residentialCity?: string
   pendingReview?: boolean
   latestSubmitTime?: string
+  profileChangeCount?: number
+}
+
+type ProfileChange = {
+  field?: string
+  labelI18n?: Record<string, string>
+  beforeI18n?: Record<string, string>
+  afterI18n?: Record<string, string>
 }
 
 const route = useRoute()
 const router = useRouter()
+const props = defineProps<{ desk?: 'quotes' }>()
+const quoteDesk = computed(() => props.desk === 'quotes')
+const QUOTE_DESK_PATH = '/admin/basic/quotes'
 const { t, locale } = useI18n({ useScope: 'global' })
 const keyword = ref('')
+const serviceIds = ref<number[]>([])
+const serviceOptions = ref<Array<{ id: number; name: string }>>([])
+const selectedServiceOptions = ref<Array<{ id: number; name: string }>>([])
+const serviceSearchLoading = ref(false)
 const serviceKeyword = ref('')
 const serviceCategoryFilter = ref('')
 const serviceStatusFilter = ref<number | ''>('')
@@ -772,12 +914,18 @@ const screen = computed(() => {
   if (!detailId.value) return 'list'
   return String(route.query.view || '') === 'quote' ? 'quote' : 'supplier'
 })
-const detailTab = computed(() => {
-  const view = String(route.query.view || '')
-  if (view === 'quotes' || view === 'quote') return 'quotes'
-  const tab = String(route.query.tab || 'overview')
-  return ['overview', 'quotes', 'company', 'capacity', 'bank', 'docs'].includes(tab) ? tab : 'overview'
+const quoteScope = computed<'services' | 'packages'>(() => {
+  if (String(route.query.scope || '') === 'packages' || Number(route.query.package) > 0 || String(route.query.tab || '') === 'packages') return 'packages'
+  return 'services'
 })
+const detailTab = computed(() => {
+  if (quoteDesk.value) return quoteScope.value === 'packages' ? 'packages' : 'quotes'
+  const view = String(route.query.view || '')
+  if (view === 'quote') return route.query.package ? 'packages' : 'quotes'
+  const tab = String(route.query.tab || 'overview')
+  return ['overview', 'company', 'capacity', 'bank', 'docs'].includes(tab) ? tab : 'overview'
+})
+const packageQuoteReview = computed(() => Number(route.query.package) > 0)
 const reviewCounts = reactive({
   onboarding: 0,
   quotePending: 0,
@@ -795,13 +943,19 @@ const quoteHistoryOpen = ref(false)
 const quoteFileInput = ref<HTMLInputElement | null>(null)
 const current = ref<SupplierRow | null>(null)
 const profile = reactive<Record<string, any>>({})
+const individualSupplier = computed(() => Number(profile.supplierType) === 2)
 const services = ref<any[]>([])
+const packageQuotes = ref<any[]>([])
+const packageKeyword = ref('')
+const packageCategoryFilter = ref('')
+const packageStatusFilter = ref<number | ''>('')
 const onboarding = reactive({
   status: undefined as number | undefined,
   rejectReason: '',
   snapshotVersion: undefined as number | undefined,
   reviewKind: undefined as number | undefined,
 })
+const profileChanges = ref<ProfileChange[]>([])
 const areaNames = computed(() =>
   (profile.serviceAreas || []).map((area: any) => area.areaName).filter(Boolean).join('、'),
 )
@@ -835,12 +989,18 @@ const eligibilityKey = computed(() => dispatchEligibility({
   reviewStatus: onboarding.status,
   enabled: profile.enabled,
   acceptDispatch: profile.acceptDispatch,
+  operationsReady: supplierOperationsReady({
+    quotes: services.value,
+    packageQuotes: packageQuotes.value,
+    areas: profile.serviceAreas,
+  }),
 }))
 const eligibilityLabel = computed(() => {
   const keys = {
     pendingVerification: 'eligibilityPending',
     verificationApproved: 'eligibilityApproved',
     setupIncomplete: 'eligibilitySetup',
+    notBookable: 'eligibilityNotBookable',
     active: 'eligibilityActive',
     suspended: 'eligibilitySuspended',
     changesRequired: 'eligibilityChanges',
@@ -901,7 +1061,8 @@ const asFileList = (value: unknown) => {
   return []
 }
 const fileNameFromUrl = (url: string) => {
-  const path = decodeURIComponent(url.split('?')[0].split('#')[0])
+  let path = url.split('?')[0].split('#')[0]
+  try { path = decodeURIComponent(path) } catch { /* Preserve legacy file names. */ }
   return path.split('/').filter(Boolean).pop() || url
 }
 const fileKind = (url: string): DocFile['kind'] => {
@@ -915,7 +1076,9 @@ const toDocFiles = (value: unknown): DocFile[] =>
 const documentGroups = computed(() => {
   const groups = [
     { label: t('admin.platformSuppliers.publicLiability'), answer: yesNo(profile.publicLiabilityInsurance), files: toDocFiles(profile.publicLiabilityInsuranceFile) },
-    { label: t('admin.platformSuppliers.employeeInsurance'), answer: yesNo(profile.employeeInsurance), files: toDocFiles(profile.employeeInsuranceFile) },
+    ...(individualSupplier.value ? [] : [
+      { label: t('admin.platformSuppliers.employeeInsurance'), answer: yesNo(profile.employeeInsurance), files: toDocFiles(profile.employeeInsuranceFile) },
+    ]),
   ]
   const extra = profile.extra && typeof profile.extra === 'object' ? profile.extra as Record<string, unknown> : {}
   const extraLabels: Record<string, string> = {
@@ -952,9 +1115,11 @@ const skuTarget = ref<any>(null)
 const skuColumns = ref<{ key: string; nameI18n: Record<string, unknown> | null; fallback: string }[]>([])
 const skuGroupLabel = ref('')
 const skuRows = ref<any[]>([])
-const skuAttaches = ref<Array<{ attachValueId: number; typeName: string; typeNameI18n?: Record<string, unknown> | null; name: string; nameI18n?: Record<string, unknown> | null; unit?: string; unitI18n?: Record<string, unknown> | null; platformPrice: unknown; approvedPrice: unknown; offered: boolean; quotePrice: unknown; reviewStatus?: number; rejectReason?: string }>>([])
+const hourlyCompareSources = ref<any[]>([])
+const skuAttaches = ref<Array<{ attachValueId: number; typeName: string; typeNameI18n?: Record<string, unknown> | null; name: string; nameI18n?: Record<string, unknown> | null; unit?: string; unitI18n?: Record<string, unknown> | null; platformPrice: unknown; platformPriceWithTax?: unknown; profitRate?: unknown; approvedProfitRate?: unknown; approvedPrice: unknown; offered: boolean; quotePrice: unknown; reviewStatus?: number; rejectReason?: string }>>([])
 const skuQuoteMode = ref<number | null>(null)
 const skuReviewByUnitPrice = ref(false)
+const skuUnitPrice = ref<unknown>(null)
 const skuUnitPriceWithMaterial = ref<unknown>(null)
 const skuUnitPriceWithoutMaterial = ref<unknown>(null)
 const skuStatusI18n = ref<Record<string, string> | null>(null)
@@ -1060,7 +1225,32 @@ const specCell = (value: unknown) => {
   const text = specText(value)
   return text === '—' ? '—' : text
 }
-const reviewSkuRows = computed(() => skuRows.value.filter((row) => Number(row?.enabled) === 1))
+const lineStatusRank = (row: { approvedPrice?: unknown; quotePrice?: unknown; reviewStatus?: unknown }) => {
+  const view = quotePriceView({
+    approvedPrice: row.approvedPrice,
+    quotePrice: row.quotePrice,
+    reviewStatus: row.reviewStatus,
+    quoteStatus: skuStatus.value,
+    rejected: Number(row.reviewStatus) === 3,
+  }).view
+  return view === 'underReview' ? 0 : 1
+}
+const reviewSkuRows = computed(() => skuRows.value
+  .filter((row) => Number(row?.enabled) === 1 && row.available !== false)
+  .map((row, index) => ({ row, index }))
+  .sort((left, right) => lineStatusRank(left.row) - lineStatusRank(right.row) || left.index - right.index)
+  .map((item) => item.row))
+const orderedSkuAttaches = computed(() => skuAttaches.value
+  .map((item, index) => ({ item, index }))
+  .sort((left, right) => {
+    const rank = (entry: typeof left) => lineStatusRank({
+      approvedPrice: entry.item.approvedPrice,
+      quotePrice: entry.item.offered ? entry.item.quotePrice : null,
+      reviewStatus: entry.item.reviewStatus,
+    })
+    return rank(left) - rank(right) || left.index - right.index
+  })
+  .map((entry) => entry.item))
 const lineStatusCounts = computed(() => {
   const offeredAttaches = skuAttaches.value.filter((item) => item.offered).map((item) => ({
     reviewStatus: item.reviewStatus,
@@ -1072,7 +1262,7 @@ const lineStatusCounts = computed(() => {
     { key: 'underReview', label: t('admin.supplierPricing.priceUnderReview'), count: counts.underReview, tone: 'is-review' },
     { key: 'rejected', label: t('admin.supplierPricing.priceRejected'), count: counts.rejected, tone: 'is-rejected' },
     { key: 'active', label: t('admin.platformSuppliers.priceEffectActive'), count: counts.active, tone: 'is-active' },
-    { key: 'approvedPending', label: t('admin.platformSuppliers.priceEffectWaiting'), count: counts.approvedPending, tone: 'is-waiting' },
+    { key: 'approvedPending', label: t('admin.platformSuppliers.priceEffectWaiting'), count: counts.approvedPending, tone: 'is-active' },
   ]
   if (counts.draft) items.push({ key: 'draft', label: t('admin.platformSuppliers.quoteDraft'), count: counts.draft, tone: 'is-draft' })
   if (counts.none) items.push({ key: 'none', label: t('admin.platformSuppliers.quoteNone'), count: counts.none, tone: 'is-draft' })
@@ -1080,6 +1270,18 @@ const lineStatusCounts = computed(() => {
 })
 const showSkuCodeColumn = computed(() => !skuColumns.value.length || reviewSkuRows.value.some((row) =>
   skuColumns.value.every((column) => specCell(row?.specs?.[column.key]) === '—')))
+const mergeAttachSource = (catalogAttaches: any[], quoteAttaches: any[]) => {
+  const saved = Array.isArray(quoteAttaches) ? quoteAttaches : []
+  if (!catalogAttaches.length) return saved
+  const seen = new Set(catalogAttaches.map((item) => Number(item?.attachValueId)))
+  const extras = saved.filter((item) => {
+    const id = Number(item?.attachValueId)
+    if (!id || seen.has(id)) return false
+    const price = item?.quotePrice
+    return price != null && price !== '' && Number.isFinite(Number(price))
+  })
+  return extras.length ? [...catalogAttaches, ...extras] : catalogAttaches
+}
 const attachName = (item: { nameI18n?: unknown; name?: string }) => {
   const text = specText(item.nameI18n)
   return text !== '—' ? text : (item.name || '—')
@@ -1108,6 +1310,51 @@ const visibleServices = computed(() => services.value.filter((row) => {
   if (serviceStatusFilter.value !== '' && Number(row.status) !== Number(serviceStatusFilter.value)) return false
   return true
 }))
+const packageLabel = (names: unknown, fallback?: unknown) => {
+  const text = pickI18nText(names && typeof names === 'object' ? names as Record<string, unknown> : undefined, locale.value, '')
+  return text || (fallback == null ? '' : String(fallback))
+}
+const packageServiceRows = computed(() => packageQuotes.value.flatMap((pkg) => {
+  const servicesInPackage = Array.isArray(pkg?.services) ? pkg.services : []
+  return servicesInPackage.filter((service: any) => service?.available !== false && Number(service?.spuId) > 0).map((service: any) => ({
+    key: `${pkg.packageId}-${service.spuId}`,
+    packageId: Number(pkg.packageId),
+    packageName: packageLabel(pkg.nameI18n, pkg.packageName) || '—',
+    categoryName: packageLabel(pkg.categoryNameI18n, pkg.categoryName) || '—',
+    spuId: Number(service.spuId),
+    spuName: service.spuName,
+    nameI18n: service.nameI18n,
+    status: service.status,
+    statusI18n: service.statusI18n,
+    rejectReason: service.rejectReason || '',
+    priceChangeStatus: service.priceChangeStatus,
+    priceChangeReason: service.priceChangeReason || '',
+    skuIds: (Array.isArray(service.skus) ? service.skus : []).map((sku: any) => Number(sku?.skuId)).filter((id: number) => id > 0),
+    attachIds: (Array.isArray(service.attaches) ? service.attaches : []).map((item: any) => Number(item?.attachValueId)).filter((id: number) => id > 0),
+  }))
+}))
+const packageCategoryOptions = computed(() => [...new Set(packageServiceRows.value.map((row) => row.categoryName).filter((name) => name && name !== '—'))])
+const visiblePackageServices = computed(() => packageServiceRows.value.filter((row) => {
+  const keyword = packageKeyword.value.trim().toLowerCase()
+  if (keyword && !`${row.packageName} ${serviceName(row)}`.toLowerCase().includes(keyword)) return false
+  if (packageCategoryFilter.value && row.categoryName !== packageCategoryFilter.value) return false
+  if (packageStatusFilter.value !== '' && Number(row.status) !== Number(packageStatusFilter.value)) return false
+  return true
+}))
+const packageQuoteLabel = computed(() => {
+  const packageId = Number(route.query.package)
+  const spuId = Number(route.query.spu)
+  const row = packageServiceRows.value.find((item) => item.packageId === packageId && item.spuId === spuId)
+  return row?.packageName && row.packageName !== '—' ? row.packageName : ''
+})
+const packageSkuIdSet = (packageId: number, spuId: number) => {
+  const row = packageServiceRows.value.find((item) => item.packageId === packageId && item.spuId === spuId)
+  return new Set(row?.skuIds || [])
+}
+const packageAttachIdSet = (packageId: number, spuId: number) => {
+  const row = packageServiceRows.value.find((item) => item.packageId === packageId && item.spuId === spuId)
+  return new Set(row?.attachIds || [])
+}
 const quoteSpuId = (value: unknown) => {
   const id = Number(value)
   return Number.isInteger(id) && id > 0 ? id : 0
@@ -1170,11 +1417,107 @@ const clientPrice = (row: { platformPriceWithTax?: unknown }) => {
   const amount = Number(row.platformPriceWithTax)
   return Number.isFinite(amount) ? amount : null
 }
+const hourlyPricingActive = () =>
+  skuQuoteMode.value === 2 || skuQuoteMode.value === 3 || skuReviewByUnitPrice.value === true
+const platformHourlyInput = (row: any) => ({
+  quoteMode: skuQuoteMode.value,
+  unitPrice: skuUnitPrice.value,
+  unitPriceWithMaterial: skuUnitPriceWithMaterial.value,
+  unitPriceWithoutMaterial: skuUnitPriceWithoutMaterial.value,
+  quotePrice: row?.quotePrice,
+  staffCount: row?.staffCount,
+  serviceHours: row?.serviceHours,
+  platformPriceWithTax: row?.platformPriceWithTax,
+  platformPrice: row?.platformPrice,
+  platformOriginalPrice: row?.platformOriginalPrice,
+  sources: [row?.specs, row?.specDetails, row?.groupValue],
+})
+const reviewQuoteAmount = (row: any) =>
+  hourlyPricingActive() ? hourlySupplierCost(platformHourlyInput(row)) : row?.quotePrice
+const hourlySourceUseful = (inputs: any[]) => {
+  const summary = summarizeHourlyCompare(inputs, null)
+  return summary.customerMin != null || summary.marginMin != null
+}
+const catalogHourlyInputs = (skus: any[]) => (Array.isArray(skus) ? skus : [])
+  .filter((sku) => {
+    if (!sku || typeof sku !== 'object') return false
+    if (Number(sku.valid ?? 1) === 0) return false
+    if (sku.available === false) return false
+    if (sku.status != null && sku.status !== '' && Number(sku.status) === 0) return false
+    const price = Number(sku.platformPriceWithTax ?? sku.price ?? sku.originalPrice)
+    return Number.isFinite(price) && price > 0
+  })
+  .map((sku) => platformHourlyInput({
+    platformPrice: sku.price ?? sku.platformPrice,
+    platformOriginalPrice: sku.originalPrice ?? sku.platformOriginalPrice,
+    platformPriceWithTax: sku.platformPriceWithTax,
+    staffCount: sku.staffCount,
+    serviceHours: sku.serviceHours,
+    quotePrice: null,
+    specs: sku,
+    specDetails: [sku.specs, sku.groupSpecValueNameI18n, sku.groupSpecValueName],
+    groupValue: sku.groupSpecValueName,
+  }))
+const quoteHourlyInputs = (skus: any[]) => (Array.isArray(skus) ? skus : [])
+  .filter((sku) => sku && sku.available !== false && Number(sku.enabled ?? 1) === 1)
+  .map((sku) => platformHourlyInput({
+    platformPrice: sku.platformPrice,
+    platformOriginalPrice: sku.platformOriginalPrice,
+    platformPriceWithTax: sku.platformPriceWithTax,
+    staffCount: sku.staffCount,
+    serviceHours: sku.serviceHours,
+    quotePrice: sku.quotePrice,
+    specs: sku.specs,
+    specDetails: [sku.specs, sku.groupSpecValueNameI18n, sku.groupSpecValueName],
+    groupValue: sku.groupSpecValueName || sku.groupValue,
+  }))
+const hourlyCompare = (material: 'with' | 'without' | null) => summarizeHourlyCompare(
+  hourlyCompareSources.value,
+  material,
+)
+const formatCompareSpan = (min: number | null, max: number | null, suffix = '') => {
+  if (min == null || max == null) return ''
+  const left = suffix ? `${min}${suffix}` : moneyText(min)
+  const right = suffix ? `${max}${suffix}` : moneyText(max)
+  return left === right ? left : `${left} – ${right}`
+}
+const hourlyCompareLabel = (material: 'with' | 'without' | null) => {
+  const summary = hourlyCompare(material)
+  const prices = formatCompareSpan(summary.customerMin, summary.customerMax)
+  const margins = formatCompareSpan(summary.marginMin, summary.marginMax, '%')
+  return [
+    prices ? t('admin.platformSuppliers.hourlyCustomerCompare', { prices }) : '',
+    margins ? t('admin.platformSuppliers.hourlyMarginCompare', { margins }) : '',
+  ].filter(Boolean).join(' · ')
+}
+const hourlyCompareNegative = (material: 'with' | 'without' | null) => {
+  const summary = hourlyCompare(material)
+  return summary.marginMin != null && summary.marginMin < 0
+}
+const hourlyCompareGapText = (material: 'with' | 'without' | null) => {
+  const gap = hourlyCompareGap(hourlyCompareSources.value, material)
+  if (gap === 'ok') return ''
+  return t(gap === 'effort'
+    ? 'admin.platformSuppliers.hourlyCompareMissingEffort'
+    : 'admin.platformSuppliers.hourlyCompareMissingPrice')
+}
 const marginText = (row: { platformPrice?: unknown; platformOriginalPrice?: unknown; quotePrice?: unknown }) => {
+  if (hourlyPricingActive()) {
+    const percent = hourlyMarginPercent(platformHourlyInput(row))
+    return percent == null ? '—' : `${percent}%`
+  }
   const client = Number(clientPrice(row))
   const quote = Number(row.quotePrice)
   if (!Number.isFinite(client) || client <= 0 || !Number.isFinite(quote)) return '—'
   return `${Math.round(((client - quote) / client) * 100)}%`
+}
+const profitRateText = (value: unknown) => {
+  if (value == null || value === '') return '—'
+  const rate = Number(value)
+  if (!Number.isFinite(rate)) return '—'
+  const percent = Math.round((rate * 100 + Number.EPSILON) * 100) / 100
+  const text = Number.isInteger(percent) ? String(percent) : percent.toFixed(2).replace(/\.?0+$/, '')
+  return `${text}%`
 }
 const statusClass = (status?: number) => {
   const value = Number(status)
@@ -1185,6 +1528,15 @@ const statusClass = (status?: number) => {
 }
 const reviewRowClass = ({ row }: { row: SupplierRow }) => (Number(row.onboardingStatus) === 1 ? 'is-waiting' : '')
 const onboardingCategoryLabels = ref<Record<string, string>>({})
+const changeLabel = (change: ProfileChange) =>
+  pickI18nText(change.labelI18n, locale.value, change.field || '—') || change.field || '—'
+const changeValue = (change: ProfileChange, side: 'before' | 'after') => {
+  const raw = pickI18nText(side === 'before' ? change.beforeI18n : change.afterI18n, locale.value, '—') || '—'
+  if (change.field !== 'expectedServiceCategoryIds' || raw === '—') return raw
+  const names = raw.split(/[、,]/).map((item) => item.trim()).filter(Boolean)
+    .map((id) => onboardingCategoryLabels.value[id] || id)
+  return names.join('、') || '—'
+}
 const expectedServiceNames = computed(() => {
   const items = Array.isArray(profile.expectedServiceCategoryIds) ? profile.expectedServiceCategoryIds : []
   return items.map((id: unknown) => onboardingCategoryLabels.value[String(id)] || String(id)).filter(Boolean)
@@ -1224,8 +1576,10 @@ type OnboardingListItem = {
   pendingReview?: boolean
   modifyTime?: string
   licenseExpiry?: string
+  supplierType?: number
   services?: ServiceCategory[]
   expectedServiceCategoryIds?: Array<number | string>
+  profileChanges?: ProfileChange[]
 }
 
 const reviewChoice = () => (needReview.value === 'yes' || needReview.value === 'no' ? needReview.value : '')
@@ -1245,6 +1599,8 @@ const attachOnboardingStatus = async (rows: SupplierRow[]) => {
   const mobileById = new Map<number, string>()
   const expectedById = new Map<number, string[]>()
   const expiryById = new Map<number, string>()
+  const typeById = new Map<number, number>()
+  const changeCountById = new Map<number, number>()
   const statusPageSize = 200
   let statusPage = 1
   let statusTotal = 0
@@ -1266,6 +1622,10 @@ const attachOnboardingStatus = async (rows: SupplierRow[]) => {
       if (expected.length) expectedById.set(id, expected)
       const expiry = String(item.licenseExpiry || '').trim()
       if (expiry) expiryById.set(id, expiry)
+      const supplierType = Number(item.supplierType)
+      if (supplierType === 1 || supplierType === 2) typeById.set(id, supplierType)
+      const changeCount = Array.isArray(item.profileChanges) ? item.profileChanges.length : 0
+      if (changeCount) changeCountById.set(id, changeCount)
     })
     if (statusById.size >= wanted.size || list.length < statusPageSize) break
     statusPage += 1
@@ -1281,6 +1641,8 @@ const attachOnboardingStatus = async (rows: SupplierRow[]) => {
       onboardingStatus: Number.isFinite(parsed) ? parsed : statusById.get(id),
       pendingReview: reviewById.get(id),
       licenseExpiry: expiryById.get(id) || row.licenseExpiry,
+      supplierType: typeById.get(id) ?? row.supplierType,
+      profileChangeCount: changeCountById.get(id),
     }
   })
 }
@@ -1354,8 +1716,12 @@ const toReviewRow = (item: OnboardingListItem, quote?: SupplierRow): SupplierRow
     priceChangePendingCount: quote?.priceChangePendingCount,
     effectiveCount: quote?.effectiveCount,
     licenseExpiry: item.licenseExpiry || quote?.licenseExpiry,
+    supplierType: Number(item.supplierType) === 2 || Number(quote?.supplierType) === 2
+      ? 2
+      : (Number(item.supplierType) === 1 || Number(quote?.supplierType) === 1 ? 1 : undefined),
     expectedCategoryIds: categoryIdsOf(item),
     latestSubmitTime: quote?.latestSubmitTime || item.modifyTime,
+    profileChangeCount: Array.isArray(item.profileChanges) ? item.profileChanges.length : undefined,
   }
 }
 
@@ -1417,6 +1783,13 @@ const reviewChips = computed(() => [
     active: queueFocus.value === 'licence' && quoteStatus.value === '' && onboardingStatusParam() == null && !reviewChoice(),
   },
 ])
+const visibleReviewChips = computed(() => {
+  if (quoteDesk.value) {
+    if (quoteScope.value === 'packages') return []
+    return reviewChips.value.filter((chip) => chip.key === 'quotePending' || chip.key === 'priceChange')
+  }
+  return reviewChips.value.filter((chip) => chip.key === 'onboarding' || chip.key === 'licence')
+})
 const clearReviewFilters = () => {
   quoteStatus.value = ''
   onboardingStatus.value = ''
@@ -1469,12 +1842,81 @@ const attachRejectedCounts = async (rows: SupplierRow[], generation: number) => 
   }))
 }
 
+const serviceOptionName = (item: any) => {
+  const spu = item?.spu || item || {}
+  return pickI18nText(item?.nameI18n, locale.value, String(spu.spuName || spu.name || ''))
+}
+const rememberServiceOptions = () => {
+  const chosen = new Set(serviceIds.value.map((id) => Number(id)))
+  const known = new Map([...selectedServiceOptions.value, ...serviceOptions.value].map((item) => [item.id, item]))
+  selectedServiceOptions.value = [...chosen].flatMap((id) => {
+    const option = known.get(id)
+    return option ? [option] : []
+  })
+  const visible = new Map(serviceOptions.value.map((item) => [item.id, item]))
+  selectedServiceOptions.value.forEach((item) => visible.set(item.id, item))
+  serviceOptions.value = [...visible.values()]
+}
+const searchServices = async (query: string) => {
+  const name = query.trim()
+  if (!name) {
+    serviceOptions.value = [...selectedServiceOptions.value]
+    return
+  }
+  serviceSearchLoading.value = true
+  try {
+    const result = unwrap(await productPage({
+      pageNum: 1,
+      pageSize: 20,
+      packageService: 0,
+      shelfStatus: 1,
+      nameKeyword: name,
+    })) || {}
+    const found = (Array.isArray(result.list) ? result.list : []).flatMap((item: any) => {
+      const id = Number(item?.spu?.id ?? item?.id)
+      const serviceName = serviceOptionName(item)
+      return Number.isFinite(id) && id > 0 && serviceName ? [{ id, name: serviceName }] : []
+    })
+    const visible = new Map(found.map((item) => [item.id, item]))
+    selectedServiceOptions.value.forEach((item) => visible.set(item.id, item))
+    serviceOptions.value = [...visible.values()]
+  } catch (error: any) {
+    ElMessage.error(error?.message || t('admin.platformSuppliers.loadFailed'))
+  } finally {
+    serviceSearchLoading.value = false
+  }
+}
+const fulfillableSupplierIds = async (ids: number[]) => {
+  const spuIds = [...new Set(ids.map((id) => Number(id)).filter((id) => Number.isFinite(id) && id > 0))]
+  if (!spuIds.length) return null
+  const matched = new Set<number>()
+  const scanSize = 100
+  let scanPage = 1
+  let scanTotal = 0
+  do {
+    const result = unwrap(await supplierPage({ pageNum: scanPage, pageSize: scanSize, spuIds })) || {}
+    const list = Array.isArray(result.list) ? result.list : []
+    scanTotal = Number(result.total || 0)
+    list.forEach((item: { id?: unknown }) => {
+      const id = Number(item?.id)
+      if (Number.isFinite(id) && id > 0) matched.add(id)
+    })
+    if (list.length < scanSize) break
+    scanPage += 1
+  } while ((scanPage - 1) * scanSize < scanTotal && scanPage <= 50)
+  return matched
+}
+const matchesServiceFilter = (row: { id?: unknown }, allowed: Set<number> | null) =>
+  !allowed || allowed.has(Number(row.id))
+
 const loadSuppliers = async () => {
   const generation = ++supplierLoadGeneration
   loading.value = true
-  const countsPromise = refreshReviewCounts(generation)
+  const allowedPromise = fulfillableSupplierIds(serviceIds.value)
+  const countsPromise = allowedPromise.then((allowed) => refreshReviewCounts(generation, allowed))
   try {
     await ensureCategoryLabels()
+    const allowed = await allowedPromise
     const review = reviewChoice()
     const pageOf = (rows: SupplierRow[]) => {
       total.value = rows.length
@@ -1488,6 +1930,7 @@ const loadSuppliers = async () => {
       ])
       const quoteById = new Map(quoteRows.map((row) => [Number(row.id), row]))
       const merged = sortSupplierQueue(focusRows(onboardingRows
+        .filter((item) => matchesServiceFilter(item, allowed))
         .filter((item) => quoteStatus.value === '' || quoteById.has(Number(item.id)))
         .map((item) => toReviewRow(item, quoteById.get(Number(item.id))))))
       if (generation !== supplierLoadGeneration) return
@@ -1498,7 +1941,7 @@ const loadSuppliers = async () => {
       return
     }
     const attachedRows = await attachOnboardingStatus(await collectQuoteRows())
-    const rows = sortSupplierQueue(focusRows(attachedRows))
+    const rows = sortSupplierQueue(focusRows(attachedRows.filter((row) => matchesServiceFilter(row, allowed))))
     if (generation !== supplierLoadGeneration) return
     const pageRows = pageOf(rows)
     suppliers.value = pageRows
@@ -1513,20 +1956,25 @@ const loadSuppliers = async () => {
 
 const pageTotal = (result: unknown) => Number((unwrap(result) || {}).total || 0)
 
-const refreshReviewCounts = async (generation: number) => {
+const refreshReviewCounts = async (generation: number, allowed: Set<number> | null) => {
   try {
     const keywordPayload = keyword.value ? { keyword: keyword.value } : {}
     const countedRowsPromise = collectQuoteRows('counts').then((rows) => attachOnboardingStatus(rows))
     const [onboardingResult, pendingResult, countedRows] = await Promise.all([
-      platformSupplierQuotePage({ pageNum: 1, pageSize: 1, onboardingStatus: 1, ...keywordPayload }),
-      platformSupplierQuotePage({ pageNum: 1, pageSize: 1, quoteStatus: 1, ...keywordPayload }),
+      allowed ? Promise.resolve(null) : platformSupplierQuotePage({ pageNum: 1, pageSize: 1, onboardingStatus: 1, ...keywordPayload }),
+      allowed ? Promise.resolve(null) : platformSupplierQuotePage({ pageNum: 1, pageSize: 1, quoteStatus: 1, ...keywordPayload }),
       countedRowsPromise,
     ])
     if (generation !== supplierLoadGeneration) return
-    reviewCounts.onboarding = pageTotal(onboardingResult)
-    reviewCounts.quotePending = pageTotal(pendingResult)
-    reviewCounts.priceChange = countedRows.filter((row) => supplierMatchesQueueFocus(row, 'priceChange')).length
-    reviewCounts.licence = countedRows.filter((row) => supplierMatchesQueueFocus(row, 'licence')).length
+    const visibleRows = countedRows.filter((row) => matchesServiceFilter(row, allowed))
+    reviewCounts.onboarding = allowed
+      ? visibleRows.filter((row) => Number(row.onboardingStatus) === 1).length
+      : pageTotal(onboardingResult)
+    reviewCounts.quotePending = allowed
+      ? visibleRows.filter((row) => Number(row.pendingCount) > 0).length
+      : pageTotal(pendingResult)
+    reviewCounts.priceChange = visibleRows.filter((row) => supplierMatchesQueueFocus(row, 'priceChange')).length
+    reviewCounts.licence = visibleRows.filter((row) => supplierMatchesQueueFocus(row, 'licence')).length
   } catch {
     // Keep the previous counts when a summary request fails.
   }
@@ -1534,11 +1982,31 @@ const refreshReviewCounts = async (generation: number) => {
 
 const search = () => {
   pageNum.value = 1
-  loadSuppliers()
+  return loadSuppliers()
 }
 const searchFromFilters = () => {
   queueFocus.value = ''
   search()
+}
+const showEverySupplier = () => {
+  quoteStatus.value = ''
+  onboardingStatus.value = ''
+  needReview.value = ''
+  queueFocus.value = ''
+  return search()
+}
+const changeQuoteStatus = (value: number | 'all' | '') => {
+  if (value === 'all' || value === '' || value == null) return showEverySupplier()
+  quoteStatus.value = Number(value)
+  return searchFromFilters()
+}
+const changeOnboardingStatus = (value: number | 'all' | '' | null) => {
+  onboardingStatus.value = value === 'all' || value === '' || value == null ? '' : Number(value)
+  return searchFromFilters()
+}
+const changeNeedReview = (value: 'all' | 'yes' | 'no' | '' | null) => {
+  needReview.value = value === 'yes' || value === 'no' ? value : ''
+  return searchFromFilters()
 }
 const changePage = (page: number) => {
   pageNum.value = page
@@ -1551,12 +2019,15 @@ let reviewRequest: Promise<void> = Promise.resolve()
 const loadReview = (supplierId: number) => {
   const ticket = ++reviewTicket
   detailLoading.value = true
+  profileChanges.value = []
   const request = (async () => {
   try {
-    const [detail, serviceList, catalog] = await Promise.all([
+    const [detail, serviceList, catalog, packageServiceCatalog, packageList] = await Promise.all([
       onboardingDetail(supplierId),
       platformSupplierQuoteServices(supplierId),
-      serviceCatalog(supplierId).catch(() => null),
+      serviceCatalog(supplierId, false).catch(() => null),
+      serviceCatalog(supplierId, true).catch(() => null),
+      supplierPackageQuotes(supplierId).catch(() => null),
     ])
     if (ticket !== reviewTicket) return
     const nextProfile = unwrap(detail) || {}
@@ -1577,23 +2048,46 @@ const loadReview = (supplierId: number) => {
     onboarding.reviewKind = nextProfile.reviewKind == null || nextProfile.reviewKind === ''
       ? undefined
       : Number(nextProfile.reviewKind)
-    const selection = new Map<number, { workerCount?: number; contactPhones: string[] }>()
+    profileChanges.value = Array.isArray(nextProfile.profileChanges) ? nextProfile.profileChanges : []
+    const selection = new Map<number, { workerCount?: number }>()
     const categoryI18n = new Map<number, Record<string, string>>()
+    const categoryContact = new Map<number, { contactName: string; contactPhones: string[] }>()
     ;(unwrap(catalog) || []).forEach((group: any) => {
-      if (group?.categoryId && group?.nameI18n) categoryI18n.set(Number(group.categoryId), group.nameI18n)
+      const categoryId = Number(group?.categoryId)
+      if (categoryId && group?.nameI18n) categoryI18n.set(categoryId, group.nameI18n)
+      if (categoryId) {
+        categoryContact.set(categoryId, {
+          contactName: String(group?.contactName || '').trim(),
+          contactPhones: Array.isArray(group?.contactPhones) ? group.contactPhones : [],
+        })
+      }
       ;(group.services || []).forEach((service: any) => {
-        if (!service.selected) return
+        if (!service.selected || Number(service.packageService) === 1) return
         selection.set(Number(service.spuId), {
           workerCount: service.workerCount,
-          contactPhones: Array.isArray(service.contactPhones) ? service.contactPhones : [],
         })
       })
     })
-    services.value = (unwrap(serviceList) || []).map((row: any) => ({
-      ...row,
-      categoryNameI18n: categoryI18n.get(Number(row.categoryId)),
-      ...(selection.get(Number(row.spuId)) || {}),
-    }))
+    const packageServiceIds = packageServiceSpuIds(unwrap(packageServiceCatalog) || [])
+    const packageRows = unwrap(packageList)
+    packageQuotes.value = Array.isArray(packageRows) ? packageRows : []
+    services.value = (unwrap(serviceList) || []).flatMap((row: any) => {
+      if (packageServiceIds.has(Number(row?.spuId))) return []
+      const saved = categoryContact.get(Number(row?.categoryId))
+      const contactName = row?.contactName == null
+        ? (saved?.contactName || '')
+        : String(row.contactName).trim()
+      const contactPhones = Array.isArray(row?.contactPhones)
+        ? row.contactPhones
+        : (saved?.contactPhones || [])
+      return {
+        ...row,
+        categoryNameI18n: categoryI18n.get(Number(row.categoryId)),
+        workerCount: selection.get(Number(row.spuId))?.workerCount,
+        contactName,
+        contactPhones,
+      }
+    })
     current.value = {
       id: supplierId,
       supplierNo: nextProfile.supplierNo,
@@ -1615,6 +2109,10 @@ const loadReview = (supplierId: number) => {
 }
 
 const openReview = (row: SupplierRow) => {
+  if (quoteDesk.value) {
+    router.push({ path: QUOTE_DESK_PATH, query: { id: String(row.id), scope: quoteScope.value } })
+    return
+  }
   router.push({ path: route.path, query: { id: String(row.id), tab: 'overview' } })
 }
 const backToList = () => {
@@ -1623,16 +2121,61 @@ const backToList = () => {
 const openSupplierTab = (tab: string) => {
   router.push({ path: route.path, query: { id: String(detailId.value), tab } })
 }
-const openQuotes = () => {
-  router.push({ path: route.path, query: { id: String(detailId.value), tab: 'quotes' } })
+const setQuoteScope = (scope: 'services' | 'packages') => {
+  if (scope === quoteScope.value && screen.value !== 'quote') return
+  if (scope === 'packages') {
+    quoteStatus.value = ''
+    queueFocus.value = ''
+  }
+  const query: Record<string, string> = { scope }
+  if (detailId.value) query.id = String(detailId.value)
+  router.push({ path: QUOTE_DESK_PATH, query })
+  if (!detailId.value) search()
 }
+const openQuoteDesk = (scope: 'services' | 'packages' = 'services') => {
+  if (!detailId.value) return
+  router.push({ path: QUOTE_DESK_PATH, query: { id: String(detailId.value), scope } })
+}
+const openQuotes = () => setQuoteScope('services')
+const openPackages = () => setQuoteScope('packages')
 const openQuote = (row: { spuId?: number }) => {
-  router.push({ path: route.path, query: { id: String(detailId.value), view: 'quote', spu: String(row.spuId || '') } })
+  router.push({
+    path: QUOTE_DESK_PATH,
+    query: { id: String(detailId.value), view: 'quote', spu: String(row.spuId || ''), scope: 'services' },
+  })
+}
+const openPackageQuote = (row: { spuId?: number; packageId?: number }) => {
+  router.push({
+    path: QUOTE_DESK_PATH,
+    query: {
+      id: String(detailId.value),
+      view: 'quote',
+      spu: String(row.spuId || ''),
+      package: String(row.packageId || ''),
+      scope: 'packages',
+    },
+  })
 }
 const crumbBack = () => {
-  if (screen.value === 'quote') openQuotes()
-  else backToList()
+  if (screen.value === 'quote') {
+    if (packageQuoteReview.value) openPackages()
+    else openQuotes()
+  } else backToList()
 }
+const breadcrumbItems = computed(() => [
+  { label: quoteDesk.value ? t('admin.platformSuppliers.quoteDeskTitle') : t('admin.platformSuppliers.title'), onClick: backToList },
+  ...(screen.value === 'list' ? [] : [{
+    label: profile.companyName || current.value?.supplierName || '—',
+    onClick: () => (packageQuoteReview.value ? openPackages() : openQuotes()),
+  }]),
+  ...(screen.value === 'quote' ? [
+    {
+      label: t(packageQuoteReview.value ? 'admin.platformSuppliers.packages' : 'admin.platformSuppliers.serviceQuotes'),
+      onClick: () => (packageQuoteReview.value ? openPackages() : openQuotes()),
+    },
+    { label: skuDialogTitle.value },
+  ] : []),
+])
 
 const supplierDecisionName = (row?: { supplierName?: string } | null) => {
   const named = String(row?.supplierName || profile.companyName || current.value?.supplierName || '').trim()
@@ -1643,6 +2186,7 @@ const confirmReview = async (message: string, title: string, confirmText: string
   try {
     await ElMessageBox.confirm(message, title, {
       type: 'warning',
+      customClass: 'supplier-review-confirm',
       confirmButtonText: confirmText,
       cancelButtonText: t('admin.platformSuppliers.cancel'),
     })
@@ -1699,7 +2243,58 @@ const isPendingReviewLine = (row: any) => row?.quoted === true
   && Number(row?.enabled) === 1
   && normalizeLineReviewStatus(row?.reviewStatus) == null
 const pendingReviewLines = computed(() => skuRows.value.filter(isPendingReviewLine))
-const hourlyQuoteReview = computed(() => skuReviewByUnitPrice.value || skuQuoteMode.value === 2)
+const quoteModeCode = (value: unknown) => {
+  const code = Number(value)
+  return code === 1 || code === 2 || code === 3 ? code : null
+}
+const displayedQuoteMode = (quote?: { quoteMode?: unknown; configuredQuoteMode?: unknown } | null) => {
+  const saved = quoteModeCode(quote?.quoteMode)
+  const configured = quoteModeCode(quote?.configuredQuoteMode)
+  if ((saved == null || saved === 1) && (configured === 2 || configured === 3)) return configured
+  return saved
+}
+const positiveRate = (value: unknown) => {
+  const amount = Number(value)
+  return Number.isFinite(amount) && amount > 0
+}
+const quoteHasHourlyRate = (
+  quote?: { unitPrice?: unknown; unitPriceWithMaterial?: unknown; unitPriceWithoutMaterial?: unknown } | null,
+  mode?: number | null,
+) => {
+  if (mode === 3) return positiveRate(quote?.unitPrice)
+  if (mode === 2) {
+    return positiveRate(quote?.unitPriceWithMaterial)
+      || positiveRate(quote?.unitPriceWithoutMaterial)
+      || positiveRate(quote?.unitPrice)
+  }
+  return false
+}
+const quoteUsesHourlyReview = (quote?: {
+  quoteMode?: unknown
+  configuredQuoteMode?: unknown
+  reviewByUnitPrice?: unknown
+  unitPrice?: unknown
+  unitPriceWithMaterial?: unknown
+  unitPriceWithoutMaterial?: unknown
+} | null) => {
+  const mode = displayedQuoteMode(quote)
+  const hourlyMode = mode === 2 || mode === 3 || quote?.reviewByUnitPrice === true
+  return hourlyMode && quoteHasHourlyRate(quote, mode === 3 ? 3 : 2)
+}
+const staffHourQuote = computed(() => skuQuoteMode.value === 3)
+const quoteModeText = computed(() => {
+  if (skuQuoteMode.value === 3) return t('admin.platformSuppliers.personHour')
+  if (skuQuoteMode.value === 2) return t('admin.platformSuppliers.unitPrice')
+  if (skuQuoteMode.value === 1) return t('admin.platformSuppliers.fixedPrice')
+  return t('admin.platformSuppliers.modeUnset')
+})
+const hourlyQuoteReview = computed(() => quoteUsesHourlyReview({
+  quoteMode: skuQuoteMode.value,
+  reviewByUnitPrice: skuReviewByUnitPrice.value,
+  unitPrice: skuUnitPrice.value,
+  unitPriceWithMaterial: skuUnitPriceWithMaterial.value,
+  unitPriceWithoutMaterial: skuUnitPriceWithoutMaterial.value,
+}))
 const hourlyRatePending = computed(() => {
   if (!hourlyQuoteReview.value || Number(skuStatus.value) !== 1) return false
   const enabled = skuRows.value.filter((row) => Number(row?.enabled) === 1)
@@ -1738,9 +2333,12 @@ const onReviewSelectionChange = (rows: any[]) => {
 
 const refreshCurrentQuote = async () => {
   const spuId = Number(skuTarget.value?.spuId)
+  const packageId = Number(skuTarget.value?.packageId || route.query.package) || 0
   await loadReview(detailId.value)
   await loadSuppliers()
-  const current = services.value.find((item) => Number(item.spuId) === spuId) || skuTarget.value
+  const current = packageId
+    ? packageServiceRows.value.find((item) => item.packageId === packageId && item.spuId === spuId) || { ...skuTarget.value, spuId, packageId }
+    : services.value.find((item) => Number(item.spuId) === spuId) || skuTarget.value
   await openSkus(current)
 }
 
@@ -1819,11 +2417,20 @@ const reviewHourlyQuote = async (status: 2 | 3, reason?: string) => {
   if (!await confirmQuoteDecision(status === 2 ? 'approve' : 'reject', quoteDecisionName())) return
   saving.value = true
   try {
-    const pendingRateLines = status === 2
+    const packageId = Number(skuTarget.value?.packageId || route.query.package) || 0
+    const pendingRateLines = (status === 2 || packageId)
       ? skuRows.value
         .filter((row) => Number(row?.enabled) === 1 && normalizeLineReviewStatus(row?.reviewStatus) == null)
-        .map((row) => ({ skuId: row.skuId, status: 2 as const }))
+        .map((row) => ({
+          skuId: row.skuId,
+          status,
+          rejectReason: status === 3 ? reason : undefined,
+        }))
       : []
+    if (packageId && !pendingRateLines.length) {
+      ElMessage.warning(t('admin.platformSuppliers.selectReviewLines'))
+      return
+    }
     await platformSupplierQuoteReview(pendingRateLines.length
       ? {
         supplierId: detailId.value,
@@ -1906,6 +2513,7 @@ const rejectWholeQuote = async (row: any, reason: string) => {
   if (!supplierId || !spuId || saving.value) return
   if (!await confirmQuoteDecision('reject', quoteDecisionName(row))) return
   const useLoaded = screen.value === 'quote' && Number(skuTarget.value?.spuId) === spuId
+  const packageId = Number(row?.packageId || skuTarget.value?.packageId || route.query.package) || 0
   saving.value = true
   try {
     let versionNo = useLoaded ? skuVersionNo.value : undefined
@@ -1915,12 +2523,12 @@ const rejectWholeQuote = async (row: any, reason: string) => {
     if (!useLoaded) {
       const quote = unwrap(await platformSupplierQuoteSkus(supplierId, spuId)) || {}
       versionNo = quote.versionNo == null ? undefined : Number(quote.versionNo)
-      hourly = quote.reviewByUnitPrice === true || Number(quote.quoteMode) === 2
-      if (!hourly) {
+      hourly = quoteUsesHourlyReview(quote)
+      if (!hourly || packageId) {
         lines = quoteLinesToReject(quote, reason)
         attaches = quoteAttachesToReject(quote, reason)
       }
-    } else if (!hourly) {
+    } else if (!hourly || packageId) {
       lines = pendingReviewLines.value.map((item) => ({
         skuId: item.skuId,
         status: 3 as const,
@@ -1932,7 +2540,17 @@ const rejectWholeQuote = async (row: any, reason: string) => {
         rejectReason: reason,
       }))
     }
-    if (hourly || (!lines.length && !attaches.length)) {
+    if (packageId) {
+      const allowedSkus = packageSkuIdSet(packageId, spuId)
+      const allowedAttaches = packageAttachIdSet(packageId, spuId)
+      if (allowedSkus.size) lines = lines.filter((line) => allowedSkus.has(Number(line.skuId)))
+      attaches = allowedAttaches.size ? attaches.filter((item) => allowedAttaches.has(Number(item.attachValueId))) : []
+      if (!lines.length && !attaches.length) {
+        ElMessage.warning(t('admin.platformSuppliers.selectReviewLines'))
+        return
+      }
+    }
+    if (!packageId && (hourly || (!lines.length && !attaches.length))) {
       await platformSupplierQuoteReview({
         supplierId,
         spuId,
@@ -2108,6 +2726,7 @@ const priceFileName = () => {
 }
 const billingLabel = (mode: unknown) => {
   const value = Number(mode)
+  if (value === 3) return t('admin.platformSuppliers.personHour')
   if (value === 2) return t('admin.platformSuppliers.unitPrice')
   if (value === 1) return t('admin.platformSuppliers.fixedPrice')
   return ''
@@ -2150,7 +2769,7 @@ const loadServicePriceRows = async (row: any) => {
   }
   const catalogBySku = new Map(specSkus.map((sku: any) => [Number(sku.skuId), sku]))
   const lines = quoteSkus
-    .filter((sku: any) => sku?.quoted === true || Number(sku?.quoted) === 1)
+    .filter((sku: any) => (sku?.quoted === true || Number(sku?.quoted) === 1) && sku?.available !== false)
     .map((saved: any) => {
       const catalogSku = catalogBySku.get(Number(saved.skuId)) || {}
       const enabled = saved.enabled == null || saved.enabled === '' ? 1 : Number(saved.enabled)
@@ -2162,14 +2781,19 @@ const loadServicePriceRows = async (row: any) => {
           saved[column.key] ?? saved.specs?.[column.key] ?? catalogSku[column.key],
         ])),
         platformPriceWithTax: saved.platformPriceWithTax ?? null,
+        platformPrice: saved.platformPrice ?? catalogSku.price ?? null,
+        platformOriginalPrice: saved.platformOriginalPrice ?? catalogSku.originalPrice ?? null,
         approvedPrice: saved.approvedPrice ?? null,
+        staffCount: saved.staffCount ?? null,
+        serviceHours: saved.serviceHours ?? null,
         quotePrice: saved.quotePrice ?? null,
         reviewStatus: normalizeLineReviewStatus(saved.reviewStatus),
+        specDetails: [catalogSku.specs, saved.specs],
       }
     })
     .filter((line) => line.enabled === 1)
   const savedAttaches = new Map((Array.isArray(quote.attaches) ? quote.attaches : []).map((item: any) => [Number(item.attachValueId), item]))
-  const attachSource = catalogAttaches.length ? catalogAttaches : (Array.isArray(quote.attaches) ? quote.attaches : [])
+  const attachSource = mergeAttachSource(catalogAttaches, quote.attaches)
   const addons = attachSource.map((item: any) => {
     const saved = savedAttaches.get(Number(item.attachValueId)) || {}
     return {
@@ -2182,18 +2806,24 @@ const loadServicePriceRows = async (row: any) => {
       }),
       quotePrice: saved.quotePrice ?? null,
       approvedPrice: saved.approvedPrice ?? null,
+      platformPriceWithTax: saved.platformPriceWithTax ?? item.platformPriceWithTax ?? null,
+      profitRate: saved.profitRate ?? item.profitRate ?? null,
     }
   }).filter((item) => item.offered)
   const service = serviceName(row)
   const category = serviceCategory(row)
   const status = quoteStatusLabel(quote.status ?? row.status, quote.statusI18n || row.statusI18n)
-  const billing = billingLabel(quote.quoteMode)
-  const hourly = quote.reviewByUnitPrice === true || Number(quote.quoteMode) === 2
+  const mode = displayedQuoteMode(quote)
+  const billing = billingLabel(mode)
+  const staffHour = mode === 3
+  const hourly = quoteUsesHourlyReview(quote)
   const sheetRows = hourly
-    ? [
-        { label: 'hourlyRateWithMaterial', price: quote.unitPriceWithMaterial },
-        { label: 'hourlyRateWithoutMaterial', price: quote.unitPriceWithoutMaterial },
-      ].map((rate) => [
+    ? (staffHour
+      ? [{ label: 'hourlyRateLabel', price: quote.unitPrice }]
+      : [
+          { label: 'hourlyRateWithMaterial', price: quote.unitPriceWithMaterial },
+          { label: 'hourlyRateWithoutMaterial', price: quote.unitPriceWithoutMaterial },
+        ]).map((rate) => [
         service,
         category,
         status,
@@ -2221,6 +2851,38 @@ const loadServicePriceRows = async (row: any) => {
         sheetMoney(line.approvedPrice),
         sheetLineStatus(line, quote.status, quote.priceChangeStatus),
       ])
+  if (hourly) {
+    lines.forEach((line) => {
+      const input = {
+        quoteMode: mode,
+        unitPrice: quote.unitPrice,
+        unitPriceWithMaterial: quote.unitPriceWithMaterial,
+        unitPriceWithoutMaterial: quote.unitPriceWithoutMaterial,
+        quotePrice: line.quotePrice,
+        staffCount: line.staffCount,
+        serviceHours: line.serviceHours,
+        platformPriceWithTax: line.platformPriceWithTax,
+        platformPrice: line.platformPrice,
+        platformOriginalPrice: line.platformOriginalPrice,
+        sources: [line.specs, line.specDetails],
+      }
+      const percent = hourlyMarginPercent(input)
+      sheetRows.push([
+        service,
+        category,
+        status,
+        billing,
+        t('admin.platformSuppliers.exportSpecItem'),
+        line.skuCode,
+        specSheetText(line.specs, columns),
+        sheetMoney(line.platformPriceWithTax),
+        sheetMoney(hourlySupplierCost(input)),
+        percent == null ? '' : `${percent}%`,
+        sheetMoney(line.approvedPrice),
+        sheetLineStatus(line, quote.status, quote.priceChangeStatus),
+      ])
+    })
+  }
   addons.forEach((item) => {
     sheetRows.push([
       service,
@@ -2230,9 +2892,9 @@ const loadServicePriceRows = async (row: any) => {
       t('admin.platformSuppliers.exportAddonItem'),
       '',
       item.name,
-      '',
+      sheetMoney(item.platformPriceWithTax),
       sheetMoney(item.quotePrice),
-      '',
+      item.profitRate == null || item.profitRate === '' ? '' : profitRateText(item.profitRate),
       sheetMoney(item.approvedPrice),
       '',
     ])
@@ -2352,7 +3014,7 @@ const importQuoteFile = async (event: Event) => {
       await ElMessageBox.alert(
         [summary, ...notes].join('\n'),
         t('admin.platformSuppliers.importResult'),
-        { confirmButtonText: t('admin.platformSuppliers.importClose') },
+        { customClass: 'supplier-review-confirm', confirmButtonText: t('admin.platformSuppliers.importClose') },
       )
     } else {
       ElMessage.success(summary)
@@ -2366,7 +3028,8 @@ const importQuoteFile = async (event: Event) => {
 
 const openSkus = async (row: any) => {
   if (!detailId.value) return
-  skuTarget.value = row
+  const packageId = Number(row?.packageId || route.query.package) || 0
+  skuTarget.value = packageId ? { ...row, packageId } : row
   skuTitle.value = serviceName(row) || t('admin.platformSuppliers.serviceFallback')
   skuStatus.value = row.status
   skuVersionNo.value = undefined
@@ -2374,11 +3037,13 @@ const openSkus = async (row: any) => {
   skuRejectReason.value = row.rejectReason || ''
   skuQuoteMode.value = null
   skuReviewByUnitPrice.value = false
+  skuUnitPrice.value = null
   skuUnitPriceWithMaterial.value = null
   skuUnitPriceWithoutMaterial.value = null
   skuColumns.value = []
   skuGroupLabel.value = ''
   skuRows.value = []
+  hourlyCompareSources.value = []
   skuAttaches.value = []
   selectedReviewLines.value = []
   selectedReviewAttaches.value = []
@@ -2393,11 +3058,17 @@ const openSkus = async (row: any) => {
     skuVersionNo.value = quote.versionNo == null ? undefined : Number(quote.versionNo)
     skuStatusI18n.value = quote.statusI18n || row.statusI18n || null
     skuRejectReason.value = quote.rejectReason || row.rejectReason || ''
-    skuQuoteMode.value = quote.quoteMode == null ? null : Number(quote.quoteMode)
+    skuQuoteMode.value = displayedQuoteMode(quote)
     skuReviewByUnitPrice.value = quote.reviewByUnitPrice === true
+    skuUnitPrice.value = quote.unitPrice ?? null
     skuUnitPriceWithMaterial.value = quote.unitPriceWithMaterial ?? null
     skuUnitPriceWithoutMaterial.value = quote.unitPriceWithoutMaterial ?? null
-    const quoteSkus = Array.isArray(quote.skus) ? quote.skus : []
+    let quoteSkus = Array.isArray(quote.skus) ? quote.skus : []
+    const scopedPackageId = Number(skuTarget.value?.packageId) || 0
+    if (scopedPackageId) {
+      const allowed = packageSkuIdSet(scopedPackageId, Number(row.spuId))
+      quoteSkus = allowed.size ? quoteSkus.filter((sku: any) => allowed.has(Number(sku.skuId))) : []
+    }
     let columns: { key: string; nameI18n: Record<string, unknown> | null; fallback: string }[] = []
     let specSkus: any[] = []
     let catalogAttaches: any[] = []
@@ -2415,6 +3086,9 @@ const openSkus = async (row: any) => {
       columns = []
       specSkus = []
     }
+    const catalogInputs = catalogHourlyInputs(specSkus)
+    const quotedInputs = quoteHourlyInputs(quoteSkus)
+    hourlyCompareSources.value = hourlySourceUseful(catalogInputs) ? catalogInputs : quotedInputs
     const catalogBySku = new Map(specSkus.map((sku: any) => [Number(sku.skuId), sku]))
     const groups = Array.isArray(quote.skuGroups) ? quote.skuGroups : []
     const groupBySku = new Map<number, any>()
@@ -2466,6 +3140,7 @@ const openSkus = async (row: any) => {
         serviceHours: saved.serviceHours ?? null,
         quotePrice: saved.quotePrice ?? null,
         rejectReason: saved.rejectReason || '',
+        specDetails: [catalogSku.specs, saved.specs],
       }
     }).sort((left: any, right: any) => left.groupOrder - right.groupOrder)
     if (!catalogAttaches.length) {
@@ -2476,7 +3151,7 @@ const openSkus = async (row: any) => {
       }
     }
     const savedAttaches = new Map((Array.isArray(quote.attaches) ? quote.attaches : []).map((item: any) => [Number(item.attachValueId), item]))
-    const attachSource = catalogAttaches.length ? catalogAttaches : (Array.isArray(quote.attaches) ? quote.attaches : [])
+    const attachSource = mergeAttachSource(catalogAttaches, quote.attaches)
     skuAttaches.value = attachSource.map((item: any) => {
       const saved = savedAttaches.get(Number(item.attachValueId)) || {}
       return {
@@ -2494,6 +3169,9 @@ const openSkus = async (row: any) => {
           ? (saved.unitI18n || item.unitI18n)
           : null,
         platformPrice: saved.platformPrice ?? item.platformPrice ?? null,
+        platformPriceWithTax: saved.platformPriceWithTax ?? item.platformPriceWithTax ?? null,
+        profitRate: saved.profitRate ?? item.profitRate ?? null,
+        approvedProfitRate: saved.approvedProfitRate ?? item.approvedProfitRate ?? null,
         approvedPrice: saved.approvedPrice ?? null,
         offered: saved.canServe === true,
         quotePrice: saved.quotePrice ?? null,
@@ -2509,38 +3187,55 @@ const openSkus = async (row: any) => {
   }
 }
 
+watch(() => route.fullPath, () => {
+  if (quoteDesk.value) return
+  const view = String(route.query.view || '')
+  const tab = String(route.query.tab || '')
+  if (view !== 'quote' && tab !== 'quotes' && tab !== 'packages') return
+  const scope = tab === 'packages' || Number(route.query.package) > 0 ? 'packages' : 'services'
+  const query: Record<string, unknown> = { ...route.query, scope }
+  delete query.tab
+  router.replace({ path: QUOTE_DESK_PATH, query })
+}, { immediate: true })
+
 watch(detailId, (id) => {
   quoteHistoryOpen.value = false
   selectedQuoteSpuIds.value = []
   if (id) void loadReview(id)
 }, { immediate: true })
 
-watch(() => [detailId.value, String(route.query.view || ''), String(route.query.spu || '')] as const, async ([id, view, spuText]) => {
+watch(() => [detailId.value, String(route.query.view || ''), String(route.query.spu || ''), String(route.query.package || '')] as const, async ([id, view, spuText, packageText]) => {
   if (view !== 'quote' || !id) {
     quoteRoutePending.value = false
     return
   }
   const spu = Number(spuText)
+  const packageId = Number(packageText) || 0
   if (!spu) {
     quoteRoutePending.value = false
     return
   }
   const sameSupplier = Number(current.value?.id) === id
-  const serviceReady = sameSupplier && services.value.some((item) => Number(item.spuId) === spu)
-  if (serviceReady && Number(skuTarget.value?.spuId) === spu) {
+  const listed = packageId
+    ? packageServiceRows.value.some((item) => item.packageId === packageId && item.spuId === spu)
+    : services.value.some((item) => Number(item.spuId) === spu)
+  const sameTarget = Number(skuTarget.value?.spuId) === spu && Number(skuTarget.value?.packageId || 0) === packageId
+  if (sameSupplier && listed && sameTarget) {
     quoteRoutePending.value = false
     return
   }
   const ticket = reviewTicket
-  if (!sameSupplier || !serviceReady) quoteRoutePending.value = true
+  if (!sameSupplier || !listed) quoteRoutePending.value = true
   try {
     await reviewRequest
     if (ticket !== reviewTicket) return
-    if (detailId.value !== id || String(route.query.view || '') !== 'quote' || Number(route.query.spu) !== spu) return
-    const row = services.value.find((item) => Number(item.spuId) === spu) || { spuId: spu }
+    if (detailId.value !== id || String(route.query.view || '') !== 'quote' || Number(route.query.spu) !== spu || (Number(route.query.package) || 0) !== packageId) return
+    const row = packageId
+      ? packageServiceRows.value.find((item) => item.packageId === packageId && item.spuId === spu) || { spuId: spu, packageId }
+      : services.value.find((item) => Number(item.spuId) === spu) || { spuId: spu }
     await openSkus(row)
   } finally {
-    if (ticket === reviewTicket && detailId.value === id && String(route.query.view || '') === 'quote' && Number(route.query.spu) === spu) {
+    if (ticket === reviewTicket && detailId.value === id && String(route.query.view || '') === 'quote' && Number(route.query.spu) === spu && (Number(route.query.package) || 0) === packageId) {
       quoteRoutePending.value = false
     }
   }
@@ -2560,33 +3255,46 @@ onMounted(loadSuppliers)
 </script>
 
 <style scoped>
-.supplier-review { padding: 20px; color: #1c2433; }
-.supplier-review__head h1 { margin: 0 0 6px; color: #05152b; font-family: Georgia, serif; font-size: 28px; font-weight: 500; }
-.supplier-review__head p { margin: 0 0 16px; color: #6d7686; }
-.review-chips { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 14px; }
-.review-chip { display: inline-flex; align-items: center; gap: 8px; padding: 8px 12px; border: 1px solid #e4e9f0; border-radius: 999px; background: #fff; color: #05152b; font: inherit; font-size: 13px; cursor: pointer; }
-.review-chip b { min-width: 1ch; font-size: 16px; font-variant-numeric: tabular-nums; }
+.supplier-review {
+  --el-font-size-base: 12px;
+  --el-font-size-small: 11px;
+  --el-component-size: 26px;
+  --el-component-size-small: 24px;
+  padding: 16px;
+  color: #1c2433;
+  font-size: 13px;
+  line-height: 1.4;
+}
+.supplier-review :deep(.el-select__wrapper) { min-height: 26px; padding: 3px 10px; font-size: 12px; line-height: 20px; }
+.supplier-review :deep(.el-select__input) { height: 20px; font-size: 12px; }
+.supplier-review__head h1 { margin: 0 0 5px; color: #05152b; font-family: Georgia, serif; font-size: 22px; font-weight: 500; }
+.supplier-review__head p { margin: 0 0 13px; color: #6d7686; }
+.review-chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 11px; }
+.review-chip { display: inline-flex; align-items: center; gap: 6px; padding: 6px 10px; border: 1px solid #e4e9f0; border-radius: 999px; background: #fff; color: #05152b; font: inherit; font-size: 11px; cursor: pointer; }
+.review-chip b { min-width: 1ch; font-size: 13px; font-variant-numeric: tabular-nums; }
 .review-chip.tone-pending b { color: #9a6700; }
 .review-chip.tone-bad b { color: #b42318; }
 .review-chip.on { border-color: #05152b; background: #05152b; color: #fff; }
 .review-chip.on b { color: #fff; }
 .status-empty { color: #98a2b3; }
-button.status-pill { border: 0; font: inherit; line-height: 1.4; cursor: pointer; }
+button.status-pill { border: 0; font: inherit; font-size: 11px; line-height: 1.4; cursor: pointer; }
 button.status-pill:hover { box-shadow: inset 0 0 0 1px rgba(5, 21, 43, 0.2); }
 .supplier-no { color: #05152b; }
 .supplier-cell { color: #05152b; font-weight: 650; }
-.board :deep(small) { display: block; color: #6d7686; font-size: 12px; }
-.pill { display: inline-flex; margin: 0 4px 4px 0; padding: 2px 8px; border-radius: 999px; background: #eef2f7; color: #05152b; font-size: 12px; }
-.status-pill { display: inline-flex; align-items: center; padding: 2px 8px; border-radius: 999px; background: #eef2f7; color: #526070; font-size: 12px; font-weight: 650; }
+.type-pill { display: inline-flex; margin-left: 6px; padding: 1px 6px; border-radius: 999px; background: #eef2f7; color: #526070; font-size: 11px; font-weight: 650; vertical-align: 1px; }
+.board :deep(small) { display: block; color: #6d7686; font-size: 11px; }
+.pill { display: inline-flex; margin: 0 3px 3px 0; padding: 2px 6px; border-radius: 999px; background: #eef2f7; color: #05152b; font-size: 11px; }
+.status-pill { display: inline-flex; align-items: center; padding: 2px 6px; border-radius: 999px; background: #eef2f7; color: #526070; font-size: 11px; font-weight: 650; }
 .status-pill.pending { background: #fff4df; color: #9a6700; }
 .status-pill.ok { background: #e7f6ee; color: #1f7a4a; }
 .status-pill.bad { background: #fdecec; color: #b42318; }
 .muted-pill { background: #eef2f7; color: #6d7686; }
-.row-actions, .hero-actions, .quote-foot, .line-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
-.row-updates { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; margin-bottom: 6px; }
-.act, .open-link { border: 1px solid #d7dee8; border-radius: 8px; background: #fff; color: #05152b; font: inherit; font-size: 13px; cursor: pointer; }
-.act { padding: 6px 10px; }
-.price-change-note { display: block; margin-top: 4px; color: #9a6700; font-size: 12px; line-height: 1.4; }
+.row-actions, .hero-actions, .quote-foot, .line-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.row-updates { display: flex; flex-wrap: wrap; align-items: center; gap: 3px; margin-bottom: 5px; }
+.act, .open-link { border: 1px solid #d7dee8; border-radius: 6px; background: #fff; color: #05152b; font: inherit; font-size: 11px; cursor: pointer; }
+.act { padding: 5px 8px; }
+.price-change-note { display: block; margin-top: 3px; color: #9a6700; font-size: 11px; line-height: 1.4; }
+.contact-lines { display: grid; gap: 2px; color: #243246; font-size: 12px; line-height: 1.4; overflow-wrap: anywhere; }
 .act.ok { border-color: #1f7a4a; color: #1f7a4a; }
 .act.no { border-color: #b42318; color: #b42318; }
 .act.navy { border-color: #05152b; background: #05152b; color: #fff; }
@@ -2594,132 +3302,69 @@ button.status-pill:hover { box-shadow: inset 0 0 0 1px rgba(5, 21, 43, 0.2); }
 .open-link { padding: 0; border: 0; background: transparent; color: #1f4e79; }
 .board :deep(.is-waiting) { background: #fffaf1; }
 .board :deep(.el-table__row) { cursor: pointer; }
-.crumbs {
-  position: sticky;
-  top: -24px;
-  z-index: 30;
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 12px;
-  margin: -44px -46px 18px;
-  padding: 40px 46px 16px;
-  background: #fff;
-  border-bottom: 1px solid #d5deea;
-  box-shadow: 0 10px 24px rgba(7, 24, 45, 0.08);
-  color: #243246;
-  font-size: 17px;
-  font-weight: 650;
-  line-height: 1.2;
+.supplier-breadcrumb {
+  margin: -16px -16px 16px;
+  padding: 6px 16px;
+  font-size: 12px;
 }
-.crumbs button {
-  min-height: 42px;
-  padding: 0 16px;
-  border: 1px solid #c5d0de;
-  border-radius: 12px;
-  background: #f7f9fc;
-  color: #102b44;
-  font: inherit;
-  font-size: 17px;
-  font-weight: 750;
-  cursor: pointer;
-}
-.crumbs b {
-  color: #07182d;
-  font-size: 20px;
-  font-weight: 750;
-}
-.crumbs > span {
-  color: #8d6b3a;
-  font-size: 22px;
-  line-height: 1;
-}
-.crumb-back {
-  width: 42px;
-  padding: 0;
-  font-size: 20px;
-}
-@media (max-width: 980px) {
-  .crumbs {
-    top: -18px;
-    margin: -38px -38px 16px;
-    padding: 32px 38px 14px;
-  }
-}
-.supplier-hero { display: flex; gap: 14px; align-items: flex-start; margin-bottom: 14px; padding: 16px; border: 1px solid #e7ebf2; border-radius: 14px; background: #fff; }
-.avatar { display: grid; place-items: center; width: 52px; height: 52px; border-radius: 14px; background: #05152b; color: #fff; font-weight: 700; }
-.supplier-hero__main { flex: 1; }
-.supplier-hero__main p { margin: 0; color: #6d7686; font-size: 12px; }
-.supplier-hero__main h1 { margin: 4px 0; color: #05152b; font-size: 26px; }
-.hero-pills, .quote-preview, .category-tags { display: flex; flex-wrap: wrap; gap: 6px; }
-.detail-tabs { display: flex; gap: 6px; margin-bottom: 14px; overflow-x: auto; }
-.detail-tabs button { padding: 8px 12px; border: 0; border-bottom: 2px solid transparent; background: transparent; color: #526070; font: inherit; cursor: pointer; white-space: nowrap; }
+.supplier-breadcrumb :deep(.admin-breadcrumb__back) { flex-basis: 28px; width: 28px; height: 28px; border-radius: 7px; }
+.supplier-breadcrumb :deep(.admin-breadcrumb__back svg) { width: 14px; height: 14px; }
+.supplier-breadcrumb :deep(.admin-breadcrumb__label) { padding: 5px 6px; }
+.supplier-hero { display: flex; gap: 11px; align-items: flex-start; margin-bottom: 11px; padding: 13px; border: 1px solid #e7ebf2; border-radius: 11px; background: #fff; }
+.avatar { display: grid; place-items: center; width: 42px; height: 42px; border-radius: 11px; background: #05152b; color: #fff; font-weight: 700; }
+.supplier-hero__main { flex: 1; min-width: 0; }
+.supplier-hero__main p { margin: 0; color: #6d7686; font-size: 11px; }
+.supplier-hero__main h1 { margin: 3px 0; color: #05152b; font-size: 21px; overflow-wrap: anywhere; }
+.hero-pills, .quote-preview, .category-tags { display: flex; flex-wrap: wrap; gap: 5px; }
+.detail-tabs { display: flex; gap: 5px; margin-bottom: 11px; overflow-x: auto; }
+.detail-tabs button { padding: 6px 10px; border: 0; border-bottom: 2px solid transparent; background: transparent; color: #526070; font: inherit; cursor: pointer; white-space: nowrap; }
 .detail-tabs button.on { border-color: #05152b; color: #05152b; font-weight: 700; }
-.stat-row, .split { display: grid; gap: 12px; }
-.stat-row { grid-template-columns: repeat(4, minmax(0, 1fr)); margin-bottom: 12px; }
-.stat-row > div, .stat-row > button, .panel { padding: 16px; border: 1px solid #e7ebf2; border-radius: 14px; background: #fff; }
+.stat-row, .split { display: grid; gap: 10px; }
+.stat-row { grid-template-columns: repeat(4, minmax(0, 1fr)); margin-bottom: 10px; }
+.stat-row > div, .stat-row > button, .panel { padding: 13px; border: 1px solid #e7ebf2; border-radius: 11px; background: #fff; }
 .stat-row > button { text-align: left; font: inherit; cursor: pointer; }
-.stat-row em, .field-note { display: block; margin-top: 4px; color: #6d7686; font-size: 12px; font-style: normal; font-weight: 500; }
-.overview-board { display: grid; grid-template-columns: minmax(0, 1.55fr) minmax(280px, 0.85fr); gap: 12px; align-items: start; }
-.overview-side { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
-.overview-side .kv { grid-template-columns: 1fr; }
-.service-lines { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 8px; width: 100%; max-height: 560px; margin: 0; padding: 2px 6px 2px 0; overflow: auto; list-style: none; scrollbar-gutter: stable; }
-.service-lines li { display: flex; flex-direction: column; justify-content: space-between; gap: 8px; min-width: 0; min-height: 72px; padding: 10px 12px; border: 1px solid #eef2f6; border-radius: 12px; background: #fbfcfe; }
-.service-lines li:hover { border-color: #d7deea; background: #f4f7fb; }
-.service-lines li.muted { grid-column: 1 / -1; min-height: 0; border: 0; background: transparent; }
-.service-lines li > span { display: -webkit-box; overflow: hidden; -webkit-box-orient: vertical; -webkit-line-clamp: 2; color: #05152b; font-weight: 650; line-height: 1.35; }
-.service-lines__meta { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
-.service-lines__actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 10px; }
-.service-lines button.is-reject { color: #b42318; border-color: #e7b8b4; }
-.service-lines .status-pill { font-style: normal; white-space: nowrap; }
-.service-lines button { padding: 4px 8px; color: #102b44; background: #fff; border: 1px solid #d7deea; border-radius: 8px; font: inherit; font-size: 12px; white-space: nowrap; cursor: pointer; }
-.service-lines::-webkit-scrollbar { width: 8px; }
-.service-lines::-webkit-scrollbar-track { background: #f3f5f8; border-radius: 999px; }
-.service-lines::-webkit-scrollbar-thumb { background: #c5ceda; border-radius: 999px; }
+.stat-row em, .field-note { display: block; margin-top: 3px; color: #6d7686; font-size: 11px; font-style: normal; font-weight: 500; }
+.overview-board { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; align-items: stretch; }
 .expiry-soon { color: #9a6700; }
 .stat-row small, .kv dt, .muted { color: #6d7686; }
-.stat-row b { display: block; margin-top: 4px; color: #05152b; font-size: 20px; }
-.quote-link { display: flex; flex-direction: column; min-width: 0; margin: 0; padding: 16px; border: 1px solid #e7ebf2; border-radius: 14px; background: #fff; }
-.quote-link__head { display: block; width: 100%; margin: 0 0 10px; padding: 0; border: 0; background: transparent; text-align: left; font: inherit; cursor: pointer; }
-.quote-link__head h3 { margin: 0 0 4px; color: #05152b; }
-.quote-link__head p { margin: 0; color: #6d7686; }
+.stat-row b { display: block; margin-top: 3px; color: #05152b; font-size: 16px; }
 .split { grid-template-columns: 1fr 1fr; }
-.tab-panel { display: flex; flex-direction: column; gap: 12px; }
-.panel h3 { margin: 0 0 12px; color: #05152b; font-size: 16px; }
-.panel-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
+.tab-panel { display: flex; flex-direction: column; gap: 10px; }
+.panel h3 { margin: 0 0 10px; color: #05152b; font-size: 13px; }
+.panel-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; margin-bottom: 10px; }
 .panel-head h3 { margin: 0; }
-.panel-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; }
-.quote-sheet-hint { margin: 6px 0 0; color: #6d7686; font-size: 12px; line-height: 1.5; }
+.panel-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px; }
+.quote-sheet-hint { margin: 5px 0 0; color: #6d7686; font-size: 11px; line-height: 1.5; }
 .quote-select { display: inline-flex; align-items: center; }
 .quote-file-input { display: none; }
-.quote-head__actions { display: flex; align-items: center; flex-wrap: wrap; justify-content: flex-end; gap: 8px; min-width: 0; max-width: 100%; margin-inline-start: auto; }
-.kv { display: grid; grid-template-columns: 1fr 1fr; gap: 12px 16px; margin: 0; }
+.quote-head__actions { display: flex; align-items: center; flex-wrap: wrap; justify-content: flex-end; gap: 6px; min-width: 0; max-width: 100%; margin-inline-start: auto; }
+.kv { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 13px; margin: 0; }
 .kv .span-all { grid-column: 1 / -1; }
-.community-picks { display: flex; flex-wrap: wrap; gap: 8px; }
-.community-picks span { display: inline-flex; align-items: center; min-height: 36px; padding: 0 16px; border-radius: 999px; background: #071426; color: #fff; font-size: 14px; font-weight: 750; }
-.kv dt { margin-bottom: 3px; font-size: 11px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; }
+.community-picks { display: flex; flex-wrap: wrap; gap: 6px; }
+.community-picks span { display: inline-flex; align-items: center; min-height: 29px; padding: 0 13px; border-radius: 999px; background: #071426; color: #fff; font-size: 11px; font-weight: 750; }
+.kv dt { margin-bottom: 2px; font-size: 11px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; }
 .kv dd { margin: 0; color: #05152b; }
 .kv dd.yes { color: #1f7a4a; font-weight: 700; }
 .kv dd.no { color: #6d7686; }
-.doc-row { display: flex; gap: 12px; align-items: center; padding: 10px 0; border-top: 1px solid #eef2f6; }
-.doc-mark { display: grid; place-items: center; width: 42px; height: 42px; border-radius: 10px; background: #eef2f7; color: #05152b; font-size: 12px; font-weight: 700; }
+.doc-row { display: flex; gap: 10px; align-items: center; padding: 8px 0; border-top: 1px solid #eef2f6; }
+.doc-mark { display: grid; place-items: center; width: 34px; height: 34px; border-radius: 8px; background: #eef2f7; color: #05152b; font-size: 11px; font-weight: 700; }
 .doc-row div { flex: 1; }
 .doc-row small { display: block; color: #6d7686; }
 .doc-row .miss { color: #b42318; }
 .supplier-body, .quote-page { min-width: 0; max-width: 100%; }
-.quote-head { display: flex; flex-direction: column; gap: 16px; margin-bottom: 16px; }
+.quote-head { display: flex; flex-direction: column; gap: 13px; margin-bottom: 13px; }
 .quote-head__copy { min-width: 0; }
-.quote-head__title { display: flex; align-items: flex-start; justify-content: space-between; flex-wrap: wrap; gap: 8px 16px; }
-.quote-head h2 { min-width: 0; margin: 0; color: #05152b; font-size: 22px; line-height: 1.35; overflow-wrap: anywhere; }
-.quote-head__title > .status-pill { flex: 0 0 auto; margin-top: 3px; }
-.quote-head p { margin: 6px 0 0; color: #6d7686; font-size: 13px; line-height: 1.6; }
-.quote-head__meta { display: flex; flex-wrap: wrap; gap: 2px 20px; }
+.quote-head__title { display: flex; align-items: flex-start; justify-content: space-between; flex-wrap: wrap; gap: 6px 13px; }
+.quote-head h2 { min-width: 0; margin: 0; color: #05152b; font-size: 18px; line-height: 1.35; overflow-wrap: anywhere; }
+.quote-head__title > .status-pill { flex: 0 0 auto; margin-top: 2px; }
+.quote-head p { margin: 5px 0 0; color: #6d7686; font-size: 11px; line-height: 1.6; }
+.quote-head__meta { display: flex; flex-wrap: wrap; gap: 2px 16px; }
 .quote-head .quote-head__reason { color: #b42318; overflow-wrap: anywhere; }
-.quote-head__hourly-rates { display: flex; flex-wrap: wrap; gap: 4px 16px; margin-top: 6px; font-size: 13px; }
-.quote-toolbar { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px 20px; min-width: 0; padding-top: 14px; border-top: 1px solid #eef2f6; }
-.quote-status-counts { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; min-width: 0; max-width: 100%; }
-.quote-status-count { display: inline-flex; align-items: baseline; gap: 6px; min-height: 32px; max-width: 100%; box-sizing: border-box; padding: 6px 10px; border-radius: 8px; background: #f4f1ea; color: #526070; font-size: 12px; line-height: 1.4; }
-.quote-status-count b { color: #05152b; font-size: 16px; font-variant-numeric: tabular-nums; }
+.quote-head__hourly-rates { display: flex; flex-wrap: wrap; gap: 3px 13px; margin-top: 5px; font-size: 11px; }
+.quote-toolbar { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px 16px; min-width: 0; padding-top: 11px; border-top: 1px solid #eef2f6; }
+.quote-status-counts { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; min-width: 0; max-width: 100%; }
+.quote-status-count { display: inline-flex; align-items: baseline; gap: 5px; min-height: 26px; max-width: 100%; box-sizing: border-box; padding: 5px 8px; border-radius: 6px; background: #f4f1ea; color: #526070; font-size: 11px; line-height: 1.4; }
+.quote-status-count b { color: #05152b; font-size: 13px; font-variant-numeric: tabular-nums; }
 .quote-status-count.is-review { background: #fff4df; color: #9a6700; }
 .quote-status-count.is-review b { color: #9a6700; }
 .quote-status-count.is-rejected { background: #fdecec; color: #b42318; }
@@ -2728,26 +3373,43 @@ button.status-pill:hover { box-shadow: inset 0 0 0 1px rgba(5, 21, 43, 0.2); }
 .quote-status-count.is-active b { color: #1f7a4a; }
 .quote-status-count.is-waiting { background: #e8f1fb; color: #1f4e79; }
 .quote-status-count.is-waiting b { color: #1f4e79; }
-.hourly-review { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 14px; padding: 16px 18px; background: #f7f3ec; border: 1px solid #eadfce; border-radius: 14px; }
+.hourly-review { display: flex; align-items: center; justify-content: space-between; gap: 13px; margin-bottom: 11px; padding: 13px 14px; background: #f7f3ec; border: 1px solid #eadfce; border-radius: 11px; }
 .hourly-review__content { flex: 1; min-width: 0; }
-.hourly-review__rates { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px 24px; margin-bottom: 8px; }
-.hourly-review span { display: block; color: #74685a; font-size: 12px; font-weight: 700; }
-.hourly-review strong { display: block; margin: 4px 0; color: #05152b; font-size: 28px; line-height: 1.1; }
-.hourly-review p { max-width: 520px; margin: 0; color: #6d7686; font-size: 13px; line-height: 1.5; }
-.hourly-review__actions { display: flex; flex: 0 0 auto; gap: 8px; }
-.quote-foot { justify-content: flex-end; align-items: center; flex-wrap: wrap; margin-top: 14px; }
-.quote-foot__selection { margin-right: auto; color: #6d7686; font-size: 13px; }
+.hourly-review__rates { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px 19px; margin-bottom: 6px; }
+.hourly-review span { display: block; color: #74685a; font-size: 11px; font-weight: 700; }
+.hourly-review strong { display: block; margin: 3px 0; color: #05152b; font-size: 22px; line-height: 1.1; }
+.hourly-review__compare { display: block; max-width: 320px; color: #33445a; font-size: 12px; font-weight: 650; line-height: 1.45; }
+.hourly-review__compare.is-negative { color: #b42318; }
+.hourly-review__compare.is-muted { color: #8a5a12; font-weight: 650; }
+.hourly-review p { max-width: 416px; margin: 0; color: #6d7686; font-size: 11px; line-height: 1.5; }
+.hourly-review__actions { display: flex; flex: 0 0 auto; gap: 6px; }
+.quote-foot { justify-content: flex-end; align-items: center; flex-wrap: wrap; margin-top: 11px; }
+.quote-foot__selection { margin-right: auto; color: #6d7686; font-size: 11px; }
 .act { flex: 0 0 auto; }
-.quote-page .act { display: inline-flex; align-items: center; justify-content: center; min-height: 34px; max-width: 100%; box-sizing: border-box; line-height: 1.4; text-align: center; }
-.quote-page .line-actions { flex-wrap: nowrap; gap: 8px; }
+.quote-page .act { display: inline-flex; align-items: center; justify-content: center; min-height: 27px; max-width: 100%; box-sizing: border-box; line-height: 1.4; text-align: center; }
+.quote-page .line-actions { flex-wrap: nowrap; gap: 6px; }
 .quote-page .line-actions .act { white-space: nowrap; }
+.quote-lines { display: flex; flex-direction: column; min-width: 0; }
+.quote-lines .quote-table { order: 1; }
+.quote-lines .sku-attaches { order: 2; }
+.quote-lines.is-review-attaches .sku-attaches { order: 0; margin-top: 0; margin-bottom: 11px; }
 .quote-table { width: 100%; font-variant-numeric: tabular-nums; }
 .quote-table :deep(th .cell) { word-break: normal; overflow-wrap: anywhere; line-height: 1.5; }
+.quote-table :deep(th.quote-price-col .cell) { white-space: nowrap; overflow-wrap: normal; }
 .quote-table :deep(td .cell) { word-break: normal; overflow-wrap: anywhere; }
-.quote-table :deep(.el-tag) { max-width: 100%; height: auto; min-height: 24px; padding-block: 3px; white-space: normal; line-height: 1.4; }
-.line-review-result { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; }
+.quote-table :deep(.el-table-fixed-column--left),
+.quote-table :deep(.el-table-fixed-column--right) { background-color: #fff; }
+.quote-table :deep(th.el-table-fixed-column--left),
+.quote-table :deep(th.el-table-fixed-column--right) { background-color: var(--el-table-header-bg-color, #f4eee5); }
+.quote-table :deep(.el-table__body tr:hover > td.el-table-fixed-column--left),
+.quote-table :deep(.el-table__body tr:hover > td.el-table-fixed-column--right) { background-color: var(--el-table-row-hover-bg-color, #fbf7ef); }
+.quote-table :deep(.el-table__body-wrapper .el-scrollbar__view) { padding-bottom: 16px; }
+.quote-table :deep(.el-scrollbar__bar.is-horizontal) { height: 10px; bottom: 0; z-index: 4; opacity: 1; }
+.quote-table :deep(.el-scrollbar__bar.is-horizontal .el-scrollbar__thumb) { opacity: 1; }
+.quote-table :deep(.el-tag) { max-width: 100%; height: auto; min-height: 19px; padding-block: 2px; white-space: normal; line-height: 1.4; }
+.line-review-result { display: flex; flex-direction: column; align-items: flex-start; gap: 3px; }
 .line-review-result small { color: #b42318; white-space: normal; }
-.line-reject-summary { margin: 0 0 12px; color: #6d7686; }
+.line-reject-summary { margin: 0 0 10px; color: #6d7686; }
 @media (max-width: 900px) {
   .stat-row, .split, .kv, .overview-board { grid-template-columns: 1fr; }
   .quote-status-counts { justify-content: flex-start; }
@@ -2760,78 +3422,109 @@ button.status-pill:hover { box-shadow: inset 0 0 0 1px rgba(5, 21, 43, 0.2); }
 @media (max-width: 560px) {
   .hourly-review__rates { grid-template-columns: 1fr; }
 }
-.supplier-review__head--detail .el-button { margin-bottom: 8px; padding-left: 0; }
-.board { padding: 14px; background: #fff; border: 1px solid #e7ebf2; border-radius: 14px; }
-.board__bar { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; margin-bottom: 12px; }
-.board__bar .el-input { width: 240px; }
-.board__bar .el-select { width: 220px; }
-.board__bar .review-filter { width: 190px; }
-.board__count { color: #6d7686; font-size: 13px; }
-.board :deep(.el-pagination) { justify-content: flex-end; margin-top: 12px; }
+.supplier-review__head--detail .el-button { margin-bottom: 6px; padding-left: 0; }
+.board { padding: 11px; background: #fff; border: 1px solid #e7ebf2; border-radius: 11px; }
+.board__bar { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin-bottom: 10px; }
+.board__bar .el-input { width: 192px; }
+.board__bar .el-select { width: 176px; }
+.board__bar .service-filter { width: 240px; }
+.board__bar .review-filter { width: 152px; }
+.board__count { color: #6d7686; font-size: 11px; }
+.board :deep(.el-pagination) { justify-content: flex-end; margin-top: 10px; }
 .board :deep(td.category-col .cell) { overflow: hidden; }
 .board :deep(td.category-col .el-tooltip__trigger) { display: block; max-width: 100%; overflow: hidden; }
-.category-line { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; line-height: 28px; }
-.category-line .pill { display: inline-flex; margin: 0 4px 0 0; vertical-align: middle; }
-.service-filters { display: grid; grid-template-columns: minmax(180px, 1.4fr) minmax(140px, 1fr) minmax(140px, 1fr); gap: 8px; margin: 0 0 12px; }
-.expected-categories { align-items: center; margin: 0 0 8px; }
-.expected-categories > span { width: 100%; color: #74685a; font-size: 12px; }
+.category-line { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; line-height: 22px; }
+.category-line .pill { display: inline-flex; margin: 0 3px 0 0; vertical-align: middle; }
+.service-filters { display: grid; grid-template-columns: minmax(144px, 1.4fr) minmax(112px, 1fr) minmax(112px, 1fr); gap: 6px; margin: 0 0 10px; }
+.expected-categories { align-items: center; margin: 0 0 6px; }
+.expected-categories > span { width: 100%; color: #74685a; font-size: 11px; }
 .phone-list { display: flex; flex-direction: column; gap: 2px; line-height: 1.45; }
 .supplier-review :deep(td.phone-col .cell) { white-space: normal; overflow: visible; text-overflow: clip; }
-.sku-meta { margin: 0 0 10px; color: #6d7686; font-size: 13px; }
-.sku-attaches { display: flex; flex-direction: column; gap: 8px; margin-top: 14px; }
-.sku-attaches h4 { margin: 0; font-size: 14px; }
-.sku-attach { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 12px; padding: 10px 12px; border: 1px solid #eadfce; border-radius: 10px; background: #fffdf8; }
+.sku-meta { margin: 0 0 8px; color: #6d7686; font-size: 11px; }
+.sku-attaches { display: flex; flex-direction: column; gap: 6px; margin-top: 11px; }
+.sku-attaches h4 { margin: 0; font-size: 11px; }
+.sku-attach { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px 10px; padding: 8px 10px; border: 1px solid #eadfce; border-radius: 8px; background: #fffdf8; }
 .sku-attach__check { display: flex; flex: 0 0 auto; align-items: center; }
-.sku-attach__check input { width: 16px; height: 16px; }
-.sku-attach > div:not(.sku-attach__side) { display: flex; flex: 1 1 240px; flex-direction: column; gap: 3px; min-width: 0; overflow-wrap: anywhere; }
-.sku-attach__side { display: flex; flex: 1 1 220px; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 8px; }
-.sku-attach small { color: #74685a; font-size: 12px; }
+.sku-attach__check input { width: 13px; height: 13px; }
+.sku-attach > div:not(.sku-attach__side) { display: flex; flex: 1 1 192px; flex-direction: column; gap: 2px; min-width: 0; overflow-wrap: anywhere; }
+.sku-attach__side { display: flex; flex: 1 1 176px; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 6px; }
+.sku-attach small { color: #74685a; font-size: 11px; }
 .sku-attach__side > span { flex: 0 0 auto; max-width: 100%; font-weight: 700; overflow-wrap: anywhere; }
+.sku-attach__margin { color: #1d6b45; }
+.sku-attach__margin.is-negative { color: #a33b3b; }
 .order-detail { min-height: 100%; color: #05152b; }
-.order-detail__hero { display: flex; align-items: flex-start; justify-content: space-between; gap: 24px; padding: 4px 2px 8px; }
-.order-detail__eyebrow { margin-bottom: 4px; color: #7a8494; font-size: 12px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; }
-.order-detail__title { margin: 0; color: #05152b; font-size: 28px; line-height: 1.2; }
-.order-detail__booked-at { margin: 8px 0 0; color: #697386; font-size: 13px; }
-.order-detail__amount { display: flex; flex-direction: column; align-items: flex-end; gap: 5px; color: #7a8494; font-size: 12px; }
-.order-detail__toolbar { display: flex; justify-content: flex-end; gap: 8px; margin: 14px 0; }
-.reject-note { margin: 0 0 14px; color: #c45656; font-size: 13px; }
-.snapshot-note { margin: 0 0 14px; color: #74685a; font-size: 13px; }
-.order-detail__services { margin-bottom: 18px; }
+.order-detail__hero { display: flex; align-items: flex-start; justify-content: space-between; gap: 19px; padding: 3px 2px 6px; }
+.order-detail__eyebrow { margin-bottom: 3px; color: #7a8494; font-size: 11px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; }
+.order-detail__title { margin: 0; color: #05152b; font-size: 22px; line-height: 1.2; }
+.order-detail__booked-at { margin: 6px 0 0; color: #697386; font-size: 11px; }
+.order-detail__amount { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; color: #7a8494; font-size: 11px; }
+.order-detail__toolbar { display: flex; justify-content: flex-end; gap: 6px; margin: 11px 0; }
+.reject-note { margin: 0 0 11px; color: #c45656; font-size: 11px; }
+.snapshot-note { margin: 0 0 11px; color: #74685a; font-size: 11px; }
+.change-count { display: block; margin-top: 3px; color: #8a5a12; font-size: 11px; line-height: 1.3; }
+.profile-changes { margin: 0 0 11px; padding: 10px 11px; border: 1px solid #eadfce; border-radius: 10px; background: #fffdf8; }
+.profile-changes h3 { margin: 0 0 6px; font-size: 11px; }
+.profile-changes ul { display: flex; flex-direction: column; gap: 6px; margin: 0; padding: 0; list-style: none; }
+.profile-changes li { display: flex; flex-wrap: wrap; gap: 3px 6px; align-items: baseline; font-size: 11px; line-height: 1.45; }
+.profile-changes b { flex: 0 0 144px; }
+.profile-changes .was, .profile-changes .now { overflow-wrap: anywhere; }
+.profile-changes .was { color: #8a7560; text-decoration: line-through; }
+.profile-changes .now { color: #1d6b45; font-weight: 700; }
+.profile-changes em { color: #8a7560; font-style: normal; }
+.order-detail__services { margin-bottom: 14px; }
 .order-detail__services :deep(.el-table) { width: 100%; }
-.order-detail__columns { display: grid; grid-template-columns: minmax(0, 3fr) minmax(240px, 2fr); gap: 18px; }
-.order-detail__stack { display: flex; flex-direction: column; gap: 18px; }
-.order-detail__panel { padding: 18px 20px; border: 1px solid #e3e8ef; border-radius: 10px; background: #fff; box-shadow: 0 3px 12px rgb(5 21 43 / 5%); }
-.order-detail__panel h3 { margin: 0 0 16px; padding-bottom: 12px; border-bottom: 1px solid #edf0f4; color: #05152b; font-size: 16px; }
+.order-detail__columns { display: grid; grid-template-columns: minmax(0, 3fr) minmax(192px, 2fr); gap: 14px; }
+.order-detail__stack { display: flex; flex-direction: column; gap: 14px; }
+.order-detail__panel { padding: 14px 16px; border: 1px solid #e3e8ef; border-radius: 8px; background: #fff; box-shadow: 0 2px 10px rgb(5 21 43 / 5%); }
+.order-detail__panel h3 { margin: 0 0 13px; padding-bottom: 10px; border-bottom: 1px solid #edf0f4; color: #05152b; font-size: 13px; }
 .order-detail__list { margin: 0; }
-.order-detail__list > div + div { margin-top: 13px; }
-.order-detail__list dt { margin-bottom: 5px; color: #8791a1; font-size: 11px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; }
+.order-detail__list > div + div { margin-top: 10px; }
+.order-detail__list dt { margin-bottom: 4px; color: #8791a1; font-size: 11px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; }
 .order-detail__list dd { margin: 0; }
-.service-chips { display: flex; flex-wrap: wrap; gap: 8px; }
-.service-chips em { min-height: 30px; padding: 3px 12px; display: inline-flex; align-items: center; border-radius: 999px; background: #05152b; color: #f7f1e6; font-style: normal; font-size: 13px; font-weight: 650; }
+.service-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.service-chips em { min-height: 24px; padding: 2px 10px; display: inline-flex; align-items: center; border-radius: 999px; background: #05152b; color: #f7f1e6; font-style: normal; font-size: 11px; font-weight: 650; }
 .service-chips__empty { color: #697386; }
-.doc-group + .doc-group { margin-top: 16px; }
-.doc-group__head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-bottom: 8px; }
-.doc-group__head span, .doc-empty, .area-text { color: #697386; font-size: 13px; }
+.doc-group + .doc-group { margin-top: 13px; }
+.doc-group__head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; margin-bottom: 6px; }
+.doc-group__head span, .doc-empty, .area-text { color: #697386; font-size: 11px; }
 .doc-empty, .area-text { margin: 0; }
-.doc-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 10px; }
-.doc-card { display: flex; flex-direction: column; gap: 6px; margin: 0; padding: 0; overflow: hidden; border: 1px solid #e3e8ef; border-radius: 10px; background: #f6f8fb; }
-.doc-card :deep(.el-image), .doc-card__file { width: 100%; height: 96px; background: #fff; }
+.doc-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 8px; }
+.doc-card { display: flex; flex-direction: column; gap: 5px; margin: 0; padding: 0; overflow: hidden; border: 1px solid #e3e8ef; border-radius: 8px; background: #f6f8fb; }
+.doc-card :deep(.el-image), .doc-card__file { width: 100%; height: 77px; background: #fff; }
 .doc-card :deep(.el-image) { cursor: zoom-in; }
 .doc-card__file { display: grid; place-items: center; border: 0; color: #05152b; font-weight: 700; cursor: pointer; }
-.doc-card figcaption { padding: 0 8px 8px; overflow: hidden; color: #526070; font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
+.doc-card figcaption { padding: 0 6px 6px; overflow: hidden; color: #526070; font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
 @media (max-width: 900px) {
   .order-detail__columns { grid-template-columns: 1fr; }
 }
 </style>
 
 <style>
+.supplier-review-select .el-select-dropdown__item { height: 28px; padding-inline: 16px; font-size: 12px; line-height: 28px; }
+.supplier-review-dialog,
+.supplier-review-confirm {
+  --el-font-size-base: 12px;
+  --el-font-size-small: 11px;
+  --el-component-size: 26px;
+  --el-component-size-small: 24px;
+  border-radius: 16px;
+  font-size: 13px;
+}
+.supplier-review-confirm { width: min(336px, calc(100vw - 32px)); }
+.supplier-review-dialog .el-dialog__header,
+.supplier-review-confirm .el-message-box__header { padding: 18px 19px 14px; }
+.supplier-review-dialog .el-dialog__title,
+.supplier-review-confirm .el-message-box__title { font-size: 15px; }
+.supplier-review-dialog .el-dialog__headerbtn { top: 12px; right: 13px; width: 29px; height: 29px; }
+.supplier-review-dialog .el-dialog__body,
+.supplier-review-confirm .el-message-box__content { padding: 18px 19px; font-size: 12px; }
+.supplier-review-dialog .el-dialog__footer,
+.supplier-review-confirm .el-message-box__btns { padding: 13px 19px 18px; }
+.supplier-review-dialog .el-button,
+.supplier-review-confirm .el-button { min-height: 28px; height: 28px; padding: 6px 12px; border-radius: 8px; font-size: 12px; }
 .supplier-detail-drawer .el-drawer__body { background: #f6f8fb; }
 .policy-preview.el-dialog { overflow: hidden; }
 .policy-preview .el-dialog__body { padding: 0 0 18px; }
-.policy-preview__stage { display: grid; place-items: center; min-height: 240px; max-height: 78vh; overflow: auto; padding: 16px; background: #f3f5f8; }
-.policy-preview__stage img { max-width: 100%; max-height: 72vh; object-fit: contain; background: #fff; }
-.policy-preview__stage iframe { width: 100%; height: 72vh; border: 0; background: #fff; }
-.policy-preview__stage p { margin: 24px; color: #526070; }
 .approve-plain-confirm .el-message-box__container { display: none; }
 .approve-plain-confirm .el-message-box__btns { padding-top: 0; }
 </style>

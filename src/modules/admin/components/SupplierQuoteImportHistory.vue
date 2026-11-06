@@ -2,7 +2,7 @@
   <el-dialog
     v-model="dialogVisible"
     class="quote-history-dialog"
-    width="min(960px, 94vw)"
+    width="min(768px, 94vw)"
     :title="t('admin.platformSuppliers.quoteHistory.title')"
     append-to-body
     destroy-on-close
@@ -221,10 +221,35 @@ onBeforeUnmount(invalidateAndClear)
 </script>
 
 <style scoped>
-.quote-history-dialog {
+:global(.quote-history-dialog) {
   --el-color-primary: #102a43;
   --el-dialog-bg-color: #fbf8f2;
-  --el-dialog-border-radius: 18px;
+  --el-dialog-border-radius: 14px;
+  --el-dialog-padding-primary: 13px;
+  --el-font-size-base: 12px;
+  --el-component-size: 26px;
+  --el-component-size-small: 24px;
+  border-radius: 14px;
+}
+
+:global(.quote-history-dialog .el-dialog__header) {
+  padding: 18px 19px 14px;
+}
+
+:global(.quote-history-dialog .el-dialog__title) {
+  font-size: 15px;
+}
+
+:global(.quote-history-dialog .el-dialog__headerbtn) {
+  top: 12px;
+  right: 13px;
+  width: 29px;
+  height: 29px;
+  border-radius: 8px;
+}
+
+:global(.quote-history-dialog .el-dialog__body) {
+  padding: 18px 19px;
 }
 
 .quote-history {
@@ -241,13 +266,13 @@ onBeforeUnmount(invalidateAndClear)
 .quote-history__file {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
 }
 
 .quote-history__header {
   align-items: flex-start;
   justify-content: space-between;
-  gap: 16px;
+  gap: 13px;
 }
 
 .quote-history__header > div {
@@ -260,9 +285,9 @@ onBeforeUnmount(invalidateAndClear)
 }
 
 .quote-history__header h3 {
-  margin: 4px 0 6px;
+  margin: 3px 0 5px;
   color: #102a43;
-  font-size: 17px;
+  font-size: 14px;
   line-height: 1.4;
   overflow-wrap: anywhere;
 }
@@ -275,16 +300,16 @@ onBeforeUnmount(invalidateAndClear)
 
 .quote-history__header :deep(.el-button) {
   flex-shrink: 0;
-  height: 30px;
-  padding: 0 12px;
-  border-radius: 9px;
+  height: 26px;
+  padding: 0 10px;
+  border-radius: 7px;
   font-size: 12px;
 }
 
 .quote-history__meta {
   justify-content: space-between;
-  min-height: 34px;
-  margin: 10px 0 4px;
+  min-height: 27px;
+  margin: 8px 0 3px;
   color: #8b8172;
   font-size: 11px;
 }
@@ -295,8 +320,8 @@ onBeforeUnmount(invalidateAndClear)
 
 .quote-history__list {
   display: grid;
-  gap: 10px;
-  max-height: min(56vh, 560px);
+  gap: 8px;
+  max-height: min(56vh, 448px);
   overflow-y: auto;
   padding: 1px 4px 2px 1px;
   overscroll-behavior: contain;
@@ -304,9 +329,9 @@ onBeforeUnmount(invalidateAndClear)
 
 .quote-history__card {
   min-width: 0;
-  padding: 13px 15px;
+  padding: 10px 12px;
   border: 1px solid #e7dfd2;
-  border-radius: 12px;
+  border-radius: 10px;
   background: #fffdf9;
 }
 
@@ -321,8 +346,8 @@ onBeforeUnmount(invalidateAndClear)
 
 .quote-history__source,
 .quote-history__status {
-  padding: 3px 8px;
-  border-radius: 6px;
+  padding: 2px 6px;
+  border-radius: 5px;
   font-size: 11px;
   line-height: 1.4;
 }
@@ -354,28 +379,28 @@ onBeforeUnmount(invalidateAndClear)
 }
 
 .quote-history__operator {
-  margin: 9px 0 10px;
+  margin: 7px 0 8px;
   line-height: 1.5;
   overflow-wrap: anywhere;
 }
 
 .quote-history__operator > span {
-  margin-right: 8px;
+  margin-right: 6px;
   color: #8b8172;
 }
 
 .quote-history__counts {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 10px;
-  margin: 0 0 11px;
-  padding: 9px 11px;
-  border-radius: 8px;
+  gap: 8px;
+  margin: 0 0 9px;
+  padding: 7px 9px;
+  border-radius: 6px;
   background: #f7f3ec;
 }
 
 .quote-history__counts dt {
-  margin-bottom: 4px;
+  margin-bottom: 3px;
   color: #8b8172;
   font-size: 11px;
 }
@@ -383,7 +408,7 @@ onBeforeUnmount(invalidateAndClear)
 .quote-history__counts dd {
   margin: 0;
   color: #102a43;
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 650;
 }
 
@@ -411,7 +436,7 @@ onBeforeUnmount(invalidateAndClear)
 }
 
 .quote-history__error {
-  margin: 9px 0 0;
+  margin: 7px 0 0;
   color: #aa3e35;
   line-height: 1.6;
   white-space: pre-wrap;
@@ -419,8 +444,8 @@ onBeforeUnmount(invalidateAndClear)
 }
 
 .quote-history__details {
-  margin-top: 10px;
-  padding-top: 9px;
+  margin-top: 8px;
+  padding-top: 7px;
   border-top: 1px solid #eee7dc;
   color: #617184;
   line-height: 1.6;
@@ -433,8 +458,8 @@ onBeforeUnmount(invalidateAndClear)
 }
 
 .quote-history__details ul {
-  margin: 7px 0 0;
-  padding-left: 18px;
+  margin: 6px 0 0;
+  padding-left: 14px;
 }
 
 .quote-history__details li,
@@ -444,21 +469,21 @@ onBeforeUnmount(invalidateAndClear)
 }
 
 .quote-history__details p {
-  margin: 7px 0 0;
+  margin: 6px 0 0;
 }
 
 .quote-history__state {
   display: flex;
-  min-height: 170px;
+  min-height: 136px;
   align-items: center;
   justify-content: center;
-  gap: 10px;
+  gap: 8px;
   color: #8b8172;
 }
 
 .quote-history__state--error {
   flex-direction: column;
-  gap: 9px;
+  gap: 7px;
   color: #aa3e35;
   text-align: center;
 }
@@ -471,8 +496,8 @@ onBeforeUnmount(invalidateAndClear)
 }
 
 .quote-history__spinner {
-  width: 15px;
-  height: 15px;
+  width: 12px;
+  height: 12px;
   border: 2px solid #e7dfd2;
   border-top-color: #425a70;
   border-radius: 50%;
@@ -481,7 +506,7 @@ onBeforeUnmount(invalidateAndClear)
 
 .quote-history__pagination {
   justify-content: flex-end;
-  padding-top: 15px;
+  padding-top: 12px;
 }
 
 @keyframes quote-history-spin {
@@ -489,8 +514,8 @@ onBeforeUnmount(invalidateAndClear)
 }
 
 @media (max-width: 600px) {
-  .quote-history__card { padding: 11px; }
-  .quote-history__counts { gap: 6px; padding: 8px; }
+  .quote-history__card { padding: 9px; }
+  .quote-history__counts { gap: 5px; padding: 6px; }
   .quote-history__list { max-height: 52vh; }
 }
 

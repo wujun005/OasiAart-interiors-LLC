@@ -1,4 +1,6 @@
 import http from '@/modules/admin/utils/request';
+import { serviceCatalogQuery } from '@/modules/admin/utils/supplierServiceCatalog';
+import type { QuoteCompareRow } from '@/modules/admin/utils/supplierQuoteCompare';
 
 export function onboardingPage(payload: Record<string, unknown> = {}) {
   return http.post('/api/supplier/onboarding/page', payload);
@@ -36,6 +38,71 @@ export function platformSupplierQuoteSkus(supplierId: number | string, spuId: nu
   return http.get('/api/platform/supplierQuote/skus', { params: { supplierId, spuId } });
 }
 
+const COMPARE_PAGE_SIZE = 500;
+
+type QuoteComparePage = {
+  list: QuoteCompareRow[];
+  total: number;
+  totalPages: number;
+};
+
+const compareRecord = (value: unknown) => (
+  value && typeof value === 'object' && !Array.isArray(value)
+    ? value as Record<string, unknown>
+    : null
+);
+
+const compareRows = (value: unknown) => (
+  Array.isArray(value) ? value as QuoteCompareRow[] : null
+);
+
+const comparePage = (payload: unknown): QuoteComparePage | null => {
+  const record = compareRecord(payload);
+  if (!record) return null;
+  const nested = compareRecord(record.data);
+  const body = nested && (Array.isArray(nested.list) || 'total' in nested || 'totalPages' in nested)
+    ? nested
+    : record;
+  const list = compareRows(body.list);
+  if (!list) return null;
+  const total = Number(body.total);
+  const pageSize = Number(body.pageSize);
+  const totalPages = Number(body.totalPages);
+  const safeTotal = Number.isFinite(total) && total >= 0 ? total : list.length;
+  const safePageSize = Number.isFinite(pageSize) && pageSize > 0 ? pageSize : COMPARE_PAGE_SIZE;
+  return {
+    list,
+    total: safeTotal,
+    totalPages: Number.isFinite(totalPages) && totalPages >= 0
+      ? totalPages
+      : Math.ceil(safeTotal / safePageSize),
+  };
+};
+
+const unwrapQuoteCompare = (payload: unknown): QuoteCompareRow[] | QuoteComparePage => {
+  const rows = compareRows(payload) ?? compareRows(compareRecord(payload)?.data);
+  if (rows) return rows;
+  return comparePage(payload) ?? [];
+};
+
+export async function supplierQuoteCompare(params: { spuId?: number; packageId?: number }): Promise<QuoteCompareRow[]> {
+  const loadPage = async (pageNum: number) => unwrapQuoteCompare(await http.get('/api/platform/supplierQuote/compare', {
+    params: { ...params, pageNum, pageSize: COMPARE_PAGE_SIZE },
+  }));
+  const first = await loadPage(1);
+  if (Array.isArray(first) || first.totalPages <= 1 || first.list.length >= first.total) {
+    return Array.isArray(first) ? first : first.list;
+  }
+  const rows = [...first.list];
+  for (let pageNum = 2; pageNum <= first.totalPages && rows.length < first.total; pageNum += 1) {
+    const next = await loadPage(pageNum);
+    const list = Array.isArray(next) ? next : next.list;
+    if (!list.length) break;
+    rows.push(...list);
+  }
+  return rows;
+}
+
 export function platformSupplierQuoteReview(payload: Record<string, unknown>) {
   return http.post('/api/platform/supplierQuote/review', payload);
 }
@@ -55,6 +122,16 @@ export type ReviewNoticeItem = {
   reviewerName?: string
 }
 
+export async function platformReviewNoticeCount() {
+  const raw = await http.get('/api/platform/reviewNotice/count') as {
+    pendingCount?: number
+    data?: { pendingCount?: number }
+  }
+  const body = raw && typeof raw === 'object' && raw.data && !Array.isArray(raw.data) ? raw.data : raw
+  const count = Number(body?.pendingCount)
+  return Number.isFinite(count) && count > 0 ? Math.floor(count) : 0
+}
+
 export async function platformReviewNotice() {
   const raw = await http.get('/api/platform/reviewNotice') as {
     pending?: ReviewNoticeItem[]
@@ -68,21 +145,42 @@ export async function platformReviewNotice() {
   }
 }
 
-export function serviceCatalog(supplierId?: number | string) {
+export function serviceCatalog(supplierId?: number | string, packageService = false) {
   return http.get('/api/supplier/tools/services', {
-    params: supplierId ? { supplierId } : {},
+    params: serviceCatalogQuery(supplierId, packageService),
   });
+}
+
+export function supplierShelfNotices(supplierId: number | string) {
+  return http.get('/api/supplier/tools/services/shelfNotices', {
+    params: { supplierId },
+  });
+}
+
+export function acknowledgeSupplierShelfNotices(payload: { supplierId: number }) {
+  return http.post('/api/supplier/tools/services/shelfNotices/ack', payload);
 }
 
 export function saveServices(payload: Record<string, unknown>) {
   return http.post('/api/supplier/tools/services/save', payload);
 }
 
+export function removeSupplierService(payload: { supplierId: number; spuId: number }) {
+  return http.post('/api/supplier/tools/services/remove', payload);
+}
+
 export function saveServiceContacts(payload: {
   supplierId: number;
-  services: Array<{ spuId: number; workerCount: number; contactPhones: string[] }>;
+  services: Array<{ spuId: number; workerCount?: number; contactPhones: string[] }>;
 }) {
   return http.post('/api/supplier/tools/services/contacts', payload);
+}
+
+export function saveCategoryContacts(payload: {
+  supplierId: number;
+  categories: Array<{ categoryId: number; contactName: string; contactPhones: string[] }>;
+}) {
+  return http.post('/api/supplier/tools/categories/contacts', payload);
 }
 
 export function quoteList(supplierId: number | string) {
@@ -91,6 +189,37 @@ export function quoteList(supplierId: number | string) {
 
 export function saveQuoteDraft(payload: Record<string, unknown>) {
   return http.post('/api/supplier/tools/quotes/draft', payload);
+}
+
+export function supplierPackages(supplierId: number | string) {
+  return http.get('/api/supplier/tools/packages', { params: { supplierId } });
+}
+
+export function unimportedSupplierPackages(supplierId: number | string) {
+  return http.get('/api/supplier/tools/packages/unimported', { params: { supplierId } });
+}
+
+export function supplierPackageShelfNotices(supplierId: number | string) {
+  return http.get('/api/supplier/tools/packages/shelfNotices', { params: { supplierId } });
+}
+
+export function acknowledgeSupplierPackageShelfNotices(supplierId: number) {
+  return http.post('/api/supplier/tools/packages/shelfNotices/ack', { supplierId });
+}
+
+export function saveSupplierPackages(payload: {
+  supplierId: number;
+  packages: Array<{ categoryId: number; items: Array<{ packageId: number }> }>;
+}) {
+  return http.post('/api/supplier/tools/packages/save', payload);
+}
+
+export function supplierPackageQuotes(supplierId: number | string) {
+  return http.get('/api/supplier/tools/packages/quotes', { params: { supplierId } });
+}
+
+export function savePackageQuoteDraft(payload: Record<string, unknown>) {
+  return http.post('/api/supplier/tools/packages/quotes/draft', payload);
 }
 
 /** 勾选的服务 ID。空字符串表示不限制，由后端导出全部已加入的服务。 */

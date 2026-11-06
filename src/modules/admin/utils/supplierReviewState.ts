@@ -4,20 +4,54 @@ export type DispatchEligibility =
   | 'setupIncomplete'
   | 'changesRequired'
   | 'verificationApproved'
+  | 'notBookable'
   | 'active'
+
+type QuoteReadiness = {
+  status?: unknown
+  acceptOrder?: unknown
+  available?: unknown
+  effectiveVersionNo?: unknown
+  effective?: unknown
+}
+
+const flagOff = (value: unknown) => value === 0 || value === false || value === '0'
+
+export function quoteCanTakeJobs(quote: QuoteReadiness | null | undefined) {
+  if (!quote || quote.available === false || flagOff(quote.acceptOrder)) return false
+  if (Number(quote.status) === 2 || quote.effective === true) return true
+  const version = Number(quote.effectiveVersionNo)
+  return Number.isFinite(version) && version > 0
+}
+
+export function supplierOperationsReady(input: {
+  quotes?: QuoteReadiness[] | null
+  packageQuotes?: Array<{ services?: QuoteReadiness[] | null }> | null
+  areas?: unknown[] | null
+}) {
+  const services = Array.isArray(input.quotes) ? input.quotes : []
+  const packages = Array.isArray(input.packageQuotes) ? input.packageQuotes : []
+  const quoted = services.some((quote) => quoteCanTakeJobs(quote))
+    || packages.some((item) => (item?.services || []).some((quote) => quoteCanTakeJobs(quote)))
+  return quoted && Array.isArray(input.areas) && input.areas.length > 0
+}
 
 export function dispatchEligibility(input: {
   reviewStatus?: number | null
   enabled?: unknown
   acceptDispatch?: unknown
+  operationsReady?: boolean | null
 }): DispatchEligibility {
-  if (input.enabled === 0 || input.enabled === false || input.enabled === '0') return 'suspended'
+  if (flagOff(input.enabled)) return 'suspended'
   const review = input.reviewStatus == null ? null : Number(input.reviewStatus)
   if (review === 1) return 'pendingVerification'
   if (review === 3) return 'changesRequired'
   if (review == null || Number.isNaN(review) || review === 0) return 'setupIncomplete'
   const accepting = input.acceptDispatch === 1 || input.acceptDispatch === true || input.acceptDispatch === '1'
-  if (review === 2 && accepting) return 'active'
+  if (review === 2 && accepting) {
+    if (input.operationsReady === false) return 'notBookable'
+    return 'active'
+  }
   if (review === 2) return 'verificationApproved'
   return 'setupIncomplete'
 }

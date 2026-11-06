@@ -37,6 +37,10 @@ const specIdentityExports = {}
 runInNewContext(transpile(read("src/modules/client/utils/package-spec-identity.ts")), {
   exports: specIdentityExports,
 })
+const skuAvailabilityExports = {}
+runInNewContext(transpile(read("src/modules/client/utils/sku-availability.ts")), {
+  exports: skuAvailabilityExports,
+})
 const packageVisitExports = {}
 runInNewContext(transpile(read("src/modules/client/utils/package-visits.ts")), {
   exports: packageVisitExports,
@@ -156,6 +160,7 @@ async function harness(t, overrides = {}) {
       if (name === "@/modules/client/utils/package-shared-specs") return sharedSpecExports
       if (name === "@/modules/client/utils/package-spec-identity") return specIdentityExports
       if (name === "@/modules/client/utils/package-visits") return packageVisitExports
+      if (name === "@/modules/client/utils/sku-availability") return skuAvailabilityExports
       if (name.endsWith(".vue") || name.includes("/style/")) return {}
       throw new Error(`Unexpected dependency: ${name}`)
     },
@@ -190,6 +195,8 @@ test("PC package details compile with the ordinary product-detail stylesheet, ta
   assert.match(descriptor.template.content, /role="tabpanel"/)
   assert.match(descriptor.template.content, /class="booking-card__scroll"/)
   assert.match(descriptor.template.content, /class="booking-card__footer"/)
+  assert.match(product.template.content, /class="booking-card__price"[\s\S]*class="booking-card__scroll"/)
+  assert.match(product.template.content, /formatAed\(totalPrice\)/)
   assert.match(descriptor.template.content, /<del>AED \{\{ view\.original \}\}<\/del>/)
   assert.match(descriptor.template.content, /<PackageDetailMobile[\s\S]+?v-if="props\.platform === 'h5'"/)
   assert.match(descriptor.template.content, /class="package-visit-note"[\s\S]*class="booking-summary"/)

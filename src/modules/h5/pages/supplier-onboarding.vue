@@ -21,37 +21,71 @@
         <small class="h5-apply__note">{{ t('h5.supplierOnboarding.requiredNote') }}</small>
       </header>
 
+      <div class="h5-apply__channel" role="radiogroup" :aria-label="t('h5.supplierOnboarding.channelLabel')">
+        <button type="button" role="radio" :aria-checked="form.supplierType === 1" :class="{ 'is-on': form.supplierType === 1 }" @click="form.supplierType = 1">{{ t('h5.supplierOnboarding.channelCompany') }}</button>
+        <button type="button" role="radio" :aria-checked="form.supplierType === 2" :class="{ 'is-on': form.supplierType === 2 }" @click="form.supplierType = 2">{{ t('h5.supplierOnboarding.channelIndividual') }}</button>
+      </div>
+      <p class="h5-apply__channel-hint">{{ individual ? t('h5.supplierOnboarding.individualLead') : t('h5.supplierOnboarding.lead') }}</p>
+
       <section>
-        <h2>{{ t('h5.supplierOnboarding.company') }}</h2>
-        <label>
-          <span>{{ t('h5.supplierOnboarding.companyName') }}<i>*</i></span>
-          <input v-model.trim="form.companyName" required />
-        </label>
-        <label>
-          <span>{{ t('h5.supplierOnboarding.licenseNo') }}<i>*</i></span>
-          <input v-model.trim="form.tradeLicenseNo" required />
-        </label>
-        <label>
-          <span>{{ t('h5.supplierOnboarding.licenseExpiry') }}<i>*</i></span>
-          <input v-model="form.licenseExpiry" type="date" :min="tomorrow" required />
-        </label>
-        <label>
-          <span>{{ t('h5.supplierOnboarding.vat') }}</span>
-          <input v-model.trim="form.vatTrn" />
-        </label>
-        <label>
-          <span>{{ t('h5.supplierOnboarding.years') }}</span>
-          <input :value="wholeText(form.yearsInBusiness)" inputmode="numeric" @input="form.yearsInBusiness = wholeNumber(($event.target as HTMLInputElement).value)" />
-        </label>
-        <label>
-          <span>{{ t('h5.supplierOnboarding.address') }}<i>*</i></span>
-          <input v-model.trim="form.officeAddress" required />
-        </label>
+        <h2>{{ individual ? t('h5.supplierOnboarding.person') : t('h5.supplierOnboarding.company') }}</h2>
+        <template v-if="individual">
+          <label>
+            <span>{{ t('h5.supplierOnboarding.fullName') }}<i>*</i></span>
+            <input v-model.trim="form.fullName" maxlength="255" required />
+          </label>
+          <label>
+            <span>{{ t('h5.supplierOnboarding.dateOfBirth') }}<i>*</i></span>
+            <input v-model="form.dateOfBirth" type="date" :max="today" required />
+          </label>
+          <label>
+            <span>{{ t('h5.supplierOnboarding.nationality') }}<i>*</i></span>
+            <input v-model.trim="form.nationality" maxlength="64" required />
+          </label>
+          <label>
+            <span>{{ t('h5.supplierOnboarding.residentialCity') }}<i>*</i></span>
+            <input v-model.trim="form.residentialCity" maxlength="64" required />
+          </label>
+          <label>
+            <span>{{ t('h5.supplierOnboarding.vat') }}</span>
+            <input v-model.trim="form.vatTrn" maxlength="128" />
+          </label>
+          <label>
+            <span>{{ t('h5.supplierOnboarding.yearsPersonal') }}</span>
+            <input :value="wholeText(form.yearsInBusiness)" inputmode="numeric" @input="form.yearsInBusiness = wholeNumber(($event.target as HTMLInputElement).value)" />
+          </label>
+        </template>
+        <template v-else>
+          <label>
+            <span>{{ t('h5.supplierOnboarding.companyName') }}<i>*</i></span>
+            <input v-model.trim="form.companyName" required />
+          </label>
+          <label>
+            <span>{{ t('h5.supplierOnboarding.licenseNo') }}<i>*</i></span>
+            <input v-model.trim="form.tradeLicenseNo" required />
+          </label>
+          <label>
+            <span>{{ t('h5.supplierOnboarding.licenseExpiry') }}<i>*</i></span>
+            <input v-model="form.licenseExpiry" type="date" :min="tomorrow" required />
+          </label>
+          <label>
+            <span>{{ t('h5.supplierOnboarding.vat') }}</span>
+            <input v-model.trim="form.vatTrn" />
+          </label>
+          <label>
+            <span>{{ t('h5.supplierOnboarding.years') }}</span>
+            <input :value="wholeText(form.yearsInBusiness)" inputmode="numeric" @input="form.yearsInBusiness = wholeNumber(($event.target as HTMLInputElement).value)" />
+          </label>
+          <label>
+            <span>{{ t('h5.supplierOnboarding.address') }}<i>*</i></span>
+            <input v-model.trim="form.officeAddress" required />
+          </label>
+        </template>
       </section>
 
       <section>
         <h2>{{ t('h5.supplierOnboarding.contactTitle') }}</h2>
-        <label>
+        <label v-if="!individual">
           <span>{{ t('h5.supplierOnboarding.contact') }}<i>*</i></span>
           <input v-model.trim="form.contactPerson" required />
         </label>
@@ -103,7 +137,7 @@
           <span>{{ t('h5.supplierOnboarding.serviceNote') }}</span>
           <textarea v-model="expectedServiceRemark" rows="3" maxlength="512" :placeholder="t('h5.supplierOnboarding.serviceNotePlaceholder')" />
         </label>
-        <label>
+        <label v-if="!individual">
           <span>{{ t('h5.supplierOnboarding.workers') }}</span>
           <input :value="wholeText(form.totalAvailableWorkers)" inputmode="numeric" @input="form.totalAvailableWorkers = wholeNumber(($event.target as HTMLInputElement).value)" />
         </label>
@@ -130,7 +164,7 @@
           </div>
         </article>
 
-        <div class="community-picks">
+        <div v-if="!individual" class="community-picks">
           <strong>{{ t('h5.supplierOnboarding.communities') }}<i>*</i></strong>
           <div class="community-picks__options" role="group" :aria-label="t('h5.supplierOnboarding.communities')">
             <button
@@ -144,7 +178,7 @@
           </div>
         </div>
 
-        <label v-if="form.otherCommunityOnboarded === 1">
+        <label v-if="!individual && form.otherCommunityOnboarded === 1">
           <span>{{ t('h5.supplierOnboarding.note') }}<i>*</i></span>
           <textarea v-model="form.applyRenmark" rows="3" maxlength="512" :placeholder="t('h5.supplierOnboarding.notePlaceholder')" />
         </label>
@@ -182,6 +216,11 @@ const expectedServiceRemark = ref('');
 const otherSelected = computed(() => categories.value.some((option) => selectedIds.value.includes(option.categoryId) && isOtherService(option)));
 
 const form = reactive({
+  supplierType: 1 as 1 | 2,
+  fullName: '',
+  dateOfBirth: '',
+  nationality: '',
+  residentialCity: '',
   companyName: '',
   tradeLicenseNo: '',
   licenseExpiry: '',
@@ -210,6 +249,7 @@ const form = reactive({
   applyRenmark: '',
 });
 
+const individual = computed(() => form.supplierType === 2);
 const whatsappSame = ref(false);
 const syncWhatsapp = () => {
   if (!whatsappSame.value) return;
@@ -238,11 +278,13 @@ const toggleCommunity = (key: CommunityKey) => {
 const communityBit = (value: Bit) => (value === 1 ? 1 : 0);
 
 const pad = (value: number) => String(value).padStart(2, '0');
+const isoDate = (date: Date) => `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
 const tomorrow = computed(() => {
   const date = new Date();
   date.setDate(date.getDate() + 1);
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+  return isoDate(date);
 });
+const today = computed(() => isoDate(new Date()));
 
 const openTimePicker = (event: MouseEvent) => {
   const input = event.currentTarget;
@@ -295,25 +337,54 @@ const goBack = () => {
   else router.push({ name: 'h5-home' });
 };
 
+const sharedPayload = () => ({
+  mobile: joinPhone(form.mobileCode, form.mobile),
+  whatsapp: joinPhone(form.whatsappCode, form.whatsapp),
+  email: form.email,
+  vatTrn: form.vatTrn || null,
+  yearsInBusiness: form.yearsInBusiness == null || Number.isNaN(Number(form.yearsInBusiness)) ? null : Number(form.yearsInBusiness),
+  totalAvailableWorkers: individual.value ? null : form.totalAvailableWorkers,
+  minLeadTimeHours: form.minLeadTimeHours,
+  workingHours: `${form.workStart}-${form.workEnd}`,
+  weekendService: form.saturdayService === 1 || form.sundayService === 1 ? 1 : 0,
+  saturdayService: form.saturdayService,
+  sundayService: form.sundayService,
+  publicHolidayService: form.publicHolidayService,
+  emergencyService: form.emergencyService,
+  wearUniform: form.wearUniform,
+  expectedServiceCategoryIds: selectedIds.value.length ? categoryIdPayload(selectedIds.value) : null,
+  expectedServiceRemark: otherSelected.value && expectedServiceRemark.value.trim() ? expectedServiceRemark.value.trim() : null,
+});
 const submit = async () => {
-  const noteReady = form.otherCommunityOnboarded !== 1 || Boolean(form.applyRenmark.trim());
-  const ready = Boolean(
+  const noteReady = individual.value || form.otherCommunityOnboarded !== 1 || Boolean(form.applyRenmark.trim());
+  const contactReady = emailOk(form.email) && phoneOk(form.mobile) && phoneOk(form.whatsapp);
+  const companyReady = Boolean(
     form.companyName
     && form.tradeLicenseNo
     && form.licenseExpiry
     && form.licenseExpiry >= tomorrow.value
     && form.officeAddress
     && form.contactPerson
-    && emailOk(form.email)
-    && phoneOk(form.mobile)
-    && phoneOk(form.whatsapp)
+    && contactReady,
+  );
+  const individualReady = Boolean(
+    form.fullName
+    && form.dateOfBirth
+    && form.dateOfBirth <= today.value
+    && form.nationality
+    && form.residentialCity
+    && contactReady,
+  );
+  const ready = Boolean(
+    (individual.value ? individualReady : companyReady)
     && form.workStart
     && form.workEnd
     && choices.value.every((item) => chosen(form[item.key]))
     && noteReady,
   );
   if (!ready) {
-    if (form.licenseExpiry && form.licenseExpiry < tomorrow.value) errorText.value = t('h5.supplierOnboarding.licenseHint');
+    if (individual.value && form.dateOfBirth && form.dateOfBirth > today.value) errorText.value = t('h5.supplierOnboarding.birthHint');
+    else if (!individual.value && form.licenseExpiry && form.licenseExpiry < tomorrow.value) errorText.value = t('h5.supplierOnboarding.licenseHint');
     else if ((form.mobile || form.whatsapp) && (!phoneOk(form.mobile) || !phoneOk(form.whatsapp))) errorText.value = t('h5.supplierOnboarding.phoneHint');
     else if (!noteReady) errorText.value = t('h5.supplierOnboarding.noteError');
     else errorText.value = t('h5.supplierOnboarding.requiredError');
@@ -322,33 +393,26 @@ const submit = async () => {
   saving.value = true;
   errorText.value = '';
   try {
-    await submitOnboarding({
+    await submitOnboarding(individual.value ? {
+      supplierType: 2,
+      fullName: form.fullName,
+      dateOfBirth: form.dateOfBirth,
+      nationality: form.nationality,
+      residentialCity: form.residentialCity,
+      ...sharedPayload(),
+    } : {
+      supplierType: 1,
       companyName: form.companyName,
       tradeLicenseNo: form.tradeLicenseNo,
       licenseExpiry: form.licenseExpiry,
-      vatTrn: form.vatTrn || null,
       officeAddress: form.officeAddress,
       contactPerson: form.contactPerson,
-      mobile: joinPhone(form.mobileCode, form.mobile),
-      whatsapp: joinPhone(form.whatsappCode, form.whatsapp),
-      email: form.email,
-      yearsInBusiness: form.yearsInBusiness == null || Number.isNaN(Number(form.yearsInBusiness)) ? null : Number(form.yearsInBusiness),
-      totalAvailableWorkers: form.totalAvailableWorkers,
-      minLeadTimeHours: form.minLeadTimeHours,
-      workingHours: `${form.workStart}-${form.workEnd}`,
-      weekendService: form.saturdayService === 1 || form.sundayService === 1 ? 1 : 0,
-      saturdayService: form.saturdayService,
-      sundayService: form.sundayService,
-      publicHolidayService: form.publicHolidayService,
-      emergencyService: form.emergencyService,
-      wearUniform: form.wearUniform,
       emaarOnboarded: communityBit(form.emaarOnboarded),
       nakheelOnboarded: communityBit(form.nakheelOnboarded),
       dubaiHoldingsOnboarded: communityBit(form.dubaiHoldingsOnboarded),
       otherCommunityOnboarded: communityBit(form.otherCommunityOnboarded),
       applyRenmark: form.otherCommunityOnboarded === 1 ? form.applyRenmark.trim() : null,
-      expectedServiceCategoryIds: selectedIds.value.length ? categoryIdPayload(selectedIds.value) : null,
-      expectedServiceRemark: otherSelected.value && expectedServiceRemark.value.trim() ? expectedServiceRemark.value.trim() : null,
+      ...sharedPayload(),
     });
     done.value = true;
   } catch (error) {
@@ -525,6 +589,10 @@ const submit = async () => {
   background: #05152b;
   color: #fff;
 }
+.h5-apply__channel { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 0 0 8px; }
+.h5-apply__channel button { min-height: 42px; border: 1px solid #d7e2ee; border-radius: 12px; background: #fff; color: #05152b; font: inherit; font-weight: 750; }
+.h5-apply__channel button.is-on { border-color: #05152b; background: #05152b; color: #fff; }
+.h5-apply__channel-hint { margin: 0 0 16px; color: #607086; font-size: 13px; line-height: 1.5; }
 .community-picks {
   display: grid;
   gap: 12px;

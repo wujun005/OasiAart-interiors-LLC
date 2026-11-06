@@ -772,6 +772,7 @@ export interface PackageSpecLine {
 
 export interface PackageSkuOption {
   skuId?: number | string;
+  valid?: number | string | null;
   specI18n?: PackageSpecLine[];
 }
 

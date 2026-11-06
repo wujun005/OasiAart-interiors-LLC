@@ -71,7 +71,9 @@
           </template>
         </el-table-column>
         <el-table-column :label="t('admin.packageList.table.name')" min-width="140" show-overflow-tooltip>
-          <template #default="{ row }">{{ row.name }}</template>
+          <template #default="{ row }">
+            <span class="package-name">{{ row.name }}</span>
+          </template>
         </el-table-column>
         <el-table-column :label="t('admin.packageList.table.category')" min-width="120" show-overflow-tooltip>
           <template #default="{ row }">{{ row.categoryName || '-' }}</template>
@@ -112,7 +114,20 @@
             <div class="date-line">{{ t('admin.packageList.table.updatedAt') }}: {{ formatDate(row.updatedAt) }}</div>
           </template>
         </el-table-column>
-        <el-table-column :label="t('admin.packageList.table.actions')" width="88" fixed="right">
+        <el-table-column :label="t('admin.quoteCompare.open')" width="112" align="center" fixed="right">
+          <template #default="{ row }">
+            <el-button
+              class="quote-compare-open"
+              plain
+              type="primary"
+              size="small"
+              @click="openQuoteCompare(row)"
+            >
+              {{ t('admin.quoteCompare.open') }}
+            </el-button>
+          </template>
+        </el-table-column>
+        <el-table-column :label="t('admin.packageList.table.actions')" width="148" fixed="right">
           <template #default="{ row }">
             <div class="table-actions">
               <el-button link type="primary" size="small" @click="openEdit(row)">{{ t('admin.packageList.actions.edit') }}</el-button>
@@ -121,6 +136,17 @@
               </el-button>
               <el-button link type="primary" size="small" :disabled="!row.previewUrl" @click="openPreview(row)">
                 {{ t('admin.packageList.actions.preview') }}
+              </el-button>
+              <el-button
+                link
+                type="primary"
+                size="small"
+                class="quote-compare-export"
+                :loading="quoteCompareExportingId === row.id"
+                :disabled="quoteCompareExportingId != null && quoteCompareExportingId !== row.id"
+                @click="exportSupplierQuoteCompare(row)"
+              >
+                {{ t('admin.packageList.actions.exportQuoteCompare') }}
               </el-button>
               <el-button link type="danger" size="small" @click="remove(row)">{{ t('admin.packageList.actions.delete') }}</el-button>
             </div>
@@ -337,6 +363,11 @@
         <el-button type="primary" :loading="submitLoading" @click="save">{{ t('admin.packageList.actions.save') }}</el-button>
       </template>
     </el-dialog>
+    <SupplierQuoteCompareDialog
+      v-model="quoteCompareOpen"
+      :title="quoteCompareTarget?.name"
+      :package-id="quoteCompareTarget?.id"
+    />
   </div>
 </template>
 
@@ -345,6 +376,7 @@ import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } 
 import { useRoute, useRouter } from 'vue-router';
 import type { UploadRequestOptions, UploadUserFile } from 'element-plus';
 import { ElMessage, ElMessageBox } from 'element-plus';
+import SupplierQuoteCompareDialog from '@/modules/admin/components/SupplierQuoteCompareDialog.vue';
 import { Plus } from '@element-plus/icons-vue';
 import { QuillEditor } from '@vueup/vue-quill';
 import '@vueup/vue-quill/dist/vue-quill.snow.css';
@@ -361,6 +393,7 @@ import {
 } from '@/modules/admin/api/package';
 import { listBySpu, page as spuPage } from '@/modules/admin/api/spu';
 import { pickI18nText } from '@/modules/admin/utils/i18n';
+import { getAdminAuthStorageValue } from '@/utils/auth-state';
 import { useBizTagPicker } from '@/modules/admin/utils/bizTagPicker';
 import { bizTagsByRef } from '@/modules/admin/api/bizTag';
 import type { BizTag } from '@/modules/client/utils/biz-tag';
@@ -719,6 +752,92 @@ const toggleStatus = async (row: PackageRow) => {
 const openPreview = (row: PackageRow) => {
   if (!row.previewUrl) return;
   window.open(row.previewUrl, '_blank', 'noopener');
+};
+
+const quoteCompareExportingId = ref<number | null>(null);
+const quoteCompareOpen = ref(false);
+const quoteCompareTarget = ref<{ id: number; name: string } | null>(null);
+const openQuoteCompare = (row: { id?: number; name?: string }) => {
+  const id = Number(row?.id);
+  if (!Number.isSafeInteger(id) || id <= 0) return;
+  quoteCompareTarget.value = { id, name: String(row.name || '') };
+  quoteCompareOpen.value = true;
+};
+
+const packageExportFilename = (response: Response) => {
+  const disposition = response.headers.get('content-disposition') || '';
+  const utf8Match = disposition.match(/filename\*=UTF-8''([^;]+)/i);
+  if (utf8Match?.[1]) return decodeURIComponent(utf8Match[1]);
+  const plainMatch = disposition.match(/filename="?([^";]+)"?/i);
+  if (plainMatch?.[1]) return plainMatch[1];
+  return '套餐供应商报价.xlsx';
+};
+
+const packageExportErrorMessage = async (response: Response) => {
+  const contentType = response.headers.get('content-type') || '';
+  if (contentType.includes('application/json')) {
+    const payload = await response.json().catch(() => null);
+    if (payload && typeof payload.message === 'string' && payload.message.trim()) {
+      return payload.message.trim();
+    }
+  }
+  const text = await response.text().catch(() => '');
+  return text.trim() || t('admin.packageList.message.exportQuoteCompareFailed');
+};
+
+const exportSupplierQuoteCompare = async (row: { id?: number }) => {
+  if (typeof window === 'undefined') return;
+  const packageId = Number(row?.id);
+  if (!Number.isSafeInteger(packageId) || packageId <= 0 || quoteCompareExportingId.value != null) return;
+  const token = getAdminAuthStorageValue('token');
+  if (!token) {
+    ElMessage.error(locale.value.startsWith('zh') ? '未登录，请重新登录' : 'Please sign in again.');
+    return;
+  }
+
+  quoteCompareExportingId.value = packageId;
+  try {
+    const response = await fetch('/api/api/package/export', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+        language: String(locale.value).toLowerCase().startsWith('en') ? 'en' : 'zh',
+      },
+      body: JSON.stringify({ packageIds: [packageId] }),
+    });
+    if (!response.ok) throw new Error(await packageExportErrorMessage(response));
+
+    const blob = await response.blob();
+    const head = await blob.slice(0, 1).text();
+    if (blob.type.includes('json') || blob.type.startsWith('text/') || head === '{' || head === '<') {
+      const text = await blob.text();
+      let message = text.trim();
+      try {
+        const payload = JSON.parse(text);
+        if (payload && typeof payload.message === 'string' && payload.message.trim()) {
+          message = payload.message.trim();
+        }
+      } catch {
+        message = text.trim();
+      }
+      throw new Error(message || t('admin.packageList.message.exportQuoteCompareFailed'));
+    }
+
+    const downloadUrl = window.URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = downloadUrl;
+    link.download = packageExportFilename(response);
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    window.URL.revokeObjectURL(downloadUrl);
+    ElMessage.success(t('admin.packageList.message.exportQuoteCompareDone'));
+  } catch (error: any) {
+    ElMessage.error(error?.message || t('admin.packageList.message.exportQuoteCompareFailed'));
+  } finally {
+    quoteCompareExportingId.value = null;
+  }
 };
 
 const remove = (row: PackageRow) => {
@@ -1355,6 +1474,8 @@ watch(() => locale.value, () => {
 </script>
 
 <style scoped>
+.package-name { color: #172033; font-weight: 650; }
+.quote-compare-open { max-width: 100%; white-space: normal; line-height: 1.35; }
 .bound-service a { color: var(--el-color-primary); text-decoration: none; }
 .bound-service a:hover { text-decoration: underline; }
 .spu-picker-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; }
@@ -1519,6 +1640,12 @@ watch(() => locale.value, () => {
 }
 .table-actions :deep(.el-button + .el-button) {
   margin-left: 0;
+}
+.table-actions :deep(.quote-compare-export.el-button.is-link) {
+  height: auto;
+  white-space: normal;
+  line-height: 1.35;
+  text-align: left;
 }
 .sale-status-button {
   display: inline-flex;

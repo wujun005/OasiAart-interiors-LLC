@@ -819,6 +819,7 @@
 }
 
 .booking-card__hero {
+  flex: 0 0 auto;
   padding: 20px 20px 16px;
   border-bottom: 1px solid #e9eef5;
   background:
@@ -873,6 +874,39 @@
   gap: 6px;
 }
 
+.booking-card__price {
+  margin-top: 14px;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.booking-card__price span {
+  color: #66788e;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.booking-card__price strong {
+  color: var(--hourx-brand);
+  font-size: 26px;
+  font-weight: 900;
+  letter-spacing: -0.03em;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.booking-card__price strong.is-unavailable {
+  color: #8a6340;
+  font-size: 13px;
+  font-weight: 750;
+  letter-spacing: 0;
+  line-height: 1.4;
+  white-space: normal;
+  text-align: right;
+}
+
 .booking-card__rating > span {
   color: #f4a21b;
   font-size: 12px;
@@ -908,70 +942,6 @@
   stroke-width: 2;
   stroke-linecap: round;
   stroke-linejoin: round;
-}
-
-.booking-price-card {
-  margin: 14px 20px 0;
-  border: 1px solid rgba(5, 21, 43, 0.12);
-  border-radius: 13px;
-  background:
-    radial-gradient(circle at 100% 0, rgba(5, 21, 43, 0.1), transparent 40%),
-    linear-gradient(135deg, #f9fbfd 0%, var(--product-offer-soft) 100%);
-  padding: 10px 12px;
-}
-
-.booking-price-card__label {
-  display: block;
-  color: #61738a;
-  font-size: 10px;
-  font-weight: 800;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-}
-
-.booking-price-card__main {
-  margin-top: 3px;
-  display: flex;
-  align-items: baseline;
-  gap: 6px;
-  color: var(--product-offer);
-}
-
-.booking-price-card__main span {
-  font-size: 13px;
-  font-weight: 850;
-}
-
-.booking-price-card__main strong {
-  font-size: clamp(26px, 2vw, 31px);
-  line-height: 1;
-  font-weight: 950;
-  letter-spacing: -0.035em;
-}
-
-.booking-price-card__offer {
-  margin-top: 5px;
-  display: flex;
-  align-items: center;
-  gap: 9px;
-}
-
-.booking-price-card__offer del {
-  color: #8998aa;
-  font-size: 12px;
-  font-weight: 650;
-}
-
-.booking-price-card__offer span {
-  min-height: 22px;
-  border-radius: 6px;
-  background: var(--product-offer);
-  color: #fff;
-  padding: 3px 8px;
-  display: inline-flex;
-  align-items: center;
-  font-size: 11px;
-  font-weight: 850;
 }
 
 .booking-card__section-heading {
@@ -1350,6 +1320,7 @@
   outline-offset: 2px;
 }
 
+.booking-add-cart:disabled,
 .booking-submit:disabled {
   cursor: not-allowed;
   opacity: 0.58;
@@ -1710,11 +1681,6 @@
   .booking-card__meta {
     align-items: flex-start;
     flex-direction: column;
-  }
-
-  .booking-price-card {
-    margin-right: 18px;
-    margin-left: 18px;
   }
 
   .booking-card__policy {

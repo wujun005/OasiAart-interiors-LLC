@@ -295,50 +295,37 @@
 
         <aside class="booking-side">
           <section class="booking-card">
-            <div class="booking-card__scroll">
-              <div class="booking-card__hero">
-                <span class="booking-card__eyebrow">{{
-                  t("client.productDetail.pageTitle")
-                }}</span>
-                <h1>{{ displayTitle }}</h1>
-                <div v-if="productTags.length" class="biz-tags">
-                  <span v-for="tag in productTags" :key="tag">{{ tag }}</span>
-                </div>
-                <div class="booking-card__meta">
-                  <div v-if="reviewCount" class="booking-card__rating">
-                    <span aria-hidden="true">★★★★★</span>
-                    <strong>{{ averageRating.toFixed(1) }}</strong>
-                    <small>{{
-                      t("client.productDetail.reviewCount", { count: reviewCount })
-                    }}</small>
-                  </div>
-                  <span class="booking-card__trust">
-                    <svg viewBox="0 0 24 24" aria-hidden="true">
-                      <path d="M12 3 5 6v5c0 4.8 2.9 8.2 7 10 4.1-1.8 7-5.2 7-10V6l-7-3Z" />
-                      <path d="m9 12 2 2 4-4" />
-                    </svg>
-                    {{ t("client.productDetail.trust.trusted") }}
-                  </span>
-                </div>
+            <div class="booking-card__hero">
+              <span class="booking-card__eyebrow">{{
+                t("client.productDetail.pageTitle")
+              }}</span>
+              <h1>{{ displayTitle }}</h1>
+              <div v-if="productTags.length" class="biz-tags">
+                <span v-for="tag in productTags" :key="tag">{{ tag }}</span>
               </div>
-
-              <div class="booking-price-card">
-                <span class="booking-price-card__label">
-                  {{ t("client.productDetail.booking.priceFrom") }}
+              <div class="booking-card__meta">
+                <div v-if="reviewCount" class="booking-card__rating">
+                  <span aria-hidden="true">★★★★★</span>
+                  <strong>{{ averageRating.toFixed(1) }}</strong>
+                  <small>{{
+                    t("client.productDetail.reviewCount", { count: reviewCount })
+                  }}</small>
+                </div>
+                <span class="booking-card__trust">
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M12 3 5 6v5c0 4.8 2.9 8.2 7 10 4.1-1.8 7-5.2 7-10V6l-7-3Z" />
+                    <path d="m9 12 2 2 4-4" />
+                  </svg>
+                  {{ t("client.productDetail.trust.trusted") }}
                 </span>
-                <div class="booking-price-card__main">
-                  <span>AED</span>
-                  <strong>{{ currentBookingPrice.toFixed(2) }}</strong>
-                </div>
-                <div
-                  v-if="hasBookingDiscount"
-                  class="booking-price-card__offer"
-                >
-                  <del>{{ formatAed(originalBookingPrice || 0) }}</del>
-                  <span>-{{ bookingDiscountPercent }}%</span>
-                </div>
               </div>
-
+              <div class="booking-card__price">
+                <span>{{ t("client.productDetail.booking.total") }}</span>
+                <strong v-if="!(skuAvailabilityReady && !skuOffered)">{{ formatAed(totalPrice) }}</strong>
+                <strong v-else class="is-unavailable">{{ t("client.productDetail.booking.skuUnavailable") }}</strong>
+              </div>
+            </div>
+            <div class="booking-card__scroll">
               <div class="booking-card__section-heading">
                 <div class="booking-card__section-title-row">
                   <h2>{{ t("client.productDetail.booking.chooseTitle") }}</h2>
@@ -346,9 +333,9 @@
                 </div>
               </div>
 
-              <template v-if="bookingSpecGroups.length">
+              <template v-if="visibleSpecGroups.length">
                 <div
-                  v-for="group in bookingSpecGroups"
+                  v-for="group in visibleSpecGroups"
                   :key="group.typeId"
                   class="booking-field"
                 >
@@ -452,6 +439,12 @@
               >
                 {{ t("client.productDetail.emptyDesc") }}
               </p>
+              <p
+                v-else-if="skuAvailabilityReady && !skuOffered"
+                class="booking-card__empty"
+              >
+                {{ t("client.productDetail.booking.skuUnavailable") }}
+              </p>
 
               <div class="booking-summary">
                 <div class="booking-summary__caption">
@@ -495,6 +488,7 @@
                 <button
                   class="booking-add-cart"
                   type="button"
+                  :disabled="skuAvailabilityReady && !skuOffered"
                   @click="handleAddToCart"
                 >
                   <svg
@@ -514,7 +508,7 @@
                 <button
                   class="booking-submit"
                   type="button"
-                  :disabled="isCreatingOrder"
+                  :disabled="isCreatingOrder || (skuAvailabilityReady && !skuOffered)"
                   @click="goOrderConfirm"
                 >
                   {{ t("client.productDetail.booking.bookNow") }}
@@ -550,6 +544,13 @@ import {
   createOrder,
 } from "@/modules/client/api"
 import { normalizeRichTextHtml } from "@/modules/client/utils/richText"
+import {
+  isOfferedSku,
+  loadValidSkuKeys,
+  reconcileSkuSelection,
+  skuOptionShown,
+  skuSelectionOffered,
+} from "@/modules/client/utils/sku-availability"
 import { formatCreatedAt } from "@/modules/client/utils/order-date-time"
 import { formatContactName } from "@/modules/client/utils/order-localization"
 import { clearStoredAuthState, getStoredAuthSnapshot } from "@/utils/auth-state"
@@ -676,6 +677,32 @@ const skuPrice = ref<ProductSkuRecord | null>(null)
 const selectedImageIndex = ref(0)
 const activeDetailTab = ref<DetailTabKey>("description")
 const selectedSpecValues = ref<Record<string, string>>({})
+const validSkuKeys = ref<Set<string> | null>(null)
+const availabilitySeq = ref(0)
+const skuAvailabilityReady = computed(() => validSkuKeys.value != null)
+const visibleSpecGroups = computed(() =>
+  bookingSpecGroups.value
+    .map((group, index) => ({
+      ...group,
+      options: group.options.filter((option) =>
+        skuOptionShown(
+          bookingSpecGroups.value,
+          index,
+          option.id,
+          validSkuKeys.value,
+          selectedSpecValues.value,
+        ),
+      ),
+    }))
+    .filter((group) => group.options.length),
+)
+const skuOffered = computed(() =>
+  skuSelectionOffered(
+    bookingSpecGroups.value,
+    selectedSpecValues.value,
+    validSkuKeys.value,
+  ),
+)
 const attachQuantities = ref<Record<string, number>>({})
 const skuRequestSeq = ref(0)
 const isCreatingOrder = ref(false)
@@ -983,34 +1010,6 @@ const basePrice = computed(() =>
   resolveNumber(productDetail.value?.minPrice ?? productDetail.value?.price),
 )
 
-const currentBookingPrice = computed(() => {
-  return (
-    resolveOptionalNumber(skuPrice.value?.priceWithTax) ??
-    resolveOptionalNumber(skuPrice.value?.price) ??
-    basePrice.value
-  )
-})
-
-const originalBookingPrice = computed<number | null>(() => {
-  return (
-    resolveOptionalNumber(skuPrice.value?.originalPriceWithTax) ??
-    resolveOptionalNumber(skuPrice.value?.originalPrice)
-  )
-})
-
-const bookingDiscountPercent = computed(() => {
-  const original = originalBookingPrice.value
-  const current = currentBookingPrice.value
-  if (original === null || original <= 0 || current >= original) {
-    return 0
-  }
-  return Math.max(1, Math.round(((original - current) / original) * 100))
-})
-
-const hasBookingDiscount = computed(
-  () => bookingDiscountPercent.value > 0,
-)
-
 const selectedSpecValueIds = computed(() =>
   bookingSpecGroups.value
     .map((group) => selectedSpecValues.value[group.typeId])
@@ -1049,6 +1048,9 @@ const skuRequestPayload = computed<ProductSkuPayload | null>(() => {
     bookingSpecGroups.value.length > 0 &&
     selectedSpecValueIds.value.length !== bookingSpecGroups.value.length
   ) {
+    return null
+  }
+  if (skuAvailabilityReady.value && !skuOffered.value) {
     return null
   }
   return {
@@ -1510,8 +1512,8 @@ const loadSkuPrice = async (payload: ProductSkuPayload) => {
     if (requestId !== skuRequestSeq.value) {
       return
     }
-    skuPrice.value =
-      result && typeof result === "object" ? (result as ProductSkuRecord) : null
+    const record = result && typeof result === "object" ? (result as ProductSkuRecord) : null
+    skuPrice.value = isOfferedSku(record) ? record : null
   } catch (error) {
     if (requestId !== skuRequestSeq.value) {
       return
@@ -1618,11 +1620,51 @@ watch(
 const formatAed = (value: number) => `AED ${value.toFixed(2)}`
 
 const selectSpecValue = (typeId: string, valueId: string) => {
-  selectedSpecValues.value = {
-    ...selectedSpecValues.value,
-    [typeId]: valueId,
+  const groups = bookingSpecGroups.value
+  const visible = visibleSpecGroups.value.find((group) => group.typeId === typeId)
+  if (!visible?.options.some((option) => option.id === valueId)) return
+  if (!validSkuKeys.value) {
+    selectedSpecValues.value = {
+      ...selectedSpecValues.value,
+      [typeId]: valueId,
+    }
+    return
   }
+  selectedSpecValues.value = reconcileSkuSelection(
+    groups,
+    { ...selectedSpecValues.value, [typeId]: valueId },
+    validSkuKeys.value,
+    typeId,
+  )
 }
+
+watch(
+  () => [
+    spuId.value,
+    bookingSpecGroups.value
+      .map((group) => `${group.typeId}:${group.options.map((option) => option.id).join(".")}`)
+      .join("|"),
+  ].join("#"),
+  async () => {
+    const seq = availabilitySeq.value + 1
+    availabilitySeq.value = seq
+    const id = spuId.value
+    const groups = bookingSpecGroups.value.map((group) => ({
+      typeId: group.typeId,
+      options: group.options.map((option) => ({ id: option.id })),
+    }))
+    validSkuKeys.value = null
+    if (!id) return
+    const keys = await loadValidSkuKeys(id, groups, getProductSku)
+    if (seq !== availabilitySeq.value) return
+    validSkuKeys.value = keys
+    selectedSpecValues.value = reconcileSkuSelection(
+      groups,
+      selectedSpecValues.value,
+      keys,
+    )
+  },
+)
 
 const increaseAttachQty = (valueId: string) => {
   const current = attachQuantities.value[valueId] || 0

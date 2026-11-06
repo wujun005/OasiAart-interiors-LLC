@@ -85,6 +85,9 @@
               <span v-if="showsNoRefundNote(row)" class="orders-h5__pill orders-h5__pill--alert">
                 {{ t("admin.orders.table.noRefund") }}
               </span>
+              <span v-if="row.urgent" class="orders-h5__pill orders-h5__pill--urgent">
+                {{ t("admin.orders.table.urgent") }}
+              </span>
               <span v-if="hasUnreadReschedule(row)" class="orders-h5__pill orders-h5__pill--alert">
                 {{ t("admin.orders.table.rescheduledUnread") }}
               </span>
@@ -302,33 +305,38 @@
         <el-table-column
           prop="orderNo"
           :label="t('admin.orders.table.orderNo')"
-          width="188"
+          width="228"
         >
           <template #default="{ row }">
-            <el-tooltip
-              v-if="row.orderNo"
-              :content="row.orderNo"
-              placement="top"
-              :show-after="250"
-            >
-              <el-button
-                class="order-number-link"
-                link
-                type="primary"
-                @click="openOrderDetail(row)"
+            <div class="order-number-cell">
+              <el-tooltip
+                v-if="row.orderNo"
+                :content="row.orderNo"
+                placement="top"
+                :show-after="250"
               >
-                {{ row.orderNo }}
-              </el-button>
-            </el-tooltip>
-            <el-tag
-              v-if="hasUnreadReschedule(row)"
-              class="order-reschedule-alert"
-              type="danger"
-              size="small"
-            >
-              {{ t("admin.orders.table.rescheduledUnread") }}
-            </el-tag>
-            <span v-if="!row.orderNo">-</span>
+                <el-button
+                  class="order-number-link"
+                  link
+                  type="primary"
+                  @click="openOrderDetail(row)"
+                >
+                  {{ row.orderNo }}
+                </el-button>
+              </el-tooltip>
+              <span v-if="row.urgent" class="order-urgent-mark">
+                {{ t("admin.orders.table.urgent") }}
+              </span>
+              <el-tag
+                v-if="hasUnreadReschedule(row)"
+                class="order-reschedule-alert"
+                type="danger"
+                size="small"
+              >
+                {{ t("admin.orders.table.rescheduledUnread") }}
+              </el-tag>
+              <span v-if="!row.orderNo">-</span>
+            </div>
           </template>
         </el-table-column>
         <el-table-column
@@ -682,6 +690,9 @@
             </div>
             <h2 class="order-detail__title">
               #{{ displayValue(detailRow.orderNo) }}
+              <span v-if="detailRow.urgent" class="order-urgent-mark">
+                {{ t("admin.orders.table.urgent") }}
+              </span>
             </h2>
             <p class="order-detail__booked-at">
               {{ t("admin.orders.detail.bookedAt") }}:
@@ -1652,6 +1663,14 @@
             <em v-if="assignStaffVisitTitle(person)">{{ assignStaffVisitTitle(person) }}</em>
           </p>
         </div>
+        <el-radio-group
+          v-model="assignSupplierKind"
+          class="assign-kind"
+          :disabled="assignSubmitting"
+        >
+          <el-radio value="company">{{ t("admin.orders.form.companySupplier") }}</el-radio>
+          <el-radio value="individual">{{ t("admin.orders.form.individualSupplier") }}</el-radio>
+        </el-radio-group>
         <el-select
           v-model="assignForm.supplierId"
           @change="assignRequiresSupplierChoice = false"
@@ -1661,12 +1680,12 @@
           :remote-method="loadSupplierOptions"
           :disabled="assignSubmitting"
           :loading="supplierLoading"
-          :placeholder="t('admin.orders.form.supplierPlaceholder')"
+          :placeholder="assignSupplierPlaceholder"
           popper-class="orders-h5-select"
           style="width: 100%"
         >
           <el-option
-            v-for="item in supplierOptions"
+            v-for="item in visibleSupplierOptions"
             :key="item.id"
             :label="item.supplierName"
             :value="item.id"
@@ -1731,6 +1750,16 @@
             </p>
           </div>
         </el-form-item>
+        <el-form-item :label="t('admin.orders.form.supplierKind')">
+          <el-radio-group
+            v-model="assignSupplierKind"
+            class="assign-kind"
+            :disabled="assignSubmitting"
+          >
+            <el-radio value="company">{{ t("admin.orders.form.companySupplier") }}</el-radio>
+            <el-radio value="individual">{{ t("admin.orders.form.individualSupplier") }}</el-radio>
+          </el-radio-group>
+        </el-form-item>
         <el-form-item :label="t('admin.orders.form.supplier')">
           <el-select
             v-model="assignForm.supplierId"
@@ -1741,11 +1770,11 @@
             :disabled="assignSubmitting"
             :remote-method="loadSupplierOptions"
             :loading="supplierLoading"
-            :placeholder="t('admin.orders.form.supplierPlaceholder')"
+            :placeholder="assignSupplierPlaceholder"
             style="width: 100%"
           >
             <el-option
-              v-for="item in supplierOptions"
+              v-for="item in visibleSupplierOptions"
               :key="item.id"
               :label="item.supplierName"
               :value="item.id"
@@ -1880,6 +1909,7 @@ type OrderRow = {
   community: string
   rescheduled: boolean
   rescheduleRead: boolean
+  urgent: boolean
   rescheduleChanges: RescheduleChangeItem[]
   supplierId: number | string | null
   supplierName: string
@@ -1936,6 +1966,7 @@ type OrderLineItem = {
 type SupplierOption = {
   id: number | string
   supplierName: string
+  supplierType?: 1 | 2
   supplierNo?: string
   tracked?: boolean
   serviceStatus?: number | null
@@ -2146,12 +2177,42 @@ const bulkAssignTargets = ref<OrderRow[]>([])
 const bulkCompleting = ref(false)
 const supplierLoading = ref(false)
 const supplierOptions = ref<SupplierOption[]>([])
+const assignSupplierKind = ref<"company" | "individual">("company")
 const assignForm = reactive({
   orderId: null as number | null,
   orderNo: "",
   supplierId: null as number | string | null,
 })
 const assignRequiresSupplierChoice = ref(false)
+const supplierTypeOf = (value: unknown): 1 | 2 | undefined => {
+  const type = Number(value)
+  if (type === 2) return 2
+  if (type === 1) return 1
+  return undefined
+}
+const supplierIsIndividual = (supplier: { supplierType?: unknown } | null | undefined) =>
+  Number(supplier?.supplierType) === 2
+const supplierMatchesAssignKind = (supplier: { supplierType?: unknown } | null | undefined) =>
+  supplierIsIndividual(supplier) === (assignSupplierKind.value === "individual")
+const visibleSupplierOptions = computed(() =>
+  supplierOptions.value.filter((item) => supplierMatchesAssignKind(item)),
+)
+const assignSupplierPlaceholder = computed(() =>
+  t(
+    assignSupplierKind.value === "individual"
+      ? "admin.orders.form.individualPlaceholder"
+      : "admin.orders.form.supplierPlaceholder",
+  ),
+)
+watch(assignSupplierKind, () => {
+  const selected = supplierOptions.value.find(
+    (item) => String(item.id) === String(assignForm.supplierId ?? ""),
+  )
+  if (selected && !supplierMatchesAssignKind(selected)) {
+    assignForm.supplierId = null
+    assignRequiresSupplierChoice.value = false
+  }
+})
 const clearLegacySupplierAssignment = () => {
   if (assignSubmitting.value) return
   assignForm.supplierId = null
@@ -2328,6 +2389,7 @@ const orderRowTone = (row: OrderRow) => {
 const orderRowClassName = ({ row }: { row: OrderRow }) => {
   const classes = [`order-status--${orderRowTone(row)}`]
   if (hasUnreadReschedule(row)) classes.push("order-row--rescheduled-unread")
+  if (row.urgent) classes.push("order-row--urgent")
   return classes.join(" ")
 }
 
@@ -3421,9 +3483,11 @@ const parseAssignedSupplierList = (value: unknown): SupplierOption[] => {
     if (seen.has(key)) return
     seen.add(key)
     const status = Number(item.serviceStatus)
+    const supplierType = supplierTypeOf(item.supplierType)
     suppliers.push({
       id: id as number | string,
       supplierName: String(item.supplierName ?? item.name ?? "").trim(),
+      ...(supplierType ? { supplierType } : {}),
       supplierNo: String(item.supplierNo ?? "").trim(),
       tracked: true,
       serviceStatus: Number.isFinite(status) ? status : 0,
@@ -3729,6 +3793,7 @@ const parseOrderRow = (item: any): OrderRow => {
     rescheduleRead: normalizeBoolean(
       order.rescheduleRead ?? item.rescheduleRead,
     ),
+    urgent: normalizeBoolean(order.urgent ?? item.urgent),
     rescheduleChanges: parseRescheduleChanges(
       order.rescheduleChanges ?? item.rescheduleChanges,
     ),
@@ -3886,6 +3951,7 @@ const normalizeOrderDetail = (payload: any, fallback: OrderRow): OrderRow => {
     community: root.community ?? fallback.community,
     rescheduled: root.rescheduled ?? fallback.rescheduled,
     rescheduleRead: root.rescheduleRead ?? fallback.rescheduleRead,
+    urgent: root.urgent ?? fallback.urgent,
     serviceTime: root.serviceTime ?? fallback.serviceTime,
     timeRange: root.timeRange ?? fallback.timeRange,
     contactPhone: root.contactPhone ?? fallback.contactPhone,
@@ -4162,7 +4228,12 @@ const normalizeSupplierOptions = (payload: any): SupplierOption[] => {
         ).trim(),
       )
       if (id === null || id === undefined || !supplierName) return null
-      return { id, supplierName }
+      const supplierType = supplierTypeOf(supplier.supplierType ?? item?.supplierType)
+      return {
+        id,
+        supplierName,
+        ...(supplierType ? { supplierType } : {}),
+      }
     })
     .filter((item: SupplierOption | null): item is SupplierOption => !!item)
 }
@@ -4176,16 +4247,29 @@ const loadSupplierOptions = async (keyword = "") => {
   try {
     const supplierName = normalizeOptionalParam(keyword)
     const res = await querySuppliers({
-      pageNum: 1,
-      pageSize: 500,
-      ...(supplierName ? { supplierName } : {}),
+      ...(supplierName ? { nameKeyword: supplierName } : {}),
     })
     if (!isCurrent()) return
     const nextOptions = normalizeSupplierOptions(res)
-    const kept = supplierOptions.value.filter((item) => String(item.id) === String(assignForm.supplierId ?? ""))
-    const merged = [...kept]
+    const sameSupplier = (left: SupplierOption, right: SupplierOption) =>
+      String(left.id) === String(right.id)
+    const merged = supplierOptions.value.filter(
+      (item) => String(item.id) === String(assignForm.supplierId ?? ""),
+    )
     nextOptions.forEach((item) => {
-      if (!merged.some((option) => String(option.id) === String(item.id))) merged.push(item)
+      const index = merged.findIndex((option) => sameSupplier(option, item))
+      if (index < 0) {
+        merged.push(item)
+        return
+      }
+      const current = merged[index]
+      if (!current) return
+      merged[index] = {
+        ...current,
+        ...item,
+        supplierName: item.supplierName || current.supplierName,
+        supplierType: item.supplierType ?? current.supplierType,
+      }
     })
     supplierOptions.value = merged
   } catch (error: any) {
@@ -4257,15 +4341,26 @@ const openAssignDialog = async (row: OrderRow) => {
   assignForm.orderId = row.orderId
   assignForm.orderNo = row.orderNo
   assignRequiresSupplierChoice.value = suppliers.length > 1
+  supplierOptions.value = suppliers.filter((supplier) => supplier.supplierName)
   assignForm.supplierId = suppliers.length === 1 ? suppliers[0]?.id ?? null : null
+  assignSupplierKind.value = supplierIsIndividual(suppliers.length === 1 ? suppliers[0] : null)
+    ? "individual"
+    : "company"
   assignSupplierPreview.value = {
     supplierName: row.supplierName || "",
     contactInfo: "",
   }
-  supplierOptions.value = suppliers.filter((supplier) => supplier.supplierName)
   assignDialogVisible.value = true
   await loadSupplierOptions()
   const isCurrent = () => sequence === assignDialogSequence && assignDialogVisible.value && assignForm.orderId === row.orderId
+  if (isCurrent() && assignForm.supplierId != null) {
+    const selected = supplierOptions.value.find(
+      (item) => String(item.id) === String(assignForm.supplierId),
+    )
+    if (selected) {
+      assignSupplierKind.value = supplierIsIndividual(selected) ? "individual" : "company"
+    }
+  }
   if (!isCurrent() || suppliers.length !== 1 || !suppliers[0]?.id) return
   try {
     const detail = await getSupplierDetail(suppliers[0].id)
@@ -4299,6 +4394,7 @@ const openBulkAssignDialog = async () => {
   assignForm.orderId = null
   assignForm.orderNo = ""
   assignForm.supplierId = null
+  assignSupplierKind.value = "company"
   assignRequiresSupplierChoice.value = false
   supplierOptions.value = []
   assignDialogVisible.value = true
@@ -5144,14 +5240,34 @@ onBeforeUnmount(() => {
   justify-content: flex-end;
   margin-top: 12px;
 }
+.order-number-cell {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 6px;
+}
 .order-number-link {
   height: auto;
   padding: 0;
   font-weight: 600;
 }
 .order-reschedule-alert {
-  margin-left: 8px;
+  margin-left: 0;
   vertical-align: middle;
+}
+.order-urgent-mark {
+  display: inline-flex;
+  align-items: center;
+  height: 20px;
+  padding: 0 7px;
+  border: 1px solid #f3d7a1;
+  border-radius: 4px;
+  background: #fff0d5;
+  color: #9a5700;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1;
+  white-space: nowrap;
 }
 .service-day-label {
   width: fit-content;
@@ -5336,6 +5452,11 @@ onBeforeUnmount(() => {
 .order-fulfillments__staff a {
   color: #1d4f91;
   text-decoration: none;
+}
+.assign-kind {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 18px;
 }
 .assign-hint,
 .h5-assign__hint {
@@ -5680,6 +5801,10 @@ onBeforeUnmount(() => {
   text-transform: uppercase;
 }
 .order-detail__title {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
   margin: 0;
   color: #05152b;
   font-size: 28px;
@@ -6179,6 +6304,11 @@ onBeforeUnmount(() => {
   color: #b42318;
 }
 
+.orders-h5__pill--urgent {
+  background: #fff0d5;
+  color: #9a5700;
+}
+
 .orders-h5__chevron {
   color: #9aabbe;
   font-size: 22px;
@@ -6404,6 +6534,9 @@ onBeforeUnmount(() => {
   font-weight: 500;
 }
 
+.h5-assign .assign-kind {
+  margin-bottom: 12px;
+}
 .h5-assign :deep(.el-select) {
   width: 100%;
   margin-top: 8px;

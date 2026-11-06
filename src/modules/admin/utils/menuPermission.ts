@@ -69,6 +69,9 @@ const FIXED_PACKAGE_SPEC_TYPE_MENU_ID = 'fixed-package-spec-types';
 const FIXED_PACKAGE_SPEC_MENU_ID = 'fixed-package-specs';
 const FIXED_PACKAGE_SERVICE_MENU_ID = 'fixed-package-services';
 const FIXED_PACKAGE_LIST_MENU_ID = 'fixed-package-list';
+const SUPPLIER_MENU_PATH = '/admin/basic/suppliers';
+const QUOTE_MENU_PATH = '/admin/basic/quotes';
+const FIXED_QUOTE_MENU_ID = 'fixed-supplier-quotes';
 const MENU_PATH_ALIASES: Record<string, string> = {
   '/admin/supplier': '/admin/supplier-management',
   '/admin/supplier/profile': '/admin/supplier-management/profile',
@@ -267,6 +270,7 @@ const supplierPortalOrder = [
   `${SUPPLIER_PATH}/service-area`,
   `${SUPPLIER_PATH}/availability`,
   `${SUPPLIER_PATH}/pricing`,
+  `${SUPPLIER_PATH}/package-pricing`,
   `${SUPPLIER_PATH}/orders`,
   `${SUPPLIER_PATH}/staff`,
   `${SUPPLIER_PATH}/schedule`,
@@ -349,6 +353,30 @@ const pinPackageMenu = (roots: AdminMenuPermissionItem[]) => {
     });
   });
   sortMenus(parent.children);
+};
+
+const pinSupplierQuoteMenu = (roots: AdminMenuPermissionItem[]) => {
+  if (!hasMenuPath(roots, SUPPLIER_MENU_PATH) || hasMenuPath(roots, QUOTE_MENU_PATH)) return;
+  const supplier = findMenuByPath(roots, SUPPLIER_MENU_PATH);
+  if (!supplier) return;
+  const item: AdminMenuPermissionItem = {
+    id: FIXED_QUOTE_MENU_ID,
+    name: '报价管理',
+    path: QUOTE_MENU_PATH,
+    icon: 'price-tag',
+    parentId: supplier.parentId,
+    sortOrder: Number(supplier.sortOrder || 0) + 1,
+    children: [],
+  };
+  const insertAfter = (nodes: AdminMenuPermissionItem[]): boolean => {
+    const index = nodes.findIndex((node) => node.path === SUPPLIER_MENU_PATH);
+    if (index >= 0) {
+      nodes.splice(index + 1, 0, item);
+      return true;
+    }
+    return nodes.some((node) => insertAfter(node.children));
+  };
+  insertAfter(roots);
 };
 
 const pinSuperAdminOverview = (roots: AdminMenuPermissionItem[]) => {
@@ -454,6 +482,7 @@ const hydrateMenuState = (list: RawMenuItem[], pinOverview = false, pinStaff = f
   const prunedRoots = pruneMenus(roots);
   sortMenus(prunedRoots);
   pinPackageMenu(prunedRoots);
+  pinSupplierQuoteMenu(prunedRoots);
   if (pinStaff) {
     pinSupplierStaffMenu(prunedRoots);
     orderSupplierPortalMenus(prunedRoots);
@@ -561,6 +590,7 @@ const SUPPLIER_OWNER_PATHS = [
   `${SUPPLIER_PATH}/overview`,
   `${SUPPLIER_PATH}/profile`,
   `${SUPPLIER_PATH}/pricing`,
+  `${SUPPLIER_PATH}/package-pricing`,
   `${SUPPLIER_PATH}/staff`,
   SUPPLIER_COVERAGE_PATH,
 ];
@@ -589,8 +619,10 @@ export const resolveAllowedAdminPath = (path: string) => {
   if (normalized === LOGIN_PATH) return LOGIN_PATH;
   if (!normalized.startsWith(ROOT_PATH)) return normalized;
   if (normalized === ADMIN_NO_ACCESS_PATH) return ADMIN_NO_ACCESS_PATH;
-  if (normalized === '/admin/review-notices') {
-    return adminMenuState.allowedPaths.includes('/admin/basic/suppliers') ? normalized : '';
+  if (normalized === '/admin/review-notices' || normalized === QUOTE_MENU_PATH) {
+    return adminMenuState.allowedPaths.includes(SUPPLIER_MENU_PATH) || adminMenuState.allowedPaths.includes(normalized)
+      ? normalized
+      : '';
   }
 
   if (adminMenuState.allowedPaths.includes(normalized)) {

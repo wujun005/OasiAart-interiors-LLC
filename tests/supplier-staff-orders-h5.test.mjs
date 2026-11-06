@@ -435,6 +435,8 @@ test("the shared action lock prevents duplicate confirmation and writes", async 
   assert.equal(state.action.saving, true)
   assert.equal(state.actionBusy, true)
   assert.equal(calls.arrives.length, 1)
+  assert.deepEqual(calls.arrives[0].photos, [])
+  assert.equal(calls.arrives[0].remark, null)
   arrival.resolve({ data: true })
   await Promise.all([firstSubmit, duplicateSubmit])
   assert.equal(calls.arrives.length, 1)

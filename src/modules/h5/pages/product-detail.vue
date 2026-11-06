@@ -103,7 +103,7 @@
           class="h5-booking-groups"
         >
           <div
-            v-for="group in bookingSpecGroups"
+            v-for="group in visibleSpecGroups"
             :key="group.typeId"
             class="h5-booking-group"
           >
@@ -165,6 +165,9 @@
               </div>
             </div>
           </div>
+          <p v-if="skuAvailabilityReady && !skuOffered" class="h5-detail-card__empty">
+            {{ t("client.productDetail.booking.skuUnavailable") }}
+          </p>
         </div>
         <p v-else class="h5-detail-card__empty">
           {{ t("client.productDetail.emptyDesc") }}
@@ -282,6 +285,7 @@
         <button
           class="h5-detail-bottom__cart"
           type="button"
+          :disabled="skuAvailabilityReady && !skuOffered"
           @click="handleAddToCart"
         >
           <van-icon name="cart-o" />
@@ -290,7 +294,7 @@
         <button
           class="h5-detail-bottom__submit"
           type="button"
-          :disabled="isCreatingOrder"
+          :disabled="isCreatingOrder || (skuAvailabilityReady && !skuOffered)"
           @click="goOrderConfirm"
         >
           {{
@@ -318,6 +322,13 @@ import {
 import { useCart } from "@/modules/client/composables/useCart"
 import { setClientLocale } from "@/modules/client/locales"
 import { normalizeRichTextHtml } from "@/modules/client/utils/richText"
+import {
+  isOfferedSku,
+  loadValidSkuKeys,
+  reconcileSkuSelection,
+  skuOptionShown,
+  skuSelectionOffered,
+} from "@/modules/client/utils/sku-availability"
 import { formatCreatedAt } from "@/modules/client/utils/order-date-time"
 import { formatContactName } from "@/modules/client/utils/order-localization"
 import { clearStoredAuthState, getStoredAuthSnapshot } from "@/utils/auth-state"
@@ -454,6 +465,32 @@ const productDetail = ref<ProductDetailRecord | null>(null)
 const skuPrice = ref<ProductSkuRecord | null>(null)
 const selectedImageIndex = ref(0)
 const selectedSpecValues = ref<Record<string, string>>({})
+const validSkuKeys = ref<Set<string> | null>(null)
+const availabilitySeq = ref(0)
+const skuAvailabilityReady = computed(() => validSkuKeys.value != null)
+const visibleSpecGroups = computed(() =>
+  bookingSpecGroups.value
+    .map((group, index) => ({
+      ...group,
+      options: group.options.filter((option) =>
+        skuOptionShown(
+          bookingSpecGroups.value,
+          index,
+          option.id,
+          validSkuKeys.value,
+          selectedSpecValues.value,
+        ),
+      ),
+    }))
+    .filter((group) => group.options.length),
+)
+const skuOffered = computed(() =>
+  skuSelectionOffered(
+    bookingSpecGroups.value,
+    selectedSpecValues.value,
+    validSkuKeys.value,
+  ),
+)
 const attachQuantities = ref<Record<string, number>>({})
 const skuRequestSeq = ref(0)
 const { cartCount } = useCart()
@@ -890,6 +927,7 @@ const skuRequestPayload = computed<ProductSkuPayload | null>(() => {
   ) {
     return null
   }
+  if (skuAvailabilityReady.value && !skuOffered.value) return null
   return {
     spuId: normalizeIdForApi(spuId.value),
     specValueIds: selectedSpecValueIds.value,
@@ -1077,8 +1115,8 @@ const loadSkuPrice = async (payload: ProductSkuPayload) => {
   try {
     const result = await getProductSku(payload)
     if (requestId !== skuRequestSeq.value) return
-    skuPrice.value =
-      result && typeof result === "object" ? (result as ProductSkuRecord) : null
+    const record = result && typeof result === "object" ? (result as ProductSkuRecord) : null
+    skuPrice.value = isOfferedSku(record) ? record : null
   } catch (error) {
     if (requestId !== skuRequestSeq.value) return
     console.error("load product sku failed:", error)
@@ -1178,11 +1216,51 @@ const handleSwipeChange = (index: number) => {
 }
 
 const selectSpecValue = (typeId: string, valueId: string) => {
-  selectedSpecValues.value = {
-    ...selectedSpecValues.value,
-    [typeId]: valueId,
+  const groups = bookingSpecGroups.value
+  const visible = visibleSpecGroups.value.find((group) => group.typeId === typeId)
+  if (!visible?.options.some((option) => option.id === valueId)) return
+  if (!validSkuKeys.value) {
+    selectedSpecValues.value = {
+      ...selectedSpecValues.value,
+      [typeId]: valueId,
+    }
+    return
   }
+  selectedSpecValues.value = reconcileSkuSelection(
+    groups,
+    { ...selectedSpecValues.value, [typeId]: valueId },
+    validSkuKeys.value,
+    typeId,
+  )
 }
+
+watch(
+  () => [
+    spuId.value,
+    bookingSpecGroups.value
+      .map((group) => `${group.typeId}:${group.options.map((option) => option.id).join(".")}`)
+      .join("|"),
+  ].join("#"),
+  async () => {
+    const seq = availabilitySeq.value + 1
+    availabilitySeq.value = seq
+    const id = spuId.value
+    const groups = bookingSpecGroups.value.map((group) => ({
+      typeId: group.typeId,
+      options: group.options.map((option) => ({ id: option.id })),
+    }))
+    validSkuKeys.value = null
+    if (!id) return
+    const keys = await loadValidSkuKeys(id, groups, getProductSku)
+    if (seq !== availabilitySeq.value) return
+    validSkuKeys.value = keys
+    selectedSpecValues.value = reconcileSkuSelection(
+      groups,
+      selectedSpecValues.value,
+      keys,
+    )
+  },
+)
 
 const increaseAttachQty = (valueId: string) => {
   const current = attachQuantities.value[valueId] || 0

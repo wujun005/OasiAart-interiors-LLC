@@ -10,7 +10,7 @@ import { onMounted, onUnmounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { Bell } from '@element-plus/icons-vue'
-import { platformReviewNotice } from '@/modules/admin/api/supplierWorkbench'
+import { platformReviewNoticeCount } from '@/modules/admin/api/supplierWorkbench'
 import { getAdminAuthStorageValue } from '@/utils/auth-state'
 
 const POLL_MS = 10000
@@ -23,8 +23,7 @@ let timer = 0
 const load = async () => {
   if (!getAdminAuthStorageValue('token')) return
   try {
-    const board = await platformReviewNotice()
-    pendingCount.value = board.pending.length
+    pendingCount.value = await platformReviewNoticeCount()
   } catch {
     // 接口暂时失败时，角标保持上一次的数量。
   }

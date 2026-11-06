@@ -131,6 +131,34 @@ test('a complete server package group keeps its identities and remains stable af
   ]);
 });
 
+test('supplier management gains a quote menu beside it', async () => {
+  const api = await loadMenus([{
+    id: 2,
+    path: '/admin/basic',
+    name: 'Basic',
+    children: [
+      { id: 3, path: '/admin/basic/suppliers', name: 'Suppliers', sortOrder: 8 },
+      { id: 4, path: '/admin/basic/service-areas', name: 'Areas', sortOrder: 9 },
+    ],
+  }]);
+  const basic = api.adminMenuState.menus.find((menu) => menu.path === '/admin/basic');
+  const paths = basic.children.map((child) => child.path);
+  const supplierIndex = paths.indexOf('/admin/basic/suppliers');
+  assert.equal(paths[supplierIndex + 1], '/admin/basic/quotes');
+  assert.equal(api.adminMenuState.flatMenus.find((menu) => menu.path === '/admin/basic/quotes').name, '报价管理');
+  assert.equal(api.resolveAllowedAdminPath('/admin/basic/quotes'), '/admin/basic/quotes');
+});
+
+test('a supplier portal does not receive the platform quote menu', async () => {
+  const api = await loadMenus([{
+    id: 1,
+    path: '/admin/supplier-management',
+    children: [{ id: 2, path: '/admin/supplier-management/orders' }],
+  }]);
+  assert.equal(api.adminMenuState.flatMenus.some((menu) => menu.path === '/admin/basic/quotes'), false);
+  assert.equal(api.resolveAllowedAdminPath('/admin/basic/quotes'), '');
+});
+
 test('supplier-only and empty-menu accounts receive no package grants', async () => {
   for (const [menus, roles] of [
     [[], []],

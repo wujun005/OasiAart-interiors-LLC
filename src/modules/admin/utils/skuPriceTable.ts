@@ -12,12 +12,20 @@ export type SkuPriceAddonGroup = {
   options: SkuPriceAddonOption[];
 };
 
+export type SkuPriceVariant = {
+  skuId: number | null;
+  valid: boolean;
+  label: string;
+  optionIds: number[];
+};
+
 export type SkuPriceRow = {
   id: string;
   specValueIds: number[];
   specMap: Record<string, string>;
   originPrice: number | null;
   discountPrice: number | null;
+  variants: SkuPriceVariant[];
 };
 
 export type SkuPriceEditor = {
@@ -82,6 +90,17 @@ const cartesian = <T>(lists: T[][]): T[][] => {
     (rows, list) => rows.flatMap((row) => list.map((item) => [...row, item])),
     [[]],
   );
+};
+
+const skuEnabled = (value: unknown) => {
+  if (value == null || value === '') return true;
+  const flag = Number(value);
+  return !Number.isFinite(flag) || flag !== 0;
+};
+
+const skuIdOf = (sku: Record<string, unknown> | undefined) => {
+  const id = Number(sku?.skuId);
+  return Number.isSafeInteger(id) && id > 0 ? id : null;
 };
 
 const matchOption = (cell: unknown, options: PriceOption[]) => {
@@ -186,6 +205,13 @@ export const buildSkuPriceEditor = (
     return sku ? [sku] : [];
   });
   const combos = cartesian(unpriced.map((dimension) => dimension.options));
+  const matchesCombo = (
+    sku: Record<string, unknown>,
+    dimensions: PriceDimension[],
+    combo: PriceOption[],
+  ) => dimensions.every((dimension, index) =>
+    matchOption(sku[dimension.key], dimension.options)?.id === combo[index]?.id,
+  );
   const rows = combos.map((combo) => {
     const specMap: Record<string, string> = {};
     combo.forEach((option, index) => {
@@ -193,12 +219,26 @@ export const buildSkuPriceEditor = (
     });
     const base = baseFromSkus(skuRows, combo, unpriced, priced);
     const specValueIds = combo.map((option) => option.id);
+    const pricedCombos = cartesian(priced.map((dimension) => dimension.options));
+    const variants = (pricedCombos.length ? pricedCombos : [[]]).map((options) => {
+      const matched = skuRows.filter((sku) =>
+        matchesCombo(sku, unpriced, combo) && matchesCombo(sku, priced, options),
+      );
+      const chosen = matched.find((sku) => skuEnabled(sku.valid)) || matched[0];
+      return {
+        skuId: skuIdOf(chosen),
+        valid: chosen ? skuEnabled(chosen.valid) : true,
+        label: options.map((option) => option.label).join(' · '),
+        optionIds: options.map((option) => option.id),
+      };
+    });
     return {
       id: specValueIds.join(',') || 'base',
       specValueIds,
       specMap,
       originPrice: base.originPrice,
       discountPrice: base.discountPrice,
+      variants,
     };
   });
   return {
@@ -249,6 +289,19 @@ export const formatSkuMoney = (value: number | null | undefined) => {
   const fraction = amount % 100;
   const text = fraction === 0 ? String(whole) : `${whole}.${String(fraction).padStart(2, '0')}`;
   return value < 0 ? `-${text}` : text;
+};
+
+export const skuValidsFromRows = (rows: SkuPriceRow[]) => {
+  const seen = new Set<number>();
+  const items: Array<{ skuId: number; valid: number }> = [];
+  rows.forEach((row) => {
+    row.variants.forEach((variant) => {
+      if (variant.skuId == null || seen.has(variant.skuId)) return;
+      seen.add(variant.skuId);
+      items.push({ skuId: variant.skuId, valid: variant.valid ? 1 : 0 });
+    });
+  });
+  return items;
 };
 
 export const skuPriceBases = (rows: SkuPriceRow[]) =>

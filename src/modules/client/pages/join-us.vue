@@ -95,7 +95,7 @@ const pageCopy = computed(() =>
       joinTitleLine1: '成为 HourX',
       joinTitleLine2: '服务合作伙伴',
       joinDesc:
-        '如果您是在迪拜运营、拥有专业自有团队的服务公司，欢迎与 HourX 合作，共同拓展业务。',
+        '公司和个人都可以申请成为 HourX 服务合作伙伴。填写资料并提交后，我们会审核。',
       applyCta: '立即注册',
       joinContactLabel: '联系 HourX：',
     }
@@ -114,7 +114,7 @@ const pageCopy = computed(() =>
       joinTitleLine1: 'Become a',
       joinTitleLine2: 'Service Partner',
       joinDesc:
-        'Are you a Dubai-based service company with your own professional team? Partner with HourX and grow your business.',
+        'Companies and individuals can apply to partner with HourX. Submit your details and we will review the application.',
       applyCta: 'Register Now',
       joinContactLabel: 'Contact HourX:',
     },

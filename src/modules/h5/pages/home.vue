@@ -134,6 +134,27 @@
       </section>
 
       <section id="services" class="h5-section">
+        <form
+          class="h5-home-search"
+          role="search"
+          @submit.prevent="submitHomeSearch"
+        >
+          <van-icon name="search" aria-hidden="true" />
+          <input
+            v-model="homeSearch"
+            type="search"
+            enterkeyhint="search"
+            autocomplete="off"
+            :placeholder="t('client.home.sections.searchPlaceholder')"
+            :aria-label="t('client.home.sections.searchPlaceholder')"
+          />
+          <button
+            type="submit"
+            :aria-label="t('client.home.sections.searchPlaceholder')"
+          >
+            <van-icon name="arrow" />
+          </button>
+        </form>
         <header class="h5-home-intro">
           <p class="h5-home-intro__eyebrow">
             {{ t("client.home.sections.servicesTitle") }}
@@ -175,40 +196,6 @@
       </section>
 
       <PackageShowcase platform="h5" />
-
-      <section v-if="featuredCards.length" class="h5-section h5-section--muted">
-        <div class="h5-section__header">
-          <h2>{{ t("client.home.sections.serviceCardsTitle") }}</h2>
-        </div>
-        <div class="h5-offer-rail">
-          <article
-            v-for="item in featuredCards"
-            :key="item.id"
-            class="h5-offer-card"
-            role="link"
-            tabindex="0"
-            :aria-label="item.title"
-            @click="goProductDetail(item.spuId)"
-            @keydown.enter="goProductDetail(item.spuId)"
-            @keydown.space.prevent="goProductDetail(item.spuId)"
-          >
-            <div class="h5-offer-card__media">
-              <img :src="item.image" :alt="item.title" />
-              <span class="h5-offer-card__badge">{{
-                t("client.home.serviceCard.badge")
-              }}</span>
-            </div>
-            <div class="h5-offer-card__body">
-              <h3>{{ item.title }}</h3>
-              <!-- <p class="h5-offer-card__desc">{{ item.desc }}</p> -->
-              <p class="h5-offer-card__price">{{ item.price }}</p>
-              <button type="button" @click.stop="goProductDetail(item.spuId)">
-                {{ t("client.home.serviceCard.button") }}
-              </button>
-            </div>
-          </article>
-        </div>
-      </section>
 
       <section class="h5-booking-section">
         <div class="h5-section__header h5-section__header--light">
@@ -433,9 +420,7 @@ import { useI18n } from "vue-i18n"
 import { useRouter } from "vue-router"
 import { showConfirmDialog, showSuccessToast } from "vant"
 import {
-  exclusiveSpus,
   level1Categories,
-  type ExclusiveSpuRecord,
   type Level1CategoryRecord,
 } from "@/modules/client/api"
 import { useAuth } from "@/modules/h5/composables/useAuth"
@@ -450,15 +435,6 @@ type ServiceTile = {
   icon: string
   placeholder: boolean
   source?: Level1CategoryRecord
-}
-
-type OfferCard = {
-  id: string
-  spuId: string
-  title: string
-  desc: string
-  price: string
-  image: string
 }
 
 type BookingStep = {
@@ -533,13 +509,6 @@ const trustReasonIcons = [
   new URL("@/assets/images/client/Icon9.svg", import.meta.url).href,
 ]
 
-const defaultOfferImages = [
-  "https://www.figma.com/api/mcp/asset/be119407-be81-457f-acb8-6ae8c059b658",
-  "https://www.figma.com/api/mcp/asset/1385c0da-6357-456c-a792-85c4faa896fe",
-  "https://www.figma.com/api/mcp/asset/689f06ae-e279-491b-8afb-133a682a3d8b",
-  "https://www.figma.com/api/mcp/asset/82f87dae-0f7f-4a67-a055-5619d9dfb2ea",
-]
-
 const serviceFallbackIcons = [
   "https://www.figma.com/api/mcp/asset/b994c7f7-36cb-4f29-bd2b-3b84781989a8",
   "https://www.figma.com/api/mcp/asset/d8fd8a35-27a2-481f-ae68-86dfd8853932",
@@ -558,8 +527,8 @@ const router = useRouter()
 const { cartCount } = useCart()
 const { isLoggedIn, clearAuth, checkLoginStatus } = useAuth()
 const serviceMenuRecords = ref<Level1CategoryRecord[]>([])
-const serviceCardRecords = ref<ExclusiveSpuRecord[]>([])
 const accountMenuOpen = ref(false)
+const homeSearch = ref("")
 const year = new Date().getFullYear()
 
 const getPreferredLangs = () =>
@@ -601,61 +570,6 @@ const localeLabel = computed(() =>
 const authButtonLabel = computed(() =>
   isLoggedIn.value ? t("client.header.profile") : t("client.header.auth"),
 )
-
-const formatPriceText = (minPrice?: number | string | null): string => {
-  if (minPrice === undefined || minPrice === null || minPrice === "") {
-    return t("client.home.serviceCard.priceConsult")
-  }
-  const value = Number(minPrice)
-  if (!Number.isFinite(value)) {
-    return t("client.home.serviceCard.priceConsult")
-  }
-  return t("client.home.serviceCard.priceFrom", {
-    price: Number.isInteger(value) ? value : value.toFixed(2),
-  })
-}
-
-const cleanDescriptionText = (value: string): string => {
-  let text = String(value || "").trim()
-  if (!text) return ""
-  if (typeof DOMParser !== "undefined") {
-    for (let pass = 0; pass < 2; pass += 1) {
-      const readableHtml = text.replace(
-        /<br\s*\/?>|<\/(?:p|div|li|h[1-6])\s*>/gi,
-        " ",
-      )
-      const decoded = new DOMParser().parseFromString(readableHtml, "text/html")
-        .body.textContent
-      const next = String(decoded || "").trim()
-      if (!next || next === text) break
-      text = next
-    }
-  }
-  return text
-    .replace(/<\/?[a-z][^>]*>/gi, " ")
-    .replace(/\s+/g, " ")
-    .trim()
-}
-
-const featuredCards = computed<OfferCard[]>(() => {
-  const records = serviceCardRecords.value || []
-  if (!records.length) {
-    return []
-  }
-  return records
-    .map((item, index) => ({
-      id: String(item.id ?? `offer-${index + 1}`),
-      spuId: String(item.id ?? ""),
-      title: pickI18nValue(item.nameI18n, ""),
-      desc: cleanDescriptionText(pickI18nValue(item.descI18n, "")),
-      price: formatPriceText(item.minNotIncTaxPrice),
-      image:
-        item.imageUrls?.[0] ||
-        defaultOfferImages[index % defaultOfferImages.length],
-    }))
-    .filter((item) => item.title)
-    .slice(0, 4)
-})
 
 const mobileServiceTiles = computed<ServiceTile[]>(() => {
   const records = (serviceMenuRecords.value || []).filter((item) => {
@@ -783,6 +697,12 @@ const handleHeaderLogout = async () => {
   await router.replace({ name: "h5-home" })
 }
 
+const submitHomeSearch = () => {
+  const keyword = homeSearch.value.trim()
+  if (!keyword) return
+  router.push({ name: "h5-service-search", query: { keyword } })
+}
+
 const openServiceList = (item: ServiceTile) => {
   if (item.placeholder) {
     return
@@ -810,16 +730,6 @@ const openServiceList = (item: ServiceTile) => {
   router.push({
     name: "h5-service-list",
     query,
-  })
-}
-
-const goProductDetail = (spuId: string) => {
-  if (!spuId) {
-    return
-  }
-  router.push({
-    name: "h5-product-detail",
-    params: { spuId },
   })
 }
 
@@ -854,20 +764,10 @@ const loadServiceMenus = async () => {
   }
 }
 
-const loadExclusiveCards = async () => {
-  try {
-    serviceCardRecords.value = await exclusiveSpus()
-  } catch (error) {
-    console.error("load exclusive spus failed:", error)
-    serviceCardRecords.value = []
-  }
-}
-
 onMounted(() => {
   syncLocales(locale.value)
   checkLoginStatus()
   void loadServiceMenus()
-  void loadExclusiveCards()
 })
 </script>
 
@@ -1193,9 +1093,64 @@ onMounted(() => {
   padding: 34px 20px 36px;
 }
 
-.h5-section--muted {
-  background: #f8fafc;
-  border-top: 1px solid #f1f5f9;
+.h5-home-search {
+  display: flex;
+  align-items: center;
+  height: 48px;
+  margin: 0 0 22px;
+  padding-left: 14px;
+  overflow: hidden;
+  border: 1px solid #d7e2ee;
+  border-radius: 14px;
+  background: #fff;
+  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.05);
+}
+
+.h5-home-search :deep(.van-icon) {
+  flex: 0 0 auto;
+  color: #7b8ba0;
+  font-size: 18px;
+}
+
+.h5-home-search input {
+  min-width: 0;
+  flex: 1;
+  height: 100%;
+  margin-left: 8px;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: #0f172a;
+  font: inherit;
+  font-size: 14px;
+}
+
+.h5-home-search input::-webkit-search-cancel-button {
+  display: none;
+}
+
+.h5-home-search button {
+  align-self: stretch;
+  width: 48px;
+  flex: 0 0 48px;
+  padding: 0;
+  border: 0;
+  border-left: 1px solid #e5edf6;
+  background: #f4f7fa;
+  color: var(--hourx-brand);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.h5-home-search button :deep(.van-icon) {
+  color: var(--hourx-brand);
+  font-size: 16px;
+}
+
+.h5-home-search:focus-within {
+  border-color: #1769c2;
+  box-shadow: 0 0 0 3px rgba(23, 105, 194, 0.1);
 }
 
 .h5-home-intro {
@@ -1431,118 +1386,6 @@ onMounted(() => {
   .h5-service-tile__label {
     font-size: 12px;
   }
-}
-
-.h5-offer-rail {
-  margin-top: 18px;
-  display: flex;
-  align-items: stretch;
-  gap: 12px;
-  overflow-x: auto;
-  padding-bottom: 4px;
-  scroll-snap-type: x proximity;
-}
-
-.h5-offer-rail::-webkit-scrollbar {
-  display: none;
-}
-
-.h5-offer-card {
-  display: flex;
-  flex-direction: column;
-  min-width: 166px;
-  width: 166px;
-  min-height: 200px;
-  border-radius: 14px;
-  overflow: hidden;
-  border: 1px solid #edf2f7;
-  background: #fff;
-  scroll-snap-align: start;
-  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.06);
-  cursor: pointer;
-  transition:
-    transform 180ms ease,
-    border-color 180ms ease,
-    box-shadow 180ms ease;
-}
-
-.h5-offer-card:active {
-  transform: scale(0.985);
-}
-
-.h5-offer-card:focus-visible {
-  outline: 3px solid rgba(23, 105, 194, 0.22);
-  outline-offset: 2px;
-}
-
-.h5-offer-card__media {
-  position: relative;
-  height: 112px;
-  background: #f1f5f9;
-}
-
-.h5-offer-card__media img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
-.h5-offer-card__badge {
-  position: absolute;
-  top: 8px;
-  right: 8px;
-  height: 20px;
-  padding: 0 8px;
-  border-radius: 999px;
-  display: inline-flex;
-  align-items: center;
-  background: #fb2c36;
-  color: #fff;
-  font-size: 10px;
-  font-weight: 800;
-}
-
-.h5-offer-card__body {
-  display: flex;
-  flex: 1;
-  flex-direction: column;
-  padding: 12px;
-}
-
-.h5-offer-card__body h3 {
-  margin: 0;
-  font-size: 15px;
-  line-height: 1.35;
-  font-weight: 800;
-  min-height: 40px;
-}
-
-.h5-offer-card__desc {
-  margin: 8px 0 0;
-  min-height: 48px;
-  color: rgba(15, 23, 42, 0.56);
-  font-size: 11px;
-  line-height: 1.45;
-}
-
-.h5-offer-card__price {
-  margin: auto 0 0;
-  color: var(--hourx-brand);
-  text-align: center;
-  font-size: 14px;
-  font-weight: 800;
-}
-
-.h5-offer-card__body button {
-  margin-top: 10px;
-  width: 100%;
-  height: 34px;
-  border: 0;
-  border-radius: 10px;
-  background: var(--hourx-brand);
-  color: #fff;
-  font-size: 12px;
-  font-weight: 800;
 }
 
 .h5-booking-section {

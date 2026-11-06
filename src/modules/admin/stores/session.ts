@@ -3,6 +3,7 @@ import { getCurrentAdminUser } from '@/modules/admin/api/user';
 import {
   onboardingDetail,
   quoteList,
+  supplierPackageQuotes,
   serviceAreaList,
   serviceCatalog,
   serviceCommunityPage,
@@ -24,6 +25,7 @@ let meRequest: Promise<any> | null = null;
 const detailRequests = new Map<string, Promise<any>>();
 const catalogRequests = new Map<string, Promise<any>>();
 const quoteRequests = new Map<string, Promise<any>>();
+const packageQuoteRequests = new Map<string, Promise<any>>();
 let areaRequest: Promise<any[]> | null = null;
 const communityRequests = new Map<string, Promise<string[]>>();
 let eventRequest: Promise<SupplierEventCache> | null = null;
@@ -33,6 +35,7 @@ const clearInflight = () => {
   detailRequests.clear();
   catalogRequests.clear();
   quoteRequests.clear();
+  packageQuoteRequests.clear();
   areaRequest = null;
   communityRequests.clear();
   eventRequest = null;
@@ -75,6 +78,7 @@ export const useAdminSessionStore = defineStore('admin-session', {
     details: {} as Record<string, any>,
     catalogs: {} as Record<string, any>,
     quotes: {} as Record<string, any>,
+    packageQuotes: {} as Record<string, any>,
     areas: null as any[] | null,
     communities: {} as Record<string, string[]>,
     events: null as SupplierEventCache | null,
@@ -88,6 +92,7 @@ export const useAdminSessionStore = defineStore('admin-session', {
       this.details = {};
       this.catalogs = {};
       this.quotes = {};
+      this.packageQuotes = {};
       this.areas = null;
       this.communities = {};
       this.events = null;
@@ -102,6 +107,7 @@ export const useAdminSessionStore = defineStore('admin-session', {
       this.details = {};
       this.catalogs = {};
       this.quotes = {};
+      this.packageQuotes = {};
       this.areas = null;
       this.communities = {};
       this.events = null;
@@ -156,7 +162,7 @@ export const useAdminSessionStore = defineStore('admin-session', {
       if (!fresh && this.catalogs[key]) return this.catalogs[key];
       if (!fresh && catalogRequests.has(key)) return catalogRequests.get(key);
       const stamp = epoch;
-      const task = serviceCatalog(id).then(unwrap);
+      const task = serviceCatalog(id, false).then(unwrap);
       catalogRequests.set(key, task);
       try {
         const catalog = await task;
@@ -180,6 +186,27 @@ export const useAdminSessionStore = defineStore('admin-session', {
         return quotes;
       } finally {
         if (quoteRequests.get(key) === task) quoteRequests.delete(key);
+      }
+    },
+    rememberPackageQuotes(id: number | string, quotes: unknown) {
+      this.alignToken();
+      this.packageQuotes[String(id)] = Array.isArray(quotes) ? quotes : [];
+    },
+    async supplierPackageQuotes(id: number | string, fresh = false) {
+      this.alignToken();
+      const key = String(id);
+      if (!fresh && this.packageQuotes[key]) return this.packageQuotes[key];
+      if (!fresh && packageQuoteRequests.has(key)) return packageQuoteRequests.get(key);
+      const stamp = epoch;
+      const task = supplierPackageQuotes(id).then(unwrap);
+      packageQuoteRequests.set(key, task);
+      try {
+        const quotes = await task;
+        const list = Array.isArray(quotes) ? quotes : [];
+        if (stamp === epoch) this.packageQuotes[key] = list;
+        return list;
+      } finally {
+        if (packageQuoteRequests.get(key) === task) packageQuoteRequests.delete(key);
       }
     },
     async serviceAreas(fresh = false) {

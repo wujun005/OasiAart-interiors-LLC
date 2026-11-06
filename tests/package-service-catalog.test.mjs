@@ -120,6 +120,8 @@ async function harness(t, overrides = {}) {
     saves: [],
     replacements: [],
     messages: [],
+    fetches: [],
+    downloads: [],
   }
   const route = Vue.reactive({
     path: "/admin/package/packages",
@@ -202,6 +204,33 @@ async function harness(t, overrides = {}) {
     exports,
     console,
     FormData,
+    fetch: async (url, init) => {
+      calls.fetches.push({
+        url,
+        method: init?.method,
+        headers: init?.headers,
+        body: init?.body,
+      })
+      if (controls.fetch) return controls.fetch(url, init)
+      return new Response(Buffer.from([0x50, 0x4b, 0x03, 0x04]), {
+        status: 200,
+        headers: { "content-type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" },
+      })
+    },
+    window: {
+      URL: {
+        createObjectURL: () => "blob:package-quote-compare",
+        revokeObjectURL() {},
+      },
+      open() {},
+    },
+    document: {
+      body: { appendChild() {} },
+      createElement: () => ({
+        click() { calls.downloads.push({ href: this.href, download: this.download }) },
+        remove() {},
+      }),
+    },
     require: (name) => {
       if (name === "vue") return Vue
       if (name === "vue-router") return { useRoute: () => route, useRouter: () => router }
@@ -230,6 +259,10 @@ async function harness(t, overrides = {}) {
         },
       }
       if (name === "@/modules/admin/utils/i18n") return { pickI18nText }
+      if (name === "@/utils/auth-state") return { getAdminAuthStorageValue: () => "test-token" }
+      if (name === "@/modules/admin/components/SupplierQuoteCompareDialog.vue") {
+        return { default: { name: "SupplierQuoteCompareDialog" } }
+      }
       if (name === "@/modules/admin/utils/bizTagPicker") {
         return {
           useBizTagPicker: () => {
@@ -839,4 +872,48 @@ test("a pending linked editor cannot save a blank record before details arrive",
   pending.resolve(packageDetail(91))
   await flush()
   assert.equal(state.dialogVisible, false)
+})
+
+test("package list exports one package as a supplier quote comparison", async (t) => {
+  assert.match(source, /class="quote-compare-export"/)
+  assert.match(source, /exportSupplierQuoteCompare\(row\)/)
+  const { state, calls, controls, locale } = await harness(t)
+  locale.value = "zh"
+
+  await state.exportSupplierQuoteCompare({ id: 0 })
+  await state.exportSupplierQuoteCompare({})
+  assert.deepEqual(calls.fetches, [])
+
+  controls.fetch = async () => new Response(Buffer.from([0x50, 0x4b, 0x03, 0x04]), {
+    status: 200,
+    headers: {
+      "content-type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      "content-disposition": "attachment; filename*=UTF-8''%E5%A5%97%E9%A4%90%E4%BE%9B%E5%BA%94%E5%95%86%E6%8A%A5%E4%BB%B7_20261101_114400.xlsx",
+    },
+  })
+  await state.exportSupplierQuoteCompare({ id: 18 })
+  assert.equal(calls.fetches.length, 1)
+  assert.equal(calls.fetches[0].url, "/api/api/package/export")
+  assert.equal(calls.fetches[0].method, "POST")
+  assert.equal(calls.fetches[0].headers.Authorization, "Bearer test-token")
+  assert.equal(calls.fetches[0].headers.language, "zh")
+  assert.deepEqual(JSON.parse(calls.fetches[0].body), { packageIds: [18] })
+  assert.deepEqual(calls.downloads, [{
+    href: "blob:package-quote-compare",
+    download: "套餐供应商报价_20261101_114400.xlsx",
+  }])
+  assert.equal(state.quoteCompareExportingId, null)
+  assert.equal(calls.messages.at(-1)?.type, "success")
+
+  controls.fetch = async () => new Response(JSON.stringify({ message: "请先勾选要导出的套餐" }), {
+    status: 400,
+    headers: { "content-type": "application/json" },
+  })
+  await state.exportSupplierQuoteCompare({ id: 19 })
+  assert.equal(calls.fetches.length, 2)
+  assert.equal(calls.downloads.length, 1)
+  assert.deepEqual(calls.messages.at(-1), {
+    type: "error",
+    message: "请先勾选要导出的套餐",
+  })
 })

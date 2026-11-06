@@ -253,6 +253,31 @@ test("日期与改期提示不会覆盖订单状态底色", async (t) => {
   }
 })
 
+test("紧急订单保留状态底色，并带上紧急标记", async (t) => {
+  const { state, row } = await harness(t)
+  const urgent = row(1, { urgent: true, paymentStatus: 1 })
+  assert.equal(urgent.urgent, true)
+  assert.equal(
+    state.orderRowClassName({ row: urgent }),
+    "order-status--action-needed order-row--urgent",
+  )
+  const plain = row(1, { urgent: false, paymentStatus: 1 })
+  assert.equal(plain.urgent, false)
+  assert.equal(state.orderRowClassName({ row: plain }), "order-status--action-needed")
+  const both = row(1, {
+    urgent: true,
+    rescheduled: true,
+    rescheduleRead: false,
+    paymentStatus: 1,
+  })
+  assert.equal(
+    state.orderRowClassName({ row: both }),
+    "order-status--action-needed order-row--rescheduled-unread order-row--urgent",
+  )
+  assert.equal(row(2, { urgent: "true" }).urgent, true)
+  assert.equal(row(2, {}).urgent, false)
+})
+
 test("图例包含五种状态，中英文随语言切换", async (t) => {
   const { state, locale } = await harness(t)
   assert.deepEqual(
@@ -523,7 +548,7 @@ test("新订单弹窗与最新候选搜索不会被旧供应商详情或旧搜�
   assert.equal(state.assignSupplierPreview.supplierName, "Current supplier")
 
   const oldSearch = deferred(), freshSearch = deferred()
-  controls.query = ({ supplierName }) => supplierName === "old" ? oldSearch.promise : freshSearch.promise
+  controls.query = ({ nameKeyword }) => nameKeyword === "old" ? oldSearch.promise : freshSearch.promise
   const older = state.loadSupplierOptions("old")
   const newer = state.loadSupplierOptions("fresh")
   freshSearch.resolve([{ id: 40, supplierName: "Fresh result" }])
@@ -809,4 +834,38 @@ test("管理供应商弹窗展示已分配员工的姓名和手机号", async (t
   assert.equal(state.assignTarget.assignedStaff[0].phone, "+971584632581")
   assert.match(state.assignStaffVisitTitle(state.assignTarget.assignedStaff[0]), /基本家庭清洁|Visit 1/)
   assert.equal(state.assignStaffVisitTitle({ ...state.assignTarget.assignedStaff[0], fulfillmentId: null }), "")
+})
+
+test("分配弹窗用单选分开个人和供应商", async (t) => {
+  const template = descriptor.template.content
+  const dialogs = [
+    template.slice(template.indexOf('class="h5-assign"'), template.indexOf('class="h5-assign__footer"')),
+    template.slice(template.lastIndexOf('v-model="assignDialogVisible"')),
+  ]
+  for (const block of dialogs) {
+    assert.match(block, /v-model="assignSupplierKind"/)
+    assert.match(block, /admin\.orders\.form\.companySupplier/)
+    assert.match(block, /admin\.orders\.form\.individualSupplier/)
+    assert.match(block, /visibleSupplierOptions/)
+  }
+  const { state, controls, row, locale } = await harness(t)
+  controls.query = async () => [
+    { id: 10, nameI18n: { zh: "企业甲", en: "Company A" }, supplierType: 1 },
+    { id: 38, nameI18n: { zh: "个人乙", en: "Person B" }, supplierType: 2 },
+  ]
+  const order = row(1, {
+    supplierId: 38,
+    supplierName: "个人乙",
+    assignedSuppliers: [{ supplierId: 38, supplierName: "个人乙", supplierType: 2, serviceStatus: 0 }],
+  })
+  assert.equal(order.suppliers[0].supplierType, 2)
+  await state.openAssignDialog(order)
+  assert.equal(state.assignSupplierKind, "individual")
+  assert.deepEqual(clone(state.visibleSupplierOptions.map((item) => item.id)), [38])
+  locale.value = "zh"
+  assert.equal(state.assignSupplierPlaceholder, "请选择个人，清空则解除分配")
+  state.assignSupplierKind = "company"
+  await flush()
+  assert.equal(state.assignForm.supplierId, null)
+  assert.deepEqual(clone(state.visibleSupplierOptions.map((item) => item.id)), [10])
 })

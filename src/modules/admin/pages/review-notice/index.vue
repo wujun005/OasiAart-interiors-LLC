@@ -63,13 +63,12 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { platformReviewNotice, type ReviewNoticeItem } from '@/modules/admin/api/supplierWorkbench'
 
 const pageSize = 10
-const POLL_MS = 10000
 
 const { t, locale } = useI18n({ useScope: 'global' })
 const route = useRoute()
@@ -77,7 +76,6 @@ const router = useRouter()
 const pending = ref<ReviewNoticeItem[]>([])
 const records = ref<ReviewNoticeItem[]>([])
 const loading = ref(false)
-let timer = 0
 
 const tab = computed(() => (route.query.tab === 'records' ? 'records' : 'pending'))
 const pageNum = computed(() => {
@@ -128,14 +126,14 @@ const openReview = (item: ReviewNoticeItem) => {
   const id = String(item.supplierId || '')
   if (!id) return
   if (item.kind === 'quote') {
-    router.push({ path: '/admin/basic/suppliers', query: { id, view: 'quote', spu: String(item.spuId || '') } })
+    router.push({ path: '/admin/basic/quotes', query: { id, view: 'quote', spu: String(item.spuId || ''), scope: 'services' } })
     return
   }
-  router.push({ path: '/admin/basic/suppliers', query: { id, tab: 'overview' } })
+  router.push({ path: '/admin/basic/quotes', query: { id, scope: 'services' } })
 }
 
-const load = async (silent = false) => {
-  if (!silent) loading.value = true
+const load = async () => {
+  loading.value = true
   try {
     const board = await platformReviewNotice()
     pending.value = board.pending
@@ -143,10 +141,8 @@ const load = async (silent = false) => {
     const pages = Math.max(1, Math.ceil((tab.value === 'records' ? board.records : board.pending).length / pageSize))
     if (pageNum.value > pages) writeQuery(tab.value, pages)
   } catch {
-    if (!silent) {
-      pending.value = []
-      records.value = []
-    }
+    pending.value = []
+    records.value = []
   } finally {
     loading.value = false
   }
@@ -154,11 +150,6 @@ const load = async (silent = false) => {
 
 onMounted(() => {
   load()
-  timer = window.setInterval(() => load(true), POLL_MS)
-})
-
-onUnmounted(() => {
-  window.clearInterval(timer)
 })
 </script>
 

@@ -2,6 +2,7 @@ import { createRouter, createWebHistory, RouteRecordRaw } from 'vue-router';
 // import { useAuthStore } from '@/stores/auth';
 import {
   ADMIN_NO_ACCESS_PATH,
+  adminMenuState,
   getFirstAllowedAdminPath,
   isSupplierStaffOrdersOnly,
   loadAdminMenuPermissions,
@@ -12,8 +13,29 @@ import {
   getAdminAuthSnapshot,
 } from '@/utils/auth-state';
 import { isMobileDevice } from '@/utils/device';
+import {
+  SUPPLIER_MOBILE_BASE,
+  SUPPLIER_MOBILE_SECTIONS,
+  canAccessSupplierSection,
+  supplierDesktopPath,
+  supplierMobilePath,
+  supplierResponsivePath,
+  supplierSectionFromPath,
+} from '@/modules/admin/utils/supplierMobile';
 
 const routes: RouteRecordRaw[] = [
+  {
+    path: SUPPLIER_MOBILE_BASE,
+    component: () => import('@/modules/admin/pages/supplier-management/mobile/Layout.vue'),
+    redirect: (to) => ({ path: supplierMobilePath('overview'), query: to.query, hash: to.hash }),
+    meta: { scope: 'admin', requiresAuth: true, requiresRole: 'admin', supplierMobile: true },
+    children: SUPPLIER_MOBILE_SECTIONS.map((section) => ({
+      path: section,
+      name: `admin-supplier-mobile-${section}`,
+      component: () => import('@/modules/admin/pages/supplier-management/mobile/index.vue'),
+      props: { section },
+    })),
+  },
   // 管理端：/admin 开头
   {
     path: '/admin',
@@ -161,13 +183,19 @@ const routes: RouteRecordRaw[] = [
           {
             path: 'orders/h5',
             name: 'admin-supplier-orders-h5',
-            component: () => import('@/modules/admin/pages/supplier-management/orders-h5.vue'),
+            redirect: (to) => ({ path: supplierMobilePath('orders'), query: to.query, hash: to.hash }),
           },
           {
             path: 'pricing',
             name: 'admin-supplier-pricing',
             component: () => import('@/modules/admin/pages/supplier-management/index.vue'),
             props: { section: 'pricing' },
+          },
+          {
+            path: 'package-pricing',
+            name: 'admin-supplier-package-pricing',
+            component: () => import('@/modules/admin/pages/supplier-management/index.vue'),
+            props: { section: 'package-pricing' },
           },
           { path: 'settlement', redirect: (to) => ({ path: '/admin/supplier-management/profile', query: to.query }) },
         ],
@@ -216,6 +244,12 @@ const routes: RouteRecordRaw[] = [
             component: () => import('@/modules/admin/pages/supplier/index.vue'),
           },
           {
+            path: 'quotes',
+            name: 'admin-basic-quotes',
+            component: () => import('@/modules/admin/pages/supplier/index.vue'),
+            props: { desk: 'quotes' },
+          },
+          {
             path: 'service-areas',
             name: 'admin-basic-service-areas',
             component: () => import('@/modules/admin/pages/service-area/index.vue'),
@@ -253,25 +287,30 @@ export const router = createRouter({
 });
 
 router.beforeEach(async (to) => {
-  if (!to.path.startsWith('/admin')) return true;
+  const supplierLocation = /^\/admin\/supplier-management(?:\/|$)/i.test(to.path);
+  if (!to.path.startsWith('/admin') && !supplierLocation) return true;
   if (to.path === '/admin/login') return true;
 
   const ordersPath = '/admin/orders';
   const ordersH5Path = '/admin/orders/h5';
-  const supplierOrdersPath = '/admin/supplier-management/orders';
-  const supplierOrdersH5Path = '/admin/supplier-management/orders/h5';
   if (to.path === ordersPath && isMobileDevice()) {
-    return { path: ordersH5Path, query: to.query, replace: true };
+    return { path: ordersH5Path, query: to.query, hash: to.hash, replace: true };
   }
   if (to.path === ordersH5Path && !isMobileDevice()) {
-    return { path: ordersPath, query: to.query, replace: true };
+    return { path: ordersPath, query: to.query, hash: to.hash, replace: true };
   }
 
   if (
     import.meta.env.DEV &&
     to.query.preview === 'supplier' &&
-    to.path.startsWith('/admin/supplier-management')
+    supplierLocation
   ) {
+    const previewPath = supplierResponsivePath(to.path, {
+      mobile: isMobileDevice() || to.path.toLowerCase().startsWith(SUPPLIER_MOBILE_BASE),
+    });
+    if (previewPath && previewPath !== to.path) {
+      return { path: previewPath, query: to.query, hash: to.hash, replace: true };
+    }
     return true;
   }
 
@@ -295,23 +334,29 @@ router.beforeEach(async (to) => {
   }
 
   const staffOrdersOnly = isSupplierStaffOrdersOnly();
-  if (staffOrdersOnly && to.path.startsWith('/admin/supplier-management')) {
-    const home = supplierOrdersH5Path;
-    if (to.path !== home) {
-      return { path: home, query: to.query, replace: true };
+  const supplierSection = supplierSectionFromPath(to.path);
+  if (supplierSection) {
+    const section = staffOrdersOnly ? 'orders' : supplierSection;
+    if (canAccessSupplierSection(section, adminMenuState.allowedPaths, staffOrdersOnly)) {
+      const destination = supplierResponsivePath(to.path, { mobile: isMobileDevice(), staffOrdersOnly });
+      if (destination && destination !== to.path) {
+        return { path: destination, query: to.query, hash: to.hash, replace: true };
+      }
+      return true;
     }
-  }
-  if (to.path === supplierOrdersH5Path && !isMobileDevice() && !staffOrdersOnly) {
-    return { path: supplierOrdersPath, query: to.query, replace: true };
+    const fallback = SUPPLIER_MOBILE_SECTIONS.find((candidate) =>
+      canAccessSupplierSection(candidate, adminMenuState.allowedPaths, staffOrdersOnly));
+    if (fallback) {
+      const path = supplierResponsivePath(supplierDesktopPath(fallback), { mobile: isMobileDevice(), staffOrdersOnly });
+      return { path, replace: true };
+    }
+    const home = getFirstAllowedAdminPath();
+    return { path: home.startsWith('/admin/supplier-management') ? ADMIN_NO_ACCESS_PATH : home, replace: true };
   }
 
-  const permissionPath = to.path === supplierOrdersH5Path
-    ? supplierOrdersPath
-    : to.path === ordersH5Path
-      ? ordersPath
-      : to.path;
+  const permissionPath = to.path === ordersH5Path ? ordersPath : to.path;
   const targetPath = resolveAllowedAdminPath(permissionPath);
-  if ((to.path === ordersH5Path || to.path === supplierOrdersH5Path) && targetPath) return true;
+  if (to.path === ordersH5Path && targetPath) return true;
   if (targetPath) {
     if (targetPath !== to.path) {
       return { path: targetPath };

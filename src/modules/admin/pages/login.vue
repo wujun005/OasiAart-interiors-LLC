@@ -236,6 +236,7 @@ import {
   resolveAllowedAdminPath,
 } from '@/modules/admin/utils/menuPermission';
 import { useAdminSessionStore } from '@/modules/admin/stores/session';
+import { supplierAwareLoginRedirect } from '@/modules/admin/utils/supplierMobile';
 
 const { t, locale } = useI18n({ useScope: 'global' });
 const route = useRoute();
@@ -394,13 +395,11 @@ const submitLogin = async () => {
     const redirectQuery = Array.isArray(route.query.redirect)
       ? route.query.redirect[0]
       : route.query.redirect;
-    const requested =
-      typeof redirectQuery === 'string' &&
-      redirectQuery.startsWith('/admin') &&
-      !redirectQuery.startsWith('/admin/login')
-        ? redirectQuery
-        : '';
-    const redirectPath = (requested && resolveAllowedAdminPath(requested)) || getFirstAllowedAdminPath();
+    const redirectPath = supplierAwareLoginRedirect(
+      redirectQuery,
+      resolveAllowedAdminPath,
+      getFirstAllowedAdminPath(),
+    );
     try {
       await router.replace(redirectPath);
     } catch (error) {

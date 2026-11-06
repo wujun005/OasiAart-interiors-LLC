@@ -58,19 +58,6 @@
             clearable
             @keyup.enter="handleSearch"
           />
-          <el-select
-            v-if="!isPackageService"
-            v-model="query.exclusive"
-            :placeholder="t('admin.product.filters.exclusivePlaceholder')"
-            clearable
-          >
-            <el-option
-              v-for="item in exclusiveOptions"
-              :key="item.value"
-              :label="item.label"
-              :value="item.value"
-            />
-          </el-select>
         </div>
         <div class="toolbar-actions">
           <el-button type="primary" @click="handleSearch">{{ t('admin.product.actions.search') }}</el-button>
@@ -135,11 +122,14 @@
           </template>
         </el-table-column>
         <el-table-column
-          prop="name"
           :label="t('admin.product.table.name')"
           min-width="130"
           show-overflow-tooltip
-        />
+        >
+          <template #default="{ row }">
+            <span class="product-name">{{ row.name }}</span>
+          </template>
+        </el-table-column>
         <el-table-column v-if="isPackageService" :label="t('admin.product.table.packages')" min-width="200">
           <template #default="{ row }">
             <ul v-if="row.packages.length" class="bound-packages">
@@ -236,7 +226,20 @@
             </el-tooltip>
           </template>
         </el-table-column>
-        <el-table-column :label="t('admin.product.table.actions')" width="70">
+        <el-table-column :label="t('admin.quoteCompare.open')" width="112" align="center" fixed="right">
+          <template #default="{ row }">
+            <el-button
+              class="quote-compare-open"
+              plain
+              type="primary"
+              size="small"
+              @click="openQuoteCompare(row)"
+            >
+              {{ t('admin.quoteCompare.open') }}
+            </el-button>
+          </template>
+        </el-table-column>
+        <el-table-column :label="t('admin.product.table.actions')" :width="isPackageService ? 70 : 148" fixed="right">
           <template #default="{ row }">
             <div class="table-actions">
               <el-button link type="primary" size="small" @click="openEdit(row)">
@@ -252,22 +255,22 @@
               >
                 {{ t('admin.product.actions.preview') }}
               </el-button>
+              <el-button
+                v-if="!isPackageService"
+                link
+                type="primary"
+                size="small"
+                class="quote-compare-export"
+                :loading="quoteCompareExportingId === row.id"
+                :disabled="quoteCompareExportingId != null && quoteCompareExportingId !== row.id"
+                @click="exportSupplierQuoteCompare(row)"
+              >
+                {{ t('admin.product.actions.exportQuoteCompare') }}
+              </el-button>
               <el-button link type="danger" size="small" @click="remove(row)">
                 {{ t('admin.product.actions.delete') }}
               </el-button>
             </div>
-          </template>
-        </el-table-column>
-        <el-table-column v-if="!isPackageService" :label="t('admin.product.table.limitedOffer')" width="78">
-          <template #default="{ row }">
-            <el-button
-              link
-              :type="row.exclusive ? 'danger' : 'primary'"
-              size="small"
-              @click="toggleRecommend(row)"
-            >
-              {{ row.exclusive ? t('admin.product.actions.removeLimited') : t('admin.product.actions.addLimited') }}
-            </el-button>
           </template>
         </el-table-column>
       </el-table>
@@ -358,6 +361,21 @@
               :value="item.value"
             />
           </el-select>
+        </el-form-item>
+        <el-form-item :label="t('admin.product.form.quoteMode')">
+          <el-select
+            v-model="form.product.quoteMode"
+            :loading="quoteModeLoading"
+            style="width: 100%"
+          >
+            <el-option
+              v-for="item in quoteModeOptions"
+              :key="item.code"
+              :value="item.code"
+              :label="quoteModeOptionLabel(item)"
+            />
+          </el-select>
+          <p class="quote-mode-hint">{{ t('admin.product.form.quoteModeHint') }}</p>
         </el-form-item>
 
         <div class="group-box spec-groups">
@@ -874,6 +892,7 @@
       :close-on-click-modal="false"
       width="min(1040px, calc(100vw - 32px))"
     >
+      <p class="sku-valid-hint">{{ t('admin.product.message.skuValidHint') }}</p>
       <div v-if="priceAddons.length" class="price-addon-hint">
         <p>{{ t('admin.product.message.priceAddonHint') }}</p>
         <div class="price-addon-list">
@@ -887,6 +906,28 @@
         </div>
       </div>
       <el-table v-loading="priceLoading" :data="priceRows" border stripe class="price-table">
+        <el-table-column :label="t('admin.product.table.skuValid')" width="188" fixed="left">
+          <template #default="{ row }">
+            <div
+              v-for="variant in row.variants"
+              :key="`${variant.skuId ?? 'new'}-${variant.optionIds.join(',')}`"
+              class="sku-valid-line"
+            >
+              <el-switch
+                size="small"
+                :width="52"
+                inline-prompt
+                :aria-label="variant.label || t('admin.product.table.skuValid')"
+                :model-value="variant.valid"
+                :disabled="variant.skuId == null"
+                :active-text="t('admin.product.table.skuEnabled')"
+                :inactive-text="t('admin.product.table.skuDisabled')"
+                @change="(value) => { variant.valid = Boolean(value) }"
+              />
+              <span v-if="variant.label" class="sku-valid-line__name" :title="variant.label">{{ variant.label }}</span>
+            </div>
+          </template>
+        </el-table-column>
         <el-table-column
           v-for="col in priceColumns"
           :key="col.key"
@@ -910,6 +951,7 @@
             />
           </template>
         </el-table-column>
+
         <el-table-column :label="t('admin.product.table.discountPrice')" width="168">
           <template #default="{ row }">
             <el-input-number
@@ -948,6 +990,11 @@
         <el-button type="primary" @click="savePrice">{{ t('admin.product.actions.save') }}</el-button>
       </template>
     </el-dialog>
+    <SupplierQuoteCompareDialog
+      v-model="quoteCompareOpen"
+      :title="quoteCompareTarget?.name"
+      :spu-id="quoteCompareTarget?.id"
+    />
   </div>
 </template>
 
@@ -961,6 +1008,7 @@ import type {
   UploadUserFile,
 } from 'element-plus';
 import { ElMessage, ElMessageBox } from 'element-plus';
+import SupplierQuoteCompareDialog from '@/modules/admin/components/SupplierQuoteCompareDialog.vue';
 import { Plus } from '@element-plus/icons-vue';
 import { QuillEditor } from '@vueup/vue-quill';
 import { useI18n } from 'vue-i18n';
@@ -972,12 +1020,11 @@ import {
   addOrUpdate,
   deleteProduct,
   detial,
+  quoteModes,
   enable,
   disable,
   batchUpdatePrices,
   listBySpu,
-  enableExclusive,
-  disableExclusive,
 } from '@/modules/admin/api/spu';
 import {
   fuzzySearchCategory,
@@ -1001,6 +1048,7 @@ import {
   effectiveSalePrice,
   formatSkuMoney,
   skuPriceTotals,
+  skuValidsFromRows,
   type SkuPriceAddonGroup,
   type SkuPriceRow,
   type SkuPriceEditor,
@@ -1045,6 +1093,7 @@ type ProductEntity = {
   subCategoryId?: number;
   specTypeId?: number;
   specIds?: number[];
+  quoteMode: number;
   createdAt?: string;
   updatedAt?: string;
 };
@@ -1086,7 +1135,6 @@ type ProductRow = {
   specTypeId?: number;
   specIds?: number[];
   specNames: string[];
-  exclusive?: number;
   tags: BizTag[];
 };
 
@@ -1116,6 +1164,65 @@ type SpecOption = CategoryOption & {
 
 const subCategoryOptions = ref<SubCategoryOption[]>([]);
 const { locale, t } = useI18n({ useScope: 'global' });
+
+type QuoteModeOption = {
+  code: number;
+  nameI18n: Record<string, string>;
+};
+
+const FALLBACK_QUOTE_MODES: QuoteModeOption[] = [
+  { code: 1, nameI18n: { zh: '一口价', en: 'Fixed price' } },
+  { code: 2, nameI18n: { zh: '带材料/不带材料按人小时报价', en: 'Hourly rate with/without materials' } },
+  { code: 3, nameI18n: { zh: '按人小时报价', en: 'Person-hour rate' } },
+];
+
+const quoteModeOptions = ref<QuoteModeOption[]>(FALLBACK_QUOTE_MODES.map((item) => ({
+  code: item.code,
+  nameI18n: { ...item.nameI18n },
+})));
+const quoteModeLoading = ref(false);
+const quoteModeOptionLabel = (option: QuoteModeOption) =>
+  pickI18nText(option.nameI18n, String(locale.value), String(option.code));
+const allowedQuoteModeCodes = () => {
+  const codes = quoteModeOptions.value.map((item) => item.code);
+  return codes.length ? codes : FALLBACK_QUOTE_MODES.map((item) => item.code);
+};
+const normalizeQuoteMode = (value: unknown) => {
+  const code = Number(value);
+  return allowedQuoteModeCodes().includes(code) ? code : 1;
+};
+const parseQuoteModes = (payload: unknown): QuoteModeOption[] => {
+  const source = Array.isArray(payload)
+    ? payload
+    : Array.isArray((payload as { data?: unknown })?.data)
+      ? (payload as { data: unknown[] }).data
+      : [];
+  const seen = new Set<number>();
+  const options: QuoteModeOption[] = [];
+  for (const item of source) {
+    if (!item || typeof item !== 'object') continue;
+    const record = item as { code?: unknown; nameI18n?: unknown };
+    const code = Number(record.code);
+    if (!Number.isInteger(code) || code <= 0 || seen.has(code)) continue;
+    seen.add(code);
+    const nameI18n = record.nameI18n && typeof record.nameI18n === 'object'
+      ? record.nameI18n as Record<string, string>
+      : {};
+    options.push({ code, nameI18n });
+  }
+  return options;
+};
+const fetchQuoteModes = async () => {
+  quoteModeLoading.value = true;
+  try {
+    const options = parseQuoteModes(await quoteModes());
+    if (options.length) quoteModeOptions.value = options;
+  } catch (error: any) {
+    ElMessage.error(error?.message || t('admin.product.message.fetchQuoteModesFailed'));
+  } finally {
+    quoteModeLoading.value = false;
+  }
+};
 const tagPicker = useBizTagPicker();
 const tagAdderOpen = ref(false);
 const tagDraft = ref('');
@@ -1266,7 +1373,6 @@ const query = reactive({
   serviceSubCategoryId: '' as '' | number,
   nameKeyword: '',
   status: '',
-  exclusive: '',
 });
 const hasProductFilterConditions = computed(
   () =>
@@ -1275,8 +1381,7 @@ const hasProductFilterConditions = computed(
     (!isPackageService.value && Boolean(String(query.shelfStatus ?? '').trim())) ||
     normalizeOptionalId(query.serviceSubCategoryId) !== null ||
     Boolean(query.nameKeyword.trim()) ||
-    (!isPackageService.value && Boolean(String(query.status ?? '').trim())) ||
-    (!isPackageService.value && Boolean(String(query.exclusive ?? '').trim())),
+    (!isPackageService.value && Boolean(String(query.status ?? '').trim())),
 );
 // 默认先禁用，只有一次无筛选查询成功后，才能确认当前列表是全量顺序的一部分。
 const loadedProductsAreFiltered = ref(true);
@@ -1287,6 +1392,15 @@ const products = ref<ProductRow[]>([]);
 const total = ref(0);
 const tableLoading = ref(false);
 const exportLoading = ref(false);
+const quoteCompareExportingId = ref<number | null>(null);
+const quoteCompareOpen = ref(false);
+const quoteCompareTarget = ref<{ id: number; name: string } | null>(null);
+const openQuoteCompare = (row: { id?: number; name?: string }) => {
+  const id = Number(row?.id);
+  if (!Number.isSafeInteger(id) || id <= 0) return;
+  quoteCompareTarget.value = { id, name: String(row.name || '') };
+  quoteCompareOpen.value = true;
+};
 const sortSubmitting = ref(false);
 const draggedProductId = ref<number | null>(null);
 const dragOverProductId = ref<number | null>(null);
@@ -1376,6 +1490,7 @@ const defaultProduct = (): ProductEntity => ({
   )?.value ?? subCategoryOptions.value[0]?.value,
   specTypeId: null,
   specIds: [],
+  quoteMode: 1,
 });
 
 const defaultI18nList = (): ProductI18n[] => [createEmptyProductI18n(ADMIN_LANG_EN)];
@@ -1495,11 +1610,6 @@ const langOptions = computed(() => [
 const shelfStatusOptions = computed(() => [
   { label: t('admin.product.sale.on'), value: '1' },
   { label: t('admin.product.sale.off'), value: '0' },
-]);
-
-const exclusiveOptions = computed(() => [
-  { label: t('admin.product.filters.recommended'), value: '1' },
-  { label: t('admin.product.filters.notRecommended'), value: '0' },
 ]);
 
 const pickName = (
@@ -1780,7 +1890,6 @@ const toRow = (item: any): ProductRow => {
     specTypeId: undefined,
     specIds: [],
     specNames,
-    exclusive: spu.exclusive ?? undefined,
     tags: Array.isArray(item?.tags) ? item.tags : [],
   };
 };
@@ -2270,9 +2379,6 @@ const fetchProducts = async () => {
     const status = String(query.status ?? '').trim();
     if (!isPackageService.value && status) payload.status = status;
 
-    const exclusive = String(query.exclusive ?? '').trim();
-    if (!isPackageService.value && exclusive) payload.exclusive = exclusive;
-
     const res = await page(payload);
     const { list, total: t, pageNum, pageSize } = extractPage(res);
     products.value = list;
@@ -2395,12 +2501,11 @@ const reset = () => {
   query.serviceSubCategoryId = '';
   query.nameKeyword = '';
   query.status = '';
-  query.exclusive = '';
   query.pageNum = 1;
   fetchProducts();
 };
 
-const getExportFilename = (response: Response) => {
+const getExportFilename = (response: Response, fallback = 'product-spu-i18n.xlsx') => {
   const disposition = response.headers.get('content-disposition') || '';
   const utf8Match = disposition.match(/filename\*=UTF-8''([^;]+)/i);
   if (utf8Match?.[1]) {
@@ -2410,7 +2515,7 @@ const getExportFilename = (response: Response) => {
   if (plainMatch?.[1]) {
     return plainMatch[1];
   }
-  return 'product-spu-i18n.xlsx';
+  return fallback;
 };
 
 const getExportErrorMessage = async (response: Response) => {
@@ -2459,6 +2564,64 @@ const handleExportI18n = async () => {
     ElMessage.error(error?.message || t('admin.product.message.operationFailed'));
   } finally {
     exportLoading.value = false;
+  }
+};
+
+const exportSupplierQuoteCompare = async (row: { id?: number }) => {
+  if (typeof window === 'undefined') return;
+  const spuId = Number(row?.id);
+  if (!Number.isSafeInteger(spuId) || spuId <= 0 || quoteCompareExportingId.value != null) return;
+  const token = getAdminAuthStorageValue('token');
+  if (!token) {
+    ElMessage.error(locale.value.startsWith('zh') ? '未登录，请重新登录' : 'Please sign in again.');
+    return;
+  }
+
+  quoteCompareExportingId.value = spuId;
+  try {
+    const response = await fetch('/api/api/supplier/page/export', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+        language: String(locale.value).toLowerCase().startsWith('en') ? 'en' : 'zh',
+      },
+      body: JSON.stringify({ spuIds: [spuId] }),
+    });
+
+    if (!response.ok) {
+      throw new Error(await getExportErrorMessage(response));
+    }
+
+    const blob = await response.blob();
+    const head = await blob.slice(0, 1).text();
+    if (blob.type.includes('json') || blob.type.startsWith('text/') || head === '{' || head === '<') {
+      const text = await blob.text();
+      let message = text.trim();
+      try {
+        const payload = JSON.parse(text);
+        if (payload && typeof payload.message === 'string' && payload.message.trim()) {
+          message = payload.message.trim();
+        }
+      } catch {
+        message = text.trim();
+      }
+      throw new Error(message || t('admin.product.message.exportQuoteCompareFailed'));
+    }
+
+    const downloadUrl = window.URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = downloadUrl;
+    link.download = getExportFilename(response, '供应商服务报价.xlsx');
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    window.URL.revokeObjectURL(downloadUrl);
+    ElMessage.success(t('admin.product.message.exportQuoteCompareDone'));
+  } catch (error: any) {
+    ElMessage.error(error?.message || t('admin.product.message.exportQuoteCompareFailed'));
+  } finally {
+    quoteCompareExportingId.value = null;
   }
 };
 
@@ -2735,6 +2898,7 @@ const applyServiceDetail = (detail: any, row: Partial<ProductRow> = {}, copy = f
     subCategoryId,
     specTypeId: undefined,
     specIds: [],
+    quoteMode: normalizeQuoteMode(spu.quoteMode),
   };
   const mappedSpecGroups: SpecGroup[] = copy || !specBindings.length
     ? [
@@ -2994,6 +3158,7 @@ const savePrice = () => {
       price: Number(effectiveSalePrice(row.originPrice, row.discountPrice)),
       originalPrice: Number(row.originPrice),
     })),
+    skuValids: skuValidsFromRows(priceRows.value),
   };
   batchUpdatePrices(payload)
     .then(() => {
@@ -3072,6 +3237,7 @@ const save = () => {
       const payload = {
         id: form.product.id,
         packageService: props.packageService,
+        quoteMode: normalizeQuoteMode(form.product.quoteMode),
         spuCode: '',
         categoryId: form.product.categoryId
           ? String(form.product.categoryId)
@@ -3141,15 +3307,6 @@ const save = () => {
     }
   });
 };
-const toggleRecommend = async (row) => {
-  if (row.exclusive) {
-    await disableExclusive(row.id);
-  } else {
-    await enableExclusive(row.id);
-  }
-  ElMessage.success(t('admin.product.message.recommendUpdated'));
-  fetchProducts();
-};
 const remove = async (row: ProductRow) => {
   try {
     await ElMessageBox.confirm(
@@ -3171,6 +3328,7 @@ const remove = async (row: ProductRow) => {
 
 onMounted(() => {
   fetchCurrencies();
+  fetchQuoteModes();
   metadataReady = Promise.all([
     fetchCategories(), fetchSpecTypes(), fetchSpecs(), fetchAddonCategories(), fetchAddons(),
   ]);
@@ -3237,10 +3395,13 @@ watch(
 </script>
 
 <style scoped>
+.quote-mode-hint { margin: 6px 0 0; color: var(--el-text-color-secondary); font-size: 12px; line-height: 1.5; }
 .source-service-field, .imported-prices { width: 100%; min-width: 0; }
 .source-service-field p, .imported-prices > p { margin: 8px 0 0; color: var(--el-text-color-secondary); font-size: 12px; line-height: 1.6; }
 .imported-prices > p { margin: 0 0 10px; }
 .imported-prices :deep(.el-input-number) { width: 130px; }
+.product-name { color: #172033; font-weight: 650; }
+.quote-compare-open { max-width: 100%; white-space: normal; line-height: 1.35; }
 .package-service-heading { margin-bottom: 20px; }
 .package-service-heading h2 { margin: 0 0 8px; font-size: 20px; }
 .package-service-heading p { margin: 0; color: var(--el-text-color-secondary); font-size: 14px; }
@@ -3458,6 +3619,12 @@ watch(
   padding: 0 2px;
   font-size: 11.5px;
 }
+.product-sort-table :deep(.quote-compare-export.el-button.is-link) {
+  height: auto;
+  white-space: normal;
+  line-height: 1.35;
+  text-align: left;
+}
 .lang {
   margin-right: 4px;
 }
@@ -3507,6 +3674,39 @@ watch(
 }
 .price-table {
   margin-bottom: 0;
+}
+.sku-valid-hint {
+  margin: 0 0 12px;
+  color: #61738a;
+  font-size: 13px;
+  line-height: 1.6;
+}
+.sku-valid-line {
+  display: grid;
+  grid-template-columns: 52px minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+  min-height: 30px;
+}
+.sku-valid-line + .sku-valid-line {
+  margin-top: 6px;
+}
+.sku-valid-line__name {
+  min-width: 0;
+  overflow: hidden;
+  color: #435164;
+  font-size: 12px;
+  line-height: 1.5;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.sku-valid-line :deep(.el-switch) {
+  --el-switch-on-color: #102b44;
+  --el-switch-off-color: #64748b;
+  height: 28px;
+}
+.sku-valid-line :deep(.el-switch__core .el-switch__inner) {
+  white-space: nowrap;
 }
 .price-addon-hint {
   margin-bottom: 12px;

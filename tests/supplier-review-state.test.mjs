@@ -5,6 +5,7 @@ import {
   dispatchEligibility,
   ibanValid,
   licenceExpiryState,
+  supplierOperationsReady,
   swiftValid,
 } from '../src/modules/admin/utils/supplierReviewState.ts'
 import {
@@ -22,6 +23,24 @@ test('dispatch eligibility explains why a supplier is not receiving jobs', () =>
   assert.equal(dispatchEligibility({ reviewStatus: 0, acceptDispatch: 1, enabled: 1 }), 'setupIncomplete')
   assert.equal(dispatchEligibility({ reviewStatus: 3, acceptDispatch: 1, enabled: 1 }), 'changesRequired')
   assert.equal(dispatchEligibility({ reviewStatus: 2, acceptDispatch: 1, enabled: 0 }), 'suspended')
+  assert.equal(dispatchEligibility({ reviewStatus: 2, acceptDispatch: 1, enabled: 1, operationsReady: false }), 'notBookable')
+  assert.equal(dispatchEligibility({ reviewStatus: 2, acceptDispatch: 0, enabled: 1, operationsReady: false }), 'verificationApproved')
+  assert.equal(dispatchEligibility({ reviewStatus: 2, acceptDispatch: 1, enabled: 1, operationsReady: true }), 'active')
+})
+
+test('a supplier cannot take jobs until a quote is approved and a service area is set', () => {
+  const area = [{ areaId: 1 }]
+  assert.equal(supplierOperationsReady({ quotes: [], packageQuotes: [], areas: area }), false)
+  assert.equal(supplierOperationsReady({ quotes: [{ status: null }], packageQuotes: [], areas: area }), false)
+  assert.equal(supplierOperationsReady({ quotes: [{ status: 0 }], packageQuotes: [], areas: area }), false)
+  assert.equal(supplierOperationsReady({ quotes: [{ status: 1 }], packageQuotes: [], areas: area }), false)
+  assert.equal(supplierOperationsReady({ quotes: [{ status: 3 }], packageQuotes: [], areas: area }), false)
+  assert.equal(supplierOperationsReady({ quotes: [{ status: 2, acceptOrder: 0 }], packageQuotes: [], areas: area }), false)
+  assert.equal(supplierOperationsReady({ quotes: [{ status: 2, available: false }], packageQuotes: [], areas: area }), false)
+  assert.equal(supplierOperationsReady({ quotes: [{ status: 2 }], packageQuotes: [], areas: [] }), false)
+  assert.equal(supplierOperationsReady({ quotes: [{ status: 1, effectiveVersionNo: 3 }], packageQuotes: [], areas: area }), true)
+  assert.equal(supplierOperationsReady({ quotes: [], packageQuotes: [{ services: [{ status: 2 }] }], areas: area }), true)
+  assert.equal(supplierOperationsReady({ quotes: [{ status: 2 }], packageQuotes: [], areas: area }), true)
 })
 
 test('UAE IBAN and SWIFT formats are checked before payout details can be submitted', () => {
@@ -54,8 +73,8 @@ test('line status counts match the labels shown on each quote row', () => {
     { quotePrice: 500 },
     { quotePrice: 700, reviewStatus: 2 },
   ], 1), {
-    underReview: 2,
-    approvedPending: 0,
+    underReview: 1,
+    approvedPending: 1,
     rejected: 1,
     active: 0,
     draft: 0,
@@ -89,6 +108,9 @@ test('a pending quote stays separate from the active supplier rate', () => {
     reviewStatus: 2,
   }), { view: 'active', showActive: true, showPending: false })
   assert.equal(quotePriceView({ approvedPrice: 250, quotePrice: 280, quoteStatus: 2, reviewStatus: 2 }).view, 'approvedPending')
+  assert.equal(quotePriceView({ quotePrice: 295, quoteStatus: 1, reviewStatus: 2 }).view, 'approvedPending')
+  assert.equal(quotePriceView({ quotePrice: 470, quoteStatus: 1 }).view, 'underReview')
+  assert.equal(quotePriceView({ quoteStatus: 1 }).view, 'none')
 })
 
 test('workspace status counts keep every review bucket, including zeros', () => {

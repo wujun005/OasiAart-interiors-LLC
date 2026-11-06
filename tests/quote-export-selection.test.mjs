@@ -13,6 +13,7 @@ const exports = {}
 runInNewContext(code, {
   exports,
   require: (name) => {
+    if (name === '@/modules/admin/utils/supplierServiceCatalog') return {}
     assert.equal(name, '@/modules/admin/utils/request')
     const http = {
       get: (url, config) => {

@@ -313,7 +313,6 @@ const clientExtraMessages = {
           'Cleaners were professional and efficient. They prepared tools well and kept the process smooth.',
         booking: {
           title: 'Order Details',
-          priceFrom: 'From',
           chooseTitle: 'Choose your service',
           chooseHint: 'Select the option that best matches your needs.',
           addOnsTitle: 'Add-ons',
@@ -339,6 +338,7 @@ const clientExtraMessages = {
           addedToCart: 'Added to cart.',
           bookNow: 'Confirm Order',
           createOrderInvalid: 'Please complete required product options first.',
+          skuUnavailable: 'This combination is not available.',
           createOrderFailed: 'Failed to create order. Please try again.',
         },
       },
@@ -1094,7 +1094,6 @@ const clientExtraMessages = {
           '清洁团队非常专业，准时到达，工具齐全。特别是厨房和卫生间清理得非常干净，体验很好。',
         booking: {
           title: '预约信息',
-          priceFrom: '起价',
           chooseTitle: '选择服务规格',
           chooseHint: '请选择最符合您需求的服务选项',
           addOnsTitle: '附加服务',
@@ -1120,6 +1119,7 @@ const clientExtraMessages = {
           addedToCart: '已加入购物车',
           bookNow: '立即预约',
           createOrderInvalid: '请先完成服务规格选择',
+          skuUnavailable: '这套规格暂不可选',
           createOrderFailed: '创建订单失败，请稍后重试',
         },
       },

@@ -655,12 +655,12 @@ const goProductDetail = (spuId: string) => {
 }
 .service-card__body h3 {
   margin: 0;
-  min-height: 56px;
+  min-height: 44px;
   display: flex;
   align-items: flex-end;
   justify-content: center;
-  font-size: 20px;
-  line-height: 28px;
+  font-size: 17px;
+  line-height: 22px;
   font-weight: 800;
 }
 
@@ -668,8 +668,8 @@ const goProductDetail = (spuId: string) => {
   margin: 8px 0 0;
   color: var(--hourx-brand);
   text-align: center;
-  font-size: 16px;
-  line-height: 24px;
+  font-size: 14px;
+  line-height: 20px;
   font-weight: 700;
 }
 
@@ -681,7 +681,7 @@ const goProductDetail = (spuId: string) => {
   border-radius: 10px;
   background: var(--hourx-brand);
   color: #fff;
-  font-size: 16px;
+  font-size: 14px;
   font-weight: 700;
   cursor: pointer;
 }
@@ -700,7 +700,7 @@ const goProductDetail = (spuId: string) => {
   }
 
   .service-card__body h3 {
-    font-size: 24px;
+    font-size: 17px;
   }
 }
 
@@ -747,7 +747,7 @@ const goProductDetail = (spuId: string) => {
   }
 
   .service-card__body h3 {
-    font-size: 22px;
+    font-size: 16px;
   }
 }
 </style>

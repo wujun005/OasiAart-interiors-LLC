@@ -334,6 +334,7 @@ import { toPlainText as plainText } from '@/modules/client/utils/plain-text'
 import { findSharedSpecs, getSharedSpecGroups, resolveSharedSpecs, type SkuChoice, type SpecItem } from '@/modules/client/utils/package-shared-specs'
 import { packageVisitCount } from '@/modules/client/utils/package-visits'
 import { hydratePackageSpecIds } from '@/modules/client/utils/package-spec-identity'
+import { isOfferedFlag } from '@/modules/client/utils/sku-availability'
 import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
@@ -446,6 +447,8 @@ const money = (value: number) =>
 const formatAed = (value: number | null) => value == null ? '—' : `AED ${value.toFixed(2)}`
 const selectedSkuIds = ref<Record<string, string>>({})
 const positiveId = (value: unknown) => /^[1-9]\d*$/.test(String(value ?? '')) && Number.isSafeInteger(Number(value))
+const offeredSkuOptions = <T extends { skuId?: number | string; valid?: unknown }>(options?: T[]) =>
+  (options || []).filter((option) => positiveId(option.skuId) && isOfferedFlag(option.valid))
 const itemKey = (item: NonNullable<PackageCatalogCard['items']>[number], index: number) => String(item.packageItemId || item.skuId || index)
 const pricePayload = computed<PackagePricePayload | null>(() => {
   const card = detail.value
@@ -453,8 +456,8 @@ const pricePayload = computed<PackagePricePayload | null>(() => {
   if (!card || detailPackageId.value !== packageId || !positiveId(packageId)) return null
   const selections: PackageSkuSelection[] = []
   for (const [index, item] of (card.items || []).entries()) {
-    const options = (item.skuOptions || []).filter((option) => positiveId(option.skuId))
-    const selectable = Number(item.bindType) !== 2 && (Number(item.bindType) === 1 || (item.skuOptions || []).length > 0)
+    const options = offeredSkuOptions(item.skuOptions)
+    const selectable = Number(item.bindType) !== 2 && (Number(item.bindType) === 1 || options.length > 0)
     if (!selectable) continue
     const skuId = selectedSkuIds.value[itemKey(item, index)]
     if (!positiveId(skuId) || !options.some((option) => String(option.skuId) === skuId)) return null
@@ -504,9 +507,8 @@ const specLabel = (lines?: PackageSpecLine[]) => (lines || [])
   .filter(Boolean)
   .join(' · ')
 
-const skuChoices = (options: Array<{ skuId?: number | string; specI18n?: PackageSpecLine[] }>): SkuChoice[] =>
-  options
-    .filter((option) => positiveId(option.skuId))
+const skuChoices = (options: Array<{ skuId?: number | string; valid?: unknown; specI18n?: PackageSpecLine[] }>): SkuChoice[] =>
+  offeredSkuOptions(options)
     .map((option) => {
       const parts = (option.specI18n || []).map((line, index) => {
         const typeLabel = plainText(pickRaw(line.specTypeNameI18n))
@@ -830,7 +832,7 @@ watch(detail, (card) => {
   const next: Record<string, string> = {}
   ;(card?.items || []).forEach((item, index) => {
     const id = itemKey(item, index)
-    const options = (item.skuOptions || []).filter((option) => positiveId(option.skuId))
+    const options = offeredSkuOptions(item.skuOptions)
     if (!options.length) return
     const current = selectedSkuIds.value[id]
     const match = options.find((option) => String(option.skuId) === current)

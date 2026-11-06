@@ -27,6 +27,11 @@ export function detial(id) {
   return http.get(`/api/productSpu/${id}`);
 }
 
+// 报价模式枚举 /api/productSpu/quoteModes
+export function quoteModes() {
+  return http.get('/api/productSpu/quoteModes');
+}
+
 // 启动 /api/productSpu/enable/{id}
 export function enable(id) {
     return http.post(`/api/productSpu/enable/${id}`);
