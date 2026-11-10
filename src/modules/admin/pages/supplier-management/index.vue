@@ -2745,7 +2745,7 @@
                         <span>{{ String(index + 1).padStart(2, "0") }}</span>
                         <div>
                           <strong>
-                            {{ row.lineLabel || quoteSpecLabel(row) }}
+                            {{ quoteLineParts(row).name }}
                             <span
                               v-if="quoteLineBadge(row)"
                               class="quote-accept-band"
@@ -2799,6 +2799,7 @@
                           >
                             <template #prepend>AED</template>
                           </el-input>
+                          <em v-if="quoteLineParts(row).unit" class="quote-line__unit">/ {{ quoteLineParts(row).unit }}</em>
                         </label>
                     </article>
                   </section>
@@ -2821,8 +2822,14 @@
                   >
                 </header>
                 <div class="quote-attaches">
+                  <section
+                    v-for="group in quoteAttachGroups"
+                    :key="group.key"
+                    class="quote-attach-group"
+                  >
+                    <h3 v-if="group.label" class="quote-attach-group__title">{{ group.label }}</h3>
                   <article
-                    v-for="item in quoteDialog.attaches"
+                    v-for="item in group.items"
                     :key="item.attachValueId"
                     class="quote-attach"
                     :data-quote-addon="item.attachValueId"
@@ -2875,6 +2882,7 @@
                       <template #prepend>AED</template>
                     </el-input>
                   </article>
+                  </section>
                 </div>
               </section>
 
@@ -3156,17 +3164,17 @@
               <div v-for="row in group.rows" :key="row.skuId">
                 <span
                   v-if="
-                    (row.lineLabel || quoteSpecLabel(row)) &&
-                    (row.lineLabel || quoteSpecLabel(row)) !== group.title
+                    quoteLineParts(row).name &&
+                    quoteLineParts(row).name !== group.title
                   "
-                  >{{ row.lineLabel || quoteSpecLabel(row) }}</span
+                  >{{ quoteLineParts(row).name }}</span
                 >
                 <span
                   v-if="quoteLineBadge(row)"
                   class="quote-accept-band"
                   :class="`is-${quoteLineBadge(row).tone}`"
                 >{{ quoteLineBadge(row).label }}</span>
-                <strong class="portal-numeric portal-numeric--money">AED {{ moneyText(row.quotePrice) }}</strong>
+                <strong class="portal-numeric portal-numeric--money">AED {{ moneyText(row.quotePrice) }}<template v-if="quoteLineParts(row).unit"> / {{ quoteLineParts(row).unit }}</template></strong>
                 <small v-if="row.supplierFulfillRemark" class="quote-fulfill-remark">{{
                   t("admin.supplierOrders.fulfillRemarkLine", { remark: row.supplierFulfillRemark })
                 }}</small>
@@ -3178,9 +3186,16 @@
               {{ quoteAddonTitle }}
               <small class="portal-numeric">{{ selectedAttachCount }}</small>
             </h3>
+            <section
+              v-for="group in offeredAttachGroups"
+              :key="group.key"
+              class="quote-attach-group"
+            >
+              <h4 v-if="group.label" class="quote-attach-group__title">{{ group.label }}</h4>
             <div
-              v-for="item in quoteDialog.attaches.filter((item) => item.offered)"
+              v-for="item in group.items"
               :key="item.attachValueId"
+              class="quote-review-addon"
             >
               <span
                 >{{ attachDisplay(item, "name")
@@ -3193,6 +3208,7 @@
                 t("admin.supplierPricing.lineRejected", { reason: supplierRejectCopy(item.rejectReason) })
               }}</small>
             </div>
+            </section>
             <p v-if="!selectedAttachCount">
               {{ t("admin.supplierOrders.noAddons") }}
             </p>
@@ -3366,7 +3382,7 @@
                     :class="{ 'is-blocked': quoteOutcomeName(row) === 'blocked' }"
                   >
                     <h3>
-                      <span>{{ row.lineLabel || quoteSpecLabel(row) }}</span>
+                      <span>{{ quoteLineParts(row).name }}</span>
                       <span
                         v-if="quoteLineBadge(row)"
                         class="quote-accept-band"
@@ -3380,7 +3396,7 @@
                       <div v-if="row.quotePrice != null && row.quotePrice !== ''">
                         <dt>{{ t("admin.supplierPortal.customerPrice") }}</dt>
                         <dd class="portal-review-price portal-numeric portal-numeric--money">
-                          AED {{ moneyText(row.quotePrice) }}
+                          AED {{ moneyText(row.quotePrice) }}<template v-if="quoteLineParts(row).unit"> / {{ quoteLineParts(row).unit }}</template>
                         </dd>
                       </div>
                     </dl>
@@ -3425,10 +3441,14 @@
                 {{ quoteAddonTitle }}
                 <small class="portal-numeric">{{ selectedAttachCount }}</small>
               </h2>
+              <section
+                v-for="group in offeredAttachGroups"
+                :key="group.key"
+                class="quote-attach-group"
+              >
+                <h3 v-if="group.label" class="quote-attach-group__title">{{ group.label }}</h3>
               <div
-                v-for="item in quoteDialog.attaches.filter(
-                  (item) => item.offered,
-                )"
+                v-for="item in group.items"
                 :key="item.attachValueId"
                 class="portal-review-addon"
               >
@@ -3442,6 +3462,7 @@
                   t("admin.supplierPricing.lineRejected", { reason: supplierRejectCopy(item.rejectReason) })
                 }}</small>
               </div>
+              </section>
               <p v-if="!selectedAttachCount" class="portal-review-note">
                 {{ t("admin.supplierOrders.noAddons") }}
               </p>
@@ -5999,6 +6020,27 @@ const quoteAddonTitle = computed(() => {
   const title = quoteDialog.attachModuleTitle.trim()
   return title || t("admin.supplierPricing.addonStep")
 })
+const groupQuoteAttaches = <T extends { attachValueId: number; typeName?: string; typeNameI18n?: unknown; typeId?: number }>(
+  items: T[],
+) => {
+  const groups: Array<{ key: string; label: string; items: T[] }> = []
+  for (const item of items) {
+    const label = attachDisplay(item, "type")
+    const named = label && label !== "—" ? label : ""
+    const key = item.typeId ? `type-${item.typeId}` : named || "addons"
+    let group = groups.find((entry) => entry.key === key)
+    if (!group) {
+      group = { key, label: named, items: [] }
+      groups.push(group)
+    }
+    group.items.push(item)
+  }
+  return groups
+}
+const quoteAttachGroups = computed(() => groupQuoteAttaches(quoteDialog.attaches))
+const offeredAttachGroups = computed(() =>
+  groupQuoteAttaches(quoteDialog.attaches.filter((item) => item.offered)),
+)
 const addonOnlyQuote = computed(() => quoteDialog.onlyAddonPrice === true)
 const zeroAddonSpecPrices = () => {
   if (!addonOnlyQuote.value) return
@@ -8418,13 +8460,44 @@ const quantitySkuNotes = computed(() => {
     })
     .filter((note) => note.text)
 })
-const optionPriceHintKey = computed(() =>
-  quoteDialog.quoteMode === 4
-    ? "admin.supplierPricing.optionPriceHintQuantity"
-    : quoteDialog.quoteMode === 2
-      ? "admin.supplierPricing.optionPriceHintMaterial"
-      : "admin.supplierPricing.optionPriceHintStaff",
-)
+const CLEANING_SERVICE = /clean(?:ing|ers?)?|家政|保洁|清洁/i
+const CLEANING_SPEC = /cleaners?|保洁员|保洁|清洁工/i
+const quoteIdentityText = () =>
+  [
+    quoteDialog.name,
+    quoteDialog.category,
+    ...specTexts(quoteDialog.nameI18n),
+    ...specTexts(quoteDialog.categoryI18n),
+  ].join("\n")
+const cleaningQuote = computed(() => CLEANING_SERVICE.test(quoteIdentityText()))
+const optionStaffRole = (row: any, text: string) => {
+  if (cleaningQuote.value) return "cleaner" as const
+  const { current, every } = optionSpecValues(row)
+  return CLEANING_SPEC.test([...current, ...every, text].join("\n"))
+    ? "cleaner" as const
+    : "tech" as const
+}
+const staffRoleLabel = (count: string, role: "cleaner" | "tech", lower = false) => {
+  const key =
+    role === "tech"
+      ? "admin.supplierPricing.staffRoleTech"
+      : Number(count) === 1
+        ? "admin.supplierPricing.staffRoleCleaner"
+        : "admin.supplierPricing.staffRoleCleaners"
+  const word = t(key)
+  return lower ? word.toLowerCase() : word
+}
+const optionPriceHintKey = computed(() => {
+  if (quoteDialog.quoteMode === 4) return "admin.supplierPricing.optionPriceHintQuantity"
+  if (quoteDialog.quoteMode === 2) {
+    return cleaningQuote.value
+      ? "admin.supplierPricing.optionPriceHintMaterialCleaner"
+      : "admin.supplierPricing.optionPriceHintMaterial"
+  }
+  return cleaningQuote.value
+    ? "admin.supplierPricing.optionPriceHintCleaner"
+    : "admin.supplierPricing.optionPriceHintStaff"
+})
 const optionCountText = (value: number) => {
   const rounded = Math.round(value * 100) / 100
   return String(rounded)
@@ -8559,9 +8632,11 @@ const optionPrices = computed(() => {
     const price = quantityMode ? rate : priced ? Math.round((rate * load.staff * load.hours + Number.EPSILON) * 100) / 100 : null
     const staff = optionCountText(load.staff)
     const hours = optionCountText(load.hours)
+    const role = optionStaffRole(row, note.text)
+    const roleLabel = staffRoleLabel(staff, role)
     const driver =
       load.staff > 0 && load.hours > 0
-        ? t("admin.supplierPricing.optionPriceDriver", { staff, hours })
+        ? t("admin.supplierPricing.optionPriceDriver", { staff, hours, role: roleLabel })
         : ""
     return {
       id: note.id,
@@ -8574,7 +8649,7 @@ const optionPrices = computed(() => {
       note: driver,
       pills: driver
         ? [
-            t("admin.supplierPricing.optionPriceTech", { count: staff }),
+            t("admin.supplierPricing.optionPriceStaff", { count: staff, role: roleLabel }),
             t("admin.supplierPricing.optionPriceHour", { count: hours }),
           ]
         : [],
@@ -8586,6 +8661,7 @@ const optionPrices = computed(() => {
             : t("admin.supplierPricing.optionPriceCalc", {
                 rate: moneyText(rate),
                 staff,
+                role: staffRoleLabel(staff, role, true),
                 hours,
               }),
       excl: price == null ? null : exclVat(price),
@@ -10274,6 +10350,19 @@ const quoteSpecLabel = (row: {
     ? parts.join(" · ")
     : row.skuCode || t("admin.supplierPricing.specFallback")
 }
+const quoteLineParts = (row: {
+  lineLabel?: string
+  specs?: Record<string, unknown>
+  skuCode?: string
+}) => {
+  const label = String(row.lineLabel || quoteSpecLabel(row as { specs: Record<string, unknown>; skuCode: string }) || "").trim()
+  const split = label.lastIndexOf(" / ")
+  if (split <= 0) return { name: label, unit: "" }
+  return {
+    name: label.slice(0, split).trim(),
+    unit: label.slice(split + 3).trim(),
+  }
+}
 const blankPositive = (value: unknown) => {
   if (value == null || value === "") return null
   const number = Number(value)
@@ -10407,6 +10496,7 @@ const mapAttaches = (list: any[]) => {
   const keepSavedSelection = rows.some(addonQuoted)
   return rows.map((item) => ({
     attachValueId: Number(item.attachValueId),
+    typeId: Number(item.attachTypeId) || 0,
     typeName: item.attachTypeName ? String(item.attachTypeName) : "",
     typeNameI18n:
       item.attachTypeNameI18n && typeof item.attachTypeNameI18n === "object"
@@ -10549,11 +10639,17 @@ const applySavedQuote = (saved: any) => {
     )
     quoteDialog.attaches = mapAttaches(saved.attaches).map((item) => {
       const prior = previous.get(Number(item.attachValueId))
-      if (!prior?.offered || item.offered) return item
-      return {
+      const kept = {
         ...item,
+        typeId: item.typeId || prior?.typeId || 0,
+        typeName: item.typeName || prior?.typeName || "",
+        typeNameI18n: item.typeNameI18n || prior?.typeNameI18n || null,
+      }
+      if (!prior?.offered || kept.offered) return kept
+      return {
+        ...kept,
         offered: true,
-        quotePrice: item.quotePrice || prior.quotePrice || "",
+        quotePrice: kept.quotePrice || prior.quotePrice || "",
       }
     })
   }
@@ -13396,8 +13492,19 @@ watch(areaKeyword, (keyword) => {
 .quote-attaches {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 14px;
   margin-top: 14px;
+}
+.quote-attach-group {
+  display: grid;
+  gap: 8px;
+}
+.quote-attach-group__title {
+  margin: 2px 0 0;
+  color: #05152b;
+  font-size: 15px;
+  font-weight: 750;
+  line-height: 1.35;
 }
 .quote-attaches header {
   display: flex;
@@ -16639,8 +16746,27 @@ watch(areaKeyword, (keyword) => {
   font-size: 9px;
   font-weight: 800;
 }
-.quote-line__price {
+.quote-line label.quote-line__price {
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
   min-width: 0;
+}
+.quote-line label.quote-line__price > span:first-child {
+  flex: 1 0 100%;
+}
+.quote-line label.quote-line__price :deep(.el-input) {
+  width: auto;
+  flex: 1 1 140px;
+  min-width: 0;
+}
+.quote-line__unit {
+  flex: none;
+  color: #243044;
+  font-size: 13px;
+  font-style: normal;
+  font-weight: 650;
+  white-space: nowrap;
 }
 .auto-price {
   display: flex;
@@ -17439,7 +17565,7 @@ watch(areaKeyword, (keyword) => {
   margin-bottom: 2px;
 }
 .quote-review-dialog__groups section > div,
-.quote-review-dialog__addons > div {
+.quote-review-dialog__addons .quote-review-addon {
   display: flex;
   justify-content: space-between;
   gap: 12px;
@@ -17449,7 +17575,7 @@ watch(areaKeyword, (keyword) => {
   font-size: 13px;
 }
 .quote-review-dialog__groups section > div strong,
-.quote-review-dialog__addons > div strong {
+.quote-review-dialog__addons .quote-review-addon strong {
   margin-left: auto;
   white-space: nowrap;
 }

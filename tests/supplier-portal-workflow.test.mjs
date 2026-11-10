@@ -626,16 +626,29 @@ test('material option prices read cleaner and hour specs in both languages', asy
   locale.value = 'en'
   await flush()
   assert.equal(state.optionPrices[0].price, 60)
-  assert.equal(state.optionPrices[0].calculation, '30.00 × 1 tech × 2 hr')
+  assert.deepEqual(clone(state.optionPrices[0].pills), ['1 Cleaner', '2 hr'])
+  assert.equal(state.optionPrices[0].calculation, '30.00 × 1 cleaner × 2 hr')
   assert.equal(state.optionPrices[0].excl, 57.14)
   assert.equal(state.optionPrices[1].price, 80)
-  assert.equal(state.optionPrices[1].calculation, '20.00 × 2 tech × 2 hr')
+  assert.deepEqual(clone(state.optionPrices[1].pills), ['2 Cleaners', '2 hr'])
+  assert.equal(state.optionPrices[1].calculation, '20.00 × 2 cleaners × 2 hr')
   locale.value = 'zh'
   await flush()
   assert.equal(state.optionPrices[0].price, 60)
   assert.equal(state.optionPrices[0].calculation, '30.00 × 1 人 × 2 小时')
   assert.equal(state.optionPrices[1].price, 80)
   assert.equal(state.optionPrices[1].calculation, '20.00 × 2 人 × 2 小时')
+  state.quoteDialog.name = 'AC Repair'
+  state.quoteDialog.nameI18n = { en: 'AC Repair', zh: '空调维修' }
+  state.quoteDialog.category = 'AC Services'
+  state.quoteDialog.categoryI18n = { en: 'AC Services', zh: '空调服务' }
+  state.quoteDialog.rows[0].specLines = [{
+    specTypeNameI18n: { en: 'Time of Technicians', 'zh-CN': '技术人员时间' },
+    specValueNameI18n: { en: '1 Hour / Tech', 'zh-CN': '1 小时/技术' },
+  }]
+  locale.value = 'en'
+  await flush()
+  assert.equal(clone(state.optionPrices[0].pills)[0], '1 Tech')
 })
 
 test('addon-only quotes hide specification prices and submit them as zero', async (t) => {
