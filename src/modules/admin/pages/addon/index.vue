@@ -13,7 +13,7 @@
         </el-select>
         <el-button type="primary" @click="handleSearch">{{ t('admin.addon.actions.search') }}</el-button>
         <el-button @click="reset">{{ t('admin.addon.actions.reset') }}</el-button>
-        <el-button type="primary" @click="openCreate">{{ t('admin.addon.actions.create') }}</el-button>
+        <el-button v-if="canAction('btn:/admin/basic/addons:create')" type="primary" @click="openCreate">{{ t('admin.addon.actions.create') }}</el-button>
       </div>
 
       <el-table :data="displayList" border stripe row-key="id" v-loading="tableLoading">
@@ -30,10 +30,10 @@
         </el-table-column>
         <el-table-column :label="t('admin.addon.table.actions')" width="132" fixed="right">
           <template #default="{ row }">
-            <el-button link type="primary" size="small" @click="openEdit(row)">
+            <el-button v-if="canAction('btn:/admin/basic/addons:edit')" link type="primary" size="small" @click="openEdit(row)">
               {{ t('admin.addon.actions.edit') }}
             </el-button>
-            <el-button link type="danger" size="small" @click="remove(row)">
+            <el-button v-if="canAction('btn:/admin/basic/addons:delete')" link type="danger" size="small" @click="remove(row)">
               {{ t('admin.addon.actions.delete') }}
             </el-button>
           </template>
@@ -101,7 +101,7 @@
       </el-form>
       <template #footer>
         <el-button @click="dialogVisible = false">{{ t('admin.addon.actions.cancel') }}</el-button>
-        <el-button type="primary" :loading="submitLoading" @click="save">{{ t('admin.addon.actions.save') }}</el-button>
+        <el-button v-if="canAction('btn:/admin/basic/addons:create') || canAction('btn:/admin/basic/addons:edit')" type="primary" :loading="submitLoading" @click="save">{{ t('admin.addon.actions.save') }}</el-button>
       </template>
     </el-dialog>
   </div>

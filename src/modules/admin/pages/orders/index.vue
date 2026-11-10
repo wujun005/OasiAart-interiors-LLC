@@ -59,7 +59,7 @@
                   class="orders-h5__status"
                   :class="`order-status-select--${orderStatusTone(row.orderStatusCode)}`"
                   :model-value="row.orderStatusCode"
-                  :disabled="!row.orderId || updatingStatusOrderId !== null"
+                  :disabled="!canAction('btn:/admin/orders:status') || !row.orderId || updatingStatusOrderId !== null"
                   :loading="updatingStatusOrderId === row.id"
                   @change="(value: number) => handleOrderStatusChange(row, value)"
                 >
@@ -254,7 +254,7 @@
           <el-button @click="reset">
             {{ t("admin.orders.actions.reset") }}
           </el-button>
-          <el-dropdown :disabled="exportLoading" @command="handleExportCommand">
+          <el-dropdown v-if="canAction('btn:/admin/orders:export')" :disabled="exportLoading" @command="handleExportCommand">
             <el-button :loading="exportLoading">
               {{ t("admin.orders.actions.export") }}
               <span class="export-caret">⌄</span>
@@ -505,7 +505,7 @@
               class="order-status-select"
               :class="`order-status-select--${orderStatusTone(row.orderStatusCode)}`"
               :model-value="row.orderStatusCode"
-              :disabled="!row.orderId || updatingStatusOrderId !== null"
+              :disabled="!canAction('btn:/admin/orders:status') || !row.orderId || updatingStatusOrderId !== null"
               :loading="updatingStatusOrderId === row.id"
               @change="(value: number) => handleOrderStatusChange(row, value)"
             >
@@ -526,6 +526,7 @@
           <template #default="{ row }">
             <div class="supplier-cell">
               <el-button
+                v-if="canAction('btn:/admin/orders:assign')"
                 link
                 :type="
                   !isSupplierReadOnly(row) && hasAssignedSupplier(row)
@@ -538,8 +539,8 @@
               >
                 {{ t(supplierActionKey(row)) }}
               </el-button>
-              <el-tooltip :content="row.supplierName || '-'" placement="top" :show-after="250">
-                <span>{{ row.supplierName || '-' }}</span>
+              <el-tooltip :content="orderSupplierHint(row)" placement="top" :show-after="250">
+                <span>{{ orderSupplierHint(row) }}</span>
               </el-tooltip>
               <div v-if="trackedSuppliers(row).length" class="supplier-progress">
                 <span
@@ -547,7 +548,7 @@
                   :key="supplier.id"
                   class="supplier-progress__line"
                 >
-                  <small v-if="trackedSuppliers(row).length > 1">{{ supplier.supplierName }}</small>
+                  <small v-if="trackedSuppliers(row).length > 1">{{ supplierOptionLabel(supplier) }}</small>
                   <el-tag :type="supplierProgressTag(supplier.serviceStatus)" effect="light">
                     {{ supplierProgressLabel(supplier) }}
                   </el-tag>
@@ -568,6 +569,7 @@
                 class="order-remark-badge"
               >
                 <el-button
+                  v-if="canAction('btn:/admin/orders:remark')"
                   link
                   :type="hasOrderRemark(row) ? 'warning' : 'primary'"
                   size="small"
@@ -604,13 +606,14 @@
                 link
                 type="primary"
                 size="small"
+                v-if="canAction('btn:/admin/orders:copy')"
                 :loading="copyingOrderId === row.id"
                 @click="copySupplierInfo(row)"
               >
                 {{ t("admin.orders.actions.copySupplier") }}
               </el-button>
               <el-button
-                v-if="isStripeRefundAllowed(row)"
+                v-if="canAction('btn:/admin/orders:refund') && isStripeRefundAllowed(row)"
                 link
                 type="danger"
                 size="small"
@@ -632,10 +635,11 @@
           {{ t("admin.orders.bulk.label") }}
         </span>
         <div class="bulk-bar__actions">
-          <el-button type="primary" plain @click="openBulkAssignDialog">
+          <el-button v-if="canAction('btn:/admin/orders:assign')" type="primary" plain @click="openBulkAssignDialog">
             {{ t("admin.orders.actions.bulkAssignSupplier") }}
           </el-button>
           <el-button
+            v-if="canAction('btn:/admin/orders:complete')"
             type="success"
             plain
             :loading="bulkCompleting"
@@ -643,7 +647,7 @@
           >
             {{ t("admin.orders.actions.markCompleted") }}
           </el-button>
-          <el-button :loading="exportLoading" @click="handleExportSelected">
+          <el-button v-if="canAction('btn:/admin/orders:export')" :loading="exportLoading" @click="handleExportSelected">
             {{ t("admin.orders.actions.exportSelected") }}
           </el-button>
         </div>
@@ -706,7 +710,7 @@
         </header>
 
         <div class="order-detail__toolbar">
-          <el-button type="primary" @click="openDetailEdit">
+          <el-button v-if="canAction('btn:/admin/orders:edit')" type="primary" @click="openDetailEdit">
             <span aria-hidden="true">✎</span>
             {{ t("admin.orders.detail.editOrder") }}
           </el-button>
@@ -718,7 +722,7 @@
             {{ t("admin.orders.actions.operationLogs") }}
           </el-button>
           <el-button
-            v-if="!isOrdersH5"
+            v-if="canAction('btn:/admin/orders:invoice') && !isOrdersH5"
             type="primary"
             plain
             :disabled="!detailRow.receiptUrl"
@@ -727,7 +731,7 @@
             {{ t("admin.orders.detail.generateInvoice") }}
           </el-button>
           <el-button
-            v-if="isStripeRefundAllowed(detailRow)"
+            v-if="canAction('btn:/admin/orders:refund') && isStripeRefundAllowed(detailRow)"
             type="danger"
             plain
             :loading="refundingOrderId === detailRow.orderId"
@@ -739,7 +743,7 @@
             {{ t("admin.orders.detail.print") }}
           </el-button>
           <el-button
-            v-if="!isOrdersH5"
+            v-if="canAction('btn:/admin/orders:notify') && !isOrdersH5"
             circle
             :title="t('admin.orders.detail.notifyCustomer')"
             @click="notifyCustomer"
@@ -761,7 +765,7 @@
               v-if="isOrdersH5"
               class="h5-status-select"
               :model-value="detailRow.orderStatusCode"
-              :disabled="!detailRow.orderId || updatingStatusOrderId !== null"
+              :disabled="!canAction('btn:/admin/orders:status') || !detailRow.orderId || updatingStatusOrderId !== null"
               :loading="updatingStatusOrderId === detailRow.id"
               @change="(value: number) => handleOrderStatusChange(detailRow, value)"
             >
@@ -805,14 +809,14 @@
                 v-for="supplier in visit.suppliers"
                 :key="`${visit.key}-${supplier.id}`"
               >
-                {{ supplier.supplierName || "—" }}
+                {{ fulfillmentSupplierLabel(detailRow, supplier) }}
                 <el-tag :type="supplierProgressTag(supplier.serviceStatus)" effect="light" size="small">
                   {{ supplierProgressLabel(supplier) }}
                 </el-tag>
               </span>
             </div>
             <p v-else-if="visit.supplierName">
-              <span>{{ t("admin.orders.table.supplierName") }}</span>{{ visit.supplierName }}
+              <span>{{ t("admin.orders.table.supplierName") }}</span>{{ fulfillmentSupplierLabel(detailRow, { supplierName: visit.supplierName }) }}
             </p>
             <div
               v-for="person in staffForVisit(detailRow, visit)"
@@ -863,7 +867,7 @@
           <h3>{{ t("admin.orders.serviceProgress.title") }}</h3>
           <article v-for="supplier in trackedSuppliers(detailRow)" :key="supplier.id" class="service-progress__supplier">
             <header>
-              <strong>{{ supplier.supplierName || supplier.supplierNo || "—" }}</strong>
+              <strong>{{ supplierOptionLabel(supplier) || supplier.supplierNo || "—" }}</strong>
               <el-tag :type="supplierProgressTag(supplier.serviceStatus)" effect="light">
                 {{ supplierProgressLabel(supplier) }}
               </el-tag>
@@ -894,10 +898,11 @@
         </section>
 
         <div v-if="isOrdersH5" class="h5-actions">
-          <button type="button" @click="openRemarkDialog(detailRow)">
+          <button v-if="canAction('btn:/admin/orders:remark')" type="button" @click="openRemarkDialog(detailRow)">
             {{ t("admin.orders.actions.remark") }}
           </button>
           <button
+            v-if="canAction('btn:/admin/orders:copy')"
             type="button"
             :disabled="copyingOrderId === detailRow.id"
             @click="copySupplierInfo(detailRow)"
@@ -919,14 +924,15 @@
             <small>{{ t("admin.orders.table.supplierName") }}</small>
             <strong>
               {{
-                detailRow.supplierName ||
-                t("admin.orders.supplierView.unassigned")
+                orderSupplierHint(detailRow) === "-"
+                  ? t("admin.orders.supplierView.unassigned")
+                  : orderSupplierHint(detailRow)
               }}
             </strong>
           </div>
           <div class="h5-supplier__actions">
             <button
-              v-if="!isSupplierReadOnly(detailRow) && !hasAssignedSupplier(detailRow)"
+              v-if="canAction('btn:/admin/orders:assign') && !isSupplierReadOnly(detailRow) && !hasAssignedSupplier(detailRow)"
               type="button"
               class="h5-supplier__btn"
               @click="openAssignDialog(detailRow)"
@@ -934,7 +940,7 @@
               {{ t("admin.orders.actions.assignSupplier") }}
             </button>
             <button
-              v-if="!isSupplierReadOnly(detailRow) && hasAssignedSupplier(detailRow)"
+              v-if="canAction('btn:/admin/orders:assign') && !isSupplierReadOnly(detailRow) && hasAssignedSupplier(detailRow)"
               type="button"
               class="h5-supplier__btn"
               @click="openAssignDialog(detailRow)"
@@ -973,6 +979,14 @@
                   <dt>{{ t("admin.orders.table.attachDetails") }}</dt>
                   <dd>{{ displayValue(detailRow.attachDetailsText) }}</dd>
                 </div>
+                <div v-if="materialHourStaffCount(detailRow) != null">
+                  <dt>{{ t("admin.orders.detail.staffCount") }}</dt>
+                  <dd>{{ materialHourStaffCount(detailRow) }}</dd>
+                </div>
+                <div v-if="materialHourServiceHours(detailRow) != null">
+                  <dt>{{ t("admin.orders.detail.serviceHours") }}</dt>
+                  <dd>{{ formatOrderHours(materialHourServiceHours(detailRow)) }}</dd>
+                </div>
               </dl>
               <div class="order-detail__schedule">
                 <span>{{ t("admin.orders.detail.scheduledAt") }}</span>
@@ -993,9 +1007,15 @@
                 >
                   <div class="order-detail__line-item-main">
                     <strong>{{ displayValue(lineItem.name) }}</strong>
+                    <span v-if="lineItem.sourceText" :class="{ 'is-addon': lineItem.addon }">{{
+                      lineItem.sourceText
+                    }}</span>
                     <span v-if="lineItem.lineType">{{
                       lineItem.lineType
                     }}</span>
+                    <small v-if="lineItem.addonPaymentId">{{
+                      t("admin.orders.detail.addonPayment", { id: lineItem.addonPaymentId })
+                    }}</small>
                   </div>
                   <div class="order-detail__line-item-amount">
                     <strong>{{ lineItem.amountWithTaxText }}</strong>
@@ -1031,7 +1051,7 @@
             <section class="order-detail__panel">
               <div class="order-detail__panel-title">
                 <h3>{{ t("admin.orders.detail.bookingNotes") }}</h3>
-                <el-button link type="primary" @click="openDetailEdit"
+                <el-button v-if="canAction('btn:/admin/orders:edit')" link type="primary" @click="openDetailEdit"
                   >✎</el-button
                 >
               </div>
@@ -1052,6 +1072,7 @@
               <div class="order-detail__panel-title">
                 <h3>{{ t("admin.orders.detail.internalRemark") }}</h3>
                 <el-button
+                  v-if="canAction('btn:/admin/orders:remark')"
                   link
                   type="primary"
                   @click="openRemarkDialog(detailRow)"
@@ -1066,7 +1087,7 @@
             <section class="order-detail__panel">
               <div class="order-detail__panel-title">
                 <h3>{{ t("admin.orders.detail.customerDetails") }}</h3>
-                <el-button link type="primary" @click="openDetailEdit"
+                <el-button v-if="canAction('btn:/admin/orders:edit')" link type="primary" @click="openDetailEdit"
                   >✎</el-button
                 >
               </div>
@@ -1115,7 +1136,7 @@
                 </div>
                 <div>
                   <dt>{{ t("admin.orders.table.supplierName") }}</dt>
-                  <dd>{{ displayValue(detailRow.supplierName) }}</dd>
+                  <dd>{{ displayValue(orderSupplierHint(detailRow)) }}</dd>
                 </div>
               </dl>
             </section>
@@ -1153,7 +1174,73 @@
 
         <section class="order-detail__panel order-detail__payment">
           <h3>{{ t("admin.orders.detail.paymentDetails") }}</h3>
-          <dl class="order-detail__payment-grid">
+          <div v-if="detailRow.payments.length" class="order-detail__payments">
+            <article
+              v-for="(payment, index) in detailRow.payments"
+              :key="`${payment.paymentIntentId || payment.addonPaymentId || 'payment'}-${index}`"
+              class="order-detail__payment-record"
+              :class="{ 'is-addon': payment.addon }"
+            >
+              <header>
+                <div>
+                  <strong>{{ displayValue(payment.typeText) }}</strong>
+                  <small v-if="payment.addonPaymentLabel">{{ payment.addonPaymentLabel }}</small>
+                </div>
+                <div class="order-detail__payment-record-amount">
+                  <b>{{ payment.amountWithTaxText }}</b>
+                  <em :class="{ 'is-paid': payment.statusCode === 1 }">{{ payment.statusText }}</em>
+                </div>
+              </header>
+              <dl>
+                <div v-if="payment.amountWithoutTaxText !== '-'">
+                  <dt>{{ t("admin.orders.detail.beforeTax") }}</dt>
+                  <dd>{{ payment.amountWithoutTaxText }}</dd>
+                </div>
+                <div v-if="payment.taxAmountText !== '-'">
+                  <dt>{{ t("admin.orders.detail.lineTax") }}</dt>
+                  <dd>{{ payment.taxAmountText }}</dd>
+                </div>
+                <div v-if="payment.paidAt">
+                  <dt>{{ t("admin.orders.detail.paidAt") }}</dt>
+                  <dd>{{ formatDateTime(payment.paidAt) }}</dd>
+                </div>
+                <div v-if="payment.paymentGateway">
+                  <dt>{{ t("admin.orders.detail.paymentGateway") }}</dt>
+                  <dd>{{ payment.paymentGateway }}</dd>
+                </div>
+                <div v-if="payment.paymentMethodDetail">
+                  <dt>{{ t("admin.orders.detail.paymentMethodDetail") }}</dt>
+                  <dd>{{ payment.paymentMethodDetail }}</dd>
+                </div>
+                <div v-if="payment.cardLast4">
+                  <dt>{{ t("admin.orders.detail.cardLast4") }}</dt>
+                  <dd>{{ payment.cardLast4 }}</dd>
+                </div>
+                <div v-if="payment.paymentIntentId">
+                  <dt>{{ t("admin.orders.table.paymentIntentId") }}</dt>
+                  <dd>{{ payment.paymentIntentId }}</dd>
+                </div>
+              </dl>
+              <button
+                v-if="payment.receiptUrl"
+                type="button"
+                class="order-detail__receipt"
+                @click="openPaymentReceipt(payment.receiptUrl)"
+              >
+                {{ t("admin.orders.detail.generateInvoice") }}
+              </button>
+              <ul v-if="payment.attachItems.length" class="order-detail__payment-attaches">
+                <li
+                  v-for="(item, itemIndex) in payment.attachItems"
+                  :key="`${item.name}-${itemIndex}`"
+                >
+                  <span>{{ displayValue(item.name) }}<em v-if="item.quantity"> × {{ item.quantity }}</em></span>
+                  <strong>{{ item.amountWithTaxText }}</strong>
+                </li>
+              </ul>
+            </article>
+          </div>
+          <dl v-else class="order-detail__payment-grid">
             <div>
               <dt>{{ t("admin.orders.detail.paymentGateway") }}</dt>
               <dd>{{ displayValue(detailRow.paymentGateway) }}</dd>
@@ -1586,8 +1673,9 @@
             <dt>{{ t("admin.supplier.table.supplierName") }}</dt>
             <dd>
               {{
-                supplierViewInfo.supplierName ||
-                t("admin.orders.supplierView.unassigned")
+                supplierViewInfo.supplierName
+                  ? supplierOptionLabel(supplierViewInfo)
+                  : t("admin.orders.supplierView.unassigned")
               }}
             </dd>
           </div>
@@ -1602,8 +1690,9 @@
           </el-descriptions-item>
           <el-descriptions-item :label="t('admin.supplier.table.supplierName')">
             {{
-              supplierViewInfo.supplierName ||
-              t("admin.orders.supplierView.unassigned")
+              supplierViewInfo.supplierName
+                ? supplierOptionLabel(supplierViewInfo)
+                : t("admin.orders.supplierView.unassigned")
             }}
           </el-descriptions-item>
           <el-descriptions-item :label="t('admin.supplier.table.contactInfo')">
@@ -1645,7 +1734,7 @@
           v-if="assignTarget && hasAssignedSupplier(assignTarget)"
           class="h5-assign__current"
         >
-          {{ assignSupplierPreview.supplierName || assignTarget.supplierName }}
+          {{ assignTarget ? orderSupplierHint(assignTarget) : supplierOptionLabel(assignSupplierPreview) }}
           <span v-if="assignSupplierPreview.contactInfo">
             {{ assignSupplierPreview.contactInfo }}
           </span>
@@ -1687,7 +1776,7 @@
           <el-option
             v-for="item in visibleSupplierOptions"
             :key="item.id"
-            :label="item.supplierName"
+            :label="supplierOptionLabel(item)"
             :value="item.id"
           />
         </el-select>
@@ -1776,7 +1865,7 @@
             <el-option
               v-for="item in visibleSupplierOptions"
               :key="item.id"
-              :label="item.supplierName"
+              :label="supplierOptionLabel(item)"
               :value="item.id"
             />
           </el-select>
@@ -1827,6 +1916,10 @@ import {
   type RefundReasonOption,
 } from "@/modules/admin/api/order"
 import { pickI18nText } from "@/modules/admin/utils/i18n"
+import {
+  materialHourServiceHours,
+  materialHourStaffCount,
+} from "@/modules/admin/utils/supplier-mine"
 import { detail as getSupplierDetail } from "@/modules/admin/api/supplier"
 import { page as pageServices } from "@/modules/admin/api/spu"
 
@@ -1857,6 +1950,7 @@ type RescheduleChangeItem = {
 type OrderFulfillmentSupplier = {
   id: number | string
   supplierName: string
+  supplierType?: 1 | 2
   serviceStatus: number | null
   serviceStatusText: string
 }
@@ -1888,6 +1982,10 @@ type OrderRow = {
   id: string | number
   orderNo: string
   packageOrder: boolean
+  quoteMode: number | null
+  withMaterial: boolean | null
+  staffCount: number | null
+  serviceHours: number | null
   fulfillments: OrderFulfillment[]
   assignedStaff: AssignedStaffMember[]
   userPhone: string
@@ -1932,6 +2030,7 @@ type OrderRow = {
   cardLast4: string
   paidAt: string
   receiptUrl: string
+  payments: OrderPaymentRecord[]
   serviceAmountText: string
   subtotalText: string
   taxText: string
@@ -1954,6 +2053,31 @@ type OrderRefundInfo = {
   rejectedAt: string
 }
 
+type OrderPaymentAttach = {
+  name: string
+  quantity: number | null
+  amountWithTaxText: string
+}
+
+type OrderPaymentRecord = {
+  typeText: string
+  addon: boolean
+  addonPaymentId: string
+  addonPaymentLabel: string
+  paymentGateway: string
+  paymentMethodDetail: string
+  cardLast4: string
+  receiptUrl: string
+  paymentIntentId: string
+  statusCode: number | null
+  statusText: string
+  amountWithTaxText: string
+  amountWithoutTaxText: string
+  taxAmountText: string
+  paidAt: string
+  attachItems: OrderPaymentAttach[]
+}
+
 type OrderLineItem = {
   lineType: string
   name: string
@@ -1961,6 +2085,9 @@ type OrderLineItem = {
   amountWithTaxText: string
   amountWithoutTaxText: string
   taxAmountText: string
+  sourceText: string
+  addon: boolean
+  addonPaymentId: string
 }
 
 type SupplierOption = {
@@ -1995,6 +2122,10 @@ type RawAttachDetail = {
   attachValueName?: string
   name?: string
   nameEn?: string
+  source?: string
+  sourceI18n?: I18nText
+  addedAfterPay?: boolean
+  addonPaymentId?: number | string
 }
 
 const orderStatusNameMap: Record<string, number> = {
@@ -2168,7 +2299,11 @@ const supplierViewLoading = ref(false)
 const supplierViewError = ref("")
 const supplierViewRequestId = ref(0)
 const supplierViewOrderNo = ref("")
-const supplierViewInfo = ref({ supplierName: "", contactInfo: "" })
+const supplierViewInfo = ref<{
+  supplierName: string
+  contactInfo: string
+  supplierType?: 1 | 2
+}>({ supplierName: "", contactInfo: "" })
 const assignDialogVisible = ref(false)
 const assignSubmitting = ref(false)
 const assignTarget = ref<OrderRow | null>(null)
@@ -2245,6 +2380,30 @@ const formatDateTime = (value?: string) => {
 const displayValue = (value: unknown) => {
   const text = String(value ?? "").trim()
   return text || "-"
+}
+
+const optionalOrderNumber = (value: unknown) => {
+  if (value == null || value === "") return null
+  const number = Number(value)
+  return Number.isFinite(number) ? number : null
+}
+
+const optionalOrderBoolean = (value: unknown) => {
+  if (value === true || value === false) return value
+  if (value == null || value === "") return null
+  const text = String(value).trim().toLowerCase()
+  if (text === "true" || text === "1") return true
+  if (text === "false" || text === "0") return false
+  return null
+}
+
+const formatOrderHours = (value: unknown) => {
+  const hours = Number(value)
+  if (!Number.isFinite(hours)) return "-"
+  const text = Number.isInteger(hours)
+    ? String(hours)
+    : String(Number(hours.toFixed(2)))
+  return t("admin.orders.detail.serviceHoursValue", { hours: text })
 }
 
 const parseServiceDate = (value: unknown) => {
@@ -2852,14 +3011,14 @@ const submitStripeRefund = async () => {
   }
 }
 
-const openReceipt = () => {
-  const receiptUrl = String(detailRow.value?.receiptUrl || "").trim()
-  if (!receiptUrl) {
+const openPaymentReceipt = (receiptUrl: string) => {
+  const target = String(receiptUrl || "").trim()
+  if (!target) {
     ElMessage.warning(t("admin.orders.message.receiptUnavailable"))
     return
   }
   try {
-    const targetUrl = new URL(receiptUrl, window.location.origin)
+    const targetUrl = new URL(target, window.location.origin)
     if (!/^https?:$/.test(targetUrl.protocol))
       throw new Error("invalid protocol")
     window.open(targetUrl.toString(), "_blank", "noopener,noreferrer")
@@ -2867,6 +3026,8 @@ const openReceipt = () => {
     ElMessage.warning(t("admin.orders.message.receiptUnavailable"))
   }
 }
+
+const openReceipt = () => openPaymentReceipt(String(detailRow.value?.receiptUrl || ""))
 
 const notifyCustomer = () => {
   const row = detailRow.value
@@ -3034,6 +3195,51 @@ const photoList = (value: unknown) => {
 const trackedSuppliers = (row?: OrderRow | null) =>
   (row?.suppliers || []).filter((supplier) => supplier.tracked)
 
+const supplierOptionLabel = (supplier: {
+  supplierName?: string
+  supplierNo?: string
+  supplierType?: unknown
+}) => {
+  const name = String(supplier.supplierName || supplier.supplierNo || "").trim()
+  if (!name || name === "-" || name === "—") return name
+  const prefix = Number(supplier.supplierType) === 2
+    ? t("admin.orders.table.supplierIndividualMark")
+    : t("admin.orders.table.supplierCompanyMark")
+  if (name.startsWith(`${prefix}-`) || name.startsWith("供应商-") || name.startsWith("个人入驻-")) {
+    return name
+  }
+  return `${prefix}-${name}`
+}
+
+const orderSupplierHint = (row: OrderRow) => {
+  const labeled = row.suppliers
+    .map((supplier) => supplierOptionLabel(supplier))
+    .filter((name) => name && name !== "-" && name !== "—")
+  if (labeled.length) return labeled.join("、")
+  const fallback = String(row.supplierName || "").trim()
+  if (!fallback) return "-"
+  return fallback
+    .split("、")
+    .map((name) => supplierOptionLabel({ supplierName: name }))
+    .filter(Boolean)
+    .join("、")
+}
+
+const fulfillmentSupplierLabel = (
+  row: OrderRow,
+  supplier: { id?: unknown; supplierName?: string; supplierType?: unknown },
+) => {
+  const known = row.suppliers.find((item) =>
+    supplier.id != null && supplier.id !== ""
+      ? String(item.id) === String(supplier.id)
+      : String(item.supplierName || "").trim() === String(supplier.supplierName || "").trim(),
+  )
+  return supplierOptionLabel({
+    supplierName: supplier.supplierName,
+    supplierType: supplier.supplierType ?? known?.supplierType,
+  }) || "—"
+}
+
 const supplierProgressLabel = (supplier: SupplierOption) => {
   if (supplier.serviceStatusText) return supplier.serviceStatusText
   const status = Number(supplier.serviceStatus ?? 0)
@@ -3108,6 +3314,15 @@ const getPaymentStatusText = (code: number | null) => {
   if (code === 5) return t("admin.orders.status.paymentRefunded")
   if (code === 6) return t("admin.orders.status.paymentRefundFailed")
   return "-"
+}
+
+const paymentRecordStatusText = (paymentType: unknown, code: number | null) => {
+  if (String(paymentType ?? "").toUpperCase() === "ADDON") {
+    if (code === 0) return t("admin.orders.status.paymentUnpaid")
+    if (code === 1) return t("admin.orders.status.paymentPaid")
+    if (code === 2) return t("admin.orders.status.paymentFailed")
+  }
+  return getPaymentStatusText(code)
 }
 
 const parseSpecDescText = (item: any) => {
@@ -3221,19 +3436,58 @@ const parseAttachDetailsText = (item: any) => {
       const priceText = formatMoneyText(
         attach?.amountWithTax ?? attach?.totalPrice ?? attach?.amount,
       )
-      return priceText === "-" ? quantityText : `${quantityText} · ${priceText}`
+      const priced = priceText === "-" ? quantityText : `${quantityText} · ${priceText}`
+      const source = lineSourceText(attach)
+      const paymentId = addonPaymentLabel(attach?.addonPaymentId)
+      return [priced, source, paymentId].filter(Boolean).join(" · ")
     })
     .filter(Boolean)
   if (attachValues.length) return attachValues.join(" / ")
   return attachItems.length ? attachItems.join(" / ") : "-"
 }
 
-const formatMoneyText = (value: unknown) => {
+const pickSourceText = (i18n?: I18nText) => {
+  const valueMap = i18n || {}
+  const preferred = String(locale.value || "").toLowerCase().startsWith("zh")
+    ? ["zh-CN", "zh", "en", "en-US"]
+    : ["en", "en-US", "zh-CN", "zh"]
+  for (const lang of preferred) {
+    const value = valueMap[lang]
+    if (typeof value === "string" && value.trim()) return value.trim()
+  }
+  const firstValue = Object.values(valueMap).find(
+    (value) => typeof value === "string" && value.trim(),
+  )
+  return typeof firstValue === "string" ? firstValue.trim() : ""
+}
+
+const lineSourceText = (row: any) => {
+  const map = row?.sourceI18n
+  const localized =
+    map && typeof map === "object" && !Array.isArray(map)
+      ? pickSourceText(map as I18nText)
+      : ""
+  if (localized) return localized
+  if (row?.source === "ADDON" || row?.addedAfterPay === true) {
+    return t("admin.orders.detail.sourceAddon")
+  }
+  if (row?.source === "INITIAL") return t("admin.orders.detail.sourceInitial")
+  return ""
+}
+
+const addonPaymentLabel = (value: unknown) => {
+  const id = String(value ?? "").trim()
+  if (!id || id === "0") return ""
+  return t("admin.orders.detail.addonPayment", { id })
+}
+
+const formatMoneyText = (value: unknown, currency = "AED") => {
   const text = String(value ?? "").trim()
   if (!text) return "-"
   const numeric = Number(text)
   if (!Number.isFinite(numeric)) return text
-  return `AED ${numeric.toFixed(2)}`
+  const code = String(currency || "AED").trim() || "AED"
+  return `${code} ${numeric.toFixed(2)}`
 }
 
 const parseMoneyText = (item: any, fields: string[]) => {
@@ -3259,6 +3513,69 @@ const parseAmountText = (item: any) => {
   ])
 }
 
+const paymentTypeText = (row: any) => {
+  const map = row?.paymentTypeI18n
+  const localized =
+    map && typeof map === "object" && !Array.isArray(map)
+      ? pickSourceText(map as I18nText)
+      : ""
+  if (localized) return localized
+  if (row?.paymentType === "ADDON") return t("admin.orders.detail.sourceAddon")
+  if (row?.paymentType === "INITIAL") return t("admin.orders.detail.sourceInitial")
+  return ""
+}
+
+const parsePaymentAttachItems = (payment: any): OrderPaymentAttach[] => {
+  const rawItems = Array.isArray(payment?.attachItems) ? payment.attachItems : []
+  return rawItems.map((item: any) => {
+    const quantity = Number(item?.quantity)
+    const snapshotName = String(item?.name ?? item?.attachValueName ?? "").trim()
+    const englishName = String(item?.nameEn ?? "").trim()
+    return {
+      name: locale.value === "zh" ? snapshotName || englishName : englishName || snapshotName,
+      quantity: Number.isFinite(quantity) ? quantity : null,
+      amountWithTaxText: formatMoneyText(item?.amountWithTax, payment?.currency),
+    }
+  })
+}
+
+const parsePayments = (item: any): OrderPaymentRecord[] => {
+  const order = item?.order ?? item?.orderHeader ?? item ?? {}
+  const rawPayments = Array.isArray(order.payments)
+    ? order.payments
+    : Array.isArray(item?.payments)
+      ? item.payments
+      : []
+  return rawPayments
+    .filter((payment: any) => payment && typeof payment === "object")
+    .map((payment: any) => {
+      if (payment.typeText && payment.amountWithTaxText && Array.isArray(payment.attachItems)) {
+        return payment as OrderPaymentRecord
+      }
+      const statusCode = normalizeOptionalNumberParam(payment.paymentStatus)
+      const addon = String(payment.paymentType ?? "").toUpperCase() === "ADDON"
+      const currency = String(payment.currency ?? "AED").trim() || "AED"
+      return {
+        typeText: paymentTypeText(payment),
+        addon,
+        addonPaymentId: String(payment.addonPaymentId ?? "").trim(),
+        addonPaymentLabel: addonPaymentLabel(payment.addonPaymentId),
+        paymentGateway: String(payment.paymentGateway ?? "").trim(),
+        paymentMethodDetail: String(payment.paymentMethodDetail ?? "").trim(),
+        cardLast4: String(payment.cardLast4 ?? "").trim(),
+        receiptUrl: String(payment.receiptUrl ?? "").trim(),
+        paymentIntentId: String(payment.paymentIntentId ?? "").trim(),
+        statusCode,
+        statusText: paymentRecordStatusText(payment.paymentType, statusCode),
+        amountWithTaxText: formatMoneyText(payment.amountWithTax, currency),
+        amountWithoutTaxText: formatMoneyText(payment.amountWithoutTax, currency),
+        taxAmountText: formatMoneyText(payment.taxAmount, currency),
+        paidAt: String(payment.paidTime ?? payment.paidAt ?? "").trim(),
+        attachItems: parsePaymentAttachItems({ ...payment, currency }),
+      }
+    })
+}
+
 const parseLineItems = (item: any): OrderLineItem[] => {
   const order = item?.order ?? item?.orderHeader ?? item ?? {}
   const rawItems = Array.isArray(order.lineItems)
@@ -3282,6 +3599,9 @@ const parseLineItems = (item: any): OrderLineItem[] => {
       amountWithTaxText: formatMoneyText(lineItem?.amountWithTax),
       amountWithoutTaxText: formatMoneyText(lineItem?.amountWithoutTax),
       taxAmountText: formatMoneyText(lineItem?.taxAmount),
+      sourceText: lineSourceText(lineItem),
+      addon: lineItem?.source === "ADDON" || lineItem?.addedAfterPay === true,
+      addonPaymentId: String(lineItem?.addonPaymentId ?? "").trim(),
     }
   })
 }
@@ -3435,10 +3755,8 @@ const staffSupplierName = (row: OrderRow, person: AssignedStaffMember) => {
     ...row.suppliers,
     ...row.fulfillments.flatMap((visit) => visit.suppliers),
   ]
-  return (
-    suppliers.find((supplier) => String(supplier.id) === String(person.supplierId))
-      ?.supplierName || ""
-  )
+  const found = suppliers.find((supplier) => String(supplier.id) === String(person.supplierId))
+  return found?.supplierName ? supplierOptionLabel(found) : ""
 }
 
 const collectAssignedStaff = (order: any, item: any) => {
@@ -3512,6 +3830,12 @@ const resolveAssignedSuppliers = (
     order.supplier?.id ??
     item.supplier?.id ??
     null
+  const fallbackType = supplierTypeOf(
+    order.supplierType ??
+      item.supplierType ??
+      order.supplier?.supplierType ??
+      item.supplier?.supplierType,
+  )
   const fallbackName = pickI18nValue(
     supplierNameI18n,
     String(
@@ -3535,7 +3859,15 @@ const resolveAssignedSuppliers = (
     : existing.length
       ? existing
       : fallbackId
-        ? [{ id: fallbackId, supplierName: fallbackName, arrivePhotos: [], arriveRemark: "", completePhotos: [], completeRemark: "" }]
+        ? [{
+            id: fallbackId,
+            supplierName: fallbackName,
+            ...(fallbackType ? { supplierType: fallbackType } : {}),
+            arrivePhotos: [],
+            arriveRemark: "",
+            completePhotos: [],
+            completeRemark: "",
+          }]
         : []
   const supplierName =
     suppliers
@@ -3583,6 +3915,7 @@ const parseFulfillments = (value: unknown): OrderFulfillment[] => {
       (supplier: any, supplierIndex: number) => ({
         id: supplier?.supplierId ?? supplier?.id ?? `${index}-${supplierIndex}`,
         supplierName: String(supplier?.supplierName || "").trim(),
+        supplierType: supplierTypeOf(supplier?.supplierType),
         serviceStatus: normalizeOptionalNumberParam(supplier?.serviceStatus),
         serviceStatusText: pickI18nValue(supplier?.serviceStatusI18n, ""),
       }),
@@ -3689,6 +4022,10 @@ const parseOrderRow = (item: any): OrderRow => {
     id: orderId ?? String(order.orderNo ?? item.orderNo ?? ""),
     orderNo: String(order.orderNo ?? item.orderNo ?? "").trim(),
     packageOrder: isPackageOrderRecord(order, item),
+    quoteMode: optionalOrderNumber(order.quoteMode ?? item.quoteMode),
+    withMaterial: optionalOrderBoolean(order.withMaterial ?? item.withMaterial),
+    staffCount: optionalOrderNumber(order.staffCount ?? item.staffCount),
+    serviceHours: optionalOrderNumber(order.serviceHours ?? item.serviceHours),
     fulfillments: parseFulfillments(order.fulfillmentList ?? item.fulfillmentList),
     assignedStaff: collectAssignedStaff(order, item),
     userPhone: String(
@@ -3877,6 +4214,7 @@ const parseOrderRow = (item: any): OrderRow => {
         item.payment?.receiptUrl ??
         "",
     ).trim(),
+    payments: parsePayments(item),
     serviceAmountText: parseMoneyText(item, [
       "serviceAmountWithTax",
       "serviceAmount",
@@ -4287,10 +4625,16 @@ const closeSupplierView = () => {
 const openSupplierView = async (row: OrderRow) => {
   const requestId = ++supplierViewRequestId.value
   supplierViewOrderNo.value = row.orderNo
+  const currentSupplier = row.suppliers.find(
+    (supplier) => String(supplier.id) === String(row.supplierId),
+  )
   supplierViewInfo.value = {
     supplierName:
-      row.supplierName || (row.supplierId ? `#${row.supplierId}` : ""),
+      currentSupplier?.supplierName ||
+      row.supplierName ||
+      (row.supplierId ? `#${row.supplierId}` : ""),
     contactInfo: "",
+    supplierType: currentSupplier?.supplierType,
   }
   supplierViewError.value = ""
   supplierViewLoading.value = false
@@ -4606,6 +4950,7 @@ const normalizeSupplierCopyInfo = (payload: any, fallbackName = "") => {
       String(supplier?.supplierName ?? supplier?.name ?? fallbackName).trim(),
     ),
     contactInfo: String(supplier?.contactInfo ?? "").trim(),
+    supplierType: supplierTypeOf(supplier?.supplierType ?? root?.supplierType),
   }
 }
 
@@ -5770,9 +6115,19 @@ onBeforeUnmount(() => {
 .order-print-root .order-detail__cancellation {
   margin-top: 8px !important;
 }
-.order-print-root .order-detail__payment-grid {
+.order-print-root .order-detail__payment-grid,
+.order-print-root .order-detail__payment-record dl {
   grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
   gap: 6px 8px !important;
+}
+.order-print-root .order-detail__payments {
+  gap: 6px !important;
+}
+.order-print-root .order-detail__payment-record {
+  padding: 6px !important;
+}
+.order-print-root .order-detail__receipt {
+  display: none !important;
 }
 .order-print-root .order-detail__refund-grid {
   grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
@@ -5939,7 +6294,8 @@ onBeforeUnmount(() => {
   flex-direction: column;
   gap: 4px;
 }
-.order-detail__line-item-main span {
+.order-detail__line-item-main span,
+.order-detail__line-item-main small {
   align-self: flex-start;
   padding: 2px 7px;
   border-radius: 999px;
@@ -5947,6 +6303,10 @@ onBeforeUnmount(() => {
   color: #52627a;
   font-size: 10px;
   font-weight: 700;
+}
+.order-detail__line-item-main span.is-addon {
+  background: #f8efe2;
+  color: #8a5a12;
 }
 .order-detail__line-item-amount {
   align-items: flex-end;
@@ -5990,6 +6350,109 @@ onBeforeUnmount(() => {
 }
 .order-detail__payment {
   margin-top: 18px;
+}
+.order-detail__payments {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.order-detail__payment-record {
+  padding: 14px;
+  border: 1px solid #e7edf4;
+  border-radius: 10px;
+  background: #fbfcfe;
+}
+.order-detail__payment-record.is-addon {
+  border-color: #f0e2cc;
+  background: #fffdf8;
+}
+.order-detail__payment-record header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+.order-detail__payment-record header strong {
+  color: #05152b;
+  font-size: 14px;
+}
+.order-detail__payment-record header small {
+  display: inline-block;
+  margin-top: 4px;
+  color: #8a5a12;
+  font-size: 11px;
+  font-weight: 700;
+}
+.order-detail__payment-record-amount {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+}
+.order-detail__payment-record-amount b {
+  color: #05152b;
+  font-size: 16px;
+}
+.order-detail__payment-record-amount em {
+  color: #8791a1;
+  font-size: 12px;
+  font-style: normal;
+  font-weight: 700;
+}
+.order-detail__payment-record-amount em.is-paid {
+  color: #0b8f55;
+}
+.order-detail__payment-record dl {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 12px 16px;
+  margin: 0;
+}
+.order-detail__payment-record dt {
+  margin-bottom: 5px;
+  color: #8791a1;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.order-detail__payment-record dd {
+  margin: 0;
+  color: #303b4b;
+  font-size: 13px;
+  line-height: 1.55;
+  overflow-wrap: anywhere;
+}
+.order-detail__receipt {
+  margin-top: 12px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: #8a5a12;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.order-detail__payment-attaches {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 12px 0 0;
+  padding: 12px 0 0;
+  border-top: 1px solid #edf0f4;
+  list-style: none;
+}
+.order-detail__payment-attaches li {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  color: #303b4b;
+  font-size: 13px;
+}
+.order-detail__payment-attaches em {
+  color: #8791a1;
+  font-style: normal;
 }
 .order-detail__payment-grid,
 .order-detail__refund-grid {
@@ -6055,8 +6518,16 @@ onBeforeUnmount(() => {
   }
   .order-detail__columns,
   .order-detail__payment-grid,
+  .order-detail__payment-record dl,
   .order-detail__refund-grid {
     grid-template-columns: 1fr;
+  }
+  .order-detail__payment-record header,
+  .order-detail__payment-attaches li {
+    flex-direction: column;
+  }
+  .order-detail__payment-record-amount {
+    align-items: flex-start;
   }
   .order-detail__refund-reason {
     grid-column: auto;

@@ -374,8 +374,8 @@
               <template v-if="bookingAttachGroups.length">
                 <div class="booking-card__section-heading booking-card__section-heading--addons">
                   <div class="booking-card__section-title-row">
-                    <h2>{{ t("client.productDetail.booking.addOnsTitle") }}</h2>
-                    <p>{{ t("client.productDetail.booking.addOnsHint") }}</p>
+                    <h2>{{ attachModuleTitle || t("client.productDetail.booking.addOnsTitle") }}</h2>
+                    <p>{{ attachModuleDesc || t("client.productDetail.booking.addOnsHint") }}</p>
                   </div>
                 </div>
                 <div
@@ -536,6 +536,7 @@
 import { ElMessage } from "element-plus"
 import { computed, ref, watch } from "vue"
 import { bizTagLabels } from "@/modules/client/utils/biz-tag"
+import { attachShownAt } from "@/modules/client/utils/order-addons"
 import { useI18n } from "vue-i18n"
 import { useRoute, useRouter } from "vue-router"
 import {
@@ -571,6 +572,8 @@ type ProductDetailRecord = {
   serviceContentI18n?: I18nTextArray
   serviceContentTextI18n?: I18nText
   bookingNoticeI18n?: I18nText
+  attachModuleTitle?: string
+  attachModuleDesc?: string
   specBindings?: Array<{
     specTypeId?: number | string
     specValueIds?: Array<number | string>
@@ -581,6 +584,7 @@ type ProductDetailRecord = {
   attachBindings?: Array<{
     attachTypeId?: number | string
     attachValueIds?: Array<number | string>
+    displayMode?: number | string
   }>
   attachTypeNameI18n?: Record<string, I18nText>
   attachValueNameI18n?: Record<string, I18nText>
@@ -1411,6 +1415,13 @@ const selectedSpecSummary = computed(() => {
     .join(" / ")
 })
 
+const attachModuleTitle = computed(() =>
+  String(productDetail.value?.attachModuleTitle || "").trim(),
+)
+const attachModuleDesc = computed(() =>
+  String(productDetail.value?.attachModuleDesc || "").trim(),
+)
+
 const bookingAttachGroups = computed<BookingAttachGroup[]>(() => {
   const record = productDetail.value
   const bindings = Array.isArray(record?.attachBindings)
@@ -1419,7 +1430,7 @@ const bookingAttachGroups = computed<BookingAttachGroup[]>(() => {
   return bindings
     .map((binding) => {
       const typeId = String(binding.attachTypeId ?? "").trim()
-      if (!typeId) {
+      if (!typeId || !attachShownAt(binding.displayMode, "checkout")) {
         return null
       }
       const label = pickI18nValue(record?.attachTypeNameI18n?.[typeId], typeId)
@@ -1523,11 +1534,34 @@ const loadSkuPrice = async (payload: ProductSkuPayload) => {
   }
 }
 
+const CONTEXT_QUERY_KEYS = ["level1", "breadcrumb", "name", "categoryId", "keyword"]
+
+const compactDetailAddress = () => {
+  if (!CONTEXT_QUERY_KEYS.some((key) => getRouteQueryText(key))) return
+  const query = { ...route.query }
+  CONTEXT_QUERY_KEYS.forEach((key) => {
+    delete query[key]
+  })
+  void router.replace({
+    name: "product-detail",
+    params: { spuId: spuId.value },
+    query,
+  })
+}
+
 watch(
   () => spuId.value,
   () => {
     activeDetailTab.value = "description"
     void loadProductDetail()
+  },
+  { immediate: true },
+)
+
+watch(
+  () => CONTEXT_QUERY_KEYS.map((key) => getRouteQueryText(key)).join("\n"),
+  () => {
+    compactDetailAddress()
   },
   { immediate: true },
 )

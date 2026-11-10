@@ -157,6 +157,14 @@
                   <strong>{{ item.refundHandlingFeeText }}</strong>
                 </div>
 
+                <div
+                  v-if="item.canAddAddons"
+                  class="order-card__extras"
+                  @keyup.enter.stop
+                >
+                  <AddExtraServiceButton compact @click.stop="goAddAddons(item)" />
+                </div>
+
                 <div class="order-card__actions">
                   <button
                     v-if="item.canContinue"
@@ -456,6 +464,7 @@ import { useI18n } from "vue-i18n"
 import { useRoute, useRouter } from "vue-router"
 import CancellationPolicyGate from "@/modules/client/components/CancellationPolicyGate.vue"
 import CancellationModalContent from "@/modules/client/components/CancellationModalContent.vue"
+import AddExtraServiceButton from "@/modules/client/components/AddExtraServiceButton.vue"
 import {
   formatCreatedAt,
   formatServiceSchedule,
@@ -472,6 +481,7 @@ import {
   packageServiceLines,
   packageTimesText,
 } from "@/modules/client/utils/order-list-page"
+import { canAddPaidOrderAddons } from "@/modules/client/utils/order-addons"
 import {
   cancelOrder,
   checkOrderRefund,
@@ -534,6 +544,7 @@ type OrderCardView = {
   canContinue: boolean
   canBookVisit: boolean
   canManage: boolean
+  canAddAddons: boolean
   canReview: boolean
   canRebook: boolean
   specSelections: RebookSpecSelection[]
@@ -1191,7 +1202,10 @@ const orderCards = computed<OrderCardView[]>(() =>
           fallbackImages[0] ||
           "",
         reviewed: item.reviewed === true,
-        showActions: [0, 1, 2, 3, 4, 5].includes(orderStatus ?? -1),
+        canAddAddons: canAddPaidOrderAddons(item, orderStatus),
+        showActions:
+          [0, 1, 2, 3, 4, 5].includes(orderStatus ?? -1) ||
+          canAddPaidOrderAddons(item, orderStatus),
         canContinue: orderStatus === 0,
         canBookVisit:
           isPackage &&
@@ -1366,6 +1380,16 @@ const onSearchNow = () => {
   }
   resetPages()
   void loadOrders()
+}
+
+const goAddAddons = (item: OrderCardView) => {
+  void router.push({
+    name: "order-addons",
+    query: {
+      ...(item.orderId ? { orderId: item.orderId } : {}),
+      orderNo: item.orderNo,
+    },
+  })
 }
 
 const goRebook = (item: OrderCardView) => {
@@ -2211,12 +2235,21 @@ onBeforeUnmount(() => {
   white-space: nowrap;
 }
 
+.order-card__extras {
+  width: 100%;
+  margin-top: 14px;
+}
+
 .order-card__actions {
   margin-top: auto;
   padding-top: 14px;
   display: flex;
   justify-content: flex-end;
   gap: 8px;
+}
+
+.order-card__actions:empty {
+  display: none;
 }
 
 .order-card__btn {

@@ -17,6 +17,7 @@ export type SkuPriceVariant = {
   valid: boolean;
   label: string;
   optionIds: number[];
+  remark: string;
 };
 
 export type SkuPriceRow = {
@@ -230,6 +231,7 @@ export const buildSkuPriceEditor = (
         valid: chosen ? skuEnabled(chosen.valid) : true,
         label: options.map((option) => option.label).join(' · '),
         optionIds: options.map((option) => option.id),
+        remark: typeof chosen?.supplierFulfillRemark === 'string' ? chosen.supplierFulfillRemark : '',
       };
     });
     return {
@@ -291,14 +293,20 @@ export const formatSkuMoney = (value: number | null | undefined) => {
   return value < 0 ? `-${text}` : text;
 };
 
+const fulfillRemark = (value: unknown) => String(value ?? '').trim().slice(0, 512);
+
 export const skuValidsFromRows = (rows: SkuPriceRow[]) => {
   const seen = new Set<number>();
-  const items: Array<{ skuId: number; valid: number }> = [];
+  const items: Array<{ skuId: number; valid: number; supplierFulfillRemark: string }> = [];
   rows.forEach((row) => {
     row.variants.forEach((variant) => {
       if (variant.skuId == null || seen.has(variant.skuId)) return;
       seen.add(variant.skuId);
-      items.push({ skuId: variant.skuId, valid: variant.valid ? 1 : 0 });
+      items.push({
+        skuId: variant.skuId,
+        valid: variant.valid ? 1 : 0,
+        supplierFulfillRemark: fulfillRemark(variant.remark),
+      });
     });
   });
   return items;

@@ -174,7 +174,36 @@ export interface OrderListRecord {
     quantity?: number | string;
     attachTypeName?: string;
     attachTypeNameI18n?: Record<string, string>;
+    addedAfterPay?: boolean;
+    addonPaymentId?: number | string;
+    source?: string;
+    sourceI18n?: Record<string, string>;
+    unitPriceWithoutTax?: number | string;
+    unitPriceWithTax?: number | string;
+    amountWithoutTax?: number | string;
+    amountWithTax?: number | string;
+    taxAmount?: number | string;
   }>;
+  /** 详情字段。已支付普通订单且服务仍有可售附加项时为 true。列表不返回。 */
+  canAddAttach?: boolean;
+  /** 可追加购买的附加项，来自服务绑定，不是订单里已买的明细。 */
+  availableAttaches?: OrderAddonAttachOption[];
+  attachModuleTitle?: string;
+  attachModuleDesc?: string;
+}
+
+export interface OrderAddonAttachOption {
+  attachTypeId?: number | string;
+  attachTypeName?: string;
+  attachTypeNameI18n?: Record<string, string>;
+  attachValueId?: number | string;
+  attachValueName?: string;
+  attachValueNameI18n?: Record<string, string>;
+  unit?: string;
+  unitI18n?: Record<string, string>;
+  unitPriceWithoutTax?: number | string;
+  unitPriceWithTax?: number | string;
+  sort?: number | string;
 }
 
 export interface LatestAddressRecord {
@@ -558,6 +587,33 @@ export type CreatePayResponse = {
 
 export function createPay(payload: CreatePayRequest) {
   return http.post('/client/payment/create', payload);
+}
+
+export type OrderAddonPaymentPayload = {
+  orderId: number | string;
+  paymentMethod: 'stripe' | 'STRIPE';
+  attachItems: Array<{
+    attachValueId: number | string;
+    quantity: number;
+  }>;
+};
+
+export type OrderAddonPaymentResult = CreatePayResponse & {
+  addonPaymentId?: number | string;
+};
+
+// 已支付普通订单追加附加项，返回 Stripe clientSecret。
+export async function createOrderAddonPayment(payload: OrderAddonPaymentPayload) {
+  return getEnvelopeData<OrderAddonPaymentResult>(
+    await http.post('/client/order/addon/payment', payload),
+  );
+}
+
+// 订单所属服务上仍可追加的附加项，与详情 availableAttaches 相同。
+export async function listOrderAddonAttaches(orderId: string | number) {
+  return getDataList<OrderAddonAttachOption>(
+    await http.get('/client/order/addon/attaches', { params: { orderId } }),
+  );
 }
 
 export interface StripeSetupIntentRecord {

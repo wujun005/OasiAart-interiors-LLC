@@ -2479,12 +2479,6 @@ const goBack = () => {
     router.push({
       name: "h5-product-detail",
       params: { spuId },
-      query: {
-        breadcrumb: getQueryText("breadcrumb"),
-        name: getQueryText("name"),
-        categoryId: getQueryText("categoryId"),
-        level1: getQueryText("level1"),
-      },
     })
     return
   }

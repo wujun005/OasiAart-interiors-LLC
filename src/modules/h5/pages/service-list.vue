@@ -416,17 +416,9 @@ const goProductDetail = (spuId: string) => {
   if (!spuId) {
     return
   }
-  const level1Raw = getQueryValue(route.query.level1)
   router.push({
     name: "h5-product-detail",
     params: { spuId },
-    query: {
-      breadcrumb: pageTitle.value,
-      name: pageTitle.value,
-      categoryId: categoryId.value,
-      level1: level1Raw,
-      keyword: searchKeyword.value,
-    },
   })
 }
 </script>

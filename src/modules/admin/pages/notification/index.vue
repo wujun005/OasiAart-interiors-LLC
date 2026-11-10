@@ -5,7 +5,7 @@
         <p>{{ t('admin.notifications.description') }}</p>
         <h1>{{ t('admin.notifications.title') }}</h1>
       </div>
-      <el-button type="primary" @click="openTest()">{{ t('admin.notifications.test') }}</el-button>
+      <el-button v-if="canAction('btn:/admin/notifications:send')" type="primary" @click="openTest()">{{ t('admin.notifications.test') }}</el-button>
     </header>
 
     <section class="toolbar">
@@ -33,7 +33,7 @@
     <el-table v-loading="loading" :data="items" row-key="code" border>
       <el-table-column :label="t('admin.notifications.actions')" width="132" fixed="left">
         <template #default="{ row }">
-          <el-button v-if="testOf(row.code)" link type="primary" @click="openTest(row)">{{ t('admin.notifications.test') }}</el-button>
+          <el-button v-if="canAction('btn:/admin/notifications:send') && testOf(row.code)" link type="primary" @click="openTest(row)">{{ t('admin.notifications.test') }}</el-button>
           <span v-else class="empty-note">{{ t('admin.notifications.noTest') }}</span>
         </template>
       </el-table-column>
@@ -97,7 +97,7 @@
       <p class="test-hint">{{ t('admin.notifications.testNotice') }}</p>
       <template #footer>
         <el-button @click="testOpen = false">{{ t('admin.notifications.cancel') }}</el-button>
-        <el-button type="primary" :loading="sending" @click="sendTest">{{ t('admin.notifications.send') }}</el-button>
+        <el-button v-if="canAction('btn:/admin/notifications:send')" type="primary" :loading="sending" @click="sendTest">{{ t('admin.notifications.send') }}</el-button>
       </template>
     </el-dialog>
   </div>

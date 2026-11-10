@@ -4,6 +4,7 @@ import test from 'node:test';
 import { runInNewContext } from 'node:vm';
 import ts from 'typescript';
 import * as adminEntry from '../src/modules/admin/utils/adminEntry.ts';
+import { buttonAllowed } from '../src/modules/admin/utils/admin-button-permission.ts';
 
 const source = readFileSync(new URL('../src/modules/admin/utils/menuPermission.ts', import.meta.url), 'utf8');
 const code = ts.transpileModule(source.replaceAll('import.meta.env.DEV', 'false'), {
@@ -38,6 +39,7 @@ async function loadMenus(menus, roleCodes = []) {
         useAdminSessionStore: () => ({ currentUser: async () => ({ id: 1 }) }),
       };
       if (name === '@/modules/admin/utils/adminEntry') return adminEntry;
+      if (name === '@/modules/admin/utils/admin-button-permission') return { buttonAllowed };
       throw new Error(`Unexpected dependency: ${name}`);
     },
   });
@@ -157,6 +159,46 @@ test('a supplier portal does not receive the platform quote menu', async () => {
   }]);
   assert.equal(api.adminMenuState.flatMenus.some((menu) => menu.path === '/admin/basic/quotes'), false);
   assert.equal(api.resolveAllowedAdminPath('/admin/basic/quotes'), '');
+});
+
+test('button permissions stay out of navigation and follow the catalog', async () => {
+  const api = await loadMenus([{
+    id: 6,
+    path: '/admin/orders',
+    name: 'Orders',
+    children: [{ id: 100, path: 'btn:/admin/orders:export', name: 'Export' }],
+  }]);
+  assert.equal(api.adminMenuState.allowedPaths.some((path) => String(path).includes('btn:')), false);
+  assert.equal(api.adminMenuState.flatMenus.some((menu) => String(menu.path).includes('btn:')), false);
+  assert.deepEqual(plain(api.adminMenuState.buttonCodes), ['btn:/admin/orders:export']);
+  assert.equal(api.canAction('btn:/admin/orders:export'), true);
+
+  api.adminMenuState.buttonCatalog = ['btn:/admin/orders:export'];
+  api.adminMenuState.superAdmin = false;
+  assert.equal(api.canAction('btn:/admin/orders:export'), true);
+  api.adminMenuState.buttonCodes = [];
+  assert.equal(api.canAction('btn:/admin/orders:export'), false);
+  assert.equal(api.canAction('btn:/admin/orders:missing'), true);
+  api.adminMenuState.superAdmin = true;
+  assert.equal(api.canAction('btn:/admin/orders:export'), true);
+});
+
+test('account menus are separate permissions and are not opened by the parent page', async () => {
+  const api = await loadMenus([{
+    id: 8,
+    path: '/admin/users',
+    name: 'Users',
+    children: [
+      { id: 81, path: '/admin/users/platform', name: 'Platform accounts' },
+      { id: 9, path: 'btn:/admin/users:create', name: 'Create' },
+    ],
+  }], ['SUPER_ADMIN']);
+  const parent = api.adminMenuState.flatMenus.find((menu) => menu.path === '/admin/users');
+  assert.ok(parent);
+  assert.deepEqual(plain(parent.children.map((child) => child.path)), ['/admin/users/platform']);
+  assert.equal(api.resolveAllowedAdminPath('/admin/users/platform'), '/admin/users/platform');
+  assert.equal(api.resolveAllowedAdminPath('/admin/users/suppliers'), '');
+  assert.deepEqual(plain(api.adminMenuState.buttonCodes), ['btn:/admin/users:create']);
 });
 
 test('supplier-only and empty-menu accounts receive no package grants', async () => {

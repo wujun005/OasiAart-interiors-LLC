@@ -5,7 +5,7 @@
         <p>{{ t('admin.sysConfig.description') }}</p>
         <h1>{{ t('admin.sysConfig.title') }}</h1>
       </div>
-      <el-button type="primary" @click="openCreate">{{ t('admin.sysConfig.create') }}</el-button>
+      <el-button v-if="canAction('btn:/admin/sys-config:create')" type="primary" @click="openCreate">{{ t('admin.sysConfig.create') }}</el-button>
     </header>
 
     <section class="toolbar">
@@ -40,8 +40,8 @@
       </el-table-column>
       <el-table-column :label="t('admin.sysConfig.actions')" width="150" fixed="right">
         <template #default="{ row }">
-          <el-button link type="primary" @click="openEdit(row)">{{ t('admin.sysConfig.edit') }}</el-button>
-          <el-button link type="danger" @click="remove(row)">{{ t('admin.sysConfig.delete') }}</el-button>
+          <el-button v-if="canAction('btn:/admin/sys-config:edit')" link type="primary" @click="openEdit(row)">{{ t('admin.sysConfig.edit') }}</el-button>
+          <el-button v-if="canAction('btn:/admin/sys-config:delete')" link type="danger" @click="remove(row)">{{ t('admin.sysConfig.delete') }}</el-button>
         </template>
       </el-table-column>
     </el-table>
@@ -68,7 +68,7 @@
       </el-form>
       <template #footer>
         <el-button @click="dialogOpen = false">{{ t('admin.sysConfig.cancel') }}</el-button>
-        <el-button type="primary" :loading="saving" @click="save">{{ t('admin.sysConfig.save') }}</el-button>
+        <el-button v-if="canAction(form.id ? 'btn:/admin/sys-config:edit' : 'btn:/admin/sys-config:create')" type="primary" :loading="saving" @click="save">{{ t('admin.sysConfig.save') }}</el-button>
       </template>
     </el-dialog>
   </div>

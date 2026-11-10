@@ -76,6 +76,12 @@ const routes: RouteRecordRaw[] = [
     meta: { requiresAuth: true },
   },
   {
+    path: '/orders/addons',
+    name: 'h5-order-addons',
+    component: () => import('../pages/order-addons.vue'),
+    meta: { requiresAuth: true },
+  },
+  {
     path: '/orders',
     name: 'h5-orders',
     component: () => import('../pages/order-list.vue'),

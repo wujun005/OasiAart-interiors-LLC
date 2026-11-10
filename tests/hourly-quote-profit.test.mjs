@@ -1,6 +1,6 @@
 import test from "node:test"
 import assert from "node:assert/strict"
-import { hourlyCompareGap, hourlyCustomerUnitPrice, hourlyMarginPercent, hourlySupplierCost, summarizeHourlyCompare } from "../src/modules/admin/utils/supplierPortal.ts"
+import { hourlyCompareGap, hourlyCustomerUnitPrice, hourlyMarginPercent, hourlySupplierCost, quantityMarginPercent, summarizeHourlyCompare, summarizeQuantityCompare } from "../src/modules/admin/utils/supplierPortal.ts"
 
 test("person-hour profit uses the rate, headcount and duration", () => {
   const input = {
@@ -121,6 +121,22 @@ test("one hour per technician is one person for one hour", () => {
   assert.equal(summary.customerMax, 162.75)
   assert.equal(summary.marginMin, -441)
   assert.equal(summary.marginMax, -441)
+})
+
+test("quantity profit compares the one unit price with the customer price", () => {
+  const shared = { quoteMode: 4, unitPrice: 800, staffCount: 2, serviceHours: 3 }
+  assert.equal(quantityMarginPercent({ ...shared, platformPriceWithTax: 1000 }), 20)
+  assert.equal(quantityMarginPercent({ ...shared, platformPriceWithTax: 700 }), -14)
+  assert.equal(quantityMarginPercent({ quoteMode: 3, unitPrice: 800, platformPriceWithTax: 1000 }), null)
+  const summary = summarizeQuantityCompare([
+    { ...shared, platformPriceWithTax: 1000 },
+    { ...shared, platformPriceWithTax: 1200 },
+    { ...shared },
+  ])
+  assert.equal(summary.customerMin, 1000)
+  assert.equal(summary.customerMax, 1200)
+  assert.equal(summary.marginMin, 20)
+  assert.equal(summary.marginMax, 33)
 })
 
 test("tv installation uses the technician remark and the one-hour spec", () => {

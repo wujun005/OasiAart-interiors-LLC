@@ -11,7 +11,7 @@
       <section class="pane">
         <div class="pane__bar">
           <el-input v-model="areaKeyword" :placeholder="t('admin.platformServiceAreas.search')" clearable @keyup.enter="loadAreas" @clear="loadAreas" />
-          <el-button type="primary" @click="openArea()">{{ t('admin.platformServiceAreas.addArea') }}</el-button>
+          <el-button v-if="canAction('btn:/admin/basic/service-areas:create')" type="primary" @click="openArea()">{{ t('admin.platformServiceAreas.addArea') }}</el-button>
         </div>
         <el-table
           :data="areas"
@@ -27,14 +27,15 @@
             <template #default="{ row }">
               <el-switch
                 :model-value="row.status === 1"
+                :disabled="!canAction('btn:/admin/basic/service-areas:status')"
                 @change="toggleAreaStatus(row, Boolean($event))"
               />
             </template>
           </el-table-column>
           <el-table-column label="" width="150" align="right">
             <template #default="{ row }">
-              <el-button link type="primary" @click.stop="openArea(row)">{{ t('admin.platformServiceAreas.edit') }}</el-button>
-              <el-button link type="danger" @click.stop="removeArea(row)">{{ t('admin.platformServiceAreas.delete') }}</el-button>
+              <el-button v-if="canAction('btn:/admin/basic/service-areas:edit')" link type="primary" @click.stop="openArea(row)">{{ t('admin.platformServiceAreas.edit') }}</el-button>
+              <el-button v-if="canAction('btn:/admin/basic/service-areas:delete')" link type="danger" @click.stop="removeArea(row)">{{ t('admin.platformServiceAreas.delete') }}</el-button>
             </template>
           </el-table-column>
         </el-table>
@@ -44,7 +45,7 @@
         <div class="pane__bar">
           <strong>{{ currentArea?.name || t('admin.platformServiceAreas.selectArea') }}</strong>
           <div>
-            <el-button type="primary" :disabled="!currentArea" @click="openCommunity()">{{ t('admin.platformServiceAreas.addCommunity') }}</el-button>
+            <el-button v-if="canAction('btn:/admin/basic/service-areas:create')" type="primary" :disabled="!currentArea" @click="openCommunity()">{{ t('admin.platformServiceAreas.addCommunity') }}</el-button>
           </div>
         </div>
         <el-table :data="communities" v-loading="communityLoading" row-key="id" height="640">
@@ -60,14 +61,15 @@
             <template #default="{ row }">
               <el-switch
                 :model-value="row.status === 1"
+                :disabled="!canAction('btn:/admin/basic/service-areas:status')"
                 @change="toggleCommunityStatus(row, Boolean($event))"
               />
             </template>
           </el-table-column>
           <el-table-column label="" width="150" align="right">
             <template #default="{ row }">
-              <el-button link type="primary" @click="openCommunity(row)">{{ t('admin.platformServiceAreas.edit') }}</el-button>
-              <el-button link type="danger" @click="removeCommunity(row)">{{ t('admin.platformServiceAreas.delete') }}</el-button>
+              <el-button v-if="canAction('btn:/admin/basic/service-areas:edit')" link type="primary" @click="openCommunity(row)">{{ t('admin.platformServiceAreas.edit') }}</el-button>
+              <el-button v-if="canAction('btn:/admin/basic/service-areas:delete')" link type="danger" @click="removeCommunity(row)">{{ t('admin.platformServiceAreas.delete') }}</el-button>
             </template>
           </el-table-column>
         </el-table>
@@ -93,7 +95,7 @@
       </el-form>
       <template #footer>
         <el-button @click="areaVisible = false">{{ t('admin.platformServiceAreas.cancel') }}</el-button>
-        <el-button type="primary" :loading="saving" @click="submitArea">{{ t('admin.platformServiceAreas.save') }}</el-button>
+        <el-button v-if="canAction('btn:/admin/basic/service-areas:create') || canAction('btn:/admin/basic/service-areas:edit')" type="primary" :loading="saving" @click="submitArea">{{ t('admin.platformServiceAreas.save') }}</el-button>
       </template>
     </el-dialog>
 
@@ -109,7 +111,7 @@
       </el-form>
       <template #footer>
         <el-button @click="communityVisible = false">{{ t('admin.platformServiceAreas.cancel') }}</el-button>
-        <el-button type="primary" :loading="saving" @click="submitCommunity">{{ t('admin.platformServiceAreas.save') }}</el-button>
+        <el-button v-if="canAction('btn:/admin/basic/service-areas:create') || canAction('btn:/admin/basic/service-areas:edit')" type="primary" :loading="saving" @click="submitCommunity">{{ t('admin.platformServiceAreas.save') }}</el-button>
       </template>
     </el-dialog>
 

@@ -408,7 +408,7 @@ export function uploadFile(file: File, onProgress?: (percent: number) => void) {
   });
 }
 
-export function supplierStaffPage(payload: { pageNum?: number; pageSize?: number; keyword?: string } = {}) {
+export function supplierStaffPage(payload: { pageNum?: number; pageSize?: number; keyword?: string; supplierId?: number } = {}) {
   return http.post('/api/supplier/staff/page', payload);
 }
 

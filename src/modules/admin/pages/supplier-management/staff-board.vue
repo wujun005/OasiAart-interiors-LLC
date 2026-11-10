@@ -7,7 +7,7 @@
       </div>
     </header>
     <div class="staff-add">
-      <button type="button" class="add-staff" @click="openEditor()">
+      <button v-if="canAction('btn:/admin/supplier-management/staff:create')" type="button" class="add-staff" @click="openEditor()">
         <span>+</span>{{ t("admin.supplierStaff.add") }}
       </button>
     </div>
@@ -86,10 +86,10 @@
 
       <div v-if="selected.length" class="selection-bar">
         <span>{{ t("admin.supplierStaff.selectedCount", { count: selected.length }) }}</span>
-        <button v-if="selectedActive.length" type="button" @click="suspendMany">
+        <button v-if="canAction('btn:/admin/supplier-management/staff:status') && selectedActive.length" type="button" @click="suspendMany">
           {{ t("admin.supplierStaff.suspendSelected") }}
         </button>
-        <button v-if="selectedSuspended.length" type="button" @click="reactivateMany">
+        <button v-if="canAction('btn:/admin/supplier-management/staff:status') && selectedSuspended.length" type="button" @click="reactivateMany">
           {{ t("admin.supplierStaff.reactivateSelected") }}
         </button>
       </div>
@@ -108,6 +108,7 @@
                   />
                 </th>
                 <th>{{ t("admin.supplierStaff.name") }}</th>
+                <th v-if="showSupplier">{{ t("admin.supplierStaff.company") }}</th>
                 <th>{{ t("admin.supplierStaff.phone") }}</th>
                 <th>{{ t("admin.supplierStaff.services") }}</th>
                 <th>{{ t("admin.supplierStaff.jobStatus") }}</th>
@@ -134,6 +135,7 @@
                     <strong>{{ row.name || "—" }}</strong>
                   </div>
                 </td>
+                <td v-if="showSupplier">{{ row.supplierName || "—" }}</td>
                 <td class="phone">{{ prettyPhone(row.phone) }}</td>
                 <td>
                   <div v-if="row.services.length" class="chips">
@@ -172,7 +174,7 @@
                       {{ t("admin.supplierStaff.viewJobs") }}
                     </button>
                     <button
-                      v-if="suspended(row)"
+                      v-if="canAction('btn:/admin/supplier-management/staff:status') && suspended(row)"
                       type="button"
                       class="reactivate"
                       @click="reactivate(row)"
@@ -185,20 +187,20 @@
                       </button>
                       <template #dropdown>
                         <el-dropdown-menu>
-                          <el-dropdown-item command="edit">{{ t("admin.supplierStaff.edit") }}</el-dropdown-item>
-                          <el-dropdown-item v-if="row.acceptJobs === false" command="available">{{
+                          <el-dropdown-item v-if="canAction('btn:/admin/supplier-management/staff:edit')" command="edit">{{ t("admin.supplierStaff.edit") }}</el-dropdown-item>
+                          <el-dropdown-item v-if="canAction('btn:/admin/supplier-management/staff:status') && row.acceptJobs === false" command="available">{{
                             t("admin.supplierStaff.markAvailable")
                           }}</el-dropdown-item>
-                          <el-dropdown-item v-else command="unavailable">{{
+                          <el-dropdown-item v-else-if="canAction('btn:/admin/supplier-management/staff:status')" command="unavailable">{{
                             t("admin.supplierStaff.markUnavailable")
                           }}</el-dropdown-item>
-                          <el-dropdown-item v-if="suspended(row)" command="reactivate">{{
+                          <el-dropdown-item v-if="canAction('btn:/admin/supplier-management/staff:status') && suspended(row)" command="reactivate">{{
                             t("admin.supplierStaff.reactivate")
                           }}</el-dropdown-item>
-                          <el-dropdown-item v-else command="suspend">{{
+                          <el-dropdown-item v-else-if="canAction('btn:/admin/supplier-management/staff:status')" command="suspend">{{
                             t("admin.supplierStaff.suspend")
                           }}</el-dropdown-item>
-                          <el-dropdown-item command="delete" divided>{{
+                          <el-dropdown-item v-if="canAction('btn:/admin/supplier-management/staff:delete')" command="delete" divided>{{
                             t("admin.supplierStaff.remove")
                           }}</el-dropdown-item>
                         </el-dropdown-menu>
@@ -222,6 +224,7 @@
                 <span class="avatar" :style="{ background: avatarColor(row.name) }">{{ initials(row.name) }}</span>
                 <span class="staff-mobile-card__identity">
                   <strong>{{ row.name || '—' }}</strong>
+                  <small v-if="row.supplierName">{{ row.supplierName }}</small>
                   <a v-if="row.phone" :href="`tel:${row.phone.replace(/[^+\d]/g, '')}`">{{ prettyPhone(row.phone) }}</a>
                 </span>
               </div>
@@ -241,16 +244,16 @@
             </div>
             <div class="staff-mobile-card__actions">
               <button type="button" class="view-jobs" :disabled="!row.adminUserId" @click="viewJobs(row)">{{ t('admin.supplierStaff.viewJobs') }}</button>
-              <button type="button" class="view-jobs" @click="openEditor(row)">{{ t('admin.supplierStaff.edit') }}</button>
+              <button v-if="canAction('btn:/admin/supplier-management/staff:edit')" type="button" class="view-jobs" @click="openEditor(row)">{{ t('admin.supplierStaff.edit') }}</button>
               <el-dropdown trigger="click" popper-class="supplier-mobile-staff-menu" @command="runCommand(String($event), row)">
                 <button type="button" class="more" :aria-label="t('admin.supplierStaff.moreActions')">···</button>
                 <template #dropdown>
                   <el-dropdown-menu>
-                    <el-dropdown-item v-if="row.acceptJobs === false" command="available">{{ t('admin.supplierStaff.markAvailable') }}</el-dropdown-item>
-                    <el-dropdown-item v-else command="unavailable">{{ t('admin.supplierStaff.markUnavailable') }}</el-dropdown-item>
-                    <el-dropdown-item v-if="suspended(row)" command="reactivate">{{ t('admin.supplierStaff.reactivate') }}</el-dropdown-item>
-                    <el-dropdown-item v-else command="suspend">{{ t('admin.supplierStaff.suspend') }}</el-dropdown-item>
-                    <el-dropdown-item command="delete" divided>{{ t('admin.supplierStaff.remove') }}</el-dropdown-item>
+                    <el-dropdown-item v-if="canAction('btn:/admin/supplier-management/staff:status') && row.acceptJobs === false" command="available">{{ t('admin.supplierStaff.markAvailable') }}</el-dropdown-item>
+                    <el-dropdown-item v-else-if="canAction('btn:/admin/supplier-management/staff:status')" command="unavailable">{{ t('admin.supplierStaff.markUnavailable') }}</el-dropdown-item>
+                    <el-dropdown-item v-if="canAction('btn:/admin/supplier-management/staff:status') && suspended(row)" command="reactivate">{{ t('admin.supplierStaff.reactivate') }}</el-dropdown-item>
+                    <el-dropdown-item v-else-if="canAction('btn:/admin/supplier-management/staff:status')" command="suspend">{{ t('admin.supplierStaff.suspend') }}</el-dropdown-item>
+                    <el-dropdown-item v-if="canAction('btn:/admin/supplier-management/staff:delete')" command="delete" divided>{{ t('admin.supplierStaff.remove') }}</el-dropdown-item>
                   </el-dropdown-menu>
                 </template>
               </el-dropdown>
@@ -359,7 +362,7 @@
       <p class="dialog-note">{{ t("admin.supplierStaff.passwordHint") }}</p>
       <template #footer>
         <el-button @click="dialogOpen = false">{{ t("admin.supplierStaff.cancel") }}</el-button>
-        <el-button type="primary" :loading="saving" @click="saveAccount">{{
+        <el-button v-if="canAction(form.id ? 'btn:/admin/supplier-management/staff:edit' : 'btn:/admin/supplier-management/staff:create')" type="primary" :loading="saving" @click="saveAccount">{{
           t("admin.supplierStaff.save")
         }}</el-button>
       </template>
@@ -410,6 +413,7 @@ type StaffRow = {
   suspended: boolean
   todayJobCount: number | null
   services: ServiceChip[]
+  supplierName: string
 }
 
 const props = withDefaults(defineProps<{ mobile?: boolean }>(), { mobile: false })
@@ -460,12 +464,13 @@ const filtered = computed(() => {
     if (accountFilter.value === "active" && suspended(row)) return false
     if (accountFilter.value === "suspended" && !suspended(row)) return false
     if (!keyword) return true
-    return [row.name, row.phone, row.email].some((value) =>
+    return [row.name, row.phone, row.email, row.supplierName].some((value) =>
       String(value || "").toLowerCase().includes(keyword),
     )
   })
 })
 const pageCount = computed(() => Math.max(1, Math.ceil(filtered.value.length / pageSize)))
+const showSupplier = computed(() => staff.value.some((row) => String(row.supplierName || "").trim()))
 const pageRows = computed(() => {
   const start = (page.value - 1) * pageSize
   return filtered.value.slice(start, start + pageSize)
@@ -537,6 +542,7 @@ const readStaff = (row: any): StaffRow => {
     todayJobCount:
       row?.todayJobCount == null || row?.todayJobCount === "" ? null : Number(row.todayJobCount),
     services: readServices(row?.services),
+    supplierName: String(row?.supplierName || ""),
   }
 }
 
@@ -1034,6 +1040,11 @@ td {
 }
 .person strong {
   font-weight: 750;
+}
+.staff-mobile-card__identity small {
+  color: #8a8175;
+  font-size: 12px;
+  line-height: 1.3;
 }
 .avatar {
   display: grid;

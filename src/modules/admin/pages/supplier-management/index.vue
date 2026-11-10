@@ -1261,6 +1261,7 @@
               >
               <el-button
                 v-if="
+                  canAction('btn:/admin/supplier-management/profile:save') &&
                   profileEditable &&
                   (profileFromAll ||
                     profileSection === profileSections.length - 1)
@@ -1495,7 +1496,7 @@
               <el-button @click="areaEditorVisible = false">{{
                 t("admin.supplierArea.cancel")
               }}</el-button>
-              <el-button type="primary" :loading="saving" @click="saveAreas">{{
+              <el-button v-if="canAction('btn:/admin/supplier-management/service-area:save')" type="primary" :loading="saving" @click="saveAreas">{{
                 t("admin.supplierArea.save")
               }}</el-button>
             </div>
@@ -1806,6 +1807,12 @@
             >
               <template #default="{ row }">
                 <div class="order-cell">
+                  <small
+                    v-if="orderKindLabel(row)"
+                    class="order-kind"
+                    :class="{ 'is-package': supplierOrderKind(row) === 'package' }"
+                    >{{ orderKindLabel(row) }}</small
+                  >
                   <strong>{{ orderServiceTitle(row) }}</strong>
                   <small v-if="packageOrderTitle(row)" class="order-package-visit">{{
                     packageOrderTitle(row)
@@ -1817,6 +1824,12 @@
                     v-if="orderSpecText(row) !== '—'"
                     class="order-clamp"
                     >{{ orderSpecText(row) }}</small
+                  >
+                  <small
+                    v-for="note in orderFulfillRemarks(row)"
+                    :key="note"
+                    class="order-fulfill-remark"
+                    >{{ t("admin.supplierOrders.fulfillRemarkLine", { remark: note }) }}</small
                   >
                   <small v-if="orderCancelled(row)" class="order-alert">{{
                     row.cancelReason
@@ -1867,17 +1880,6 @@
             </el-table-column>
             <el-table-column
               class-name="order-wrap"
-              :label="t('admin.supplierPortal.customerArea')"
-              min-width="120"
-            >
-              <template #default="{ row }">
-                <div class="order-cell">
-                  <span class="order-clamp">{{ orderCustomerArea(row) }}</span>
-                </div>
-              </template>
-            </el-table-column>
-            <el-table-column
-              class-name="order-wrap"
               :label="t('admin.supplierPortal.amount')"
               min-width="95"
               align="right"
@@ -1885,11 +1887,8 @@
               <template #default="{ row }">
                 <div class="order-cell order-cell--end">
                   <strong class="money-value portal-numeric portal-numeric--money"
-                    ><small>AED</small>{{ orderMoney(row.quotePrice) }}</strong
+                    ><small>AED</small>{{ orderMoney(supplierOrderEarning(row)) }}</strong
                   >
-                  <small v-if="row.quoteMode != null">{{
-                    orderQuoteMode(row)
-                  }}</small>
                 </div>
               </template>
             </el-table-column>
@@ -1917,42 +1916,42 @@
                     t("admin.supplierOrders.viewDetail")
                   }}</el-button>
                   <el-button
-                    v-if="canAssignStaff(row)"
+                    v-if="canAction('btn:/admin/supplier-management/orders:assign') && canAssignStaff(row)"
                     link
                     type="primary"
                     @click="openAssignStaff(row)"
                     >{{ t("admin.supplierOrders.assignStaff") }}</el-button
                   >
                   <el-button
-                    v-if="serviceStep(row) === 0 && !orderCancelled(row)"
+                    v-if="canAction('btn:/admin/supplier-management/orders:reject') && serviceStep(row) === 0 && !orderCancelled(row)"
                     link
                     type="danger"
                     @click="rejectOrder(row)"
                     >{{ t("admin.supplierOrders.rejectAction") }}</el-button
                   >
                   <el-button
-                    v-if="serviceStep(row) === 0 && !orderCancelled(row)"
+                    v-if="canAction('btn:/admin/supplier-management/orders:accept') && serviceStep(row) === 0 && !orderCancelled(row)"
                     link
                     type="primary"
                     @click="acceptOrder(row)"
                     >{{ t("admin.supplierOrders.acceptAction") }}</el-button
                   >
                   <el-button
-                    v-else-if="canOperateVisit(row) && serviceStep(row) === 4"
+                    v-else-if="canAction('btn:/admin/supplier-management/orders:progress') && canOperateVisit(row) && serviceStep(row) === 4"
                     link
                     type="primary"
                     @click="departForService(row)"
                     >{{ t("admin.supplierOrders.departAction") }}</el-button
                   >
                   <el-button
-                    v-else-if="canOperateVisit(row) && serviceStep(row) === 3"
+                    v-else-if="canAction('btn:/admin/supplier-management/orders:progress') && canOperateVisit(row) && serviceStep(row) === 3"
                     link
                     type="primary"
                     @click="openServiceAction(row, 'arrive')"
                     >{{ t("admin.supplierOrders.arriveAction") }}</el-button
                   >
                   <el-button
-                    v-else-if="canOperateVisit(row) && serviceStep(row) === 1"
+                    v-else-if="canAction('btn:/admin/supplier-management/orders:progress') && canOperateVisit(row) && serviceStep(row) === 1"
                     link
                     type="primary"
                     @click="openServiceAction(row, 'complete')"
@@ -1985,10 +1984,21 @@
                 workbenchStatusText(row)
               }}</el-tag>
             </header>
+            <small
+              v-if="orderKindLabel(row)"
+              class="order-kind"
+              :class="{ 'is-package': supplierOrderKind(row) === 'package' }"
+              >{{ orderKindLabel(row) }}</small
+            >
             <h3>{{ orderServiceTitle(row) }}</h3>
             <p v-if="packageOrderTitle(row)" class="order-package-visit">{{ packageOrderTitle(row) }}</p>
             <p v-if="packageVisitText(row)" class="order-package-visit">{{ packageVisitText(row) }}</p>
             <p v-if="orderSpecText(row) !== '—'">{{ orderSpecText(row) }}</p>
+            <p
+              v-for="note in orderFulfillRemarks(row)"
+              :key="note"
+              class="order-fulfill-remark"
+            >{{ t("admin.supplierOrders.fulfillRemarkLine", { remark: note }) }}</p>
             <p v-if="orderCancelled(row)" class="order-alert">
               {{
                 row.cancelReason
@@ -2008,11 +2018,7 @@
               </div>
               <div>
                 <dt>{{ t("admin.supplierOrders.price") }}</dt>
-                <dd class="portal-numeric portal-numeric--money">AED {{ orderMoney(row.quotePrice) }}</dd>
-              </div>
-              <div class="is-wide">
-                <dt>{{ t("admin.supplierPortal.customerArea") }}</dt>
-                <dd>{{ orderCustomerArea(row) }}</dd>
+                <dd class="portal-numeric portal-numeric--money">AED {{ orderMoney(supplierOrderEarning(row)) }}</dd>
               </div>
               <div
                 v-if="!individualSupplier && (assignedStaffText(row) || canAssignStaff(row))"
@@ -2030,36 +2036,36 @@
                 t("admin.supplierOrders.viewDetail")
               }}</el-button>
               <el-button
-                v-if="canAssignStaff(row)"
+                v-if="canAction('btn:/admin/supplier-management/orders:assign') && canAssignStaff(row)"
                 type="primary"
                 @click="openAssignStaff(row)"
                 >{{ t("admin.supplierOrders.assignStaff") }}</el-button
               >
               <el-button
-                v-if="serviceStep(row) === 0 && !orderCancelled(row)"
+                v-if="canAction('btn:/admin/supplier-management/orders:reject') && serviceStep(row) === 0 && !orderCancelled(row)"
                 @click="rejectOrder(row)"
                 >{{ t("admin.supplierOrders.rejectAction") }}</el-button
               >
               <el-button
-                v-if="serviceStep(row) === 0 && !orderCancelled(row)"
+                v-if="canAction('btn:/admin/supplier-management/orders:accept') && serviceStep(row) === 0 && !orderCancelled(row)"
                 type="primary"
                 @click="acceptOrder(row)"
                 >{{ t("admin.supplierOrders.acceptAction") }}</el-button
               >
               <el-button
-                v-else-if="canOperateVisit(row) && serviceStep(row) === 4"
+                v-else-if="canAction('btn:/admin/supplier-management/orders:progress') && canOperateVisit(row) && serviceStep(row) === 4"
                 type="primary"
                 @click="departForService(row)"
                 >{{ t("admin.supplierOrders.departAction") }}</el-button
               >
               <el-button
-                v-else-if="canOperateVisit(row) && serviceStep(row) === 3"
+                v-else-if="canAction('btn:/admin/supplier-management/orders:progress') && canOperateVisit(row) && serviceStep(row) === 3"
                 type="primary"
                 @click="openServiceAction(row, 'arrive')"
                 >{{ t("admin.supplierOrders.arriveAction") }}</el-button
               >
               <el-button
-                v-else-if="canOperateVisit(row) && serviceStep(row) === 1"
+                v-else-if="canAction('btn:/admin/supplier-management/orders:progress') && canOperateVisit(row) && serviceStep(row) === 1"
                 type="primary"
                 @click="openServiceAction(row, 'complete')"
                 >{{ t("admin.supplierOrders.completeAction") }}</el-button
@@ -2393,11 +2399,21 @@
                         @click="removeSavedService(row)"
                         >{{ t("admin.supplierPricing.removeAction") }}</el-button
                       >
+                      <el-button
+                        v-else
+                        class="portal-service-remove"
+                        text
+                        type="danger"
+                        :loading="removingPackageId === Number(row.packageId)"
+                        :disabled="packageSaving && removingPackageId !== Number(row.packageId)"
+                        @click="removeSavedPackage(row)"
+                        >{{ t("admin.supplierPricing.removeAction") }}</el-button
+                      >
                     </div>
                     <p v-if="row.rejectReason" class="portal-service-reason">
                       {{
                         t("admin.supplierPricing.rejectReason", {
-                          reason: row.rejectReason,
+                          reason: supplierRejectCopy(row.rejectReason),
                         })
                       }}
                     </p>
@@ -2572,7 +2588,7 @@
               <p v-if="quoteDialog.rejectReason">
                 {{
                   t("admin.supplierPricing.rejectReason", {
-                    reason: quoteDialog.rejectReason,
+                    reason: supplierRejectCopy(quoteDialog.rejectReason),
                   })
                 }}
               </p>
@@ -2588,19 +2604,13 @@
           <div class="pricing-editor-layout">
             <div class="pricing-editor-main">
               <section
-                v-if="hourlyQuote"
+                v-if="hourlyQuote && !addonOnlyQuote"
                 class="pricing-editor-section"
               >
                 <header class="pricing-section-head">
                   <div>
                     <h2>{{ quoteModeLabel(quoteDialog.quoteMode) }}</h2>
-                    <p>{{
-                      t(
-                        quoteDialog.quoteMode === 3
-                          ? "admin.supplierPortal.staffHourRule"
-                          : "admin.supplierPortal.hourlyRule",
-                      )
-                    }}</p>
+                    <p>{{ t(hourlyRuleKey) }}</p>
                   </div>
                 </header>
                 <div class="rate-card">
@@ -2626,13 +2636,10 @@
                     </span>
                   </label>
                 </div>
-                <p class="portal-vat-note">
-                  {{ t("admin.supplierPortal.vatNote") }}
-                </p>
               </section>
 
               <section
-                v-if="!hourlyQuote"
+                v-if="!hourlyQuote && !addonOnlyQuote"
                 class="pricing-editor-section"
               >
                 <header class="pricing-section-head">
@@ -2747,7 +2754,7 @@
                           </strong>
                           <small v-if="row.rejectReason" class="line-reject">{{
                             t("admin.supplierPricing.lineRejected", {
-                              reason: row.rejectReason,
+                              reason: supplierRejectCopy(row.rejectReason),
                             })
                           }}</small>
                           <small v-if="row.available === false">{{
@@ -2770,6 +2777,9 @@
                             }}</span>
                             <span :class="{ 'is-rejected': linePriceFacts(row).view === 'rejected' }">{{ linePriceStateLabel(linePriceFacts(row).view) }}</span>
                           </small>
+                          <small v-if="row.supplierFulfillRemark" class="quote-fulfill-remark">{{
+                            t("admin.supplierOrders.fulfillRemarkLine", { remark: row.supplierFulfillRemark })
+                          }}</small>
                         </div>
                       </div>
                       <label
@@ -2801,7 +2811,7 @@
               >
                 <header class="pricing-section-head">
                   <div>
-                    <h2>{{ t("admin.supplierPricing.addonStep") }}</h2>
+                    <h2>{{ quoteAddonTitle }}</h2>
                     <p>{{ t("admin.supplierPricing.addonStepHint") }}</p>
                   </div>
                   <em class="portal-numeric"
@@ -2839,17 +2849,14 @@
                           / {{ attachUnit(item) }}</template
                         >
                       </el-checkbox>
-                      <small class="portal-numeric portal-numeric--money"
-                        >{{ attachDisplay(item, "type") }} ·
-                        {{
-                          t("admin.supplierPricing.activeRate", {
-                            price: moneyText(item.approvedPrice),
-                          })
-                        }}</small
-                      >
+                      <small class="portal-numeric portal-numeric--money">{{
+                        t("admin.supplierPricing.activeRate", {
+                          price: moneyText(item.approvedPrice),
+                        })
+                      }}</small>
                       <small v-if="item.rejectReason" class="line-reject">{{
                         t("admin.supplierPricing.lineRejected", {
-                          reason: item.rejectReason,
+                          reason: supplierRejectCopy(item.rejectReason),
                         })
                       }}</small>
                       <small
@@ -2870,6 +2877,84 @@
                   </article>
                 </div>
               </section>
+
+              <div v-if="hourlyQuote && !addonOnlyQuote" class="option-prices">
+                    <div class="option-prices__head">
+                      <strong>{{ t("admin.supplierPricing.optionPriceTitle") }}</strong>
+                      <p>{{ t(optionPriceHintKey) }}</p>
+                    </div>
+                    <div class="option-prices__stats">
+                      <span>{{ t("admin.supplierPricing.optionPriceCount", { count: optionPrices.length }) }}</span>
+                      <span v-if="optionPriceRange.low != null">{{
+                        t("admin.supplierPricing.optionPriceLow", { price: moneyText(optionPriceRange.low) })
+                      }}</span>
+                      <span v-if="optionPriceRange.high != null">{{
+                        t("admin.supplierPricing.optionPriceHigh", { price: moneyText(optionPriceRange.high) })
+                      }}</span>
+                    </div>
+                    <div class="option-prices__filters">
+                      <input
+                        v-model="optionPriceQuery"
+                        type="search"
+                        :placeholder="t('admin.supplierPricing.optionPriceSearch')"
+                        :aria-label="t('admin.supplierPricing.optionPriceSearch')"
+                      />
+                      <select
+                        v-model="optionPriceGroup"
+                        :aria-label="t('admin.supplierPricing.optionPriceAllGroups')"
+                      >
+                        <option value="">{{ t("admin.supplierPricing.optionPriceAllGroups") }}</option>
+                        <option
+                          v-for="group in optionPriceGroups"
+                          :key="group.key"
+                          :value="group.key"
+                        >
+                          {{ group.title }}
+                        </option>
+                      </select>
+                    </div>
+                    <div class="option-prices__table-wrap">
+                      <table>
+                        <thead>
+                          <tr>
+                            <th>{{ t("admin.supplierPricing.optionPriceColOption") }}</th>
+                            <th>{{ t("admin.supplierPricing.optionPriceColNote") }}</th>
+                            <th>{{ t("admin.supplierPricing.optionPriceColCalc") }}</th>
+                            <th>{{ t("admin.supplierPricing.optionPriceColExcl") }}</th>
+                            <th>{{ t("admin.supplierPricing.optionPriceColPrice") }}</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          <tr v-if="!visibleOptionPrices.length">
+                            <td colspan="5" class="is-empty">{{ t("admin.supplierPricing.optionPriceEmpty") }}</td>
+                          </tr>
+                          <template v-for="group in visibleOptionPriceGroups" :key="group.key">
+                            <tr v-if="group.title" class="is-group">
+                              <td colspan="5">
+                                <b>{{ group.title }}</b>
+                                <em>{{ t("admin.supplierPricing.optionPriceGroupCount", { count: group.rows.length }) }}</em>
+                              </td>
+                            </tr>
+                            <tr v-for="row in group.rows" :key="row.id">
+                              <td class="is-option">
+                                <b>{{ row.title }}</b>
+                                <small v-if="row.detail">{{ row.detail }}</small>
+                              </td>
+                              <td class="is-note">
+                                <span v-for="pill in row.pills" :key="pill">{{ pill }}</span>
+                              </td>
+                              <td class="is-calc">{{ row.calculation }}</td>
+                              <td class="is-money">{{ row.excl == null ? "—" : `AED ${moneyText(row.excl)}` }}</td>
+                              <td class="is-price">{{ row.price == null ? "—" : `AED ${moneyText(row.price)}` }}</td>
+                            </tr>
+                          </template>
+                        </tbody>
+                      </table>
+                    </div>
+                <p class="portal-vat-note">
+                  {{ t("admin.supplierPortal.vatNote") }}
+                </p>
+              </div>
             </div>
 
             <aside class="pricing-review-panel">
@@ -2911,7 +2996,7 @@
                   <dt>{{ t("admin.supplierPricing.quoteMode") }}</dt>
                   <dd>{{ quoteModeLabel(quoteDialog.quoteMode) }}</dd>
                 </div>
-                <div v-if="!hourlyQuote">
+                <div v-if="!hourlyQuote && !addonOnlyQuote">
                   <dt>{{ t("admin.supplierPortal.enabledOptions") }}</dt>
                   <dd class="portal-numeric">
                     {{ enabledQuoteRows.length }} /
@@ -2926,7 +3011,7 @@
                     {{ quoteMissingCount }}
                   </dd>
                 </div>
-                <div v-if="quoteDialog.quoteMode === 1">
+                <div v-if="quoteDialog.quoteMode === 1 && !addonOnlyQuote">
                   <dt>{{ t("admin.supplierPortal.completedPrices") }}</dt>
                   <dd class="portal-numeric">
                     {{
@@ -2938,7 +3023,7 @@
                   </dd>
                 </div>
                 <div>
-                  <dt>{{ t("admin.supplierPricing.addons") }}</dt>
+                  <dt>{{ quoteAddonTitle }}</dt>
                   <dd class="portal-numeric">{{ selectedAttachCount }}</dd>
                 </div>
               </dl>
@@ -2976,7 +3061,7 @@
               <span>{{ quoteStatusLabel(quoteEffectiveStatus) }}</span>
               <small v-if="quoteDialog.rejectReason">{{
                 t("admin.supplierPricing.rejectReason", {
-                  reason: quoteDialog.rejectReason,
+                  reason: supplierRejectCopy(quoteDialog.rejectReason),
                 })
               }}</small>
               <small v-else>
@@ -2993,19 +3078,20 @@
             </div>
             <div>
               <el-button
+                v-if="canAction(packageMode ? 'btn:/admin/supplier-management/package-pricing:save' : 'btn:/admin/supplier-management/pricing:save')"
                 :loading="quoteDialog.saving"
                 :disabled="quoteUnderReview || quotePriceLocked"
                 @click="saveServiceQuote"
                 >{{ t("admin.supplierPricing.saveDraft") }}</el-button
               >
               <el-button
-                v-if="canRequestPriceChange"
+                v-if="canAction(packageMode ? 'btn:/admin/supplier-management/package-pricing:save' : 'btn:/admin/supplier-management/pricing:save') && canRequestPriceChange"
                 type="primary"
                 @click="openPriceChange"
                 >{{ t("admin.supplierPricing.priceChangeApply") }}</el-button
               >
               <el-button
-                v-else
+                v-else-if="canAction(packageMode ? 'btn:/admin/supplier-management/package-pricing:save' : 'btn:/admin/supplier-management/pricing:save')"
                 type="primary"
                 :disabled="quoteUnderReview || quotePriceLocked"
                 @click="reviewServiceQuote"
@@ -3041,19 +3127,25 @@
               <dt>{{ t("admin.supplierPricing.quoteMode") }}</dt>
               <dd>{{ quoteModeLabel(quoteDialog.quoteMode ?? undefined) }}</dd>
             </div>
-            <template v-if="hourlyQuote">
+            <template v-if="hourlyQuote && !addonOnlyQuote">
               <div v-for="rate in activeHourlyRateFields" :key="rate.key">
                 <dt>{{ t(rate.label) }}</dt>
                 <dd class="portal-numeric portal-numeric--money">AED {{ moneyText(quoteDialog[rate.key]) }}</dd>
               </div>
+              <div v-if="optionPrices.length" class="quantity-sku-notes">
+                <dt>{{ t("admin.supplierPricing.optionPriceTitle") }}</dt>
+                <dd>
+                  <span v-for="row in optionPrices" :key="row.id">{{ optionPriceLine(row) }}</span>
+                </dd>
+              </div>
             </template>
-            <div v-else>
+            <div v-else-if="!addonOnlyQuote">
               <dt>{{ t("admin.supplierPortal.enabledOptions") }}</dt>
               <dd class="portal-numeric">{{ enabledQuoteRows.length }} / {{ quoteDialog.rows.length }}</dd>
             </div>
           </dl>
           <div
-            v-if="!hourlyQuote && reviewQuoteGroups.length"
+            v-if="!hourlyQuote && !addonOnlyQuote && reviewQuoteGroups.length"
             class="quote-review-dialog__groups"
           >
             <section v-for="group in reviewQuoteGroups" :key="group.key">
@@ -3075,12 +3167,15 @@
                   :class="`is-${quoteLineBadge(row).tone}`"
                 >{{ quoteLineBadge(row).label }}</span>
                 <strong class="portal-numeric portal-numeric--money">AED {{ moneyText(row.quotePrice) }}</strong>
+                <small v-if="row.supplierFulfillRemark" class="quote-fulfill-remark">{{
+                  t("admin.supplierOrders.fulfillRemarkLine", { remark: row.supplierFulfillRemark })
+                }}</small>
               </div>
             </section>
           </div>
           <div class="quote-review-dialog__addons">
             <h3>
-              {{ t("admin.supplierPricing.addons") }}
+              {{ quoteAddonTitle }}
               <small class="portal-numeric">{{ selectedAttachCount }}</small>
             </h3>
             <div
@@ -3095,7 +3190,7 @@
               >
               <strong class="portal-numeric portal-numeric--money">AED {{ moneyText(item.quotePrice) }}</strong>
               <small v-if="item.rejectReason">{{
-                t("admin.supplierPricing.lineRejected", { reason: item.rejectReason })
+                t("admin.supplierPricing.lineRejected", { reason: supplierRejectCopy(item.rejectReason) })
               }}</small>
             </div>
             <p v-if="!selectedAttachCount">
@@ -3208,13 +3303,19 @@
                     {{ quoteModeLabel(quoteDialog.quoteMode ?? undefined) }}
                   </dd>
                 </div>
-                <template v-if="hourlyQuote">
+                <template v-if="hourlyQuote && !addonOnlyQuote">
                   <div v-for="rate in activeHourlyRateFields" :key="rate.key">
                     <dt>{{ t(rate.label) }}</dt>
                     <dd class="portal-numeric portal-numeric--money">AED {{ moneyText(quoteDialog[rate.key]) }}</dd>
                   </div>
+                  <div v-if="optionPrices.length" class="quantity-sku-notes">
+                    <dt>{{ t("admin.supplierPricing.optionPriceTitle") }}</dt>
+                    <dd>
+                      <span v-for="row in optionPrices" :key="row.id">{{ optionPriceLine(row) }}</span>
+                    </dd>
+                  </div>
                 </template>
-                <div v-if="!hourlyQuote">
+                <div v-if="!hourlyQuote && !addonOnlyQuote">
                   <dt>{{ t("admin.supplierPortal.enabledOptions") }}</dt>
                   <dd class="portal-numeric">
                     {{ enabledQuoteRows.length }} /
@@ -3224,7 +3325,7 @@
               </dl>
             </section>
             <section
-              v-if="!hourlyQuote"
+              v-if="!hourlyQuote && !addonOnlyQuote"
               class="portal-review-card"
             >
               <h2>{{ t("admin.supplierPortal.optionsPrices") }}</h2>
@@ -3272,6 +3373,9 @@
                         :class="`is-${quoteLineBadge(row).tone}`"
                       >{{ quoteLineBadge(row).label }}</span>
                     </h3>
+                    <p v-if="row.supplierFulfillRemark" class="quote-fulfill-remark">{{
+                      t("admin.supplierOrders.fulfillRemarkLine", { remark: row.supplierFulfillRemark })
+                    }}</p>
                     <dl>
                       <div v-if="row.quotePrice != null && row.quotePrice !== ''">
                         <dt>{{ t("admin.supplierPortal.customerPrice") }}</dt>
@@ -3318,7 +3422,7 @@
             </section>
             <section class="portal-review-card">
               <h2>
-                {{ t("admin.supplierPricing.addons") }}
+                {{ quoteAddonTitle }}
                 <small class="portal-numeric">{{ selectedAttachCount }}</small>
               </h2>
               <div
@@ -3335,7 +3439,7 @@
                   ></span
                 ><strong class="portal-numeric portal-numeric--money">AED {{ moneyText(item.quotePrice) }}</strong>
                 <small v-if="item.rejectReason">{{
-                  t("admin.supplierPricing.lineRejected", { reason: item.rejectReason })
+                  t("admin.supplierPricing.lineRejected", { reason: supplierRejectCopy(item.rejectReason) })
                 }}</small>
               </div>
               <p v-if="!selectedAttachCount" class="portal-review-note">
@@ -3359,7 +3463,7 @@
                   >
                 </dd>
               </div>
-              <div v-if="!hourlyQuote">
+              <div v-if="!hourlyQuote && !addonOnlyQuote">
                 <dt>{{ t("admin.supplierPortal.enabledOptions") }}</dt>
                 <dd class="portal-numeric">{{ enabledQuoteRows.length }}</dd>
               </div>
@@ -3368,7 +3472,7 @@
                 <dd class="portal-numeric">{{ quoteMissingCount }}</dd>
               </div>
               <div>
-                <dt>{{ t("admin.supplierPricing.addons") }}</dt>
+                <dt>{{ quoteAddonTitle }}</dt>
                 <dd class="portal-numeric">{{ selectedAttachCount }}</dd>
               </div>
             </dl>
@@ -3472,46 +3576,6 @@
                 t("admin.supplierPricing.added")
               }}</em>
             </div>
-            <div v-if="draftOf(service)" class="picker-row__fields">
-              <p class="picker-hint">
-                {{ t(individualSupplier ? "admin.supplierPricing.contactOptionalPersonal" : "admin.supplierPricing.contactOptional") }}
-              </p>
-              <label v-if="!individualSupplier">
-                <span>{{ t("admin.supplierPricing.headcount") }}</span>
-                <el-input-number
-                  v-model="draftOf(service)!.workerCount"
-                  :min="1"
-                  :precision="0"
-                  controls-position="right"
-                />
-              </label>
-              <div class="phone-stack">
-                <span>{{ t("admin.supplierPricing.phone") }}</span>
-                <div
-                  v-for="(_phone, index) in draftOf(service)!.phones"
-                  :key="`${pickKey(service)}-${index}`"
-                  class="phone-row"
-                >
-                  <el-input
-                    v-model="draftOf(service)!.phones[index]"
-                    maxlength="24"
-                    placeholder="+971501234567"
-                  />
-                  <el-button
-                    v-if="draftOf(service)!.phones.length > 1"
-                    @click="removePhone(draftOf(service)!, index)"
-                    >{{ t("admin.supplierPricing.delete") }}</el-button
-                  >
-                </div>
-                <el-button
-                  v-if="draftOf(service)!.phones.length < 10"
-                  link
-                  type="primary"
-                  @click="addPhone(draftOf(service)!)"
-                  >{{ t("admin.supplierPricing.addPhone") }}</el-button
-                >
-              </div>
-            </div>
           </div>
         </div>
         <template #footer>
@@ -3587,7 +3651,7 @@
         </div>
         <template #footer>
           <el-button @click="packagePicker.open = false">{{ t("admin.supplierPricing.cancel") }}</el-button>
-          <el-button type="primary" :loading="packageSaving" @click="savePackageSelection">{{ t("admin.supplierPortal.saveSelection") }}</el-button>
+          <el-button v-if="canAction('btn:/admin/supplier-management/package-pricing:save')" type="primary" :loading="packageSaving" @click="savePackageSelection">{{ t("admin.supplierPortal.saveSelection") }}</el-button>
         </template>
       </el-dialog>
 
@@ -3909,7 +3973,7 @@
         <template v-if="selectedOrder">
           <header class="order-lead">
             <div class="order-lead__topline">
-              <span>{{ t("admin.supplierOrders.assignedOrder") }}</span>
+              <span>{{ orderKindLabel(selectedOrder) || t("admin.supplierOrders.assignedOrder") }}</span>
               <el-tag
                 :type="serviceStatusTag(selectedOrder.serviceStatus)"
                 effect="light"
@@ -3947,14 +4011,10 @@
               </div>
               <div>
                 <Money /><span
-                  ><small>{{ t("admin.supplierOrders.quoteTotal") }}</small
+                  ><small>{{ t("admin.supplierOrders.price") }}</small
                   ><strong class="portal-numeric portal-numeric--money"
                     >AED
-                    {{
-                      orderMoney(
-                        selectedOrder.quoteAmount ?? selectedOrder.quotePrice,
-                      )
-                    }}</strong
+                    {{ orderMoney(supplierOrderEarning(selectedOrder)) }}</strong
                   ></span
                 >
               </div>
@@ -3967,13 +4027,74 @@
                 {{ t("admin.supplierOrders.serviceBlock") }}
               </h3>
               <div class="order-facts">
-                <div class="is-wide">
+                <div v-if="orderGroups(selectedOrder).length" class="is-wide">
+                  <span>{{ t("admin.supplierOrders.orderItems") }}</span>
+                  <div class="order-groups">
+                    <section
+                      v-for="(group, index) in orderGroups(selectedOrder)"
+                      :key="group.key"
+                      class="order-group"
+                      :class="{ 'order-group--addon': group.source === 'ADDON' }"
+                    >
+                      <header>
+                        <i>{{ index + 1 }}</i>
+                        <strong>{{ groupTitle(group) }}</strong>
+                        <small v-if="group.addonPaymentId">{{
+                          t("admin.supplierOrders.addonPayment", { id: group.addonPaymentId })
+                        }}</small>
+                      </header>
+                      <div v-if="group.skus.length" class="order-lines">
+                        <article v-for="sku in group.skus" :key="sku.id">
+                          <div>
+                            <strong>{{ orderServiceTitle(sku) }}</strong>
+                            <small v-if="orderSpecText(sku) !== '—'">{{ orderSpecText(sku) }}</small>
+                            <small v-if="sku.supplierFulfillRemark" class="order-fulfill-remark">{{
+                              t("admin.supplierOrders.fulfillRemarkLine", { remark: sku.supplierFulfillRemark })
+                            }}</small>
+                          </div>
+                          <dl>
+                            <div v-if="sku.quantity != null">
+                              <dt>{{ t("admin.supplierOrders.quantity") }}</dt>
+                              <dd class="portal-numeric">{{ sku.quantity }}</dd>
+                            </div>
+                            <div v-if="supplierLineEarning(sku) != null">
+                              <dt>{{ t("admin.supplierOrders.price") }}</dt>
+                              <dd class="portal-numeric portal-numeric--money">AED {{ orderMoney(supplierLineEarning(sku)) }}</dd>
+                            </div>
+                          </dl>
+                        </article>
+                      </div>
+                      <ul v-if="group.attaches.length" class="order-attaches">
+                        <li v-for="item in group.attaches" :key="item.id">
+                          <p>
+                            <strong>{{ attachLabel(item) }}</strong>
+                            <em>{{ attachQuantity(item) }}</em>
+                          </p>
+                          <dl>
+                            <div v-if="supplierAttachEarning(item) != null">
+                              <dt>{{ t("admin.supplierOrders.price") }}</dt>
+                              <dd>AED {{ orderMoney(supplierAttachEarning(item)) }}</dd>
+                            </div>
+                          </dl>
+                        </li>
+                      </ul>
+                    </section>
+                  </div>
+                </div>
+                <div v-else class="is-wide">
                   <span>{{ t("admin.supplierOrders.specs") }}</span
                   ><strong>{{ orderSpecText(selectedOrder) }}</strong>
                 </div>
-                <div class="is-wide">
-                  <span>{{ t("admin.supplierOrders.addons") }}</span
-                  ><strong>{{ orderAddonText(selectedOrder) }}</strong>
+                <div
+                  v-if="!orderGroups(selectedOrder).length && orderFulfillRemarks(selectedOrder).length"
+                  class="is-wide"
+                >
+                  <span>{{ t("admin.supplierOrders.fulfillRemark") }}</span>
+                  <strong>{{ orderFulfillRemarks(selectedOrder).join(String(locale).startsWith("en") ? "; " : "；") }}</strong>
+                </div>
+                <div v-if="!orderGroups(selectedOrder).length" class="is-wide">
+                  <span>{{ t("admin.supplierOrders.addons") }}</span>
+                  <strong>{{ orderAddonText(selectedOrder) }}</strong>
                 </div>
                 <div class="is-wide">
                   <span>{{ t("admin.supplierOrders.serviceTime") }}</span
@@ -3986,13 +4107,13 @@
                     t("admin.supplierOrders.assignedStaffEmpty")
                   }}</strong>
                 </div>
-                <div>
-                  <span>{{ t("admin.supplierOrders.staffCount") }}</span
-                  ><strong class="portal-numeric">{{ selectedOrder.staffCount ?? "—" }}</strong>
+                <div v-if="materialHourStaffCount(selectedOrder) != null">
+                  <span>{{ t("admin.supplierOrders.serviceStaffCount") }}</span
+                  ><strong class="portal-numeric">{{ materialHourStaffCount(selectedOrder) }}</strong>
                 </div>
-                <div>
-                  <span>{{ t("admin.supplierOrders.serviceHours") }}</span
-                  ><strong class="portal-numeric">{{ orderHours(selectedOrder.serviceHours) }}</strong>
+                <div v-if="materialHourServiceHours(selectedOrder) != null">
+                  <span>{{ t("admin.supplierOrders.serviceDuration") }}</span
+                  ><strong class="portal-numeric">{{ orderHours(materialHourServiceHours(selectedOrder)) }}</strong>
                 </div>
               </div>
             </section>
@@ -4024,18 +4145,10 @@
               <h3>{{ t("admin.supplierOrders.quoteBlock") }}</h3>
               <div class="order-quote">
                 <div>
-                  <span>{{ t("admin.supplierOrders.taxPrice") }}</span>
+                  <span>{{ t("admin.supplierOrders.price") }}</span>
                   <strong class="portal-numeric portal-numeric--money"
                     ><small>AED</small
-                    >{{ orderMoney(selectedOrder.quotePrice) }}</strong
-                  >
-                  <small>{{ orderQuoteMode(selectedOrder) }}</small>
-                </div>
-                <div>
-                  <span>{{ t("admin.supplierOrders.quoteTotal") }}</span>
-                  <strong class="portal-numeric portal-numeric--money"
-                    ><small>AED</small
-                    >{{ orderMoney(selectedOrder.quoteAmount) }}</strong
+                    >{{ orderMoney(supplierOrderEarning(selectedOrder)) }}</strong
                   >
                 </div>
               </div>
@@ -4064,40 +4177,6 @@
                   <span>{{ t("admin.supplierOrders.customerTail") }}</span>
                   <strong class="portal-numeric">{{ selectedOrder.customerPhoneTail }}</strong>
                 </div>
-              </div>
-            </section>
-
-            <section
-              v-if="(selectedOrder.lines || []).length > 1"
-              class="order-panel order-panel--wide"
-            >
-              <h3>
-                {{ t("admin.supplierOrders.serviceName") }}
-              </h3>
-              <div class="order-lines">
-                <article
-                  v-for="(line, index) in selectedOrder.lines"
-                  :key="line.skuId || index"
-                >
-                  <div>
-                    <strong>{{ orderServiceTitle(line) }}</strong
-                    ><small>{{ orderSpecText(line) }}</small>
-                  </div>
-                  <dl>
-                    <div>
-                      <dt>{{ t("admin.supplierOrders.staffCount") }}</dt>
-                      <dd class="portal-numeric">{{ line.staffCount ?? "—" }}</dd>
-                    </div>
-                    <div>
-                      <dt>{{ t("admin.supplierOrders.serviceHours") }}</dt>
-                      <dd class="portal-numeric">{{ orderHours(line.serviceHours) }}</dd>
-                    </div>
-                    <div>
-                      <dt>{{ t("admin.supplierOrders.price") }}</dt>
-                      <dd class="portal-numeric portal-numeric--money">AED {{ orderMoney(line.quotePrice) }}</dd>
-                    </div>
-                  </dl>
-                </article>
               </div>
             </section>
 
@@ -4185,13 +4264,14 @@
             ><strong>{{ serviceStatusText(selectedOrder) }}</strong>
           </div>
           <el-button
-            v-if="canAssignStaff(selectedOrder)"
+            v-if="canAction('btn:/admin/supplier-management/orders:assign') && canAssignStaff(selectedOrder)"
             type="primary"
             @click="openAssignStaff(selectedOrder)"
             >{{ t("admin.supplierOrders.assignStaff") }}</el-button
           >
           <el-button
             v-if="
+              canAction('btn:/admin/supplier-management/orders:reject') &&
               serviceStep(selectedOrder) === 0 && !orderCancelled(selectedOrder)
             "
             @click="rejectOrder(selectedOrder)"
@@ -4199,6 +4279,7 @@
           >
           <el-button
             v-if="
+              canAction('btn:/admin/supplier-management/orders:accept') &&
               serviceStep(selectedOrder) === 0 && !orderCancelled(selectedOrder)
             "
             type="primary"
@@ -4207,6 +4288,7 @@
           >
           <el-button
             v-else-if="
+              canAction('btn:/admin/supplier-management/orders:progress') &&
               canOperateVisit(selectedOrder) &&
               serviceStep(selectedOrder) === 4
             "
@@ -4216,6 +4298,7 @@
           >
           <el-button
             v-else-if="
+              canAction('btn:/admin/supplier-management/orders:progress') &&
               canOperateVisit(selectedOrder) &&
               serviceStep(selectedOrder) === 3
             "
@@ -4225,6 +4308,7 @@
           >
           <el-button
             v-else-if="
+              canAction('btn:/admin/supplier-management/orders:progress') &&
               canOperateVisit(selectedOrder) &&
               serviceStep(selectedOrder) === 1
             "
@@ -4276,6 +4360,7 @@
           t("admin.orders.actions.cancel")
         }}</el-button>
         <el-button
+          v-if="canAction('btn:/admin/supplier-management/orders:assign')"
           type="primary"
           :loading="assignStaffDialog.saving"
           :disabled="assignStaffDialog.loading"
@@ -4430,6 +4515,15 @@ import { supplierShelfNoticeUnread } from "@/modules/admin/utils/supplierShelfNo
 import {
   packageVisitProgress,
   supplierMineCounts,
+  supplierAttachEarning,
+  supplierLineEarning,
+  supplierOrderEarning,
+  supplierOrderGroups,
+  supplierOrderKind,
+  supplierFulfillRemarks,
+  supplierSpecSummary,
+  materialHourServiceHours,
+  materialHourStaffCount,
 } from "@/modules/admin/utils/supplier-mine"
 import { listBySpu, listSpuAttachCatalog } from "@/modules/admin/api/spu"
 import SupplierAvailability from "@/modules/admin/pages/supplier-management/availability.vue"
@@ -5837,6 +5931,8 @@ const quoteCategory = ref(
 const quoteStatusFilter = ref("all")
 const quoteScreen = ref<"setup" | "review" | "submitted">("setup")
 const quoteConfirmed = ref(false)
+const optionPriceQuery = ref("")
+const optionPriceGroup = ref("")
 const liveQuotes = ref<any[]>([])
 const packageCatalog = ref<any[]>([])
 const packageFlat = ref<any[]>([])
@@ -5844,6 +5940,7 @@ const packageNotices = ref<any[]>([])
 const packageNoticeUnread = ref(false)
 const packageNoticeAcking = ref(false)
 const packageSaving = ref(false)
+const removingPackageId = ref<number | null>(null)
 const packagePicker = reactive({
   open: false,
   categoryId: "" as number | "",
@@ -5868,7 +5965,7 @@ const quoteDialog = reactive({
   priceChangeStatus: null as number | null,
   priceChangeReason: "",
   priceChangeRejectReason: "",
-  quoteMode: null as 1 | 2 | 3 | null,
+  quoteMode: null as 1 | 2 | 3 | 4 | null,
   modeReset: false,
   unitPrice: null as number | null,
   unitPriceWithMaterial: null as number | null,
@@ -5879,6 +5976,8 @@ const quoteDialog = reactive({
     fallback: string
   }[],
   rows: [] as any[],
+  attachModuleTitle: "",
+  onlyAddonPrice: false,
   attaches: [] as Array<{
     attachValueId: number
     typeName: string
@@ -5896,6 +5995,19 @@ const quoteDialog = reactive({
 const selectedAttachCount = computed(
   () => quoteDialog.attaches.filter((item) => item.offered).length,
 )
+const quoteAddonTitle = computed(() => {
+  const title = quoteDialog.attachModuleTitle.trim()
+  return title || t("admin.supplierPricing.addonStep")
+})
+const addonOnlyQuote = computed(() => quoteDialog.onlyAddonPrice === true)
+const zeroAddonSpecPrices = () => {
+  if (!addonOnlyQuote.value) return
+  for (const row of quoteDialog.rows) {
+    if (row.available === false) continue
+    row.quotePrice = 0
+    row.enabled = true
+  }
+}
 const quoteHasRejectedLines = computed(() =>
   quoteDialog.rows.some(
     (row) =>
@@ -6083,9 +6195,25 @@ const hourlyRateFields = [
 const staffHourRateFields = [
   { key: 'unitPrice', label: 'admin.supplierPricing.rateLabel' },
 ] as const
-const hourlyQuote = computed(() => quoteDialog.quoteMode === 2 || quoteDialog.quoteMode === 3)
+const quantityRateFields = [
+  { key: 'unitPrice', label: 'admin.supplierPricing.quantityRateLabel' },
+] as const
+const unitQuoteMode = (mode?: number | null) => mode === 2 || mode === 3 || mode === 4
+const singleRateMode = (mode?: number | null) => mode === 3 || mode === 4
+const hourlyQuote = computed(() => unitQuoteMode(quoteDialog.quoteMode))
+const hourlyRuleKey = computed(() =>
+  quoteDialog.quoteMode === 4
+    ? 'admin.supplierPortal.quantityRule'
+    : quoteDialog.quoteMode === 3
+      ? 'admin.supplierPortal.staffHourRule'
+      : 'admin.supplierPortal.hourlyRule',
+)
 const activeHourlyRateFields = computed(() =>
-  quoteDialog.quoteMode === 3 ? staffHourRateFields : hourlyRateFields,
+  quoteDialog.quoteMode === 4
+    ? quantityRateFields
+    : quoteDialog.quoteMode === 3
+      ? staffHourRateFields
+      : hourlyRateFields,
 )
 const hourlyRateProblem = (allowMissing = false) => {
   for (const rate of activeHourlyRateFields.value) {
@@ -6126,7 +6254,7 @@ const quoteGaps = computed(() => {
       label: "",
       targetId: "",
     })
-  if (hourlyQuote.value) {
+  if (!addonOnlyQuote.value && hourlyQuote.value) {
     for (const rate of activeHourlyRateFields.value) {
       if (positiveAmount(quoteDialog[rate.key])) continue
       gaps.push({
@@ -6138,7 +6266,7 @@ const quoteGaps = computed(() => {
       })
     }
   }
-  if (!hourlyQuote.value) {
+  if (!addonOnlyQuote.value && !hourlyQuote.value) {
     for (const row of enabledQuoteRows.value) {
       if (
         !optionMissingFields(
@@ -6171,6 +6299,14 @@ const quoteGaps = computed(() => {
 })
 const quoteMissingCount = computed(() => quoteGaps.value.length)
 const quoteProgress = computed(() => {
+  if (addonOnlyQuote.value) {
+    const offered = quoteDialog.attaches.filter((item) => item.offered)
+    const rows = offered.length ? offered : quoteDialog.attaches
+    return {
+      done: rows.filter((item) => positiveAmount(item.quotePrice)).length,
+      total: rows.length,
+    }
+  }
   if (hourlyQuote.value) {
     const fields = activeHourlyRateFields.value
     return {
@@ -7138,6 +7274,32 @@ const serviceRowGroups = computed(() => {
   }
   return [...groups.values()]
 })
+const AUTO_REJECT_REASON = "Your price is too high. Please submit a lower quote."
+const isAutoRejectReason = (reason: unknown) =>
+  String(reason ?? "").trim() === AUTO_REJECT_REASON
+const supplierRejectCopy = (reason: unknown) =>
+  String(reason ?? "")
+    .split("；")
+    .map((part) => {
+      const text = part.trim()
+      if (!text) return ""
+      return isAutoRejectReason(text) ? t("admin.supplierPricing.autoRejected") : text
+    })
+    .filter(Boolean)
+    .join("；")
+const quoteWasAutoRejected = (quote: {
+  rejectReason?: unknown
+  skus?: { rejectReason?: unknown }[]
+  attaches?: { rejectReason?: unknown }[]
+} | null | undefined) => {
+  if (!quote) return false
+  if (isAutoRejectReason(quote.rejectReason)) return true
+  const lines = [
+    ...(Array.isArray(quote.skus) ? quote.skus : []),
+    ...(Array.isArray(quote.attaches) ? quote.attaches : []),
+  ]
+  return lines.some((item) => isAutoRejectReason(item?.rejectReason))
+}
 const quoteRejectText = (
   quote:
     | {
@@ -7262,6 +7424,43 @@ const addPackageOffer = async (packageId: number) => {
   if (!supplierRecordId.value || packageSaving.value || !packageId) return
   await persistPackageSelection([...new Set([...currentPackageIds(), packageId])], false)
 }
+const removeSavedPackage = async (row: {
+  packageId?: number
+  packageName?: string
+  packageNameI18n?: unknown
+}) => {
+  const packageId = Number(row.packageId)
+  if (!supplierRecordId.value || !packageId || packageSaving.value || removingPackageId.value != null) return
+  const name = serviceTitle(row.packageName || "", row.packageNameI18n) || String(packageId)
+  try {
+    await ElMessageBox.confirm(
+      t("admin.supplierPortal.removePackageNamedConfirm", { name }),
+      t("admin.supplierPortal.removePackageTitle"),
+      {
+        type: "warning",
+        confirmButtonText: t("admin.supplierPricing.removeAction"),
+      },
+    )
+  } catch {
+    return
+  }
+  removingPackageId.value = packageId
+  packageSaving.value = true
+  try {
+    await saveSupplierPackages({
+      supplierId: supplierRecordId.value,
+      packages: packageSelectionPayload(currentPackageIds().filter((id) => id !== packageId)),
+    })
+    if (quoteDialog.visible && Number(quoteDialog.packageId) === packageId) closeServiceQuote()
+    ElMessage.success(t("admin.supplierPortal.packageRemoved"))
+    await loadPackageWorkspace()
+  } catch (error: any) {
+    ElMessage.error(error?.message || t("admin.supplierPortal.loadFailed"))
+  } finally {
+    removingPackageId.value = null
+    packageSaving.value = false
+  }
+}
 const persistPackageSelection = async (ids: number[], closePicker: boolean) => {
   packageSaving.value = true
   try {
@@ -7293,9 +7492,9 @@ const acknowledgePackageNotice = async () => {
 }
 const listedPhones = (phones: string[]) =>
   (phones || []).map((phone) => phone.trim()).filter(Boolean)
-const quoteModeCode = (value: unknown): 1 | 2 | 3 | null => {
+const quoteModeCode = (value: unknown): 1 | 2 | 3 | 4 | null => {
   const code = Number(value)
-  return code === 1 || code === 2 || code === 3 ? code : null
+  return code === 1 || code === 2 || code === 3 || code === 4 ? code : null
 }
 const quoteModeLabel = (mode?: number | null) =>
   mode === 1
@@ -7304,13 +7503,15 @@ const quoteModeLabel = (mode?: number | null) =>
       ? t("admin.supplierPricing.hourlyRate")
       : mode === 3
         ? t("admin.supplierPricing.staffHourRate")
-        : t("admin.supplierPricing.modeUnset")
+        : mode === 4
+          ? t("admin.supplierPricing.quantityRate")
+          : t("admin.supplierPricing.modeUnset")
 const assignedQuoteMode = (source?: {
   quoteMode?: unknown
   configuredQuoteMode?: unknown
   status?: unknown
   priceEditable?: unknown
-} | null): 1 | 2 | 3 => {
+} | null): 1 | 2 | 3 | 4 => {
   const savedMode = quoteModeCode(source?.quoteMode)
   const configuredMode = quoteModeCode(source?.configuredQuoteMode)
   if (Number(source?.status) === 1 && savedMode) return savedMode
@@ -7328,7 +7529,7 @@ const quoteNeedsNewMode = (source?: {
   if (Number(source?.status) === 1) return false
   if (savedMode != null && configuredMode != null && savedMode !== configuredMode) return true
   const mode = configuredMode ?? savedMode
-  if (mode !== 3) return false
+  if (!singleRateMode(mode)) return false
   const rate = Number(source?.unitPrice)
   if (Number.isFinite(rate) && rate > 0) return false
   return (source?.skus || []).some((sku) => Number(sku?.quotePrice) > 0)
@@ -8162,6 +8363,285 @@ const localizedName = (i18n: unknown, plain?: unknown) => {
   const fallback = plain == null ? "" : String(plain).trim()
   return fallback || "—"
 }
+const internalSpecCode = (value: string) =>
+  /^[A-Za-z][A-Za-z0-9]*$/.test(value) && /[a-z]/.test(value) && /[A-Z]/.test(value.slice(1))
+/** Customer prompts such as "What do you need help with?" are not spec labels. */
+const questionSpecLabel = (value: string) => /[?？]\s*$/.test(value)
+const visibleSpecType = (value: string) =>
+  value && value !== "—" && !internalSpecCode(value) && !questionSpecLabel(value) ? value : ""
+const quantitySkuText = (row: any) => {
+  const english = String(locale.value).toLowerCase().startsWith("en")
+  const joiner = english ? "; " : "；"
+  const lines = Array.isArray(row?.specLines) ? row.specLines : []
+  const fromLines = lines
+    .map((spec: any) => {
+      const typeName = localizedName(spec?.specTypeNameI18n, spec?.specTypeName)
+      const valueName = localizedName(spec?.specValueNameI18n, spec?.specValueName)
+      const type = visibleSpecType(typeName)
+      const value = valueName !== "—" ? valueName : ""
+      if (!type && !value) return ""
+      return type && value ? `${type}: ${value}` : value || type
+    })
+    .filter(Boolean)
+  const fromColumns = quoteDialog.columns
+    .map((column) => {
+      const value = specText(row?.specs?.[column.key])
+      if (!value || value === "—") return ""
+      const typeName = column.nameI18n ? specText(column.nameI18n) : column.fallback
+      const type = visibleSpecType(String(typeName || ""))
+      return type ? `${type}: ${value}` : value
+    })
+    .filter(Boolean)
+  const method = localizedName(row?.pricingMethodI18n, row?.pricingMethod)
+  const text = fromLines.length
+    ? fromLines.join(joiner)
+    : fromColumns.length
+      ? fromColumns.join(joiner)
+      : method !== "—"
+        ? method
+        : ""
+  return text
+}
+const quoteFulfillRemark = (row: { supplierFulfillRemark?: unknown } | null | undefined) =>
+  String(row?.supplierFulfillRemark ?? "").trim().slice(0, 512)
+const quantitySkuNotes = computed(() => {
+  const mode = quoteModeCode(quoteDialog.quoteMode)
+  if (mode == null || mode === 1) return []
+  const joiner = String(locale.value).toLowerCase().startsWith("en") ? "; " : "；"
+  return quoteDialog.rows
+    .filter((row) => row.available !== false)
+    .map((row) => {
+      const spec = quantitySkuText(row)
+      const remark = quoteFulfillRemark(row)
+      const note = remark ? t("admin.supplierOrders.fulfillRemarkLine", { remark }) : ""
+      return { id: row.skuId, text: spec && note ? `${spec}${joiner}${note}` : spec || note }
+    })
+    .filter((note) => note.text)
+})
+const optionPriceHintKey = computed(() =>
+  quoteDialog.quoteMode === 4
+    ? "admin.supplierPricing.optionPriceHintQuantity"
+    : quoteDialog.quoteMode === 2
+      ? "admin.supplierPricing.optionPriceHintMaterial"
+      : "admin.supplierPricing.optionPriceHintStaff",
+)
+const optionCountText = (value: number) => {
+  const rounded = Math.round(value * 100) / 100
+  return String(rounded)
+}
+const exclVat = (price: number) =>
+  Math.round((price / 1.05 + Number.EPSILON) * 100) / 100
+const workloadSpec = (type: string, value: string) =>
+  /time\s*of\s*technicians?|技术人员|技师时间/i.test(type) ||
+  /(\d+(?:\.\d+)?)\s*(?:hours?|hrs?|小时)\s*\/\s*/i.test(value)
+const materialRateSide = (text: string) => {
+  if (/without\s*materials?|不带材料|不含材料|无材料/i.test(text)) return "without"
+  if (/with\s*materials?|带材料|含材料|有材料/i.test(text)) return "with"
+  return ""
+}
+const STAFF_COUNT =
+  /(\d+(?:\.\d+)?)\s*(?:cleaners?|techs?|technicians?|workers?|persons?|people|staff|技术员|技术人员|技师|清洁工|保洁员|保洁|人)/i
+const HOUR_COUNT = /(\d+(?:\.\d+)?)\s*(?:hours?|hrs?|小时)/i
+const specTexts = (value: unknown): string[] => {
+  if (value == null || value === "") return []
+  if (typeof value === "string" || typeof value === "number") {
+    const text = String(value).trim()
+    return text ? [text] : []
+  }
+  if (typeof value !== "object") return []
+  return Object.values(value as Record<string, unknown>).flatMap((item) =>
+    typeof item === "string" || typeof item === "number" ? specTexts(item) : [],
+  )
+}
+const uniqueTexts = (values: string[]) => [...new Set(values.filter(Boolean))]
+const optionSpecValues = (row: any) => {
+  const lines = Array.isArray(row?.specLines) ? row.specLines : []
+  const current: string[] = []
+  const every: string[] = []
+  for (const spec of lines) {
+    const localized = localizedName(spec?.specValueNameI18n, spec?.specValueName)
+    if (localized && localized !== "—") current.push(localized)
+    every.push(...specTexts(spec?.specValueName), ...specTexts(spec?.specValueNameI18n))
+  }
+  if (!lines.length && row?.specs && typeof row.specs === "object") {
+    for (const value of Object.values(row.specs as Record<string, unknown>)) {
+      const localized = specText(value)
+      if (localized && localized !== "—") current.push(localized)
+      every.push(...specTexts(value))
+    }
+  }
+  if (row?.groupValue) {
+    current.push(String(row.groupValue))
+    every.push(String(row.groupValue))
+  }
+  return { current: uniqueTexts(current), every: uniqueTexts(every) }
+}
+const firstCount = (texts: string[], pattern: RegExp) => {
+  for (const text of texts) {
+    const match = text.match(pattern)
+    if (match) return Number(match[1])
+  }
+  return 0
+}
+const materialSideOf = (texts: string[]) => {
+  for (const text of texts) {
+    const side = materialRateSide(text)
+    if (side) return side
+  }
+  return ""
+}
+const hourTechWorkload = (text: string) => {
+  const combo = text.match(
+    /(\d+(?:\.\d+)?)\s*(?:hours?|hrs?|小时)\s*\/\s*(?:(\d+(?:\.\d+)?)\s*)?(?:cleaners?|techs?|technicians?|技术员|技术)/i,
+  )
+  if (!combo) return null
+  return {
+    hours: Number(combo[1]),
+    staff: combo[2] ? Number(combo[2]) : 1,
+  }
+}
+const optionWorkload = (row: { staffCount?: unknown; serviceHours?: unknown }, text: string) => {
+  const savedStaff = blankPositive(row?.staffCount)
+  const savedHours = blankPositive(row?.serviceHours)
+  if (savedStaff && savedHours) return { staff: savedStaff, hours: savedHours }
+  const parsed = hourTechWorkload(text)
+  if (parsed) return parsed
+  const { current, every } = optionSpecValues(row)
+  const staff =
+    savedStaff ||
+    firstCount(current, STAFF_COUNT) ||
+    firstCount(every, STAFF_COUNT) ||
+    firstCount([text], STAFF_COUNT) ||
+    0
+  const hours =
+    savedHours ||
+    firstCount(current, HOUR_COUNT) ||
+    firstCount(every, HOUR_COUNT) ||
+    firstCount([text], HOUR_COUNT) ||
+    0
+  if (quoteDialog.quoteMode === 3) return { staff: staff || 1, hours: hours || 1 }
+  return { staff, hours }
+}
+const optionRate = (row: any, text: string) => {
+  if (quoteDialog.quoteMode === 3 || quoteDialog.quoteMode === 4) {
+    return blankPositive(quoteDialog.unitPrice)
+  }
+  const { current, every } = optionSpecValues(row)
+  const side = materialSideOf(current) || materialSideOf(every) || materialRateSide(text)
+  if (side === "with") return blankPositive(quoteDialog.unitPriceWithMaterial)
+  if (side === "without") return blankPositive(quoteDialog.unitPriceWithoutMaterial)
+  const withRate = blankPositive(quoteDialog.unitPriceWithMaterial)
+  const withoutRate = blankPositive(quoteDialog.unitPriceWithoutMaterial)
+  if (withRate != null && withoutRate != null && withRate === withoutRate) return withRate
+  return null
+}
+const optionSpecParts = (row: any) => {
+  const lines = Array.isArray(row?.specLines) ? row.specLines : []
+  return lines.flatMap((spec: any) => {
+    const typeName = localizedName(spec?.specTypeNameI18n, spec?.specTypeName)
+    const valueName = localizedName(spec?.specValueNameI18n, spec?.specValueName)
+    const type = visibleSpecType(typeName)
+    const value = valueName !== "—" ? valueName : ""
+    if (!value || workloadSpec(type, value)) return []
+    if (row?.groupValue && value === row.groupValue) return []
+    return [{ type, value }]
+  })
+}
+const optionPrices = computed(() => {
+  if (!hourlyQuote.value) return []
+  return quantitySkuNotes.value.map((note) => {
+    const row = quoteDialog.rows.find((item) => item.skuId === note.id) || {}
+    const parts = optionSpecParts(row)
+    const rate = optionRate(row, note.text)
+    const quantityMode = quoteDialog.quoteMode === 4
+    const load = quantityMode ? { staff: 0, hours: 0 } : optionWorkload(row, note.text)
+    const priced = !quantityMode && rate != null && load.staff > 0 && load.hours > 0
+    const price = quantityMode ? rate : priced ? Math.round((rate * load.staff * load.hours + Number.EPSILON) * 100) / 100 : null
+    const staff = optionCountText(load.staff)
+    const hours = optionCountText(load.hours)
+    const driver =
+      load.staff > 0 && load.hours > 0
+        ? t("admin.supplierPricing.optionPriceDriver", { staff, hours })
+        : ""
+    return {
+      id: note.id,
+      groupId: String(row.groupId || "all"),
+      groupTitle: String(row.groupValue || ""),
+      title: parts[0]?.value || String(row.lineLabel || note.text),
+      detail: parts.slice(1).map((part: { value: string }) => part.value).join(" / "),
+      types: parts.map((part: { type: string }) => part.type).filter(Boolean).join(" · "),
+      text: note.text,
+      note: driver,
+      pills: driver
+        ? [
+            t("admin.supplierPricing.optionPriceTech", { count: staff }),
+            t("admin.supplierPricing.optionPriceHour", { count: hours }),
+          ]
+        : [],
+      calculation:
+        price == null
+          ? ""
+          : quantityMode
+            ? moneyText(rate)
+            : t("admin.supplierPricing.optionPriceCalc", {
+                rate: moneyText(rate),
+                staff,
+                hours,
+              }),
+      excl: price == null ? null : exclVat(price),
+      price,
+    }
+  })
+})
+const optionPriceRange = computed(() => {
+  const prices = optionPrices.value
+    .map((row) => row.price)
+    .filter((price): price is number => price != null)
+  if (!prices.length) return { low: null, high: null }
+  return { low: Math.min(...prices), high: Math.max(...prices) }
+})
+const optionPriceGroups = computed(() => {
+  const groups: Array<{ key: string; title: string }> = []
+  for (const row of optionPrices.value) {
+    if (!row.groupTitle || groups.some((group) => group.key === row.groupId)) continue
+    groups.push({ key: row.groupId, title: row.groupTitle })
+  }
+  return groups
+})
+const visibleOptionPrices = computed(() => {
+  const query = optionPriceQuery.value.trim().toLowerCase()
+  return optionPrices.value.filter((row) => {
+    if (optionPriceGroup.value && row.groupId !== optionPriceGroup.value) return false
+    if (!query) return true
+    return [row.title, row.detail, row.types, row.groupTitle, row.text, row.note]
+      .join(" ")
+      .toLowerCase()
+      .includes(query)
+  })
+})
+const visibleOptionPriceGroups = computed(() => {
+  const groups: Array<{ key: string; title: string; rows: typeof visibleOptionPrices.value }> = []
+  for (const row of visibleOptionPrices.value) {
+    let group = groups.find((item) => item.key === row.groupId)
+    if (!group) {
+      group = { key: row.groupId, title: row.groupTitle, rows: [] }
+      groups.push(group)
+    }
+    group.rows.push(row)
+  }
+  return groups
+})
+const optionPriceLine = (row: {
+  title?: string
+  detail?: string
+  text: string
+  note: string
+  price: number | null
+}) => {
+  const short = [row.title, row.detail].filter(Boolean).join(" / ")
+  const label = short || (row.note ? `${row.text} (${row.note})` : row.text)
+  return row.price == null ? label : `${label} · AED ${moneyText(row.price)}`
+}
 const quoteDialogTitle = computed(() =>
   localizedName(quoteDialog.nameI18n, quoteDialog.name),
 )
@@ -8199,6 +8679,12 @@ const orderCategoryOptions = computed(() => {
     }
   })
 })
+const orderKindLabel = (row: any) => {
+  const kind = supplierOrderKind(row)
+  if (kind === "package") return t("admin.supplierOrders.orderTypePackage")
+  if (kind === "normal") return t("admin.supplierOrders.orderTypeNormal")
+  return ""
+}
 const packageOrderTitle = (row: any) => {
   if (row?.packageOrder !== true && Number(row?.orderType) !== 2) return ""
   const localized = specText(row?.packageNameI18n)
@@ -8223,21 +8709,33 @@ const orderServiceTitle = (row: any) => {
     .filter((name: string) => name && name !== "—")
   return names.length ? names.join("、") : "—"
 }
-const orderSpecText = (row: any) => {
-  const specs = Array.isArray(row?.specs) ? row.specs : []
-  const text = specs
-    .map((spec: any) => {
-      const typeName = specText(spec?.typeNameI18n)
-      const valueName = specText(spec?.valueNameI18n)
-      const typeLabel = typeName !== "—" ? typeName : spec?.typeName
-      const valueLabel = valueName !== "—" ? valueName : spec?.valueName
-      return [typeLabel, valueLabel]
-        .filter((part) => part && part !== "—")
-        .join(": ")
-    })
-    .filter(Boolean)
-  if (text.length) return text.join("; ")
-  return row?.specDescription || "—"
+const orderFulfillRemarks = (row: any) => supplierFulfillRemarks(row)
+const orderSpecText = (row: any) =>
+  supplierSpecSummary(row, (i18n, plain) => {
+    const localized = specText(i18n)
+    return localized !== "—" ? localized : plain
+  }) || "—"
+const orderGroups = (row: any) => supplierOrderGroups(row)
+const groupTitle = (group: { source?: string; sourceI18n?: unknown }) =>
+  attachSource({
+    source: group.source,
+    sourceI18n: group.sourceI18n,
+    addedAfterPay: group.source === "ADDON",
+  })
+const attachLabel = (item: { name?: unknown; nameI18n?: unknown }) => {
+  const localized = specText(item?.nameI18n)
+  return localized !== "—" ? localized : String(item?.name || "").trim() || "—"
+}
+const attachQuantity = (item: { quantity?: number; unit?: string; unitI18n?: unknown }) => {
+  const unit = attachUnit(item)
+  return unit ? `× ${item.quantity || 1} ${unit}` : `× ${item.quantity || 1}`
+}
+const attachSource = (item: { source?: unknown; sourceI18n?: unknown; addedAfterPay?: boolean }) => {
+  const localized = specText(item?.sourceI18n)
+  if (localized !== "—") return localized
+  if (item?.source === "ADDON" || item?.addedAfterPay) return t("admin.supplierOrders.sourceAddon")
+  if (item?.source === "INITIAL") return t("admin.supplierOrders.initialOrder")
+  return ""
 }
 const orderAddonText = (row: any) => {
   const attaches = Array.isArray(row?.attaches) ? row.attaches : []
@@ -8263,21 +8761,6 @@ const orderAddonText = (row: any) => {
       .join(", ") || t("admin.supplierOrders.noAddons")
   )
 }
-const orderCustomerArea = (row: any) => {
-  const area =
-    pickI18nText(
-      row?.customerAreaI18n || row?.areaNameI18n,
-      locale.value,
-      "",
-    ) ||
-    [row?.customerArea, row?.areaName, row?.serviceAreaName].find(
-      (value) => typeof value === "string" && value.trim(),
-    )
-  const community =
-    pickI18nText(row?.communityNameI18n, locale.value, "") ||
-    (typeof row?.communityName === "string" ? row.communityName.trim() : "")
-  return [...new Set([area, community].filter(Boolean))].join(" · ") || "—"
-}
 const orderStartTime = (value?: string) => {
   const text = String(value || "").trim()
   const matched = text.match(/^(\d{1,2}:\d{2})\s*[-~–—～]\s*\d{1,2}:\d{2}$/)
@@ -8295,13 +8778,6 @@ const orderPhones = (row: any) =>
       (phone: unknown) => String(phone || ""),
     ),
   )
-const orderQuoteMode = (row: any) => {
-  const localized = specText(row?.quoteModeI18n)
-  if (localized !== "—") return localized
-  return quoteModeLabel(
-    row?.quoteMode == null ? undefined : Number(row.quoteMode),
-  )
-}
 const orderHours = (value: unknown) => {
   if (value == null || value === "") return "—"
   const hours = Number(value)
@@ -9814,15 +10290,19 @@ const skuEnabled = (value: unknown, available = true) =>
   available !== false && (value == null || value === "" || Number(value) === 1)
 const quoteItems = () =>
   quoteDialog.rows.filter((row) => row.available !== false).map((row) => {
-    const hourly = quoteDialog.quoteMode === 2 || quoteDialog.quoteMode === 3
-    const enabled = hourly
+    const hourly = unitQuoteMode(quoteDialog.quoteMode)
+    const enabled = addonOnlyQuote.value
       ? row.available !== false
-      : skuEnabled(row.enabled, row.available !== false)
-    const quotePrice = hourly && quoteDialog.quoteMode === 3
-      ? null
-      : row.quotePrice == null || row.quotePrice === ""
+      : hourly
+        ? row.available !== false
+        : skuEnabled(row.enabled, row.available !== false)
+    const quotePrice = addonOnlyQuote.value
+      ? 0
+      : singleRateMode(quoteDialog.quoteMode)
         ? null
-        : Number(row.quotePrice)
+        : row.quotePrice == null || row.quotePrice === ""
+          ? null
+          : Number(row.quotePrice)
     return {
       skuId: row.skuId,
       staffCount: blankPositive(row.staffCount) ?? 0,
@@ -9833,9 +10313,9 @@ const quoteItems = () =>
   })
 
 const draftProblem = () => {
-  if (hourlyQuote.value && hourlyRateProblem(true)) return hourlyRateProblem(true)
+  if (!addonOnlyQuote.value && hourlyQuote.value && hourlyRateProblem(true)) return hourlyRateProblem(true)
   for (const item of quoteItems()) {
-    if (item.enabled !== 1 || quoteDialog.quoteMode !== 1) continue
+    if (addonOnlyQuote.value || item.enabled !== 1 || quoteDialog.quoteMode !== 1) continue
     if (item.quotePrice != null && !(item.quotePrice > 0))
       return t("admin.supplierPricing.pricePositive")
   }
@@ -9966,9 +10446,9 @@ const toggleAttach = (
 }
 
 const submitProblem = () => {
-  if (quoteDialog.quoteMode !== 1 && quoteDialog.quoteMode !== 2 && quoteDialog.quoteMode !== 3)
+  if (!quoteModeCode(quoteDialog.quoteMode))
     return t("admin.supplierPricing.modeRequired")
-  if (hourlyQuote.value && hourlyRateProblem()) return hourlyRateProblem()
+  if (!addonOnlyQuote.value && hourlyQuote.value && hourlyRateProblem()) return hourlyRateProblem()
   if (
     quoteDialog.attaches.some(
       (item) => item.offered && !addonPriceOk(item.quotePrice),
@@ -9981,6 +10461,7 @@ const submitProblem = () => {
     return t("admin.supplierPricing.noSellable")
   if (!items.length) return t("admin.supplierPricing.skuSwitchRequired")
   const incomplete =
+    !addonOnlyQuote.value &&
     quoteDialog.quoteMode === 1 &&
     items.some((item) => !(Number(item.quotePrice) > 0))
   if (incomplete) return t("admin.supplierPricing.submitIncomplete")
@@ -9994,13 +10475,13 @@ const quotePayload = () => {
     items: quoteItems(),
   }
   if (packageMode.value) payload.packageId = quoteDialog.packageId
-  if (quoteDialog.quoteMode === 1 || quoteDialog.quoteMode === 2 || quoteDialog.quoteMode === 3)
+  if (quoteModeCode(quoteDialog.quoteMode))
     payload.quoteMode = quoteDialog.quoteMode
-  if (quoteDialog.quoteMode === 2) {
+  if (!addonOnlyQuote.value && quoteDialog.quoteMode === 2) {
     payload.unitPriceWithMaterial = quoteDialog.unitPriceWithMaterial == null ? null : Number(quoteDialog.unitPriceWithMaterial)
     payload.unitPriceWithoutMaterial = quoteDialog.unitPriceWithoutMaterial == null ? null : Number(quoteDialog.unitPriceWithoutMaterial)
   }
-  if (quoteDialog.quoteMode === 3) {
+  if (!addonOnlyQuote.value && singleRateMode(quoteDialog.quoteMode)) {
     payload.unitPrice = quoteDialog.unitPrice == null ? null : Number(quoteDialog.unitPrice)
   }
   payload.attaches = quoteDialog.attaches
@@ -10058,7 +10539,10 @@ const applySavedQuote = (saved: any) => {
       next,
     )
     if (next.approvedPrice != null) row.approvedPrice = next.approvedPrice
+    if (next.supplierFulfillRemark != null) row.supplierFulfillRemark = quoteFulfillRemark(next)
   })
+  if (saved.onlyAddonPrice != null) quoteDialog.onlyAddonPrice = saved.onlyAddonPrice === true
+  zeroAddonSpecPrices()
   if (Array.isArray(saved.attaches)) {
     const previous = new Map(
       quoteDialog.attaches.map((item) => [Number(item.attachValueId), item]),
@@ -10098,6 +10582,8 @@ const openServiceQuote = async (row: {
   quoteDialog.visible = true
   quoteDialog.packageId = Number((row as { packageId?: number }).packageId) || 0
   quoteConfirmed.value = false
+  optionPriceQuery.value = ""
+  optionPriceGroup.value = ""
   quoteScreen.value =
     router.currentRoute.value.query.quoteStep === "review" ? "review" : "setup"
   quoteDialog.loading = true
@@ -10135,6 +10621,8 @@ const openServiceQuote = async (row: {
   quoteDialog.unitPriceWithoutMaterial = blankPositive(row.unitPriceWithoutMaterial)
   quoteDialog.columns = []
   quoteDialog.rows = []
+  quoteDialog.attachModuleTitle = ""
+  quoteDialog.onlyAddonPrice = false
   quoteDialog.attaches = []
   try {
     const detail = unwrap(await listBySpu(row.spuId)) || {}
@@ -10147,6 +10635,8 @@ const openServiceQuote = async (row: {
       : liveQuotes.value.find(
           (item) => Number(item.spuId) === Number(row.spuId),
         )
+    quoteDialog.attachModuleTitle = String(quote?.attachModuleTitle || "").trim()
+    quoteDialog.onlyAddonPrice = quote?.onlyAddonPrice === true
     const quoted = new Map(
       (quote?.skus || []).map((sku: any) => [Number(sku.skuId), sku]),
     )
@@ -10215,6 +10705,17 @@ const openServiceQuote = async (row: {
       return {
         skuId: sku.skuId ?? saved.skuId,
         skuCode: sku.skuCode || saved.skuCode || "",
+        specLines:
+          Array.isArray(sku?.specs) && sku.specs.length
+            ? sku.specs
+            : Array.isArray(saved?.specs)
+              ? saved.specs
+              : [],
+        pricingMethod: sku?.pricingMethod || saved?.pricingMethod || "",
+        pricingMethodI18n: sku?.pricingMethodI18n || saved?.pricingMethodI18n || null,
+        supplierFulfillRemark: quoteFulfillRemark({
+          supplierFulfillRemark: sku?.supplierFulfillRemark || saved?.supplierFulfillRemark,
+        }),
         specs: {
           ...Object.fromEntries(
             quoteDialog.columns.map((column) => [column.key, sku[column.key]]),
@@ -10318,6 +10819,7 @@ const openServiceQuote = async (row: {
       }
     }
     quoteDialog.rows = quoteDialog.rows.filter((row) => row.available !== false)
+    zeroAddonSpecPrices()
     if (quote) {
       quoteDialog.status = quote.status
       quoteDialog.rejectReason = quoteRejectText(quote)
@@ -10465,19 +10967,27 @@ const submitServiceQuote = async () => {
       }),
     )
     applySavedQuote(submitted)
+    const autoRejected = quoteWasAutoRejected(submitted)
     quoteDialog.status = submitted?.status ?? 1
-    quoteDialog.rejectReason = ""
-    quoteDialog.rows.forEach((row) => {
-      row.rejectReason = ""
-      row.reviewStatus = undefined
-    })
+    if (!autoRejected) {
+      quoteDialog.rejectReason = ""
+      quoteDialog.rows.forEach((row) => {
+        row.rejectReason = ""
+        row.reviewStatus = undefined
+      })
+    }
     quoteDialog.submittedAt = String(
       submitted?.submitTime ||
         submitted?.submittedAt ||
         new Date().toISOString(),
     )
-    ElMessage.success(t("admin.supplierPricing.submitted"))
-    quoteScreen.value = "submitted"
+    if (autoRejected) {
+      ElMessage.warning(t("admin.supplierPricing.autoRejected"))
+      quoteScreen.value = "setup"
+    } else {
+      ElMessage.success(t("admin.supplierPricing.submitted"))
+      quoteScreen.value = "submitted"
+    }
     syncQuoteRoute()
     if (packageMode.value) await loadPackageWorkspace()
     else await loadQuotes(true)
@@ -12777,15 +13287,6 @@ watch(areaKeyword, (keyword) => {
   font-size: 11px;
   font-style: normal;
 }
-.picker-row__fields {
-  display: grid;
-  grid-template-columns: 160px minmax(0, 1fr);
-  gap: 12px;
-  margin: 10px 0 2px 28px;
-}
-.picker-row__fields :deep(.el-input-number) {
-  width: 100%;
-}
 .phone-stack {
   min-width: 0;
 }
@@ -12845,7 +13346,14 @@ watch(areaKeyword, (keyword) => {
   height: 32px;
 }
 .quote-line.is-off {
-  opacity: 0.55;
+  background: #f7f8f9;
+}
+.quote-line.is-off .quote-line__spec,
+.quote-line.is-off .quote-line__price {
+  opacity: 0.72;
+}
+.quote-line.is-off:has(.el-checkbox__input.is-disabled) .quote-line__switch {
+  opacity: 0.5;
 }
 .quote-line.is-quote-target,
 .rate-card.is-quote-target,
@@ -14725,6 +15233,127 @@ watch(areaKeyword, (keyword) => {
   color: #74685a;
   font-size: 11px;
 }
+.order-groups {
+  position: relative;
+  display: grid;
+  gap: 16px;
+  padding-left: 28px;
+}
+.order-groups::before {
+  content: "";
+  position: absolute;
+  top: 18px;
+  bottom: 18px;
+  left: 10px;
+  width: 2px;
+  background: #ead7bf;
+}
+.order-group {
+  position: relative;
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid #efe7dc;
+  border-radius: 14px;
+  background: #fff;
+}
+.order-group--addon {
+  border-color: #ead7bf;
+  background: #fffaf3;
+}
+.order-group header {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  align-items: baseline;
+}
+.order-group header i {
+  position: absolute;
+  top: 14px;
+  left: -28px;
+  display: grid;
+  width: 22px;
+  height: 22px;
+  place-items: center;
+  border-radius: 50%;
+  background: #24384c;
+  color: #fff;
+  font-size: 11px;
+  font-style: normal;
+  font-weight: 750;
+}
+.order-group--addon header i {
+  background: #8a5a12;
+}
+.order-lines code,
+.staff-order-group code {
+  display: inline-block;
+  width: fit-content;
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: #24384c;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 750;
+}
+.order-group header strong {
+  color: #24384c;
+  font-size: 14px;
+}
+.order-group header small {
+  color: #8d5a32;
+  font-size: 12px;
+}
+.order-attaches {
+  display: grid;
+  gap: 10px;
+  margin: 8px 0 0;
+  padding: 0;
+  list-style: none;
+}
+.order-attaches li {
+  display: grid;
+  gap: 6px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid #efe7dc;
+}
+.order-attaches li:last-child {
+  padding-bottom: 0;
+  border-bottom: 0;
+}
+.order-attaches p {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 8px;
+  align-items: baseline;
+  margin: 0;
+}
+.order-attaches small {
+  color: #8d5a32;
+  font-size: 12px;
+  font-weight: 750;
+}
+.order-attaches em {
+  color: #74685a;
+  font-style: normal;
+  font-size: 12px;
+}
+.order-attaches dl {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  margin: 0;
+}
+.order-attaches dt {
+  color: #8a7d70;
+  font-size: 11px;
+}
+.order-attaches dd {
+  margin: 2px 0 0;
+  color: #05152b;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
 .order-lines {
   display: flex;
   flex-direction: column;
@@ -15585,6 +16214,195 @@ watch(areaKeyword, (keyword) => {
   font-size: 11px;
   font-weight: 750;
 }
+.rate-card > .quantity-sku-notes,
+.quote-review-dialog__facts > .quantity-sku-notes,
+.portal-review-facts > .quantity-sku-notes,
+.rate-card > .option-prices {
+  grid-column: 1 / -1;
+}
+.option-prices {
+  display: grid;
+  gap: 12px;
+  margin-top: 14px;
+  padding: 14px;
+  background: #fff;
+  border: 1px solid #eadfce;
+  border-radius: 12px;
+}
+.option-prices__head strong {
+  color: #1b2839;
+  font-size: 15px;
+  font-weight: 750;
+}
+.option-prices__head p {
+  margin: 4px 0 0;
+  color: #7a7166;
+  font-size: 12px;
+  line-height: 1.5;
+}
+.option-prices__stats,
+.option-prices__filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+.option-prices__stats span {
+  border: 1px solid #e4d8c6;
+  border-radius: 999px;
+  background: #faf7f2;
+  color: #5c564c;
+  padding: 4px 10px;
+  font-size: 12px;
+  line-height: 1.4;
+}
+.option-prices__filters input,
+.option-prices__filters select {
+  min-width: 0;
+  height: 36px;
+  border: 1px solid #e4d8c6;
+  border-radius: 10px;
+  background: #fff;
+  color: #1b2839;
+  font: inherit;
+  font-size: 13px;
+}
+.option-prices__filters input {
+  flex: 1 1 220px;
+  padding: 0 12px;
+}
+.option-prices__filters select {
+  flex: 0 1 180px;
+  padding: 0 10px;
+}
+.option-prices__table-wrap {
+  overflow: visible;
+  border: 1px solid #f0e8dc;
+  border-radius: 10px;
+}
+.option-prices table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+.option-prices th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  padding: 8px 10px;
+  background: #faf7f2;
+  color: #8a7b68;
+  font-size: 10px;
+  font-weight: 750;
+  letter-spacing: 0.04em;
+  text-align: left;
+  text-transform: uppercase;
+}
+.option-prices td {
+  padding: 10px;
+  border-top: 1px solid #f3eee6;
+  vertical-align: top;
+}
+.option-prices tr.is-group td {
+  background: #fbf6ee;
+  color: #6e5c45;
+}
+.option-prices tr.is-group b {
+  margin-right: 8px;
+  color: #1b2839;
+}
+.option-prices tr.is-group em {
+  color: #8a7b68;
+  font-style: normal;
+}
+.option-prices .is-option b,
+.option-prices .is-option small,
+.option-prices .is-option span {
+  display: block;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.option-prices .is-option b {
+  color: #1b2839;
+  font-size: 13px;
+}
+.option-prices .is-option small,
+.option-prices .is-option span {
+  margin-top: 2px;
+  color: #8a7b68;
+  font-size: 11px;
+}
+.option-prices .is-note span {
+  display: inline-flex;
+  margin: 0 4px 4px 0;
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: #eef3f8;
+  color: #3d5f86;
+  font-size: 11px;
+  font-style: normal;
+}
+.option-prices .is-calc,
+.option-prices .is-money,
+.option-prices .is-price {
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.option-prices .is-calc,
+.option-prices .is-money {
+  color: #6e5c45;
+}
+.option-prices .is-price {
+  color: #1b2839;
+  font-weight: 750;
+}
+.option-prices .is-empty {
+  color: #8a7b68;
+  text-align: center;
+}
+.quantity-sku-notes {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+  margin: 2px 0 0;
+  color: #5c564c;
+  font-size: 12px;
+  line-height: 1.55;
+}
+.quantity-sku-notes p,
+.quantity-sku-notes dt {
+  margin: 0;
+  color: #8a7b68;
+  font-size: 11px;
+  font-weight: 750;
+}
+.quantity-sku-notes ul,
+.quantity-sku-notes dd {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+}
+.quantity-sku-notes li,
+.quantity-sku-notes dd span {
+  position: relative;
+  min-width: 0;
+  margin: 0;
+  padding-left: 12px;
+  overflow-wrap: anywhere;
+}
+.quantity-sku-notes li::before,
+.quantity-sku-notes dd span::before {
+  content: "";
+  position: absolute;
+  top: 0.55em;
+  left: 0;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: #c4b49a;
+}
 .currency-input {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);
@@ -15678,17 +16496,40 @@ watch(areaKeyword, (keyword) => {
 .quote-line__switch :deep(.el-checkbox) {
   height: auto;
   margin: 0;
+  cursor: pointer;
+}
+.quote-line__switch :deep(.el-checkbox__input) {
+  cursor: pointer;
 }
 .quote-line__switch :deep(.el-checkbox__inner) {
-  width: 16px;
-  height: 16px;
-  border-color: #c8bfb2;
-  border-radius: 4px;
+  width: 18px;
+  height: 18px;
+  border: 1.5px solid #1d344b;
+  border-radius: 5px;
+  background: #fff;
+}
+.quote-line__switch :deep(.el-checkbox__inner::after) {
+  top: 2px;
+  left: 6px;
+  width: 4px;
+  height: 8px;
+  border-width: 2px;
+}
+.quote-line__switch :deep(.el-checkbox__input:not(.is-disabled):hover .el-checkbox__inner) {
+  border-color: #0b2340;
+  background: #eef3f8;
 }
 .quote-line__switch :deep(.el-checkbox__input.is-checked .el-checkbox__inner),
 .quote-line__switch :deep(.el-checkbox__input.is-indeterminate .el-checkbox__inner) {
   background: #05152b;
   border-color: #05152b;
+}
+.quote-line__switch :deep(.el-checkbox__input.is-disabled) {
+  cursor: not-allowed;
+}
+.quote-line__switch :deep(.el-checkbox__input.is-disabled .el-checkbox__inner) {
+  border-color: #d5dbe3;
+  background: #f4f6f8;
 }
 .quote-group-tabs {
   display: flex;
@@ -15764,6 +16605,17 @@ watch(areaKeyword, (keyword) => {
   display: grid;
   min-width: 0;
   gap: 4px;
+}
+.quote-line__spec small.quote-fulfill-remark,
+.quote-review-dialog__groups .quote-fulfill-remark,
+.portal-review-options .quote-fulfill-remark {
+  display: block;
+  margin: 0;
+  color: #243044;
+  font-size: 12px;
+  font-weight: 650;
+  line-height: 1.45;
+  white-space: normal;
 }
 .quote-line__spec strong,
 .quote-attach__name :deep(.el-checkbox__label) {
@@ -16209,10 +17061,6 @@ watch(areaKeyword, (keyword) => {
     color: #8a7d70;
     font-size: 12px;
     text-align: center;
-  }
-  .picker-row__fields {
-    grid-template-columns: minmax(0, 1fr);
-    margin-left: 0;
   }
   .pricing-editor-hero {
     min-height: 150px;
@@ -16790,9 +17638,30 @@ watch(areaKeyword, (keyword) => {
   font-weight: 700;
   line-height: 18px;
 }
+.order-kind {
+  display: inline-flex;
+  width: fit-content;
+  margin-bottom: 4px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: #eef2f6;
+  color: #52627a;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 18px;
+}
+.order-kind.is-package {
+  background: #f8efe2;
+  color: #8d5a32;
+}
 .order-package-visit {
   color: #8d5a32;
   font-weight: 650;
+}
+.order-fulfill-remark {
+  color: #243044;
+  font-weight: 650;
+  white-space: normal;
 }
 .portal-orders-stages button:hover:not(:disabled),
 .portal-orders-stages button.is-active {

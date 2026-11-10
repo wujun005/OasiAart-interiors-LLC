@@ -383,7 +383,7 @@ const metrics = computed(() => [
     key: 'users', tone: 'blue', icon: UserFilled,
     label: t('admin.home.stats.users.label'), hint: t('admin.home.stats.users.hint'),
     displayValue: displayCount(summary.users), loading: summary.users.loading,
-    state: metricSignal(summary.users), path: '/admin/users',
+    state: metricSignal(summary.users), path: '/admin/users/platform',
   },
   {
     key: 'health', tone: 'green', icon: CircleCheck,
@@ -405,7 +405,7 @@ const quickEntries = computed(() => [
     description: t('admin.home.quickEntry.products.desc'), cta: t('admin.home.quickEntry.products.cta'),
   },
   {
-    key: 'users', path: '/admin/users', icon: User,
+    key: 'users', path: '/admin/users/platform', icon: User,
     title: t('admin.home.quickEntry.users.title'),
     description: t('admin.home.quickEntry.users.desc'), cta: t('admin.home.quickEntry.users.cta'),
   },

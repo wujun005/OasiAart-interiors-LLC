@@ -10,7 +10,7 @@
         />
         <el-button type="primary" @click="handleSearch">{{ t('admin.addonCategory.actions.search') }}</el-button>
         <el-button @click="reset">{{ t('admin.addonCategory.actions.reset') }}</el-button>
-        <el-button type="primary" @click="openCreate">{{ t('admin.addonCategory.actions.create') }}</el-button>
+        <el-button v-if="canAction('btn:/admin/basic/addon-categories:create')" type="primary" @click="openCreate">{{ t('admin.addonCategory.actions.create') }}</el-button>
       </div>
 
       <el-table :data="displayList" border stripe row-key="id" v-loading="tableLoading">
@@ -22,10 +22,10 @@
         </el-table-column>
         <el-table-column :label="t('admin.addonCategory.table.actions')" width="132" fixed="right">
           <template #default="{ row }">
-            <el-button link type="primary" size="small" @click="openEdit(row)">
+            <el-button v-if="canAction('btn:/admin/basic/addon-categories:edit')" link type="primary" size="small" @click="openEdit(row)">
               {{ t('admin.addonCategory.actions.edit') }}
             </el-button>
-            <el-button link type="danger" size="small" @click="remove(row)">
+            <el-button v-if="canAction('btn:/admin/basic/addon-categories:delete')" link type="danger" size="small" @click="remove(row)">
               {{ t('admin.addonCategory.actions.delete') }}
             </el-button>
           </template>
@@ -70,7 +70,7 @@
       </el-form>
       <template #footer>
         <el-button @click="dialogVisible = false">{{ t('admin.addonCategory.actions.cancel') }}</el-button>
-        <el-button type="primary" @click="save">{{ t('admin.addonCategory.actions.save') }}</el-button>
+        <el-button v-if="canAction('btn:/admin/basic/addon-categories:create') || canAction('btn:/admin/basic/addon-categories:edit')" type="primary" @click="save">{{ t('admin.addonCategory.actions.save') }}</el-button>
       </template>
     </el-dialog>
   </div>

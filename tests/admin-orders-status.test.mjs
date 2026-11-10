@@ -758,6 +758,70 @@ test("模板和样式可编译，查看弹窗无编辑控件，颜色统一覆�
   )
 })
 
+test("平台订单详情展示首次支付和每次追加付款流水", async (t) => {
+  const { state, locale } = await harness(t)
+  locale.value = "zh"
+  const parsed = state.parseOrderRow({
+    orderId: 806,
+    orderNo: "HC1",
+    orderStatus: 1,
+    paymentStatus: 1,
+    payments: [
+      {
+        paymentType: "INITIAL",
+        paymentTypeI18n: { zh: "首次下单", en: "Initial order" },
+        paymentGateway: "Stripe",
+        paymentMethodDetail: "Visa •••• 4242",
+        cardLast4: "4242",
+        receiptUrl: "https://pay.example/r1",
+        paymentIntentId: "pi_initial",
+        paymentStatus: 1,
+        amountWithTax: 189,
+        amountWithoutTax: 180,
+        taxAmount: 9,
+        currency: "AED",
+        paidTime: "2026-11-08 07:44:45",
+        attachItems: [],
+      },
+      {
+        paymentType: "ADDON",
+        paymentTypeI18n: { zh: "支付后追加", en: "Added after payment" },
+        addonPaymentId: 8,
+        paymentGateway: "Stripe",
+        paymentIntentId: "pi_addon",
+        paymentStatus: 1,
+        amountWithTax: "68.25",
+        amountWithoutTax: "65.00",
+        taxAmount: "3.25",
+        currency: "AED",
+        paidTime: "2026-11-08 11:00:00",
+        attachItems: [
+          { name: "标准门把手", nameEn: "Standard Door Handle", quantity: 1, amountWithTax: 68.25 },
+        ],
+      },
+    ],
+  })
+  assert.equal(parsed.payments.length, 2)
+  assert.equal(parsed.payments[0].typeText, "首次下单")
+  assert.equal(parsed.payments[0].addon, false)
+  assert.equal(parsed.payments[0].amountWithTaxText, "AED 189.00")
+  assert.equal(parsed.payments[0].amountWithoutTaxText, "AED 180.00")
+  assert.equal(parsed.payments[0].taxAmountText, "AED 9.00")
+  assert.equal(parsed.payments[0].statusText, "已支付")
+  assert.equal(parsed.payments[0].paymentIntentId, "pi_initial")
+  assert.equal(parsed.payments[0].cardLast4, "4242")
+  assert.equal(parsed.payments[1].typeText, "支付后追加")
+  assert.equal(parsed.payments[1].addonPaymentLabel, "追加付款单 #8")
+  assert.equal(parsed.payments[1].amountWithTaxText, "AED 68.25")
+  assert.equal(parsed.payments[1].attachItems[0].name, "标准门把手")
+  assert.equal(parsed.payments[1].attachItems[0].amountWithTaxText, "AED 68.25")
+  const detail = state.normalizeOrderDetail({ orderId: 806, payments: parsed.payments }, parsed)
+  assert.equal(detail.payments.length, 2)
+  assert.equal(state.parseOrderRow({ orderId: 1, orderStatus: 1 }).payments.length, 0)
+  assert.match(descriptor.template.content, /order-detail__payments/)
+  assert.match(descriptor.template.content, /openPaymentReceipt/)
+})
+
 test("平台订单详情保留并按履约展示已分配员工的姓名和手机号", async (t) => {
   const { state, row } = await harness(t)
   const parsed = row(1, {

@@ -141,12 +141,12 @@ async function harness(t, quote = hourly, query = { id: '10' }, extras = {}) {
       throw new Error(`Unexpected dependency: ${name}`)
     },
   })
-  const app = renderer.createApp({ ...exports.default, render: () => null })
+  const app = renderer.createApp({ ...exports.default, render: () => null }, extras.props || {})
   const instance = app.mount({})
   t.after(() => app.unmount())
   await flush()
   assert.deepEqual(calls.messages, [])
-  return { state: instance.$.setupState, calls, controls, locale, translate }
+  return { state: instance.$.setupState, calls, controls, locale, translate, route }
 }
 
 const findByClass = (node, name) => {
@@ -170,7 +170,7 @@ const renderFragment = (className, state) => {
   const textOf = (node) => typeof node === 'string' ? node
     : Array.isArray(node) ? node.map(textOf).join(' ')
       : node?.children ? textOf(node.children) : ''
-  return textOf(exports.render(state, []))
+  return textOf(exports.render({ ...state, canAction: typeof state.canAction === 'function' ? state.canAction : () => true }, []))
 }
 
 test('platform hourly summary and review card show the two source rates in English and Chinese', async (t) => {
@@ -340,6 +340,55 @@ test('current price-list export includes both material rates and preserves a mis
   assert.deepEqual(rows.map(row => row[8]), ['-', '-'])
 })
 
+test('a quantity quote is reviewed as one price and a fixed quote adopts the service quantity mode', async (t) => {
+  const quantity = {
+    ...hourly, quoteMode: 4, configuredQuoteMode: 4, reviewByUnitPrice: true, unitPrice: 30,
+    unitPriceWithMaterial: null, unitPriceWithoutMaterial: null,
+  }
+  const { state, locale, translate } = await harness(t, quantity)
+  await state.openSkus(service)
+  assert.equal(state.skuQuoteMode, 4)
+  assert.equal(state.quantityQuote, true)
+  assert.equal(state.hourlyQuoteReview, true)
+  assert.equal(state.staffHourQuote, false)
+  locale.value = 'zh'
+  assert.equal(state.quoteModeText, translate('admin.platformSuppliers.quantityPrice'))
+  const panel = renderFragment('hourly-review__content', state)
+  assert.ok(panel.includes(translate('admin.platformSuppliers.quantityRateLabel')))
+  assert.ok(panel.includes(translate('admin.platformSuppliers.quantityReviewHint')))
+  assert.match(panel, /AED 30\.00/)
+  assert.ok(!panel.includes(translate('admin.platformSuppliers.hourlyRateWithMaterial')))
+  const rows = clone(await state.loadServicePriceRows(service))
+  assert.equal(rows[0][3], translate('admin.platformSuppliers.quantityPrice'))
+  assert.equal(rows[0][4], translate('admin.platformSuppliers.quantityRateLabel'))
+  assert.equal(rows[0][6], translate('admin.platformSuppliers.quantityUnit'))
+  assert.ok(panel.includes(translate('admin.platformSuppliers.quantityCompareMissingPrice')))
+
+  const adopted = { quoteMode: 1, configuredQuoteMode: 4, unitPrice: null }
+  assert.equal(state.displayedQuoteMode(adopted), 4)
+  assert.equal(state.quoteUsesHourlyReview(adopted), false)
+})
+
+test('a quantity quote shows the platform price and margin beside the supplier rate', async (t) => {
+  const quantity = {
+    ...hourly, quoteMode: 4, configuredQuoteMode: 4, reviewByUnitPrice: true, unitPrice: 800,
+    unitPriceWithMaterial: null, unitPriceWithoutMaterial: null,
+    skus: [
+      { skuId: 1, quoted: true, enabled: 1, available: true, quotePrice: null, platformPriceWithTax: 1000, staffCount: 2, serviceHours: 3 },
+      { skuId: 2, quoted: true, enabled: 1, available: true, quotePrice: null, platformPriceWithTax: 1200, staffCount: 1, serviceHours: 1 },
+    ],
+  }
+  const { state, locale } = await harness(t, quantity)
+  await state.openSkus(service)
+  locale.value = 'zh'
+  assert.equal(state.quantityCompareLabel, '我们的单价 1000.00 – 1200.00 · 毛利率 20% – 33%')
+  assert.equal(state.quantityCompareNegative, false)
+  const panel = renderFragment('hourly-review__content', state)
+  assert.match(panel, /我们的单价 1000\.00 – 1200\.00/)
+  assert.match(panel, /毛利率 20% – 33%/)
+  assert.ok(!panel.includes('人数或时长'))
+})
+
 test('a fixed quote on a unit-price service is shown as unit price and keeps specification prices', async (t) => {
   const { state, locale, translate } = await harness(t, {
     quoteMode: 1,
@@ -368,6 +417,41 @@ test('a fixed quote on a unit-price service is shown as unit price and keeps spe
   assert.equal(rows[0][3], translate('admin.platformSuppliers.unitPrice'))
   assert.equal(rows[0][4], translate('admin.platformSuppliers.exportSpecItem'))
   assert.equal(rows[0][8], '100.00')
+})
+
+test('clicking a quote status opens that supplier filtered to the same status', async (t) => {
+  const quotedServices = [
+    { spuId: 1, spuName: 'Pending', status: 1 },
+    { spuId: 2, spuName: 'Approved', status: 2 },
+    { spuId: 3, spuName: 'Rejected', status: 3 },
+  ]
+  const { state, route } = await harness(t, hourly, {}, {
+    props: { desk: 'quotes' },
+    services: quotedServices,
+  })
+  const row = { id: 26, supplierName: 'Links', pendingCount: 2, rejectedCount: 17, effectiveCount: 3 }
+  await state.openSupplierQuotes(row, 1)
+  await flush()
+  assert.equal(state.serviceStatusFilter, 1)
+  assert.equal(route.path, '/admin/basic/quotes')
+  assert.equal(route.query.id, '26')
+  assert.equal(route.query.scope, 'services')
+  assert.deepEqual(state.visibleServices.map((item) => item.spuId), [1])
+  await state.openSupplierQuotes(row, 3)
+  await flush()
+  assert.equal(state.serviceStatusFilter, 3)
+  assert.deepEqual(state.visibleServices.map((item) => item.spuId), [3])
+  await state.openSupplierQuotes(row, 2)
+  await flush()
+  assert.deepEqual(state.visibleServices.map((item) => item.spuId), [2])
+  await state.openReview(row)
+  await flush()
+  assert.equal(state.serviceStatusFilter, '')
+  assert.deepEqual(state.visibleServices.map((item) => item.spuId), [1, 2, 3])
+  assert.doesNotMatch(descriptor.template.content, /class-name="category-col"/)
+  assert.match(descriptor.template.content, /openSupplierQuotes\(row, 1\)/)
+  assert.match(descriptor.template.content, /openSupplierQuotes\(row, 3\)/)
+  assert.match(descriptor.template.content, /openSupplierQuotes\(row, 2\)/)
 })
 
 test('fixed-price review still lists each specification', async (t) => {

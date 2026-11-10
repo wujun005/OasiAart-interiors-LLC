@@ -65,7 +65,7 @@
           <el-button v-if="!isPackageService" :loading="exportLoading" @click="handleExportI18n">
             {{ t('admin.product.actions.export') }}
           </el-button>
-          <el-button type="primary" @click="openCreate">{{ t(isPackageService ? 'admin.packageService.create' : 'admin.product.actions.create') }}</el-button>
+          <el-button v-if="canAction(isPackageService ? 'btn:/admin/package/services:create' : 'btn:/admin/products:create')" type="primary" @click="openCreate">{{ t(isPackageService ? 'admin.packageService.create' : 'admin.product.actions.create') }}</el-button>
         </div>
       </div>
 
@@ -166,6 +166,19 @@
           min-width="120"
           show-overflow-tooltip
         />
+        <el-table-column :label="t('admin.product.table.quoteProgress')" min-width="188">
+          <template #default="{ row }">
+            <div class="quote-progress">
+              <strong>{{ row.quoteModeLabel || '—' }}</strong>
+              <span>{{ t('admin.product.table.quoteProgressCounts', {
+                quoted: row.quotedSupplierCount,
+                approved: row.fullyApprovedSupplierCount,
+                reviewing: row.reviewingSupplierCount,
+                pending: row.pendingQuoteSupplierCount,
+              }) }}</span>
+            </div>
+          </template>
+        </el-table-column>
         <el-table-column prop="specNames" :label="t('admin.product.table.specs')" min-width="155">
           <template #default="{ row }">
             <el-tooltip
@@ -186,6 +199,7 @@
               :class="row.isOnSale ? 'is-on' : 'is-off'"
               link
               size="small"
+              :disabled="!canAction('btn:/admin/products:status')"
               @click="toggleSale(row)"
             >
               {{ row.isOnSale ? t('admin.product.sale.on') : t('admin.product.sale.off') }}
@@ -195,6 +209,7 @@
         <el-table-column :label="t('admin.product.table.price')" width="58">
           <template #default="{ row }">
             <el-button
+              v-if="canAction(isPackageService ? 'btn:/admin/package/services:price' : 'btn:/admin/products:price')"
               link
               type="primary"
               size="small"
@@ -226,7 +241,13 @@
             </el-tooltip>
           </template>
         </el-table-column>
-        <el-table-column :label="t('admin.quoteCompare.open')" width="112" align="center" fixed="right">
+        <el-table-column
+          v-if="canAction(isPackageService ? 'btn:/admin/package/services:quote-compare' : 'btn:/admin/products:quote-compare')"
+          :label="t('admin.quoteCompare.open')"
+          width="112"
+          align="center"
+          fixed="right"
+        >
           <template #default="{ row }">
             <el-button
               class="quote-compare-open"
@@ -242,7 +263,7 @@
         <el-table-column :label="t('admin.product.table.actions')" :width="isPackageService ? 70 : 148" fixed="right">
           <template #default="{ row }">
             <div class="table-actions">
-              <el-button link type="primary" size="small" @click="openEdit(row)">
+              <el-button v-if="canAction(isPackageService ? 'btn:/admin/package/services:edit' : 'btn:/admin/products:edit')" link type="primary" size="small" @click="openEdit(row)">
                 {{ t('admin.product.actions.edit') }}
               </el-button>
               <el-button
@@ -256,7 +277,7 @@
                 {{ t('admin.product.actions.preview') }}
               </el-button>
               <el-button
-                v-if="!isPackageService"
+                v-if="!isPackageService && canAction('btn:/admin/products:export-quote')"
                 link
                 type="primary"
                 size="small"
@@ -267,7 +288,7 @@
               >
                 {{ t('admin.product.actions.exportQuoteCompare') }}
               </el-button>
-              <el-button link type="danger" size="small" @click="remove(row)">
+              <el-button v-if="canAction(isPackageService ? 'btn:/admin/package/services:delete' : 'btn:/admin/products:delete')" link type="danger" size="small" @click="remove(row)">
                 {{ t('admin.product.actions.delete') }}
               </el-button>
             </div>
@@ -365,6 +386,7 @@
         <el-form-item :label="t('admin.product.form.quoteMode')">
           <el-select
             v-model="form.product.quoteMode"
+            :disabled="quoteLocked"
             :loading="quoteModeLoading"
             style="width: 100%"
           >
@@ -375,11 +397,12 @@
               :label="quoteModeOptionLabel(item)"
             />
           </el-select>
-          <p class="quote-mode-hint">{{ t('admin.product.form.quoteModeHint') }}</p>
+          <p class="quote-mode-hint">{{ t(quoteLocked ? 'admin.product.form.quoteLocked' : 'admin.product.form.quoteModeHint') }}</p>
         </el-form-item>
 
         <div class="group-box spec-groups">
           <div class="group-title">{{ t('admin.product.form.specGroupTitle') }}</div>
+          <p v-if="quoteLocked" class="quote-mode-hint">{{ t('admin.product.form.specLocked') }}</p>
           <div
             v-for="(group, idx) in form.specGroups"
             :key="idx"
@@ -390,7 +413,7 @@
               <el-button
                 type="danger"
                 link
-                :disabled="form.specGroups.length === 1"
+                :disabled="quoteLocked || form.specGroups.length === 1"
                 @click="removeSpecGroup(idx)"
               >
                 {{ t('admin.product.actions.delete') }}
@@ -403,6 +426,7 @@
             >
               <el-select
                 v-model="group.specTypeId"
+                :disabled="quoteLocked"
                 :placeholder="t('admin.product.form.specTypePlaceholder')"
                 filterable
                 remote
@@ -437,6 +461,7 @@
             >
               <el-select
                 v-model="group.specIds"
+                :disabled="quoteLocked"
                 :placeholder="t('admin.product.form.specPlaceholder')"
                 multiple
                 filterable
@@ -454,14 +479,14 @@
               </el-select>
               <div v-if="pricedSpecLines(group).length" class="spec-price-lines">
                 <p v-for="item in pricedSpecLines(group)" :key="item.value">
-                  {{ item.label }}
-                  <span>+{{ formatSkuMoney(item.price) }}</span>
+                  <span>{{ item.label }}</span>
+                  <strong>{{ item.price == null ? t('admin.product.message.optionPriceMissing') : `+${formatSkuMoney(item.price)}` }}</strong>
                 </p>
               </div>
             </el-form-item>
           </div>
           <el-form-item label="" prop="specGroups">
-            <el-button type="primary" link @click="addSpecGroup"
+            <el-button type="primary" link :disabled="quoteLocked" @click="addSpecGroup"
               >{{ t('admin.product.actions.addSpecGroup') }}</el-button
             >
           </el-form-item>
@@ -469,6 +494,23 @@
 
         <div class="group-box spec-groups">
           <div class="group-title">{{ t('admin.product.form.addonGroupTitle') }}</div>
+          <el-form-item :label="t('admin.product.form.attachModuleTitle')">
+            <el-input
+              v-model="form.attachModuleTitle"
+              maxlength="255"
+              :placeholder="t('admin.product.form.attachModuleTitlePlaceholder')"
+            />
+          </el-form-item>
+          <el-form-item :label="t('admin.product.form.attachModuleDesc')">
+            <el-input
+              v-model="form.attachModuleDesc"
+              type="textarea"
+              maxlength="1000"
+              :rows="2"
+              :placeholder="t('admin.product.form.attachModuleDescPlaceholder')"
+            />
+            <p class="quote-mode-hint">{{ t('admin.product.form.attachModuleEmptyHint') }}</p>
+          </el-form-item>
           <div
             v-for="(group, idx) in form.addonGroups"
             :key="idx"
@@ -526,6 +568,19 @@
               >
                 <el-option
                   v-for="item in filteredAddonOptions(group.categoryId)"
+                  :key="item.value"
+                  :label="item.label"
+                  :value="item.value"
+                />
+              </el-select>
+            </el-form-item>
+            <el-form-item
+              :label="t('admin.product.form.attachDisplay')"
+              label-width="90px"
+            >
+              <el-select v-model="group.displayMode" style="width: 100%">
+                <el-option
+                  v-for="item in attachDisplayModes"
                   :key="item.value"
                   :label="item.label"
                   :value="item.value"
@@ -892,7 +947,7 @@
       :close-on-click-modal="false"
       width="min(1040px, calc(100vw - 32px))"
     >
-      <p class="sku-valid-hint">{{ t('admin.product.message.skuValidHint') }}</p>
+      <p class="sku-valid-hint">{{ t('admin.product.message.skuValidHint') }} {{ t('admin.product.message.fulfillRemarkHint') }}</p>
       <div v-if="priceAddons.length" class="price-addon-hint">
         <p>{{ t('admin.product.message.priceAddonHint') }}</p>
         <div class="price-addon-list">
@@ -964,6 +1019,22 @@
             />
           </template>
         </el-table-column>
+        <el-table-column :label="t('admin.product.table.fulfillRemark')" min-width="220">
+          <template #default="{ row }">
+            <div
+              v-for="variant in row.variants"
+              :key="`remark-${variant.skuId ?? 'new'}-${variant.optionIds.join(',')}`"
+              class="sku-remark-line"
+            >
+              <el-input
+                v-model="variant.remark"
+                maxlength="512"
+                :disabled="variant.skuId == null"
+                :placeholder="variant.label || t('admin.product.form.fulfillRemarkPlaceholder')"
+              />
+            </div>
+          </template>
+        </el-table-column>
         <el-table-column
           v-if="priceAddons.length"
           :label="t('admin.product.table.totalPrice')"
@@ -987,7 +1058,7 @@
       </el-table>
       <template #footer>
         <el-button @click="priceDialogVisible = false">{{ t('admin.product.actions.cancel') }}</el-button>
-        <el-button type="primary" @click="savePrice">{{ t('admin.product.actions.save') }}</el-button>
+        <el-button v-if="canAction(isPackageService ? 'btn:/admin/package/services:price' : 'btn:/admin/products:price')" type="primary" @click="savePrice">{{ t('admin.product.actions.save') }}</el-button>
       </template>
     </el-dialog>
     <SupplierQuoteCompareDialog
@@ -1043,6 +1114,13 @@ import { getSpecValuePage } from '@/modules/admin/api/spec';
 import { getPage as getAddonTypePage } from '@/modules/admin/api/addonType';
 import { getPage as getAddonPage } from '@/modules/admin/api/addon';
 import { ADMIN_LANG_EN, ADMIN_LANG_ZH, pickI18nText } from '@/modules/admin/utils/i18n';
+import {
+  allowedSpecIds,
+  countOf,
+  specsExpanded,
+  supplierQuoteStarted,
+  type SpecSelection,
+} from '@/modules/admin/utils/productQuote';
 import {
   buildSkuPriceEditor,
   effectiveSalePrice,
@@ -1136,6 +1214,11 @@ type ProductRow = {
   specIds?: number[];
   specNames: string[];
   tags: BizTag[];
+  quoteModeLabel: string;
+  quotedSupplierCount: number;
+  fullyApprovedSupplierCount: number;
+  reviewingSupplierCount: number;
+  pendingQuoteSupplierCount: number;
 };
 
 type SpecGroup = {
@@ -1146,6 +1229,12 @@ type SpecGroup = {
 type AddonGroup = {
   categoryId: number | null;
   addonIds: number[];
+  displayMode: number;
+};
+
+const normalizeAttachDisplayMode = (value: unknown) => {
+  const code = Number(value);
+  return code === 1 || code === 2 ? code : 3;
 };
 
 const normalizeOptionalId = (value: unknown): number | null => {
@@ -1174,6 +1263,7 @@ const FALLBACK_QUOTE_MODES: QuoteModeOption[] = [
   { code: 1, nameI18n: { zh: '一口价', en: 'Fixed price' } },
   { code: 2, nameI18n: { zh: '带材料/不带材料按人小时报价', en: 'Hourly rate with/without materials' } },
   { code: 3, nameI18n: { zh: '按人小时报价', en: 'Person-hour rate' } },
+  { code: 4, nameI18n: { zh: '按照数量报价', en: 'Quote by quantity' } },
 ];
 
 const quoteModeOptions = ref<QuoteModeOption[]>(FALLBACK_QUOTE_MODES.map((item) => ({
@@ -1187,9 +1277,10 @@ const allowedQuoteModeCodes = () => {
   const codes = quoteModeOptions.value.map((item) => item.code);
   return codes.length ? codes : FALLBACK_QUOTE_MODES.map((item) => item.code);
 };
+const KNOWN_QUOTE_MODES = FALLBACK_QUOTE_MODES.map((item) => item.code);
 const normalizeQuoteMode = (value: unknown) => {
   const code = Number(value);
-  return allowedQuoteModeCodes().includes(code) ? code : 1;
+  return KNOWN_QUOTE_MODES.includes(code) || allowedQuoteModeCodes().includes(code) ? code : 1;
 };
 const parseQuoteModes = (payload: unknown): QuoteModeOption[] => {
   const source = Array.isArray(payload)
@@ -1216,7 +1307,14 @@ const fetchQuoteModes = async () => {
   quoteModeLoading.value = true;
   try {
     const options = parseQuoteModes(await quoteModes());
-    if (options.length) quoteModeOptions.value = options;
+    if (options.length) {
+      const byCode = new Map(FALLBACK_QUOTE_MODES.map((item) => [item.code, {
+        code: item.code,
+        nameI18n: { ...item.nameI18n },
+      }]));
+      options.forEach((item) => byCode.set(item.code, item));
+      quoteModeOptions.value = [...byCode.values()].sort((left, right) => left.code - right.code);
+    }
   } catch (error: any) {
     ElMessage.error(error?.message || t('admin.product.message.fetchQuoteModesFailed'));
   } finally {
@@ -1327,17 +1425,27 @@ const specMap = computed(() => {
   specOptions.value.forEach((item) => map.set(item.value, item.label));
   return map;
 });
+const quoteLocked = ref(false);
+const savedQuoteMode = ref(1);
+const lockedSpecGroups = ref<SpecSelection[]>([]);
+const detailSpecTypePriced = ref<Record<string, boolean>>({});
+const detailSpecValuePrice = ref<Record<string, number | null>>({});
+const detailSpecValueLabel = ref<Record<string, string>>({});
 const filteredSpecOptions = (
   typeId: number | null,
   subCategoryId?: number | null,
-) =>
-  specOptions.value.filter((item) => {
+) => {
+  const options = specOptions.value.filter((item) => {
     const typeMatched = !typeId || item.typeId === typeId;
     const subCategoryMatched = isPackageService.value
       ? subCategoryId != null && item.subCategoryId === subCategoryId
       : !subCategoryId || !item.subCategoryId || item.subCategoryId === subCategoryId;
     return typeMatched && subCategoryMatched;
   });
+  if (!quoteLocked.value) return options;
+  const allowed = allowedSpecIds(lockedSpecGroups.value, typeId);
+  return allowed ? options.filter((item) => allowed.has(item.value)) : options;
+};
 
 const specMoney = (value: unknown): number | null => {
   if (value == null || value === '') return null;
@@ -1346,21 +1454,62 @@ const specMoney = (value: unknown): number | null => {
 };
 
 const specTypeIsPriced = (typeId: number | null) =>
-  typeId != null &&
-  specTypeOptions.value.some((item) => item.value === typeId && item.priced);
+  typeId != null && (
+    detailSpecTypePriced.value[String(typeId)] === true ||
+    specTypeOptions.value.some((item) => item.value === typeId && item.priced)
+  );
+
+const rememberDetailSpecPrices = (detail: any) => {
+  const types = detail?.specTypePriced && typeof detail.specTypePriced === 'object'
+    ? detail.specTypePriced as Record<string, unknown>
+    : {};
+  const prices = detail?.specValuePrice && typeof detail.specValuePrice === 'object'
+    ? detail.specValuePrice as Record<string, unknown>
+    : {};
+  const names = detail?.specValueNameI18n && typeof detail.specValueNameI18n === 'object'
+    ? detail.specValueNameI18n as Record<string, unknown>
+    : {};
+  const typeMap: Record<string, boolean> = {};
+  Object.entries(types).forEach(([id, value]) => {
+    typeMap[String(id)] = Number(value) === 1 || value === true;
+  });
+  const priceMap: Record<string, number | null> = {};
+  Object.entries(prices).forEach(([id, value]) => {
+    priceMap[String(id)] = specMoney(value);
+  });
+  const labelMap: Record<string, string> = {};
+  Object.entries(names).forEach(([id, value]) => {
+    const nameI18n = value && typeof value === 'object' && 'nameI18n' in value
+      ? (value as { nameI18n?: Record<string, string> }).nameI18n
+      : value as Record<string, string>;
+    const label = pickName(nameI18n, '');
+    if (label) labelMap[String(id)] = label;
+  });
+  detailSpecTypePriced.value = typeMap;
+  detailSpecValuePrice.value = priceMap;
+  detailSpecValueLabel.value = labelMap;
+};
 
 const pricedSpecLines = (group: SpecGroup) => {
   if (!specTypeIsPriced(group.specTypeId)) return [];
   const byId = new Map(
-    filteredSpecOptions(group.specTypeId, form.product.subCategoryId).map((item) => [
-      item.value,
-      item,
-    ]),
+    specOptions.value
+      .filter((item) => item.typeId === group.specTypeId)
+      .map((item) => [item.value, item]),
   );
-  return group.specIds.flatMap((id) => {
+  return (group.specIds || []).flatMap((rawId) => {
+    const id = Number(rawId);
+    if (!Number.isFinite(id) || id <= 0) return [];
     const item = byId.get(id);
-    if (!item || item.price == null) return [];
-    return [{ value: item.value, label: item.label, price: item.price }];
+    const detailPrice = Object.prototype.hasOwnProperty.call(detailSpecValuePrice.value, String(id))
+      ? detailSpecValuePrice.value[String(id)]
+      : undefined;
+    const price = item?.price != null ? item.price : detailPrice ?? null;
+    return [{
+      value: id,
+      label: item?.label || detailSpecValueLabel.value[String(id)] || String(id),
+      price,
+    }];
   });
 };
 
@@ -1507,6 +1656,8 @@ const form = reactive<{
   productImages: ProductImage[];
   specGroups: SpecGroup[];
   addonGroups: AddonGroup[];
+  attachModuleTitle: string;
+  attachModuleDesc: string;
 }>({
   product: defaultProduct(),
   productI18nList: defaultI18nList(),
@@ -1516,6 +1667,8 @@ const form = reactive<{
   productImages: [],
   specGroups: [{ specTypeId: null, specIds: [] }],
   addonGroups: [],
+  attachModuleTitle: '',
+  attachModuleDesc: '',
 });
 
 const filteredSubCategoryOptions = computed(() =>
@@ -1782,6 +1935,14 @@ const resetForm = () => {
     },
   ];
   form.addonGroups = [];
+  form.attachModuleTitle = '';
+  form.attachModuleDesc = '';
+  quoteLocked.value = false;
+  savedQuoteMode.value = 1;
+  lockedSpecGroups.value = [];
+  detailSpecTypePriced.value = {};
+  detailSpecValuePrice.value = {};
+  detailSpecValueLabel.value = {};
   tagPicker.reset();
   pendingTagNames.value = [];
   tagAdderOpen.value = false;
@@ -1891,7 +2052,19 @@ const toRow = (item: any): ProductRow => {
     specIds: [],
     specNames,
     tags: Array.isArray(item?.tags) ? item.tags : [],
+    quoteModeLabel: pickName(item?.quoteModeI18n, fallbackQuoteModeLabel(spu.quoteMode)),
+    quotedSupplierCount: countOf(item?.quotedSupplierCount),
+    fullyApprovedSupplierCount: countOf(item?.fullyApprovedSupplierCount),
+    reviewingSupplierCount: countOf(item?.reviewingSupplierCount),
+    pendingQuoteSupplierCount: countOf(item?.pendingQuoteSupplierCount),
   };
+};
+
+const fallbackQuoteModeLabel = (mode: unknown) => {
+  const code = normalizeQuoteMode(mode);
+  return quoteModeOptionLabel(
+    quoteModeOptions.value.find((item) => item.code === code) || FALLBACK_QUOTE_MODES[0],
+  );
 };
 
 const extractPage = (payload: any) => {
@@ -2900,6 +3073,11 @@ const applyServiceDetail = (detail: any, row: Partial<ProductRow> = {}, copy = f
     specIds: [],
     quoteMode: normalizeQuoteMode(spu.quoteMode),
   };
+  form.attachModuleTitle = String(spu.attachModuleTitle ?? '');
+  form.attachModuleDesc = String(spu.attachModuleDesc ?? '');
+  savedQuoteMode.value = normalizeQuoteMode(spu.quoteMode);
+  quoteLocked.value = !copy && supplierQuoteStarted(detail.hasSupplierQuote);
+  rememberDetailSpecPrices(detail);
   const mappedSpecGroups: SpecGroup[] = copy || !specBindings.length
     ? [
         {
@@ -2912,6 +3090,12 @@ const applyServiceDetail = (detail: any, row: Partial<ProductRow> = {}, copy = f
         specIds: Array.isArray(g.specValueIds) ? [...g.specValueIds] : [],
       }));
   form.specGroups = mappedSpecGroups;
+  lockedSpecGroups.value = quoteLocked.value
+    ? mappedSpecGroups.map((group) => ({
+      specTypeId: group.specTypeId,
+      specIds: [...group.specIds],
+    }))
+    : [];
   if (!copy) normalizeSpecGroups(true);
   form.product.specIds = mappedSpecGroups[0]?.specIds ?? [];
   form.product.specTypeId = mappedSpecGroups[0]?.specTypeId ?? undefined;
@@ -2920,6 +3104,7 @@ const applyServiceDetail = (detail: any, row: Partial<ProductRow> = {}, copy = f
     ? attachBindings.map((g: any) => ({
         categoryId: g.attachTypeId ?? null,
         addonIds: Array.isArray(g.attachValueIds) ? [...g.attachValueIds] : [],
+        displayMode: normalizeAttachDisplayMode(g.displayMode),
       }))
     : [];
   form.addonGroups = mappedAddonGroups;
@@ -3070,12 +3255,19 @@ const onCategoryChange = () => {
   form.product.subCategoryId = target ? target.value : undefined;
 };
 
+const attachDisplayModes = computed(() => [
+  { value: 1, label: t('admin.product.form.attachDisplayOrder') },
+  { value: 2, label: t('admin.product.form.attachDisplayExtra') },
+  { value: 3, label: t('admin.product.form.attachDisplayBoth') },
+]);
+
 const addAddonGroup = () => {
   form.addonGroups.push({
     categoryId: addonCategoryOptions.value.find(
       (item) => !form.addonGroups.some((group) => group.categoryId === item.value),
     )?.value ?? null,
     addonIds: [],
+    displayMode: 3,
   });
 };
 
@@ -3196,6 +3388,14 @@ const save = () => {
       return;
     }
     submitLoading.value = true;
+    if (quoteLocked.value && (
+      normalizeQuoteMode(form.product.quoteMode) !== savedQuoteMode.value
+      || specsExpanded(lockedSpecGroups.value, form.specGroups)
+    )) {
+      submitLoading.value = false;
+      ElMessage.error(t('admin.product.form.quoteLocked'));
+      return;
+    }
     const wasEdit = isEdit.value;
     let copyingPrices = false;
     try {
@@ -3238,6 +3438,8 @@ const save = () => {
         id: form.product.id,
         packageService: props.packageService,
         quoteMode: normalizeQuoteMode(form.product.quoteMode),
+        attachModuleTitle: form.attachModuleTitle.trim(),
+        attachModuleDesc: form.attachModuleDesc.trim(),
         spuCode: '',
         categoryId: form.product.categoryId
           ? String(form.product.categoryId)
@@ -3266,6 +3468,7 @@ const save = () => {
           .map((g) => ({
             attachTypeId: g.categoryId,
             attachValueIds: g.addonIds,
+            displayMode: normalizeAttachDisplayMode(g.displayMode),
           })),
         tags: tagPicker.saveItems(pendingTagNames.value),
       };
@@ -3396,6 +3599,9 @@ watch(
 
 <style scoped>
 .quote-mode-hint { margin: 6px 0 0; color: var(--el-text-color-secondary); font-size: 12px; line-height: 1.5; }
+.quote-progress { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.quote-progress strong { color: #172033; font-size: 13px; font-weight: 650; }
+.quote-progress span { color: var(--el-text-color-secondary); font-size: 12px; line-height: 1.45; }
 .source-service-field, .imported-prices { width: 100%; min-width: 0; }
 .source-service-field p, .imported-prices > p { margin: 8px 0 0; color: var(--el-text-color-secondary); font-size: 12px; line-height: 1.6; }
 .imported-prices > p { margin: 0 0 10px; }
@@ -3654,19 +3860,23 @@ watch(
 }
 .spec-price-lines {
   display: flex;
+  flex: 1 0 100%;
   flex-direction: column;
   gap: 2px;
   margin-top: 6px;
 }
 .spec-price-lines p {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
   margin: 0;
   color: #61738a;
   font-size: 12px;
   line-height: 1.5;
 }
-.spec-price-lines span {
-  margin-left: 8px;
+.spec-price-lines strong {
   color: var(--hx-champagne-600, #a97b38);
+  font-weight: 650;
   font-variant-numeric: tabular-nums;
 }
 .spec-box__title {
@@ -3690,6 +3900,12 @@ watch(
 }
 .sku-valid-line + .sku-valid-line {
   margin-top: 6px;
+}
+.sku-remark-line + .sku-remark-line {
+  margin-top: 6px;
+}
+.sku-remark-line :deep(.el-input) {
+  width: 100%;
 }
 .sku-valid-line__name {
   min-width: 0;

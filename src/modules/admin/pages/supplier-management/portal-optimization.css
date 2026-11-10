@@ -283,7 +283,10 @@
 .portal-quote-line .quote-line__price :deep(.el-input__wrapper) { min-height: 32px; padding: 0 8px; }
 .portal-quote-line .portal-price-missing { display: none; }
 .portal-quote-line :deep(.el-input-number) { width: 100%; }
-.portal-quote-line.is-off { opacity: .55; background: #f7f8f9; }
+.portal-quote-line.is-off { opacity: 1; background: #f7f8f9; }
+.portal-quote-line.is-off .quote-line__spec,
+.portal-quote-line.is-off > label.quote-line__price { opacity: .72; }
+.portal-quote-line.is-off:has(.el-checkbox__input.is-disabled) .quote-line__switch { opacity: .5; }
 .portal-quote-line.has-missing { border-color: #ead9b8; }
 .portal-price-missing { color: #b97527; font-size: 10px; font-weight: 600; }
 .pricing-review-panel { top: 80px; color: #1b3249; background: #fff; border-color: #e6e1d8; box-shadow: none; border-radius: 12px; }

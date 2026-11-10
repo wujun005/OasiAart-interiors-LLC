@@ -288,6 +288,7 @@ async function harness(t, { packageService, wrapper = false, route: initialRoute
         },
       }
       if (name === "@/modules/admin/utils/i18n") return i18n
+      if (name === "@/modules/admin/utils/productQuote") return realModule("src/modules/admin/utils/productQuote.ts")
       if (name === "@/modules/admin/utils/skuPriceTable") return pricing
       if (name === "@/modules/admin/utils/bizTagPicker") return { useBizTagPicker: () => tagPicker }
       if (name === "@/modules/client/utils/biz-tag") return { bizTagLabels: () => [] }
@@ -389,7 +390,7 @@ for (const packageService of [0, 1]) {
       { specTypeId: 10, specValueIds: [101, 102] },
       { specTypeId: 11, specValueIds: [111, 112] },
     ])
-    assert.deepEqual(calls.saves[0].attachBindings, [{ attachTypeId: 20, attachValueIds: [201] }])
+    assert.deepEqual(calls.saves[0].attachBindings, [{ attachTypeId: 20, attachValueIds: [201], displayMode: 3 }])
     assert.equal(state.dialogVisible, false)
 
     await state.openEdit({ id: 71 })
@@ -427,13 +428,15 @@ for (const packageService of [0, 1]) {
 test("service form loads quote modes from the API and keeps the selected code", async (t) => {
   const { state, calls, locale, controls } = await harness(t)
   assert.equal(calls.quoteModes, 1)
-  assert.deepEqual(clone(state.quoteModeOptions.map((item) => item.code)), [1, 2, 3])
+  assert.deepEqual(clone(state.quoteModeOptions.map((item) => item.code)), [1, 2, 3, 4])
   locale.value = "zh-CN"
   await flush()
   assert.equal(state.quoteModeOptionLabel(state.quoteModeOptions[2]), "接口按人小时")
+  assert.equal(state.quoteModeOptionLabel(state.quoteModeOptions[3]), "按照数量报价")
   locale.value = "en"
   await flush()
   assert.equal(state.quoteModeOptionLabel(state.quoteModeOptions[2]), "API person-hour")
+  assert.equal(state.quoteModeOptionLabel(state.quoteModeOptions[3]), "Quote by quantity")
 
   state.openCreate()
   state.form.product.quoteMode = 3
@@ -476,11 +479,84 @@ test("service form keeps fallback quote modes when the enum request fails", asyn
     },
   })
   assert.equal(calls.quoteModes, 1)
-  assert.deepEqual(clone(state.quoteModeOptions.map((item) => item.code)), [1, 2, 3])
+  assert.deepEqual(clone(state.quoteModeOptions.map((item) => item.code)), [1, 2, 3, 4])
   locale.value = "zh-CN"
   await flush()
   assert.equal(state.quoteModeOptionLabel(state.quoteModeOptions[2]), "按人小时报价")
+  assert.equal(state.quoteModeOptionLabel(state.quoteModeOptions[3]), "按照数量报价")
   assert.deepEqual(calls.messages.at(-1), { type: "error", message: "down" })
+})
+
+test("service list shows quote progress and a quoted service keeps its mode, specs, and add-on copy", async (t) => {
+  const { state, calls, controls } = await harness(t, {
+    page: async () => pageResult([{
+      spu: { id: 9, status: 1, currency: "AED", quoteMode: 4 },
+      quoteModeI18n: { en: "Quote by quantity", zh: "按照数量报价" },
+      nameI18n: { en: "Cleaning" },
+      quotedSupplierCount: 3,
+      fullyApprovedSupplierCount: 1,
+      reviewingSupplierCount: 1,
+      pendingQuoteSupplierCount: 1,
+      specBindings: [],
+      imageUrls: [],
+    }]),
+  })
+  await flush()
+  assert.equal(state.products[0].quoteModeLabel, "Quote by quantity")
+  assert.deepEqual([
+    state.products[0].quotedSupplierCount,
+    state.products[0].fullyApprovedSupplierCount,
+    state.products[0].reviewingSupplierCount,
+    state.products[0].pendingQuoteSupplierCount,
+  ], [3, 1, 1, 1])
+
+  controls.detail = async (id) => ({
+    data: {
+      spu: {
+        id, packageService: 0, status: 1, currency: "AED", quoteMode: 4,
+        attachModuleTitle: "Deep clean extras", attachModuleDesc: "Optional",
+      },
+      hasSupplierQuote: true,
+      categoryIds: ["2", "21"],
+      nameI18n: { en: "Cleaning" },
+      descI18n: { en: "<p>Description</p>" },
+      serviceContentI18n: { en: "<p>Cleaning</p>" },
+      bookingNoticeI18n: { en: "<p>Book ahead</p>" },
+      imageUrls: [],
+      specBindings: [{ specTypeId: 10, specValueIds: [101] }],
+      attachBindings: [],
+    },
+  })
+  await state.openEdit({ id: 9 })
+  await flush()
+  assert.equal(state.quoteLocked, true)
+  assert.equal(state.form.product.quoteMode, 4)
+  assert.equal(state.form.attachModuleTitle, "Deep clean extras")
+  assert.equal(state.form.attachModuleDesc, "Optional")
+  assert.deepEqual(clone(state.filteredSpecOptions(10, 21).map((item) => item.value)), [101])
+
+  const savesBefore = calls.saves.length
+  state.form.product.quoteMode = 1
+  state.save()
+  await flush()
+  assert.equal(calls.saves.length, savesBefore)
+  assert.equal(calls.messages.at(-1).message, "admin.product.form.quoteLocked")
+
+  state.form.product.quoteMode = 4
+  state.form.specGroups[0].specIds = [101, 102]
+  state.save()
+  await flush()
+  assert.equal(calls.saves.length, savesBefore)
+
+  state.form.specGroups[0].specIds = [101]
+  state.form.attachModuleTitle = "Windows"
+  state.form.attachModuleDesc = ""
+  state.save()
+  await flush()
+  assert.equal(calls.saves.at(-1).quoteMode, 4)
+  assert.equal(calls.saves.at(-1).attachModuleTitle, "Windows")
+  assert.equal(calls.saves.at(-1).attachModuleDesc, "")
+  assert.deepEqual(calls.saves.at(-1).specBindings, [{ specTypeId: 10, specValueIds: [101] }])
 })
 
 test("ordinary product management defaults to catalog 0 and the new page mounts catalog 1", async (t) => {
@@ -521,14 +597,43 @@ test("package services retain SKU base-price editing and priced-spec additions",
       { specValueIds: [102], price: 75, originalPrice: 120 },
     ],
     skuValids: [
-      { skuId: 1, valid: 1 },
-      { skuId: 2, valid: 1 },
-      { skuId: 3, valid: 1 },
-      { skuId: 4, valid: 1 },
+      { skuId: 1, valid: 1, supplierFulfillRemark: '' },
+      { skuId: 2, valid: 1, supplierFulfillRemark: '' },
+      { skuId: 3, valid: 1, supplierFulfillRemark: '' },
+      { skuId: 4, valid: 1, supplierFulfillRemark: '' },
     ],
   }])
   assert.equal(state.priceDialogVisible, false)
   assert.equal(calls.messages.filter((item) => item.type === "error").length, 0)
+})
+
+test("a priced pricing method lists each selected option price under the field", async (t) => {
+  const { state } = await harness(t)
+  await state.openEdit({ id: 71 })
+  await flush()
+  const furniture = state.form.specGroups.find((group) => group.specTypeId === 11)
+  const rooms = state.form.specGroups.find((group) => group.specTypeId === 10)
+  assert.deepEqual(clone(state.pricedSpecLines(furniture)), [
+    { value: 111, label: "Furnished", price: 25 },
+    { value: 112, label: "Empty", price: 0 },
+  ])
+  assert.deepEqual(clone(state.pricedSpecLines(rooms)), [])
+
+  state.specOptions.forEach((item) => { item.price = null })
+  state.specTypeOptions.forEach((item) => { item.priced = false })
+  state.rememberDetailSpecPrices({
+    specTypePriced: { 11: 1 },
+    specValuePrice: { 111: 18, 112: 0 },
+    specValueNameI18n: {
+      111: { en: "Furnished" },
+      112: { nameI18n: { en: "Empty" } },
+    },
+  })
+  assert.deepEqual(clone(state.pricedSpecLines(furniture)), [
+    { value: 111, label: "Furnished", price: 18 },
+    { value: 112, label: "Empty", price: 0 },
+  ])
+  assert.deepEqual(clone(state.pricedSpecLines(rooms)), [])
 })
 
 const sourceItem = (id) => ({
@@ -618,7 +723,7 @@ test("copying an ordinary service keeps its content but leaves package pricing m
   assert.deepEqual(clone(state.form.specGroups), [{ specTypeId: null, specIds: [] }])
   assert.equal(state.form.product.specTypeId, undefined)
   assert.deepEqual(clone(state.form.product.specIds), [])
-  assert.deepEqual(clone(state.form.addonGroups), [{ categoryId: 20, addonIds: [201] }])
+  assert.deepEqual(clone(state.form.addonGroups), [{ categoryId: 20, addonIds: [201], displayMode: 3 }])
   assert.ok(state.form.productImages.every((image) => image.productId == null))
   assert.deepEqual(clone(tagPicker.selectedIds.value), [301, 302])
   assert.deepEqual(clone(state.selectedProductTags), sourceTags)
@@ -633,9 +738,10 @@ test("copying an ordinary service keeps its content but leaves package pricing m
   assert.equal(saved.id, undefined)
   assert.equal(saved.packageService, 1)
   assert.equal(saved.status, undefined)
-  for (const key of ["nameI18n", "descI18n", "serviceContentI18n", "bookingNoticeI18n", "imageUrls", "attachBindings"]) {
+  for (const key of ["nameI18n", "descI18n", "serviceContentI18n", "bookingNoticeI18n", "imageUrls"]) {
     assert.deepEqual(saved[key], original[key], key)
   }
+  assert.deepEqual(saved.attachBindings, [{ attachTypeId: 20, attachValueIds: [201], displayMode: 3 }])
   assert.deepEqual(saved.categoryIds, ["2"])
   assert.deepEqual(saved.specBindings, [{ specTypeId: null, specValueIds: [] }])
   assert.notDeepEqual(saved.specBindings, original.specBindings)
@@ -864,10 +970,10 @@ test("adding groups after source import starts from an empty package pricing met
   assert.deepEqual(clone(state.form.specGroups.at(-1)), { specTypeId: null, specIds: [] })
 
   state.addAddonGroup()
-  assert.deepEqual(clone(state.form.addonGroups.at(-1)), { categoryId: null, addonIds: [] })
+  assert.deepEqual(clone(state.form.addonGroups.at(-1)), { categoryId: null, addonIds: [], displayMode: 3 })
   state.addonCategoryOptions.push({ value: 30, label: "Additional extras" })
   state.addAddonGroup()
-  assert.deepEqual(clone(state.form.addonGroups.at(-1)), { categoryId: 30, addonIds: [] })
+  assert.deepEqual(clone(state.form.addonGroups.at(-1)), { categoryId: 30, addonIds: [], displayMode: 3 })
   state.addAddonGroup()
   assert.deepEqual(clone(state.form.addonGroups.map((group) => group.categoryId)), [20, null, 30, null])
 })

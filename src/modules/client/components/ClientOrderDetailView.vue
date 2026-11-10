@@ -80,6 +80,8 @@
           </div>
         </section>
 
+        <AddExtraServiceButton v-if="canAddExtra" class="client-order-detail__extras" @click="runAction('add-addons')" />
+
         <div class="client-order-detail__grid">
           <section
             class="client-order-detail__panel client-order-detail__service"
@@ -101,10 +103,41 @@
                 <p v-if="naturalSpecText" class="client-order-detail__service-variant">
                   {{ naturalSpecText }}
                 </p>
-                <p v-if="addOnsText">
-                  <b>{{ locale.startsWith("zh") ? "附加项" : "Add-ons" }}</b
-                  >{{ addOnsText }}
-                </p>
+                <div v-if="purchasedAttaches.length" class="client-order-detail__attaches">
+                  <b>{{ locale.startsWith("zh") ? "附加项" : "Add-ons" }}</b>
+                  <ul>
+                    <li v-for="item in purchasedAttaches" :key="item.id">
+                      <div>
+                        <strong>{{ item.label }}</strong>
+                        <small v-if="item.typeName && item.typeName !== item.label">{{ item.typeName }}</small>
+                        <small v-if="item.source" :class="{ 'is-addon': item.addon }">{{ item.source }}</small>
+                        <em v-if="attachQuantityText(item)">{{ attachQuantityText(item) }}</em>
+                      </div>
+                      <dl>
+                        <div v-if="item.unitPriceWithTax != null">
+                          <dt>{{ locale.startsWith("zh") ? "含税单价" : "Unit price incl. VAT" }}</dt>
+                          <dd>{{ formatAed(item.unitPriceWithTax) }}</dd>
+                        </div>
+                        <div v-else-if="item.unitPriceWithoutTax != null">
+                          <dt>{{ locale.startsWith("zh") ? "不含税单价" : "Unit price excl. VAT" }}</dt>
+                          <dd>{{ formatAed(item.unitPriceWithoutTax) }}</dd>
+                        </div>
+                        <div v-if="item.amountWithoutTax != null">
+                          <dt>{{ locale.startsWith("zh") ? "不含税小计" : "Subtotal excl. VAT" }}</dt>
+                          <dd>{{ formatAed(item.amountWithoutTax) }}</dd>
+                        </div>
+                        <div v-if="item.taxAmount != null">
+                          <dt>{{ locale.startsWith("zh") ? "税额" : "VAT" }}</dt>
+                          <dd>{{ formatAed(item.taxAmount) }}</dd>
+                        </div>
+                        <div v-if="item.amountWithTax != null">
+                          <dt>{{ locale.startsWith("zh") ? "含税金额" : "Total incl. VAT" }}</dt>
+                          <dd>{{ formatAed(item.amountWithTax) }}</dd>
+                        </div>
+                      </dl>
+                    </li>
+                  </ul>
+                </div>
                 <p v-for="item in packageItemViews" :key="item.id">
                   <b>{{ item.name }}</b> {{ item.times }}
                 </p>
@@ -371,7 +404,7 @@
           </section>
         </div>
 
-        <section v-if="actions.length" class="client-order-detail__actions">
+        <section v-if="visibleActions.length" class="client-order-detail__actions">
           <button
             v-for="action in visibleActions"
             :key="action.key"
@@ -864,6 +897,7 @@ import { useRoute, useRouter } from "vue-router"
 import fallbackImage from "@/assets/images/client/kv.png"
 import CancellationPolicyGate from "@/modules/client/components/CancellationPolicyGate.vue"
 import CancellationModalContent from "@/modules/client/components/CancellationModalContent.vue"
+import AddExtraServiceButton from "@/modules/client/components/AddExtraServiceButton.vue"
 import {
   cancelOrder,
   checkOrderRefund,
@@ -887,14 +921,15 @@ import {
 import { useCart } from "@/modules/client/composables/useCart"
 import { normalizeRichTextHtml } from "@/modules/client/utils/richText"
 import { loadPackageBookingTimes } from "@/modules/client/utils/package-booking-times"
+import { canAddPaidOrderAddons } from "@/modules/client/utils/order-addons"
 import {
   formatCreatedAt,
   formatServiceSchedule,
 } from "@/modules/client/utils/order-date-time"
 import {
   formatContactName,
-  formatOrderAddOns,
   localizeOrderText,
+  readPurchasedAttachLines,
 } from "@/modules/client/utils/order-localization"
 import {
   packageServiceLines,
@@ -1306,9 +1341,14 @@ const naturalSpecText = computed(() =>
     .filter(Boolean)
     .join(locale.value.startsWith("zh") ? "，" : ", "),
 )
-const addOnsText = computed(() =>
-  formatOrderAddOns(order.value?.attachSelections, locale.value),
+const purchasedAttaches = computed(() =>
+  readPurchasedAttachLines(order.value?.attachSelections, locale.value),
 )
+const attachQuantityText = (item: { quantity: number; unit: string }) => {
+  if (item.quantity > 0 && item.unit) return `× ${item.quantity} ${item.unit}`
+  if (item.quantity > 0) return `× ${item.quantity}`
+  return ""
+}
 const orderTotal = computed(() => Math.max(0, Number(order.value?.orderAmount) || 0))
 const orderSubtotal = computed(() => orderTotal.value / 1.05)
 const orderTax = computed(() => orderTotal.value - orderSubtotal.value)
@@ -1488,6 +1528,16 @@ const statusBoxMessage = computed(() => {
     ? "请继续完成付款以确认预订。"
     : "Continue payment to confirm this booking."
 })
+const addonAction = () =>
+  canAddPaidOrderAddons(order.value, rawStatus.value)
+    ? [
+        {
+          key: "add-addons",
+          label: locale.value.startsWith("zh") ? "添加额外服务" : "Add extra services",
+          tone: "secondary",
+        },
+      ]
+    : []
 const actions = computed(() => {
   if (rawStatus.value === 0) return []
   if (rawStatus.value === 1) {
@@ -1503,6 +1553,7 @@ const actions = computed(() => {
         : []
     }
     return [
+      ...addonAction(),
       {
         key: "manage-booking",
         label: locale.value.startsWith("zh") ? "管理预订" : "Manage Booking",
@@ -1512,6 +1563,7 @@ const actions = computed(() => {
   }
   if (rawStatus.value === 2)
     return [
+      ...addonAction(),
       ...(!order.value?.reviewed
         ? [
             {
@@ -1556,15 +1608,18 @@ const actions = computed(() => {
         tone: "primary",
       },
     ]
+  if (rawStatus.value === 6) return addonAction()
   return []
 })
 const visibleActions = computed(() =>
   actions.value.filter((action) => {
+    if (action.key === "add-addons") return false
     if (!isPackageOrder.value) return true
     if (action.key === "rebook" && props.mobile) return false
     return true
   }),
 )
+const canAddExtra = computed(() => canAddPaidOrderAddons(order.value, rawStatus.value))
 
 const displayValue = (value?: string) =>
   String(value || "").trim() ||
@@ -2294,6 +2349,19 @@ const submitBookVisit = async () => {
 }
 
 const runAction = (action: string) => {
+  if (action === "add-addons") {
+    const current = order.value
+    void router.push({
+      name: props.mobile ? "h5-order-addons" : "order-addons",
+      query: {
+        ...(current?.orderId ? { orderId: String(current.orderId) } : {}),
+        ...(current?.orderNo || route.params.orderNo
+          ? { orderNo: String(current?.orderNo || route.params.orderNo) }
+          : {}),
+      },
+    })
+    return
+  }
   if (action === "review") {
     openFeedback()
     return
@@ -2940,6 +3008,73 @@ onMounted(async () => {
   margin-right: 8px;
   color: #334155;
 }
+.client-order-detail__attaches {
+  margin-top: 8px;
+}
+.client-order-detail__attaches b {
+  display: block;
+  margin: 0 0 8px;
+}
+.client-order-detail__attaches ul {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.client-order-detail__attaches li {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: #f7f9fc;
+}
+.client-order-detail__attaches strong {
+  color: #05152b;
+  font-size: 14px;
+}
+.client-order-detail__attaches small {
+  margin-left: 8px;
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 700;
+}
+.client-order-detail__attaches small.is-addon {
+  color: #8a5a12;
+}
+.client-order-detail__attaches em {
+  display: block;
+  margin-top: 2px;
+  color: #64748b;
+  font-size: 12px;
+  font-style: normal;
+}
+.client-order-detail__attaches dl {
+  display: grid;
+  gap: 2px;
+  margin: 0;
+  text-align: right;
+}
+.client-order-detail__attaches dl div {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+.client-order-detail__attaches dt,
+.client-order-detail__attaches dd {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.45;
+}
+.client-order-detail__attaches dt {
+  color: #8791a1;
+  font-weight: 600;
+}
+.client-order-detail__attaches dd {
+  color: #05152b;
+  font-weight: 800;
+}
 .client-order-detail__facts,
 .client-order-detail__info-list {
   margin: 0;
@@ -3015,6 +3150,7 @@ onMounted(async () => {
   font-size: 15px;
   font-weight: 900;
 }
+.client-order-detail__extras { margin: 18px 0; }
 .client-order-detail__actions {
   margin-top: 20px;
   padding: 18px;
@@ -3458,6 +3594,15 @@ onMounted(async () => {
   }
   .client-order-detail__service-main h2 {
     font-size: 17px;
+  }
+  .client-order-detail__attaches li {
+    flex-direction: column;
+    gap: 8px;
+  }
+  .client-order-detail__attaches dl,
+  .client-order-detail__attaches dl div {
+    justify-content: flex-start;
+    text-align: left;
   }
   .client-order-detail__info-list > div {
     grid-template-columns: 92px minmax(0, 1fr);

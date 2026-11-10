@@ -10,7 +10,7 @@
         />
         <el-button type="primary" @click="handleSearch">{{ t('admin.category.actions.search') }}</el-button>
         <el-button @click="reset">{{ t('admin.category.actions.reset') }}</el-button>
-        <el-button type="primary" @click="openCreate">{{ t('admin.category.actions.create') }}</el-button>
+        <el-button v-if="canAction('btn:/admin/basic/categories:create')" type="primary" @click="openCreate">{{ t('admin.category.actions.create') }}</el-button>
         <el-button @click="openPreview">{{ t('admin.category.actions.preview') }}</el-button>
       </div>
 
@@ -26,7 +26,7 @@
         @drop.prevent="handleCategoryDrop"
       >
         <el-table-column
-          v-if="canSortCategories"
+          v-if="canSortCategories && canAction('btn:/admin/basic/categories:edit')"
           :label="t('admin.category.table.sort')"
           width="64"
           align="center"
@@ -69,6 +69,7 @@
           <template #default="{ row }">
             <el-switch
               v-model="row.enabled"
+              :disabled="!canAction('btn:/admin/basic/categories:status')"
               :active-text="t('admin.common.enabled')"
               :inactive-text="t('admin.common.disabled')"
               inline-prompt
@@ -81,10 +82,10 @@
         </el-table-column>
         <el-table-column :label="t('admin.category.table.actions')" width="132" fixed="right">
           <template #default="{ row }">
-            <el-button link type="primary" size="small" @click="openEdit(row)">
+            <el-button v-if="canAction('btn:/admin/basic/categories:edit')" link type="primary" size="small" @click="openEdit(row)">
               {{ t('admin.category.actions.edit') }}
             </el-button>
-            <el-button link type="danger" size="small" @click="remove(row)">
+            <el-button v-if="canAction('btn:/admin/basic/categories:delete')" link type="danger" size="small" @click="remove(row)">
               {{ t('admin.category.actions.delete') }}
             </el-button>
           </template>
@@ -202,7 +203,7 @@
       </el-form>
       <template #footer>
         <el-button @click="dialogVisible = false">{{ t('admin.category.actions.cancel') }}</el-button>
-        <el-button type="primary" :loading="submitLoading" @click="save">{{ t('admin.category.actions.save') }}</el-button>
+        <el-button v-if="canAction(isEdit ? 'btn:/admin/basic/categories:edit' : 'btn:/admin/basic/categories:create')" type="primary" :loading="submitLoading" @click="save">{{ t('admin.category.actions.save') }}</el-button>
       </template>
     </el-dialog>
 

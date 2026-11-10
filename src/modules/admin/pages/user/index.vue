@@ -8,9 +8,35 @@
           clearable
           @keyup.enter="handleSearch"
         />
+        <el-input
+          v-model="query.phoneKeyword"
+          :placeholder="t('admin.user.filters.phonePlaceholder')"
+          clearable
+          @keyup.enter="handleSearch"
+        />
+        <el-input
+          v-model="query.emailKeyword"
+          class="email-filter"
+          :placeholder="t('admin.user.filters.emailPlaceholder')"
+          clearable
+          @keyup.enter="handleSearch"
+        />
+        <el-select
+          v-model="query.roleCode"
+          clearable
+          filterable
+          :placeholder="t('admin.user.filters.rolePlaceholder')"
+        >
+          <el-option
+            v-for="role in filterRoles"
+            :key="role.id"
+            :label="roleLabel(role)"
+            :value="role.code"
+          />
+        </el-select>
         <el-button type="primary" @click="handleSearch">{{ t('admin.user.actions.search') }}</el-button>
         <el-button @click="reset">{{ t('admin.user.actions.reset') }}</el-button>
-        <el-button type="primary" @click="openCreate">{{ t('admin.user.actions.create') }}</el-button>
+        <el-button v-if="accountKind === 'platform' && canAction('btn:/admin/users:create')" type="primary" @click="openCreate">{{ t('admin.user.actions.create') }}</el-button>
       </div>
 
       <el-table
@@ -24,11 +50,25 @@
         <el-table-column prop="name" :label="t('admin.user.table.name')" width="160" />
         <el-table-column prop="phone" :label="t('admin.user.table.phone')" width="140" />
         <el-table-column prop="email" :label="t('admin.user.table.email')" min-width="180" />
-        <el-table-column :label="t('admin.user.table.roles')" min-width="180">
+        <el-table-column :label="t('admin.user.table.roles')" width="128">
           <template #default="{ row }">
             <div v-if="row.roles?.length" class="role-tags">
               <el-tag v-for="role in row.roles" :key="role.id" effect="plain">{{ roleLabel(role) }}</el-tag>
             </div>
+            <span v-else>—</span>
+          </template>
+        </el-table-column>
+        <el-table-column :label="t('admin.user.table.supplier')" min-width="180">
+          <template #default="{ row }">
+            <button
+              v-if="row.supplierId"
+              type="button"
+              class="supplier-link"
+              @click="openSupplier(row)"
+            >
+              <span>{{ supplierAccountName(row) }}</span>
+              <span v-if="String(row.supplierName || '').trim() && row.supplierNo" class="time">{{ row.supplierNo }}</span>
+            </button>
             <span v-else>—</span>
           </template>
         </el-table-column>
@@ -49,16 +89,17 @@
         </el-table-column>
         <el-table-column :label="t('admin.user.table.actions')" width="340" fixed="right">
           <template #default="{ row }">
-            <el-button link type="primary" size="small" @click="openEdit(row)">
+            <el-button v-if="canAction('btn:/admin/users:edit')" link type="primary" size="small" @click="openEdit(row)">
               {{ t('admin.user.actions.edit') }}
             </el-button>
-            <el-button link type="primary" size="small" @click="openAssignRole(row)">
+            <el-button v-if="canAction('btn:/admin/users:role')" link type="primary" size="small" @click="openAssignRole(row)">
               {{ t('admin.user.actions.assignRole') }}
             </el-button>
-            <el-button link type="primary" size="small" @click="openPassword(row)">
+            <el-button v-if="canAction('btn:/admin/users:password')" link type="primary" size="small" @click="openPassword(row)">
               {{ t('admin.user.actions.changePassword') }}
             </el-button>
             <el-button
+              v-if="canAction('btn:/admin/users:permission')"
               link
               type="warning"
               size="small"
@@ -66,7 +107,7 @@
             >
               {{ t('admin.user.actions.assignPermission') }}
             </el-button>
-            <el-button link type="danger" size="small" @click="remove(row)">
+            <el-button v-if="canAction('btn:/admin/users:delete')" link type="danger" size="small" @click="remove(row)">
               {{ t('admin.user.actions.delete') }}
             </el-button>
           </template>
@@ -119,7 +160,7 @@
       </el-form>
       <template #footer>
         <el-button @click="dialogVisible = false">{{ t('admin.user.actions.cancel') }}</el-button>
-        <el-button type="primary" :loading="submitLoading" @click="save">{{ t('admin.user.actions.save') }}</el-button>
+        <el-button v-if="canAction(isEdit ? 'btn:/admin/users:edit' : 'btn:/admin/users:create')" type="primary" :loading="submitLoading" @click="save">{{ t('admin.user.actions.save') }}</el-button>
       </template>
     </el-dialog>
 
@@ -131,16 +172,26 @@
       destroy-on-close
       @closed="onPermissionDialogClosed"
     >
+      <p class="permission-note">{{ t('admin.user.permission.hint') }}</p>
       <el-tree
         ref="permissionTreeRef"
         v-loading="permissionLoading"
         class="permission-tree"
         node-key="id"
         show-checkbox
+        check-strictly
         default-expand-all
         :data="permissionTreeData"
         :props="permissionTreeProps"
-      />
+        @check="onPermissionCheck"
+      >
+        <template #default="{ data }">
+          <span class="permission-node">
+            <span>{{ data.name }}</span>
+            <em v-if="isButtonPermission(data)" class="permission-node__tag">{{ t('admin.user.permission.buttonTag') }}</em>
+          </span>
+        </template>
+      </el-tree>
       <template #footer>
         <el-button @click="permissionDialogVisible = false">{{ t('admin.user.actions.cancel') }}</el-button>
         <el-button
@@ -199,7 +250,8 @@
 </template>
 
 <script setup lang="ts">
-import { computed, nextTick, onMounted, reactive, ref } from 'vue';
+import { computed, nextTick, onMounted, reactive, ref, watch } from 'vue';
+import { useRouter } from 'vue-router';
 import type { FormInstance, FormRules, TreeInstance } from 'element-plus';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { useI18n } from 'vue-i18n';
@@ -213,6 +265,7 @@ import apis, {
   updateAdminUserRoles,
 } from '@/modules/admin/api/user';
 import { useAdminSessionStore } from '@/modules/admin/stores/session';
+import { permissionKeysAfterToggle } from '@/modules/admin/utils/admin-button-permission';
 
 type AccountRole = {
   id: number;
@@ -227,6 +280,9 @@ type User = {
   email: string;
   password?: string;
   roles?: AccountRole[];
+  supplierId?: number | null;
+  supplierName?: string | null;
+  supplierNo?: string | null;
   createTime?: string;
   creator?: string;
   modifyTime?: string;
@@ -234,12 +290,17 @@ type User = {
   updater?: string;
 };
 
+const props = withDefaults(defineProps<{ accountKind?: 'platform' | 'supplier' }>(), {
+  accountKind: 'platform',
+});
+const accountKind = computed(() => props.accountKind === 'supplier' ? 'supplier' : 'platform');
 const PLATFORM_ROLE_CODES = new Set([
   'PLATFORM_CUSTOMER_SERVICE',
   'PLATFORM_OPERATIONS',
   'PLATFORM_FINANCE',
   'PLATFORM_BUSINESS_DEVELOPMENT',
 ]);
+const SUPPLIER_ROLE_CODES = new Set(['SUPPLIER', 'SUPPLIER_STAFF']);
 
 type MenuPermissionItem = {
   id: number | string;
@@ -265,6 +326,9 @@ const query = reactive({
   pageNum: 1,
   pageSize: 10,
   nameKeyword: '',
+  phoneKeyword: '',
+  emailKeyword: '',
+  roleCode: '',
 });
 const users = ref<User[]>([]);
 const total = ref(0);
@@ -293,6 +357,21 @@ const permissionTreeProps = {
   children: 'children',
 };
 const { t } = useI18n({ useScope: 'global' });
+const router = useRouter();
+
+const supplierAccountName = (row: User) => {
+  const name = String(row.supplierName || '').trim();
+  const no = String(row.supplierNo || '').trim();
+  return name || no || String(row.supplierId);
+};
+
+const openSupplier = (row: User) => {
+  if (!row.supplierId) return;
+  void router.push({
+    name: 'admin-basic-suppliers',
+    query: { id: String(row.supplierId), tab: 'overview' },
+  });
+};
 const currentUserId = ref(0);
 const currentRoleCodes = ref<string[]>([]);
 const enabledRoles = ref<AccountRole[]>([]);
@@ -311,13 +390,23 @@ const passwordForm = reactive({
 });
 const unwrap = (payload: any) => (payload && typeof payload === 'object' && 'data' in payload ? payload.data : payload);
 const isSuperAdmin = computed(() => currentRoleCodes.value.includes('SUPER_ADMIN'));
-const assignableRoles = computed(() => (
-  isSuperAdmin.value
-    ? enabledRoles.value
-    : enabledRoles.value.filter((role) => role.code && PLATFORM_ROLE_CODES.has(role.code))
-));
+const roleInAccount = (code?: string) => {
+  if (!code) return false;
+  return accountKind.value === 'supplier'
+    ? SUPPLIER_ROLE_CODES.has(code)
+    : code === 'SUPER_ADMIN' || PLATFORM_ROLE_CODES.has(code);
+};
+const assignableRoles = computed(() => {
+  const roles = enabledRoles.value.filter((role) => roleInAccount(role.code));
+  if (accountKind.value === 'supplier') return isSuperAdmin.value ? roles : [];
+  return isSuperAdmin.value
+    ? roles
+    : roles.filter((role) => role.code && PLATFORM_ROLE_CODES.has(role.code));
+});
+const filterRoles = computed(() => enabledRoles.value.filter((role) => roleInAccount(role.code)));
 const keepsSupplierRole = computed(() => (
-  !isSuperAdmin.value && (roleTarget.value?.roles || []).some((role) => role.code === 'SUPPLIER')
+  accountKind.value === 'platform'
+  && (roleTarget.value?.roles || []).some((role) => role.code && SUPPLIER_ROLE_CODES.has(role.code))
 ));
 const changingOwnPassword = computed(() => Number(passwordTarget.value?.id) === currentUserId.value);
 const roleLabel = (role: AccountRole) => {
@@ -419,18 +508,39 @@ const flattenMenuList = (
   return target;
 };
 
-const collectLeafMenuIds = (list: MenuPermissionItem[]) => {
-  const flat = flattenMenuList(list);
-  if (!flat.length) return [];
-  const parentIdSet = new Set(
-    flat
-      .map((item) => String(item.parentId))
-      .filter((parentId) => parentId !== '0' && parentId !== ''),
+const isButtonPermission = (item: { path?: string }) =>
+  String(item?.path || '').trim().startsWith('btn:');
+
+const syncingPermissionTree = ref(false);
+const onPermissionCheck = (
+  data: MenuPermissionNode,
+  state: { checkedKeys?: Array<string | number> },
+) => {
+  if (syncingPermissionTree.value) return;
+  const next = permissionKeysAfterToggle(
+    permissionTreeData.value,
+    state.checkedKeys || [],
+    data.id,
   );
-  const leafIds = flat
-    .filter((item) => !parentIdSet.has(String(item.id)))
-    .map((item) => item.id);
-  return leafIds.length ? leafIds : flat.map((item) => item.id);
+  const current = new Set((state.checkedKeys || []).map((id) => String(id)));
+  if (next.length === current.size && next.every((id) => current.has(id))) return;
+  syncingPermissionTree.value = true;
+  permissionTreeRef.value?.setCheckedKeys(next, false);
+  nextTick(() => {
+    syncingPermissionTree.value = false;
+  });
+};
+
+const includePermissionAncestors = (
+  nodes: MenuPermissionNode[],
+  selected: Set<string>,
+) => {
+  nodes.forEach((node) => {
+    includePermissionAncestors(node.children || [], selected);
+    if (node.children?.some((child) => selected.has(String(child.id)))) {
+      selected.add(String(node.id));
+    }
+  });
 };
 
 const buildPermissionTree = (list: MenuPermissionItem[]): MenuPermissionNode[] => {
@@ -471,6 +581,10 @@ const fetchUsers = async () => {
       pageNum: query.pageNum,
       pageSize: query.pageSize,
       name: query.nameKeyword?.trim() || undefined,
+      phoneKeyword: query.phoneKeyword?.trim() || undefined,
+      emailKeyword: query.emailKeyword?.trim() || undefined,
+      roleCode: query.roleCode || undefined,
+      accountKind: accountKind.value,
     };
     const res = await apis.getPage(params);
     const { list, total: t, pageNum, pageSize } = extractList(res);
@@ -492,6 +606,9 @@ const handleSearch = () => {
 
 const reset = () => {
   query.nameKeyword = '';
+  query.phoneKeyword = '';
+  query.emailKeyword = '';
+  query.roleCode = '';
   query.pageNum = 1;
   fetchUsers();
 };
@@ -553,9 +670,8 @@ const openAssignPermission = async (row: User) => {
       allMenus.length ? allMenus : userMenus,
     );
 
-    const checkedKeys = collectLeafMenuIds(userMenus);
+    const checkedKeys = flattenMenuList(userMenus).map((item) => item.id);
     await nextTick();
-    // 只回显 getUserRoles 返回的叶子权限，避免父节点联动勾选整组子菜单
     permissionTreeRef.value?.setCheckedKeys(checkedKeys, false);
   } catch (error: any) {
     ElMessage.error(error?.message || t('admin.user.message.permissionFetchFailed'));
@@ -569,9 +685,14 @@ const saveUserPermissions = async () => {
   if (!userId) return;
   permissionSaving.value = true;
   try {
-    const checked = permissionTreeRef.value?.getCheckedKeys(false) || [];
-    const halfChecked = permissionTreeRef.value?.getHalfCheckedKeys() || [];
-    const menuIds = Array.from(new Set([...checked, ...halfChecked])).map(
+    const checked = new Set(
+      (permissionTreeRef.value?.getCheckedKeys(false) || []).map((id) => String(id)),
+    );
+    (permissionTreeRef.value?.getHalfCheckedKeys() || []).forEach((id) => {
+      checked.add(String(id));
+    });
+    includePermissionAncestors(permissionTreeData.value, checked);
+    const menuIds = Array.from(checked).map(
       (id) => {
         const numericId = Number(id);
         return Number.isNaN(numericId) ? id : numericId;
@@ -687,13 +808,17 @@ const openAssignRole = async (row: User) => {
 const saveRoles = async () => {
   const userId = roleTarget.value?.id;
   if (!userId) return;
-  if (!selectedRoleIds.value.length) {
+  const preserved = (roleTarget.value?.roles || [])
+    .filter((role) => role.code && role.id != null && !roleInAccount(role.code))
+    .map((role) => Number(role.id));
+  const roleIds = Array.from(new Set([...selectedRoleIds.value, ...preserved]));
+  if (!roleIds.length) {
     ElMessage.warning(t('admin.user.validation.rolesRequired'));
     return;
   }
   roleSaving.value = true;
   try {
-    await updateAdminUserRoles({ userId, roleIds: selectedRoleIds.value });
+    await updateAdminUserRoles({ userId, roleIds });
     ElMessage.success(t('admin.user.message.roleSaveSuccess'));
     roleDialogVisible.value = false;
     fetchUsers();
@@ -747,6 +872,12 @@ const savePassword = async () => {
   }
 };
 
+watch(accountKind, () => {
+  query.roleCode = '';
+  query.pageNum = 1;
+  fetchUsers();
+});
+
 onMounted(() => {
   fetchUsers();
   loadRoleContext();
@@ -759,12 +890,17 @@ onMounted(() => {
 }
 .toolbar {
   display: flex;
+  flex-wrap: wrap;
   gap: 12px;
   margin-bottom: 16px;
   align-items: center;
 }
-.toolbar .el-input {
-  max-width: 260px;
+.toolbar .el-input,
+.toolbar .el-select {
+  width: 180px;
+}
+.toolbar .email-filter {
+  width: 220px;
 }
 .pager {
   display: flex;
@@ -781,15 +917,58 @@ onMounted(() => {
   color: #888;
   font-size: 12px;
 }
+.permission-note {
+  margin: 0 0 10px;
+  color: #7a7166;
+  font-size: 12px;
+  line-height: 1.5;
+}
 .permission-tree {
   max-height: 420px;
   overflow: auto;
   padding: 6px 0;
 }
+.permission-node {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.permission-node__tag {
+  padding: 0 5px;
+  border-radius: 999px;
+  background: #f3efe7;
+  color: #7a6240;
+  font-size: 11px;
+  font-style: normal;
+  line-height: 16px;
+}
 .role-tags {
   display: flex;
   flex-wrap: wrap;
   gap: 4px;
+}
+.role-tags :deep(.el-tag) {
+  height: auto;
+  max-width: 100%;
+  white-space: normal;
+  line-height: 1.35;
+}
+.supplier-link {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--el-color-primary);
+  cursor: pointer;
+  font: inherit;
+  line-height: 1.4;
+  text-align: left;
+}
+.supplier-link:hover {
+  text-decoration: underline;
 }
 .role-note {
   margin: 0 0 0 90px;

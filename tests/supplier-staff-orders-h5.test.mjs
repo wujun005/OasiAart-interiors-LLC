@@ -359,6 +359,37 @@ test("composite service addresses do not repeat exact parts or swallow a distinc
   )
 })
 
+test("initial and paid add-on group headings resolve at runtime with localized fallbacks", async (t) => {
+  const row = orderRow({
+    lines: [{ skuId: 11, spuName: "Home cleaning", quoteAmount: 90 }],
+    attaches: [
+      { attachValueId: 21, name: "Materials", source: "INITIAL", quantity: 1 },
+      { attachValueId: 22, name: "Extra room", source: "ADDON", addonPaymentId: "PAY-22", quantity: 1 },
+    ],
+  })
+  const { state, locale } = await harness(t, { detail: async () => ({ data: row }) })
+  await state.openDetail(row)
+  assert.equal(state.detailReady, true)
+
+  const groups = state.orderGroups(state.order)
+  assert.deepEqual(clone(groups.map((group) => group.source)), ["INITIAL", "ADDON"])
+  // Exercise the actual SFC setup functions used by the group header. Merely
+  // compiling the template would miss a self-shadowed localization helper.
+  assert.deepEqual(clone(groups.map((group) => state.groupTitle(group))), [
+    "Initial order", "Added after payment",
+  ])
+  assert.equal(state.attachSource({ addedAfterPay: true }), "Added after payment")
+  assert.equal(state.attachSource({ source: "UNKNOWN" }), "")
+  const localized = { source: "ADDON", sourceI18n: { en: "Extra service", zh: "加购服务" } }
+  assert.equal(state.groupTitle(localized), "Extra service")
+
+  locale.value = "zh"
+  await flush()
+  assert.deepEqual(clone(groups.map((group) => state.groupTitle(group))), ["首次下单", "支付后追加"])
+  assert.equal(state.attachSource({ addedAfterPay: true }), "支付后追加")
+  assert.equal(state.groupTitle(localized), "加购服务")
+})
+
 test("only positive safe integer order and fulfilment ids reach APIs", async (t) => {
   const { state, calls, controls } = await harness(t)
   assert.deepEqual(

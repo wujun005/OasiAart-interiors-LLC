@@ -25,7 +25,7 @@
         <div class="toolbar-actions">
           <el-button type="primary" @click="handleSearch">{{ t('admin.packageList.actions.search') }}</el-button>
           <el-button @click="reset">{{ t('admin.packageList.actions.reset') }}</el-button>
-          <el-button type="primary" @click="openCreate">{{ t('admin.packageList.actions.create') }}</el-button>
+          <el-button v-if="canAction('btn:/admin/package/packages:create')" type="primary" @click="openCreate">{{ t('admin.packageList.actions.create') }}</el-button>
         </div>
       </div>
 
@@ -114,7 +114,13 @@
             <div class="date-line">{{ t('admin.packageList.table.updatedAt') }}: {{ formatDate(row.updatedAt) }}</div>
           </template>
         </el-table-column>
-        <el-table-column :label="t('admin.quoteCompare.open')" width="112" align="center" fixed="right">
+        <el-table-column
+          v-if="canAction('btn:/admin/package/packages:quote-compare')"
+          :label="t('admin.quoteCompare.open')"
+          width="112"
+          align="center"
+          fixed="right"
+        >
           <template #default="{ row }">
             <el-button
               class="quote-compare-open"
@@ -130,8 +136,8 @@
         <el-table-column :label="t('admin.packageList.table.actions')" width="148" fixed="right">
           <template #default="{ row }">
             <div class="table-actions">
-              <el-button link type="primary" size="small" @click="openEdit(row)">{{ t('admin.packageList.actions.edit') }}</el-button>
-              <el-button link type="primary" size="small" @click="toggleStatus(row)">
+              <el-button v-if="canAction('btn:/admin/package/packages:edit')" link type="primary" size="small" @click="openEdit(row)">{{ t('admin.packageList.actions.edit') }}</el-button>
+              <el-button link type="primary" size="small" :disabled="!canAction('btn:/admin/package/packages:status')" @click="toggleStatus(row)">
                 {{ row.onShelf ? t('admin.packageList.actions.unshelf') : t('admin.packageList.actions.shelf') }}
               </el-button>
               <el-button link type="primary" size="small" :disabled="!row.previewUrl" @click="openPreview(row)">
@@ -141,6 +147,7 @@
                 link
                 type="primary"
                 size="small"
+                v-if="canAction('btn:/admin/package/packages:export-quote')"
                 class="quote-compare-export"
                 :loading="quoteCompareExportingId === row.id"
                 :disabled="quoteCompareExportingId != null && quoteCompareExportingId !== row.id"
@@ -148,7 +155,7 @@
               >
                 {{ t('admin.packageList.actions.exportQuoteCompare') }}
               </el-button>
-              <el-button link type="danger" size="small" @click="remove(row)">{{ t('admin.packageList.actions.delete') }}</el-button>
+              <el-button v-if="canAction('btn:/admin/package/packages:delete')" link type="danger" size="small" @click="remove(row)">{{ t('admin.packageList.actions.delete') }}</el-button>
             </div>
           </template>
         </el-table-column>
@@ -360,7 +367,7 @@
       </el-form>
       <template #footer>
         <el-button @click="dialogVisible = false">{{ t('admin.packageList.actions.cancel') }}</el-button>
-        <el-button type="primary" :loading="submitLoading" @click="save">{{ t('admin.packageList.actions.save') }}</el-button>
+        <el-button v-if="canAction('btn:/admin/package/packages:create') || canAction('btn:/admin/package/packages:edit')" type="primary" :loading="submitLoading" @click="save">{{ t('admin.packageList.actions.save') }}</el-button>
       </template>
     </el-dialog>
     <SupplierQuoteCompareDialog

@@ -32,7 +32,7 @@
         </el-select>
         <el-button type="primary" @click="handleSearch">{{ text('admin.specType.actions.search') }}</el-button>
         <el-button @click="reset">{{ text('admin.specType.actions.reset') }}</el-button>
-        <el-button type="primary" @click="openCreate">{{ text('admin.specType.actions.create') }}</el-button>
+        <el-button v-if="canAction(catalog === 'package' ? 'btn:/admin/package/spec-types:create' : 'btn:/admin/basic/spec-types:create')" type="primary" @click="openCreate">{{ text('admin.specType.actions.create') }}</el-button>
       </div>
 
       <el-table :data="displayList" border stripe row-key="id" v-loading="tableLoading">
@@ -52,10 +52,10 @@
         </el-table-column>
         <el-table-column :label="text('admin.specType.table.actions')" width="132" fixed="right">
           <template #default="{ row }">
-            <el-button link type="primary" size="small" @click="openEdit(row)">
+            <el-button v-if="canAction(catalog === 'package' ? 'btn:/admin/package/spec-types:edit' : 'btn:/admin/basic/spec-types:edit')" link type="primary" size="small" @click="openEdit(row)">
               {{ text('admin.specType.actions.edit') }}
             </el-button>
-            <el-button link type="danger" size="small" @click="remove(row)">
+            <el-button v-if="canAction(catalog === 'package' ? 'btn:/admin/package/spec-types:delete' : 'btn:/admin/basic/spec-types:delete')" link type="danger" size="small" @click="remove(row)">
               {{ text('admin.specType.actions.delete') }}
             </el-button>
           </template>
@@ -123,7 +123,7 @@
       </el-form>
       <template #footer>
         <el-button @click="dialogVisible = false">{{ text('admin.specType.actions.cancel') }}</el-button>
-        <el-button type="primary" :loading="submitLoading" @click="save">{{ text('admin.specType.actions.save') }}</el-button>
+        <el-button v-if="canAction(catalog === 'package' ? 'btn:/admin/package/spec-types:create' : 'btn:/admin/basic/spec-types:create') || canAction(catalog === 'package' ? 'btn:/admin/package/spec-types:edit' : 'btn:/admin/basic/spec-types:edit')" type="primary" :loading="submitLoading" @click="save">{{ text('admin.specType.actions.save') }}</el-button>
       </template>
     </el-dialog>
   </div>

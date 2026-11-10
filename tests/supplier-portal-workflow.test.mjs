@@ -35,7 +35,8 @@ const directive = (node, name, argument) => node.props?.find(prop =>
 )?.exp?.content
 const evaluate = (expression, state, locals = {}) => {
   assert.ok(expression, 'Expected a binding from the real supplier portal template')
-  return new Function('state', 'locals', `with (state) { with (locals) { return (${expression}); } }`)(state, locals)
+  const canAction = () => true
+  return new Function('state', 'locals', 'canAction', `with (state) { with (locals) { return (${expression}); } }`)(state, locals, canAction)
 }
 const disabledBindings = new Map()
 const collectControls = (node) => {
@@ -80,6 +81,7 @@ async function harness(t, section = 'pricing', mobile = false) {
   calls.staffPages = []
   calls.categoryContacts = []
   calls.serviceRemovals = []
+  calls.packageSaves = []
   calls.confirm = async () => { throw new Error('Unexpected confirmation dialog') }
   const locale = Vue.ref('en')
   const translate = (key, params = {}) => {
@@ -126,13 +128,15 @@ async function harness(t, section = 'pricing', mobile = false) {
     },
     saveCategoryContacts: async (payload) => { calls.categoryContacts.push(clone(payload)); return {} },
     removeSupplierService: async (payload) => { calls.serviceRemovals.push(clone(payload)); return { data: { removedSkuCount: 1 } } },
+    saveSupplierPackages: async (payload) => { calls.packageSaves.push(clone(payload)); return {} },
     saveQuoteDraft: async (payload) => {
       calls.drafts.push(clone(payload))
       return { data: { ...clone(payload), status: 0, skus: clone(payload.items) } }
     },
     submitQuote: async (payload) => {
       calls.submissions.push(clone(payload))
-      return { data: { ...clone(calls.drafts.at(-1) || {}), status: 1, submittedAt: '2026-10-16T01:00:00Z', skus: calls.drafts.at(-1)?.items || [] } }
+      const body = calls.submitResponse || { status: 1, submittedAt: '2026-10-16T01:00:00Z' }
+      return { data: { ...clone(calls.drafts.at(-1) || {}), ...clone(body), skus: body.skus || calls.drafts.at(-1)?.items || [] } }
     },
     applyQuotePriceChange: async (payload) => {
       calls.priceChanges.push(clone(payload))
@@ -446,6 +450,241 @@ test('person-hour quotes save one rate and do not ask for material rates or opti
   assert.equal(calls.drafts.at(-1).unitPrice, 45)
 })
 
+test('quantity quotes save one unit price and do not ask for option prices', async (t) => {
+  const context = await harness(t)
+  await readyQuote(context, {
+    quoteMode: 4, unitPrice: 25, unitPriceWithMaterial: 80, unitPriceWithoutMaterial: 60,
+    rows: [
+      { skuId: 601, enabled: false, available: true, quotePrice: 100 },
+      { skuId: 602, enabled: false, available: false, quotePrice: null },
+    ],
+  })
+  const { state, calls, locale } = context
+  assert.equal(state.assignedQuoteMode({ quoteMode: 1, configuredQuoteMode: 4, status: 2 }), 4)
+  assert.equal(state.quoteNeedsNewMode({ quoteMode: 1, configuredQuoteMode: 4, status: 2, unitPrice: null, skus: [{ quotePrice: 100 }] }), true)
+  assert.equal(state.hourlyQuote, true)
+  assert.equal(state.hourlyRuleKey, 'admin.supplierPortal.quantityRule')
+  assert.equal(state.activeHourlyRateFields.length, 1)
+  assert.equal(state.activeHourlyRateFields[0].key, 'unitPrice')
+  locale.value = 'zh'
+  assert.equal(state.quoteModeLabel(4), '按照数量报价')
+  locale.value = 'en'
+  const payload = state.quotePayload()
+  assert.equal(payload.quoteMode, 4)
+  assert.equal(payload.unitPrice, 25)
+  assert.equal(payload.items[0].quotePrice, null)
+  assert.equal(payload.items[0].enabled, 1)
+  assert.equal(state.submitProblem(), '')
+  await state.saveServiceQuote()
+  assert.equal(calls.drafts[0].quoteMode, 4)
+  assert.equal(calls.drafts[0].unitPrice, 25)
+  assert.equal(Object.hasOwn(calls.drafts[0], 'unitPriceWithMaterial'), false)
+})
+
+test('a quantity quote lists each sku under the unit price', async (t) => {
+  const context = await harness(t)
+  await readyQuote(context, {
+    quoteMode: 4,
+    unitPrice: 25,
+    columns: [{ key: 'size', nameI18n: { zh: '面积', en: 'Size' }, fallback: 'Size' }],
+    rows: [
+      {
+        skuId: 601,
+        available: true,
+        skuCode: '9f3c2a10-1111-2222-3333-444444444444',
+        specLines: [
+          { specTypeName: 'What do you need help with?', specValueName: 'Shelves & Wall Mounting' },
+          { specTypeName: '需要什么帮助？', specValueName: '窗帘安装' },
+          { specTypeName: 'ApolloHomeSize', specValueName: '1 Bedroom' },
+          {
+            specTypeNameI18n: { zh: '房型', en: 'Home type' },
+            specValueName: '1 BHK',
+            specValueRemarkI18n: { zh: '约 70 平方米', en: 'About 70 sqm' },
+          },
+        ],
+      },
+      { skuId: 602, available: false, specLines: [{ specTypeName: '房型', specValueName: '停售' }] },
+      {
+        skuId: 603,
+        available: true,
+        skuCode: 'CESS-2',
+        specs: { size: { en: '90 sqm', zh: '90 平方米' } },
+      },
+    ],
+  })
+  const { state, locale } = context
+  locale.value = 'zh'
+  await flush()
+  assert.deepEqual(JSON.parse(JSON.stringify(state.quantitySkuNotes)), [
+    { id: 601, text: 'Shelves & Wall Mounting；窗帘安装；1 Bedroom；房型: 1 BHK（约 70 平方米）' },
+    { id: 603, text: '面积: 90 平方米' },
+  ])
+  locale.value = 'en'
+  await flush()
+  assert.equal(JSON.parse(JSON.stringify(state.quantitySkuNotes))[0].text, 'Shelves & Wall Mounting; 窗帘安装; 1 Bedroom; Home type: 1 BHK (About 70 sqm)')
+  assert.equal(state.optionPrices.length, 2)
+  assert.equal(state.optionPrices[0].price, 25)
+  assert.equal(state.optionPrices[0].note, '')
+  assert.equal(state.optionPrices[1].price, 25)
+  state.optionPriceQuery = 'shelves'
+  await flush()
+  assert.equal(state.visibleOptionPrices.length, 1)
+  assert.equal(state.visibleOptionPrices[0].id, 601)
+  state.optionPriceQuery = ''
+  assert.match(read(filename), /class="quantity-sku-notes"/)
+  assert.match(read(filename), /class="option-prices"/)
+  for (const mode of [2, 3, 4]) {
+    state.quoteDialog.quoteMode = mode
+    await flush()
+    assert.equal(JSON.parse(JSON.stringify(state.quantitySkuNotes)).length, 2, `mode ${mode}`)
+  }
+  state.quoteDialog.quoteMode = 1
+  await flush()
+  assert.deepEqual(JSON.parse(JSON.stringify(state.quantitySkuNotes)), [])
+  state.quoteDialog.rows[0].supplierFulfillRemark = ' 带梯子 '
+  state.quoteDialog.quoteMode = 3
+  await flush()
+  assert.match(JSON.parse(JSON.stringify(state.quantitySkuNotes))[0].text, /Note: 带梯子/)
+  locale.value = 'zh'
+  await flush()
+  assert.match(JSON.parse(JSON.stringify(state.quantitySkuNotes))[0].text, /备注：带梯子/)
+  assert.match(read(filename), /class="quote-fulfill-remark"/)
+  state.quoteDialog.rows[0].staffCount = 2
+  state.quoteDialog.rows[0].serviceHours = 3
+  state.quoteDialog.unitPrice = 50
+  await flush()
+  assert.equal(state.optionPrices[0].price, 300)
+  assert.equal(state.optionPrices[0].note, '2 人 × 3 小时')
+  assert.equal(state.optionPrices[0].excl, 285.71)
+  assert.equal(state.optionPrices[0].calculation, '50.00 × 2 人 × 3 小时')
+  assert.equal(state.optionPrices[1].price, 50)
+  assert.equal(state.optionPrices[1].excl, 47.62)
+  assert.equal(state.optionPriceRange.low, 50)
+  assert.equal(state.optionPriceRange.high, 300)
+  state.quoteDialog.quoteMode = 4
+  await flush()
+  assert.equal(state.optionPrices[0].price, 50)
+  assert.equal(state.optionPrices[0].note, '')
+  assert.equal(state.optionPrices[0].calculation, '50.00')
+  assert.equal(state.optionPrices[0].excl, 47.62)
+  assert.match(read(filename), /option-prices__table-wrap/)
+  state.quoteDialog.quoteMode = 2
+  state.quoteDialog.unitPriceWithMaterial = 80
+  state.quoteDialog.unitPriceWithoutMaterial = 80
+  await flush()
+  assert.equal(state.optionPrices[0].price, 480)
+})
+
+test('material option prices read cleaner and hour specs in both languages', async (t) => {
+  const context = await harness(t)
+  await readyQuote(context, {
+    quoteMode: 2,
+    unitPriceWithMaterial: 20,
+    unitPriceWithoutMaterial: 30,
+    rows: [
+      {
+        skuId: 701,
+        available: true,
+        groupValue: 'Without Materials',
+        specLines: [
+          {
+            specTypeNameI18n: { en: 'With/Without Materials', 'zh-CN': '是否带材料' },
+            specValueNameI18n: { en: 'Without Materials', 'zh-CN': '不带材料' },
+          },
+          {
+            specTypeNameI18n: { en: 'Duration', 'zh-CN': '时长' },
+            specValueNameI18n: { en: '2 Hours', 'zh-CN': '2小时' },
+          },
+          {
+            specTypeNameI18n: { en: 'Number of Cleaners', 'zh-CN': '清洁人数' },
+            specValueNameI18n: { en: '1 Cleaner', 'zh-CN': '1人' },
+          },
+        ],
+      },
+      {
+        skuId: 702,
+        available: true,
+        groupValue: 'With Materials',
+        specLines: [
+          {
+            specTypeNameI18n: { en: 'With/Without Materials', 'zh-CN': '是否带材料' },
+            specValueNameI18n: { en: 'With Materials', 'zh-CN': '带材料' },
+          },
+          {
+            specTypeNameI18n: { en: 'Duration', 'zh-CN': '时长' },
+            specValueNameI18n: { en: '2 Hours', 'zh-CN': '2小时' },
+          },
+          {
+            specTypeNameI18n: { en: 'Number of Cleaners', 'zh-CN': '清洁人数' },
+            specValueNameI18n: { en: '2 Cleaner', 'zh-CN': '2人' },
+          },
+        ],
+      },
+    ],
+  })
+  const { state, locale } = context
+  locale.value = 'en'
+  await flush()
+  assert.equal(state.optionPrices[0].price, 60)
+  assert.equal(state.optionPrices[0].calculation, '30.00 × 1 tech × 2 hr')
+  assert.equal(state.optionPrices[0].excl, 57.14)
+  assert.equal(state.optionPrices[1].price, 80)
+  assert.equal(state.optionPrices[1].calculation, '20.00 × 2 tech × 2 hr')
+  locale.value = 'zh'
+  await flush()
+  assert.equal(state.optionPrices[0].price, 60)
+  assert.equal(state.optionPrices[0].calculation, '30.00 × 1 人 × 2 小时')
+  assert.equal(state.optionPrices[1].price, 80)
+  assert.equal(state.optionPrices[1].calculation, '20.00 × 2 人 × 2 小时')
+})
+
+test('addon-only quotes hide specification prices and submit them as zero', async (t) => {
+  const context = await harness(t)
+  const { state } = context
+  state.liveQuotes = [{
+    spuId: 501,
+    onlyAddonPrice: true,
+    attachModuleTitle: 'Curtain extras',
+    quoteMode: 1,
+    configuredQuoteMode: 1,
+    status: 0,
+    priceEditable: true,
+    skus: [],
+  }]
+  await state.openServiceQuote({ spuId: 501, name: 'Curtain Cleaning', category: 'Home' })
+  assert.equal(state.quoteDialog.onlyAddonPrice, true)
+  assert.equal(state.quoteDialog.attachModuleTitle, 'Curtain extras')
+  await readyQuote(context, {
+    quoteMode: 1,
+    onlyAddonPrice: true,
+    attachModuleTitle: 'Curtain extras',
+    rows: [{ skuId: 701, available: true, enabled: false, quotePrice: null }],
+  })
+  state.quoteDialog.attaches = state.mapAttaches([
+    { attachValueId: 9, attachValueName: 'Ironing', canServe: true, quotePrice: 15 },
+  ])
+  state.zeroAddonSpecPrices()
+  await flush()
+  assert.equal(state.addonOnlyQuote, true)
+  assert.equal(state.quoteDialog.rows[0].quotePrice, 0)
+  assert.equal(state.quoteDialog.rows[0].enabled, true)
+  assert.equal(state.submitProblem(), '')
+  const payload = state.quotePayload()
+  assert.equal(payload.items[0].quotePrice, 0)
+  assert.equal(payload.items[0].enabled, 1)
+  assert.deepEqual(clone(payload.attaches), [{ attachValueId: 9, quotePrice: 15 }])
+  assert.equal(Object.hasOwn(payload, 'unitPrice'), false)
+  assert.equal(Object.hasOwn(payload, 'unitPriceWithMaterial'), false)
+  state.quoteDialog.quoteMode = 2
+  state.quoteDialog.unitPriceWithMaterial = null
+  state.quoteDialog.unitPriceWithoutMaterial = null
+  await flush()
+  assert.equal(state.submitProblem(), '')
+  assert.equal(state.quotePayload().items[0].quotePrice, 0)
+  assert.match(descriptor.template.content, /v-if="!hourlyQuote && !addonOnlyQuote"/)
+  assert.match(descriptor.template.content, /v-if="hourlyQuote && !addonOnlyQuote"/)
+})
+
 test('an approved quote in a different mode is quoted again in the service mode', async (t) => {
   const context = await harness(t)
   await readyQuote(context)
@@ -621,6 +860,38 @@ test('a discontinued specification is removed and a new specification is quoted 
   await flush()
   assert.deepEqual(calls.drafts.at(-1).items.map((item) => item.skuId), [602])
   assert.equal(calls.drafts.at(-1).items[0].quotePrice, 90)
+})
+
+test('an automatic rejection tells the supplier the price was too high', async (t) => {
+  const context = await harness(t)
+  await readyQuote(context, {
+    quoteMode: 4,
+    unitPrice: 1000,
+    rows: [{ skuId: 601, enabled: true, available: true, quotePrice: null }],
+  })
+  const { state, calls, locale } = context
+  locale.value = 'zh'
+  calls.submitResponse = {
+    status: 3,
+    rejectReason: 'Your price is too high. Please submit a lower quote.',
+    skus: [{
+      skuId: 601,
+      reviewStatus: 3,
+      enabled: 0,
+      rejectReason: 'Your price is too high. Please submit a lower quote.',
+    }],
+  }
+  state.reviewServiceQuote()
+  await flush()
+  state.quoteConfirmed = true
+  await state.submitServiceQuote()
+  await flush()
+  assert.equal(calls.messages.at(-1)?.type, 'warning')
+  assert.equal(calls.messages.at(-1)?.message, '价格太高，报价已被拒绝')
+  assert.equal(state.quoteScreen, 'setup')
+  assert.equal(state.quoteDialog.status, 3)
+  assert.equal(state.supplierRejectCopy(state.quoteDialog.rejectReason), '价格太高，报价已被拒绝')
+  assert.equal(calls.messages.some((message) => message.message === '报价已提交审核'), false)
 })
 
 test('only confirmed Review submits; submitted quotes lock edits and reject repeated submission', async (t) => {
@@ -1340,6 +1611,39 @@ test('removing a service confirms first and deletes that service with its quotes
   assert.match(descriptor.template.content, /v-if="!packageMode"[\s\S]*removeSavedService\(row\)/)
 })
 
+test('removing a package quote confirms first and drops that package from the selection', async (t) => {
+  const { state, calls } = await harness(t, 'package-pricing')
+  state.packageCatalog = [{
+    categoryId: 11,
+    packages: [
+      { packageId: 101, available: true, selected: true },
+      { packageId: 202, available: true, selected: true },
+    ],
+  }]
+  state.packageFlat = [packageEntry(101, 501), packageEntry(202, 501)]
+  state.quoteDialog.visible = true
+  state.quoteDialog.packageId = 101
+  const row = { packageId: 101, packageName: 'Annual Package', packageNameI18n: { en: 'Annual Package' } }
+  await state.removeSavedPackage(row)
+  assert.deepEqual(calls.packageSaves, [])
+  calls.confirm = async (message, title, options) => {
+    calls.confirmations = [{ message, title, confirm: options.confirmButtonText }]
+  }
+  state.quoteDialog.visible = true
+  state.quoteDialog.packageId = 101
+  await state.removeSavedPackage(row)
+  assert.deepEqual(calls.packageSaves, [{
+    supplierId: 10,
+    packages: [{ categoryId: 11, items: [{ packageId: 202 }] }],
+  }])
+  assert.equal(calls.confirmations[0].title, messages.en.admin.supplierPortal.removePackageTitle)
+  assert.match(calls.confirmations[0].message, /Annual Package/)
+  assert.match(calls.confirmations[0].message, /stay in place/)
+  assert.equal(calls.messages.at(-1)?.message, messages.en.admin.supplierPortal.packageRemoved)
+  assert.equal(state.quoteDialog.visible, false)
+  assert.match(descriptor.template.content, /v-else[\s\S]*removeSavedPackage\(row\)/)
+})
+
 
 const packageEntry = (packageId, spuId, overrides = {}) => ({
   packageId,
@@ -1430,11 +1734,32 @@ test('regular service pricing remains a single unheaded group and package titles
   assert.equal(packages.state.serviceRowGroups[0].name, '套餐101')
 })
 
+test('supplier quote heading uses the configured add-on title', async (t) => {
+  const { state, locale } = await harness(t)
+  state.liveQuotes = [{
+    spuId: 56,
+    attachModuleTitle: '  Curtain extras  ',
+    skus: [],
+    status: 0,
+    priceEditable: true,
+  }]
+  await state.openServiceQuote({ spuId: 56, name: 'Curtain Cleaning', category: 'Sofa' })
+  assert.equal(state.quoteDialog.attachModuleTitle, 'Curtain extras')
+  assert.equal(state.quoteAddonTitle, 'Curtain extras')
+  state.quoteDialog.attachModuleTitle = '   '
+  assert.equal(state.quoteAddonTitle, 'Add-ons')
+  locale.value = 'zh'
+  assert.equal(state.quoteAddonTitle, '附加项')
+  assert.match(descriptor.template.content, /<h2>\{\{ quoteAddonTitle \}\}<\/h2>/)
+})
+
 test('actual supplier portal template compiles with the tested setup bindings', () => {
   assert.deepEqual(compileTemplate({
     source: descriptor.template.content, filename,
     id: 'supplier-portal-workflow-test', compilerOptions: { bindingMetadata: script.bindings },
   }).errors, [])
+  assert.doesNotMatch(descriptor.template.content, /picker-row__fields/)
+  assert.doesNotMatch(descriptor.template.content, /contactOptional/)
 })
 
 test('supplier quote list shows direct, deferred, and blocked outcomes', () => {

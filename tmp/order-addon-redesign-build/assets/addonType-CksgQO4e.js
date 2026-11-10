@@ -1,0 +1,1 @@
+import{x as a}from"./admin-HQ2EJYaS.js";function p(t){return a.post("/api/productAttachment/attachType/page",t)}function c(t){return a.post("/api/productAttachment/attachType/addOrUpdate",t)}function r(t){return a.post("/api/productAttachment/attachType/deleteAttachType",t)}export{c as a,r as d,p as g};

@@ -49,7 +49,7 @@
         <el-button @click="reset">{{
           text('admin.spec.actions.reset')
         }}</el-button>
-        <el-button type="primary" @click="openCreate">{{
+        <el-button v-if="canAction(catalog === 'package' ? 'btn:/admin/package/specs:create' : 'btn:/admin/basic/specs:create')" type="primary" @click="openCreate">{{
           text('admin.spec.actions.create')
         }}</el-button>
       </div>
@@ -101,10 +101,10 @@
           fixed="right"
         >
           <template #default="{ row }">
-            <el-button link type="primary" size="small" @click="openEdit(row)">
+            <el-button v-if="canAction(catalog === 'package' ? 'btn:/admin/package/specs:edit' : 'btn:/admin/basic/specs:edit')" link type="primary" size="small" @click="openEdit(row)">
               {{ text('admin.spec.actions.edit') }}
             </el-button>
-            <el-button link type="danger" size="small" @click="remove(row)">
+            <el-button v-if="canAction(catalog === 'package' ? 'btn:/admin/package/specs:delete' : 'btn:/admin/basic/specs:delete')" link type="danger" size="small" @click="remove(row)">
               {{ text('admin.spec.actions.delete') }}
             </el-button>
           </template>
@@ -268,7 +268,7 @@
         <el-button @click="dialogVisible = false">{{
           text('admin.spec.actions.cancel')
         }}</el-button>
-        <el-button type="primary" :loading="submitLoading" @click="save">{{
+        <el-button v-if="canAction(catalog === 'package' ? 'btn:/admin/package/specs:create' : 'btn:/admin/basic/specs:create') || canAction(catalog === 'package' ? 'btn:/admin/package/specs:edit' : 'btn:/admin/basic/specs:edit')" type="primary" :loading="submitLoading" @click="save">{{
           text('admin.spec.actions.save')
         }}</el-button>
       </template>

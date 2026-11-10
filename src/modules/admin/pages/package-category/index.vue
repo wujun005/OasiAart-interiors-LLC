@@ -10,7 +10,7 @@
         />
         <el-button type="primary" @click="handleSearch">{{ t('admin.packageCategory.actions.search') }}</el-button>
         <el-button @click="reset">{{ t('admin.packageCategory.actions.reset') }}</el-button>
-        <el-button type="primary" @click="openCreate">{{ t('admin.packageCategory.actions.create') }}</el-button>
+        <el-button v-if="canAction('btn:/admin/package/categories:create')" type="primary" @click="openCreate">{{ t('admin.packageCategory.actions.create') }}</el-button>
         <el-tooltip :disabled="!!previewUrl" :content="t('admin.packageCategory.message.previewUnavailable')">
           <span>
             <el-button :disabled="!previewUrl" @click="openPreview">
@@ -32,7 +32,7 @@
         @drop.prevent="handleCategoryDrop"
       >
         <el-table-column
-          v-if="canSortCategories"
+          v-if="canSortCategories && canAction('btn:/admin/package/categories:edit')"
           :label="t('admin.packageCategory.table.sort')"
           width="64"
           align="center"
@@ -85,10 +85,10 @@
         </el-table-column>
         <el-table-column :label="t('admin.packageCategory.table.actions')" width="132" fixed="right">
           <template #default="{ row }">
-            <el-button link type="primary" size="small" @click="openEdit(row)">
+            <el-button v-if="canAction('btn:/admin/package/categories:edit')" link type="primary" size="small" @click="openEdit(row)">
               {{ t('admin.packageCategory.actions.edit') }}
             </el-button>
-            <el-button link type="danger" size="small" @click="remove(row)">
+            <el-button v-if="canAction('btn:/admin/package/categories:delete')" link type="danger" size="small" @click="remove(row)">
               {{ t('admin.packageCategory.actions.delete') }}
             </el-button>
           </template>
@@ -146,7 +146,7 @@
       </el-form>
       <template #footer>
         <el-button @click="dialogVisible = false">{{ t('admin.packageCategory.actions.cancel') }}</el-button>
-        <el-button type="primary" :loading="submitLoading" @click="save">{{ t('admin.packageCategory.actions.save') }}</el-button>
+        <el-button v-if="canAction('btn:/admin/package/categories:create') || canAction('btn:/admin/package/categories:edit')" type="primary" :loading="submitLoading" @click="save">{{ t('admin.packageCategory.actions.save') }}</el-button>
       </template>
     </el-dialog>
   </div>

@@ -89,10 +89,22 @@ test('each priced combination keeps its sku and can be turned off', () => {
   ]);
   editor.rows[0].variants[0].valid = false;
   assert.deepEqual(skuValidsFromRows(editor.rows), [
-    { skuId: 4961, valid: 0 },
-    { skuId: 4962, valid: 0 },
-    { skuId: 4963, valid: 1 },
-    { skuId: 4964, valid: 1 },
+    { skuId: 4961, valid: 0, supplierFulfillRemark: '' },
+    { skuId: 4962, valid: 0, supplierFulfillRemark: '' },
+    { skuId: 4963, valid: 1, supplierFulfillRemark: '' },
+    { skuId: 4964, valid: 1, supplierFulfillRemark: '' },
+  ]);
+});
+
+test('a sku note is kept with that combination and trimmed to 512 characters', () => {
+  const editor = buildSkuPriceEditor([staff], [
+    { skuId: 7, valid: 1, price: 10, originalPrice: 10, supplierFulfillRemark: '  带梯子  ', 340: { en: '456' } },
+    { skuId: 8, valid: 1, price: 10, originalPrice: 10, supplierFulfillRemark: ` ${'长'.repeat(520)} `, 340: { en: '1212' } },
+  ], labelOf);
+  assert.equal(editor.rows[0].variants[0].remark, '  带梯子  ');
+  assert.deepEqual(skuValidsFromRows(editor.rows), [
+    { skuId: 7, valid: 1, supplierFulfillRemark: '带梯子' },
+    { skuId: 8, valid: 1, supplierFulfillRemark: '长'.repeat(512) },
   ]);
 });
 

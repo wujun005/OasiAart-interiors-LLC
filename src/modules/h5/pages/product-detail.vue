@@ -128,6 +128,10 @@
             </div>
           </div>
 
+          <div v-if="bookingAttachGroups.length" class="h5-attach-module">
+            <p class="h5-booking-group__label">{{ attachModuleTitle || t("client.productDetail.booking.addOnsTitle") }}</p>
+            <p class="h5-attach-module__desc">{{ attachModuleDesc || t("client.productDetail.booking.addOnsHint") }}</p>
+          </div>
           <div
             v-for="group in bookingAttachGroups"
             :key="group.typeId"
@@ -311,6 +315,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from "vue"
 import { bizTagLabels } from "@/modules/client/utils/biz-tag"
+import { attachShownAt } from "@/modules/client/utils/order-addons"
 import { useI18n } from "vue-i18n"
 import { useRoute, useRouter } from "vue-router"
 import { showFailToast } from "vant"
@@ -350,6 +355,8 @@ type ProductDetailRecord = {
   serviceContentI18n?: I18nTextArray
   serviceContentTextI18n?: I18nText
   bookingNoticeI18n?: I18nText
+  attachModuleTitle?: string
+  attachModuleDesc?: string
   specBindings?: Array<{
     specTypeId?: number | string
     specValueIds?: Array<number | string>
@@ -360,6 +367,7 @@ type ProductDetailRecord = {
   attachBindings?: Array<{
     attachTypeId?: number | string
     attachValueIds?: Array<number | string>
+    displayMode?: number | string
   }>
   attachTypeNameI18n?: Record<string, I18nText>
   attachValueNameI18n?: Record<string, I18nText>
@@ -726,18 +734,20 @@ const bookingNoticeHtml = computed(() =>
   ),
 )
 
-const serviceListQuery = computed(() => {
-  const query: Record<string, string> = {}
-  const categoryId = getRouteQueryText("categoryId")
-  const level1 = getRouteQueryText("level1")
-  const keyword = getRouteQueryText("keyword")
-  const name = getRouteQueryText("breadcrumb") || getRouteQueryText("name")
-  if (categoryId) query.categoryId = categoryId
-  if (level1) query.level1 = level1
-  if (name) query.name = name
-  if (keyword) query.keyword = keyword
-  return query
-})
+const CONTEXT_QUERY_KEYS = ["level1", "breadcrumb", "name", "categoryId", "keyword"]
+
+const compactDetailAddress = () => {
+  if (!CONTEXT_QUERY_KEYS.some((key) => getRouteQueryText(key))) return
+  const query = { ...route.query }
+  CONTEXT_QUERY_KEYS.forEach((key) => {
+    delete query[key]
+  })
+  void router.replace({
+    name: "h5-product-detail",
+    params: { spuId: spuId.value },
+    query,
+  })
+}
 
 const basePrice = computed(() =>
   resolveNumber(productDetail.value?.minPrice ?? productDetail.value?.price),
@@ -848,6 +858,13 @@ const bookingSpecGroups = computed<BookingSpecGroup[]>(() => {
     .filter((item): item is BookingSpecGroup => Boolean(item))
 })
 
+const attachModuleTitle = computed(() =>
+  String(productDetail.value?.attachModuleTitle || "").trim(),
+)
+const attachModuleDesc = computed(() =>
+  String(productDetail.value?.attachModuleDesc || "").trim(),
+)
+
 const bookingAttachGroups = computed<BookingAttachGroup[]>(() => {
   const record = productDetail.value
   const bindings = Array.isArray(record?.attachBindings)
@@ -856,7 +873,7 @@ const bookingAttachGroups = computed<BookingAttachGroup[]>(() => {
   return bindings
     .map((binding) => {
       const typeId = String(binding.attachTypeId ?? "").trim()
-      if (!typeId) return null
+      if (!typeId || !attachShownAt(binding.displayMode, "checkout")) return null
       const label = pickI18nValue(record?.attachTypeNameI18n?.[typeId], typeId)
       const valueIds = Array.isArray(binding.attachValueIds)
         ? binding.attachValueIds
@@ -1133,6 +1150,14 @@ watch(
 )
 
 watch(
+  () => CONTEXT_QUERY_KEYS.map((key) => getRouteQueryText(key)).join("\n"),
+  () => {
+    compactDetailAddress()
+  },
+  { immediate: true },
+)
+
+watch(
   () => [
     spuId.value,
     getRouteQueryText("specSelections"),
@@ -1282,13 +1307,9 @@ const formatAed = (value: number) => `AED ${value.toFixed(2)}`
 const formatPriceBlock = (value: number) => `AED ${value.toFixed(2)}`
 
 const handleBack = () => {
-  if (Object.keys(serviceListQuery.value).length) {
-    router.push({
-      name: getRouteQueryText("keyword")
-        ? "h5-service-search"
-        : "h5-service-list",
-      query: serviceListQuery.value,
-    })
+  const back = (window.history.state as { back?: unknown } | null)?.back
+  if (typeof back === "string" && back) {
+    router.back()
     return
   }
   router.push({ name: "h5-home" })
@@ -1329,10 +1350,6 @@ const handleAddToCart = async () => {
       subtotal: subtotalPrice.value.toFixed(2),
       tax: vatPrice.value.toFixed(2),
       total: totalPrice.value.toFixed(2),
-      breadcrumb: getRouteQueryText("breadcrumb"),
-      name: getRouteQueryText("name"),
-      categoryId: getRouteQueryText("categoryId"),
-      level1: getRouteQueryText("level1"),
     },
   })
 }
@@ -1394,10 +1411,6 @@ const goOrderConfirm = async () => {
         subtotal: subtotalPrice.value.toFixed(2),
         tax: vatPrice.value.toFixed(2),
         total: totalPrice.value.toFixed(2),
-        breadcrumb: getRouteQueryText("breadcrumb"),
-        name: getRouteQueryText("name"),
-        categoryId: getRouteQueryText("categoryId"),
-        level1: getRouteQueryText("level1"),
       },
     })
   } catch (error: any) {

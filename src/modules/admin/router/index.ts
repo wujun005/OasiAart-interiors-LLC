@@ -104,8 +104,25 @@ const routes: RouteRecordRaw[] = [
       },
       {
         path: 'users',
-        name: 'admin-users',
+        redirect: () => {
+          if (adminMenuState.allowedPaths.includes('/admin/users/suppliers')
+            && !adminMenuState.allowedPaths.includes('/admin/users/platform')) {
+            return '/admin/users/suppliers';
+          }
+          return '/admin/users/platform';
+        },
+      },
+      {
+        path: 'users/platform',
+        name: 'admin-users-platform',
         component: () => import('@/modules/admin/pages/user/index.vue'),
+        props: { accountKind: 'platform' },
+      },
+      {
+        path: 'users/suppliers',
+        name: 'admin-users-suppliers',
+        component: () => import('@/modules/admin/pages/user/index.vue'),
+        props: { accountKind: 'supplier' },
       },
       {
         path: 'notifications',

@@ -10,7 +10,7 @@ import {
   adminMessages,
   getAdminLocale,
 } from '@/modules/admin/locales';
-import { loadAdminMenuPermissions } from '@/modules/admin/utils/menuPermission';
+import { canAction, loadAdminMenuPermissions } from '@/modules/admin/utils/menuPermission';
 import {
   clearAdminAuthState,
   clearLegacyAuthState,
@@ -51,6 +51,7 @@ const bootstrap = async () => {
   }
 
   const app = createApp(App);
+  app.config.globalProperties.canAction = canAction;
   app.use(pinia);
   app.use(router);
   app.use(i18n);

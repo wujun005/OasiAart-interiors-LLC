@@ -1,0 +1,1 @@
+import{x as t}from"./admin-HQ2EJYaS.js";function o(n){return t.post("/api/admin/auth/login",n)}function a(n){return t.post("/api/admin/auth/sendCode",{phone:n})}function s(n){return t.post("/api/admin/auth/loginByCode",n)}function r(n){return t.post("/api/admin/auth/reset-password",n)}export{o as a,s as l,r,a as s};

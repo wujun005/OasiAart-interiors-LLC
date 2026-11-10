@@ -10,7 +10,7 @@
         />
         <el-button type="primary" @click="handleSearch">{{ text('admin.subcategory.actions.search') }}</el-button>
         <el-button @click="reset">{{ text('admin.subcategory.actions.reset') }}</el-button>
-        <el-button type="primary" @click="openCreate">{{ text('admin.subcategory.actions.create') }}</el-button>
+        <el-button v-if="canAction(catalog === 'package' ? 'btn:/admin/package/service-subcategories:create' : 'btn:/admin/basic/subcategories:create')" type="primary" @click="openCreate">{{ text('admin.subcategory.actions.create') }}</el-button>
       </div>
 
       <el-table :data="displayList" border stripe row-key="id" v-loading="tableLoading">
@@ -25,10 +25,10 @@
         </el-table-column> -->
         <el-table-column :label="text('admin.subcategory.table.actions')" width="132" fixed="right">
           <template #default="{ row }">
-            <el-button link type="primary" size="small" @click="openEdit(row)">
+            <el-button v-if="canAction(catalog === 'package' ? 'btn:/admin/package/service-subcategories:edit' : 'btn:/admin/basic/subcategories:edit')" link type="primary" size="small" @click="openEdit(row)">
               {{ text('admin.subcategory.actions.edit') }}
             </el-button>
-            <el-button link type="danger" size="small" @click="remove(row)">
+            <el-button v-if="canAction(catalog === 'package' ? 'btn:/admin/package/service-subcategories:delete' : 'btn:/admin/basic/subcategories:delete')" link type="danger" size="small" @click="remove(row)">
               {{ text('admin.subcategory.actions.delete') }}
             </el-button>
           </template>
@@ -73,7 +73,7 @@
       </el-form>
       <template #footer>
         <el-button @click="dialogVisible = false">{{ text('admin.subcategory.actions.cancel') }}</el-button>
-        <el-button type="primary" :loading="submitLoading" @click="save">{{ text('admin.subcategory.actions.save') }}</el-button>
+        <el-button v-if="canAction(catalog === 'package' ? 'btn:/admin/package/service-subcategories:create' : 'btn:/admin/basic/subcategories:create') || canAction(catalog === 'package' ? 'btn:/admin/package/service-subcategories:edit' : 'btn:/admin/basic/subcategories:edit')" type="primary" :loading="submitLoading" @click="save">{{ text('admin.subcategory.actions.save') }}</el-button>
       </template>
     </el-dialog>
   </div>

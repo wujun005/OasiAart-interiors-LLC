@@ -36,6 +36,8 @@ test('hourly quotes only require the shared rate, not each option', () => {
   assert.deepEqual(fields(row, 2, null), [])
   assert.deepEqual(fields(row, 3, 40), [])
   assert.deepEqual(fields(row, 3, null), [])
+  assert.deepEqual(fields(row, 4, 25), [])
+  assert.deepEqual(fields(row, 4, null), [])
 })
 
 test('each quotation status has one destination-specific action', () => {

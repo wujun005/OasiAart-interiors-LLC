@@ -265,6 +265,19 @@
   font-weight: 700;
 }
 
+.h5-attach-module {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.h5-attach-module__desc {
+  margin: 0;
+  color: #667085;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
 .h5-booking-group__options {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(78px, 1fr));

@@ -86,6 +86,17 @@
             <el-option :label="t('admin.platformSuppliers.rejected')" :value="3" />
           </el-select>
           <el-select
+            popper-class="supplier-review-select"
+            class="review-filter"
+            :model-value="supplierKind === 1 || supplierKind === 2 ? supplierKind : 'all'"
+            :placeholder="t('admin.platformSuppliers.supplierKind')"
+            @change="changeSupplierKind"
+          >
+            <el-option :label="t('admin.platformSuppliers.allKinds')" value="all" />
+            <el-option :label="t('admin.platformSuppliers.companyType')" :value="1" />
+            <el-option :label="t('admin.platformSuppliers.individualType')" :value="2" />
+          </el-select>
+          <el-select
             v-if="!quoteDesk"
             popper-class="supplier-review-select"
             class="review-filter"
@@ -115,23 +126,8 @@
           </el-table-column>
           <el-table-column :label="t('admin.platformSuppliers.supplier')" min-width="160">
             <template #default="{ row }">
-              <div class="supplier-cell">{{ row.supplierName || '—' }}<span v-if="Number(row.supplierType) === 2" class="type-pill">{{ t('admin.platformSuppliers.individualType') }}</span></div>
+              <div class="supplier-cell">{{ row.supplierName || '—' }}<span class="type-pill" :class="Number(row.supplierType) === 2 ? 'is-person' : 'is-company'">{{ Number(row.supplierType) === 2 ? t('admin.platformSuppliers.individualType') : t('admin.platformSuppliers.companyType') }}</span></div>
               <small v-if="row.contactPerson || row.mobile">{{ [row.contactPerson, row.mobile].filter(Boolean).join(' · ') }}</small>
-            </template>
-          </el-table-column>
-          <el-table-column class-name="category-col" :label="t('admin.platformSuppliers.categories')" min-width="176">
-            <template #default="{ row }">
-              <el-tooltip
-                v-if="displayCategories(row).length"
-                :content="categorySummary(row)"
-                placement="top"
-                :show-after="250"
-              >
-                <div class="category-line">
-                  <span v-for="cat in displayCategories(row)" :key="cat.key" class="pill">{{ cat.label }}</span>
-                </div>
-              </el-tooltip>
-              <span v-else>—</span>
             </template>
           </el-table-column>
           <el-table-column v-if="!quoteDesk" :label="t('admin.platformSuppliers.onboarding')" min-width="96">
@@ -150,13 +146,13 @@
           <el-table-column v-if="quoteDesk && quoteScope === 'services'" :label="t('admin.platformSuppliers.quoteStatus')" min-width="176">
             <template #default="{ row }">
               <div class="row-updates" @click.stop>
-                <button v-if="quoteBadge(row).pending" type="button" class="status-pill pending" @click="applyQuoteFilter(1)">
+                <button v-if="quoteBadge(row).pending" type="button" class="status-pill pending" @click="openSupplierQuotes(row, 1)">
                   {{ t('admin.platformSuppliers.quoteUpdatePending', { count: quoteBadge(row).pending }) }}
                 </button>
-                <span v-if="quoteBadge(row).rejected" class="status-pill bad">
+                <button v-if="quoteBadge(row).rejected" type="button" class="status-pill bad" @click="openSupplierQuotes(row, 3)">
                   {{ t('admin.platformSuppliers.quoteRejectedCount', { count: quoteBadge(row).rejected }) }}
-                </span>
-                <button v-if="quoteBadge(row).approved" type="button" class="status-pill ok" @click="applyQuoteFilter(2)">
+                </button>
+                <button v-if="quoteBadge(row).approved" type="button" class="status-pill ok" @click="openSupplierQuotes(row, 2)">
                   {{ t('admin.platformSuppliers.quoteApprovedCount', { count: quoteBadge(row).approved }) }}
                 </button>
                 <span v-if="!quoteBadge(row).pending && !quoteBadge(row).rejected && !quoteBadge(row).approved" class="status-empty">—</span>
@@ -203,8 +199,8 @@
           <el-table-column :label="t('admin.platformSuppliers.actions')" min-width="176">
             <template #default="{ row }">
               <div v-if="!quoteDesk && Number(row.onboardingStatus) === 1" class="row-actions" @click.stop>
-                <button type="button" class="act ok" :disabled="saving" @click="approveOnboardingRow(row)">{{ t('admin.platformSuppliers.approve') }}</button>
-                <button type="button" class="act no" :disabled="saving" @click="openReject('onboarding', row)">{{ t('admin.platformSuppliers.reject') }}</button>
+                <button v-if="canAction('btn:/admin/suppliers:approve')" type="button" class="act ok" :disabled="saving" @click="approveOnboardingRow(row)">{{ t('admin.platformSuppliers.approve') }}</button>
+                <button v-if="canAction('btn:/admin/suppliers:reject')" type="button" class="act no" :disabled="saving" @click="openReject('onboarding', row)">{{ t('admin.platformSuppliers.reject') }}</button>
               </div>
               <button v-else type="button" class="open-link" @click.stop="openReview(row)">{{ t('admin.platformSuppliers.open') }}</button>
             </template>
@@ -232,15 +228,15 @@
             <p>{{ t('admin.platformSuppliers.supplierNo') }} {{ profile.supplierNo || current?.supplierNo || '—' }}<template v-if="onboarding.snapshotVersion"> · {{ t('admin.platformSuppliers.snapshotVersion', { version: onboarding.snapshotVersion }) }}</template></p>
             <h1>{{ profile.companyName || current?.supplierName || '—' }}</h1>
             <div class="hero-pills">
-              <span class="status-pill">{{ individualSupplier ? t('admin.platformSuppliers.individualType') : t('admin.platformSuppliers.companyType') }}</span>
+              <span class="status-pill" :class="individualSupplier ? 'is-person' : 'is-company'">{{ individualSupplier ? t('admin.platformSuppliers.individualType') : t('admin.platformSuppliers.companyType') }}</span>
               <span class="status-pill" :class="statusClass(onboarding.status)">{{ t('admin.platformSuppliers.onboarding') }}: {{ onboardingLabel(onboarding.status) }}</span>
               <span class="status-pill" :class="pendingQuoteCount ? 'pending' : 'ok'">{{ t('admin.platformSuppliers.quoteReviewState') }}: {{ quoteRollup }}</span>
               <span class="status-pill" :class="eligibilityKey === 'active' ? 'ok' : 'pending'">{{ t('admin.platformSuppliers.dispatchEligibility') }}: {{ eligibilityLabel }}</span>
             </div>
           </div>
           <div v-if="!quoteDesk && Number(onboarding.status) === 1" class="hero-actions">
-            <button type="button" class="act no" :disabled="saving" @click="openReject('onboarding')">{{ t('admin.platformSuppliers.reject') }}</button>
-            <button type="button" class="act navy" :disabled="saving" @click="approveOnboarding">{{ t('admin.platformSuppliers.approveOnboarding') }}</button>
+            <button v-if="canAction('btn:/admin/suppliers:reject')" type="button" class="act no" :disabled="saving" @click="openReject('onboarding')">{{ t('admin.platformSuppliers.reject') }}</button>
+            <button v-if="canAction('btn:/admin/suppliers:approve')" type="button" class="act navy" :disabled="saving" @click="approveOnboarding">{{ t('admin.platformSuppliers.approveOnboarding') }}</button>
           </div>
         </header>
         <p v-if="!quoteDesk && onboarding.rejectReason" class="reject-note">{{ t('admin.platformSuppliers.rejectReason', { reason: onboarding.rejectReason }) }}</p>
@@ -267,6 +263,7 @@
           <button type="button" :class="{ on: detailTab === 'capacity' }" @click="openSupplierTab('capacity')">{{ t('admin.platformSuppliers.capacityTab') }}</button>
           <button type="button" :class="{ on: detailTab === 'bank' }" @click="openSupplierTab('bank')">{{ t('admin.platformSuppliers.bankTab') }}</button>
           <button type="button" :class="{ on: detailTab === 'docs' }" @click="openSupplierTab('docs')">{{ t('admin.platformSuppliers.documents') }}</button>
+          <button type="button" :class="{ on: detailTab === 'staff' }" @click="openSupplierTab('staff')">{{ t('admin.platformSuppliers.staffTab') }}</button>
         </div>
 
         <template v-if="screen === 'supplier'">
@@ -486,9 +483,9 @@
                   <template #default="{ row }">
                     <div class="row-actions" @click.stop>
                       <button type="button" class="act navy" @click="openQuote(row)">{{ Number(row.status) === 1 || Number(row.priceChangeStatus) === 1 ? t('admin.platformSuppliers.reviewQuote') : t('admin.platformSuppliers.viewQuote') }}</button>
-                      <button v-if="Number(row.status) === 1" type="button" class="act no" @click="openWholeQuoteReject(row)">{{ t('admin.platformSuppliers.rejectQuote') }}</button>
-                      <button v-if="Number(row.priceChangeStatus) === 1" type="button" class="act" @click="approvePriceChange(row)">{{ t('admin.platformSuppliers.approvePriceChange') }}</button>
-                      <button v-if="Number(row.priceChangeStatus) === 1" type="button" class="act no" @click="openPriceChangeReject(row)">{{ t('admin.platformSuppliers.rejectPriceChange') }}</button>
+                      <button v-if="canAction('btn:/admin/suppliers:quote-reject') && Number(row.status) === 1" type="button" class="act no" @click="openWholeQuoteReject(row)">{{ t('admin.platformSuppliers.rejectQuote') }}</button>
+                      <button v-if="canAction('btn:/admin/suppliers:price-approve') && Number(row.priceChangeStatus) === 1" type="button" class="act" @click="approvePriceChange(row)">{{ t('admin.platformSuppliers.approvePriceChange') }}</button>
+                      <button v-if="canAction('btn:/admin/suppliers:price-reject') && Number(row.priceChangeStatus) === 1" type="button" class="act no" @click="openPriceChangeReject(row)">{{ t('admin.platformSuppliers.rejectPriceChange') }}</button>
                     </div>
                   </template>
                 </el-table-column>
@@ -537,9 +534,9 @@
                   <template #default="{ row }">
                     <div class="row-actions" @click.stop>
                       <button type="button" class="act navy" @click="openPackageQuote(row)">{{ Number(row.status) === 1 || Number(row.priceChangeStatus) === 1 ? t('admin.platformSuppliers.reviewQuote') : t('admin.platformSuppliers.viewQuote') }}</button>
-                      <button v-if="Number(row.status) === 1" type="button" class="act no" @click="openWholeQuoteReject(row)">{{ t('admin.platformSuppliers.rejectQuote') }}</button>
-                      <button v-if="Number(row.priceChangeStatus) === 1" type="button" class="act" @click="approvePriceChange(row)">{{ t('admin.platformSuppliers.approvePriceChange') }}</button>
-                      <button v-if="Number(row.priceChangeStatus) === 1" type="button" class="act no" @click="openPriceChangeReject(row)">{{ t('admin.platformSuppliers.rejectPriceChange') }}</button>
+                      <button v-if="canAction('btn:/admin/suppliers:quote-reject') && Number(row.status) === 1" type="button" class="act no" @click="openWholeQuoteReject(row)">{{ t('admin.platformSuppliers.rejectQuote') }}</button>
+                      <button v-if="canAction('btn:/admin/suppliers:price-approve') && Number(row.priceChangeStatus) === 1" type="button" class="act" @click="approvePriceChange(row)">{{ t('admin.platformSuppliers.approvePriceChange') }}</button>
+                      <button v-if="canAction('btn:/admin/suppliers:price-reject') && Number(row.priceChangeStatus) === 1" type="button" class="act no" @click="openPriceChangeReject(row)">{{ t('admin.platformSuppliers.rejectPriceChange') }}</button>
                     </div>
                   </template>
                 </el-table-column>
@@ -574,6 +571,30 @@
               </div>
             </section>
           </div>
+
+          <div v-else-if="detailTab === 'staff'" class="tab-panel">
+            <section class="panel">
+              <h3>{{ t('admin.platformSuppliers.staffTab') }}</h3>
+              <p class="staff-note">{{ individualSupplier ? t('admin.platformSuppliers.staffPersonalNote') : t('admin.platformSuppliers.staffCompanyNote') }}</p>
+              <el-table :data="staffAccounts" v-loading="staffLoading" :empty-text="t('admin.platformSuppliers.staffEmpty')">
+                <el-table-column :label="t('admin.supplierStaff.name')" min-width="140">
+                  <template #default="{ row }">{{ row.name || '—' }}</template>
+                </el-table-column>
+                <el-table-column :label="t('admin.supplierStaff.phone')" min-width="150">
+                  <template #default="{ row }">{{ row.phone || '—' }}</template>
+                </el-table-column>
+                <el-table-column :label="t('admin.supplierStaff.email')" min-width="180">
+                  <template #default="{ row }">{{ row.email || '—' }}</template>
+                </el-table-column>
+                <el-table-column :label="t('admin.platformSuppliers.accountKind')" width="120">
+                  <template #default="{ row }">{{ row.accountRole === 'owner' ? t('admin.platformSuppliers.staffOwner') : t('admin.platformSuppliers.staffMember') }}</template>
+                </el-table-column>
+                <el-table-column :label="t('admin.supplierStaff.account')" width="110">
+                  <template #default="{ row }">{{ row.suspended ? t('admin.supplierStaff.accountSuspended') : t('admin.supplierStaff.accountActive') }}</template>
+                </el-table-column>
+              </el-table>
+            </section>
+          </div>
         </template>
 
         <section v-else class="panel quote-page">
@@ -589,7 +610,8 @@
                 <span>{{ t('admin.supplierPricing.quoteMode') }}: {{ quoteModeText }}</span>
               </p>
               <div v-if="hourlyQuoteReview" class="quote-head__hourly-rates">
-                <span v-if="staffHourQuote">{{ t('admin.platformSuppliers.hourlyRateLabel') }}: {{ hourlyRateText(skuUnitPrice, true) }}</span>
+                <span v-if="quantityQuote">{{ t('admin.platformSuppliers.quantityRateLabel') }}: {{ hourlyRateText(skuUnitPrice, true) }}</span>
+                <span v-else-if="staffHourQuote">{{ t('admin.platformSuppliers.hourlyRateLabel') }}: {{ hourlyRateText(skuUnitPrice, true) }}</span>
                 <template v-else>
                   <span>{{ t('admin.platformSuppliers.hourlyRateWithMaterial') }}: {{ hourlyRateText(skuUnitPriceWithMaterial, true) }}</span>
                   <span>{{ t('admin.platformSuppliers.hourlyRateWithoutMaterial') }}: {{ hourlyRateText(skuUnitPriceWithoutMaterial, true) }}</span>
@@ -612,7 +634,7 @@
                 <button v-if="!packageQuoteReview" type="button" class="act" :disabled="quoteImporting || !detailId" @click="quoteHistoryOpen = true">
                   {{ t('admin.platformSuppliers.quoteHistory.title') }}
                 </button>
-                <button v-if="canRejectWholeQuote" type="button" class="act no" :disabled="saving" @click="openWholeQuoteReject()">{{ t('admin.platformSuppliers.rejectQuote') }}</button>
+                <button v-if="canAction('btn:/admin/suppliers:quote-reject') && canRejectWholeQuote" type="button" class="act no" :disabled="saving" @click="openWholeQuoteReject()">{{ t('admin.platformSuppliers.rejectQuote') }}</button>
                 <button v-if="!packageQuoteReview" type="button" class="act" :disabled="quoteExporting || !detailId" @click="downloadQuoteSheet">
                   {{ quoteExporting ? t('admin.platformSuppliers.exportingQuotes') : quoteExportLabel }}
                 </button>
@@ -625,7 +647,13 @@
           <section v-if="hourlyQuoteReview" v-loading="skuLoading" class="hourly-review">
             <div class="hourly-review__content">
               <div class="hourly-review__rates">
-                <div v-if="staffHourQuote">
+                <div v-if="quantityQuote">
+                  <span>{{ t('admin.platformSuppliers.quantityRateLabel') }}</span>
+                  <strong>{{ hourlyRateText(skuUnitPrice, true) }}</strong>
+                  <small v-if="quantityCompareLabel" class="hourly-review__compare" :class="{ 'is-negative': quantityCompareNegative }">{{ quantityCompareLabel }}</small>
+                  <small v-else class="hourly-review__compare is-muted">{{ t('admin.platformSuppliers.quantityCompareMissingPrice') }}</small>
+                </div>
+                <div v-else-if="staffHourQuote">
                   <span>{{ t('admin.platformSuppliers.hourlyRateLabel') }}</span>
                   <strong>{{ hourlyRateText(skuUnitPrice, true) }}</strong>
                   <small v-if="hourlyCompareLabel(null)" class="hourly-review__compare" :class="{ 'is-negative': hourlyCompareNegative(null) }">{{ hourlyCompareLabel(null) }}</small>
@@ -646,11 +674,11 @@
                   </div>
                 </template>
               </div>
-              <p>{{ t(staffHourQuote ? 'admin.platformSuppliers.staffHourReviewHint' : 'admin.platformSuppliers.hourlyReviewHint') }}</p>
+              <p>{{ t(quantityQuote ? 'admin.platformSuppliers.quantityReviewHint' : staffHourQuote ? 'admin.platformSuppliers.staffHourReviewHint' : 'admin.platformSuppliers.hourlyReviewHint') }}</p>
             </div>
             <div v-if="showHourlyReview" class="hourly-review__actions">
-              <button type="button" class="act no" :disabled="saving" @click="openHourlyReject">{{ t('admin.platformSuppliers.reject') }}</button>
-              <button type="button" class="act navy" :disabled="saving" @click="reviewHourlyQuote(2)">{{ t('admin.platformSuppliers.approve') }}</button>
+              <button v-if="canAction('btn:/admin/suppliers:quote-reject')" type="button" class="act no" :disabled="saving" @click="openHourlyReject">{{ t('admin.platformSuppliers.reject') }}</button>
+              <button v-if="canAction('btn:/admin/suppliers:quote-approve')" type="button" class="act navy" :disabled="saving" @click="reviewHourlyQuote(2)">{{ t('admin.platformSuppliers.approve') }}</button>
             </div>
           </section>
           <p v-if="!hourlyQuoteReview" class="muted">{{ t('admin.platformSuppliers.grossMarginHint') }}</p>
@@ -699,8 +727,8 @@
             <el-table-column v-if="showLineReview" :label="t('admin.platformSuppliers.actions')" width="147" fixed="right">
               <template #default="{ row }">
                 <div v-if="isLineSelectable(row)" class="line-actions">
-                  <button type="button" class="act no" :disabled="saving" @click="openLineReject([row])">{{ t('admin.platformSuppliers.reject') }}</button>
-                  <button type="button" class="act navy" :disabled="saving" @click="approveLine(row)">{{ t('admin.platformSuppliers.approve') }}</button>
+                  <button v-if="canAction('btn:/admin/suppliers:quote-reject')" type="button" class="act no" :disabled="saving" @click="openLineReject([row])">{{ t('admin.platformSuppliers.reject') }}</button>
+                  <button v-if="canAction('btn:/admin/suppliers:quote-approve')" type="button" class="act navy" :disabled="saving" @click="approveLine(row)">{{ t('admin.platformSuppliers.approve') }}</button>
                 </div>
               </template>
             </el-table-column>
@@ -726,8 +754,8 @@
                 <span class="sku-attach__margin" :class="{ 'is-negative': Number(item.profitRate) < 0 }">{{ profitRateText(item.profitRate) }}</span>
                 <span>{{ item.offered ? moneyText(item.quotePrice) : t('admin.platformSuppliers.unavailable') }}</span>
                 <div v-if="isAttachSelectable(item)" class="line-actions">
-                  <button type="button" class="act no" :disabled="saving" @click="openLineReject([], [item])">{{ t('admin.platformSuppliers.reject') }}</button>
-                  <button type="button" class="act navy" :disabled="saving" @click="approveAttach(item)">{{ t('admin.platformSuppliers.approve') }}</button>
+                  <button v-if="canAction('btn:/admin/suppliers:quote-reject')" type="button" class="act no" :disabled="saving" @click="openLineReject([], [item])">{{ t('admin.platformSuppliers.reject') }}</button>
+                  <button v-if="canAction('btn:/admin/suppliers:quote-approve')" type="button" class="act navy" :disabled="saving" @click="approveAttach(item)">{{ t('admin.platformSuppliers.approve') }}</button>
                 </div>
               </div>
             </div>
@@ -735,8 +763,8 @@
           </div>
           <footer v-if="showQuoteFoot" class="quote-foot">
             <span class="quote-foot__selection">{{ t('admin.platformSuppliers.selectedLines', { count: selectedReviewCount }) }}</span>
-            <button type="button" class="act no" :disabled="saving" @click="selectedReviewCount ? openLineReject() : openWholeQuoteReject()">{{ selectedReviewCount ? t('admin.platformSuppliers.reject') : t('admin.platformSuppliers.rejectQuote') }}</button>
-            <button type="button" class="act navy" :disabled="saving || !selectedReviewCount" @click="approveSelectedLines">{{ t('admin.platformSuppliers.approve') }}</button>
+            <button v-if="canAction('btn:/admin/suppliers:quote-reject')" type="button" class="act no" :disabled="saving" @click="selectedReviewCount ? openLineReject() : openWholeQuoteReject()">{{ selectedReviewCount ? t('admin.platformSuppliers.reject') : t('admin.platformSuppliers.rejectQuote') }}</button>
+            <button v-if="canAction('btn:/admin/suppliers:quote-approve')" type="button" class="act navy" :disabled="saving || !selectedReviewCount" @click="approveSelectedLines">{{ t('admin.platformSuppliers.approve') }}</button>
           </footer>
         </section>
       </div>
@@ -818,7 +846,7 @@ import { page as supplierPage } from '@/modules/admin/api/supplier'
 import SupplierQuoteImportHistory from '@/modules/admin/components/SupplierQuoteImportHistory.vue'
 import { pickI18nText } from '@/modules/admin/utils/i18n'
 import { dispatchEligibility, licenceExpiryState, supplierOperationsReady } from '@/modules/admin/utils/supplierReviewState'
-import { countQuoteLineStatuses, hourlyCompareGap, hourlyMarginPercent, hourlySupplierCost, quotePriceView, summarizeHourlyCompare } from '@/modules/admin/utils/supplierPortal'
+import { countQuoteLineStatuses, hourlyCompareGap, hourlyMarginPercent, hourlySupplierCost, quotePriceView, summarizeHourlyCompare, summarizeQuantityCompare } from '@/modules/admin/utils/supplierPortal'
 import {
   sortSupplierQueue,
   supplierMatchesQueueFocus,
@@ -835,6 +863,7 @@ import {
   reviewQuotePriceChange,
   platformSupplierQuoteServices,
   platformSupplierQuoteSkus,
+  supplierStaffPage,
   supplierPackageQuotes,
   exportPlatformQuoteSheet,
   importPlatformQuoteSheet,
@@ -900,6 +929,7 @@ const readStatusQuery = () => {
 }
 const onboardingStatus = ref<number | '' | null>(readStatusQuery())
 const needReview = ref<'' | 'yes' | 'no' | null>('')
+const supplierKind = ref<1 | 2 | ''>('')
 const pageNum = ref(1)
 const pageSize = 10
 const total = ref(0)
@@ -923,7 +953,7 @@ const detailTab = computed(() => {
   const view = String(route.query.view || '')
   if (view === 'quote') return route.query.package ? 'packages' : 'quotes'
   const tab = String(route.query.tab || 'overview')
-  return ['overview', 'company', 'capacity', 'bank', 'docs'].includes(tab) ? tab : 'overview'
+  return ['overview', 'company', 'capacity', 'bank', 'docs', 'staff'].includes(tab) ? tab : 'overview'
 })
 const packageQuoteReview = computed(() => Number(route.query.package) > 0)
 const reviewCounts = reactive({
@@ -944,6 +974,16 @@ const quoteFileInput = ref<HTMLInputElement | null>(null)
 const current = ref<SupplierRow | null>(null)
 const profile = reactive<Record<string, any>>({})
 const individualSupplier = computed(() => Number(profile.supplierType) === 2)
+type StaffAccount = {
+  id: number
+  name: string
+  phone: string
+  email: string
+  accountRole: string
+  suspended: boolean
+}
+const staffAccounts = ref<StaffAccount[]>([])
+const staffLoading = ref(false)
 const services = ref<any[]>([])
 const packageQuotes = ref<any[]>([])
 const packageKeyword = ref('')
@@ -1438,6 +1478,7 @@ const hourlySourceUseful = (inputs: any[]) => {
   const summary = summarizeHourlyCompare(inputs, null)
   return summary.customerMin != null || summary.marginMin != null
 }
+const quantitySourceUseful = (inputs: any[]) => summarizeQuantityCompare(inputs).customerMin != null
 const catalogHourlyInputs = (skus: any[]) => (Array.isArray(skus) ? skus : [])
   .filter((sku) => {
     if (!sku || typeof sku !== 'object') return false
@@ -1481,8 +1522,7 @@ const formatCompareSpan = (min: number | null, max: number | null, suffix = '') 
   const right = suffix ? `${max}${suffix}` : moneyText(max)
   return left === right ? left : `${left} – ${right}`
 }
-const hourlyCompareLabel = (material: 'with' | 'without' | null) => {
-  const summary = hourlyCompare(material)
+const compareLabel = (summary: { customerMin: number | null; customerMax: number | null; marginMin: number | null; marginMax: number | null }) => {
   const prices = formatCompareSpan(summary.customerMin, summary.customerMax)
   const margins = formatCompareSpan(summary.marginMin, summary.marginMax, '%')
   return [
@@ -1490,6 +1530,13 @@ const hourlyCompareLabel = (material: 'with' | 'without' | null) => {
     margins ? t('admin.platformSuppliers.hourlyMarginCompare', { margins }) : '',
   ].filter(Boolean).join(' · ')
 }
+const quantityCompareSummary = computed(() => summarizeQuantityCompare(hourlyCompareSources.value))
+const quantityCompareLabel = computed(() => compareLabel(quantityCompareSummary.value))
+const quantityCompareNegative = computed(() => {
+  const margin = quantityCompareSummary.value.marginMin
+  return margin != null && margin < 0
+})
+const hourlyCompareLabel = (material: 'with' | 'without' | null) => compareLabel(hourlyCompare(material))
 const hourlyCompareNegative = (material: 'with' | 'without' | null) => {
   const summary = hourlyCompare(material)
   return summary.marginMin != null && summary.marginMin < 0
@@ -1545,8 +1592,6 @@ const displayCategoryCount = computed(() => {
   if (expectedServiceNames.value.length) return expectedServiceNames.value.length
   return new Set(services.value.map((row) => serviceCategory(row)).filter((name) => name && name !== '—')).size
 })
-const categoryName = (category: ServiceCategory) =>
-  pickI18nText(category?.nameI18n, locale.value, category?.categoryName || '') || category?.categoryName || '—'
 const specText = (value: unknown) => {
   locale.value
   if (value == null || value === '') return '—'
@@ -1738,20 +1783,6 @@ const ensureCategoryLabels = async () => {
   }
 }
 
-const displayCategories = (row: SupplierRow) => {
-  void locale.value
-  if (row.serviceCategories?.length) {
-    return row.serviceCategories.map((cat) => ({
-      key: String(cat.categoryId),
-      label: categoryName(cat),
-    }))
-  }
-  return (row.expectedCategoryIds || []).map((id) => ({
-    key: id,
-    label: onboardingCategoryLabels.value[id] || id,
-  }))
-}
-const categorySummary = (row: SupplierRow) => displayCategories(row).map((cat) => cat.label).join('、')
 const quoteBadge = supplierQuoteBadges
 const reviewChips = computed(() => [
   {
@@ -1908,6 +1939,11 @@ const fulfillableSupplierIds = async (ids: number[]) => {
 }
 const matchesServiceFilter = (row: { id?: unknown }, allowed: Set<number> | null) =>
   !allowed || allowed.has(Number(row.id))
+const matchesSupplierKind = (row: { supplierType?: number }) => {
+  if (supplierKind.value !== 1 && supplierKind.value !== 2) return true
+  const type = Number(row.supplierType) === 2 ? 2 : 1
+  return type === supplierKind.value
+}
 
 const loadSuppliers = async () => {
   const generation = ++supplierLoadGeneration
@@ -1933,6 +1969,7 @@ const loadSuppliers = async () => {
         .filter((item) => matchesServiceFilter(item, allowed))
         .filter((item) => quoteStatus.value === '' || quoteById.has(Number(item.id)))
         .map((item) => toReviewRow(item, quoteById.get(Number(item.id))))))
+        .filter(matchesSupplierKind)
       if (generation !== supplierLoadGeneration) return
       const pageRows = pageOf(merged)
       suppliers.value = pageRows
@@ -1942,6 +1979,7 @@ const loadSuppliers = async () => {
     }
     const attachedRows = await attachOnboardingStatus(await collectQuoteRows())
     const rows = sortSupplierQueue(focusRows(attachedRows.filter((row) => matchesServiceFilter(row, allowed))))
+      .filter(matchesSupplierKind)
     if (generation !== supplierLoadGeneration) return
     const pageRows = pageOf(rows)
     suppliers.value = pageRows
@@ -2007,6 +2045,39 @@ const changeOnboardingStatus = (value: number | 'all' | '' | null) => {
 const changeNeedReview = (value: 'all' | 'yes' | 'no' | '' | null) => {
   needReview.value = value === 'yes' || value === 'no' ? value : ''
   return searchFromFilters()
+}
+const changeSupplierKind = (value: number | 'all' | '' | null) => {
+  const next = Number(value)
+  supplierKind.value = next === 1 || next === 2 ? next : ''
+  return searchFromFilters()
+}
+const loadStaffAccounts = async () => {
+  if (!detailId.value) {
+    staffAccounts.value = []
+    return
+  }
+  staffLoading.value = true
+  try {
+    const result = unwrap(await supplierStaffPage({
+      supplierId: detailId.value,
+      pageNum: 1,
+      pageSize: 200,
+    })) || {}
+    const list = Array.isArray(result.list) ? result.list : []
+    staffAccounts.value = list.map((row: Record<string, unknown>) => ({
+      id: Number(row.id),
+      name: String(row.name || ''),
+      phone: String(row.phone || ''),
+      email: String(row.email || ''),
+      accountRole: String(row.accountRole || 'staff'),
+      suspended: row.suspended === true || row.accountStatus === 'suspended',
+    }))
+  } catch (error: any) {
+    staffAccounts.value = []
+    ElMessage.error(error?.message || t('admin.platformSuppliers.staffLoadFailed'))
+  } finally {
+    staffLoading.value = false
+  }
 }
 const changePage = (page: number) => {
   pageNum.value = page
@@ -2108,8 +2179,19 @@ const loadReview = (supplierId: number) => {
   return request
 }
 
+const resetServiceQuoteFilters = () => {
+  serviceKeyword.value = ''
+  serviceCategoryFilter.value = ''
+  serviceStatusFilter.value = ''
+}
+const openSupplierQuotes = (row: SupplierRow, status: number) => {
+  resetServiceQuoteFilters()
+  serviceStatusFilter.value = status
+  router.push({ path: QUOTE_DESK_PATH, query: { id: String(row.id), scope: 'services' } })
+}
 const openReview = (row: SupplierRow) => {
   if (quoteDesk.value) {
+    resetServiceQuoteFilters()
     router.push({ path: QUOTE_DESK_PATH, query: { id: String(row.id), scope: quoteScope.value } })
     return
   }
@@ -2245,12 +2327,12 @@ const isPendingReviewLine = (row: any) => row?.quoted === true
 const pendingReviewLines = computed(() => skuRows.value.filter(isPendingReviewLine))
 const quoteModeCode = (value: unknown) => {
   const code = Number(value)
-  return code === 1 || code === 2 || code === 3 ? code : null
+  return code === 1 || code === 2 || code === 3 || code === 4 ? code : null
 }
 const displayedQuoteMode = (quote?: { quoteMode?: unknown; configuredQuoteMode?: unknown } | null) => {
   const saved = quoteModeCode(quote?.quoteMode)
   const configured = quoteModeCode(quote?.configuredQuoteMode)
-  if ((saved == null || saved === 1) && (configured === 2 || configured === 3)) return configured
+  if ((saved == null || saved === 1) && (configured === 2 || configured === 3 || configured === 4)) return configured
   return saved
 }
 const positiveRate = (value: unknown) => {
@@ -2261,7 +2343,7 @@ const quoteHasHourlyRate = (
   quote?: { unitPrice?: unknown; unitPriceWithMaterial?: unknown; unitPriceWithoutMaterial?: unknown } | null,
   mode?: number | null,
 ) => {
-  if (mode === 3) return positiveRate(quote?.unitPrice)
+  if (mode === 3 || mode === 4) return positiveRate(quote?.unitPrice)
   if (mode === 2) {
     return positiveRate(quote?.unitPriceWithMaterial)
       || positiveRate(quote?.unitPriceWithoutMaterial)
@@ -2278,11 +2360,14 @@ const quoteUsesHourlyReview = (quote?: {
   unitPriceWithoutMaterial?: unknown
 } | null) => {
   const mode = displayedQuoteMode(quote)
-  const hourlyMode = mode === 2 || mode === 3 || quote?.reviewByUnitPrice === true
-  return hourlyMode && quoteHasHourlyRate(quote, mode === 3 ? 3 : 2)
+  const hourlyMode = mode === 2 || mode === 3 || mode === 4 || quote?.reviewByUnitPrice === true
+  const rateMode = mode === 3 || mode === 4 ? mode : 2
+  return hourlyMode && quoteHasHourlyRate(quote, rateMode)
 }
 const staffHourQuote = computed(() => skuQuoteMode.value === 3)
+const quantityQuote = computed(() => skuQuoteMode.value === 4)
 const quoteModeText = computed(() => {
+  if (skuQuoteMode.value === 4) return t('admin.platformSuppliers.quantityPrice')
   if (skuQuoteMode.value === 3) return t('admin.platformSuppliers.personHour')
   if (skuQuoteMode.value === 2) return t('admin.platformSuppliers.unitPrice')
   if (skuQuoteMode.value === 1) return t('admin.platformSuppliers.fixedPrice')
@@ -2726,6 +2811,7 @@ const priceFileName = () => {
 }
 const billingLabel = (mode: unknown) => {
   const value = Number(mode)
+  if (value === 4) return t('admin.platformSuppliers.quantityPrice')
   if (value === 3) return t('admin.platformSuppliers.personHour')
   if (value === 2) return t('admin.platformSuppliers.unitPrice')
   if (value === 1) return t('admin.platformSuppliers.fixedPrice')
@@ -2815,22 +2901,23 @@ const loadServicePriceRows = async (row: any) => {
   const status = quoteStatusLabel(quote.status ?? row.status, quote.statusI18n || row.statusI18n)
   const mode = displayedQuoteMode(quote)
   const billing = billingLabel(mode)
-  const staffHour = mode === 3
   const hourly = quoteUsesHourlyReview(quote)
   const sheetRows = hourly
-    ? (staffHour
-      ? [{ label: 'hourlyRateLabel', price: quote.unitPrice }]
-      : [
-          { label: 'hourlyRateWithMaterial', price: quote.unitPriceWithMaterial },
-          { label: 'hourlyRateWithoutMaterial', price: quote.unitPriceWithoutMaterial },
-        ]).map((rate) => [
+    ? (mode === 4
+      ? [{ label: 'quantityRateLabel', price: quote.unitPrice, unit: 'quantityUnit' }]
+      : mode === 3
+        ? [{ label: 'hourlyRateLabel', price: quote.unitPrice, unit: 'perPersonHour' }]
+        : [
+            { label: 'hourlyRateWithMaterial', price: quote.unitPriceWithMaterial, unit: 'perPersonHour' },
+            { label: 'hourlyRateWithoutMaterial', price: quote.unitPriceWithoutMaterial, unit: 'perPersonHour' },
+          ]).map((rate) => [
         service,
         category,
         status,
         billing,
         t(`admin.platformSuppliers.${rate.label}`),
         '',
-        t('admin.platformSuppliers.perPersonHour'),
+        t(`admin.platformSuppliers.${rate.unit}`),
         '',
         hourlyRateText(rate.price),
         '',
@@ -3088,7 +3175,10 @@ const openSkus = async (row: any) => {
     }
     const catalogInputs = catalogHourlyInputs(specSkus)
     const quotedInputs = quoteHourlyInputs(quoteSkus)
-    hourlyCompareSources.value = hourlySourceUseful(catalogInputs) ? catalogInputs : quotedInputs
+    const catalogUseful = skuQuoteMode.value === 4
+      ? quantitySourceUseful(catalogInputs)
+      : hourlySourceUseful(catalogInputs)
+    hourlyCompareSources.value = catalogUseful ? catalogInputs : quotedInputs
     const catalogBySku = new Map(specSkus.map((sku: any) => [Number(sku.skuId), sku]))
     const groups = Array.isArray(quote.skuGroups) ? quote.skuGroups : []
     const groupBySku = new Map<number, any>()
@@ -3251,6 +3341,10 @@ watch(() => route.query.onboardingStatus, (value) => {
   if (!detailId.value) loadSuppliers()
 })
 
+watch([detailId, detailTab], () => {
+  if (detailTab.value === 'staff') loadStaffAccounts()
+}, { immediate: true })
+
 onMounted(loadSuppliers)
 </script>
 
@@ -3281,7 +3375,10 @@ button.status-pill { border: 0; font: inherit; font-size: 11px; line-height: 1.4
 button.status-pill:hover { box-shadow: inset 0 0 0 1px rgba(5, 21, 43, 0.2); }
 .supplier-no { color: #05152b; }
 .supplier-cell { color: #05152b; font-weight: 650; }
-.type-pill { display: inline-flex; margin-left: 6px; padding: 1px 6px; border-radius: 999px; background: #eef2f7; color: #526070; font-size: 11px; font-weight: 650; vertical-align: 1px; }
+.type-pill { display: inline-flex; margin-left: 6px; padding: 1px 6px; border-radius: 999px; font-size: 11px; font-weight: 650; vertical-align: 1px; }
+.type-pill.is-company, .status-pill.is-company { background: #e7eef8; color: #24507a; }
+.type-pill.is-person, .status-pill.is-person { background: #f3ead8; color: #7a5a22; }
+.staff-note { margin: 0 0 12px; color: #6d655c; font-size: 13px; }
 .board :deep(small) { display: block; color: #6d7686; font-size: 11px; }
 .pill { display: inline-flex; margin: 0 3px 3px 0; padding: 2px 6px; border-radius: 999px; background: #eef2f7; color: #05152b; font-size: 11px; }
 .status-pill { display: inline-flex; align-items: center; padding: 2px 6px; border-radius: 999px; background: #eef2f7; color: #526070; font-size: 11px; font-weight: 650; }
@@ -3431,10 +3528,6 @@ button.status-pill:hover { box-shadow: inset 0 0 0 1px rgba(5, 21, 43, 0.2); }
 .board__bar .review-filter { width: 152px; }
 .board__count { color: #6d7686; font-size: 11px; }
 .board :deep(.el-pagination) { justify-content: flex-end; margin-top: 10px; }
-.board :deep(td.category-col .cell) { overflow: hidden; }
-.board :deep(td.category-col .el-tooltip__trigger) { display: block; max-width: 100%; overflow: hidden; }
-.category-line { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; line-height: 22px; }
-.category-line .pill { display: inline-flex; margin: 0 3px 0 0; vertical-align: middle; }
 .service-filters { display: grid; grid-template-columns: minmax(144px, 1.4fr) minmax(112px, 1fr) minmax(112px, 1fr); gap: 6px; margin: 0 0 10px; }
 .expected-categories { align-items: center; margin: 0 0 6px; }
 .expected-categories > span { width: 100%; color: #74685a; font-size: 11px; }

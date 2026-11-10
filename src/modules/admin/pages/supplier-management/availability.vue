@@ -85,7 +85,7 @@
         <div class="blocked-card__tools">
           <span v-if="!loadError">{{ t('admin.supplierAvailability.count', { count: total }) }}</span>
           <el-button @click="calendarOpen = true">{{ copy.viewCalendar }}</el-button>
-          <el-button type="primary" @click="openBlock()">{{ copy.addBlockedTime }}</el-button>
+          <el-button v-if="canAction('btn:/admin/supplier-management/availability:create')" type="primary" @click="openBlock()">{{ copy.addBlockedTime }}</el-button>
         </div>
       </header>
       <el-table v-if="!mobile" :data="events" class="avail-table" row-key="id" :empty-text="loadError ? t('admin.supplierAvailability.loadFailed') : t('admin.supplierAvailability.empty')">
@@ -123,8 +123,8 @@
         <el-table-column :label="t('admin.supplierAvailability.actions')" width="148" fixed="right">
           <template #default="{ row }">
             <div class="row-actions">
-              <el-button link type="primary" @click="openBlock(row)">{{ t('admin.supplierAvailability.edit') }}</el-button>
-              <el-button link type="danger" :loading="deletingId === row.id" @click="removeBlock(row)">{{ t('admin.supplierAvailability.delete') }}</el-button>
+              <el-button v-if="canAction('btn:/admin/supplier-management/availability:edit')" link type="primary" @click="openBlock(row)">{{ t('admin.supplierAvailability.edit') }}</el-button>
+              <el-button v-if="canAction('btn:/admin/supplier-management/availability:delete')" link type="danger" :loading="deletingId === row.id" @click="removeBlock(row)">{{ t('admin.supplierAvailability.delete') }}</el-button>
             </div>
           </template>
         </el-table-column>
@@ -138,8 +138,8 @@
               <small>{{ eventTime(row) }} · {{ weekdayText(row) }}<template v-if="weeklyClosureText(row)"> · {{ eventDate(row) }}</template></small>
             </span>
             <span class="row-actions">
-              <el-button link type="primary" @click="openBlock(row)">{{ t('admin.supplierAvailability.edit') }}</el-button>
-              <el-button link type="danger" :loading="deletingId === row.id" @click="removeBlock(row)">{{ t('admin.supplierAvailability.delete') }}</el-button>
+              <el-button v-if="canAction('btn:/admin/supplier-management/availability:edit')" link type="primary" @click="openBlock(row)">{{ t('admin.supplierAvailability.edit') }}</el-button>
+              <el-button v-if="canAction('btn:/admin/supplier-management/availability:delete')" link type="danger" :loading="deletingId === row.id" @click="removeBlock(row)">{{ t('admin.supplierAvailability.delete') }}</el-button>
             </span>
           </header>
           <dl>
@@ -243,7 +243,7 @@
       </div>
       <template #footer>
         <el-button @click="blockOpen = false">{{ t('admin.supplierAvailability.cancel') }}</el-button>
-        <el-button type="primary" :loading="blockSaving" @click="saveBlock">{{ t('admin.supplierAvailability.save') }}</el-button>
+        <el-button v-if="canAction(blockForm.id ? 'btn:/admin/supplier-management/availability:edit' : 'btn:/admin/supplier-management/availability:create')" type="primary" :loading="blockSaving" @click="saveBlock">{{ t('admin.supplierAvailability.save') }}</el-button>
       </template>
     </el-dialog>
 

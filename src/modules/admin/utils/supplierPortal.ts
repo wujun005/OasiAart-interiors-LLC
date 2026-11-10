@@ -1,4 +1,4 @@
-export type QuoteMode = 1 | 2 | 3 | null
+export type QuoteMode = 1 | 2 | 3 | 4 | null
 export type QuoteOption = {
   enabled?: boolean | number
   available?: boolean
@@ -22,7 +22,7 @@ export function calculatedQuotePrice(rate: unknown, staff: unknown, hours: unkno
 
 export function optionMissingFields(option: QuoteOption, mode: QuoteMode, _rate?: unknown): string[] {
   if (option.available === false || !option.enabled) return []
-  if (mode === 2 || mode === 3) return []
+  if (mode === 2 || mode === 3 || mode === 4) return []
   return positiveAmount(option.quotePrice) ? [] : ['price']
 }
 
@@ -353,17 +353,42 @@ export type HourlyCompareSummary = {
   marginMax: number | null
 }
 
+const numberSpan = (values: Array<number | null>) => {
+  const present = values.filter((value): value is number => value != null)
+  return present.length
+    ? { min: Math.min(...present), max: Math.max(...present) }
+    : { min: null, max: null }
+}
+
 /** 同一小时单价下，只汇总折算后的每人每小时售价和毛利率。 */
 export function summarizeHourlyCompare(inputs: HourlyProfitInput[], material: 'with' | 'without' | null): HourlyCompareSummary {
   const matched = (inputs || []).filter((input) => {
     if (material == null) return true
     return materialChoice(collectQuoteTexts(input?.sources)) === material
   })
-  const span = (values: number[]) => (
-    values.length ? { min: Math.min(...values), max: Math.max(...values) } : { min: null, max: null }
-  )
-  const customers = span(matched.map(hourlyCustomerUnitPrice).filter((value): value is number => value != null))
-  const margins = span(matched.map(hourlyMarginPercent).filter((value): value is number => value != null))
+  const customers = numberSpan(matched.map(hourlyCustomerUnitPrice))
+  const margins = numberSpan(matched.map(hourlyMarginPercent))
+  return {
+    customerMin: customers.min,
+    customerMax: customers.max,
+    marginMin: margins.min,
+    marginMax: margins.max,
+  }
+}
+
+/** 按数量报价的成本就是这一个单价，直接和客户含税售价比，不按人数或时长折算。 */
+export function quantityMarginPercent(input: HourlyProfitInput): number | null {
+  if (Number(input?.quoteMode) !== 4) return null
+  const client = customerPrice(input)
+  const quote = positiveNumber(input?.unitPrice)
+  if (client == null || quote == null) return null
+  return Math.round(((client - quote) / client) * 100)
+}
+
+export function summarizeQuantityCompare(inputs: HourlyProfitInput[]): HourlyCompareSummary {
+  const rows = inputs || []
+  const customers = numberSpan(rows.map(customerPrice))
+  const margins = numberSpan(rows.map(quantityMarginPercent))
   return {
     customerMin: customers.min,
     customerMax: customers.max,

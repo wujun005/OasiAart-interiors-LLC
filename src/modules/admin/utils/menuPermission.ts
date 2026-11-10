@@ -1,9 +1,11 @@
 import { reactive } from 'vue';
 import {
   getAdminUserRoleIds,
+  getAll,
   getCurrentUserRoles,
   listEnabledRoles,
 } from '@/modules/admin/api/user';
+import { buttonAllowed } from '@/modules/admin/utils/admin-button-permission';
 import { getAdminAuthStorageValue } from '@/utils/auth-state';
 import { useAdminSessionStore } from '@/modules/admin/stores/session';
 import { ADMIN_NO_ACCESS_PATH, pickAdminEntryPath } from '@/modules/admin/utils/adminEntry';
@@ -44,10 +46,15 @@ type AdminMenuPermissionState = {
   flatMenus: AdminMenuPermissionItem[];
   allowedPaths: string[];
   firstPath: string;
+  superAdmin: boolean;
+  buttonCodes: string[];
+  buttonCatalog: string[];
 };
 
 const ROOT_PATH = '/admin';
 const LOGIN_PATH = '/admin/login';
+const USER_PLATFORM_PATH = '/admin/users/platform';
+const USER_SUPPLIER_PATH = '/admin/users/suppliers';
 const SUPPLIER_PATH = '/admin/supplier-management';
 const SUPPLIER_COVERAGE_PATH = `${SUPPLIER_PATH}/coverage-availability`;
 const FIXED_OVERVIEW_MENU_ID = 'fixed-overview';
@@ -94,6 +101,9 @@ export const adminMenuState = reactive<AdminMenuPermissionState>({
   flatMenus: [],
   allowedPaths: [],
   firstPath: ROOT_PATH,
+  superAdmin: false,
+  buttonCodes: [],
+  buttonCatalog: [],
 });
 
 let pendingLoad: Promise<void> | null = null;
@@ -123,6 +133,29 @@ const normalizePath = (rawPath?: unknown): string => {
   }
   return MENU_PATH_ALIASES[path] || path;
 };
+
+const isButtonPath = (rawPath?: unknown) =>
+  typeof rawPath === 'string' && rawPath.trim().startsWith('btn:');
+
+const collectButtonPaths = (list: RawMenuItem[], target: string[] = []) => {
+  list.forEach((item) => {
+    const path = typeof item?.path === 'string' ? item.path.trim() : '';
+    if (isButtonPath(path)) target.push(path);
+    if (Array.isArray(item?.children) && item.children.length) {
+      collectButtonPaths(item.children, target);
+    }
+  });
+  return target;
+};
+
+const withoutButtonMenus = (list: RawMenuItem[]): RawMenuItem[] =>
+  list.flatMap((item) => {
+    if (isButtonPath(item?.path)) return [];
+    const children = Array.isArray(item?.children)
+      ? withoutButtonMenus(item.children)
+      : item?.children;
+    return [{ ...item, children }];
+  });
 
 const parseMenuList = (res: any): RawMenuItem[] => {
   if (Array.isArray(res)) return res;
@@ -414,7 +447,8 @@ const pinSuperAdminOverview = (roots: AdminMenuPermissionItem[]) => {
 };
 
 const hydrateMenuState = (list: RawMenuItem[], pinOverview = false, pinStaff = false) => {
-  const rawFlatItems = flattenRawMenus(list);
+  adminMenuState.buttonCodes = Array.from(new Set(collectButtonPaths(list)));
+  const rawFlatItems = flattenRawMenus(withoutButtonMenus(list));
   const nodeMap = new Map<string, AdminMenuPermissionItem>();
 
   rawFlatItems.forEach((item) => {
@@ -488,7 +522,6 @@ const hydrateMenuState = (list: RawMenuItem[], pinOverview = false, pinStaff = f
     orderSupplierPortalMenus(prunedRoots);
     sortMenus(prunedRoots);
   }
-
   const flat = flattenMenus(prunedRoots, []);
   const allowedPaths = Array.from(
     new Set(
@@ -516,6 +549,9 @@ export const resetAdminMenuPermissions = () => {
   adminMenuState.flatMenus = [];
   adminMenuState.allowedPaths = [];
   adminMenuState.firstPath = ROOT_PATH;
+  adminMenuState.superAdmin = false;
+  adminMenuState.buttonCodes = [];
+  adminMenuState.buttonCatalog = [];
 };
 
 export const loadAdminMenuPermissions = async (force = false) => {
@@ -559,9 +595,22 @@ export const loadAdminMenuPermissions = async (force = false) => {
       console.error('Failed to resolve the current account roles for the menu:', error);
     }
     if (version !== loadVersion) return;
+    const superAdmin = roleCodes.includes('SUPER_ADMIN');
+    let catalog: string[] = [];
+    if (typeof getAll === 'function') {
+      try {
+        catalog = collectButtonPaths(parseMenuList(await getAll()));
+      } catch (error) {
+        console.error('Failed to load the button permission catalog:', error);
+        catalog = [];
+      }
+    }
+    if (version !== loadVersion) return;
+    adminMenuState.superAdmin = superAdmin;
+    adminMenuState.buttonCatalog = Array.from(new Set(catalog));
     hydrateMenuState(
       parseMenuList(res),
-      roleCodes.includes('SUPER_ADMIN'),
+      superAdmin,
       roleCodes.includes('SUPPLIER'),
     );
     adminMenuState.lastToken = token;
@@ -575,6 +624,9 @@ export const loadAdminMenuPermissions = async (force = false) => {
       adminMenuState.flatMenus = [];
       adminMenuState.allowedPaths = [];
       adminMenuState.firstPath = ROOT_PATH;
+      adminMenuState.superAdmin = false;
+      adminMenuState.buttonCodes = [];
+      adminMenuState.buttonCatalog = [];
       throw error;
     })
     .finally(() => {
@@ -596,6 +648,14 @@ const SUPPLIER_OWNER_PATHS = [
 ];
 
 export { ADMIN_NO_ACCESS_PATH };
+
+export const canAction = (code: string) =>
+  buttonAllowed({
+    superAdmin: adminMenuState.superAdmin,
+    catalog: adminMenuState.buttonCatalog,
+    granted: adminMenuState.buttonCodes,
+    code,
+  });
 
 export const getFirstAllowedAdminPath = () =>
   pickAdminEntryPath(adminMenuState.allowedPaths, adminMenuState.firstPath);
@@ -627,6 +687,9 @@ export const resolveAllowedAdminPath = (path: string) => {
 
   if (adminMenuState.allowedPaths.includes(normalized)) {
     return normalized;
+  }
+  if (normalized === USER_PLATFORM_PATH || normalized === USER_SUPPLIER_PATH) {
+    return '';
   }
 
   const childPath = adminMenuState.allowedPaths.find((allowedPath) =>

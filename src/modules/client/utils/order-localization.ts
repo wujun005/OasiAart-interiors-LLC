@@ -38,6 +38,15 @@ export type LocalizedAttachSelection = {
   unit?: string
   unitI18n?: LocalizedText
   quantity?: number | string
+  source?: string
+  sourceI18n?: LocalizedText
+  addedAfterPay?: boolean
+  unitPriceWithoutTax?: number | string | null
+  unitPriceWithTax?: number | string | null
+  amountWithoutTax?: number | string | null
+  amountWithTax?: number | string | null
+  taxAmount?: number | string | null
+  attachValueId?: number | string
 }
 
 const preferredLanguages = (locale: string) =>
@@ -222,22 +231,96 @@ export const readOrderSummaryAttachLines = (
   })
 }
 
+export const orderLineSourceLabel = (
+  item: {
+    source?: unknown
+    sourceI18n?: LocalizedText
+    addedAfterPay?: unknown
+  } | null | undefined,
+  locale: string,
+) => {
+  const fromMap = localizeOrderText(item?.sourceI18n, "", locale)
+  if (fromMap) return fromMap
+  const addon = item?.source === "ADDON" || item?.addedAfterPay === true
+  const initial = item?.source === "INITIAL"
+  if (!addon && !initial) return ""
+  const zh = String(locale || "").toLowerCase().startsWith("zh")
+  if (addon) return zh ? "支付后追加" : "Added after payment"
+  return zh ? "首次下单" : "Initial order"
+}
+
+const optionalOrderMoney = (value: unknown) => {
+  if (value === undefined || value === null || value === "") return null
+  const amount = Number(value)
+  return Number.isFinite(amount) ? roundOrderMoney(amount) : null
+}
+
+export type PurchasedAttachLine = {
+  id: string
+  label: string
+  typeName: string
+  quantity: number
+  unit: string
+  source: string
+  addon: boolean
+  unitPriceWithoutTax: number | null
+  unitPriceWithTax: number | null
+  amountWithoutTax: number | null
+  amountWithTax: number | null
+  taxAmount: number | null
+}
+
+export const readPurchasedAttachLines = (
+  selections: LocalizedAttachSelection[] | undefined,
+  locale: string,
+): PurchasedAttachLine[] =>
+  (Array.isArray(selections) ? selections : []).flatMap((selection, index) => {
+    const label = localizeOrderText(
+      selection.attachValueNameI18n,
+      selection.attachValueName,
+      locale,
+    )
+    if (!label) return []
+    const quantity = Math.max(0, Number(selection.quantity ?? 0) || 0)
+    const source = orderLineSourceLabel(selection, locale)
+    return [{
+      id: `${selection.attachValueId ?? label}-${index}`,
+      label,
+      typeName: localizeOrderText(
+        selection.attachTypeNameI18n,
+        selection.attachTypeName,
+        locale,
+      ),
+      quantity,
+      unit: localizeOrderText(selection.unitI18n, selection.unit, locale),
+      source,
+      addon: selection.source === "ADDON" || selection.addedAfterPay === true,
+      unitPriceWithoutTax: optionalOrderMoney(selection.unitPriceWithoutTax),
+      unitPriceWithTax: optionalOrderMoney(selection.unitPriceWithTax),
+      amountWithoutTax: optionalOrderMoney(selection.amountWithoutTax),
+      amountWithTax: optionalOrderMoney(selection.amountWithTax),
+      taxAmount: optionalOrderMoney(selection.taxAmount),
+    }]
+  })
+
+const formatAttachMoney = (amount: number | null) =>
+  amount == null ? "" : `AED ${amount.toFixed(2)}`
+
 export const formatOrderAddOns = (
   selections: LocalizedAttachSelection[] | undefined,
   locale: string,
 ) =>
-  (Array.isArray(selections) ? selections : [])
-    .map((selection) => {
-      const valueName = localizeOrderText(
-        selection.attachValueNameI18n,
-        selection.attachValueName,
-        locale,
-      )
-      if (!valueName) return ""
-      const unit = localizeOrderText(selection.unitI18n, selection.unit, locale)
-      const labeled = unit ? `${valueName} / ${unit}` : valueName
-      const quantity = Math.max(0, Number(selection.quantity ?? 0) || 0)
-      return quantity > 1 ? `${labeled} × ${quantity}` : labeled
+  readPurchasedAttachLines(selections, locale)
+    .map((line) => {
+      const labeled = line.unit ? `${line.label} / ${line.unit}` : line.label
+      const base = line.quantity > 1 ? `${labeled} × ${line.quantity}` : labeled
+      const named = !line.source
+        ? base
+        : String(locale || "").toLowerCase().startsWith("zh")
+          ? `${base}（${line.source}）`
+          : `${base} (${line.source})`
+      const amount = formatAttachMoney(line.amountWithTax ?? line.amountWithoutTax)
+      return amount ? `${named} · ${amount}` : named
     })
     .filter(Boolean)
     .join(" · ")

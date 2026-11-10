@@ -69,6 +69,7 @@
             <button type="button" class="staff-card__open" @click="openDetail(row)">
               <span class="staff-card__top">
                 <span class="staff-card__no">{{ row.orderNo || '—' }}</span>
+                <em v-if="orderKindLabel(row)" class="staff-kind" :class="{ 'is-package': supplierOrderKind(row) === 'package' }">{{ orderKindLabel(row) }}</em>
                 <em class="staff-status" :class="statusClass(row)">{{ statusText(row) }}</em>
               </span>
               <strong class="staff-card__title">{{ serviceTitle(row) }}</strong>
@@ -76,6 +77,7 @@
               <span v-if="packageVisitText(row)" class="staff-card__spec staff-card__package">{{ packageVisitText(row) }}</span>
               <span v-if="assignedStaffText(row)" class="staff-card__spec">{{ t('admin.supplierOrders.assignedStaff') }} · {{ assignedStaffText(row) }}</span>
               <span v-if="specText(row) !== '—'" class="staff-card__spec">{{ specText(row) }}</span>
+              <span v-for="note in fulfillRemarks(row)" :key="note" class="staff-card__note">{{ t('admin.supplierOrders.fulfillRemarkLine', { remark: note }) }}</span>
               <span class="staff-card__schedule">
                 <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="5" width="16" height="16" rx="3" /><path d="M8 3v4M16 3v4M4 11h16" /></svg>
                 <strong>{{ row.serviceDate || '—' }}</strong>
@@ -93,7 +95,7 @@
               </span>
             </button>
             <div class="staff-card__actions">
-              <span class="staff-card__price"><small>{{ t('admin.supplierOrders.price') }}</small><strong><small v-if="money(row.quotePrice) !== '—'">AED</small> {{ money(row.quotePrice) }}</strong></span>
+              <span class="staff-card__price"><small>{{ t('admin.supplierOrders.price') }}</small><strong><small v-if="money(orderEarning(row)) !== '—'">AED</small> {{ money(orderEarning(row)) }}</strong></span>
               <div>
                 <a v-if="navigateUrl(row)" class="staff-nav staff-nav--icon" :href="navigateUrl(row)" target="_blank" rel="noopener noreferrer" :aria-label="t('admin.supplierOrders.navigateGoogle')" :title="t('admin.supplierOrders.navigateGoogle')">
                   <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m21 3-6 18-4-8-8-4 18-6Z" /></svg>
@@ -134,7 +136,7 @@
       </div>
       <template v-else>
         <section class="staff-detail__hero">
-          <div class="staff-detail__hero-top"><span>{{ t('admin.supplierOrders.assignedOrder') }}</span><em class="staff-status" :class="statusClass(order)">{{ statusText(order) }}</em></div>
+          <div class="staff-detail__hero-top"><span>{{ orderKindLabel(order) || t('admin.supplierOrders.assignedOrder') }}</span><em class="staff-status" :class="statusClass(order)">{{ statusText(order) }}</em></div>
           <h1>{{ serviceTitle(order) }}</h1>
           <p v-if="packageOrderTitle(order) || packageVisitText(order)" class="staff-detail__package">
             <template v-if="packageOrderTitle(order)">{{ packageOrderTitle(order) }}</template>
@@ -162,11 +164,46 @@
 
           <section class="staff-section">
             <div class="staff-section__heading"><span class="staff-section__icon" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="4" y="6" width="16" height="15" rx="3" /><path d="M9 6V3h6v3M4 11h16" /></svg></span><h2>{{ t('admin.supplierOrders.servicePlan') }}</h2></div>
+            <div v-if="orderGroups(order).length" class="staff-order-groups">
+              <section
+                v-for="(group, index) in orderGroups(order)"
+                :key="group.key"
+                class="staff-order-group"
+                :class="{ 'is-addon': group.source === 'ADDON' }"
+              >
+                <header>
+                  <i>{{ index + 1 }}</i>
+                  <strong>{{ groupTitle(group) }}</strong>
+                  <small v-if="group.addonPaymentId">{{ t('admin.supplierOrders.addonPayment', { id: group.addonPaymentId }) }}</small>
+                </header>
+                <article v-for="sku in group.skus" :key="sku.id">
+                  <strong>{{ serviceTitle(sku) }}</strong>
+                  <p v-if="specText(sku) !== '—'">{{ specText(sku) }}</p>
+                  <p v-if="sku.supplierFulfillRemark" class="staff-sku-note">{{ t('admin.supplierOrders.fulfillRemarkLine', { remark: sku.supplierFulfillRemark }) }}</p>
+                  <dl>
+                    <div v-if="sku.quantity != null"><dt>{{ t('admin.supplierOrders.quantity') }}</dt><dd>{{ sku.quantity }}</dd></div>
+                    <div v-if="lineEarning(sku) != null"><dt>{{ t('admin.supplierOrders.price') }}</dt><dd>AED {{ money(lineEarning(sku)) }}</dd></div>
+                  </dl>
+                </article>
+                <ul v-if="group.attaches.length" class="staff-attaches">
+                  <li v-for="item in group.attaches" :key="item.id">
+                    <p><strong>{{ attachLabel(item) }}</strong></p>
+                    <span>{{ attachQuantity(item) }}</span>
+                    <em v-if="attachEarning(item) != null">{{ t('admin.supplierOrders.price') }} AED {{ money(attachEarning(item)) }}</em>
+                  </li>
+                </ul>
+              </section>
+            </div>
             <dl class="staff-facts">
+              <div v-if="materialHourStaffCount(order) != null"><dt>{{ t('admin.supplierOrders.serviceStaffCount') }}</dt><dd>{{ materialHourStaffCount(order) }}</dd></div>
+              <div v-if="materialHourServiceHours(order) != null"><dt>{{ t('admin.supplierOrders.serviceDuration') }}</dt><dd>{{ hoursText(materialHourServiceHours(order)) }}</dd></div>
               <div><dt>{{ t('admin.supplierOrders.assignedStaff') }}</dt><dd>{{ assignedStaffText(order) || t('admin.supplierOrders.assignedStaffEmpty') }}</dd></div>
-              <div><dt>{{ t('admin.supplierOrders.specs') }}</dt><dd>{{ specText(order) }}</dd></div>
-              <div><dt>{{ t('admin.supplierOrders.addons') }}</dt><dd>{{ addonText(order) }}</dd></div>
-              <div class="staff-facts__price"><dt>{{ t('admin.supplierOrders.price') }}</dt><dd><small v-if="money(order?.quotePrice) !== '—'">AED</small> {{ money(order?.quotePrice) }}</dd></div>
+              <template v-if="!orderGroups(order).length">
+                <div><dt>{{ t('admin.supplierOrders.specs') }}</dt><dd>{{ specText(order) }}</dd></div>
+                <div v-if="fulfillRemarks(order).length"><dt>{{ t('admin.supplierOrders.fulfillRemark') }}</dt><dd>{{ fulfillRemarks(order).join(String(locale).startsWith('en') ? '; ' : '；') }}</dd></div>
+                <div><dt>{{ t('admin.supplierOrders.addons') }}</dt><dd>{{ addonText(order) }}</dd></div>
+              </template>
+              <div class="staff-facts__price"><dt>{{ t('admin.supplierOrders.price') }}</dt><dd><small v-if="money(orderEarning(order)) !== '—'">AED</small> {{ money(orderEarning(order)) }}</dd></div>
             </dl>
           </section>
 
@@ -200,11 +237,11 @@
           <span class="staff-detail__foot-status"><small>{{ t('admin.supplierOrders.serviceStatus') }}</small><strong>{{ statusText(order) }}</strong></span>
           <div class="staff-detail__foot-actions">
             <a v-if="navigateUrl(order)" class="staff-nav" :href="navigateUrl(order)" target="_blank" rel="noopener noreferrer">{{ t('admin.supplierOrders.navigateGoogle') }}</a>
-            <button v-if="canAct(order, 0)" type="button" class="staff-danger" :disabled="actionBusy" @click="reject(order)">{{ t('admin.supplierOrders.rejectAction') }}</button>
-            <button v-if="canAct(order, 0)" type="button" class="staff-primary" :disabled="actionBusy" @click="accept(order)">{{ t(actionBusy ? 'admin.supplierOrders.actionPending' : 'admin.supplierOrders.acceptAction') }}</button>
-            <button v-else-if="canAct(order, 4)" type="button" class="staff-primary" :disabled="actionBusy" @click="depart(order)">{{ t(actionBusy ? 'admin.supplierOrders.actionPending' : 'admin.supplierOrders.departAction') }}</button>
-            <button v-else-if="canAct(order, 3)" type="button" class="staff-primary" :disabled="actionBusy" @click="openAction(order, 'arrive')">{{ t('admin.supplierOrders.arriveAction') }}</button>
-            <button v-else-if="canAct(order, 1)" type="button" class="staff-primary" :disabled="actionBusy" @click="openAction(order, 'complete')">{{ t('admin.supplierOrders.completeAction') }}</button>
+            <button v-if="canAction('btn:/admin/supplier-management/orders:reject') && canAct(order, 0)" type="button" class="staff-danger" :disabled="actionBusy" @click="reject(order)">{{ t('admin.supplierOrders.rejectAction') }}</button>
+            <button v-if="canAction('btn:/admin/supplier-management/orders:accept') && canAct(order, 0)" type="button" class="staff-primary" :disabled="actionBusy" @click="accept(order)">{{ t(actionBusy ? 'admin.supplierOrders.actionPending' : 'admin.supplierOrders.acceptAction') }}</button>
+            <button v-else-if="canAction('btn:/admin/supplier-management/orders:progress') && canAct(order, 4)" type="button" class="staff-primary" :disabled="actionBusy" @click="depart(order)">{{ t(actionBusy ? 'admin.supplierOrders.actionPending' : 'admin.supplierOrders.departAction') }}</button>
+            <button v-else-if="canAction('btn:/admin/supplier-management/orders:progress') && canAct(order, 3)" type="button" class="staff-primary" :disabled="actionBusy" @click="openAction(order, 'arrive')">{{ t('admin.supplierOrders.arriveAction') }}</button>
+            <button v-else-if="canAction('btn:/admin/supplier-management/orders:progress') && canAct(order, 1)" type="button" class="staff-primary" :disabled="actionBusy" @click="openAction(order, 'complete')">{{ t('admin.supplierOrders.completeAction') }}</button>
             <span v-else class="staff-detail__no-action">{{ t('admin.supplierOrders.noAction') }}</span>
           </div>
         </footer>
@@ -242,7 +279,7 @@
       <p class="staff-action__format">{{ t('admin.supplierOrders.photoFormatHint') }}</p>
       <template #footer>
         <el-button :disabled="action.saving || action.uploading" @click="closeAction">{{ t('admin.supplierPricing.cancel') }}</el-button>
-        <el-button type="primary" :loading="action.saving" :disabled="action.uploading" @click="submitAction">{{ t('admin.supplierOrders.confirm') }}</el-button>
+        <el-button v-if="canAction('btn:/admin/supplier-management/orders:progress')" type="primary" :loading="action.saving" :disabled="action.uploading" @click="submitAction">{{ t('admin.supplierOrders.confirm') }}</el-button>
       </template>
     </el-dialog>
   </section>
@@ -263,7 +300,7 @@ import {
   uploadFile,
 } from '@/modules/admin/api/supplierWorkbench'
 import { pickI18nText } from '@/modules/admin/utils/i18n'
-import { packageVisitProgress, supplierMineCounts } from '@/modules/admin/utils/supplier-mine'
+import { materialHourServiceHours, materialHourStaffCount, packageVisitProgress, supplierAttachEarning, supplierFulfillRemarks, supplierLineEarning, supplierMineCounts, supplierOrderEarning, supplierOrderGroups, supplierOrderKind, supplierSpecSummary } from '@/modules/admin/utils/supplier-mine'
 import { googleNavigateUrl } from '@/modules/admin/utils/supplierMap'
 
 type Stage = 'all' | 'newRequests' | 'upcoming' | 'inProgress' | 'completed' | 'cancelled'
@@ -358,6 +395,12 @@ const localized = (value: unknown, plain?: unknown) => {
   return fallback || '—'
 }
 const serviceTitle = (row: any) => localized(row?.spuNameI18n, row?.spuName)
+const orderKindLabel = (row: any) => {
+  const kind = supplierOrderKind(row)
+  if (kind === 'package') return t('admin.supplierOrders.orderTypePackage')
+  if (kind === 'normal') return t('admin.supplierOrders.orderTypeNormal')
+  return ''
+}
 const packageOrderTitle = (row: any) => {
   if (row?.packageOrder !== true && Number(row?.orderType) !== 2) return ''
   const name = localized(row?.packageNameI18n, row?.packageName)
@@ -374,12 +417,33 @@ const assignedStaffText = (row: any) => {
   const list = Array.isArray(row?.assignedStaff) ? row.assignedStaff : []
   return list.map((item: any) => String(item?.name || item?.phone || '').trim()).filter(Boolean).join('、')
 }
-const specText = (row: any) => {
-  const specs = Array.isArray(row?.specs) ? row.specs : []
-  const text = specs.map((spec: any) => [localized(spec?.typeNameI18n, spec?.typeName), localized(spec?.valueNameI18n, spec?.valueName)]
-    .filter((part) => part && part !== '—').join(': ')).filter(Boolean)
-  if (text.length) return text.join('; ')
-  return row?.specDescription || '—'
+const specText = (row: any) =>
+  supplierSpecSummary(row, (i18n, plain) => localized(i18n, plain)) || '—'
+const lineEarning = (row: any) => supplierLineEarning(row)
+const attachEarning = (row: any) => supplierAttachEarning(row)
+const orderEarning = (row: any) => supplierOrderEarning(row)
+const fulfillRemarks = (row: any) => supplierFulfillRemarks(row)
+const orderGroups = (row: any) => supplierOrderGroups(row)
+const groupTitle = (group: { source?: string; sourceI18n?: unknown }) =>
+  attachSource({ source: group.source, sourceI18n: group.sourceI18n, addedAfterPay: group.source === 'ADDON' })
+const attachLabel = (item: { name?: unknown; nameI18n?: unknown }) => {
+  const name = localized(item?.nameI18n, item?.name)
+  return name === '—' ? '' : name
+}
+const attachUnitLabel = (item: { unit?: unknown; unitI18n?: unknown }) => {
+  const unit = localized(item?.unitI18n, item?.unit)
+  return unit === '—' ? '' : unit
+}
+const attachQuantity = (item: { quantity?: number; unit?: unknown; unitI18n?: unknown }) => {
+  const unit = attachUnitLabel(item)
+  return unit ? `× ${item.quantity || 1} ${unit}` : `× ${item.quantity || 1}`
+}
+const attachSource = (item: { source?: unknown; sourceI18n?: unknown; addedAfterPay?: boolean }) => {
+  const sourceText = localized(item?.sourceI18n)
+  if (sourceText && sourceText !== '—') return sourceText
+  if (item?.source === 'ADDON' || item?.addedAfterPay) return t('admin.supplierOrders.sourceAddon')
+  if (item?.source === 'INITIAL') return t('admin.supplierOrders.initialOrder')
+  return ''
 }
 const addonText = (row: any) => {
   const attaches = Array.isArray(row?.attaches) ? row.attaches : []
@@ -420,6 +484,12 @@ const money = (value: unknown) => {
   if (value == null || value === '') return '—'
   const amount = Number(value)
   return Number.isFinite(amount) ? amount.toFixed(2) : '—'
+}
+const hoursText = (value: unknown) => {
+  const hours = Number(value)
+  if (!Number.isFinite(hours)) return '—'
+  const text = Number.isInteger(hours) ? String(hours) : String(Number(hours.toFixed(2)))
+  return t('admin.supplierOrders.hoursValue', { hours: text })
 }
 const step = (row: any) => {
   if (row?.serviceStatus == null || row.serviceStatus === '') return -1
@@ -802,6 +872,8 @@ onBeforeUnmount(() => {
 .staff-orders__stages button.is-on { color: var(--staff-ink); font-weight: 750; }
 .staff-orders__stages b { margin-left: 4px; font-weight: 750; }
 .staff-card__package, .staff-detail__package { color: #8d5a32; font-weight: 650; }
+.staff-kind { padding: 2px 6px; border-radius: 999px; background: #eef2f6; color: #52627a; font-size: 10px; font-style: normal; font-weight: 700; }
+.staff-kind.is-package { background: #f8efe2; color: #8d5a32; }
 .staff-orders__stages button.is-on::after { position: absolute; right: 0; bottom: 0; left: 0; height: 3px; border-radius: 3px; background: var(--staff-gold); content: ''; }
 .staff-orders__results-heading { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 19px 1px 13px; }
 .staff-orders__results-heading strong { font-size: 14px; font-weight: 700; }
@@ -820,6 +892,7 @@ onBeforeUnmount(() => {
 .is-danger { background: #fcf0ef; color: #a85c58; }
 .staff-card__title { display: -webkit-box; margin-bottom: 6px; overflow: hidden; -webkit-line-clamp: 2; -webkit-box-orient: vertical; color: var(--staff-ink); font-size: 16px; line-height: 1.4; font-weight: 720; overflow-wrap: anywhere; }
 .staff-card__spec { display: -webkit-box; min-height: 18px; overflow: hidden; -webkit-line-clamp: 1; -webkit-box-orient: vertical; color: #8a94a2; font-size: 11px; line-height: 1.5; }
+.staff-card__note, .staff-sku-note { color: #243044; font-size: 12px; font-weight: 650; line-height: 1.45; }
 .staff-card__schedule { display: flex; align-items: center; gap: 8px; margin-top: 13px; padding: 9px 11px; border-radius: 8px; background: #f5f7f9; color: #52677b; font-size: 12px; font-variant-numeric: tabular-nums; }
 .staff-card__schedule svg { width: 15px; height: 15px; color: #8e9cab; }
 .staff-card__schedule strong { color: #334c63; font-weight: 650; }
@@ -889,6 +962,29 @@ onBeforeUnmount(() => {
 .staff-location p { margin: 4px 0 0; color: #4a6177; font-size: 13px; line-height: 1.6; overflow-wrap: anywhere; }
 .staff-map-link { display: flex; align-items: center; justify-content: space-between; gap: 10px; min-height: 42px; margin-top: 16px; padding: 0 13px; border: 1px solid #e0e7ed; border-radius: 9px; background: #f9fafb; color: #496681; font-size: 11px; font-weight: 650; text-decoration: none; }
 .staff-map-link span { font-size: 17px; }
+.staff-order-groups { position: relative; display: grid; gap: 14px; margin-bottom: 14px; padding-left: 28px; }
+.staff-order-groups::before { content: ""; position: absolute; top: 16px; bottom: 16px; left: 10px; width: 2px; background: #ead7bf; }
+.staff-order-group { position: relative; display: grid; gap: 8px; padding: 12px; border: 1px solid #e6edf3; border-radius: 14px; background: #fff; }
+.staff-order-group.is-addon { border-color: #ead7bf; background: #fffaf3; }
+.staff-order-group header { display: flex; justify-content: space-between; gap: 8px; align-items: baseline; }
+.staff-order-group header i { position: absolute; top: 12px; left: -28px; display: grid; width: 22px; height: 22px; place-items: center; border-radius: 50%; background: #24384c; color: #fff; font-size: 11px; font-style: normal; font-weight: 750; }
+.staff-order-group.is-addon header i { background: #8a5a12; }
+.staff-order-group code { display: inline-block; width: fit-content; padding: 2px 7px; border-radius: 999px; background: #24384c; color: #fff; font-size: 12px; font-weight: 750; }
+.staff-order-group header strong { color: #24384c; font-size: 14px; }
+.staff-order-group header small { color: #8d5a32; font-size: 12px; }
+.staff-order-group article { display: grid; gap: 6px; }
+.staff-order-group article > strong { color: #05152b; font-size: 14px; }
+.staff-order-group article > p { margin: 0; color: #64748b; font-size: 12px; }
+.staff-order-group dl { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 12px; margin: 0; }
+.staff-order-group dt { color: #8791a1; font-size: 11px; }
+.staff-order-group dd { margin: 2px 0 0; color: #05152b; font-size: 13px; font-weight: 750; }
+.staff-attaches { display: grid; gap: 10px; margin: 0; padding: 0; list-style: none; }
+.staff-attaches li { display: grid; gap: 3px; padding-bottom: 10px; border-bottom: 1px solid #edf1f4; }
+.staff-attaches li:last-child { padding-bottom: 0; border-bottom: 0; }
+.staff-attaches p { display: flex; flex-wrap: wrap; gap: 6px; align-items: baseline; margin: 0; }
+.staff-attaches strong { color: #24384c; font-size: 13px; }
+.staff-attaches small { color: #8d5a32; font-size: 11px; font-weight: 750; }
+.staff-attaches span, .staff-attaches em { color: #64748b; font-size: 12px; font-style: normal; }
 .staff-facts { display: grid; gap: 16px; margin: 0; }
 .staff-facts > div { display: grid; gap: 5px; }
 .staff-facts dt { color: #93a0ad; font-size: 11px; }
