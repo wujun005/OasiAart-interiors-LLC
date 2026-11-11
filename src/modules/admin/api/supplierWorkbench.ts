@@ -214,6 +214,10 @@ export function saveSupplierPackages(payload: {
   return http.post('/api/supplier/tools/packages/save', payload);
 }
 
+export function supplierQuoteShowOptionPrice(spuId: number | string) {
+  return http.get('/api/supplier/tools/quotes/showOptionPrice', { params: { spuId } });
+}
+
 export function supplierPackageQuotes(supplierId: number | string) {
   return http.get('/api/supplier/tools/packages/quotes', { params: { supplierId } });
 }

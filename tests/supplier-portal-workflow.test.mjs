@@ -76,7 +76,7 @@ const renderer = Vue.createRenderer({
 })
 
 async function harness(t, section = 'pricing', mobile = false) {
-  const calls = { drafts: [], submissions: [], priceChanges: [], profileSaves: [], profileResubmits: [], coverage: [], messages: [], routes: [], scrolledFields: [], focusedFields: [], uploads: [], releaseUpload: null, exports: [], shelfNotices: [], shelfAcks: [], notifications: [], shelfNoticeResponse: { unread: false, services: [] } }
+  const calls = { drafts: [], packageDrafts: [], submissions: [], priceChanges: [], profileSaves: [], profileResubmits: [], coverage: [], messages: [], routes: [], scrolledFields: [], focusedFields: [], uploads: [], releaseUpload: null, exports: [], shelfNotices: [], shelfAcks: [], notifications: [], shelfNoticeResponse: { unread: false, services: [] } }
   calls.orders = []
   calls.staffPages = []
   calls.categoryContacts = []
@@ -133,6 +133,11 @@ async function harness(t, section = 'pricing', mobile = false) {
       calls.drafts.push(clone(payload))
       return { data: { ...clone(payload), status: 0, skus: clone(payload.items) } }
     },
+    savePackageQuoteDraft: async (payload) => {
+      calls.packageDrafts.push(clone(payload))
+      return { data: { ...clone(payload), status: 0, skus: clone(payload.items) } }
+    },
+    supplierQuoteShowOptionPrice: async (spuId) => ({ data: { spuId, showOptionPrice: true } }),
     submitQuote: async (payload) => {
       calls.submissions.push(clone(payload))
       const body = calls.submitResponse || { status: 1, submittedAt: '2026-10-16T01:00:00Z' }
@@ -1689,6 +1694,63 @@ test('package quotes group interleaved services by package id and preserve packa
   assert.equal(router.currentRoute.value.query.service, '501')
 })
 
+test('a package with several services is quoted together with every option and visit count', async (t) => {
+  const { state, router, calls } = await harness(t, 'package-pricing')
+  const contents = [
+    { packageItemId: 1, spuId: 501, redeemTimes: 4 },
+    { packageItemId: 2, spuId: 501, redeemTimes: 1 },
+    { packageItemId: 3, spuId: 502, redeemTimes: 2 },
+  ]
+  state.packageFlat = [
+    packageEntry(101, 501, {
+      contents,
+      service: {
+        spuId: 501, spuName: 'Home Cleaning', status: 0, quoteMode: 1, priceEditable: true,
+        skus: [
+          { skuId: 1, available: true, specs: [{ specValueName: '2 Hours' }, { specValueName: '1 Cleaner' }] },
+          { skuId: 2, available: true, specs: [{ specValueName: '3 Hours' }] },
+        ],
+      },
+    }),
+    packageEntry(101, 502, {
+      contents,
+      service: {
+        spuId: 502, spuName: 'AC Repair', status: 0, quoteMode: 3, priceEditable: true,
+        skus: [{ skuId: 9, available: true, specs: [{ specValueName: '1 Hour / Tech' }] }],
+      },
+    }),
+  ]
+  await flush()
+  const group = state.serviceRowGroups[0]
+  assert.deepEqual(clone(group.rows.map(row => row.times)), [[4, 1], [2]])
+  await state.openPackageQuote(group)
+  await flush()
+  assert.equal(state.packageBundle.active, true)
+  assert.equal(state.quoteDialog.visible, true)
+  assert.equal(state.quoteDialog.spuId, 0)
+  assert.equal(router.currentRoute.value.query.packageQuote, '101')
+  assert.equal(router.currentRoute.value.query.service, undefined)
+  assert.equal(state.packageBundle.sections.length, 2)
+  assert.equal(state.packageBundle.sections[0].quoted, true)
+  assert.equal(state.packageBundle.sections[1].quoted, false)
+  assert.deepEqual(clone(state.packageBundle.sections[0].times), [4, 1])
+  assert.deepEqual(clone(state.packageBundle.sections[0].rows.map(row => row.label)), ['2 Hours · 1 Cleaner', '3 Hours'])
+  assert.equal(state.packageBundle.sections[1].quoteMode, 3)
+  assert.deepEqual(clone(state.packageBundle.sections[1].rows.map(row => row.label)), ['1 Hour / Tech'])
+  assert.deepEqual(clone(state.packageBundle.sections[1].times), [2])
+  state.packageBundle.sections[0].rows[0].quotePrice = '80'
+  state.packageBundle.sections[0].rows[1].quotePrice = '90'
+  state.packageBundle.sections[1].unitPrice = '40'
+  await state.savePackageBundle(false)
+  assert.equal(calls.packageDrafts.length, 1)
+  assert.equal(calls.packageDrafts[0].packageId, 101)
+  assert.equal(calls.packageDrafts[0].spuId, 501)
+  assert.equal(calls.packageDrafts[0].items[0].quotePrice, 80)
+  assert.equal(calls.packageDrafts[0].items[1].quotePrice, 90)
+  assert.equal(calls.submissions.length, 0)
+  assert.match(descriptor.template.content, /packageVisibleLines\(\)/)
+})
+
 test('different packages with the same displayed name never merge', async (t) => {
   const { state } = await harness(t, 'package-pricing', true)
   const sameName = { packageName: 'Family package', packageNameI18n: { en: 'Family package', 'zh-CN': '家庭套餐' } }
@@ -1736,7 +1798,7 @@ test('regular service pricing remains a single unheaded group and package titles
   assert.equal(pricing.state.serviceRowGroups[0].key, 'services')
   assert.equal(pricing.state.serviceRowGroups[0].name, '')
   assert.deepEqual(clone(pricing.state.serviceRowGroups[0].rows.map(row => row.spuId)), [501, 502])
-  const heading = descendants(template, node => hasClass(node, 'portal-package-group__header'))[0]
+  const heading = descendants(template, node => hasClass(node, 'portal-package-card'))[0]
   assert.equal(evaluate(directive(heading, 'if'), pricing.state), false)
   const packages = await harness(t, 'package-pricing')
   packages.state.packageFlat = [packageEntry(101, 501)]
@@ -1764,6 +1826,52 @@ test('supplier quote heading uses the configured add-on title', async (t) => {
   locale.value = 'zh'
   assert.equal(state.quoteAddonTitle, '附加项')
   assert.match(descriptor.template.content, /<h2>\{\{ quoteAddonTitle \}\}<\/h2>/)
+})
+
+test('fixed prices share one rate across symptoms that do not change the visit', async (t) => {
+  const { state } = await harness(t)
+  const row = (skuId, label, price) => ({ skuId, lineLabel: label, quotePrice: price, groupId: 'visit', enabled: true })
+  const lines = state.quoteDisplayLines([
+    row(1, 'Split AC - Not Cooling / Weak Cooling', 90),
+    row(2, 'Split AC - Other / Not Sure', 90),
+    row(3, 'Split AC - Water Leakage', 90),
+    row(4, 'Duct / Central AC - Not Cooling / Weak Cooling', 100),
+    row(5, 'Duct / Central AC - Unusual Noise', 100),
+    row(6, '2 Hours / 1 Cleaner', 80),
+    row(7, 'Studio', 70),
+    row(8, 'Apartment - 2 Hours', 60),
+    row(9, 'Apartment - 3 Hours', 65),
+  ])
+  assert.deepEqual(clone(lines.map((line) => ({
+    title: line.title,
+    tails: line.tails,
+    ids: line.rows.map((item) => item.skuId),
+  }))), [
+    { title: 'Split AC', tails: ['Not Cooling / Weak Cooling', 'Other / Not Sure', 'Water Leakage'], ids: [1, 2, 3] },
+    { title: 'Duct / Central AC', tails: ['Not Cooling / Weak Cooling', 'Unusual Noise'], ids: [4, 5] },
+    { title: '2 Hours', tails: [], ids: [6] },
+    { title: 'Studio', tails: [], ids: [7] },
+    { title: 'Apartment - 2 Hours', tails: [], ids: [8] },
+    { title: 'Apartment - 3 Hours', tails: [], ids: [9] },
+  ])
+  state.setFamilyPrice(lines[0], '95')
+  assert.deepEqual(clone(lines[0].rows.map((item) => item.quotePrice)), ['95', '95', '95'])
+  assert.equal(lines[1].rows[0].quotePrice, 100)
+})
+
+test('a price suffix stays only when it is a real pricing unit', async (t) => {
+  const { state } = await harness(t)
+  assert.deepEqual(clone(state.quoteLineParts({ lineLabel: '1 Hour / Tech' })), { name: '1 Hour', unit: 'Tech' })
+  assert.deepEqual(clone(state.quoteLineParts({ lineLabel: '2 Hours / 1 Cleaner' })), { name: '2 Hours', unit: '1 Cleaner' })
+  assert.deepEqual(clone(state.quoteLineParts({ lineLabel: '1 小时/技术' })), { name: '1 小时', unit: '技术' })
+  assert.deepEqual(clone(state.quoteLineParts({ lineLabel: 'Split AC - Not Cooling / Weak Cooling' })), {
+    name: 'Split AC - Not Cooling / Weak Cooling',
+    unit: '',
+  })
+  assert.deepEqual(clone(state.quoteLineParts({ lineLabel: 'Duct / Central AC - AC Not Turning On' })), {
+    name: 'Duct / Central AC - AC Not Turning On',
+    unit: '',
+  })
 })
 
 test('actual supplier portal template compiles with the tested setup bindings', () => {

@@ -211,6 +211,68 @@
 .portal-package-group__icon svg { width: 18px; height: 18px; }
 .portal-package-group__header h3 { flex: 1; min-width: 0; margin: 0; color: #102b44; font: 650 14px/1.5 var(--hx-font-sans, sans-serif); overflow-wrap: anywhere; }
 .portal-package-group__count { flex: none; padding: 4px 9px; border: 1px solid #e5e0d6; border-radius: 6px; background: #fff; color: #718094; font-size: 11px; line-height: 1.4; white-space: nowrap; }
+.portal-package-quote { flex: none; }
+.portal-package-card { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 16px 18px; }
+.portal-package-card h3 { margin: 0; color: #102b44; font-size: 15px; font-weight: 650; }
+.portal-package-plan { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+.portal-package-plan span { padding: 4px 10px; border: 1px solid #e6e1d8; border-radius: 6px; background: #fbfaf6; color: #243246; font-size: 12px; }
+.portal-package-plan b { color: #8a6420; font-weight: 650; }
+.portal-package-card__actions { display: flex; align-items: center; gap: 10px; }
+.package-price-card { display: grid; gap: 14px; padding: 18px 22px; border: 1px solid #e7e1d3; border-radius: 10px; background: #fff; }
+.package-price-card__head, .package-price-toolbar, .package-includes { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.package-price-card__head h2 { margin: 0; color: #14213d; font: 650 20px/1.3 Fraunces, Georgia, serif; }
+.package-price-card__head p, .package-price-foot { margin: 4px 0 0; color: #6b6f7a; font-size: 12px; line-height: 1.6; }
+.package-price-card__count { padding: 4px 12px; border-radius: 20px; background: #f6efe1; color: #8a6420; font-size: 12px; font-weight: 700; }
+.package-includes { align-items: center; padding: 10px 14px; border: 1px solid #e7e1d3; border-radius: 8px; background: #fbfaf6; }
+.package-includes span, .package-includes em { color: #6b6f7a; font-size: 12px; font-style: normal; }
+.package-includes b { padding: 2px 9px; border-radius: 10px; background: #e7f4ed; color: #1f8a5b; font-size: 12px; font-weight: 650; }
+.package-includes em { margin-left: auto; }
+.package-how { padding: 12px 16px; border: 1px solid #cfe0f3; border-radius: 8px; background: #f4f8fd; }
+.package-how strong { color: #2f6fb8; font-size: 13px; }
+.package-how p { margin: 8px 0 0; color: #3d4556; font-size: 13px; line-height: 1.6; white-space: pre-wrap; }
+.package-how table { width: min(640px, 100%); margin-top: 8px; border: 1px solid #d9e6f5; border-radius: 8px; border-collapse: collapse; overflow: hidden; background: #fff; }
+.package-how th, .package-how td { padding: 8px 12px; border-bottom: 1px solid #eef3f9; text-align: left; font-size: 13px; }
+.package-how th { width: 42%; background: #eaf2fb; color: #2f6fb8; font-weight: 700; }
+.package-how tr:last-child th, .package-how tr:last-child td { border-bottom: 0; }
+.package-price-tabs, .package-price-bulk { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.package-price-tabs > span { color: #6b6f7a; font-size: 12px; }
+.package-price-tabs button, .package-price-bulk button { border: 1px solid #e7e1d3; border-radius: 20px; background: #fff; padding: 8px 14px; color: #14213d; font-weight: 650; cursor: pointer; }
+.package-price-tabs button.is-on { background: #14213d; color: #fff; border-color: #14213d; box-shadow: 0 0 0 3px #f6efe1; }
+.package-price-row { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 14px; align-items: center; padding: 14px 18px; border: 1px solid #e7e1d3; border-radius: 10px; }
+.package-price-row.is-off { opacity: .55; }
+.package-price-row strong { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; color: #14213d; }
+.package-price-row strong em { padding: 2px 8px; border-radius: 10px; background: #e7f4ed; color: #1f8a5b; font-size: 11px; font-style: normal; font-weight: 650; }
+.package-price-row p { margin: 4px 0 0; color: #6b6f7a; font-size: 12px; }
+.package-price-pin { display: flex; width: 220px; overflow: hidden; border: 1px solid #dcd3bf; border-radius: 6px; background: #fff; }
+.package-price-pin span { display: grid; place-items: center; padding: 0 10px; background: #f6efe1; color: #14213d; font-size: 11px; font-weight: 700; }
+.package-price-pin :deep(.el-input__wrapper) { box-shadow: none; }
+@media (max-width: 900px) {
+  .portal-package-card, .package-price-row { grid-template-columns: auto minmax(0, 1fr); }
+  .portal-package-card { align-items: flex-start; flex-direction: column; }
+  .package-price-pin { width: 100%; }
+}
+.quote-supplier-desc { margin: 12px 0 0; padding: 12px 14px; border: 1px solid #e5e0d6; border-radius: 12px; background: #f8f6f1; color: #243246; font-size: 14px; line-height: 1.6; white-space: pre-wrap; }
+.package-bundle__service .quote-supplier-desc { margin: 8px 0 0; }
+.portal-package-group__header { flex-wrap: wrap; }
+.portal-service-times { display: flex; flex-wrap: wrap; gap: 6px; margin: 6px 0 0; }
+.portal-service-times span,
+.package-bundle__service header span { padding: 2px 8px; border-radius: 999px; background: #f4efe4; color: #8a6a32; font-size: 12px; line-height: 1.5; }
+.package-bundle { display: grid; gap: 16px; }
+.package-bundle__lead { margin: 0; color: #5c6b7a; line-height: 1.6; }
+.package-bundle__service { display: grid; gap: 12px; padding: 16px; border: 1px solid #e5e0d6; border-radius: 14px; background: #fff; }
+.package-bundle__service header { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; }
+.package-bundle__service h2,
+.package-bundle__service header p { margin: 0; }
+.package-bundle__service h2 { color: #102b44; font-size: 16px; }
+.package-bundle__service header p { color: #718094; font-size: 12px; }
+.package-bundle__rates,
+.package-bundle__options { display: grid; gap: 10px; margin: 0; padding: 0; list-style: none; }
+.package-bundle__rates label,
+.package-bundle__options li { display: grid; grid-template-columns: minmax(0, 1fr) minmax(140px, 200px); gap: 12px; align-items: center; }
+.package-bundle__options li.is-note { grid-template-columns: minmax(0, 1fr); }
+.package-bundle__service.is-included { background: #fbfaf7; }
+.package-bundle__options em { color: #718094; font-style: normal; font-size: 12px; }
+.package-bundle__foot { display: flex; justify-content: flex-end; gap: 10px; }
 .portal-package-group .portal-service-group__rows { gap: 0; }
 .portal-package-group .portal-service-row.is-package { border: 0; border-radius: 0; box-shadow: none; }
 .portal-package-group .portal-service-row.is-package + .portal-service-row.is-package { border-top: 1px solid #e9edf1; }

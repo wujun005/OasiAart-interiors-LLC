@@ -399,6 +399,48 @@
           </el-select>
           <p class="quote-mode-hint">{{ t(quoteLocked ? 'admin.product.form.quoteLocked' : 'admin.product.form.quoteModeHint') }}</p>
         </el-form-item>
+        <el-form-item :label="t('admin.product.form.supplierQuoteDesc')">
+          <div class="i18n-list">
+            <div
+              v-for="(item, idx) in form.supplierQuoteDescI18nList"
+              :key="idx"
+              class="i18n-row"
+            >
+              <el-select
+                v-model="item.lang"
+                :placeholder="t('admin.product.form.languagePlaceholder')"
+                filterable
+                allow-create
+                default-first-option
+              >
+                <el-option
+                  v-for="lang in langOptions"
+                  :key="lang.value"
+                  :label="lang.label"
+                  :value="lang.value"
+                />
+              </el-select>
+              <el-input
+                v-model="item.value"
+                type="textarea"
+                :rows="3"
+                maxlength="2000"
+                :placeholder="t('admin.product.form.supplierQuoteDescPlaceholder')"
+                class="full-width"
+              />
+              <el-button
+                v-if="form.supplierQuoteDescI18nList.length > 1"
+                type="danger"
+                link
+                @click="removeSupplierQuoteDescLang(idx)"
+              >
+                {{ t('admin.product.actions.delete') }}
+              </el-button>
+            </div>
+            <el-button type="primary" link @click="addSupplierQuoteDescLang">{{ t('admin.product.actions.addLang') }}</el-button>
+          </div>
+          <p class="quote-mode-hint">{{ t('admin.product.form.supplierQuoteDescHint') }}</p>
+        </el-form-item>
 
         <div class="group-box spec-groups">
           <div class="group-title">{{ t('admin.product.form.specGroupTitle') }}</div>
@@ -1653,6 +1695,7 @@ const form = reactive<{
   serviceContentI18nList: { lang: string; value: string }[];
   // 预订须知
   bookingNoticeI18nList: { lang: string; value: string }[];
+  supplierQuoteDescI18nList: { lang: string; value: string }[];
   productImages: ProductImage[];
   specGroups: SpecGroup[];
   addonGroups: AddonGroup[];
@@ -1664,6 +1707,7 @@ const form = reactive<{
   descI18nList: [createEmptyLangValue()],
   serviceContentI18nList: [createEmptyLangValue()],
   bookingNoticeI18nList: [createEmptyLangValue()],
+  supplierQuoteDescI18nList: [createEmptyLangValue()],
   productImages: [],
   specGroups: [{ specTypeId: null, specIds: [] }],
   addonGroups: [],
@@ -1927,6 +1971,7 @@ const resetForm = () => {
   form.descI18nList = [createEmptyLangValue()];
   form.serviceContentI18nList = [createEmptyLangValue()];
   form.bookingNoticeI18nList = [createEmptyLangValue()];
+  form.supplierQuoteDescI18nList = [createEmptyLangValue()];
   form.productImages = [];
   form.specGroups = [
     {
@@ -2826,6 +2871,19 @@ const removeDescLang = (idx: number) => {
   form.descI18nList.splice(idx, 1);
 };
 
+const addSupplierQuoteDescLang = () => {
+  form.supplierQuoteDescI18nList.push(
+    createEmptyLangValue(
+      getNextAvailableLang(form.supplierQuoteDescI18nList.map((item) => item.lang)),
+    ),
+  );
+};
+
+const removeSupplierQuoteDescLang = (idx: number) => {
+  if (form.supplierQuoteDescI18nList.length <= 1) return;
+  form.supplierQuoteDescI18nList.splice(idx, 1);
+};
+
 const addServiceContentLang = () => {
   form.serviceContentI18nList.push(createEmptyLangValue());
 };
@@ -3036,6 +3094,7 @@ const applyServiceDetail = (detail: any, row: Partial<ProductRow> = {}, copy = f
   const descI18n = detail.descI18n || {};
   const serviceContentI18n = detail.serviceContentI18n || {};
   const bookingNoticeI18n = detail.bookingNoticeI18n || {};
+  const supplierQuoteDescI18n = detail.supplierQuoteDescI18n || {};
   const images = Array.isArray(detail.imageUrls) ? detail.imageUrls : [];
   const categoryIds = Array.isArray(detail.categoryIds)
     ? detail.categoryIds
@@ -3131,6 +3190,12 @@ const applyServiceDetail = (detail: any, row: Partial<ProductRow> = {}, copy = f
     ? Object.keys(bookingNoticeI18n).map((lang) => ({
         lang,
         value: bookingNoticeI18n[lang],
+      }))
+    : [createEmptyLangValue()];
+  form.supplierQuoteDescI18nList = Object.keys(supplierQuoteDescI18n || {}).length
+    ? Object.keys(supplierQuoteDescI18n).map((lang) => ({
+        lang,
+        value: supplierQuoteDescI18n[lang],
       }))
     : [createEmptyLangValue()];
 
@@ -3434,6 +3499,10 @@ const save = () => {
         if (cur.lang && cur.value) acc[cur.lang] = cur.value;
         return acc;
       }, {});
+      const supplierQuoteDescI18n = form.supplierQuoteDescI18nList.reduce<Record<string, string>>((acc, cur) => {
+        if (cur.lang && cur.value?.trim()) acc[cur.lang] = cur.value.trim();
+        return acc;
+      }, {});
       const payload = {
         id: form.product.id,
         packageService: props.packageService,
@@ -3450,6 +3519,7 @@ const save = () => {
         descI18n,
         serviceContentI18n,
         bookingNoticeI18n,
+        supplierQuoteDescI18n,
         ...(!isPackageService.value ? { status: form.product.isOnSale ? 1 : 0 } : {}),
         sort: undefined,
         imageUrl: form.productImages[0]?.imageUrl,

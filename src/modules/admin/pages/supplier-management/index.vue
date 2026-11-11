@@ -2318,12 +2318,32 @@
                 :class="{ 'portal-package-group': packageMode }"
                 :aria-label="packageMode ? group.name : undefined"
               >
-                <header v-if="packageMode" class="portal-package-group__header">
-                  <span class="portal-package-group__icon" aria-hidden="true"><Present /></span>
-                  <h3>{{ group.name }}</h3>
-                  <span class="portal-package-group__count">{{ t('admin.supplierPricing.count', { count: group.rows.length }) }}</span>
-                </header>
-                <div class="portal-service-group__rows">
+                <article v-if="packageMode" class="portal-package-card">
+                  <div>
+                    <h3>{{ group.name }}</h3>
+                    <div v-if="packagePlanChips(group).length" class="portal-package-plan">
+                      <span v-for="chip in packagePlanChips(group)" :key="chip.key">
+                        <b>{{ chip.name }}</b> {{ chip.detail }}
+                      </span>
+                    </div>
+                  </div>
+                  <div class="portal-package-card__actions">
+                    <el-tag :type="quoteTagType(group.rows[0].status)" effect="light">{{
+                      quoteStatusLabel(group.rows[0].status)
+                    }}</el-tag>
+                    <el-button type="primary" @click="openPackageQuote(group)">{{
+                      t("admin.supplierPortal.packageSetupQuote")
+                    }}</el-button>
+                    <el-button
+                      text
+                      type="danger"
+                      :loading="removingPackageId === Number(group.rows[0].packageId)"
+                      :disabled="packageSaving && removingPackageId !== Number(group.rows[0].packageId)"
+                      @click="removeSavedPackage(group.rows[0])"
+                    >{{ t("admin.supplierPricing.removeAction") }}</el-button>
+                  </div>
+                </article>
+                <div v-else class="portal-service-group__rows">
                   <article
                     v-for="row in group.rows"
                     :key="packageMode ? `${row.packageId}-${row.spuId}` : row.spuId"
@@ -2354,6 +2374,11 @@
                           class="portal-service-price portal-numeric portal-numeric--money"
                           :class="{ 'is-rejected': row.status === 3 }"
                         >{{ yourPriceText(row) }}</p>
+                        <p v-if="packageMode && row.times?.length" class="portal-service-times">
+                          <span v-for="(count, index) in row.times" :key="`${row.spuId}-times-${index}`">{{
+                            t('admin.supplierPortal.packageItemTimes', { count })
+                          }}</span>
+                        </p>
                         <p
                           v-if="Number(row.status) === 2 && acceptBandItems(row).length"
                           class="portal-accept-bands"
@@ -2383,6 +2408,7 @@
                     /></label>
                     <div class="portal-service-actions">
                       <el-button
+                        v-if="!packageMode || packageServiceCount(row.packageId) < 2"
                         class="portal-service-cta"
                         :type="row.status == null ? 'primary' : undefined"
                         @click="openServiceQuote(row)"
@@ -2501,12 +2527,19 @@
                 )
               }}
             </p>
+            <p v-if="quoteDialog.packageTimes.length" class="portal-service-times">
+              <span v-for="(count, index) in quoteDialog.packageTimes" :key="`quote-times-${index}`">{{
+                t("admin.supplierPortal.packageItemTimes", { count })
+              }}</span>
+            </p>
+            <p v-if="quoteIntroText" class="quote-supplier-desc">{{ quoteIntroText }}</p>
           </div>
-          <el-tag :type="quoteTagType(quoteEffectiveStatus)" effect="dark">{{
+          <el-tag v-if="!packageBundle.active" :type="quoteTagType(quoteEffectiveStatus)" effect="dark">{{
             quoteStatusLabel(quoteEffectiveStatus)
           }}</el-tag>
         </section>
         <nav
+          v-if="!packageBundle.active"
           class="portal-journey portal-journey--quote"
           :aria-label="t('admin.supplierPortal.setupStep')"
         >
@@ -2522,7 +2555,112 @@
           >
         </nav>
         <section
-          v-if="quoteScreen !== 'submitted'"
+          v-if="packageBundle.active"
+          class="sv-quote package-bundle"
+          v-loading="packageBundle.saving"
+        >
+          <article v-if="packageQuotedSection" class="package-price-card">
+            <header class="package-price-card__head">
+              <div>
+                <h2>{{ t("admin.supplierPortal.packageFixedTitle") }}</h2>
+                <p>{{ t("admin.supplierPortal.packageFixedHint") }}</p>
+              </div>
+              <span class="package-price-card__count">{{ packagePriceLineCount() }}</span>
+            </header>
+            <div class="package-includes">
+              <span>{{ t("admin.supplierPortal.packageIncludes") }}</span>
+              <b v-for="section in packageBundle.sections" :key="section.spuId">✓ {{ serviceTitle(section.name, section.nameI18n) }}</b>
+              <em v-if="packageVisitTotal()">{{ t("admin.supplierPortal.packageWholeVisits", { count: packageVisitTotal() }) }}</em>
+            </div>
+            <div class="package-how">
+              <strong>{{ t("admin.supplierPortal.packageHowTitle") }}</strong>
+              <p v-if="packageBundle.quoteDesc">{{ packageBundle.quoteDesc }}</p>
+              <table v-else>
+                <tbody>
+                  <tr v-for="section in packageBundle.sections" :key="`how-${section.spuId}`">
+                    <th>{{ serviceTitle(section.name, section.nameI18n) }}</th>
+                    <td>{{ section.times.map((count) => t("admin.supplierPortal.packagePlanTimes", { count })).join(" · ") || "—" }}</td>
+                  </tr>
+                  <tr>
+                    <th>{{ t("admin.supplierPortal.packageFixedTitle") }}</th>
+                    <td>{{ t("admin.supplierPortal.packageHowPrice") }}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <div v-if="packageQuotedSection.quoteMode === 1" class="package-price-toolbar">
+              <div v-if="packageQuoteTabs().length" class="package-price-tabs">
+                <span>{{ packageQuotedSection.groupType }}</span>
+                <button
+                  v-for="tab in packageQuoteTabs()"
+                  :key="tab"
+                  type="button"
+                  :class="{ 'is-on': tab === packageBundle.tab }"
+                  @click="packageBundle.tab = tab"
+                >{{ tab }}</button>
+              </div>
+              <div class="package-price-bulk">
+                <button type="button" :disabled="!packageSectionEditable(packageQuotedSection)" @click="setPackageQuoteEnabled(true)">{{ t("admin.supplierPricing.selectAll") }}</button>
+                <button type="button" :disabled="!packageSectionEditable(packageQuotedSection)" @click="setPackageQuoteEnabled(false)">{{ t("admin.supplierPricing.selectNone") }}</button>
+              </div>
+            </div>
+            <div v-if="packageSectionRates(packageQuotedSection).length" class="package-bundle__rates">
+              <label v-for="rate in packageSectionRates(packageQuotedSection)" :key="rate.key">
+                <span>{{ t(rate.label) }}</span>
+                <el-input v-model="packageQuotedSection[rate.key]" :disabled="!packageSectionEditable(packageQuotedSection)" />
+              </label>
+            </div>
+            <article
+              v-for="line in packageVisibleLines()"
+              :key="line.key"
+              class="package-price-row"
+              :class="{ 'is-off': !familyEnabled(line) }"
+            >
+              <el-checkbox
+                v-if="packageQuotedSection.quoteMode === 1"
+                :model-value="familyEnabled(line)"
+                :disabled="!packageSectionEditable(packageQuotedSection)"
+                @change="setFamilyEnabled(line, $event)"
+              />
+              <div>
+                <strong>
+                  {{ packageQuoteTabs().length && line.title !== packageBundle.tab ? `${packageBundle.tab} · ` : "" }}{{ line.title }}
+                  <em v-if="packageLineDirect(line)">{{ t("admin.supplierPricing.acceptDirect") }}</em>
+                </strong>
+                <p>{{ packageLineMeta(line) }}</p>
+              </div>
+              <div v-if="packageQuotedSection.quoteMode === 1">
+                <label class="package-price-pin">
+                  <span>AED</span>
+                  <el-input
+                    :model-value="familyPrice(line)"
+                    :placeholder="t('admin.supplierPortal.packagePricePlaceholder')"
+                    :disabled="!packageSectionEditable(packageQuotedSection) || !familyEnabled(line)"
+                    @update:model-value="setFamilyPrice(line, $event)"
+                  />
+                </label>
+                <p>{{ packagePriceCalc(line) }}</p>
+              </div>
+            </article>
+            <ul v-if="packageQuotedSection.attaches.length" class="package-bundle__options">
+              <li v-for="item in packageQuotedSection.attaches" :key="item.attachValueId">
+                <span>{{ item.name }}</span>
+                <el-input v-model="item.quotePrice" :disabled="!packageSectionEditable(packageQuotedSection)" />
+              </li>
+            </ul>
+            <p class="package-price-foot">{{ t("admin.supplierPortal.packagePriceFoot") }}</p>
+          </article>
+          <footer class="package-bundle__foot">
+            <el-button :loading="packageBundle.saving" @click="savePackageBundle(false)">{{
+              t('admin.supplierPricing.saveDraft')
+            }}</el-button>
+            <el-button type="primary" :loading="packageBundle.saving" @click="savePackageBundle(true)">{{
+              t('admin.supplierPricing.submitReview')
+            }}</el-button>
+          </footer>
+        </section>
+        <section
+          v-else-if="quoteScreen !== 'submitted'"
           class="sv-quote"
           v-loading="quoteDialog.loading"
         >
@@ -2649,7 +2787,7 @@
                       {{ t("admin.supplierPortal.fixedRule") }}
                     </p>
                   </div>
-                  <em>{{ quoteDialog.rows.length }}</em>
+                  <em>{{ quoteDisplayLines(quoteDialog.rows).length }}</em>
                 </header>
                 <div class="quote-lines">
                   <p
@@ -2713,93 +2851,81 @@
                       <strong>{{ group.title }}</strong>
                     </header>
                     <article
-                      v-for="(row, index) in group.rows"
-                      :key="row.skuId"
+                      v-for="(line, index) in quoteDisplayLines(group.rows)"
+                      :key="line.key"
                       class="quote-line portal-quote-line"
-                      :data-quote-sku="row.skuId"
+                      :data-quote-sku="line.rows[0].skuId"
                       :class="{
-                        'is-off': row.available === false || !row.enabled,
-                        'has-missing':
-                          optionMissingFields(
-                            row,
-                            quoteDialog.quoteMode,
-                            quoteDialog.unitPrice,
-                          ).length > 0,
-                        'is-quote-target': quoteGapFocusId === String(row.skuId),
+                        'is-off': familyOff(line),
+                        'has-missing': familyMissing(line),
+                        'is-quote-target': line.rows.some((row) => quoteGapFocusId === String(row.skuId)),
                       }"
                     >
                       <label class="quote-line__switch">
                         <el-checkbox
-                          v-model="row.enabled"
-                          :disabled="
-                            row.available === false || quoteLineHeld(row)
-                          "
-                          :aria-label="
-                            row.lineLabel ||
-                            quoteSpecLabel(row) ||
-                            t('admin.supplierPricing.skuSwitch')
-                          "
+                          :model-value="familyEnabled(line)"
+                          :disabled="familyHeld(line)"
+                          :aria-label="line.title || t('admin.supplierPricing.skuSwitch')"
+                          @change="setFamilyEnabled(line, $event)"
                         />
                       </label>
                       <div class="quote-line__spec">
                         <span>{{ String(index + 1).padStart(2, "0") }}</span>
                         <div>
                           <strong>
-                            {{ quoteLineParts(row).name }}
+                            {{ line.title }}
                             <span
-                              v-if="quoteLineBadge(row)"
+                              v-if="familyBadge(line)"
                               class="quote-accept-band"
-                              :class="`is-${quoteLineBadge(row).tone}`"
-                            >{{ quoteLineBadge(row).label }}</span>
+                              :class="`is-${familyBadge(line).tone}`"
+                            >{{ familyBadge(line).label }}</span>
                           </strong>
-                          <small v-if="row.rejectReason" class="line-reject">{{
+                          <small v-if="familyCoverText(line)" class="quote-line__covers">{{ familyCoverText(line) }}</small>
+                          <small v-if="line.rows[0].rejectReason" class="line-reject">{{
                             t("admin.supplierPricing.lineRejected", {
-                              reason: supplierRejectCopy(row.rejectReason),
+                              reason: supplierRejectCopy(line.rows[0].rejectReason),
                             })
                           }}</small>
-                          <small v-if="row.available === false">{{
+                          <small v-if="line.rows.every((row) => row.available === false)">{{
                             t("admin.supplierPricing.discontinued")
                           }}</small>
                           <small v-else class="quote-rate-facts">
-                            <span class="portal-numeric portal-numeric--money" v-if="linePriceFacts(row).showActive">{{
+                            <span class="portal-numeric portal-numeric--money" v-if="familyFacts(line).showActive">{{
                               t("admin.supplierPricing.activeRate", {
-                                price: moneyText(row.approvedPrice),
+                                price: moneyText(line.rows[0].approvedPrice),
                               })
                             }}</span>
                             <span
                               class="portal-numeric portal-numeric--money"
-                              :class="{ 'is-rejected': linePriceFacts(row).view === 'rejected' }"
-                              v-if="linePriceFacts(row).showPending"
+                              :class="{ 'is-rejected': familyFacts(line).view === 'rejected' }"
+                              v-if="familyFacts(line).showPending"
                             >{{
                               t("admin.supplierPricing.pendingQuote", {
-                                price: moneyText(row.quotePrice),
+                                price: moneyText(familyPrice(line)),
                               })
                             }}</span>
-                            <span :class="{ 'is-rejected': linePriceFacts(row).view === 'rejected' }">{{ linePriceStateLabel(linePriceFacts(row).view) }}</span>
+                            <span :class="{ 'is-rejected': familyFacts(line).view === 'rejected' }">{{ linePriceStateLabel(familyFacts(line).view) }}</span>
                           </small>
-                          <small v-if="row.supplierFulfillRemark" class="quote-fulfill-remark">{{
-                            t("admin.supplierOrders.fulfillRemarkLine", { remark: row.supplierFulfillRemark })
+                          <small v-if="familyRemark(line)" class="quote-fulfill-remark">{{
+                            t("admin.supplierOrders.fulfillRemarkLine", { remark: familyRemark(line) })
                           }}</small>
                         </div>
                       </div>
                       <label
                         class="quote-line__price"
-                        :class="{ 'is-rejected': linePriceFacts(row).view === 'rejected' }"
+                        :class="{ 'is-rejected': familyFacts(line).view === 'rejected' }"
                       >
                           <span>{{ t("admin.supplierPricing.taxPrice") }}</span>
                           <el-input
-                            v-model="row.quotePrice"
+                            :model-value="familyPrice(line)"
                             inputmode="decimal"
                             :placeholder="t('admin.supplierPricing.pricePlaceholder')"
-                            :disabled="
-                              row.available === false ||
-                              !row.enabled ||
-                              quoteLineHeld(row)
-                            "
+                            :disabled="familyOff(line) || familyHeld(line)"
+                            @update:model-value="setFamilyPrice(line, $event)"
                           >
                             <template #prepend>AED</template>
                           </el-input>
-                          <em v-if="quoteLineParts(row).unit" class="quote-line__unit">/ {{ quoteLineParts(row).unit }}</em>
+                          <em v-if="line.unit" class="quote-line__unit">/ {{ line.unit }}</em>
                         </label>
                     </article>
                   </section>
@@ -2886,7 +3012,7 @@
                 </div>
               </section>
 
-              <div v-if="hourlyQuote && !addonOnlyQuote" class="option-prices">
+              <div v-if="hourlyQuote && !addonOnlyQuote && quoteDialog.showOptionPrice !== false" class="option-prices">
                     <div class="option-prices__head">
                       <strong>{{ t("admin.supplierPricing.optionPriceTitle") }}</strong>
                       <p>{{ t(optionPriceHintKey) }}</p>
@@ -3140,7 +3266,7 @@
                 <dt>{{ t(rate.label) }}</dt>
                 <dd class="portal-numeric portal-numeric--money">AED {{ moneyText(quoteDialog[rate.key]) }}</dd>
               </div>
-              <div v-if="optionPrices.length" class="quantity-sku-notes">
+              <div v-if="optionPrices.length && quoteDialog.showOptionPrice !== false" class="quantity-sku-notes">
                 <dt>{{ t("admin.supplierPricing.optionPriceTitle") }}</dt>
                 <dd>
                   <span v-for="row in optionPrices" :key="row.id">{{ optionPriceLine(row) }}</span>
@@ -3161,22 +3287,17 @@
                 <small v-if="group.type">{{ group.type }}</small>
                 {{ group.title }}
               </h3>
-              <div v-for="row in group.rows" :key="row.skuId">
+              <div v-for="line in quoteDisplayLines(group.rows)" :key="line.key">
+                <span v-if="line.title && line.title !== group.title">{{ line.title }}</span>
                 <span
-                  v-if="
-                    quoteLineParts(row).name &&
-                    quoteLineParts(row).name !== group.title
-                  "
-                  >{{ quoteLineParts(row).name }}</span
-                >
-                <span
-                  v-if="quoteLineBadge(row)"
+                  v-if="familyBadge(line)"
                   class="quote-accept-band"
-                  :class="`is-${quoteLineBadge(row).tone}`"
-                >{{ quoteLineBadge(row).label }}</span>
-                <strong class="portal-numeric portal-numeric--money">AED {{ moneyText(row.quotePrice) }}<template v-if="quoteLineParts(row).unit"> / {{ quoteLineParts(row).unit }}</template></strong>
-                <small v-if="row.supplierFulfillRemark" class="quote-fulfill-remark">{{
-                  t("admin.supplierOrders.fulfillRemarkLine", { remark: row.supplierFulfillRemark })
+                  :class="`is-${familyBadge(line).tone}`"
+                >{{ familyBadge(line).label }}</span>
+                <strong class="portal-numeric portal-numeric--money">AED {{ moneyText(familyPrice(line)) }}<template v-if="line.unit"> / {{ line.unit }}</template></strong>
+                <small v-if="familyCoverText(line)" class="quote-line__covers">{{ familyCoverText(line) }}</small>
+                <small v-if="familyRemark(line)" class="quote-fulfill-remark">{{
+                  t("admin.supplierOrders.fulfillRemarkLine", { remark: familyRemark(line) })
                 }}</small>
               </div>
             </section>
@@ -3278,7 +3399,7 @@
           </template>
         </el-dialog>
         <section
-          v-if="quoteScreen === 'submitted'"
+          v-if="quoteScreen === 'submitted' && !packageBundle.active"
           class="portal-review-layout"
           v-loading="quoteDialog.loading"
         >
@@ -3324,7 +3445,7 @@
                     <dt>{{ t(rate.label) }}</dt>
                     <dd class="portal-numeric portal-numeric--money">AED {{ moneyText(quoteDialog[rate.key]) }}</dd>
                   </div>
-                  <div v-if="optionPrices.length" class="quantity-sku-notes">
+                  <div v-if="optionPrices.length && quoteDialog.showOptionPrice !== false" class="quantity-sku-notes">
                     <dt>{{ t("admin.supplierPricing.optionPriceTitle") }}</dt>
                     <dd>
                       <span v-for="row in optionPrices" :key="row.id">{{ optionPriceLine(row) }}</span>
@@ -3377,26 +3498,27 @@
                     <strong>{{ group.title }}</strong>
                   </header>
                   <article
-                    v-for="row in group.rows"
-                    :key="row.skuId"
-                    :class="{ 'is-blocked': quoteOutcomeName(row) === 'blocked' }"
+                    v-for="line in quoteDisplayLines(group.rows)"
+                    :key="line.key"
+                    :class="{ 'is-blocked': line.rows.some((row) => quoteOutcomeName(row) === 'blocked') }"
                   >
                     <h3>
-                      <span>{{ quoteLineParts(row).name }}</span>
+                      <span>{{ line.title }}</span>
                       <span
-                        v-if="quoteLineBadge(row)"
+                        v-if="familyBadge(line)"
                         class="quote-accept-band"
-                        :class="`is-${quoteLineBadge(row).tone}`"
-                      >{{ quoteLineBadge(row).label }}</span>
+                        :class="`is-${familyBadge(line).tone}`"
+                      >{{ familyBadge(line).label }}</span>
                     </h3>
-                    <p v-if="row.supplierFulfillRemark" class="quote-fulfill-remark">{{
-                      t("admin.supplierOrders.fulfillRemarkLine", { remark: row.supplierFulfillRemark })
+                    <p v-if="familyCoverText(line)" class="quote-line__covers">{{ familyCoverText(line) }}</p>
+                    <p v-if="familyRemark(line)" class="quote-fulfill-remark">{{
+                      t("admin.supplierOrders.fulfillRemarkLine", { remark: familyRemark(line) })
                     }}</p>
                     <dl>
-                      <div v-if="row.quotePrice != null && row.quotePrice !== ''">
+                      <div v-if="familyPrice(line) != null && familyPrice(line) !== ''">
                         <dt>{{ t("admin.supplierPortal.customerPrice") }}</dt>
                         <dd class="portal-review-price portal-numeric portal-numeric--money">
-                          AED {{ moneyText(row.quotePrice) }}<template v-if="quoteLineParts(row).unit"> / {{ quoteLineParts(row).unit }}</template>
+                          AED {{ moneyText(familyPrice(line)) }}<template v-if="line.unit"> / {{ line.unit }}</template>
                         </dd>
                       </div>
                     </dl>
@@ -4507,6 +4629,7 @@ import {
   saveSupplierPackages,
   acknowledgeSupplierPackageShelfNotices,
   supplierPackageQuotes,
+  supplierQuoteShowOptionPrice,
   supplierPackageShelfNotices,
   supplierPackages,
   saveCategoryContacts,
@@ -5961,6 +6084,14 @@ const packageNotices = ref<any[]>([])
 const packageNoticeUnread = ref(false)
 const packageNoticeAcking = ref(false)
 const packageSaving = ref(false)
+const packageBundle = reactive({
+  active: false,
+  saving: false,
+  packageId: 0,
+  quoteDesc: "",
+  tab: "",
+  sections: [] as any[],
+})
 const removingPackageId = ref<number | null>(null)
 const packagePicker = reactive({
   open: false,
@@ -5999,6 +6130,9 @@ const quoteDialog = reactive({
   rows: [] as any[],
   attachModuleTitle: "",
   onlyAddonPrice: false,
+  supplierQuoteDesc: "",
+  showOptionPrice: true,
+  packageTimes: [] as number[],
   attaches: [] as Array<{
     attachValueId: number
     typeName: string
@@ -7175,6 +7309,12 @@ const packagePriceList = (quote: any) =>
     .filter((line: any) => Number(line.enabled ?? 1) !== 0)
     .map((line: any) => Number(line.approvedPrice ?? line.quotePrice))
     .filter((price: number) => Number.isFinite(price) && price > 0)
+const packageTimesFor = (contents: any[], spuId: number) =>
+  (Array.isArray(contents) ? contents : []).flatMap((item) => {
+    if (Number(item?.spuId) !== spuId) return []
+    const count = Number(item?.redeemTimes)
+    return Number.isInteger(count) && count > 0 ? [count] : []
+  })
 const serviceRows = computed(() => {
   if (packageMode.value) {
     return packageFlat.value.flatMap((entry) => {
@@ -7212,6 +7352,7 @@ const serviceRows = computed(() => {
         unitPriceWithoutMaterial: quote?.unitPriceWithoutMaterial,
         prices: packagePriceList(quote),
         acceptBands: countAcceptBands(quote),
+        times: packageTimesFor(entry.contents, spuId),
       }]
     })
   }
@@ -7294,6 +7435,8 @@ const filteredServiceRows = computed(() => {
     )
   })
 })
+const packageServiceCount = (packageId: number) =>
+  serviceRows.value.filter((row) => "packageId" in row && Number(row.packageId) === Number(packageId)).length
 const serviceRowGroups = computed(() => {
   const rows = filteredServiceRows.value
   if (!rows.length) return []
@@ -7493,7 +7636,7 @@ const removeSavedPackage = async (row: {
       supplierId: supplierRecordId.value,
       packages: packageSelectionPayload(currentPackageIds().filter((id) => id !== packageId)),
     })
-    if (quoteDialog.visible && Number(quoteDialog.packageId) === packageId) closeServiceQuote()
+    if (quoteDialog.visible && Number(quoteDialog.packageId) === packageId) await closeServiceQuote()
     ElMessage.success(t("admin.supplierPortal.packageRemoved"))
     await loadPackageWorkspace()
   } catch (error: any) {
@@ -8720,6 +8863,13 @@ const optionPriceLine = (row: {
 }
 const quoteDialogTitle = computed(() =>
   localizedName(quoteDialog.nameI18n, quoteDialog.name),
+)
+const supplierQuoteDescription = (i18n: unknown) => {
+  const text = specText(i18n).trim()
+  return text === "—" ? "" : text
+}
+const quoteIntroText = computed(() =>
+  packageBundle.active ? packageBundle.quoteDesc : quoteDialog.supplierQuoteDesc,
 )
 const quoteDialogCategory = computed(() =>
   localizedName(quoteDialog.categoryI18n, quoteDialog.category),
@@ -10322,6 +10472,8 @@ const loadPackageWorkspace = async () => {
         categoryId: Number(pkg?.categoryId),
         categoryName: String(pkg?.categoryName || ""),
         categoryNameI18n: pkg?.categoryNameI18n || null,
+        packageQuoteDescI18n: pkg?.supplierQuoteDescI18n || null,
+        contents: Array.isArray(pkg?.contents) ? pkg.contents : [],
         service,
       })),
     )
@@ -10350,19 +10502,108 @@ const quoteSpecLabel = (row: {
     ? parts.join(" · ")
     : row.skuCode || t("admin.supplierPricing.specFallback")
 }
+const QUOTE_PRICE_UNIT =
+  /^(?:\d+(?:\.\d+)?\s*)?(?:techs?|technicians?|cleaners?|persons?|people|staff|workers?|技术员|技术人员|技师|技术|清洁工|保洁员|保洁|人)$/i
+const QUOTE_PRICE_DRIVER =
+  /(\d+(?:\.\d+)?)\s*(?:hours?|hrs?|bhk|sqm|sq\.?\s*m|bedrooms?|rooms?|cleaners?|techs?|technicians?|persons?|people|staff|workers?|mins?|minutes)|materials?|小时|居室|房型|平米|平方米|材料|保洁|清洁工|技术员/i
+const sharedQuoteHead = (title: string) => {
+  const splitAt = title.indexOf(" - ")
+  if (splitAt <= 0) return null
+  const head = title.slice(0, splitAt).trim()
+  const tail = title.slice(splitAt + 3).trim()
+  if (!head || !tail) return null
+  if (QUOTE_PRICE_DRIVER.test(head) || QUOTE_PRICE_DRIVER.test(tail)) return null
+  return { head, tail }
+}
 const quoteLineParts = (row: {
   lineLabel?: string
   specs?: Record<string, unknown>
   skuCode?: string
 }) => {
   const label = String(row.lineLabel || quoteSpecLabel(row as { specs: Record<string, unknown>; skuCode: string }) || "").trim()
-  const split = label.lastIndexOf(" / ")
-  if (split <= 0) return { name: label, unit: "" }
-  return {
-    name: label.slice(0, split).trim(),
-    unit: label.slice(split + 3).trim(),
-  }
+  const split = label.match(/^(.*\S)\s*\/\s*(\S.*?)$/)
+  const unit = split?.[2]?.trim() || ""
+  if (!split || !QUOTE_PRICE_UNIT.test(unit)) return { name: label, unit: "" }
+  return { name: split[1].trim(), unit }
 }
+const quoteDisplayLines = (rows: any[], labelOf?: (row: any) => string) => {
+  const titleOf = (row: any) => {
+    if (labelOf) return String(labelOf(row) || "").trim()
+    return quoteLineParts(row).name
+  }
+  const unitOf = (row: any) => (labelOf ? "" : quoteLineParts(row).unit)
+  const buckets = new Map<string, { key: string; title: string; unit: string; rows: any[]; tails: string[] }>()
+  const order: string[] = []
+  rows.forEach((row, index) => {
+    const title = titleOf(row)
+    const shared = sharedQuoteHead(title)
+    const key = shared
+      ? `shared:${row?.groupId || ""}:${shared.head}`
+      : `row:${row?.skuId ?? index}`
+    let bucket = buckets.get(key)
+    if (!bucket) {
+      bucket = { key, title: shared ? shared.head : title, unit: shared ? "" : unitOf(row), rows: [], tails: [] }
+      buckets.set(key, bucket)
+      order.push(key)
+    }
+    bucket.rows.push(row)
+    if (shared) bucket.tails.push(shared.tail)
+  })
+  return order.flatMap((key) => {
+    const bucket = buckets.get(key)
+    if (!bucket) return []
+    if (bucket.rows.length < 2) {
+      const row = bucket.rows[0]
+      return [{ key: `row:${row?.skuId ?? key}`, title: titleOf(row), unit: unitOf(row), rows: [row], tails: [] as string[] }]
+    }
+    return [bucket]
+  })
+}
+const familyCoverText = (line: { tails?: string[] }) => {
+  const tails = line.tails || []
+  if (!tails.length) return ""
+  const separator = String(locale.value).toLowerCase().startsWith("en") ? ", " : "、"
+  return t("admin.supplierPricing.samePriceCovers", { items: tails.join(separator) })
+}
+const familyPrice = (line: { rows: Array<{ quotePrice?: unknown }> }) => {
+  const prices = line.rows.map((row) => row.quotePrice)
+  const first = prices[0]
+  return prices.every((price) => String(price ?? "") === String(first ?? "")) ? (first ?? "") : ""
+}
+const setFamilyPrice = (line: { rows: Array<{ quotePrice?: unknown }> }, value: unknown) => {
+  line.rows.forEach((row) => {
+    row.quotePrice = value
+  })
+}
+const familyEnabled = (line: { rows: Array<{ available?: boolean; enabled?: boolean }> }) =>
+  line.rows.every((row) => row.available === false || row.enabled)
+const setFamilyEnabled = (line: { rows: any[] }, enabled: boolean) => {
+  line.rows.forEach((row) => {
+    if (row.available === false || quoteLineHeld(row)) return
+    row.enabled = enabled
+  })
+}
+const familyHeld = (line: { rows: any[] }) =>
+  line.rows.every((row) => row.available === false || quoteLineHeld(row))
+const familyOff = (line: { rows: any[] }) =>
+  line.rows.every((row) => row.available === false || !row.enabled)
+const familyMissing = (line: { rows: any[] }) =>
+  line.rows.some(
+    (row) => optionMissingFields(row, quoteDialog.quoteMode, quoteDialog.unitPrice).length > 0,
+  )
+const familyFacts = (line: { rows: any[] }) => {
+  const first = line.rows[0] || {}
+  const same = (key: string) =>
+    line.rows.every((row) => String(row?.[key] ?? "") === String(first?.[key] ?? ""))
+  if (same("approvedPrice") && same("quotePrice") && same("rejectReason")) return linePriceFacts(first)
+  return linePriceFacts({ ...first, approvedPrice: null, quotePrice: familyPrice(line), rejectReason: "" })
+}
+const familyBadge = (line: { rows: any[] }) => {
+  const rejected = line.rows.find((row) => lineRejected(row))
+  return quoteLineBadge(rejected || line.rows[0] || {})
+}
+const familyRemark = (line: { rows: Array<{ supplierFulfillRemark?: string }> }) =>
+  line.rows.map((row) => String(row.supplierFulfillRemark || "").trim()).find(Boolean) || ""
 const blankPositive = (value: unknown) => {
   if (value == null || value === "") return null
   const number = Number(value)
@@ -10656,6 +10897,336 @@ const applySavedQuote = (saved: any) => {
   applyConfiguredQuoteModeToDialog(saved)
 }
 
+const packageSectionRates = (block: { quoteMode?: number; onlyAddonPrice?: boolean }) => {
+  if (block.onlyAddonPrice) return []
+  if (block.quoteMode === 2) return hourlyRateFields
+  if (block.quoteMode === 3) return staffHourRateFields
+  if (block.quoteMode === 4) return quantityRateFields
+  return []
+}
+const packageSectionEditable = (block: { status?: number; priceEditable?: boolean }) =>
+  Number(block.status) !== 1 && block.priceEditable !== false
+const packageOptionLabel = (sku: any) => {
+  const group = localizedName(sku?.groupSpecValueNameI18n, sku?.groupSpecValueName)
+  const specs = (Array.isArray(sku?.specs) ? sku.specs : [])
+    .map((spec: any) => localizedName(spec?.specValueNameI18n, spec?.specValueName))
+    .filter((text: string) => text && text !== "—" && text !== group)
+  const parts = [group !== "—" ? group : "", ...specs].filter(Boolean)
+  if (parts.length) return parts.join(" · ")
+  const method = localizedName(sku?.pricingMethodI18n, sku?.pricingMethod)
+  return method !== "—" ? method : String(sku?.skuCode || t("admin.supplierPricing.specFallback"))
+}
+const packageSkus = (quote: any) => {
+  const seen = new Set<number>()
+  const rows: any[] = []
+  const push = (sku: any, group?: any) => {
+    const skuId = Number(sku?.skuId)
+    if (!skuId || seen.has(skuId) || sku?.available === false) return
+    seen.add(skuId)
+    rows.push({
+      ...sku,
+      groupSpecValueName: sku?.groupSpecValueName || group?.specValueName,
+      groupSpecValueNameI18n: sku?.groupSpecValueNameI18n || group?.specValueNameI18n,
+    })
+  }
+  for (const group of Array.isArray(quote?.skuGroups) ? quote.skuGroups : []) {
+    for (const sku of Array.isArray(group?.skus) ? group.skus : []) push(sku, group)
+  }
+  if (!rows.length) {
+    for (const sku of Array.isArray(quote?.skus) ? quote.skus : []) push(sku)
+  }
+  return rows
+}
+const packageSectionFromQuote = (entry: any) => {
+  const quote = entry?.service || {}
+  const mode = assignedQuoteMode(quote)
+  const onlyAddon = quote?.onlyAddonPrice === true
+  const spuId = Number(quote.spuId)
+  return {
+    spuId,
+    name: String(quote.spuName || ""),
+    nameI18n: quote.nameI18n || null,
+    quoteMode: mode,
+    status: quote.status == null ? undefined : Number(quote.status),
+    priceEditable: quote.priceEditable !== false,
+    onlyAddonPrice: onlyAddon,
+    showOptionPrice: true,
+    quoteDesc: supplierQuoteDescription(quote?.supplierQuoteDescI18n),
+    groupType: (() => {
+      const named = localizedName(
+        quote?.skuGroupBy?.specTypeNameI18n,
+        quote?.skuGroupBy?.specTypeName || quote?.skuGroups?.[0]?.specTypeName,
+      )
+      return named === "—" ? "" : named
+    })(),
+    times: packageTimesFor(entry.contents, spuId),
+    unitPrice: quote.unitPrice == null || quote.unitPrice === "" ? "" : String(quote.unitPrice),
+    unitPriceWithMaterial:
+      quote.unitPriceWithMaterial == null || quote.unitPriceWithMaterial === ""
+        ? ""
+        : String(quote.unitPriceWithMaterial),
+    unitPriceWithoutMaterial:
+      quote.unitPriceWithoutMaterial == null || quote.unitPriceWithoutMaterial === ""
+        ? ""
+        : String(quote.unitPriceWithoutMaterial),
+    rows: packageSkus(quote).map((sku: any) => {
+      const group = localizedName(sku?.groupSpecValueNameI18n, sku?.groupSpecValueName)
+      const groupLabel = group === "—" ? "" : group
+      const optionLabel = (Array.isArray(sku?.specs) ? sku.specs : [])
+        .map((spec: any) => localizedName(spec?.specValueNameI18n, spec?.specValueName))
+        .filter((text: string) => text && text !== "—" && text !== groupLabel)
+        .join(" · ")
+      return {
+        skuId: Number(sku.skuId),
+        label: packageOptionLabel(sku),
+        groupLabel,
+        optionLabel,
+        enabled: sku.enabled == null || Number(sku.enabled) !== 0,
+        acceptBand: sku.acceptBand ?? null,
+        quotePrice:
+          onlyAddon || mode !== 1
+            ? "0"
+            : sku.quotePrice == null || sku.quotePrice === ""
+              ? ""
+              : String(sku.quotePrice),
+        staffCount: blankPositive(sku.staffCount),
+        serviceHours: blankPositive(sku.serviceHours),
+      }
+    }),
+    attaches: mapAttaches(quote.attaches || []),
+  }
+}
+const packageSectionPayload = (block: any) => {
+  const payload: Record<string, unknown> = {
+    supplierId: supplierRecordId.value,
+    packageId: packageBundle.packageId,
+    spuId: block.spuId,
+    quoteMode: block.quoteMode,
+    items: block.rows.map((row: any) => ({
+      skuId: row.skuId,
+      staffCount: blankPositive(row.staffCount) ?? 0,
+      serviceHours: blankPositive(row.serviceHours) ?? 0,
+      quotePrice: block.onlyAddonPrice
+        ? 0
+        : unitQuoteMode(block.quoteMode)
+          ? null
+          : row.quotePrice == null || row.quotePrice === ""
+            ? null
+            : Number(row.quotePrice),
+      enabled: row.enabled === false ? 0 : 1,
+    })),
+  }
+  if (!block.onlyAddonPrice && block.quoteMode === 2) {
+    payload.unitPriceWithMaterial =
+      String(block.unitPriceWithMaterial ?? "").trim() === "" ? null : Number(block.unitPriceWithMaterial)
+    payload.unitPriceWithoutMaterial =
+      String(block.unitPriceWithoutMaterial ?? "").trim() === "" ? null : Number(block.unitPriceWithoutMaterial)
+  }
+  if (!block.onlyAddonPrice && singleRateMode(block.quoteMode)) {
+    payload.unitPrice = String(block.unitPrice ?? "").trim() === "" ? null : Number(block.unitPrice)
+  }
+  payload.attaches = block.attaches
+    .filter((item: any) => item.offered && addonPriceOk(item.quotePrice))
+    .map((item: any) => ({
+      attachValueId: item.attachValueId,
+      quotePrice: Number(item.quotePrice),
+    }))
+  return payload
+}
+const packageQuotedBlocks = () =>
+  packageBundle.sections.filter((block) => block.quoted && packageSectionEditable(block))
+const packageBundleProblem = (submitting: boolean) => {
+  const editable = packageQuotedBlocks()
+  if (!editable.length) return t("admin.supplierPricing.submitIncomplete")
+  for (const block of editable) {
+    for (const rate of packageSectionRates(block)) {
+      const text = String(block[rate.key] ?? "").trim()
+      if (!text && !submitting) continue
+      if (!addonPriceOk(text)) return t("admin.supplierPricing.hourlyRateRequired", { name: t(rate.label) })
+    }
+    if (!block.onlyAddonPrice && block.quoteMode === 1) {
+      const chosen = block.rows.filter((row: any) => row.enabled !== false)
+      if (submitting && !chosen.length) return t("admin.supplierPricing.skuSwitchRequired")
+      for (const row of chosen) {
+        const text = String(row.quotePrice ?? "").trim()
+        if (!text && !submitting) continue
+        if (!addonPriceOk(text)) return t("admin.supplierPricing.pricePositive")
+      }
+      if (submitting && chosen.some((row: any) => !addonPriceOk(row.quotePrice))) {
+        return t("admin.supplierPricing.submitIncomplete")
+      }
+    }
+    if (
+      block.attaches.some((item: any) => {
+        const text = String(item.quotePrice ?? "").trim()
+        if (!text) return submitting && item.offered
+        return !addonPriceOk(text)
+      })
+    ) {
+      return t("admin.supplierPricing.addonPriceInvalid")
+    }
+  }
+  return ""
+}
+const packageQuotedSection = computed(
+  () => packageBundle.sections.find((section) => section.quoted) || null,
+)
+const packageVisitTotal = () => {
+  const counts = packageBundle.sections.flatMap((section) =>
+    (Array.isArray(section.times) ? section.times : []).map((count: unknown) => Number(count)),
+  ).filter((count) => Number.isInteger(count) && count > 0)
+  return counts.length ? Math.max(...counts) : 0
+}
+const packagePlanChips = (group: { rows?: any[] }) =>
+  (group.rows || []).flatMap((row) => {
+    const name = serviceTitle(row.name, row.spuNameI18n)
+    const times = Array.isArray(row.times) ? row.times : []
+    if (!times.length) return [{ key: `${row.packageId}-${row.spuId}`, name, detail: "" }]
+    return times.map((count: number, index: number) => ({
+      key: `${row.packageId}-${row.spuId}-${index}`,
+      name,
+      detail: t("admin.supplierPortal.packagePlanTimes", { count }),
+    }))
+  })
+const packageQuoteTabs = () => {
+  const section = packageQuotedSection.value
+  if (!section) return []
+  const labels = [...new Set(section.rows.map((row: any) => String(row.groupLabel || "")).filter(Boolean))]
+  if (labels.length < 2) return []
+  if (!section.rows.some((row: any) => row.optionLabel && row.optionLabel !== row.groupLabel)) return []
+  return labels
+}
+const packagePriceLineCount = () => {
+  const section = packageQuotedSection.value
+  if (!section) return 0
+  return quoteDisplayLines(section.rows, (row) => row.label).length
+}
+const packageVisibleLines = () => {
+  const section = packageQuotedSection.value
+  if (!section) return []
+  const tabs = packageQuoteTabs()
+  const rows = tabs.length
+    ? section.rows.filter((row: any) => row.groupLabel === packageBundle.tab)
+    : section.rows
+  return quoteDisplayLines(rows, (row) => (tabs.length ? row.optionLabel || row.label : row.label))
+}
+const packageLineDirect = (line: { rows: any[] }) =>
+  line.rows.some((row) => acceptBandName(row.acceptBand) === "direct")
+const packageLineMeta = (line: { title?: string; tails?: string[]; rows: any[] }) => {
+  const text = [line.title, ...(line.tails || []), ...line.rows.map((row) => row.label)].filter(Boolean).join("\n")
+  const staff = firstCount([text], STAFF_COUNT)
+  const hours = firstCount([text], HOUR_COUNT)
+  if (staff && hours) {
+    const cleaning = /cleaners?|保洁|清洁/i.test(text)
+    const role = cleaning
+      ? t(staff === 1 ? "admin.supplierPricing.staffRoleCleaner" : "admin.supplierPricing.staffRoleCleaners")
+      : t("admin.supplierPricing.staffRoleTech")
+    return t("admin.supplierPortal.packageTeamMeta", { staff, hours, role: String(role).toLowerCase() })
+  }
+  if (line.tails?.length) {
+    const separator = String(locale.value).toLowerCase().startsWith("en") ? ", " : "、"
+    return line.tails.join(separator)
+  }
+  const visits = packageVisitTotal()
+  return visits ? t("admin.supplierPortal.packageWholeVisits", { count: visits }) : ""
+}
+const packagePriceCalc = (line: { rows: Array<{ quotePrice?: unknown }> }) => {
+  const amount = Number(familyPrice(line))
+  const visits = packageVisitTotal()
+  if (!(amount > 0)) return visits ? t("admin.supplierPortal.packageWholeVisits", { count: visits }) : ""
+  if (visits > 1) return t("admin.supplierPortal.packagePerVisit", { price: moneyText(amount / visits) })
+  return t("admin.supplierPortal.packageExclVat", { price: moneyText(exclVat(amount)) })
+}
+const setPackageQuoteEnabled = (enabled: boolean) => {
+  packageVisibleLines().forEach((line) => setFamilyEnabled(line, enabled))
+}
+const openPackageQuote = (group: { rows: any[] }, sync = true) => {
+  const packageId = Number(group.rows[0]?.packageId)
+  if (!packageId) return
+  const seen = new Set<number>()
+  const sections = packageFlat.value.flatMap((entry) => {
+    if (Number(entry?.packageId) !== packageId) return []
+    const spuId = Number(entry?.service?.spuId)
+    if (!spuId || seen.has(spuId) || entry?.service?.available === false) return []
+    seen.add(spuId)
+    return [packageSectionFromQuote(entry)]
+  })
+  if (!sections.length) return
+  sections.forEach((section, index) => {
+    section.quoted = index === 0
+  })
+  packageBundle.packageId = packageId
+  packageBundle.quoteDesc = supplierQuoteDescription(
+    packageFlat.value.find((entry) => Number(entry?.packageId) === packageId)?.packageQuoteDescI18n,
+  )
+  packageBundle.sections = sections
+  packageBundle.tab = packageQuoteTabs()[0] || ""
+  packageBundle.active = true
+  quoteDialog.visible = true
+  quoteDialog.packageId = packageId
+  quoteDialog.spuId = 0
+  quoteDialog.name = serviceTitle(String(group.rows[0]?.packageName || ""), group.rows[0]?.packageNameI18n)
+  quoteDialog.nameI18n = null
+  quoteDialog.category = serviceTitle(group.rows[0]?.category || "", group.rows[0]?.categoryNameI18n)
+  quoteDialog.categoryI18n = null
+  quoteDialog.status = undefined
+  quoteDialog.rejectReason = ""
+  quoteDialog.supplierQuoteDesc = ""
+  quoteDialog.packageTimes = []
+  quoteScreen.value = "setup"
+  if (sync) syncPackageQuoteRoute()
+  void refreshPackageOptionPrices(sections.filter((section) => section.quoted))
+}
+const refreshPackageOptionPrices = async (sections: any[]) => {
+  await Promise.all(sections.map(async (block) => {
+    try {
+      const flag = unwrap(await supplierQuoteShowOptionPrice(block.spuId))
+      block.showOptionPrice = flag?.showOptionPrice !== false
+    } catch {
+      block.showOptionPrice = true
+    }
+  }))
+}
+const syncPackageQuoteRoute = () => {
+  const query: Record<string, unknown> = {
+    ...router.currentRoute.value.query,
+    packageQuote: String(packageBundle.packageId),
+    category: quoteCategory.value,
+  }
+  if (packageMode.value) query.package = String(packageBundle.packageId)
+  delete query.service
+  delete query.quoteStep
+  router.replace({ path: router.currentRoute.value.path, query })
+}
+const savePackageBundle = async (submit: boolean) => {
+  if (!supplierRecordId.value || packageBundle.saving) return
+  const problem = packageBundleProblem(submit)
+  if (problem) {
+    ElMessage.warning(problem)
+    return
+  }
+  packageBundle.saving = true
+  try {
+    const editable = packageQuotedBlocks()
+    for (const block of editable) await savePackageQuoteDraft(packageSectionPayload(block))
+    if (submit) {
+      for (const block of editable) {
+        await submitQuote({
+          supplierId: supplierRecordId.value,
+          spuId: block.spuId,
+          confirmation: { pricesIncludeVat: true, informationAccurate: true },
+        })
+      }
+    }
+    ElMessage.success(t(submit ? "admin.supplierPricing.submitted" : "admin.supplierPricing.draftSaved"))
+    if (submit) await closeServiceQuote()
+    await loadPackageWorkspace()
+  } catch (error: any) {
+    ElMessage.error(error?.message || t(submit ? "admin.supplierPricing.submitFailed" : "admin.supplierPricing.saveQuoteFailed"))
+  } finally {
+    packageBundle.saving = false
+  }
+}
 const openQuotedServiceEditor = () => {
   const row = savedServices.value.find(
     (service) => service.spuId === quoteDialog.spuId,
@@ -10675,6 +11246,7 @@ const openServiceQuote = async (row: {
   unitPriceWithMaterial?: number | null
   unitPriceWithoutMaterial?: number | null
 }) => {
+  packageBundle.active = false
   quoteDialog.visible = true
   quoteDialog.packageId = Number((row as { packageId?: number }).packageId) || 0
   quoteConfirmed.value = false
@@ -10719,6 +11291,11 @@ const openServiceQuote = async (row: {
   quoteDialog.rows = []
   quoteDialog.attachModuleTitle = ""
   quoteDialog.onlyAddonPrice = false
+  quoteDialog.supplierQuoteDesc = ""
+  quoteDialog.showOptionPrice = true
+  quoteDialog.packageTimes = packageMode.value && Array.isArray((row as { times?: number[] }).times)
+    ? (row as { times?: number[] }).times || []
+    : []
   quoteDialog.attaches = []
   try {
     const detail = unwrap(await listBySpu(row.spuId)) || {}
@@ -10733,6 +11310,19 @@ const openServiceQuote = async (row: {
         )
     quoteDialog.attachModuleTitle = String(quote?.attachModuleTitle || "").trim()
     quoteDialog.onlyAddonPrice = quote?.onlyAddonPrice === true
+    const serviceQuoteDesc = supplierQuoteDescription(quote?.supplierQuoteDescI18n)
+    const packageQuoteDesc = packageMode.value
+      ? supplierQuoteDescription(
+          packageFlat.value.find(
+            (item) =>
+              item.packageId === quoteDialog.packageId &&
+              Number(item.service?.spuId) === Number(row.spuId),
+          )?.packageQuoteDescI18n,
+        )
+      : ""
+    quoteDialog.supplierQuoteDesc = [packageQuoteDesc, serviceQuoteDesc]
+      .filter((text, index, list) => text && list.indexOf(text) === index)
+      .join("\n\n")
     const quoted = new Map(
       (quote?.skus || []).map((sku: any) => [Number(sku.skuId), sku]),
     )
@@ -10946,6 +11536,12 @@ const openServiceQuote = async (row: {
     }
     quoteDialog.attaches = mergeAttaches(catalogAttaches, quote?.attaches)
     if (quote) applyConfiguredQuoteModeToDialog(quote)
+    try {
+      const flag = unwrap(await supplierQuoteShowOptionPrice(row.spuId))
+      quoteDialog.showOptionPrice = flag?.showOptionPrice !== false
+    } catch {
+      quoteDialog.showOptionPrice = true
+    }
     if (quoteUnderReview.value) quoteScreen.value = "submitted"
     else if (quotePriceLocked.value || (quoteScreen.value === "review" && quoteMissingCount.value))
       quoteScreen.value = "setup"
@@ -10967,16 +11563,20 @@ const syncQuoteRoute = () => {
   }
   if (packageMode.value) query.package = String(quoteDialog.packageId)
   else delete query.package
+  delete query.packageQuote
   router.replace({
     path: router.currentRoute.value.path,
     query,
   })
 }
-const closeServiceQuote = () => {
+const closeServiceQuote = async () => {
   quoteDialog.visible = false
-  const { service, quoteStep, category, package: _packageId, ...query } =
+  packageBundle.active = false
+  packageBundle.quoteDesc = ""
+  packageBundle.sections = []
+  const { service, quoteStep, category, package: _packageId, packageQuote: _packageQuote, ...query } =
     router.currentRoute.value.query
-  router.replace({ path: router.currentRoute.value.path, query })
+  await router.replace({ path: router.currentRoute.value.path, query })
 }
 const backToQuoteSetup = () => {
   if (quoteUnderReview.value) return
@@ -11414,6 +12014,8 @@ watch(section, (value, previous) => {
   ) {
     quoteDialog.visible = false
     quoteDialog.packageId = 0
+    packageBundle.active = false
+    packageBundle.sections = []
   }
   scrollProfileTop()
   if (value === "orders") loadOrders()
@@ -11450,8 +12052,26 @@ watch(
       return
     const id = Number(router.currentRoute.value.query.service)
     const requestedPackage = Number(router.currentRoute.value.query.package)
+    const packageQuoteId = Number(router.currentRoute.value.query.packageQuote)
     if (!id) {
+      if (
+        packageMode.value &&
+        packageQuoteId &&
+        packageBundle.active &&
+        packageBundle.packageId === packageQuoteId &&
+        quoteDialog.visible
+      ) {
+        return
+      }
+      const group = serviceRowGroups.value.find(
+        (item) => Number(item.rows[0]?.packageId) === packageQuoteId,
+      )
+      if (packageMode.value && group && packageServiceCount(packageQuoteId) >= 1) {
+        openPackageQuote(group, false)
+        return
+      }
       quoteDialog.visible = false
+      packageBundle.active = false
       return
     }
     if (
@@ -16760,6 +17380,7 @@ watch(areaKeyword, (keyword) => {
   flex: 1 1 140px;
   min-width: 0;
 }
+.quote-line__covers { display: block; margin-top: 4px; color: #718094; font-size: 12px; line-height: 1.5; }
 .quote-line__unit {
   flex: none;
   color: #243044;

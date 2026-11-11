@@ -888,6 +888,7 @@ const form = reactive({
 });
 const loadedNameI18n = ref<Record<string, string>>({});
 const descRows = ref<LangRow[]>(defaultLangRows());
+const quoteDescRows = ref<LangRow[]>(defaultLangRows());
 const serviceRows = ref<LangRow[]>(defaultLangRows());
 const noticeRows = ref<LangRow[]>(defaultLangRows());
 const imageFiles = ref<UploadUserFile[]>([]);
@@ -936,6 +937,7 @@ const packageNameText = (map?: Record<string, string>) => {
   return plainText(source?.value || '');
 };
 const textFields = computed(() => [
+  { key: 'quoteDesc', label: t('admin.packageList.form.supplierQuoteDesc'), rows: quoteDescRows.value, rich: false, placeholder: t('admin.packageList.form.supplierQuoteDescPlaceholder') },
   { key: 'desc', label: t('admin.packageList.form.desc'), rows: descRows.value, rich: false, placeholder: t('admin.packageList.form.textPlaceholder') },
   { key: 'service', label: t('admin.packageList.form.serviceContent'), rows: serviceRows.value, rich: true, placeholder: t('admin.packageList.form.serviceContentPlaceholder') },
   { key: 'notice', label: t('admin.packageList.form.bookingNotice'), rows: noticeRows.value, rich: true, placeholder: t('admin.packageList.form.textPlaceholder') },
@@ -966,6 +968,7 @@ const resetForm = () => {
   form.name = '';
   loadedNameI18n.value = {};
   descRows.value = defaultLangRows();
+  quoteDescRows.value = defaultLangRows();
   serviceRows.value = defaultLangRows();
   noticeRows.value = defaultLangRows();
   imageFiles.value = [];
@@ -1176,6 +1179,7 @@ const fillFromDetail = async (detail: any, isCurrent = () => true) => {
   loadedNameI18n.value = { ...(detail.nameI18n || {}) };
   form.name = packageNameText(detail.nameI18n);
   descRows.value = toLangRows(detail.descI18n);
+  quoteDescRows.value = toLangRows(detail.supplierQuoteDescI18n);
   serviceRows.value = toLangRows(detail.serviceContentTextI18n);
   noticeRows.value = toLangRows(detail.bookingNoticeI18n);
   const images = Array.isArray(detail.imageUrls) ? detail.imageUrls.filter(Boolean) : [];
@@ -1389,6 +1393,7 @@ const save = async () => {
     return;
   }
   const texts = [
+    { rows: quoteDescRows.value, rich: false },
     { rows: descRows.value, rich: false },
     { rows: serviceRows.value, rich: true },
     { rows: noticeRows.value, rich: true },
@@ -1410,6 +1415,7 @@ const save = async () => {
       discount: percentToDiscount(discountPercent),
       nameI18n: packageNamePayload(),
       descI18n: rowsToMap(descRows.value),
+      supplierQuoteDescI18n: rowsToMap(quoteDescRows.value),
       serviceContentI18n: rowsToMap(serviceRows.value, true),
       bookingNoticeI18n: rowsToMap(noticeRows.value, true),
       imageUrls: imageFiles.value.map((file) => file.url).filter(Boolean),
