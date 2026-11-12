@@ -1672,6 +1672,30 @@ const packageEntry = (packageId, spuId, overrides = {}) => ({
   ...overrides,
 })
 
+test('checked packages export the first service of each package', async (t) => {
+  const { state, calls } = await harness(t, 'package-pricing')
+  state.supplierRecordId = 10
+  state.packageFlat = [
+    packageEntry(101, 501),
+    packageEntry(101, 502),
+    packageEntry(202, 503),
+  ]
+  await flush()
+  assert.equal(state.quoteExportLabel, messages.en.admin.supplierPricing.downloadTemplate)
+  state.toggleQuotePackage(101, true)
+  assert.equal(state.quoteExportLabel, 'Export selected (1)')
+  await state.downloadQuoteTemplate()
+  assert.deepEqual(calls.exports[0], [501])
+  state.toggleQuotePackage(202, true)
+  await state.downloadQuoteTemplate()
+  assert.deepEqual(calls.exports[1], [501, 503])
+  state.selectedQuotePackageIds = []
+  await state.downloadQuoteTemplate()
+  assert.deepEqual(calls.exports[2], [501, 503])
+  assert.match(descriptor.template.content, /toggleQuotePackage\(group\.rows\[0\]\?\.packageId, checked === true\)/)
+  assert.match(descriptor.template.content, /admin\.supplierPricing\.exportPackageSelectionHint/)
+})
+
 test('package quotes group interleaved services by package id and preserve package-specific quote links', async (t) => {
   const { state, router } = await harness(t, 'package-pricing')
   state.packageFlat = [packageEntry(101, 501), packageEntry(202, 501), packageEntry(101, 502), packageEntry(202, 503)]

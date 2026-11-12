@@ -9,6 +9,10 @@
 
       <article class="legal-card">
         <h1>{{ doc.title }}</h1>
+        <p class="legal-card__updated">
+          {{ t('client.login.legal.lastUpdated') }}
+          <time :datetime="doc.lastUpdated">{{ doc.lastUpdated }}</time>
+        </p>
         <p v-if="doc.intro" class="legal-card__intro">{{ doc.intro }}</p>
         <section
           v-for="section in doc.sections"
@@ -30,6 +34,11 @@
               {{ line }}
             </li>
           </ul>
+          <div v-if="section.links?.length" class="legal-card__links">
+            <a v-for="link in section.links" :key="link.href" :href="link.href">
+              {{ link.label }}
+            </a>
+          </div>
         </section>
       </article>
     </div>
@@ -102,6 +111,12 @@ const goHome = () => {
   line-height: 1.7;
 }
 
+.legal-card__updated {
+  margin: 8px 0 0;
+  color: #475569;
+  font-size: 13px;
+}
+
 .legal-card__section {
   margin-top: 16px;
 }
@@ -134,6 +149,21 @@ const goHome = () => {
   color: rgba(15, 23, 42, 0.78);
   font-size: 14px;
   line-height: 1.75;
+}
+
+.legal-card__links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 16px;
+  margin-top: 8px;
+}
+
+.legal-card__links a {
+  color: #1d4ed8;
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1.75;
+  text-decoration: underline;
 }
 
 @media (max-width: 768px) {

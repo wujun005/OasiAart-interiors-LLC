@@ -2152,7 +2152,6 @@
           </div>
           <div class="portal-pricing-actions">
             <el-button
-              v-if="!packageMode"
               :icon="Download"
               :loading="quoteExporting"
               :disabled="!supplierRecordId"
@@ -2262,11 +2261,16 @@
                 <h2>{{ selectedPricingCategory }}</h2>
                 <p class="portal-quote-select">
                   <el-checkbox
-                    v-if="!packageMode"
                     :model-value="allVisibleQuotesSelected"
                     :indeterminate="someVisibleQuotesSelected"
                     :disabled="!filteredServiceRows.length"
-                    :aria-label="t('admin.supplierPricing.selectVisible')"
+                    :aria-label="
+                      t(
+                        packageMode
+                          ? 'admin.supplierPricing.selectVisiblePackages'
+                          : 'admin.supplierPricing.selectVisible',
+                      )
+                    "
                     @change="toggleVisibleQuoteSelection"
                   />
                   <span>{{
@@ -2275,8 +2279,14 @@
                     })
                   }}</span>
                 </p>
-                <p v-if="!packageMode" class="portal-quote-select-hint">
-                  {{ t("admin.supplierPricing.exportSelectionHint") }}
+                <p class="portal-quote-select-hint">
+                  {{
+                    t(
+                      packageMode
+                        ? "admin.supplierPricing.exportPackageSelectionHint"
+                        : "admin.supplierPricing.exportSelectionHint",
+                    )
+                  }}
                 </p>
               </div>
               <div class="portal-service-filters">
@@ -2319,12 +2329,26 @@
                 :aria-label="packageMode ? group.name : undefined"
               >
                 <article v-if="packageMode" class="portal-package-card">
-                  <div>
-                    <h3>{{ group.name }}</h3>
-                    <div v-if="packagePlanChips(group).length" class="portal-package-plan">
-                      <span v-for="chip in packagePlanChips(group)" :key="chip.key">
-                        <b>{{ chip.name }}</b> {{ chip.detail }}
-                      </span>
+                  <div class="portal-package-card__main">
+                    <el-checkbox
+                      class="portal-quote-check"
+                      :model-value="quotePackageSelected(group.rows[0]?.packageId)"
+                      :aria-label="
+                        t('admin.supplierPricing.selectPackage', { name: group.name })
+                      "
+                      @click.stop
+                      @change="
+                        (checked) =>
+                          toggleQuotePackage(group.rows[0]?.packageId, checked === true)
+                      "
+                    />
+                    <div>
+                      <h3>{{ group.name }}</h3>
+                      <div v-if="packagePlanChips(group).length" class="portal-package-plan">
+                        <span v-for="chip in packagePlanChips(group)" :key="chip.key">
+                          <b>{{ chip.name }}</b> {{ chip.detail }}
+                        </span>
+                      </div>
                     </div>
                   </div>
                   <div class="portal-package-card__actions">
@@ -2627,6 +2651,7 @@
                   {{ packageQuoteTabs().length && line.title !== packageBundle.tab ? `${packageBundle.tab} · ` : "" }}{{ line.title }}
                   <em v-if="packageLineDirect(line)">{{ t("admin.supplierPricing.acceptDirect") }}</em>
                 </strong>
+                <p v-if="familyPricingNote(line)" class="quote-line__note">{{ familyPricingNote(line) }}</p>
                 <p>{{ packageLineMeta(line) }}</p>
               </div>
               <div v-if="packageQuotedSection.quoteMode === 1">
@@ -2880,7 +2905,7 @@
                               :class="`is-${familyBadge(line).tone}`"
                             >{{ familyBadge(line).label }}</span>
                           </strong>
-                          <small v-if="familyCoverText(line)" class="quote-line__covers">{{ familyCoverText(line) }}</small>
+                          <small v-if="familyPricingNote(line)" class="quote-line__note">{{ familyPricingNote(line) }}</small>
                           <small v-if="line.rows[0].rejectReason" class="line-reject">{{
                             t("admin.supplierPricing.lineRejected", {
                               reason: supplierRejectCopy(line.rows[0].rejectReason),
@@ -2977,10 +3002,7 @@
                             toggleAttach(item, Boolean(value))
                         "
                       >
-                        {{ attachDisplay(item, "name")
-                        }}<template v-if="attachUnit(item)">
-                          / {{ attachUnit(item) }}</template
-                        >
+                        {{ attachDisplay(item, "name") }}
                       </el-checkbox>
                       <small class="portal-numeric portal-numeric--money">{{
                         t("admin.supplierPricing.activeRate", {
@@ -2998,31 +3020,35 @@
                         :class="`is-${attachBadge(item).tone}`"
                       >{{ attachBadge(item).label }}</small>
                     </div>
-                    <el-input
-                      v-if="item.offered"
-                      v-model="item.quotePrice"
-                      inputmode="decimal"
-                      :disabled="attachHeld(item)"
-                      :placeholder="t('admin.supplierPricing.taxPrice')"
-                    >
-                      <template #prepend>AED</template>
-                    </el-input>
+                    <label v-if="item.offered" class="quote-attach__rate">
+                      <span class="quote-attach__pin">
+                        <em>AED</em>
+                        <el-input
+                          v-model="item.quotePrice"
+                          inputmode="decimal"
+                          :disabled="attachHeld(item)"
+                          :placeholder="t('admin.supplierPricing.pricePlaceholder')"
+                        />
+                        <b v-if="attachUnit(item)">/ {{ attachUnit(item) }}</b>
+                      </span>
+                      <small>{{ t("admin.supplierPricing.addonRateTax") }}</small>
+                    </label>
                   </article>
                   </section>
                 </div>
               </section>
 
-              <div v-if="hourlyQuote && !addonOnlyQuote && quoteDialog.showOptionPrice !== false" class="option-prices">
+              <div v-if="hourlyQuote && !addonOnlyQuote && optionPrices.length" class="option-prices">
                     <div class="option-prices__head">
-                      <strong>{{ t("admin.supplierPricing.optionPriceTitle") }}</strong>
-                      <p>{{ t(optionPriceHintKey) }}</p>
+                      <strong>{{ t(showOptionPrices ? "admin.supplierPricing.optionPriceTitle" : "admin.supplierPricing.optionPriceOptionsTitle") }}</strong>
+                      <p>{{ t(showOptionPrices ? optionPriceHintKey : "admin.supplierPricing.optionPriceOptionsHint") }}</p>
                     </div>
                     <div class="option-prices__stats">
                       <span>{{ t("admin.supplierPricing.optionPriceCount", { count: optionPrices.length }) }}</span>
-                      <span v-if="optionPriceRange.low != null">{{
+                      <span v-if="showOptionPrices && optionPriceRange.low != null">{{
                         t("admin.supplierPricing.optionPriceLow", { price: moneyText(optionPriceRange.low) })
                       }}</span>
-                      <span v-if="optionPriceRange.high != null">{{
+                      <span v-if="showOptionPrices && optionPriceRange.high != null">{{
                         t("admin.supplierPricing.optionPriceHigh", { price: moneyText(optionPriceRange.high) })
                       }}</span>
                     </div>
@@ -3053,18 +3079,18 @@
                           <tr>
                             <th>{{ t("admin.supplierPricing.optionPriceColOption") }}</th>
                             <th>{{ t("admin.supplierPricing.optionPriceColNote") }}</th>
-                            <th>{{ t("admin.supplierPricing.optionPriceColCalc") }}</th>
-                            <th>{{ t("admin.supplierPricing.optionPriceColExcl") }}</th>
-                            <th>{{ t("admin.supplierPricing.optionPriceColPrice") }}</th>
+                            <th v-if="showOptionPrices">{{ t("admin.supplierPricing.optionPriceColCalc") }}</th>
+                            <th v-if="showOptionPrices">{{ t("admin.supplierPricing.optionPriceColExcl") }}</th>
+                            <th v-if="showOptionPrices">{{ t("admin.supplierPricing.optionPriceColPrice") }}</th>
                           </tr>
                         </thead>
                         <tbody>
                           <tr v-if="!visibleOptionPrices.length">
-                            <td colspan="5" class="is-empty">{{ t("admin.supplierPricing.optionPriceEmpty") }}</td>
+                            <td :colspan="showOptionPrices ? 5 : 2" class="is-empty">{{ t("admin.supplierPricing.optionPriceEmpty") }}</td>
                           </tr>
                           <template v-for="group in visibleOptionPriceGroups" :key="group.key">
                             <tr v-if="group.title" class="is-group">
-                              <td colspan="5">
+                              <td :colspan="showOptionPrices ? 5 : 2">
                                 <b>{{ group.title }}</b>
                                 <em>{{ t("admin.supplierPricing.optionPriceGroupCount", { count: group.rows.length }) }}</em>
                               </td>
@@ -3075,11 +3101,12 @@
                                 <small v-if="row.detail">{{ row.detail }}</small>
                               </td>
                               <td class="is-note">
+                                <span v-if="row.remark && !row.pills.length">{{ row.remark }}</span>
                                 <span v-for="pill in row.pills" :key="pill">{{ pill }}</span>
                               </td>
-                              <td class="is-calc">{{ row.calculation }}</td>
-                              <td class="is-money">{{ row.excl == null ? "—" : `AED ${moneyText(row.excl)}` }}</td>
-                              <td class="is-price">{{ row.price == null ? "—" : `AED ${moneyText(row.price)}` }}</td>
+                              <td v-if="showOptionPrices" class="is-calc">{{ row.calculation }}</td>
+                              <td v-if="showOptionPrices" class="is-money">{{ row.excl == null ? "—" : `AED ${moneyText(row.excl)}` }}</td>
+                              <td v-if="showOptionPrices" class="is-price">{{ row.price == null ? "—" : `AED ${moneyText(row.price)}` }}</td>
                             </tr>
                           </template>
                         </tbody>
@@ -3266,8 +3293,8 @@
                 <dt>{{ t(rate.label) }}</dt>
                 <dd class="portal-numeric portal-numeric--money">AED {{ moneyText(quoteDialog[rate.key]) }}</dd>
               </div>
-              <div v-if="optionPrices.length && quoteDialog.showOptionPrice !== false" class="quantity-sku-notes">
-                <dt>{{ t("admin.supplierPricing.optionPriceTitle") }}</dt>
+              <div v-if="optionPrices.length" class="quantity-sku-notes">
+                <dt>{{ t(showOptionPrices ? "admin.supplierPricing.optionPriceTitle" : "admin.supplierPricing.optionPriceOptionsTitle") }}</dt>
                 <dd>
                   <span v-for="row in optionPrices" :key="row.id">{{ optionPriceLine(row) }}</span>
                 </dd>
@@ -3295,7 +3322,7 @@
                   :class="`is-${familyBadge(line).tone}`"
                 >{{ familyBadge(line).label }}</span>
                 <strong class="portal-numeric portal-numeric--money">AED {{ moneyText(familyPrice(line)) }}<template v-if="line.unit"> / {{ line.unit }}</template></strong>
-                <small v-if="familyCoverText(line)" class="quote-line__covers">{{ familyCoverText(line) }}</small>
+                <small v-if="familyPricingNote(line)" class="quote-line__note">{{ familyPricingNote(line) }}</small>
                 <small v-if="familyRemark(line)" class="quote-fulfill-remark">{{
                   t("admin.supplierOrders.fulfillRemarkLine", { remark: familyRemark(line) })
                 }}</small>
@@ -3318,13 +3345,8 @@
               :key="item.attachValueId"
               class="quote-review-addon"
             >
-              <span
-                >{{ attachDisplay(item, "name")
-                }}<template v-if="attachUnit(item)">
-                  / {{ attachUnit(item) }}</template
-                ></span
-              >
-              <strong class="portal-numeric portal-numeric--money">AED {{ moneyText(item.quotePrice) }}</strong>
+              <span>{{ attachDisplay(item, "name") }}</span>
+              <strong class="portal-numeric portal-numeric--money">AED {{ moneyText(item.quotePrice) }}<template v-if="attachUnit(item)"> / {{ attachUnit(item) }}</template></strong>
               <small v-if="item.rejectReason">{{
                 t("admin.supplierPricing.lineRejected", { reason: supplierRejectCopy(item.rejectReason) })
               }}</small>
@@ -3445,8 +3467,8 @@
                     <dt>{{ t(rate.label) }}</dt>
                     <dd class="portal-numeric portal-numeric--money">AED {{ moneyText(quoteDialog[rate.key]) }}</dd>
                   </div>
-                  <div v-if="optionPrices.length && quoteDialog.showOptionPrice !== false" class="quantity-sku-notes">
-                    <dt>{{ t("admin.supplierPricing.optionPriceTitle") }}</dt>
+                  <div v-if="optionPrices.length" class="quantity-sku-notes">
+                    <dt>{{ t(showOptionPrices ? "admin.supplierPricing.optionPriceTitle" : "admin.supplierPricing.optionPriceOptionsTitle") }}</dt>
                     <dd>
                       <span v-for="row in optionPrices" :key="row.id">{{ optionPriceLine(row) }}</span>
                     </dd>
@@ -3510,7 +3532,7 @@
                         :class="`is-${familyBadge(line).tone}`"
                       >{{ familyBadge(line).label }}</span>
                     </h3>
-                    <p v-if="familyCoverText(line)" class="quote-line__covers">{{ familyCoverText(line) }}</p>
+                    <p v-if="familyPricingNote(line)" class="quote-line__note">{{ familyPricingNote(line) }}</p>
                     <p v-if="familyRemark(line)" class="quote-fulfill-remark">{{
                       t("admin.supplierOrders.fulfillRemarkLine", { remark: familyRemark(line) })
                     }}</p>
@@ -3574,12 +3596,8 @@
                 :key="item.attachValueId"
                 class="portal-review-addon"
               >
-                <span
-                  >{{ attachDisplay(item, "name")
-                  }}<template v-if="attachUnit(item)">
-                    / {{ attachUnit(item) }}</template
-                  ></span
-                ><strong class="portal-numeric portal-numeric--money">AED {{ moneyText(item.quotePrice) }}</strong>
+                <span>{{ attachDisplay(item, "name") }}</span
+                ><strong class="portal-numeric portal-numeric--money">AED {{ moneyText(item.quotePrice) }}<template v-if="attachUnit(item)"> / {{ attachUnit(item) }}</template></strong>
                 <small v-if="item.rejectReason">{{
                   t("admin.supplierPricing.lineRejected", { reason: supplierRejectCopy(item.rejectReason) })
                 }}</small>
@@ -7751,24 +7769,58 @@ const quoteSpuId = (value: unknown) => {
   return Number.isInteger(id) && id > 0 ? id : 0
 }
 const selectedQuoteSpuIds = ref<number[]>([])
+const selectedQuotePackageIds = ref<number[]>([])
 const quoteSpuSelected = (spuId: unknown) =>
   selectedQuoteSpuIds.value.includes(quoteSpuId(spuId))
+const quotePackageSelected = (packageId: unknown) =>
+  selectedQuotePackageIds.value.includes(quoteSpuId(packageId))
+const uniquePositiveIds = (values: unknown[]) => {
+  const ids: number[] = []
+  const seen = new Set<number>()
+  for (const value of values) {
+    const id = quoteSpuId(value)
+    if (!id || seen.has(id)) continue
+    seen.add(id)
+    ids.push(id)
+  }
+  return ids
+}
 const visibleQuoteSpuIds = computed(() =>
   filteredServiceRows.value
     .map((row) => quoteSpuId(row.spuId))
     .filter((id) => id > 0),
 )
-const allVisibleQuotesSelected = computed(() => {
-  const ids = visibleQuoteSpuIds.value
-  return (
-    ids.length > 0 && ids.every((id) => selectedQuoteSpuIds.value.includes(id))
+const visiblePackageIds = computed(() =>
+  uniquePositiveIds(
+    filteredServiceRows.value.map((row) =>
+      "packageId" in row ? row.packageId : 0,
+    ),
+  ),
+)
+const allPackageIds = computed(() =>
+  uniquePositiveIds(packageFlat.value.map((entry) => entry?.packageId)),
+)
+const quotedSpuIdForPackage = (packageId: number) => {
+  const entry = packageFlat.value.find(
+    (item) => quoteSpuId(item?.packageId) === packageId,
   )
+  return quoteSpuId(entry?.service?.spuId)
+}
+const packageExportSpuIds = (packageIds: number[]) =>
+  uniquePositiveIds(packageIds.map((packageId) => quotedSpuIdForPackage(packageId)))
+const selectionIds = computed(() =>
+  packageMode.value ? visiblePackageIds.value : visibleQuoteSpuIds.value,
+)
+const selectedSelectionIds = computed(() =>
+  packageMode.value ? selectedQuotePackageIds.value : selectedQuoteSpuIds.value,
+)
+const allVisibleQuotesSelected = computed(() => {
+  const ids = selectionIds.value
+  return ids.length > 0 && ids.every((id) => selectedSelectionIds.value.includes(id))
 })
 const someVisibleQuotesSelected = computed(() => {
-  const ids = visibleQuoteSpuIds.value
-  const selected = ids.filter((id) =>
-    selectedQuoteSpuIds.value.includes(id),
-  ).length
+  const ids = selectionIds.value
+  const selected = ids.filter((id) => selectedSelectionIds.value.includes(id)).length
   return selected > 0 && selected < ids.length
 })
 const toggleQuoteSpu = (spuId: unknown, checked: boolean) => {
@@ -7779,7 +7831,24 @@ const toggleQuoteSpu = (spuId: unknown, checked: boolean) => {
   else next.delete(id)
   selectedQuoteSpuIds.value = [...next]
 }
+const toggleQuotePackage = (packageId: unknown, checked: boolean) => {
+  const id = quoteSpuId(packageId)
+  if (!id) return
+  const next = new Set(selectedQuotePackageIds.value)
+  if (checked) next.add(id)
+  else next.delete(id)
+  selectedQuotePackageIds.value = [...next]
+}
 const toggleVisibleQuoteSelection = (checked: boolean | string | number) => {
+  if (packageMode.value) {
+    const next = new Set(selectedQuotePackageIds.value)
+    for (const id of visiblePackageIds.value) {
+      if (checked === true) next.add(id)
+      else next.delete(id)
+    }
+    selectedQuotePackageIds.value = [...next]
+    return
+  }
   const next = new Set(selectedQuoteSpuIds.value)
   for (const id of visibleQuoteSpuIds.value) {
     if (checked === true) next.add(id)
@@ -7787,13 +7856,14 @@ const toggleVisibleQuoteSelection = (checked: boolean | string | number) => {
   }
   selectedQuoteSpuIds.value = [...next]
 }
-const quoteExportLabel = computed(() =>
-  selectedQuoteSpuIds.value.length
-    ? t("admin.supplierPricing.exportSelected", {
-        count: selectedQuoteSpuIds.value.length,
-      })
-    : t("admin.supplierPricing.downloadTemplate"),
-)
+const quoteExportLabel = computed(() => {
+  const count = packageMode.value
+    ? selectedQuotePackageIds.value.length
+    : selectedQuoteSpuIds.value.length
+  return count
+    ? t("admin.supplierPricing.exportSelected", { count })
+    : t("admin.supplierPricing.downloadTemplate")
+})
 watch(serviceRows, (rows) => {
   const ids = new Set(
     rows.map((row) => quoteSpuId(row.spuId)).filter((id) => id > 0),
@@ -7801,6 +7871,12 @@ watch(serviceRows, (rows) => {
   const next = selectedQuoteSpuIds.value.filter((id) => ids.has(id))
   if (next.length !== selectedQuoteSpuIds.value.length)
     selectedQuoteSpuIds.value = next
+})
+watch(packageFlat, (rows) => {
+  const ids = new Set(uniquePositiveIds(rows.map((row) => row?.packageId)))
+  const next = selectedQuotePackageIds.value.filter((id) => ids.has(id))
+  if (next.length !== selectedQuotePackageIds.value.length)
+    selectedQuotePackageIds.value = next
 })
 const phoneOk = (value: string) =>
   /^[1-9]\d{7,14}$/.test(value.replace(/\D/g, ""))
@@ -8630,6 +8706,7 @@ const staffRoleLabel = (count: string, role: "cleaner" | "tech", lower = false) 
   const word = t(key)
   return lower ? word.toLowerCase() : word
 }
+const showOptionPrices = computed(() => quoteDialog.showOptionPrice !== false)
 const optionPriceHintKey = computed(() => {
   if (quoteDialog.quoteMode === 4) return "admin.supplierPricing.optionPriceHintQuantity"
   if (quoteDialog.quoteMode === 2) {
@@ -8763,6 +8840,19 @@ const optionSpecParts = (row: any) => {
     return [{ type, value }]
   })
 }
+const specRemarkText = (spec: any) => {
+  const text = localizedName(spec?.specValueRemarkI18n, "")
+  return text === "—" ? "" : text
+}
+const rowPricingNotes = (row: any) => {
+  const lines = Array.isArray(row?.specLines) ? row.specLines : []
+  const notes: string[] = []
+  lines.forEach((spec: any) => {
+    const note = specRemarkText(spec)
+    if (note && notes.indexOf(note) < 0) notes.push(note)
+  })
+  return notes
+}
 const optionPrices = computed(() => {
   if (!hourlyQuote.value) return []
   return quantitySkuNotes.value.map((note) => {
@@ -8781,6 +8871,7 @@ const optionPrices = computed(() => {
       load.staff > 0 && load.hours > 0
         ? t("admin.supplierPricing.optionPriceDriver", { staff, hours, role: roleLabel })
         : ""
+    const remark = rowPricingNotes(row).join(" · ")
     return {
       id: note.id,
       groupId: String(row.groupId || "all"),
@@ -8789,13 +8880,16 @@ const optionPrices = computed(() => {
       detail: parts.slice(1).map((part: { value: string }) => part.value).join(" / "),
       types: parts.map((part: { type: string }) => part.type).filter(Boolean).join(" · "),
       text: note.text,
-      note: driver,
-      pills: driver
-        ? [
-            t("admin.supplierPricing.optionPriceStaff", { count: staff, role: roleLabel }),
-            t("admin.supplierPricing.optionPriceHour", { count: hours }),
-          ]
-        : [],
+      remark,
+      note: remark || driver,
+      pills: remark
+        ? []
+        : driver
+          ? [
+              t("admin.supplierPricing.optionPriceStaff", { count: staff, role: roleLabel }),
+              t("admin.supplierPricing.optionPriceHour", { count: hours }),
+            ]
+          : [],
       calculation:
         price == null
           ? ""
@@ -8832,7 +8926,7 @@ const visibleOptionPrices = computed(() => {
   return optionPrices.value.filter((row) => {
     if (optionPriceGroup.value && row.groupId !== optionPriceGroup.value) return false
     if (!query) return true
-    return [row.title, row.detail, row.types, row.groupTitle, row.text, row.note]
+    return [row.title, row.detail, row.types, row.groupTitle, row.text, row.note, row.remark]
       .join(" ")
       .toLowerCase()
       .includes(query)
@@ -8855,11 +8949,14 @@ const optionPriceLine = (row: {
   detail?: string
   text: string
   note: string
+  remark?: string
   price: number | null
 }) => {
   const short = [row.title, row.detail].filter(Boolean).join(" / ")
   const label = short || (row.note ? `${row.text} (${row.note})` : row.text)
-  return row.price == null ? label : `${label} · AED ${moneyText(row.price)}`
+  const withNote = row.remark && label.indexOf(row.remark) < 0 ? `${label} — ${row.remark}` : label
+  if (!showOptionPrices.value || row.price == null) return withNote
+  return `${withNote} · AED ${moneyText(row.price)}`
 }
 const quoteDialogTitle = computed(() =>
   localizedName(quoteDialog.nameI18n, quoteDialog.name),
@@ -10359,18 +10456,32 @@ const quoteSheetName = () => {
 }
 const downloadQuoteTemplate = async () => {
   if (!supplierRecordId.value || quoteExporting.value) return
-  const selected = selectedQuoteSpuIds.value
-  const listedIds = serviceRows.value
-    .map((row) => quoteSpuId(row.spuId))
-    .filter((id) => id > 0)
-  const hasHidden = savedServices.value.some((service) => !serviceListed(service))
-  let ids = selected
-  if (!selected.length && hasHidden) {
-    if (!listedIds.length) {
+  let ids: number[] = []
+  if (packageMode.value) {
+    const selected = selectedQuotePackageIds.value
+    const visible = visiblePackageIds.value
+    const saved = allPackageIds.value
+    const hasHidden = saved.some((id) => !visible.includes(id))
+    const packageIds = selected.length ? selected : hasHidden ? visible : saved
+    ids = packageExportSpuIds(packageIds)
+    if (!ids.length) {
       ElMessage.warning(t("admin.supplierPricing.empty"))
       return
     }
-    ids = listedIds
+  } else {
+    const selected = selectedQuoteSpuIds.value
+    const listedIds = serviceRows.value
+      .map((row) => quoteSpuId(row.spuId))
+      .filter((id) => id > 0)
+    const hasHidden = savedServices.value.some((service) => !serviceListed(service))
+    ids = selected
+    if (!selected.length && hasHidden) {
+      if (!listedIds.length) {
+        ElMessage.warning(t("admin.supplierPricing.empty"))
+        return
+      }
+      ids = listedIds
+    }
   }
   quoteExporting.value = true
   try {
@@ -10559,11 +10670,14 @@ const quoteDisplayLines = (rows: any[], labelOf?: (row: any) => string) => {
     return [bucket]
   })
 }
-const familyCoverText = (line: { tails?: string[] }) => {
-  const tails = line.tails || []
-  if (!tails.length) return ""
-  const separator = String(locale.value).toLowerCase().startsWith("en") ? ", " : "、"
-  return t("admin.supplierPricing.samePriceCovers", { items: tails.join(separator) })
+const familyPricingNote = (line: { rows?: any[] }) => {
+  const notes: string[] = []
+  ;(line.rows || []).forEach((row) => {
+    rowPricingNotes(row).forEach((note) => {
+      if (notes.indexOf(note) < 0) notes.push(note)
+    })
+  })
+  return notes.join(" · ")
 }
 const familyPrice = (line: { rows: Array<{ quotePrice?: unknown }> }) => {
   const prices = line.rows.map((row) => row.quotePrice)
@@ -11122,10 +11236,6 @@ const packageLineMeta = (line: { title?: string; tails?: string[]; rows: any[] }
       ? t(staff === 1 ? "admin.supplierPricing.staffRoleCleaner" : "admin.supplierPricing.staffRoleCleaners")
       : t("admin.supplierPricing.staffRoleTech")
     return t("admin.supplierPortal.packageTeamMeta", { staff, hours, role: String(role).toLowerCase() })
-  }
-  if (line.tails?.length) {
-    const separator = String(locale.value).toLowerCase().startsWith("en") ? ", " : "、"
-    return line.tails.join(separator)
   }
   const visits = packageVisitTotal()
   return visits ? t("admin.supplierPortal.packageWholeVisits", { count: visits }) : ""
@@ -17380,7 +17490,43 @@ watch(areaKeyword, (keyword) => {
   flex: 1 1 140px;
   min-width: 0;
 }
-.quote-line__covers { display: block; margin-top: 4px; color: #718094; font-size: 12px; line-height: 1.5; }
+.quote-line__covers,
+.quote-line__note { display: block; margin-top: 4px; color: #718094; font-size: 12px; line-height: 1.5; }
+.quote-attach__rate {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  min-width: 0;
+}
+.quote-attach__pin {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 40px;
+  padding: 4px 12px;
+  background: #fff;
+  border: 1px solid #d7e0ea;
+  border-radius: 12px;
+  box-sizing: border-box;
+}
+.quote-attach__pin em,
+.quote-attach__pin b {
+  flex: none;
+  color: #243044;
+  font-style: normal;
+  font-size: 13px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.quote-attach__pin :deep(.el-input) { flex: 1 1 auto; min-width: 0; }
+.quote-attach__pin :deep(.el-input__wrapper) {
+  padding: 0;
+  background: transparent;
+  box-shadow: none;
+}
+.quote-attach__rate > small { color: #718094; font-size: 12px; line-height: 1.4; }
 .quote-line__unit {
   flex: none;
   color: #243044;

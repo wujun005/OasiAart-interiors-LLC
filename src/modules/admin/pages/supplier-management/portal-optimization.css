@@ -213,6 +213,7 @@
 .portal-package-group__count { flex: none; padding: 4px 9px; border: 1px solid #e5e0d6; border-radius: 6px; background: #fff; color: #718094; font-size: 11px; line-height: 1.4; white-space: nowrap; }
 .portal-package-quote { flex: none; }
 .portal-package-card { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 16px 18px; }
+.portal-package-card__main { display: flex; align-items: flex-start; gap: 12px; min-width: 0; }
 .portal-package-card h3 { margin: 0; color: #102b44; font-size: 15px; font-weight: 650; }
 .portal-package-plan { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
 .portal-package-plan span { padding: 4px 10px; border: 1px solid #e6e1d8; border-radius: 6px; background: #fbfaf6; color: #243246; font-size: 12px; }

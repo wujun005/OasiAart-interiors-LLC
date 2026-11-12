@@ -217,10 +217,12 @@
 
             <div class="booking-price-card" :aria-busy="priceLoading">
               <span class="booking-price-card__label">{{ t('client.home.packages.dealPrice') }}</span>
-              <div class="booking-price-card__main"><span v-if="priceReady">AED</span><strong>{{ view.saleAmount == null ? '—' : view.saleAmount.toFixed(2) }}</strong></div>
-              <div v-if="view.original" class="booking-price-card__offer">
-                <del>AED {{ view.original }}</del>
-                <span v-if="view.save">{{ view.save }}</span>
+              <div class="booking-price-card__row">
+                <div class="booking-price-card__main"><span v-if="priceReady">AED</span><strong>{{ view.saleAmount == null ? '—' : view.saleAmount.toFixed(2) }}</strong></div>
+                <div v-if="view.original" class="booking-price-card__offer">
+                  <del>AED {{ view.original }}</del>
+                  <span v-if="view.save">{{ view.save }}</span>
+                </div>
               </div>
               <p v-if="view.perVisit" class="package-price-per-visit">{{ view.perVisit }}</p>
               <div v-if="!priceReady" class="package-price-status" :class="{ 'is-error': !!priceError }" role="status">
@@ -977,24 +979,37 @@ onBeforeUnmount(() => {
 
 .booking-price-card {
   display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 6px 8px;
-  padding: 10px 12px;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  padding: 12px 14px;
 }
-.booking-price-card__label { font-size: 9px; letter-spacing: .02em; white-space: nowrap; }
-.booking-price-card__main { flex: 0 0 auto; gap: 4px; margin: 0; white-space: nowrap; }
-.booking-price-card__main span { font-size: 11px; }
-.booking-price-card__main strong { font-size: 22px; }
-.booking-price-card__offer { gap: 6px; margin: 0; white-space: nowrap; }
-.booking-price-card__offer del { font-size: 11px; }
-.booking-price-card__offer span { min-height: 20px; padding: 2px 6px; font-size: 10px; }
-.booking-price-card .package-price-status { flex-basis: 100%; margin: 0; }
+.booking-price-card__label {
+  color: #61738a;
+  font-size: 12px;
+  font-weight: 650;
+  letter-spacing: 0;
+  line-height: 1.3;
+}
+.booking-price-card__row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 8px 10px;
+}
+.booking-price-card__main { display: flex; align-items: baseline; gap: 6px; margin: 0; white-space: nowrap; }
+.booking-price-card__main span { font-size: 13px; font-weight: 700; }
+.booking-price-card__main strong { font-size: 28px; letter-spacing: -0.03em; line-height: 1.1; }
+.booking-price-card__offer { display: flex; align-items: center; gap: 8px; margin: 0; white-space: nowrap; }
+.booking-price-card__offer del { font-size: 13px; }
+.booking-price-card__offer span { min-height: 22px; padding: 2px 8px; font-size: 12px; }
+.booking-price-card .package-price-status { width: 100%; margin: 0; }
 
 .package-price-per-visit {
   margin: 0;
   color: #61738a;
-  font-size: 11px;
+  font-size: 13px;
+  line-height: 1.4;
   white-space: nowrap;
 }
 

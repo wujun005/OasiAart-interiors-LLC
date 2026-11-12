@@ -4,6 +4,7 @@ type LegalSection = {
   heading: string;
   paragraphs?: string[];
   bullets?: string[];
+  links?: { label: string; href: string }[];
 };
 
 type LegalDoc = {
@@ -14,6 +15,12 @@ type LegalDoc = {
 };
 
 type LegalLocale = 'en' | 'zh';
+
+const privacyRevision = '2026-11-12';
+const privacyContact = {
+  label: 'support@hourxportal.com',
+  href: 'mailto:support@hourxportal.com',
+};
 
 export const LEGAL_DOCS: Record<LegalLocale, Record<LegalDocType, LegalDoc>> = {
   en: {
@@ -199,43 +206,49 @@ export const LEGAL_DOCS: Record<LegalLocale, Record<LegalDocType, LegalDoc>> = {
     },
     privacy: {
       title: 'Privacy Policy',
-      lastUpdated: '____',
+      lastUpdated: privacyRevision,
+      intro: 'HourX Portal Co. L.L.C S.O.C, based in Dubai, United Arab Emirates, operates HourX Home, HourX Supplier, and the HourX website. This policy covers customers, supplier administrators, and supplier employees who use these services.',
       sections: [
         {
           heading: '1. Information We Collect',
-          paragraphs: [
-            'HourX collects account details (name, email, phone), booking history, address and service location, communication logs, and device and usage data.',
-            'Payment information is processed by Stripe; HourX does not store card numbers.',
+          bullets: [
+            'Account and support information, including your name, email address, phone number, sign-in information, and communications with HourX.',
+            'HourX Home booking and payment records, including service addresses, booking history, transaction details, and saved payment method details such as card brand and last four digits. Stripe processes card payments. HourX does not store full card numbers.',
+            'Location information for address selection. HourX Home can use your device location when you choose to find your current location and grant permission. The service address and coordinates you select may be saved with your address or booking.',
+            'HourX Home usage information, including app activity, device or platform information, app-generated identifiers, and session identifiers. Usage events can include your account identifier, name, and related booking or payment activity.',
+            'HourX Supplier business and employee records, including supplier profile and contact details, staff names and phone numbers, optional email addresses and service categories, and order assignments.',
+            'HourX Supplier verification and settlement information, including trade licenses, insurance or tax documents, and bank account details such as IBAN. We also receive service records and proof photos you upload.',
           ],
         },
         {
           heading: '2. How We Use Your Information',
           paragraphs: ['Your data is used to:'],
           bullets: [
+            'Authenticate users, administer accounts, and verify suppliers.',
             'Manage bookings and service delivery.',
+            'Manage employee access, work assignments, service records, and supplier settlements.',
             'Communicate updates and confirmations.',
-            'Improve platform performance.',
+            'Measure use and improve platform performance.',
             'Ensure safety and compliance.',
             'Provide customer support.',
           ],
         },
         {
           heading: '3. Sharing of Information',
-          paragraphs: [
-            'HourX shares data only with the following parties:',
-          ],
+          paragraphs: ['HourX shares information as needed with:'],
           bullets: [
-            'Approved service providers for booking and service delivery.',
+            'Approved suppliers and assigned employees for booking and service delivery, and authorized supplier administrators for managing their organization and staff.',
             'Stripe for payment processing.',
+            'Google Maps for address search, map display, and location lookup.',
             'Legal authorities when required by UAE law.',
-            "HourX's technical/development and platform administration team, including personnel located outside the UAE, for maintaining, hosting, and operating the platform, bound by confidentiality and data protection obligations.",
+            'HourX technical and platform administration teams, including personnel outside the UAE, for hosting, maintaining, and operating the platform. These teams are subject to confidentiality and data protection obligations.',
           ],
         },
         {
           heading: 'Information Sharing Safeguards',
           paragraphs: [
             'HourX does not sell or trade customer data.',
-            'Any cross-border transfer of personal data described above is carried out in accordance with the safeguards required under UAE Federal Decree-Law No. 45 of 2021 on the Protection of Personal Data (PDPL).',
+            'Cross-border access and transfers are subject to applicable data protection requirements.',
           ],
         },
         {
@@ -254,61 +267,66 @@ export const LEGAL_DOCS: Record<LegalLocale, Record<LegalDocType, LegalDoc>> = {
         {
           heading: '6. Data Protection',
           paragraphs: [
-            'HourX uses secure systems and follows UAE Federal Decree-Law No. 45 of 2021 on the Protection of Personal Data (PDPL) and other applicable UAE data protection standards to safeguard personal information, applying appropriate technical and organizational measures to protect it from unauthorized access, loss, or misuse.',
+            'HourX uses technical and organizational safeguards designed to protect personal data from unauthorized access, loss, or misuse.',
           ],
         },
         {
           heading: 'Data Retention',
           paragraphs: [
-            'HourX retains personal data for as long as necessary to provide services, comply with legal, tax, and regulatory obligations (including UAE record-keeping requirements), and resolve disputes - typically for 2 years after account closure or the last booking, after which the data is securely deleted or anonymized.',
+            'HourX keeps personal data for as long as needed to provide services, meet legal, tax, or regulatory obligations, and resolve disputes. For customer records, this is typically 2 years after account closure or the last booking. HourX deletes or anonymizes the data when that period ends.',
+            'After account deletion, HourX may retain specific records needed for legal, tax, or regulatory obligations or to resolve disputes. HourX deletes or anonymizes those records when they are no longer needed.',
           ],
         },
         {
-          heading: '7. User Rights',
+          heading: '7. Your Rights and Privacy Contact',
           paragraphs: ['Users may request:'],
           bullets: [
             'Access to their data.',
             'Correction of inaccurate information.',
-            'Deletion of personal data, subject to legal requirements.',
+            'Deletion of your account and associated personal data, subject to the retention exceptions above.',
+          ],
+          links: [
+            privacyContact,
+            { label: 'Request account and data deletion', href: '/data-deletion' },
           ],
         },
         {
           heading: '8. Policy Updates',
           paragraphs: [
-            'HourX may update these Terms & Conditions and Privacy Policy. Continued use of the platform constitutes acceptance of updated terms.',
+            'HourX may update this Privacy Policy and will show the revision date on this page.',
           ],
         },
       ],
     },
     deletion: {
-      title: 'User Data Deletion Request',
-      lastUpdated: '____',
-      intro: 'HourX Portal Co. L.L.C S.O.C',
+      title: 'Account and Data Deletion Request',
+      lastUpdated: privacyRevision,
+      intro: 'HourX Portal Co. L.L.C S.O.C handles account and associated data deletion requests for HourX Home and HourX Supplier.',
       sections: [
         {
-          heading: 'How to Request Data Deletion',
+          heading: 'How to Request Account Deletion',
           paragraphs: [
-            'Users can request deletion of their data by sending an email to: support@hourxportal.com',
-            'Please include the following information in your request:',
+            'Email HourX support to request deletion of your account and associated personal data. You can submit a request even after uninstalling the app.',
+            'Include the following information in your request:',
           ],
           bullets: [
             'Your name',
-            'Phone number used on our platform',
-            'Description of your request',
+            'The app you use, HourX Home or HourX Supplier',
+            'The phone number or email address linked to your account',
+            'Whether you want to delete the account and its associated data or only specific personal data',
+          ],
+          links: [privacyContact],
+        },
+        {
+          heading: 'What Happens Next',
+          paragraphs: [
+            'HourX support will review your request within 7 business days and may contact you to verify account ownership. After verification, HourX will delete the account and its associated personal data, or the specific personal data you requested, subject to the retention exceptions below.',
           ],
         },
         {
-          heading: 'Processing Time',
+          heading: 'Records We May Need to Keep',
           paragraphs: [
-            'We will process your data deletion request within 7 business days after receiving your request.',
-          ],
-        },
-        {
-          heading: 'Contact Information',
-          paragraphs: [
-            'HourX Portal Co. L.L.C S.O.C',
-            'Dubai, United Arab Emirates',
-            'Email: support@hourxportal.com',
+            'HourX may retain specific booking, payment, or settlement records as needed to meet legal, tax, or regulatory obligations or to resolve disputes. HourX deletes or anonymizes these records when they are no longer needed.',
           ],
         },
       ],
@@ -495,32 +513,40 @@ export const LEGAL_DOCS: Record<LegalLocale, Record<LegalDocType, LegalDoc>> = {
     },
     privacy: {
       title: '隐私政策',
-      lastUpdated: '____',
+      lastUpdated: privacyRevision,
+      intro: 'HourX Portal Co. L.L.C S.O.C 位于阿联酋迪拜，运营 HourX Home、HourX Supplier 和 HourX 网站。本政策适用于使用这些服务的客户、供应商管理员和供应商员工。',
       sections: [
         {
           heading: '1. 我们收集的信息',
-          paragraphs: [
-            'HourX 收集账户资料（姓名、电子邮箱、电话）、预订历史、地址和服务地点、沟通记录，以及设备和使用数据。',
-            '付款信息由 Stripe 处理；HourX 不存储银行卡号。',
+          bullets: [
+            '账户及支持信息，包括姓名、电子邮箱、手机号、登录信息以及您与 HourX 的沟通记录。',
+            'HourX Home 的预订和付款记录，包括服务地址、预订历史、交易详情，以及已保存付款方式的银行卡品牌和末四位等信息。Stripe 处理银行卡付款，HourX 不存储完整卡号。',
+            '选择地址时使用的位置信息。当您在 HourX Home 中选择获取当前位置并授权时，App 可使用您的设备位置。您选择的服务地址和坐标可能随地址或预订一起保存。',
+            'HourX Home 的使用信息，包括 App 操作、设备或平台信息、App 生成的标识符和会话标识符。使用事件可能包含账户标识、姓名及相关预订或付款活动。',
+            'HourX Supplier 的企业及员工资料，包括供应商档案和联系方式、员工姓名和手机号、选填的电子邮箱及服务类别，以及订单分派记录。',
+            'HourX Supplier 的验证及结算资料，包括营业执照、保险或税务文件，以及 IBAN 等银行账户信息。我们也会接收您提交的服务记录和凭证照片。',
           ],
         },
         {
           heading: '2. 我们如何使用您的信息',
           paragraphs: ['您的数据用于：'],
           bullets: [
+            '验证用户身份、管理账户及审核供应商资质。',
             '管理预订和服务交付。',
+            '管理员工权限、订单分派、服务记录及供应商结算。',
             '发送更新和确认通知。',
-            '改善平台性能。',
+            '分析使用情况并改善平台性能。',
             '确保安全与合规。',
             '提供客户支持。',
           ],
         },
         {
           heading: '3. 信息共享',
-          paragraphs: ['HourX 仅与以下对象共享数据：'],
+          paragraphs: ['HourX 根据需要与以下各方共享信息：'],
           bullets: [
-            '经批准的服务商，用于预订和服务交付。',
+            '经批准的供应商及被分派的员工，用于预订和服务交付。授权的供应商管理员可使用相关信息管理所属组织和员工。',
             'Stripe，用于处理付款。',
+            'Google Maps，用于搜索地址、显示地图和查询位置。',
             '阿联酋法律要求时的主管机关。',
             'HourX 的技术、开发及平台管理团队，包括位于阿联酋境外、为维护、托管和运营平台而工作的人员；相关人员均受保密和数据保护义务约束。',
           ],
@@ -529,7 +555,7 @@ export const LEGAL_DOCS: Record<LegalLocale, Record<LegalDocType, LegalDoc>> = {
           heading: '信息共享保障',
           paragraphs: [
             'HourX 不出售或交易客户数据。',
-            '上述任何个人数据跨境传输均按照阿联酋《2021 年第 45 号个人数据保护联邦法令》（PDPL）要求的保障措施进行。',
+            '跨境访问和传输受适用的数据保护要求约束。',
           ],
         },
         {
@@ -548,61 +574,66 @@ export const LEGAL_DOCS: Record<LegalLocale, Record<LegalDocType, LegalDoc>> = {
         {
           heading: '6. 数据保护',
           paragraphs: [
-            'HourX 使用安全系统，并遵守阿联酋《2021 年第 45 号个人数据保护联邦法令》（PDPL）及其他适用的数据保护标准，通过适当的技术和组织措施保护个人信息，防止未经授权的访问、丢失或滥用。',
+            'HourX 通过技术和组织措施保护个人信息，防止未经授权的访问、丢失或滥用。',
           ],
         },
         {
           heading: '数据保留',
           paragraphs: [
-            'HourX 会在提供服务、履行法律、税务和监管义务（包括阿联酋记录保存要求）及解决争议所需的期限内保留个人数据，通常保留至账户关闭或最后一次预订后 2 年，之后安全删除或匿名化。',
+            'HourX 会在提供服务、履行法律、税务或监管义务及解决争议所需的期限内保留个人数据。客户记录通常保留至账户关闭或最后一次预订后 2 年，期满后删除或匿名化。',
+            '账户删除后，HourX 可能保留履行法律、税务或监管义务或解决争议所需的特定记录，并在相关用途结束后删除或匿名化这些记录。',
           ],
         },
         {
-          heading: '7. 用户权利',
+          heading: '7. 用户权利和隐私联系渠道',
           paragraphs: ['用户可以申请：'],
           bullets: [
             '访问其个人数据。',
             '更正不准确的信息。',
-            '在符合法律要求的前提下删除个人数据。',
+            '申请删除账户及关联个人数据，适用上述保留例外。',
+          ],
+          links: [
+            privacyContact,
+            { label: '申请删除账户及数据', href: '/data-deletion' },
           ],
         },
         {
           heading: '8. 政策更新',
           paragraphs: [
-            'HourX 可更新本服务条款及隐私政策。继续使用平台即表示接受更新后的条款。',
+            'HourX 可能更新本隐私政策，并在本页面显示更新日期。',
           ],
         },
       ],
     },
     deletion: {
-      title: '用户数据删除申请',
-      lastUpdated: '____',
-      intro: 'HourX Portal Co. L.L.C S.O.C',
+      title: '账户及数据删除申请',
+      lastUpdated: privacyRevision,
+      intro: 'HourX Portal Co. L.L.C S.O.C 处理 HourX Home 和 HourX Supplier 的账户及关联数据删除申请。',
       sections: [
         {
-          heading: '如何申请数据删除',
+          heading: '如何申请删除账户',
           paragraphs: [
-            '用户可通过发送邮件至 support@hourxportal.com 申请删除其数据。',
+            '请发送邮件给 HourX 支持团队，申请删除您的账户和关联个人数据。卸载 App 后，您仍可通过邮件提交申请。',
             '请在申请中提供以下信息：',
           ],
           bullets: [
             '您的姓名',
-            '在平台使用的手机号',
-            '删除申请说明',
+            '您使用的 App（HourX Home 或 HourX Supplier）',
+            '与账户绑定的手机号或电子邮箱',
+            '您希望删除账户及关联数据，还是只删除特定个人数据',
+          ],
+          links: [privacyContact],
+        },
+        {
+          heading: '申请处理流程',
+          paragraphs: [
+            'HourX 支持团队将在 7 个工作日内审核您的申请，并可能联系您验证账户归属。验证后，HourX 将按申请删除账户及关联个人数据，或删除您指定的个人数据。下文所述的保留例外适用。',
           ],
         },
         {
-          heading: '处理时效',
+          heading: '可能保留的记录',
           paragraphs: [
-            '我们将在收到申请后的 7 个工作日内完成数据删除处理。',
-          ],
-        },
-        {
-          heading: '联系方式',
-          paragraphs: [
-            'HourX Portal Co. L.L.C S.O.C',
-            '迪拜，阿联酋',
-            '邮箱：support@hourxportal.com',
+            'HourX 可能保留履行法律、税务或监管义务或解决争议所需的特定预订、付款或结算记录，并在相关用途结束后删除或匿名化这些记录。',
           ],
         },
       ],
