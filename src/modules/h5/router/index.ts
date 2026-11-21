@@ -1,5 +1,6 @@
 import { createRouter, createWebHashHistory, RouteRecordRaw } from 'vue-router';
 import { clearStoredAuthState, getStoredAuthSnapshot } from '@/utils/auth-state';
+import { trackPageView } from '@/modules/client/utils/metaPixel';
 
 const routes: RouteRecordRaw[] = [
   {
@@ -22,6 +23,11 @@ const routes: RouteRecordRaw[] = [
     path: '/profile',
     name: 'h5-profile',
     component: () => import('../pages/profile.vue'),
+  },
+  {
+    path: '/data-deletion',
+    name: 'h5-account-deletion',
+    component: () => import('@/modules/client/pages/data-deletion.vue'),
   },
   {
     path: '/join-us/apply',
@@ -125,6 +131,7 @@ router.afterEach((to) => {
   if (to.meta?.title) {
     document.title = String(to.meta.title);
   }
+  trackPageView();
 });
 
 export default router;

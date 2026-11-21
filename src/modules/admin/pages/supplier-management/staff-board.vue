@@ -837,7 +837,7 @@ onMounted(load)
 .staff-head h2 {
   margin: 0;
   color: #102033;
-  font-family: Fraunces, Georgia, serif;
+  font-family: var(--hx-font-sans);
   font-size: 40px;
   font-weight: 560;
   letter-spacing: -0.03em;

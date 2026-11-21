@@ -30,12 +30,13 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, onMounted } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRoute, useRouter } from 'vue-router';
 import { formatServiceSchedule } from '@/modules/client/utils/order-date-time';
 import { singleOrderReference } from '@/modules/client/utils/order-addons';
 import AddExtraServiceButton from '@/modules/client/components/AddExtraServiceButton.vue';
+import { trackPurchaseOnce } from '@/modules/client/utils/metaPixel';
 
 const props = withDefaults(defineProps<{ mobile?: boolean }>(), { mobile: false });
 const route = useRoute();
@@ -58,6 +59,17 @@ const addonReference = computed(() => singleOrderReference(route.query.orderId, 
 const addonOrderId = computed(() => addonReference.value?.orderId || '');
 const addonOrderNo = computed(() => addonReference.value?.orderNo || '');
 const canAddExtra = computed(() => listKind.value !== 'package' && Boolean(addonReference.value));
+onMounted(() => {
+  const reference = textQuery('orderNo') || textQuery('orderId');
+  trackPurchaseOnce({
+    orderId: reference,
+    contentIds: reference.split(/[,，]/),
+    contentName: textQuery('service'),
+    contentType: textQuery('kind') === 'package' ? 'product_group' : 'product',
+    value: textQuery('amount'),
+  });
+});
+
 const goAddExtra = () => {
   if (!canAddExtra.value) return;
   void router.push({

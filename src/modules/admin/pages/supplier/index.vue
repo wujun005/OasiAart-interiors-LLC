@@ -501,7 +501,7 @@
                   <p class="quote-sheet-hint">{{ t('admin.platformSuppliers.packagesHint') }}</p>
                 </div>
               </div>
-              <p v-if="!packageServiceRows.length" class="muted">{{ t('admin.platformSuppliers.noPackages') }}</p>
+              <p v-if="!packageRows.length" class="muted">{{ t('admin.platformSuppliers.noPackages') }}</p>
               <div v-else class="service-filters">
                 <el-input v-model.trim="packageKeyword" clearable :placeholder="t('admin.platformSuppliers.serviceSearch')" />
                 <el-select popper-class="supplier-review-select" v-model="packageCategoryFilter" clearable :placeholder="t('admin.platformSuppliers.category')">
@@ -514,15 +514,15 @@
                   <el-option :label="t('admin.supplierPricing.priceRejected')" :value="3" />
                 </el-select>
               </div>
-              <el-table v-if="packageServiceRows.length" :data="visiblePackageServices" row-key="key" :empty-text="t('admin.platformSuppliers.noPackages')" @row-click="openPackageQuote">
-                <el-table-column :label="t('admin.platformSuppliers.packageName')" min-width="160">
+              <el-table v-if="packageRows.length" :data="visiblePackageServices" row-key="key" :empty-text="t('admin.platformSuppliers.noPackages')" @row-click="openPackageQuote">
+                <el-table-column :label="t('admin.platformSuppliers.packageName')" min-width="180">
                   <template #default="{ row }"><b>{{ row.packageName }}</b></template>
                 </el-table-column>
                 <el-table-column :label="t('admin.platformSuppliers.category')" min-width="120">
                   <template #default="{ row }">{{ row.categoryName }}</template>
                 </el-table-column>
-                <el-table-column :label="t('admin.platformSuppliers.service')" min-width="160">
-                  <template #default="{ row }"><b>{{ serviceName(row) }}</b></template>
+                <el-table-column class-name="package-services-col" :label="t('admin.platformSuppliers.service')" min-width="200">
+                  <template #default="{ row }"><span class="package-service-names">{{ packageServiceText(row.serviceNames) }}</span></template>
                 </el-table-column>
                 <el-table-column :label="t('admin.platformSuppliers.quoteStatus')" width="144">
                   <template #default="{ row }">
@@ -533,10 +533,10 @@
                 <el-table-column :label="t('admin.platformSuppliers.actions')" min-width="224">
                   <template #default="{ row }">
                     <div class="row-actions" @click.stop>
-                      <button type="button" class="act navy" @click="openPackageQuote(row)">{{ Number(row.status) === 1 || Number(row.priceChangeStatus) === 1 ? t('admin.platformSuppliers.reviewQuote') : t('admin.platformSuppliers.viewQuote') }}</button>
+                      <button type="button" class="act navy" :disabled="!row.spuId" @click="openPackageQuote(row)">{{ Number(row.status) === 1 || Number(row.priceChangeStatus) === 1 ? t('admin.platformSuppliers.reviewQuote') : t('admin.platformSuppliers.viewQuote') }}</button>
                       <button v-if="canAction('btn:/admin/suppliers:quote-reject') && Number(row.status) === 1" type="button" class="act no" @click="openWholeQuoteReject(row)">{{ t('admin.platformSuppliers.rejectQuote') }}</button>
-                      <button v-if="canAction('btn:/admin/suppliers:price-approve') && Number(row.priceChangeStatus) === 1" type="button" class="act" @click="approvePriceChange(row)">{{ t('admin.platformSuppliers.approvePriceChange') }}</button>
-                      <button v-if="canAction('btn:/admin/suppliers:price-reject') && Number(row.priceChangeStatus) === 1" type="button" class="act no" @click="openPriceChangeReject(row)">{{ t('admin.platformSuppliers.rejectPriceChange') }}</button>
+                      <button v-if="canAction('btn:/admin/suppliers:price-approve') && Number(row.priceChangeStatus) === 1" type="button" class="act" @click="approvePriceChange(packagePriceChangeTarget(row))">{{ t('admin.platformSuppliers.approvePriceChange') }}</button>
+                      <button v-if="canAction('btn:/admin/suppliers:price-reject') && Number(row.priceChangeStatus) === 1" type="button" class="act no" @click="openPriceChangeReject(packagePriceChangeTarget(row))">{{ t('admin.platformSuppliers.rejectPriceChange') }}</button>
                     </div>
                   </template>
                 </el-table-column>
@@ -601,11 +601,11 @@
           <header class="quote-head">
             <div class="quote-head__copy">
               <div class="quote-head__title">
-                <h2>{{ skuDialogTitle }}</h2>
+                <h2>{{ packageQuoteReview && packageQuoteLabel ? packageQuoteLabel : skuDialogTitle }}</h2>
                 <span class="status-pill" :class="statusClass(skuStatus)">{{ quoteStatusLabel(skuStatus, skuStatusI18n) }}</span>
               </div>
               <p class="quote-head__meta">
-                <span v-if="packageQuoteLabel">{{ packageQuoteLabel }}</span>
+                <span v-if="packageQuoteReview && packageIncludedServices">{{ packageIncludedServices }}</span>
                 <span>{{ t('admin.platformSuppliers.reviewStatus') }}: {{ quoteStatusLabel(skuStatus, skuStatusI18n) }}</span>
                 <span>{{ t('admin.supplierPricing.quoteMode') }}: {{ quoteModeText }}</span>
               </p>
@@ -652,12 +652,14 @@
                   <strong>{{ hourlyRateText(skuUnitPrice, true) }}</strong>
                   <small v-if="quantityCompareLabel" class="hourly-review__compare" :class="{ 'is-negative': quantityCompareNegative }">{{ quantityCompareLabel }}</small>
                   <small v-else class="hourly-review__compare is-muted">{{ t('admin.platformSuppliers.quantityCompareMissingPrice') }}</small>
+                  <button type="button" class="act" @click="openQuoteRecord({ kind: 'unit', unit: 'unit', title: t('admin.platformSuppliers.quantityRateLabel') })">{{ t('admin.platformSuppliers.quoteRecord') }}</button>
                 </div>
                 <div v-else-if="staffHourQuote">
                   <span>{{ t('admin.platformSuppliers.hourlyRateLabel') }}</span>
                   <strong>{{ hourlyRateText(skuUnitPrice, true) }}</strong>
                   <small v-if="hourlyCompareLabel(null)" class="hourly-review__compare" :class="{ 'is-negative': hourlyCompareNegative(null) }">{{ hourlyCompareLabel(null) }}</small>
                   <small v-else class="hourly-review__compare is-muted">{{ hourlyCompareGapText(null) }}</small>
+                  <button type="button" class="act" @click="openQuoteRecord({ kind: 'unit', unit: 'unit', title: t('admin.platformSuppliers.hourlyRateLabel') })">{{ t('admin.platformSuppliers.quoteRecord') }}</button>
                 </div>
                 <template v-else>
                   <div>
@@ -665,12 +667,14 @@
                     <strong>{{ hourlyRateText(skuUnitPriceWithMaterial, true) }}</strong>
                     <small v-if="hourlyCompareLabel('with')" class="hourly-review__compare" :class="{ 'is-negative': hourlyCompareNegative('with') }">{{ hourlyCompareLabel('with') }}</small>
                     <small v-else class="hourly-review__compare is-muted">{{ hourlyCompareGapText('with') }}</small>
+                    <button type="button" class="act" @click="openQuoteRecord({ kind: 'unit', unit: 'with', title: t('admin.platformSuppliers.hourlyRateWithMaterial') })">{{ t('admin.platformSuppliers.quoteRecord') }}</button>
                   </div>
                   <div>
                     <span>{{ t('admin.platformSuppliers.hourlyRateWithoutMaterial') }}</span>
                     <strong>{{ hourlyRateText(skuUnitPriceWithoutMaterial, true) }}</strong>
                     <small v-if="hourlyCompareLabel('without')" class="hourly-review__compare" :class="{ 'is-negative': hourlyCompareNegative('without') }">{{ hourlyCompareLabel('without') }}</small>
                     <small v-else class="hourly-review__compare is-muted">{{ hourlyCompareGapText('without') }}</small>
+                    <button type="button" class="act" @click="openQuoteRecord({ kind: 'unit', unit: 'without', title: t('admin.platformSuppliers.hourlyRateWithoutMaterial') })">{{ t('admin.platformSuppliers.quoteRecord') }}</button>
                   </div>
                 </template>
               </div>
@@ -700,7 +704,6 @@
             <el-table-column v-for="column in skuColumns" :key="column.key" :label="specColumnLabel(column)" width="132" fixed="left">
               <template #default="{ row }">{{ specCell(row.specs[column.key]) }}</template>
             </el-table-column>
-            <el-table-column v-if="showSkuCodeColumn" label="SKU" prop="skuCode" width="112" fixed="left" />
             <el-table-column class-name="quote-price-col" label-class-name="quote-price-col" :label="t('admin.platformSuppliers.clientPrice')" min-width="176" align="right">
               <template #default="{ row }">{{ moneyText(clientPrice(row)) }}</template>
             </el-table-column>
@@ -715,6 +718,11 @@
             </el-table-column>
             <el-table-column class-name="quote-price-col" label-class-name="quote-price-col" :label="t('admin.platformSuppliers.effectivePrice')" min-width="128" align="right">
               <template #default="{ row }">{{ moneyText(row.approvedPrice) }}</template>
+            </el-table-column>
+            <el-table-column :label="t('admin.platformSuppliers.quoteRecord')" width="112" fixed="right">
+              <template #default="{ row }">
+                <button type="button" class="act" @click="openQuoteRecord({ kind: 'sku', id: row.skuId, title: skuRecordTitle(row) })">{{ t('admin.platformSuppliers.quoteRecord') }}</button>
+              </template>
             </el-table-column>
             <el-table-column :label="t('admin.platformSuppliers.lineReviewStatus')" width="168" fixed="right">
               <template #default="{ row }">
@@ -750,6 +758,7 @@
                 <small v-if="Number(item.reviewStatus) === 3 && item.rejectReason">{{ item.rejectReason }}</small>
               </div>
               <div class="sku-attach__side">
+                <button type="button" class="act" @click="openQuoteRecord({ kind: 'attach', id: item.attachValueId, title: attachName(item) })">{{ t('admin.platformSuppliers.quoteRecord') }}</button>
                 <el-tag v-if="attachEffectLabel(item)" :type="lineReviewTagType(item)" effect="light">{{ attachEffectLabel(item) }}</el-tag>
                 <span class="sku-attach__margin" :class="{ 'is-negative': Number(item.profitRate) < 0 }">{{ profitRateText(item.profitRate) }}</span>
                 <span>{{ item.offered ? moneyText(item.quotePrice) : t('admin.platformSuppliers.unavailable') }}</span>
@@ -769,6 +778,37 @@
         </section>
       </div>
     </section>
+
+    <el-dialog
+      v-model="quoteRecordOpen"
+      class="supplier-review-dialog"
+      :title="quoteRecordTitle"
+      width="min(720px, 92vw)"
+      append-to-body
+      @closed="closeQuoteRecord"
+    >
+      <p class="quote-record-hint">{{ supplierDecisionName(current) }} · {{ t('admin.platformSuppliers.quoteRecordHint') }}</p>
+      <el-skeleton v-if="quoteRecordLoading" :rows="3" animated />
+      <p v-else-if="quoteRecordFailed" class="quote-record-hint">
+        {{ t('admin.platformSuppliers.quoteRecordFailed') }}
+        <button type="button" class="act" @click="loadQuoteRecord">{{ t('admin.platformSuppliers.quoteHistory.retry') }}</button>
+      </p>
+      <p v-else-if="!quoteRecordRows.length" class="quote-record-hint">{{ t('admin.platformSuppliers.quoteRecordEmpty') }}</p>
+      <el-table v-else :data="quoteRecordRows" size="small">
+        <el-table-column :label="t('admin.platformSuppliers.quoteRecordPrice')" min-width="120">
+          <template #default="{ row }">{{ row.price }}</template>
+        </el-table-column>
+        <el-table-column :label="t('admin.platformSuppliers.quoteRecordMode')" min-width="120">
+          <template #default="{ row }">{{ row.mode }}</template>
+        </el-table-column>
+        <el-table-column :label="t('admin.platformSuppliers.quoteRecordStart')" min-width="168">
+          <template #default="{ row }">{{ row.start }}</template>
+        </el-table-column>
+        <el-table-column :label="t('admin.platformSuppliers.quoteRecordEnd')" min-width="168">
+          <template #default="{ row }">{{ row.end }}</template>
+        </el-table-column>
+      </el-table>
+    </el-dialog>
 
     <SupplierQuoteImportHistory
       v-model="quoteHistoryOpen"
@@ -863,6 +903,7 @@ import {
   reviewQuotePriceChange,
   platformSupplierQuoteServices,
   platformSupplierQuoteSkus,
+  platformQuotePriceSnapshots,
   supplierStaffPage,
   supplierPackageQuotes,
   exportPlatformQuoteSheet,
@@ -1121,14 +1162,24 @@ const documentGroups = computed(() => {
     ]),
   ]
   const extra = profile.extra && typeof profile.extra === 'object' ? profile.extra as Record<string, unknown> : {}
+  const httpFiles = (value: unknown) => toDocFiles(value).filter((file) => /^https?:\/\//i.test(file.url))
+  const taxFiles = httpFiles(profile.vatTrnFile)
+  const savedTaxFiles = taxFiles.length
+    ? taxFiles
+    : httpFiles(extra.vatTrnFile).length
+      ? httpFiles(extra.vatTrnFile)
+      : httpFiles(extra.vatFile)
+  if (savedTaxFiles.length) {
+    groups.push({ label: t('admin.platformSuppliers.vatCertificate'), answer: '', files: savedTaxFiles })
+  }
   const extraLabels: Record<string, string> = {
     tradeLicenseFile: t('admin.platformSuppliers.tradeLicense'),
     tradeLicenseFiles: t('admin.platformSuppliers.tradeLicense'),
     licenseFile: t('admin.platformSuppliers.tradeLicense'),
-    vatFile: t('admin.platformSuppliers.vatCertificate'),
     otherDocuments: t('admin.supplierProfile.otherDocuments'),
   }
   Object.entries(extra).forEach(([key, value]) => {
+    if (key === 'vatFile' || key === 'vatTrnFile') return
     const files = toDocFiles(value).filter((file) => /^https?:\/\//i.test(file.url))
     if (files.length) groups.push({ label: extraLabels[key] || key, answer: '', files })
   })
@@ -1308,8 +1359,6 @@ const lineStatusCounts = computed(() => {
   if (counts.none) items.push({ key: 'none', label: t('admin.platformSuppliers.quoteNone'), count: counts.none, tone: 'is-draft' })
   return items
 })
-const showSkuCodeColumn = computed(() => !skuColumns.value.length || reviewSkuRows.value.some((row) =>
-  skuColumns.value.every((column) => specCell(row?.specs?.[column.key]) === '—')))
 const mergeAttachSource = (catalogAttaches: any[], quoteAttaches: any[]) => {
   const saved = Array.isArray(quoteAttaches) ? quoteAttaches : []
   if (!catalogAttaches.length) return saved
@@ -1354,47 +1403,85 @@ const packageLabel = (names: unknown, fallback?: unknown) => {
   const text = pickI18nText(names && typeof names === 'object' ? names as Record<string, unknown> : undefined, locale.value, '')
   return text || (fallback == null ? '' : String(fallback))
 }
-const packageServiceRows = computed(() => packageQuotes.value.flatMap((pkg) => {
-  const servicesInPackage = Array.isArray(pkg?.services) ? pkg.services : []
-  return servicesInPackage.filter((service: any) => service?.available !== false && Number(service?.spuId) > 0).map((service: any) => ({
-    key: `${pkg.packageId}-${service.spuId}`,
-    packageId: Number(pkg.packageId),
+const packageServiceRecord = (service: any) => ({
+  spuId: Number(service.spuId),
+  spuName: service.spuName,
+  nameI18n: service.nameI18n,
+  status: service.status,
+  statusI18n: service.statusI18n,
+  rejectReason: service.rejectReason || '',
+  priceChangeStatus: service.priceChangeStatus,
+  priceChangeReason: service.priceChangeReason || '',
+  skuIds: (Array.isArray(service.skus) ? service.skus : []).map((sku: any) => Number(sku?.skuId)).filter((id: number) => id > 0),
+  attachIds: (Array.isArray(service.attaches) ? service.attaches : []).map((item: any) => Number(item?.attachValueId)).filter((id: number) => id > 0),
+})
+const packageOpenService = (services: Array<{ status?: number; priceChangeStatus?: number }>) =>
+  services.find((service) => Number(service.status) === 1)
+  || services.find((service) => Number(service.priceChangeStatus) === 1)
+  || services.find((service) => Number(service.status) === 2)
+  || services.find((service) => Number(service.status) === 3)
+  || services[0]
+const packageRows = computed(() => packageQuotes.value.flatMap((pkg) => {
+  const packageId = Number(pkg?.packageId)
+  if (!packageId) return []
+  const services = (Array.isArray(pkg?.services) ? pkg.services : [])
+    .filter((service: any) => service?.available !== false && Number(service?.spuId) > 0)
+    .map(packageServiceRecord)
+  const localizedNames = services.map((service) => serviceName(service)).filter((name) => name && name !== '—')
+  const fallbackNames = (Array.isArray(pkg?.serviceNames) ? pkg.serviceNames : [])
+    .map((name: unknown) => String(name || '').trim())
+    .filter(Boolean)
+  const priceChange = services.find((service) => Number(service.priceChangeStatus) === 1)
+  const opened = packageOpenService(services)
+  return [{
+    key: String(packageId),
+    packageId,
     packageName: packageLabel(pkg.nameI18n, pkg.packageName) || '—',
     categoryName: packageLabel(pkg.categoryNameI18n, pkg.categoryName) || '—',
-    spuId: Number(service.spuId),
-    spuName: service.spuName,
-    nameI18n: service.nameI18n,
-    status: service.status,
-    statusI18n: service.statusI18n,
-    rejectReason: service.rejectReason || '',
-    priceChangeStatus: service.priceChangeStatus,
-    priceChangeReason: service.priceChangeReason || '',
-    skuIds: (Array.isArray(service.skus) ? service.skus : []).map((sku: any) => Number(sku?.skuId)).filter((id: number) => id > 0),
-    attachIds: (Array.isArray(service.attaches) ? service.attaches : []).map((item: any) => Number(item?.attachValueId)).filter((id: number) => id > 0),
-  }))
+    serviceNames: localizedNames.length ? localizedNames : fallbackNames,
+    services,
+    spuId: opened?.spuId,
+    status: pkg.status,
+    statusI18n: pkg.statusI18n,
+    effective: pkg.effective === true,
+    rejectReason: opened?.rejectReason || '',
+    priceChangeStatus: priceChange ? 1 : undefined,
+    priceChangeReason: priceChange?.priceChangeReason || '',
+  }]
 }))
-const packageCategoryOptions = computed(() => [...new Set(packageServiceRows.value.map((row) => row.categoryName).filter((name) => name && name !== '—'))])
-const visiblePackageServices = computed(() => packageServiceRows.value.filter((row) => {
+const packageServiceText = (names: unknown) => {
+  const list = (Array.isArray(names) ? names : []).map((name) => String(name || '').trim()).filter(Boolean)
+  return list.join(locale.value.startsWith('zh') ? '、' : ', ') || '—'
+}
+const packageCategoryOptions = computed(() => [...new Set(packageRows.value.map((row) => row.categoryName).filter((name) => name && name !== '—'))])
+const visiblePackageServices = computed(() => packageRows.value.filter((row) => {
   const keyword = packageKeyword.value.trim().toLowerCase()
-  if (keyword && !`${row.packageName} ${serviceName(row)}`.toLowerCase().includes(keyword)) return false
+  if (keyword && !`${row.packageName} ${row.serviceNames.join(' ')}`.toLowerCase().includes(keyword)) return false
   if (packageCategoryFilter.value && row.categoryName !== packageCategoryFilter.value) return false
   if (packageStatusFilter.value !== '' && Number(row.status) !== Number(packageStatusFilter.value)) return false
   return true
 }))
 const packageQuoteLabel = computed(() => {
   const packageId = Number(route.query.package)
-  const spuId = Number(route.query.spu)
-  const row = packageServiceRows.value.find((item) => item.packageId === packageId && item.spuId === spuId)
+  const row = packageRows.value.find((item) => item.packageId === packageId)
   return row?.packageName && row.packageName !== '—' ? row.packageName : ''
 })
-const packageSkuIdSet = (packageId: number, spuId: number) => {
-  const row = packageServiceRows.value.find((item) => item.packageId === packageId && item.spuId === spuId)
-  return new Set(row?.skuIds || [])
+const packageIncludedServices = computed(() => {
+  const packageId = Number(route.query.package)
+  const row = packageRows.value.find((item) => item.packageId === packageId)
+  const text = packageServiceText(row?.serviceNames)
+  return text === '—' ? '' : text
+})
+const packagePriceChangeTarget = (row: { services?: any[]; packageId?: number }) => {
+  const service = (row.services || []).find((item) => Number(item?.priceChangeStatus) === 1)
+  return service ? { ...service, packageId: row.packageId } : row
 }
-const packageAttachIdSet = (packageId: number, spuId: number) => {
-  const row = packageServiceRows.value.find((item) => item.packageId === packageId && item.spuId === spuId)
-  return new Set(row?.attachIds || [])
+const packageServiceOf = (packageId: number, spuId: number) => {
+  const row = packageRows.value.find((item) => item.packageId === packageId)
+  return row?.services.find((service) => service.spuId === spuId)
 }
+const packageSkuIdSet = (packageId: number, spuId: number) => new Set(packageServiceOf(packageId, spuId)?.skuIds || [])
+const packageAttachIdSet = (packageId: number, spuId: number) => new Set(packageServiceOf(packageId, spuId)?.attachIds || [])
 const quoteSpuId = (value: unknown) => {
   const id = Number(value)
   return Number.isInteger(id) && id > 0 ? id : 0
@@ -1556,7 +1643,7 @@ const marginText = (row: { platformPrice?: unknown; platformOriginalPrice?: unkn
   const client = Number(clientPrice(row))
   const quote = Number(row.quotePrice)
   if (!Number.isFinite(client) || client <= 0 || !Number.isFinite(quote)) return '—'
-  return `${Math.round(((client - quote) / client) * 100)}%`
+  return profitRateText((client - quote) / client)
 }
 const profitRateText = (value: unknown) => {
   if (value == null || value === '') return '—'
@@ -1602,6 +1689,89 @@ const specText = (value: unknown) => {
   const nested = record.nameI18n
   const source = nested && typeof nested === 'object' ? nested as Record<string, unknown> : record
   return pickI18nText(source, locale.value, '—') || '—'
+}
+type QuoteRecordTarget = {
+  kind: 'sku' | 'attach' | 'unit'
+  id?: number
+  unit?: 'unit' | 'with' | 'without'
+  title: string
+}
+type QuoteRecordRow = { price: string; mode: string; start: string; end: string }
+const quoteRecordOpen = ref(false)
+const quoteRecordLoading = ref(false)
+const quoteRecordFailed = ref(false)
+const quoteRecordTitle = ref('')
+const quoteRecordRows = ref<QuoteRecordRow[]>([])
+let quoteRecordTarget: QuoteRecordTarget | null = null
+let quoteRecordRequest = 0
+const skuRecordTitle = (row: { groupValue?: string; skuCode?: string; skuId?: number; specs?: Record<string, unknown> }) => {
+  const specs = Object.values(row.specs || {}).map((value) => specCell(value)).filter((value) => value && value !== '—')
+  const parts = [row.groupValue, ...specs].filter((value) => value && value !== '—')
+  return parts.join(' · ') || String(row.skuCode || row.skuId || t('admin.platformSuppliers.quoteRecord'))
+}
+const quoteRecordMode = (row: { quoteModeI18n?: Record<string, unknown> | null; quoteMode?: number }) => {
+  const text = pickI18nText(row.quoteModeI18n || undefined, locale.value, '')
+  if (text) return text
+  const mode = Number(row.quoteMode)
+  if (mode === 4) return t('admin.platformSuppliers.quantityPrice')
+  if (mode === 3) return t('admin.platformSuppliers.personHour')
+  if (mode === 2) return t('admin.platformSuppliers.unitPrice')
+  if (mode === 1) return t('admin.platformSuppliers.fixedPrice')
+  return '—'
+}
+const quoteRecordPrice = (value: unknown) => {
+  const text = moneyText(value)
+  return text === '—' ? '—' : `AED ${text}`
+}
+function closeQuoteRecord() {
+  quoteRecordRequest += 1
+  quoteRecordRows.value = []
+  quoteRecordFailed.value = false
+  quoteRecordTarget = null
+}
+async function loadQuoteRecord() {
+  const target = quoteRecordTarget
+  const supplierId = Number(detailId.value)
+  if (!target || !supplierId) return
+  const request = ++quoteRecordRequest
+  quoteRecordLoading.value = true
+  quoteRecordFailed.value = false
+  try {
+    const params: { supplierId: number; spuId?: number; skuId?: number; attachValueId?: number } = { supplierId }
+    if (target.kind === 'sku') params.skuId = Number(target.id)
+    else if (target.kind === 'attach') params.attachValueId = Number(target.id)
+    else params.spuId = Number(skuTarget.value?.spuId || route.query.spu)
+    const selected = params.skuId || params.attachValueId || params.spuId
+    if (!selected) throw new Error('missing target')
+    const data = unwrap(await platformQuotePriceSnapshots(params))
+    if (request !== quoteRecordRequest) return
+    const unitType = target.kind === 'unit'
+      ? (target.unit === 'with' ? 'UNIT_WITH_MATERIAL' : target.unit === 'without' ? 'UNIT_WITHOUT_MATERIAL' : 'UNIT')
+      : ''
+    const rows = Array.isArray(data) ? data : []
+    quoteRecordRows.value = rows
+      .filter((row: { targetType?: string }) => !unitType || row?.targetType === unitType)
+      .map((row: { price?: unknown; quoteMode?: number; quoteModeI18n?: Record<string, unknown> | null; startTime?: string; endTime?: string }) => ({
+        price: quoteRecordPrice(row?.price),
+        mode: quoteRecordMode(row),
+        start: String(row?.startTime || '').trim() || '—',
+        end: String(row?.endTime || '').trim() || t('admin.platformSuppliers.quoteRecordCurrent'),
+      }))
+  } catch {
+    if (request !== quoteRecordRequest) return
+    quoteRecordRows.value = []
+    quoteRecordFailed.value = true
+  } finally {
+    if (request === quoteRecordRequest) quoteRecordLoading.value = false
+  }
+}
+function openQuoteRecord(target: QuoteRecordTarget) {
+  quoteRecordTarget = target
+  quoteRecordTitle.value = target.title || t('admin.platformSuppliers.quoteRecord')
+  quoteRecordRows.value = []
+  quoteRecordFailed.value = false
+  quoteRecordOpen.value = true
+  void loadQuoteRecord()
 }
 const formatTime = (value?: string) => {
   if (!value) return '—'
@@ -1826,6 +1996,17 @@ const clearReviewFilters = () => {
   onboardingStatus.value = ''
   queueFocus.value = ''
   needReview.value = ''
+}
+const quoteQueueRouteQuery = computed(() => {
+  if (!quoteDesk.value || detailId.value || quoteScope.value !== 'services') return null
+  return [route.query.quoteStatus, route.query.queueFocus] as const
+})
+const applyQuoteQueueQuery = ([status, focus]: readonly [unknown, unknown]) => {
+  const nextStatus = typeof status === 'string' && /^[0-3]$/.test(status) ? Number(status) : ''
+  const nextFocus = focus === 'priceChange' ? focus : ''
+  if (nextStatus !== '' || nextFocus) clearReviewFilters()
+  quoteStatus.value = nextFocus ? '' : nextStatus
+  queueFocus.value = nextFocus
 }
 const applyOnboardingFilter = (status: number) => {
   if (!Number.isFinite(status)) return
@@ -2227,6 +2408,7 @@ const openQuote = (row: { spuId?: number }) => {
   })
 }
 const openPackageQuote = (row: { spuId?: number; packageId?: number }) => {
+  if (!row?.spuId) return
   router.push({
     path: QUOTE_DESK_PATH,
     query: {
@@ -2422,7 +2604,7 @@ const refreshCurrentQuote = async () => {
   await loadReview(detailId.value)
   await loadSuppliers()
   const current = packageId
-    ? packageServiceRows.value.find((item) => item.packageId === packageId && item.spuId === spuId) || { ...skuTarget.value, spuId, packageId }
+    ? packageServiceOf(packageId, spuId) || { ...skuTarget.value, spuId, packageId }
     : services.value.find((item) => Number(item.spuId) === spuId) || skuTarget.value
   await openSkus(current)
 }
@@ -2827,7 +3009,8 @@ const specSheetText = (specs: Record<string, unknown>, columns: { key: string }[
   .join(' · ')
 
 const loadServicePriceRows = async (row: any) => {
-  const quote = unwrap(await platformSupplierQuoteSkus(detailId.value as number, row.spuId)) || {}
+  const packageId = Number(row?.packageId) || 0
+  const quote = unwrap(await platformSupplierQuoteSkus(detailId.value as number, row.spuId, packageId || undefined)) || {}
   const quoteSkus = Array.isArray(quote.skus) ? quote.skus : []
   let columns: { key: string; nameI18n: Record<string, unknown> | null; fallback: string }[] = []
   let specSkus: any[] = []
@@ -3140,7 +3323,7 @@ const openSkus = async (row: any) => {
   skuLoading.value = true
   lineRejectReason.value = ''
   try {
-    const quote = unwrap(await platformSupplierQuoteSkus(detailId.value, row.spuId)) || {}
+    const quote = unwrap(await platformSupplierQuoteSkus(detailId.value, row.spuId, packageId || undefined)) || {}
     skuStatus.value = quote.status ?? row.status
     skuVersionNo.value = quote.versionNo == null ? undefined : Number(quote.versionNo)
     skuStatusI18n.value = quote.statusI18n || row.statusI18n || null
@@ -3307,7 +3490,7 @@ watch(() => [detailId.value, String(route.query.view || ''), String(route.query.
   }
   const sameSupplier = Number(current.value?.id) === id
   const listed = packageId
-    ? packageServiceRows.value.some((item) => item.packageId === packageId && item.spuId === spu)
+    ? packageRows.value.some((item) => item.packageId === packageId && item.services.some((service) => service.spuId === spu))
     : services.value.some((item) => Number(item.spuId) === spu)
   const sameTarget = Number(skuTarget.value?.spuId) === spu && Number(skuTarget.value?.packageId || 0) === packageId
   if (sameSupplier && listed && sameTarget) {
@@ -3321,7 +3504,7 @@ watch(() => [detailId.value, String(route.query.view || ''), String(route.query.
     if (ticket !== reviewTicket) return
     if (detailId.value !== id || String(route.query.view || '') !== 'quote' || Number(route.query.spu) !== spu || (Number(route.query.package) || 0) !== packageId) return
     const row = packageId
-      ? packageServiceRows.value.find((item) => item.packageId === packageId && item.spuId === spu) || { spuId: spu, packageId }
+      ? { ...(packageServiceOf(packageId, spu) || { spuId: spu }), packageId }
       : services.value.find((item) => Number(item.spuId) === spu) || { spuId: spu }
     await openSkus(row)
   } finally {
@@ -3341,11 +3524,21 @@ watch(() => route.query.onboardingStatus, (value) => {
   if (!detailId.value) loadSuppliers()
 })
 
+watch(quoteQueueRouteQuery, (query, previous) => {
+  if (!query || query.every((value, index) => value === previous?.[index])) return
+  applyQuoteQueueQuery(query)
+  void search()
+})
+
 watch([detailId, detailTab], () => {
   if (detailTab.value === 'staff') loadStaffAccounts()
 }, { immediate: true })
 
-onMounted(loadSuppliers)
+onMounted(() => {
+  const query = quoteQueueRouteQuery.value
+  if (query?.some((value) => value !== undefined)) applyQuoteQueueQuery(query)
+  void loadSuppliers()
+})
 </script>
 
 <style scoped>
@@ -3361,7 +3554,7 @@ onMounted(loadSuppliers)
 }
 .supplier-review :deep(.el-select__wrapper) { min-height: 26px; padding: 3px 10px; font-size: 12px; line-height: 20px; }
 .supplier-review :deep(.el-select__input) { height: 20px; font-size: 12px; }
-.supplier-review__head h1 { margin: 0 0 5px; color: #05152b; font-family: Georgia, serif; font-size: 22px; font-weight: 500; }
+.supplier-review__head h1 { margin: 0 0 5px; color: #05152b; font-size: 22px; font-weight: 500; }
 .supplier-review__head p { margin: 0 0 13px; color: #6d7686; }
 .review-chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 11px; }
 .review-chip { display: inline-flex; align-items: center; gap: 6px; padding: 6px 10px; border: 1px solid #e4e9f0; border-radius: 999px; background: #fff; color: #05152b; font: inherit; font-size: 11px; cursor: pointer; }
@@ -3382,6 +3575,8 @@ button.status-pill:hover { box-shadow: inset 0 0 0 1px rgba(5, 21, 43, 0.2); }
 .board :deep(small) { display: block; color: #6d7686; font-size: 11px; }
 .pill { display: inline-flex; margin: 0 3px 3px 0; padding: 2px 6px; border-radius: 999px; background: #eef2f7; color: #05152b; font-size: 11px; }
 .status-pill { display: inline-flex; align-items: center; padding: 2px 6px; border-radius: 999px; background: #eef2f7; color: #526070; font-size: 11px; font-weight: 650; }
+.supplier-review :deep(.package-services-col .cell) { white-space: normal; }
+.package-service-names { display: block; line-height: 1.45; }
 .status-pill.pending { background: #fff4df; color: #9a6700; }
 .status-pill.ok { background: #e7f6ee; color: #1f7a4a; }
 .status-pill.bad { background: #fdecec; color: #b42318; }
@@ -3473,6 +3668,8 @@ button.status-pill:hover { box-shadow: inset 0 0 0 1px rgba(5, 21, 43, 0.2); }
 .hourly-review { display: flex; align-items: center; justify-content: space-between; gap: 13px; margin-bottom: 11px; padding: 13px 14px; background: #f7f3ec; border: 1px solid #eadfce; border-radius: 11px; }
 .hourly-review__content { flex: 1; min-width: 0; }
 .hourly-review__rates { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px 19px; margin-bottom: 6px; }
+.hourly-review__rates .act { margin-top: 8px; }
+.quote-record-hint { margin: 0 0 12px; color: #6d7686; font-size: 12px; line-height: 1.5; }
 .hourly-review span { display: block; color: #74685a; font-size: 11px; font-weight: 700; }
 .hourly-review strong { display: block; margin: 3px 0; color: #05152b; font-size: 22px; line-height: 1.1; }
 .hourly-review__compare { display: block; max-width: 320px; color: #33445a; font-size: 12px; font-weight: 650; line-height: 1.45; }

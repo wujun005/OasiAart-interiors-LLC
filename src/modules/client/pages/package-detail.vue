@@ -22,14 +22,16 @@
       @select-shared-spec="selectSharedSpec"
       @toggle-separate-specs="toggleSeparateSpecs"
     />
-    <div v-else class="product-detail-page">
+    <div v-else class="product-detail-page product-detail-page--package">
     <section class="product-detail-subheader">
       <div class="product-detail-container">
         <nav class="product-detail-back" aria-label="breadcrumb">
+          <RouterLink class="product-detail-back__link" to="/">{{ t('client.header.nav.home') }}</RouterLink>
+          <span class="product-detail-back__separator" aria-hidden="true">&rsaquo;</span>
           <RouterLink class="product-detail-back__link" :to="{ name: 'packages' }">
             {{ t('client.home.packages.detailBack') }}
           </RouterLink>
-          <span class="product-detail-back__separator" aria-hidden="true">&lt;</span>
+          <span class="product-detail-back__separator" aria-hidden="true">&rsaquo;</span>
           <span class="product-detail-back__current">{{ view?.title || t(loading ? 'client.productDetail.loading' : 'client.home.packages.unavailable') }}</span>
         </nav>
       </div>
@@ -44,50 +46,40 @@
       <div v-else-if="view" class="product-detail-container product-detail-layout">
         <div class="product-main">
           <section class="product-gallery">
-            <div v-if="galleryImages.length" class="product-gallery__thumbs">
-              <button
-                v-for="(image, index) in galleryImages"
-                :key="`thumb-${index}`"
-                class="product-gallery__thumb"
-                :class="{ 'product-gallery__thumb--active': index === selectedImageIndex }"
-                type="button"
-                @click="selectedImageIndex = index"
-              >
-                <img :src="image" :alt="view.title" />
-              </button>
-            </div>
-
             <div class="product-gallery__hero" :class="{ 'is-empty': !galleryImages.length }">
               <img v-if="heroImage" :src="heroImage" :alt="view.title" />
               <span v-else class="product-gallery__empty">{{ view.mark }}</span>
-              <button
-                v-if="galleryImages.length > 1"
-                class="product-gallery__arrow product-gallery__arrow--prev"
-                type="button"
-                :aria-label="t('client.productDetail.previousImage')"
-                @click="showPreviousImage"
-              >
-                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 18-6-6 6-6" /></svg>
-              </button>
-              <button
-                v-if="galleryImages.length > 1"
-                class="product-gallery__arrow product-gallery__arrow--next"
-                type="button"
-                :aria-label="t('client.productDetail.nextImage')"
-                @click="showNextImage"
-              >
-                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 18 6-6-6-6" /></svg>
-              </button>
-              <div v-if="galleryImages.length > 1" class="product-gallery__dots">
+              <div v-if="galleryImages.length > 1" class="product-gallery__thumbs">
                 <button
                   v-for="(image, index) in galleryImages"
-                  :key="`dot-${image}-${index}`"
+                  :key="`thumb-${index}`"
                   type="button"
-                  class="product-gallery__dot"
-                  :class="{ 'product-gallery__dot--active': index === selectedImageIndex }"
+                  class="product-gallery__thumb"
                   :aria-label="`${view.title} image ${index + 1}`"
+                  :aria-pressed="index === selectedImageIndex"
                   @click="selectedImageIndex = index"
-                />
+                >
+                  <img :src="image" alt="" />
+                </button>
+              </div>
+              <div v-if="galleryImages.length > 1" class="product-gallery__controls">
+                <button
+                  class="product-gallery__arrow"
+                  type="button"
+                  :aria-label="t('client.productDetail.previousImage')"
+                  @click="showPreviousImage"
+                >
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 18-6-6 6-6" /></svg>
+                </button>
+                <span role="status">{{ selectedImageIndex + 1 }} / {{ galleryImages.length }}</span>
+                <button
+                  class="product-gallery__arrow"
+                  type="button"
+                  :aria-label="t('client.productDetail.nextImage')"
+                  @click="showNextImage"
+                >
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 18 6-6-6-6" /></svg>
+                </button>
               </div>
             </div>
           </section>
@@ -173,7 +165,7 @@
                     <path d="M12 11v5M12 8h.01" />
                   </svg>
                 </span>
-                <h2>{{ t('client.productDetail.noticeTitle') }}</h2>
+                <h2>{{ t('client.home.packages.terms') }}</h2>
               </div>
               <div v-if="view.noticeHtml" class="product-rich-text" v-html="view.noticeHtml" />
               <p v-else class="product-card__empty">{{ t('client.productDetail.emptyDesc') }}</p>
@@ -185,7 +177,10 @@
                   </span>
                   <h2>{{ t('client.productDetail.reviewsTitle') }}</h2>
                 </div>
-                <p class="product-card__empty">{{ t('client.productDetail.emptyReviews') }}</p>
+                <p class="product-card__empty">
+                  <strong>{{ t('client.productDetail.emptyReviews') }}</strong><br />
+                  {{ t('client.productDetail.emptyReviewsHint') }}
+                </p>
               </section>
             </div>
           </section>
@@ -195,7 +190,7 @@
           <section class="booking-card">
             <div class="booking-card__scroll">
             <div class="booking-card__hero">
-              <span class="booking-card__eyebrow">{{ t('client.productDetail.pageTitle') }}</span>
+              <span v-if="view.save" class="booking-price-card__save">{{ view.save }}</span>
               <h1>{{ view.title }}</h1>
               <div v-if="view.tags.length" class="biz-tags">
                 <span v-for="tag in view.tags" :key="tag">{{ tag }}</span>
@@ -216,15 +211,19 @@
             </div>
 
             <div class="booking-price-card" :aria-busy="priceLoading">
-              <span class="booking-price-card__label">{{ t('client.home.packages.dealPrice') }}</span>
-              <div class="booking-price-card__row">
-                <div class="booking-price-card__main"><span v-if="priceReady">AED</span><strong>{{ view.saleAmount == null ? '—' : view.saleAmount.toFixed(2) }}</strong></div>
-                <div v-if="view.original" class="booking-price-card__offer">
-                  <del>AED {{ view.original }}</del>
-                  <span v-if="view.save">{{ view.save }}</span>
-                </div>
+              <div class="booking-price-card__top">
+                <span class="booking-price-card__label">{{ t('client.home.packages.dealPrice') }}</span>
               </div>
-              <p v-if="view.perVisit" class="package-price-per-visit">{{ view.perVisit }}</p>
+              <div class="booking-price-card__row">
+                <div class="booking-price-card__main">
+                  <span v-if="priceReady">AED</span>
+                  <strong>{{ view.saleAmount == null ? '—' : view.saleAmount.toFixed(2) }}</strong>
+                  <template v-if="view.original">
+                    <del>AED {{ view.original }}</del>
+                  </template>
+                </div>
+                <p v-if="view.perVisit" class="package-price-per-visit">{{ view.perVisit }}</p>
+              </div>
               <div v-if="!priceReady" class="package-price-status" :class="{ 'is-error': !!priceError }" role="status">
                 <span>{{ priceLoading ? t('client.home.packages.priceLoading') : priceError || t('client.home.packages.chooseSkuRequired') }}</span>
                 <button v-if="priceError" type="button" @click="loadPrice">{{ t('client.home.packages.retryPrice') }}</button>
@@ -280,7 +279,7 @@
               <div class="booking-summary__caption">{{ t('client.productDetail.booking.summaryTitle') }}</div>
               <div class="booking-summary__row">
                 <span>
-                  {{ t('client.productDetail.booking.selectedService') }}
+                  {{ t('client.home.packages.subtotal') }}
                   <small>{{ [view.title, view.perVisit, view.save].filter(Boolean).join(' · ') }}</small>
                 </span>
                 <strong>{{ formatAed(view.saleAmount) }}</strong>
@@ -317,7 +316,7 @@
                 <rect x="4" y="5" width="16" height="15" rx="2" />
                 <path d="M8 3v4M16 3v4M4 10h16" />
               </svg>
-              {{ t('client.productDetail.booking.flexiblePolicy') }}
+              {{ t('client.home.packages.checkoutHint') }}
             </p>
             </div>
           </section>
@@ -346,6 +345,7 @@ import { useCart } from '@/modules/client/composables/useCart'
 import PackageDetailMobile from '@/modules/h5/components/PackageDetailMobile.vue'
 import PackageSharedSpecs from '@/modules/client/components/PackageSharedSpecs.vue'
 import { getStoredAuthSnapshot, clearStoredAuthState } from '@/utils/auth-state'
+import { trackAddToCart, trackViewContent } from '@/modules/client/utils/metaPixel'
 
 const props = withDefaults(defineProps<{
   platform?: 'client' | 'h5'
@@ -384,7 +384,7 @@ const activeDetailTab = ref<DetailTabKey>('description')
 const detailTabs = computed(() => [
   { key: 'description' as const, label: t('client.productDetail.serviceDescription') },
   { key: 'includes' as const, label: t('client.productDetail.includesTitle') },
-  { key: 'notice' as const, label: t('client.productDetail.noticeTitle') },
+  { key: 'notice' as const, label: t('client.home.packages.terms') },
   { key: 'reviews' as const, label: t('client.productDetail.reviewsTitle') },
 ])
 const handleDetailTabKeydown = (event: KeyboardEvent, currentKey: DetailTabKey) => {
@@ -599,7 +599,9 @@ const view = computed(() => {
     noticeHtml: asHtml(pickRaw(card.bookingNoticeI18n)),
     saleAmount: sale,
     original: original != null && sale != null && original > sale ? money(original) : '',
-    perVisit: sale != null && visits > 1 ? t('client.home.packages.perVisit', { price: money(sale / visits) }) : '',
+    perVisit: sale != null && visits > 1
+      ? t('client.home.packages.perVisitTimes', { price: money(sale / visits), count: visits })
+      : '',
     save: saved > 0 ? t('client.home.packages.save', { price: money(saved) }) : '',
     validDays: Number(card.validDays) > 0 ? t('client.home.packages.validDays', { days: card.validDays }) : '',
     vat: quote?.taxPrice ?? null,
@@ -677,6 +679,14 @@ const load = async (id: string) => {
     detailPackageId.value = id
     detail.value = hydrated
     missing.value = !view.value
+    if (view.value) {
+      trackViewContent({
+        contentId: id,
+        contentName: view.value.title,
+        contentType: 'product_group',
+        value: view.value.saleAmount,
+      })
+    }
   } catch (error) {
     if (requestSeq !== loadRequestSeq) return
     console.error('load package detail failed:', error)
@@ -777,6 +787,12 @@ const addToCart = async () => {
   try {
     await addPackage(packageId, selections)
     if (String(route.params.id || '').trim() !== packageId) return
+    trackAddToCart({
+      contentId: packageId,
+      contentName: view.value?.title,
+      contentType: 'product_group',
+      value: view.value?.saleAmount,
+    })
     ElMessage.success(t('client.home.packages.added'))
     await router.push({ name: routeNames.value.cart })
   } catch (error: any) {
@@ -862,7 +878,7 @@ onBeforeUnmount(() => {
   align-content: center;
   justify-items: center;
   gap: 16px;
-  color: #61738a;
+  color: var(--hourx-client-muted);
   text-align: center;
 }
 
@@ -870,9 +886,6 @@ onBeforeUnmount(() => {
 .package-detail-state a { color: var(--hourx-brand); }
 .product-detail-back__link { text-decoration: none; }
 
-.product-gallery:not(:has(.product-gallery__thumbs)) {
-  grid-template-columns: minmax(0, 1fr);
-}
 
 .product-gallery__hero.is-empty {
   display: grid;
@@ -907,13 +920,13 @@ onBeforeUnmount(() => {
 }
 
 .package-includes strong {
-  color: #1b3049;
+  color: var(--hourx-client-text);
   font-size: 13px;
 }
 
 .package-includes small,
 .package-includes em {
-  color: #73859a;
+  color: var(--hourx-client-muted);
   font-size: 12px;
   font-style: normal;
 }
@@ -922,18 +935,17 @@ onBeforeUnmount(() => {
 
 .package-times {
   flex-shrink: 0;
-  color: #73859a;
+  color: var(--hourx-client-muted);
   font-size: 12px;
   font-weight: 600;
   white-space: nowrap;
 }
 
-.package-shared-applied { display: block; margin-top: 6px; color: #527279; font-size: 11px; line-height: 1.5; }
+.package-shared-applied { display: block; margin-top: 6px; color: var(--hourx-client-muted); font-size: 11px; line-height: 1.5; }
 .booking-card__scroll > .package-shared-specs { margin: 8px 16px; }
 
-.booking-side .booking-card__hero { padding: 12px 16px 10px; }
-.booking-side .booking-card__eyebrow { display: none; }
-.booking-side .booking-card__hero h1 { margin-top: 0; font-size: 20px; line-height: 1.2; }
+.booking-side .booking-card__hero { padding: 20px 20px 12px; }
+.booking-side .booking-card__hero h1 { margin-top: 0.5rem; }
 .booking-side .booking-card__meta { margin-top: 6px; gap: 8px; }
 .booking-side .booking-card__hero .biz-tags { margin-top: 6px; gap: 4px; }
 .booking-side .booking-card__trust svg { width: 14px; height: 14px; }
@@ -953,7 +965,6 @@ onBeforeUnmount(() => {
 .booking-side :deep(.package-shared-specs__options button) { min-height: 28px; padding: 4px 10px; font-size: 12px; line-height: 1.35; }
 .booking-side :deep(.package-shared-specs__group > small) { grid-column: 1 / -1; margin-top: 0; font-size: 10px; line-height: 1.35; }
 .booking-side .booking-card__section-heading { padding: 8px 16px 0; }
-.booking-side .booking-card__section-heading h2 { font-size: 14px; }
 .booking-side .booking-field { margin-top: 6px; padding: 0 16px; }
 .booking-side .booking-attach-item { gap: 6px; }
 .booking-side .booking-attach-item__meta { flex: 1 1 auto; flex-direction: row; flex-wrap: wrap; align-items: baseline; gap: 2px 8px; }
@@ -966,56 +977,64 @@ onBeforeUnmount(() => {
 .booking-side .package-sku-option { min-height: 28px; padding: 4px 9px; font-size: 12px; line-height: 1.35; }
 .booking-side .booking-summary { margin-top: 10px; padding: 10px 16px 8px; gap: 4px; }
 .booking-side .booking-summary__caption { margin-bottom: 0; font-size: 13px; }
-.booking-side .booking-summary__row { font-size: 11px; }
 .booking-side .booking-summary__row > span small { display: none; }
-.booking-side .booking-summary__row strong { font-size: 13px; }
 .booking-side .booking-summary__row--total { margin-top: 2px; padding-top: 6px; }
-.booking-side .booking-summary__row--total span { font-size: 15px; }
-.booking-side .booking-summary__row--total strong { font-size: 20px; }
 .booking-side .booking-card__footer .booking-actions { padding: 8px 16px 0; }
 .booking-side .booking-add-cart,
-.booking-side .booking-submit { height: 40px; }
+.booking-side .booking-submit { min-height: 52px; }
 .booking-side .booking-card__policy { margin: 6px 16px 8px; line-height: 1.25; }
 
 .booking-price-card {
   display: flex;
   flex-direction: column;
-  align-items: flex-start;
-  gap: 4px;
-  padding: 12px 14px;
+  align-items: stretch;
+  gap: 8px;
+  padding: 14px 16px;
 }
-.booking-price-card__label {
-  color: #61738a;
-  font-size: 12px;
-  font-weight: 650;
-  letter-spacing: 0;
-  line-height: 1.3;
-}
+.booking-price-card__top,
 .booking-price-card__row {
   display: flex;
   flex-wrap: wrap;
-  align-items: baseline;
-  gap: 8px 10px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 12px;
+  width: 100%;
 }
-.booking-price-card__main { display: flex; align-items: baseline; gap: 6px; margin: 0; white-space: nowrap; }
-.booking-price-card__main span { font-size: 13px; font-weight: 700; }
-.booking-price-card__main strong { font-size: 28px; letter-spacing: -0.03em; line-height: 1.1; }
-.booking-price-card__offer { display: flex; align-items: center; gap: 8px; margin: 0; white-space: nowrap; }
-.booking-price-card__offer del { font-size: 13px; }
-.booking-price-card__offer span { min-height: 22px; padding: 2px 8px; font-size: 12px; }
+.booking-price-card__label {
+  color: var(--hourx-client-muted);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  line-height: 1.3;
+  text-transform: uppercase;
+}
+.booking-price-card__save {
+  padding: 3px 8px;
+  border-radius: 999px;
+  display: inline-block;
+  background: var(--hourx-client-accent);
+  color: var(--hourx-client-text);
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.4;
+}
+.booking-price-card__main { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 10px; margin: 0; }
+.booking-price-card__main span { color: var(--hourx-client-muted); font-size: 0.8125rem; font-weight: 600; }
+.booking-price-card__main strong { font-size: var(--hourx-client-size-price); font-weight: 700; line-height: 1; }
+.booking-price-card__main del { color: var(--hourx-client-muted); font-size: 14px; font-weight: 500; }
 .booking-price-card .package-price-status { width: 100%; margin: 0; }
 
 .package-price-per-visit {
-  margin: 0;
-  color: #61738a;
+  margin: 0 0 0 auto;
+  color: var(--hourx-client-muted);
   font-size: 13px;
   line-height: 1.4;
-  white-space: nowrap;
+  text-align: right;
 }
 
 .package-visit-note {
   margin: 14px 20px 0;
-  color: #7a8ba0;
+  color: var(--hourx-client-muted);
   font-size: 12px;
   line-height: 1.45;
 }
@@ -1026,7 +1045,7 @@ onBeforeUnmount(() => {
   align-items: center;
   gap: 8px 12px;
   margin-top: 12px;
-  color: #61738a;
+  color: var(--hourx-client-muted);
   font-size: 12px;
   line-height: 1.5;
 }
@@ -1057,7 +1076,7 @@ onBeforeUnmount(() => {
 
 .package-sku-group__label {
   margin: 0 0 6px;
-  color: #61738a;
+  color: var(--hourx-client-muted);
   font-size: 12px;
   line-height: 1.4;
 }
@@ -1073,7 +1092,7 @@ onBeforeUnmount(() => {
   background: #fff;
   border-radius: 999px;
   padding: 6px 12px;
-  color: #334155;
+  color: var(--hourx-client-text);
   font: inherit;
   font-size: 12px;
   line-height: 1.4;

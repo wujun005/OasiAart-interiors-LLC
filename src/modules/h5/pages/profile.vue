@@ -1,23 +1,16 @@
 <template>
   <div class="h5-profile-page">
     <main class="h5-profile-main">
-      <section class="h5-profile-hero">
-        <div class="h5-profile-hero__avatar">
-          <img :src="avatarIconUrl" alt="" />
-        </div>
-        <div class="h5-profile-hero__text">
-          <h1>{{ displayName }}</h1>
-          <p v-if="displayPhone" class="h5-profile-hero__phone">{{ displayPhone }}</p>
-          <p v-if="displayEmail" class="h5-profile-hero__email" :title="displayEmail">
-            {{ displayEmail }}
-          </p>
-          <p v-if="!displayPhone && !displayEmail" class="h5-profile-hero__fallback">
-            {{ t('h5.profile.defaultAccount') }}
-          </p>
-        </div>
-      </section>
+      <div class="h5-profile-banner">
+        <AccountBanner :name="displayName">
+          <span>{{ t('client.profile.subtitle') }}</span>
+          <span v-if="displayPhone">{{ displayPhone }}</span>
+          <span v-if="displayEmail">{{ displayEmail }}</span>
+        </AccountBanner>
+      </div>
 
       <section class="h5-profile-card h5-profile-card--menu">
+        <p class="h5-profile-menu-label">{{ locale === 'zh' ? '预订' : 'Bookings' }}</p>
         <div class="h5-profile-item">
           <button class="h5-profile-row" type="button" @click="openAccountList('booking')">
             <span class="h5-profile-row__left">
@@ -36,6 +29,37 @@
             <van-icon class="h5-profile-row__arrow" name="arrow" />
           </button>
         </div>
+        <p class="h5-profile-menu-label">{{ locale === 'zh' ? '账户' : 'Account' }}</p>
+        <div class="h5-profile-item" :class="{ 'h5-profile-item--open': activeSection === 'addresses' }">
+          <button class="h5-profile-row" type="button" @click="toggleSection('addresses')">
+            <span class="h5-profile-row__left">
+              <van-icon name="location-o" />
+              <span>{{ t('h5.profile.menu.addresses') }}</span>
+            </span>
+            <van-icon class="h5-profile-row__arrow" name="arrow" />
+          </button>
+          <div v-if="activeSection === 'addresses'" class="h5-profile-panel">
+            <button v-if="checkoutReturnPath" class="h5-profile-return-checkout" type="button" @click="router.push(checkoutReturnPath)">
+              ← {{ locale === 'zh' ? '返回订单确认' : 'Back to checkout' }}
+            </button>
+            <SavedAddressManager />
+          </div>
+        </div>
+
+        <div class="h5-profile-item" :class="{ 'h5-profile-item--open': activeSection === 'payments' }">
+          <button class="h5-profile-row" type="button" @click="toggleSection('payments')">
+            <span class="h5-profile-row__left">
+              <van-icon name="balance-o" />
+              <span>{{ t('h5.profile.menu.payments') }}</span>
+            </span>
+            <van-icon class="h5-profile-row__arrow" name="arrow" />
+          </button>
+          <div v-if="activeSection === 'payments'" class="h5-profile-panel">
+            <SavedPaymentMethodManager />
+          </div>
+        </div>
+
+        <p class="h5-profile-menu-label">{{ locale === 'zh' ? '设置' : 'Settings' }}</p>
         <div class="h5-profile-item" :class="{ 'h5-profile-item--open': activeSection === 'personal' }">
           <button class="h5-profile-row" type="button" @click="toggleSection('personal')">
             <span class="h5-profile-row__left">
@@ -46,13 +70,15 @@
           </button>
           <div v-if="activeSection === 'personal'" class="h5-profile-panel">
             <button class="h5-profile-edit-toggle" type="button" @click="profileEditing ? cancelProfileEdit() : startProfileEdit()">
-              {{ profileEditing ? (locale === 'zh' ? '取消' : 'Cancel') : (locale === 'zh' ? '编辑个人信息' : 'Edit profile') }}
+              {{ t(profileEditing ? 'client.profile.personal.cancel' : 'client.profile.personal.edit') }}
             </button>
             <form v-if="profileEditing" class="h5-profile-edit-form" @submit.prevent="saveProfile">
               <label><span>{{ t('h5.profile.personal.name') }}</span><input v-model.trim="profileForm.name" type="text" autocomplete="name" /></label>
               <label><span>{{ t('h5.profile.personal.phone') }}</span><input v-model.trim="profileForm.phone" type="tel" autocomplete="tel" /></label>
               <label><span>{{ t('h5.profile.personal.email') }}</span><input v-model.trim="profileForm.email" type="email" autocomplete="email" /></label>
-              <button type="submit" :disabled="profileSubmitting">{{ profileSubmitting ? (locale === 'zh' ? '保存中…' : 'Saving…') : (locale === 'zh' ? '保存个人信息' : 'Save profile') }}</button>
+              <button type="submit" :disabled="profileSubmitting">
+                {{ t(profileSubmitting ? 'client.profile.personal.saving' : 'client.profile.personal.save') }}
+              </button>
             </form>
             <dl v-else class="h5-profile-details">
               <div>
@@ -83,35 +109,6 @@
           </div>
         </div>
 
-        <div class="h5-profile-item" :class="{ 'h5-profile-item--open': activeSection === 'addresses' }">
-          <button class="h5-profile-row" type="button" @click="toggleSection('addresses')">
-            <span class="h5-profile-row__left">
-              <van-icon name="location-o" />
-              <span>{{ t('h5.profile.menu.addresses') }}</span>
-            </span>
-            <van-icon class="h5-profile-row__arrow" name="arrow" />
-          </button>
-          <div v-if="activeSection === 'addresses'" class="h5-profile-panel">
-            <button v-if="checkoutReturnPath" class="h5-profile-return-checkout" type="button" @click="router.push(checkoutReturnPath)">
-              ← {{ locale === 'zh' ? '返回订单确认' : 'Back to checkout' }}
-            </button>
-            <SavedAddressManager />
-          </div>
-        </div>
-
-        <div class="h5-profile-item" :class="{ 'h5-profile-item--open': activeSection === 'payments' }">
-          <button class="h5-profile-row" type="button" @click="toggleSection('payments')">
-            <span class="h5-profile-row__left">
-              <van-icon name="balance-o" />
-              <span>{{ t('h5.profile.menu.payments') }}</span>
-            </span>
-            <van-icon class="h5-profile-row__arrow" name="arrow" />
-          </button>
-          <div v-if="activeSection === 'payments'" class="h5-profile-panel">
-            <SavedPaymentMethodManager />
-          </div>
-        </div>
-
         <div class="h5-profile-item" :class="{ 'h5-profile-item--open': activeSection === 'notifications' }">
           <button class="h5-profile-row" type="button" @click="toggleSection('notifications')">
             <span class="h5-profile-row__left">
@@ -121,6 +118,7 @@
             <van-icon class="h5-profile-row__arrow" name="arrow" />
           </button>
           <div v-if="activeSection === 'notifications'" class="h5-profile-panel h5-profile-panel--settings">
+            <p class="h5-profile-panel__hint">{{ t('client.profile.notifications.saveHint') }}</p>
             <label class="h5-profile-setting">
               <span>
                 <strong>{{ t('h5.profile.notifications.bookingTitle') }}</strong>
@@ -147,6 +145,7 @@
             <van-icon class="h5-profile-row__arrow" name="arrow" />
           </button>
           <div v-if="activeSection === 'support'" class="h5-profile-panel h5-profile-panel--support">
+            <h2>{{ t('client.profile.support.title') }}</h2>
             <p>{{ t('h5.profile.support.description') }}</p>
             <div class="h5-profile-faq">
               <strong>{{ t('h5.profile.support.faqTitle') }}</strong>
@@ -182,7 +181,7 @@
               </a>
               <a :href="`mailto:${supportEmail}`">
                 <van-icon name="envelop-o" />
-                <span>{{ supportEmail }}</span>
+                <span>{{ t('client.profile.support.email') }}</span>
               </a>
             </div>
           </div>
@@ -244,6 +243,7 @@
 </template>
 
 <script setup lang="ts">
+import AccountBanner from "@/modules/client/components/AccountBanner.vue"
 import { computed, onMounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRoute, useRouter } from 'vue-router';
@@ -258,7 +258,6 @@ import { getFaqGroups } from '@/modules/client/data/faq';
 
 type ProfileSection = 'personal' | 'addresses' | 'payments' | 'notifications' | 'support';
 
-const avatarIconUrl = new URL('@/assets/images/client/icon13.png', import.meta.url).href;
 const joinIconUrl = new URL('@/assets/images/client/icon16.png', import.meta.url).href;
 const mailIconUrl = new URL('@/assets/images/client/email.png', import.meta.url).href;
 const supportLink = 'https://wa.me/971502100284/?text=Hi%2C+I%E2%80%99m+interested+in+HourX+services.+Could+you+please+help+me%3F';
@@ -430,7 +429,7 @@ onMounted(async () => {
 <style scoped lang="scss">
 .h5-profile-page {
   min-height: 100vh;
-  background: #f8fafc;
+  background: var(--hourx-client-canvas);
   padding-bottom: calc(76px + env(safe-area-inset-bottom));
 }
 
@@ -448,107 +447,25 @@ onMounted(async () => {
   max-width: 393px;
   margin: 0 auto;
   min-height: calc(100vh - 56px);
-  padding-bottom: 20px;
+  padding: 20px 0;
 }
 
-.h5-profile-hero {
-  height: 124px;
-  padding: 22px 20px;
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  background: var(--hourx-brand);
-  position: relative;
-  overflow: hidden;
-}
+.h5-profile-banner { margin: 0 16px; }
 
-.h5-profile-hero::before,
-.h5-profile-hero::after {
-  content: '';
-  position: absolute;
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.11);
-}
-
-.h5-profile-hero::before {
-  width: 210px;
-  height: 210px;
-  right: -78px;
-  top: -102px;
-  filter: blur(52px);
-}
-
-.h5-profile-hero::after {
-  width: 150px;
-  height: 150px;
-  left: -44px;
-  top: 30px;
-  filter: blur(38px);
-}
-
-.h5-profile-hero__avatar,
-.h5-profile-hero__text {
-  position: relative;
-  z-index: 1;
-}
-
-.h5-profile-hero__avatar {
-  width: 58px;
-  height: 58px;
-  border: 2px solid rgba(255, 255, 255, 0.38);
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.2);
-  overflow: hidden;
-  flex: 0 0 auto;
-}
-
-.h5-profile-hero__avatar img {
-  display: block;
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
-.h5-profile-hero__text {
-  min-width: 0;
-  max-width: calc(100% - 72px);
-}
-
-.h5-profile-hero__text h1 {
+.h5-profile-menu-label {
   margin: 0;
-  color: #fff;
-  font-size: 19px;
-  line-height: 1.35;
-  font-weight: 850;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.h5-profile-hero__text p {
-  margin: 2px 0 0;
-  color: rgba(255, 255, 255, 0.82);
-  line-height: 1.35;
-  font-weight: 500;
-}
-
-.h5-profile-hero__phone {
-  font-size: 12px;
-}
-
-.h5-profile-hero__email,
-.h5-profile-hero__fallback {
-  max-width: 100%;
-  font-size: 11px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  padding: 12px 16px 4px;
+  color: var(--hourx-client-muted);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
 }
 
 .h5-profile-card {
   margin: 12px 16px 0;
-  border: 1px solid #edf1f5;
-  border-radius: 14px;
+  border: 1px solid var(--hourx-client-border);
+  border-radius: 16px;
   background: #fff;
   overflow: hidden;
   box-shadow: 0 4px 14px rgba(15, 23, 42, 0.025);
@@ -575,9 +492,9 @@ onMounted(async () => {
   display: inline-flex;
   align-items: center;
   gap: 12px;
-  color: rgba(15, 23, 42, 0.9);
-  font-size: 14px;
-  font-weight: 700;
+  color: var(--hourx-client-text);
+  font-size: var(--hourx-client-size-action);
+  font-weight: 600;
 }
 
 .h5-profile-row__left :deep(.van-icon) {
@@ -593,6 +510,10 @@ onMounted(async () => {
   transition: transform 0.2s ease;
 }
 
+.h5-profile-item--open .h5-profile-row {
+  background: #f1eee8;
+}
+
 .h5-profile-item--open .h5-profile-row__arrow {
   transform: rotate(90deg);
 }
@@ -604,8 +525,8 @@ onMounted(async () => {
 }
 
 .h5-profile-panel {
-  padding: 2px 16px 14px 48px;
-  background: #fbfdff;
+  padding: 12px 16px 16px;
+  background: #fff;
 }
 
 .h5-profile-details {
@@ -622,17 +543,16 @@ onMounted(async () => {
 }
 
 .h5-profile-details dt {
-  color: #7a8797;
-  font-size: 12px;
+  color: var(--hourx-client-muted);
+  font-size: var(--hourx-client-size-label);
 }
 
 .h5-profile-details dd {
   min-width: 0;
   max-width: 62%;
   margin: 0;
-  color: #273548;
-  font-size: 12px;
-  font-weight: 650;
+  color: var(--hourx-client-text);
+  font: 600 var(--hourx-client-size-body)/1.3 var(--hourx-client-font-family);
   text-align: right;
 }
 
@@ -676,8 +596,7 @@ onMounted(async () => {
   align-items: center;
   gap: 4px;
   color: var(--hourx-brand);
-  font-size: 11px;
-  font-weight: 700;
+  font: 600 var(--hourx-client-size-action)/1 var(--hourx-client-font-family);
 }
 
 .h5-profile-empty,
@@ -734,11 +653,18 @@ onMounted(async () => {
   padding-top: 2px;
 }
 
-.h5-profile-panel--support > p {
-  margin: 8px 0 0;
-  color: #7a8797;
-  font-size: 11px;
-  line-height: 1.5;
+.h5-profile-panel--support h2,
+.h5-profile-faq > strong {
+  margin: 0;
+  color: var(--hourx-client-text);
+  font: 600 1.0625rem/1.3 var(--hourx-client-font-family);
+}
+
+.h5-profile-panel--support > p,
+.h5-profile-panel__hint {
+  margin: 4px 0 8px;
+  color: var(--hourx-client-muted);
+  font: 400 0.8125rem/1.55 var(--hourx-client-font-family);
 }
 
 .h5-profile-support-actions {
@@ -751,12 +677,7 @@ onMounted(async () => {
   margin-top: 12px;
   padding: 11px;
   border-radius: 9px;
-  background: #f8fafc;
-}
-
-.h5-profile-faq > strong {
-  color: #273548;
-  font-size: 11px;
+  background: var(--hourx-client-canvas);
 }
 
 .h5-profile-faq__groups {
@@ -774,9 +695,10 @@ onMounted(async () => {
 
 .h5-profile-faq h4 {
   margin: 0 0 4px;
-  color: #1769c2;
-  font-size: 10px;
-  font-weight: 800;
+  color: var(--hourx-client-text);
+  font: 600 var(--hourx-client-size-label)/1 var(--hourx-client-font-family);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
 }
 
 .h5-profile-faq details {
@@ -789,18 +711,15 @@ onMounted(async () => {
 
 .h5-profile-faq summary {
   padding: 9px 16px 9px 0;
-  color: #334155;
-  font-size: 11px;
-  font-weight: 750;
-  line-height: 1.45;
+  color: var(--hourx-client-text);
+  font: 600 var(--hourx-client-size-action)/1.4 var(--hourx-client-font-family);
   cursor: pointer;
 }
 
 .h5-profile-faq details p {
   margin: 0 0 9px;
-  color: #718096;
-  font-size: 10px;
-  line-height: 1.55;
+  color: var(--hourx-client-muted);
+  font: 400 var(--hourx-client-size-action)/1.55 var(--hourx-client-font-family);
 }
 
 .h5-profile-faq details p a {
@@ -818,8 +737,7 @@ onMounted(async () => {
   align-items: center;
   gap: 9px;
   color: var(--hourx-brand);
-  font-size: 11px;
-  font-weight: 700;
+  font: 600 var(--hourx-client-size-action)/1 var(--hourx-client-font-family);
   text-decoration: none;
 }
 
@@ -847,14 +765,13 @@ onMounted(async () => {
 }
 
 .h5-profile-setting strong {
-  color: #273548;
-  font-size: 12px;
+  color: var(--hourx-client-text);
+  font: 600 var(--hourx-client-size-body)/1.3 var(--hourx-client-font-family);
 }
 
 .h5-profile-setting small {
-  color: #8c98a8;
-  font-size: 10px;
-  line-height: 1.4;
+  color: var(--hourx-client-muted);
+  font: 400 0.8125rem/1.55 var(--hourx-client-font-family);
 }
 
 .h5-profile-card--partner {
@@ -994,10 +911,10 @@ onMounted(async () => {
 .h5-profile-tabbar__item--active {
   color: var(--hourx-brand);
 }
-.h5-profile-edit-toggle { display: block; margin: 0 0 12px auto; border: 0; background: transparent; color: #1769c2; font-size: 12px; font-weight: 800; }
+.h5-profile-edit-toggle { display: block; margin: 0 0 12px auto; border: 0; background: transparent; color: var(--hourx-client-text); font: 600 var(--hourx-client-size-action)/1 var(--hourx-client-font-family); }
 .h5-profile-edit-form { display: grid; gap: 12px; margin-bottom: 16px; }
-.h5-profile-edit-form label { display: grid; gap: 6px; color: #64748b; font-size: 11px; font-weight: 700; }
-.h5-profile-edit-form input { width: 100%; height: 42px; box-sizing: border-box; border: 1px solid #dbe3ec; border-radius: 11px; background: #fff; padding: 0 12px; color: #05152b; font-size: 14px; }
-.h5-profile-edit-form > button { min-height: 44px; border: 0; border-radius: 12px; background: #05152b; color: #fff; font-weight: 800; }
+.h5-profile-edit-form label { display: grid; gap: 6px; color: var(--hourx-client-text); font: 600 0.8125rem/1 var(--hourx-client-font-family); }
+.h5-profile-edit-form input { width: 100%; height: 42px; box-sizing: border-box; border: 1px solid #dbe3ec; border-radius: 11px; background: #fff; padding: 0 12px; color: var(--hourx-client-text); font: 400 var(--hourx-client-size-body)/1.55 var(--hourx-client-font-family); }
+.h5-profile-edit-form > button { min-height: 44px; border: 0; border-radius: 12px; background: var(--hourx-brand); color: #fff; font: 600 var(--hourx-client-size-action)/1 var(--hourx-client-font-family); }
 .h5-profile-edit-form > button:disabled { opacity: .55; }
 </style>

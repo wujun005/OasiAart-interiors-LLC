@@ -21,12 +21,6 @@
         <small class="h5-apply__note">{{ t('h5.supplierOnboarding.requiredNote') }}</small>
       </header>
 
-      <div class="h5-apply__channel" role="radiogroup" :aria-label="t('h5.supplierOnboarding.channelLabel')">
-        <button type="button" role="radio" :aria-checked="form.supplierType === 1" :class="{ 'is-on': form.supplierType === 1 }" @click="form.supplierType = 1">{{ t('h5.supplierOnboarding.channelCompany') }}</button>
-        <button type="button" role="radio" :aria-checked="form.supplierType === 2" :class="{ 'is-on': form.supplierType === 2 }" @click="form.supplierType = 2">{{ t('h5.supplierOnboarding.channelIndividual') }}</button>
-      </div>
-      <p class="h5-apply__channel-hint">{{ individual ? t('h5.supplierOnboarding.individualLead') : t('h5.supplierOnboarding.lead') }}</p>
-
       <section>
         <h2>{{ individual ? t('h5.supplierOnboarding.person') : t('h5.supplierOnboarding.company') }}</h2>
         <template v-if="individual">
@@ -81,6 +75,21 @@
             <input v-model.trim="form.officeAddress" required />
           </label>
         </template>
+        <div v-if="form.vatTrn.trim()" class="h5-apply__tax">
+          <span>{{ t('h5.supplierOnboarding.taxFile') }}<i>*</i></span>
+          <small>{{ t('h5.supplierOnboarding.taxFileHint') }}</small>
+          <ul v-if="vatFiles.length">
+            <li v-for="(file, index) in vatFiles" :key="`${file.url}-${index}`">
+              <span>{{ file.name }}</span>
+              <button type="button" @click="removeVatFile(index)">{{ t('h5.supplierOnboarding.removeFile') }}</button>
+            </li>
+          </ul>
+          <label class="h5-apply__file">
+            <input type="file" accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png" multiple :disabled="vatUploading" @change="onVatFiles" />
+            <strong>{{ vatUploading ? t('h5.supplierOnboarding.uploading') : (vatFiles.length ? t('h5.supplierOnboarding.addFiles') : t('h5.supplierOnboarding.uploadTax')) }}</strong>
+            <small>{{ t('h5.supplierOnboarding.fileTypes') }}</small>
+          </label>
+        </div>
       </section>
 
       <section>
@@ -185,7 +194,7 @@
       </section>
 
       <p v-if="errorText" class="h5-apply__error">{{ errorText }}</p>
-      <button class="h5-apply__submit" type="submit" :disabled="saving">
+      <button class="h5-apply__submit" type="submit" :disabled="saving || vatUploading">
         {{ saving ? t('h5.supplierOnboarding.submitting') : t('h5.supplierOnboarding.submit') }}
       </button>
     </form>
@@ -196,7 +205,7 @@
 import { computed, onMounted, reactive, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRouter } from 'vue-router';
-import { categoryIdPayload, isOtherService, listServiceCategories, serviceCategoryLabel, submitOnboarding, type ServiceCategoryOption } from '@/modules/client/api/supplier-onboarding';
+import { categoryIdPayload, isOtherService, listServiceCategories, serviceCategoryLabel, submitOnboarding, uploadOnboardingFile, type ServiceCategoryOption } from '@/modules/client/api/supplier-onboarding';
 import { DEFAULT_PHONE_DIAL, PHONE_DIAL_OPTIONS, joinPhone, nationalNumberOk, phoneDialLabel } from '@/utils/phone-dial';
 
 type Bit = 0 | 1 | null;
@@ -213,6 +222,10 @@ const categoriesLoading = ref(false);
 const categoriesError = ref('');
 const selectedIds = ref<string[]>([]);
 const expectedServiceRemark = ref('');
+const vatFiles = ref<Array<{ name: string; url: string }>>([]);
+const vatUploading = ref(false);
+const VAT_FILE_LIMIT = 20;
+const VAT_FILE_BYTES = 20 * 1024 * 1024;
 const otherSelected = computed(() => categories.value.some((option) => selectedIds.value.includes(option.categoryId) && isOtherService(option)));
 
 const form = reactive({
@@ -337,11 +350,46 @@ const goBack = () => {
   else router.push({ name: 'h5-home' });
 };
 
+const removeVatFile = (index: number) => {
+  vatFiles.value = vatFiles.value.filter((_, item) => item !== index);
+};
+const onVatFiles = async (event: Event) => {
+  const input = event.target as HTMLInputElement;
+  const picked = Array.from(input.files || []);
+  input.value = '';
+  if (!picked.length || vatUploading.value) return;
+  if (vatFiles.value.length + picked.length > VAT_FILE_LIMIT) {
+    errorText.value = t('h5.supplierOnboarding.fileLimit');
+    return;
+  }
+  if (picked.some((file) => file.size > VAT_FILE_BYTES)) {
+    errorText.value = t('h5.supplierOnboarding.fileSize');
+    return;
+  }
+  if (picked.some((file) => !/\.(pdf|jpe?g|png)$/i.test(file.name))) {
+    errorText.value = t('h5.supplierOnboarding.fileTypes');
+    return;
+  }
+  vatUploading.value = true;
+  errorText.value = '';
+  try {
+    const uploaded: Array<{ name: string; url: string }> = [];
+    for (const file of picked) {
+      uploaded.push({ name: file.name, url: await uploadOnboardingFile(file) });
+    }
+    vatFiles.value = [...vatFiles.value, ...uploaded];
+  } catch (error) {
+    errorText.value = error instanceof Error ? error.message : t('h5.supplierOnboarding.requiredError');
+  } finally {
+    vatUploading.value = false;
+  }
+};
 const sharedPayload = () => ({
   mobile: joinPhone(form.mobileCode, form.mobile),
   whatsapp: joinPhone(form.whatsappCode, form.whatsapp),
   email: form.email,
   vatTrn: form.vatTrn || null,
+  vatTrnFile: form.vatTrn.trim() ? vatFiles.value.map((file) => file.url) : null,
   yearsInBusiness: form.yearsInBusiness == null || Number.isNaN(Number(form.yearsInBusiness)) ? null : Number(form.yearsInBusiness),
   totalAvailableWorkers: individual.value ? null : form.totalAvailableWorkers,
   minLeadTimeHours: form.minLeadTimeHours,
@@ -375,18 +423,22 @@ const submit = async () => {
     && form.residentialCity
     && contactReady,
   );
+  const taxReady = !form.vatTrn.trim() || vatFiles.value.length > 0;
   const ready = Boolean(
     (individual.value ? individualReady : companyReady)
     && form.workStart
     && form.workEnd
     && choices.value.every((item) => chosen(form[item.key]))
-    && noteReady,
+    && noteReady
+    && taxReady,
   );
+  if (vatUploading.value) return;
   if (!ready) {
     if (individual.value && form.dateOfBirth && form.dateOfBirth > today.value) errorText.value = t('h5.supplierOnboarding.birthHint');
     else if (!individual.value && form.licenseExpiry && form.licenseExpiry < tomorrow.value) errorText.value = t('h5.supplierOnboarding.licenseHint');
     else if ((form.mobile || form.whatsapp) && (!phoneOk(form.mobile) || !phoneOk(form.whatsapp))) errorText.value = t('h5.supplierOnboarding.phoneHint');
     else if (!noteReady) errorText.value = t('h5.supplierOnboarding.noteError');
+    else if (!taxReady) errorText.value = t('h5.supplierOnboarding.taxFileRequired');
     else errorText.value = t('h5.supplierOnboarding.requiredError');
     return;
   }
@@ -426,8 +478,8 @@ const submit = async () => {
 <style scoped>
 .h5-apply {
   min-height: 100vh;
-  background: #f4f7fb;
-  color: #05152b;
+  background: var(--hourx-client-canvas);
+  color: var(--hourx-client-text);
 }
 .h5-apply__bar {
   position: sticky;
@@ -439,41 +491,46 @@ const submit = async () => {
   grid-template-columns: 40px 1fr 40px;
   align-items: center;
   background: #fff;
-  border-bottom: 1px solid #e6edf5;
+  border-bottom: 1px solid var(--hourx-client-border);
 }
 .h5-apply__bar strong {
   text-align: center;
-  font-size: 15px;
+  font-size: var(--hourx-client-size-body);
 }
 .h5-apply__bar button {
   width: 40px;
   height: 40px;
   border: 0;
   background: transparent;
-  color: #05152b;
-  font-size: 18px;
+  color: var(--hourx-client-text);
+  font-size: var(--hourx-client-size-card);
 }
 .h5-apply__form,
 .h5-apply__done {
-  padding: 18px 16px 32px;
+  max-width: 61.25rem;
+  margin-inline: auto;
+  padding: 1.5rem 1rem 2rem;
 }
 .h5-apply__intro h1,
-.h5-apply__done h1,
+.h5-apply__done h1 {
+  margin: 0;
+  font: 700 var(--hourx-client-size-page)/1.2 var(--hourx-client-heading-font);
+  letter-spacing: -.02em;
+}
 .h5-apply section h2 {
   margin: 0;
-  font-size: 22px;
-  line-height: 1.25;
+  font: 700 var(--hourx-client-size-section)/1.25 var(--hourx-client-heading-font);
 }
 .h5-apply__intro p,
-.h5-apply__note { display: block; margin-top: 8px; color: #74685a; font-size: 12px; }
-.h5-apply__same { display: flex; align-items: center; gap: 8px; margin-top: 8px; color: #74685a; font-size: 13px; }
+.h5-apply__note { display: block; margin-top: 8px; color: var(--hourx-client-muted); font-size: var(--hourx-client-size-label); }
+.h5-apply__same { display: flex; align-items: center; gap: 8px; margin-top: 8px; color: var(--hourx-client-muted); font-size: .8125rem; }
 .h5-apply__same input { width: auto; }
 .h5-apply__intro p,
 .h5-apply__done p {
   margin: 8px 0 0;
-  color: #5d6b7c;
-  font-size: 14px;
-  line-height: 1.5;
+  color: var(--hourx-client-muted);
+  font-size: var(--hourx-client-size-body);
+  line-height: 1.55;
 }
 .h5-apply section {
   margin-top: 16px;
@@ -481,7 +538,7 @@ const submit = async () => {
   display: grid;
   gap: 12px;
   background: #fff;
-  border: 1px solid #e6edf5;
+  border: 1px solid var(--hourx-client-border);
   border-radius: 16px;
 }
 .h5-apply label,
@@ -489,39 +546,50 @@ const submit = async () => {
   display: grid;
   gap: 6px;
 }
+.h5-apply__tax { display: grid; gap: 8px; }
+.h5-apply__tax > span { color: var(--hourx-client-text); font-size: .8125rem; font-weight: 600; }
+.h5-apply__tax > small { color: var(--hourx-client-muted); font-size: var(--hourx-client-size-label); font-weight: 500; }
+.h5-apply__tax ul { margin: 0; padding: 0; list-style: none; display: grid; gap: 6px; }
+.h5-apply__tax li { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 36px; padding: 6px 10px; border: 1px solid var(--hourx-client-border); border-radius: 10px; }
+.h5-apply__tax li span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: .8125rem; }
+.h5-apply__tax li button { border: 0; background: transparent; color: #8d5a32; font: inherit; font-size: .8125rem; font-weight: 600; }
+.h5-apply__file { position: relative; display: grid; gap: 4px; min-height: 64px; padding: 12px; border: 1px dashed var(--hourx-client-text); border-radius: 12px; background: var(--hourx-client-canvas); }
+.h5-apply__file input { position: absolute; inset: 0; opacity: 0; }
+.h5-apply__file strong { color: var(--hourx-client-text); font-size: var(--hourx-client-size-action); }
+.h5-apply__file small { color: var(--hourx-client-muted); font-size: var(--hourx-client-size-label); font-weight: 500; }
 .h5-apply label > span,
 .h5-apply article strong {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: 6px;
-  color: #314255;
-  font-size: 13px;
-  font-weight: 750;
+  color: var(--hourx-client-text);
+  font-size: var(--hourx-client-size-action);
+  font-weight: 600;
 }
 .h5-apply i {
   color: #c2412d;
   font-style: normal;
 }
 .h5-apply em {
-  color: #8b97a6;
-  font-size: 12px;
+  color: var(--hourx-client-muted);
+  font-size: var(--hourx-client-size-label);
   font-style: normal;
-  font-weight: 650;
+  font-weight: 600;
 }
 .h5-apply .time-field { position: relative; padding-right: 40px; cursor: pointer; background: #fff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%2305152b' stroke-width='1.8'%3E%3Ccircle cx='12' cy='12' r='8'/%3E%3Cpath d='M12 8v4.2l2.4 1.6'/%3E%3C/svg%3E") no-repeat right 14px center; }
 .h5-apply .time-field::-webkit-calendar-picker-indicator { position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; padding: 0; cursor: pointer; background: transparent; opacity: 0; }
 .h5-apply input,
 .h5-apply textarea {
   width: 100%;
-  min-height: 44px;
-  padding: 10px 12px;
-  border: 1px solid #d7e2ee;
+  min-height: 3rem;
+  padding: .625rem .75rem;
+  border: 1px solid var(--hourx-client-border);
   border-radius: 12px;
   background: #fff;
-  color: #05152b;
+  color: var(--hourx-client-text);
   font: inherit;
-  font-size: 16px;
+  font-size: max(1rem, var(--hourx-client-size-body));
 }
 .h5-apply textarea {
   min-height: 88px;
@@ -529,7 +597,7 @@ const submit = async () => {
 }
 .h5-apply small {
   color: #8a5a2b;
-  font-size: 12px;
+  font-size: var(--hourx-client-size-label);
   line-height: 1.4;
 }
 .h5-apply__phone {
@@ -544,11 +612,11 @@ const submit = async () => {
   padding: 0 22px 0 10px;
   border: 0;
   border-radius: 12px;
-  background: #05152b url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath fill='%23ffffff' d='M1 1.2 6 6.2 11 1.2'/%3E%3C/svg%3E") no-repeat right 8px center;
+  background: var(--hourx-client-text) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath fill='%23ffffff' d='M1 1.2 6 6.2 11 1.2'/%3E%3C/svg%3E") no-repeat right 8px center;
   color: #fff;
   font: inherit;
-  font-size: 13px;
-  font-weight: 750;
+  font-size: .8125rem;
+  font-weight: 600;
   appearance: none;
 }
 .h5-apply__phone input {
@@ -562,7 +630,7 @@ const submit = async () => {
 .h5-apply article small {
   display: block;
   margin-top: 4px;
-  color: #7b8796;
+  color: var(--hourx-client-muted);
   font-weight: 500;
 }
 .h5-apply__choice {
@@ -574,33 +642,33 @@ const submit = async () => {
 .h5-apply__done button {
   border: 0;
   font: inherit;
-  font-weight: 750;
+  font-weight: 600;
 }
 .h5-apply__choice button {
   height: 34px;
   padding: 0 12px;
-  border: 1px solid #d7e2ee;
+  border: 1px solid var(--hourx-client-border);
   border-radius: 999px;
   background: #fff;
-  color: #314255;
+  color: var(--hourx-client-text);
 }
 .h5-apply__choice button.is-on {
-  border-color: #05152b;
-  background: #05152b;
+  border-color: var(--hourx-client-text);
+  background: var(--hourx-client-text);
   color: #fff;
 }
 .h5-apply__channel { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 0 0 8px; }
-.h5-apply__channel button { min-height: 42px; border: 1px solid #d7e2ee; border-radius: 12px; background: #fff; color: #05152b; font: inherit; font-weight: 750; }
-.h5-apply__channel button.is-on { border-color: #05152b; background: #05152b; color: #fff; }
-.h5-apply__channel-hint { margin: 0 0 16px; color: #607086; font-size: 13px; line-height: 1.5; }
+.h5-apply__channel button { min-height: 42px; border: 1px solid var(--hourx-client-border); border-radius: 12px; background: #fff; color: var(--hourx-client-text); font: inherit; font-weight: 600; }
+.h5-apply__channel button.is-on { border-color: var(--hourx-client-text); background: var(--hourx-client-text); color: #fff; }
+.h5-apply__channel-hint { margin: 0 0 16px; color: var(--hourx-client-muted); font-size: .8125rem; line-height: 1.5; }
 .community-picks {
   display: grid;
   gap: 12px;
 }
 .community-picks > strong {
-  color: #111827;
-  font-size: 16px;
-  font-weight: 800;
+  color: var(--hourx-client-text);
+  font-size: var(--hourx-client-size-action);
+  font-weight: 600;
 }
 .community-picks > strong i {
   color: #c2412d;
@@ -614,17 +682,17 @@ const submit = async () => {
 .community-picks__options button {
   min-height: 44px;
   padding: 0 22px;
-  border: 1.5px solid #d5dbe3;
+  border: 1.5px solid var(--hourx-client-border);
   border-radius: 999px;
   background: #fff;
-  color: #05152b;
+  color: var(--hourx-client-text);
   font: inherit;
-  font-size: 15px;
-  font-weight: 750;
+  font-size: var(--hourx-client-size-body);
+  font-weight: 600;
 }
 .community-picks__options button.is-on {
-  border-color: #071426;
-  background: #071426;
+  border-color: var(--hourx-client-text);
+  background: var(--hourx-client-text);
   color: #fff;
 }
 .h5-apply__services {
@@ -632,12 +700,12 @@ const submit = async () => {
   gap: 8px;
 }
 .h5-apply__services > span {
-  color: #314255;
-  font-size: 13px;
-  font-weight: 750;
+  color: var(--hourx-client-text);
+  font-size: var(--hourx-client-size-action);
+  font-weight: 600;
 }
 .h5-apply__services > small {
-  color: #7b8796;
+  color: var(--hourx-client-muted);
   font-weight: 500;
 }
 .h5-apply__options {
@@ -648,23 +716,23 @@ const submit = async () => {
 .h5-apply__options button {
   min-height: 36px;
   padding: 6px 12px;
-  border: 1px solid #d7e2ee;
+  border: 1px solid var(--hourx-client-border);
   border-radius: 999px;
   background: #fff;
-  color: #314255;
+  color: var(--hourx-client-text);
   font: inherit;
-  font-size: 14px;
-  font-weight: 700;
+  font-size: var(--hourx-client-size-action);
+  font-weight: 600;
 }
 .h5-apply__options button.is-on {
-  border-color: #05152b;
-  background: #05152b;
+  border-color: var(--hourx-client-text);
+  background: var(--hourx-client-text);
   color: #fff;
 }
 .h5-apply__error {
   margin: 12px 0 0;
   color: #9a3b32;
-  font-size: 13px;
+  font-size: .8125rem;
 }
 .h5-apply__submit,
 .h5-apply__done button {
@@ -672,9 +740,9 @@ const submit = async () => {
   height: 48px;
   margin-top: 16px;
   border-radius: 14px;
-  background: #05152b;
+  background: var(--hourx-client-text);
   color: #fff;
-  font-size: 16px;
+  font-size: var(--hourx-client-size-action);
 }
 .h5-apply__submit:disabled {
   opacity: 0.65;

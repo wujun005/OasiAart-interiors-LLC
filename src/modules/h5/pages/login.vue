@@ -1,35 +1,37 @@
 <template>
-  <div class="h5-login-page">
-    <header class="h5-login-topbar">
-      <button class="h5-login-topbar__back" type="button" @click="goBackOrHome">
-        <van-icon name="arrow-left" />
-      </button>
-      <button class="h5-login-topbar__locale" type="button" @click="toggleLocale">
-        <img :src="languageIconUrl" alt="" />
-        <span>{{ localeButtonText }}</span>
-      </button>
-    </header>
+  <div class="auth-page auth-page--mobile">
+    <main class="auth-main">
+      <header class="auth-tools">
+        <button class="auth-tool" type="button" @click="goBackOrHome">
+          <van-icon name="arrow-left" />
+          {{ t('client.login.register.back') }}
+        </button>
+        <button class="auth-tool" type="button" :aria-label="localeButtonText" @click="toggleLocale">
+          <img :src="languageIconUrl" alt="" />
+          <span>{{ locale === 'zh' ? '中' : 'EN' }}</span>
+        </button>
+      </header>
 
-    <main class="h5-login-main">
-      <section class="h5-login-panel">
-        <div class="h5-login-panel__header">
+      <section class="auth-panel">
+        <div class="auth-heading">
           <h1>{{ isCodeLogin ? t('client.login.password.codeTitle') : t('client.login.password.title') }}</h1>
           <p>
             {{ t('client.login.password.noAccount') }}
-            <button type="button" @click="goRegister">
+            <button class="auth-link" type="button" @click="goRegister">
               {{ t('client.login.password.goRegister') }}
             </button>
           </p>
         </div>
 
-        <form class="h5-login-form" @submit.prevent="submitLogin">
-          <div class="h5-login-field">
-            <span>{{ isCodeLogin ? t('client.login.password.phoneEmailLabel') : t('client.login.password.accountLabel') }}</span>
-            <div class="h5-login-account-row">
-              <div class="h5-login-prefix-box">
+        <form class="auth-form" @submit.prevent="submitLogin">
+          <div class="auth-field">
+            <label for="login-account">
+              {{ t(isCodeLogin ? 'client.login.password.phoneEmailLabel' : 'client.login.password.accountLabel') }}
+            </label>
+            <div class="auth-account">
+              <div class="auth-prefix">
                 <select
                   v-model="form.countryCode"
-                  class="h5-login-country-code"
                   autocomplete="tel-country-code"
                   :aria-label="t('client.login.password.countryCodeLabel')"
                 >
@@ -42,30 +44,39 @@
                   </option>
                 </select>
               </div>
-              <div class="h5-login-input h5-login-input--account">
+              <div class="auth-input">
                 <van-icon name="contact-o" />
                 <input
+                  id="login-account"
                   v-model.trim="form.account"
                   type="text"
                   autocomplete="username"
-                  :placeholder="t('client.login.password.mobileAccountPlaceholder')"
+                  :placeholder="t(isEmailAccount ? 'client.login.register.emailPlaceholder' : 'client.login.register.phoneNumberPlaceholder')"
                 />
               </div>
             </div>
           </div>
 
-          <label v-if="!isCodeLogin" class="h5-login-field h5-login-field--password">
-            <span>{{ t('client.login.password.passwordLabel') }}</span>
-            <div class="h5-login-input">
+          <div v-if="!isCodeLogin" class="auth-field">
+            <div class="auth-field__header">
+              <label for="login-password">{{ t('client.login.password.passwordLabel') }}</label>
+              <span class="auth-forgot">
+                <button type="button" @click="toggleLoginMode">
+                  {{ t('client.login.password.forgotPassword') }}
+                </button>
+              </span>
+            </div>
+            <div class="auth-input">
               <van-icon name="lock" />
               <input
+                id="login-password"
                 v-model="form.password"
                 :type="passwordInputType"
                 autocomplete="current-password"
                 :placeholder="t('client.login.password.passwordPlaceholder')"
               />
               <button
-                class="h5-password-toggle"
+                class="auth-password-toggle"
                 type="button"
                 :aria-label="
                   showPassword
@@ -77,17 +88,12 @@
                 <van-icon :name="showPassword ? 'closed-eye' : 'eye-o'" />
               </button>
             </div>
-            <span class="h5-login-forgot">
-              <button type="button" @click="toggleLoginMode">
-                {{ t('client.login.password.forgotPassword') }}
-              </button>
-            </span>
-          </label>
+          </div>
 
-          <label v-else class="h5-login-field">
+          <label v-else class="auth-field">
             <span>{{ t('client.login.password.codeLabel') }}</span>
-            <div class="h5-login-code-row">
-              <div class="h5-login-input h5-login-input--code">
+            <div class="auth-code-row">
+              <div class="auth-input">
                 <van-icon name="chat-o" />
                 <input
                   v-model.trim="form.code"
@@ -98,7 +104,7 @@
                 />
               </div>
               <button
-                class="h5-login-code-btn"
+                class="auth-code-btn"
                 type="button"
                 :disabled="!isCodeDestinationValid || sendingCode || codeCooldown > 0"
                 @click="requestLoginCode"
@@ -106,35 +112,35 @@
                 {{ codeBtnText }}
               </button>
             </div>
-            <small v-if="codeSentHint" class="h5-login-code-hint">{{ codeSentHint }}</small>
+            <small v-if="codeSentHint" class="auth-note">{{ codeSentHint }}</small>
           </label>
 
-          <button class="h5-login-submit" type="submit" :disabled="submitting">
+          <button class="auth-submit" type="submit" :disabled="submitting">
             {{ submitting ? t('client.login.password.submitting') : t('client.login.password.submit') }}
           </button>
 
-          <div class="h5-login-divider" aria-hidden="true">
+          <div class="auth-divider" aria-hidden="true">
             <span>{{ t('client.login.password.separator') }}</span>
           </div>
 
-          <button class="h5-login-secondary" type="button" @click="toggleLoginMode">
+          <button class="auth-secondary" type="button" @click="toggleLoginMode">
             {{
               isCodeLogin
                 ? t('client.login.password.usePasswordLogin')
-                : t('client.login.password.useCodeLogin')
+                : t(isEmailAccount ? 'client.login.password.useCodeLoginEmail' : 'client.login.password.useCodeLogin')
             }}
           </button>
+
+          <p v-if="!isEmailAccount" class="auth-note" role="note">
+            {{ t('client.login.password.otpNote') }}
+          </p>
         </form>
 
-        <p class="h5-login-agreement">
-          <span class="h5-login-agreement__lead">
-            {{ t('client.login.password.agreementPrefix') }}
-          </span>
-          <span class="h5-login-agreement__links">
-            <button type="button" @click="openTerms">{{ t('client.login.password.terms') }}</button>
-            <span>{{ t('client.login.password.agreementAnd') }}</span>
-            <button type="button" @click="openPrivacy">{{ t('client.login.password.privacy') }}</button>
-          </span>
+        <p class="auth-agreement">
+          {{ t('client.login.password.agreementPrefix') }}
+          <button type="button" @click="openTerms">{{ t('client.login.password.terms') }}</button>
+          {{ t('client.login.password.agreementAnd') }}
+          <button type="button" @click="openPrivacy">{{ t('client.login.password.privacy') }}</button>
         </p>
       </section>
     </main>
@@ -148,9 +154,11 @@ import { useRoute, useRouter } from 'vue-router';
 import { showFailToast, showSuccessToast } from 'vant';
 import { login as loginByPassword, loginByVerifyCode, sendCode } from '@/modules/client/api/login';
 import { setClientLocale } from '@/modules/client/locales';
+import { preferEmailErrorCode } from '@/modules/client/utils/verificationChannel';
 import { openClientLegalPage, saveClientToken } from '@/modules/h5/utils/auth';
 import {
   DEFAULT_LOGIN_COUNTRY_CODE,
+  isEmailLoginAccount,
   LOGIN_COUNTRY_CODE_OPTIONS,
   resolveLoginAccount,
 } from '@/utils/login-account';
@@ -179,6 +187,7 @@ const showPassword = ref(false);
 let codeTimer: number | null = null;
 
 const isCodeLogin = computed(() => loginMode.value === 'code');
+const isEmailAccount = computed(() => isEmailLoginAccount(form.account));
 const countryCodeOptions = LOGIN_COUNTRY_CODE_OPTIONS;
 const resolvedLoginAccount = computed(() => resolveLoginAccount(form.account, form.countryCode));
 const isCodeDestinationValid = computed(() => {
@@ -279,7 +288,9 @@ const requestLoginCode = async () => {
     showSuccessToast(t('client.login.password.codeSent'));
     startCodeCountdown();
   } catch (error: any) {
-    showFailToast(error?.message || t('client.login.password.codeSendFailed'));
+    showFailToast(preferEmailErrorCode(error)
+      ? t('client.login.password.preferEmail')
+      : (error?.message || t('client.login.password.codeSendFailed')));
   } finally {
     sendingCode.value = false;
   }
@@ -372,356 +383,5 @@ onBeforeUnmount(() => {
 </script>
 
 <style scoped lang="scss">
-.h5-login-page {
-  min-height: 100vh;
-  background: #fff;
-  color: #1d293d;
-  -webkit-text-size-adjust: 100%;
-  text-size-adjust: 100%;
-}
-
-.h5-login-topbar {
-  max-width: 393px;
-  height: 54px;
-  margin: 0 auto;
-  padding: 0 12px 0 12px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  border-bottom: 1px solid #eef2f6;
-}
-
-.h5-login-topbar__back,
-.h5-login-topbar__locale {
-  border: 0;
-  background: transparent;
-  padding: 0;
-  display: inline-flex;
-  align-items: center;
-  cursor: pointer;
-}
-
-.h5-login-topbar__back {
-  width: 44px;
-  height: 44px;
-  justify-content: center;
-  color: #45556c;
-  font-size: 20px;
-  border-radius: 999px;
-}
-
-.h5-login-topbar__locale {
-  height: 32px;
-  gap: 6px;
-  padding: 0 12px 0 10px;
-  color: #45556c;
-  font-size: 14px;
-  font-weight: 700;
-  border-radius: 999px;
-}
-
-.h5-login-topbar__locale img {
-  width: 18px;
-  height: 18px;
-  object-fit: contain;
-  flex-shrink: 0;
-}
-
-.h5-login-main {
-  max-width: 393px;
-  margin: 0 auto;
-  padding: 0 24px 48px;
-}
-
-.h5-login-panel {
-  padding-top: 18px;
-}
-
-.h5-login-panel__header h1 {
-  margin: 0;
-  color: #1d293d;
-  font-size: 24px;
-  line-height: 32px;
-  font-weight: 900;
-  letter-spacing: -0.03em;
-}
-
-.h5-login-panel__header p {
-  margin: 8px 0 0;
-  color: #62748e;
-  font-size: 15px;
-  line-height: 22px;
-  font-weight: 500;
-}
-
-.h5-login-panel__header p button,
-.h5-login-forgot button {
-  border: 0;
-  background: transparent;
-  padding: 0;
-  color: var(--hourx-brand);
-  font-weight: 700;
-  cursor: pointer;
-}
-
-.h5-login-panel__header p button {
-  font-size: 16px;
-  line-height: 24px;
-}
-
-.h5-login-form {
-  margin-top: 32px;
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
-}
-
-.h5-login-field {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.h5-login-field > span {
-  color: #314158;
-  font-size: 13px;
-  line-height: 20px;
-  font-weight: 700;
-}
-
-.h5-login-input {
-  min-height: 49px;
-  border-radius: 10px;
-  border: 1px solid #cbd5e1;
-  background: #f8fafc;
-  padding: 0 14px;
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  transition: border-color 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease;
-}
-
-.h5-login-input :deep(.van-icon) {
-  color: #9bb0cf;
-  font-size: 20px;
-}
-
-.h5-login-country-code {
-  width: 100%;
-  min-width: 0;
-  border: 0;
-  outline: 0;
-  background: transparent;
-  color: #1d293d;
-  font-size: 14px;
-  line-height: 1.4;
-  font-weight: 700;
-}
-
-.h5-login-account-row {
-  width: 100%;
-  min-width: 0;
-  display: grid;
-  grid-template-columns: 82px minmax(0, 1fr);
-  gap: 10px;
-}
-
-.h5-login-prefix-box {
-  min-width: 0;
-  min-height: 49px;
-  padding: 0 10px;
-  border: 1px solid #cbd5e1;
-  border-radius: 10px;
-  background: #f8fafc;
-  display: flex;
-  align-items: center;
-  box-sizing: border-box;
-}
-
-.h5-login-input input {
-  flex: 1;
-  width: 100%;
-  min-width: 0;
-  border: 0;
-  outline: 0;
-  background: transparent;
-  color: #1d293d;
-  font-size: 14px;
-  line-height: 1.4;
-  font-weight: 500;
-}
-
-.h5-login-input--account {
-  min-width: 0;
-  gap: 8px;
-  padding-inline: 12px;
-  overflow: hidden;
-}
-
-.h5-login-input--account input {
-  font-size: 16px;
-}
-
-@media (max-width: 350px) {
-  .h5-login-account-row {
-    grid-template-columns: 76px minmax(0, 1fr);
-    gap: 8px;
-  }
-
-  .h5-login-prefix-box,
-  .h5-login-input--account {
-    padding-inline: 9px;
-  }
-}
-
-.h5-login-input input::placeholder {
-  color: #64748b;
-}
-
-.h5-login-input:focus-within {
-  border-color: rgba(5, 21, 43, 0.32);
-  box-shadow: 0 0 0 3px rgba(5, 21, 43, 0.06);
-  background: #fff;
-}
-
-.h5-login-code-row {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 108px;
-  gap: 10px;
-}
-
-.h5-login-input--code {
-  min-width: 0;
-}
-
-.h5-login-code-btn {
-  min-height: 49px;
-  border: 0;
-  border-radius: 10px;
-  background: var(--hourx-brand-soft);
-  color: var(--hourx-brand);
-  font-size: 13px;
-  font-weight: 700;
-  padding: 0 8px;
-  cursor: pointer;
-}
-
-.h5-login-code-btn:disabled,
-.h5-login-submit:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
-
-.h5-login-code-hint {
-  color: #62748e;
-  font-size: 11px;
-  line-height: 1.45;
-}
-
-.h5-login-field > .h5-login-forgot {
-  display: flex;
-  justify-content: flex-end;
-}
-
-.h5-login-forgot button {
-  font-size: 14px;
-  line-height: 21px;
-}
-
-.h5-password-toggle {
-  width: 28px;
-  height: 28px;
-  border: 0;
-  padding: 0;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  flex: 0 0 28px;
-  background: transparent;
-  color: #62748e;
-  cursor: pointer;
-}
-
-.h5-password-toggle :deep(.van-icon) {
-  color: currentColor;
-  font-size: 19px;
-}
-
-.h5-login-submit {
-  margin-top: 0;
-  width: 100%;
-  min-height: 52px;
-  border: 0;
-  border-radius: 10px;
-  background: var(--hourx-brand);
-  color: #fff;
-  font-size: 18px;
-  line-height: 28px;
-  font-weight: 700;
-  letter-spacing: -0.02em;
-  cursor: pointer;
-}
-
-.h5-login-secondary {
-  width: 100%;
-  min-height: 50px;
-  border: 1px solid rgba(5, 21, 43, 0.34);
-  border-radius: 10px;
-  background: #fff;
-  color: var(--hourx-brand);
-  font-size: 15px;
-  line-height: 22px;
-  font-weight: 750;
-  cursor: pointer;
-}
-
-.h5-login-divider {
-  display: grid;
-  grid-template-columns: 1fr auto 1fr;
-  align-items: center;
-  gap: 11px;
-  color: #94a3b8;
-  font-size: 11px;
-  line-height: 1;
-  font-weight: 650;
-}
-
-.h5-login-divider::before,
-.h5-login-divider::after {
-  content: '';
-  height: 1px;
-  background: #e2e8f0;
-}
-
-.h5-login-agreement {
-  width: 100%;
-  margin: 44px auto 0;
-  color: #90a1b9;
-  font-size: 12px;
-  line-height: 19.5px;
-  font-weight: 500;
-  text-align: center;
-}
-
-.h5-login-agreement__lead {
-  display: block;
-}
-
-.h5-login-agreement__links {
-  align-items: center;
-  justify-content: center;
-  gap: 4px;
-  display: flex;
-  white-space: nowrap;
-}
-
-.h5-login-agreement button {
-  border: 0;
-  background: transparent;
-  padding: 0;
-  color: #45556c;
-  font-size: 12px;
-  line-height: 19.5px;
-  font-weight: 700;
-}
+@use '../../client/style/auth';
 </style>

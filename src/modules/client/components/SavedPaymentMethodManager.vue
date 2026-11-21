@@ -230,10 +230,9 @@ const copy = computed(() =>
         savePending: "银行卡验证尚未完成，请完成验证后再试。",
       }
     : {
-        title: "Saved payment methods",
-        description:
-          "Save cards securely with Stripe and select them at checkout.",
-        add: "Add payment method",
+        title: "Payment Methods",
+        description: "Manage your saved payment methods securely.",
+        add: "Add Payment Method",
         loading: "Loading payment methods…",
         retry: "Retry",
         empty: "No saved payment methods",
@@ -241,14 +240,14 @@ const copy = computed(() =>
         default: "Default",
         expires: "Expires",
         makeDefault: "Make default",
-        remove: "Remove",
+        remove: "Remove Card",
         processing: "Processing…",
-        addTitle: "Add payment method",
+        addTitle: "Add Payment Method",
         close: "Close",
         secureHint:
-          "Card details are securely handled by Stripe. HourX never stores your full card number or security code.",
+          "Card details are handled securely by Stripe. HourX never stores your full card number or security code.",
         loadingForm: "Loading secure form…",
-        save: "Save payment method",
+        save: "Save Payment Method",
         saving: "Saving…",
         loadFailed: "Unable to load payment methods. Please try again.",
         setupFailed: "Unable to load the card form.",
@@ -494,7 +493,7 @@ onBeforeUnmount(destroyStripe)
 
 <style scoped>
 .saved-payments {
-  color: #0f2138;
+  color: var(--hourx-client-text);
 }
 .saved-payments__header {
   display: flex;
@@ -505,13 +504,12 @@ onBeforeUnmount(destroyStripe)
 }
 .saved-payments__header h3 {
   margin: 0;
-  font-size: 19px;
+  font: 600 1.0625rem/1.3 var(--hourx-client-font-family);
 }
 .saved-payments__header p {
   margin: 7px 0 0;
-  color: #6b7a8e;
-  font-size: 13px;
-  line-height: 1.5;
+  color: var(--hourx-client-muted);
+  font: 400 0.8125rem/1.55 var(--hourx-client-font-family);
 }
 .saved-payments__add {
   display: inline-flex;
@@ -522,9 +520,9 @@ onBeforeUnmount(destroyStripe)
   padding: 0 16px;
   border: 0;
   border-radius: 12px;
-  background: #1769c2;
+  background: var(--hourx-client-text);
   color: #fff;
-  font-weight: 800;
+  font: 600 var(--hourx-client-size-action)/1 var(--hourx-client-font-family);
   cursor: pointer;
 }
 .saved-payments__add:disabled,
@@ -631,13 +629,13 @@ onBeforeUnmount(destroyStripe)
   gap: 9px;
 }
 .saved-payments__card-copy strong {
-  font-size: 15px;
-  letter-spacing: 0.04em;
+  font: 600 var(--hourx-client-size-body)/1.3 var(--hourx-client-font-family);
 }
 .saved-payments__card-copy small {
   display: block;
   margin-top: 5px;
-  color: #738196;
+  color: var(--hourx-client-muted);
+  font-size: 0.8125rem;
 }
 .saved-payments__default {
   padding: 3px 7px;
@@ -660,9 +658,8 @@ onBeforeUnmount(destroyStripe)
   padding: 7px 9px;
   border: 0;
   background: transparent;
-  color: #1769c2;
-  font-size: 12px;
-  font-weight: 800;
+  color: var(--hourx-client-text);
+  font: 600 var(--hourx-client-size-action)/1 var(--hourx-client-font-family);
   cursor: pointer;
 }
 .saved-payments__actions .saved-payments__remove {
@@ -707,8 +704,8 @@ onBeforeUnmount(destroyStripe)
 }
 .saved-payment-dialog__panel h3 {
   margin: 5px 0 0;
-  color: #05152b;
-  font-size: 23px;
+  color: var(--hourx-client-text);
+  font: 700 1.375rem/1.2 var(--hourx-client-heading-font);
 }
 .saved-payment-dialog__panel header button {
   width: 36px;
@@ -721,9 +718,8 @@ onBeforeUnmount(destroyStripe)
   cursor: pointer;
 }
 .saved-payment-dialog__panel > p {
-  color: #64748b;
-  font-size: 13px;
-  line-height: 1.6;
+  color: var(--hourx-client-muted);
+  font: 400 0.8125rem/1.55 var(--hourx-client-font-family);
 }
 .saved-payment-dialog__loading {
   display: flex;
@@ -764,7 +760,7 @@ onBeforeUnmount(destroyStripe)
   border-radius: 14px;
   background: #05152b;
   color: #fff;
-  font-weight: 800;
+  font: 600 var(--hourx-client-size-action)/1 var(--hourx-client-font-family);
   cursor: pointer;
 }
 .saved-payment-dialog__submit:disabled {

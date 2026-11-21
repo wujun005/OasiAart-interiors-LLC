@@ -58,7 +58,7 @@
           {{ isZh ? "保留预订" : "Keep Booking" }}
         </button>
         <button type="button" class="is-primary" :disabled="submitting" @click="$emit('confirm')">
-          {{ submitting ? (isZh ? "提交中…" : "Submitting…") : (isZh ? "确认取消" : "Confirm Cancellation") }}
+          {{ submitting ? (isZh ? "提交中…" : "Submitting…") : (isZh ? "确认取消" : "Cancel Booking") }}
         </button>
       </footer>
     </template>
@@ -112,7 +112,7 @@ const selectedReason = computed(() =>
 const showReschedule = computed(() =>
   ["CHANGE_DATE_OR_TIME", "SERVICE_TIME_NO_LONGER_WORKS"].includes(props.reason),
 )
-const titleText = computed(() => isZh.value ? "取消这个预订？" : "Cancel this booking?")
+const titleText = computed(() => isZh.value ? "取消这个预订？" : "Cancel This Booking?")
 const bookingSummary = computed(() =>
   [props.serviceName, props.schedule].map((item) => String(item || "").trim()).filter(Boolean).join(" · "),
 )
@@ -152,7 +152,7 @@ const confirmedText = computed(() => {
 </script>
 
 <style scoped>
-.cancellation-card { width: 100%; max-width: 420px; overflow: hidden; border-radius: 16px; background: #fff; color: #111; box-shadow: 0 20px 60px rgba(0, 0, 0, 0.25); font-family: Arial, Helvetica, sans-serif; }
+.cancellation-card { width: 100%; max-width: 420px; overflow: hidden; border-radius: 16px; background: #fff; color: #111; box-shadow: 0 20px 60px rgba(0, 0, 0, 0.25); }
 .cancellation-card__header { padding: 20px 24px 0; display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; }
 .cancellation-card__header h2 { margin: 0 0 4px; color: #111; font-size: 18px; line-height: 1.3; }
 .cancellation-card__header p { margin: 0; color: #6b6b70; font-size: 13px; line-height: 1.45; }

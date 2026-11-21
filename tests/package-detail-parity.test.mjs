@@ -254,7 +254,7 @@ test("H5 package details compile with ordinary H5 detail styling and safe fixed 
   assert.match(mobile.template.content, /emit\('checkout'\)/)
   assert.match(mobile.template.content, /view\.original/)
   assert.match(mobile.template.content, /view\.save/)
-  assert.match(mobile.template.content, /class="h5-package-booking-note"[\s\S]*client\.productDetail\.booking\.subtotal/)
+  assert.match(mobile.template.content, /class="h5-package-booking-note"[\s\S]*client\.home\.packages\.subtotal/)
   assert.doesNotMatch(mobile.template.content, /h5-package-booking-note[\s\S]*PackageSharedSpecs/)
   assert.doesNotMatch(mobileScript.content, /checkoutCart|addPackageToCart|useRouter/)
 })

@@ -1,3 +1,5 @@
+@use '../../../styles/font-stack';
+
 :root {
   --hx-midnight-950: #030c18;
   --hx-midnight-900: #06182d;
@@ -29,7 +31,7 @@
   --hx-radius-md: 14px;
   --hx-radius-lg: 20px;
   --hx-ease-out: cubic-bezier(0.22, 1, 0.36, 1);
-  --hx-font-sans: "Avenir Next", Avenir, Inter, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+  --hx-font-sans: #{font-stack.$family};
   --hx-font-numeric: var(--hx-font-sans);
 
   --hourx-brand: var(--hx-midnight-900);
@@ -70,6 +72,7 @@ html {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
+  font-family: var(--hx-font-sans);
 }
 
 body {
@@ -78,14 +81,18 @@ body {
   margin: 0;
   color: var(--hx-ink);
   background: var(--hx-ivory-100);
-  font-family: var(--hx-font-sans);
 }
 
 button,
 input,
+optgroup,
 textarea,
 select {
   font: inherit;
+}
+
+body :is(.ql-toolbar.ql-snow, .ql-container.ql-snow, .ql-snow .ql-tooltip) {
+  font-family: inherit;
 }
 
 #app {

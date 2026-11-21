@@ -1,38 +1,35 @@
 <template>
-  <div class="register-page">
-    <aside class="register-page__left">
-      <div class="register-brand">
-        <img class="register-brand__logo" :src="assetLogo" alt="HourX Logo" />
-        <span class="register-brand__name">{{ t('client.login.register.brand') }}</span>
+  <div class="auth-page">
+    <aside class="auth-side">
+      <div class="auth-brand">
+        <img :src="assetLogo" alt="HourX" />
       </div>
 
-      <div class="register-page__left-content">
-        <h1 class="register-page__headline">
-          {{ t('client.login.register.heroLine1') }}<br />
-          {{ t('client.login.register.heroLine2') }}
-        </h1>
-        <p class="register-page__slogan">{{ t('client.login.register.heroSlogan') }}</p>
+      <div>
+        <span class="auth-kicker">{{ t('client.login.register.brand') }}</span>
+        <h2 class="auth-headline">{{ t('client.login.register.heroTitle') }}</h2>
+        <p class="auth-slogan">{{ t('client.login.register.heroSlogan') }}</p>
+      </div>
 
-        <div class="left-feature-card">
-          <article v-for="item in leftFeatures" :key="item.key" class="left-feature-card__item">
-            <img :src="item.icon" alt="" />
-            <strong>{{ t(item.titleKey) }}</strong>
-            <span>{{ t(item.descKey) }}</span>
-          </article>
-        </div>
+      <div class="auth-features">
+        <article v-for="item in leftFeatures" :key="item.key" class="auth-feature">
+          <img :src="item.icon" alt="" />
+          <strong>{{ t(item.titleKey) }}</strong>
+          <span>{{ t(item.descKey) }}</span>
+        </article>
       </div>
     </aside>
 
-    <section class="register-page__right">
-      <div class="register-page__tools">
-        <button class="top-pill top-pill--back" type="button" @click="goHome">
+    <section class="auth-main">
+      <div class="auth-tools">
+        <button class="auth-tool" type="button" @click="goHome">
           {{ t('client.login.register.backHome') }}
         </button>
 
         <el-dropdown trigger="click" @command="handleLocaleCommand">
-          <button class="top-pill top-pill--locale" type="button">
+          <button class="auth-tool" type="button" :aria-label="localeLabel">
             <img :src="assetLocale" alt="" />
-            <span>{{ localeLabel }}</span>
+            <span>{{ locale === 'zh' ? '中' : 'EN' }}</span>
           </button>
           <template #dropdown>
             <el-dropdown-menu>
@@ -43,22 +40,22 @@
         </el-dropdown>
       </div>
 
-      <div class="register-form-wrap">
-        <header class="register-form-wrap__header">
-          <h2>{{ t('client.login.register.title') }}</h2>
+      <div class="auth-panel">
+        <header class="auth-heading">
+          <h1>{{ t('client.login.register.title') }}</h1>
           <p>
             {{ t('client.login.register.hasAccount') }}
-            <button type="button" class="link-btn" @click="goLogin">
+            <button type="button" class="auth-link" @click="goLogin">
               {{ t('client.login.register.goLogin') }}
             </button>
           </p>
         </header>
 
-        <form class="register-form" @submit.prevent="submitRegister">
-          <label class="form-item">
+        <form class="auth-form" @submit.prevent="submitRegister">
+          <label class="auth-field">
             <span>{{ t('client.login.register.phoneLabel') }}</span>
-            <div class="phone-row">
-              <div class="form-item__control form-item__control--dial">
+            <div class="auth-account">
+              <div class="auth-prefix">
                 <select v-model="form.countryCode" autocomplete="tel-country-code">
                   <option
                     v-for="item in countryCodeOptions"
@@ -69,7 +66,7 @@
                   </option>
                 </select>
               </div>
-              <div class="form-item__control form-item__control--phone">
+              <div class="auth-input">
                 <img :src="assetPhone" alt="" />
                 <input
                   v-model.trim="form.phone"
@@ -81,9 +78,9 @@
             </div>
           </label>
 
-          <label class="form-item">
+          <label class="auth-field">
             <span>{{ t('client.login.register.emailLabel') }}</span>
-            <div class="form-item__control">
+            <div class="auth-input">
               <img :src="assetEmail" alt="" />
               <input
                 v-model.trim="form.email"
@@ -94,9 +91,9 @@
             </div>
           </label>
 
-          <label class="form-item">
+          <label class="auth-field">
             <span>{{ t('client.login.register.passwordLabel') }}</span>
-            <div class="form-item__control">
+            <div class="auth-input">
               <img :src="assetPassword" alt="" />
               <input
                 v-model="form.password"
@@ -105,7 +102,7 @@
                 :placeholder="t('client.login.register.passwordPlaceholder')"
               />
               <button
-                class="password-toggle"
+                class="auth-password-toggle"
                 type="button"
                 :aria-label="
                   showPassword
@@ -133,9 +130,9 @@
             </div>
           </label>
 
-          <label class="form-item">
+          <label class="auth-field">
             <span>{{ t('client.login.register.confirmPasswordLabel') }}</span>
-            <div class="form-item__control">
+            <div class="auth-input">
               <img :src="assetPassword" alt="" />
               <input
                 v-model="form.confirmPassword"
@@ -146,10 +143,10 @@
             </div>
           </label>
 
-          <label class="form-item">
+          <label class="auth-field">
             <span>{{ t('client.login.register.codeLabel') }}</span>
-            <div class="code-row">
-              <div class="form-item__control form-item__control--code">
+            <div class="auth-code-row">
+              <div class="auth-input">
                 <img :src="assetCode" alt="" />
                 <input
                   v-model.trim="form.smsCode"
@@ -160,7 +157,7 @@
                 />
               </div>
               <button
-                class="code-btn"
+                class="auth-code-btn"
                 type="button"
                 :disabled="sendingCode || codeCooldown > 0"
                 @click="requestSmsCode"
@@ -170,12 +167,12 @@
             </div>
           </label>
 
-          <button class="submit-btn" type="submit" :disabled="submitting">
+          <button class="auth-submit" type="submit" :disabled="submitting">
             {{ submitting ? t('client.login.register.submitting') : t('client.login.register.submit') }}
           </button>
         </form>
 
-        <p class="agreement">
+        <p class="auth-agreement">
           {{ t('client.login.register.agreementPrefix') }}
           <RouterLink :to="{ name: 'legal-terms' }">
             {{ t('client.login.register.terms') }}
@@ -200,10 +197,12 @@ import {
   registerByEmailPhone,
 } from '@/modules/client/api/login';
 import { setClientLocale, type ClientLocale } from '@/modules/client/locales';
+import { preferEmailHint, wantsEmailChannel } from '@/modules/client/utils/verificationChannel';
 import {
   clearStoredAuthState,
   setClientAuthStorageValue,
 } from '@/utils/auth-state';
+import { trackCompleteRegistration } from '@/modules/client/utils/metaPixel';
 
 const assetLogo = '/assets/images/client/hourx-mark.svg';
 const assetFeature1 = new URL('@/assets/images/client/Icon.png', import.meta.url).href;
@@ -321,11 +320,17 @@ const requestSmsCode = async () => {
   }
   sendingCode.value = true;
   try {
-    await sendRegisterCode({
+    const result = await sendRegisterCode({
       phone: buildFullPhone(),
       email: form.email.trim() || undefined,
     });
-    ElMessage.success(t('client.login.register.codeSent'));
+    const guidance = preferEmailHint(result, String(locale.value))
+      || (wantsEmailChannel(result) ? t('client.login.register.preferEmail') : '');
+    if (guidance) {
+      ElMessage.warning(guidance);
+    } else {
+      ElMessage.success(t('client.login.register.codeSent'));
+    }
     startCodeCountdown();
   } catch (error: any) {
     ElMessage.error(error?.message || t('client.login.register.codeSendFailed'));
@@ -413,6 +418,7 @@ const submitRegister = async () => {
     if (!saveClientToken(result, form.email.trim() || buildFullPhone())) {
       throw new Error(t('client.login.register.failed'));
     }
+    trackCompleteRegistration();
     ElMessage.success(t('client.login.register.success'));
     router.push('/');
   } catch (error: any) {
@@ -431,475 +437,5 @@ onBeforeUnmount(() => {
 </script>
 
 <style scoped lang="scss">
-.register-page {
-  min-height: 100vh;
-  display: flex;
-  background: #f8fafc;
-}
-
-.register-page__left {
-  width: min(367px, 34vw);
-  min-width: 300px;
-  padding: 48px;
-  box-sizing: border-box;
-  position: relative;
-  overflow: hidden;
-  background: linear-gradient(180deg, var(--hourx-brand-hover) 0%, var(--hourx-brand) 58%, var(--hourx-brand-hover) 100%);
-}
-
-.register-page__left::before,
-.register-page__left::after {
-  content: '';
-  position: absolute;
-  width: 500px;
-  height: 500px;
-  border-radius: 50%;
-  background: rgba(186, 247, 233, 0.65);
-  filter: blur(100px);
-  z-index: 0;
-}
-
-.register-page__left::before {
-  left: 90px;
-  top: -228px;
-}
-
-.register-page__left::after {
-  left: -280px;
-  bottom: -228px;
-}
-
-.register-brand,
-.register-page__left-content {
-  position: relative;
-  z-index: 1;
-}
-
-.register-brand {
-  display: inline-flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.register-brand__logo {
-  width: 50px;
-  height: 48px;
-  object-fit: contain;
-  border-radius: 8px;
-  background: #fff;
-}
-
-.register-brand__name {
-  font-size: 36px;
-  font-weight: 800;
-  letter-spacing: 0.2px;
-  color: #fff;
-}
-
-.register-page__left-content {
-  margin-top: 220px;
-}
-
-.register-page__headline {
-  margin: 0;
-  font-size: 58px;
-  line-height: 1.25;
-  font-weight: 800;
-  color: #fff;
-}
-
-.register-page__slogan {
-  margin: 64px 0 0;
-  font-size: 28px;
-  line-height: 1.4;
-  font-weight: 700;
-  color: #fff;
-}
-
-.left-feature-card {
-  margin-top: 64px;
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 0;
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  border-radius: 14px;
-  background: rgba(255, 255, 255, 0.1);
-  overflow: hidden;
-}
-
-.left-feature-card__item {
-  min-height: 122px;
-  padding: 18px 10px 14px;
-  text-align: center;
-  color: #fff;
-}
-
-.left-feature-card__item + .left-feature-card__item {
-  border-left: 1px solid rgba(255, 255, 255, 0.2);
-}
-
-.left-feature-card__item img {
-  width: 26px;
-  height: 26px;
-}
-
-.left-feature-card__item strong {
-  display: block;
-  margin-top: 10px;
-  font-size: 30px;
-  line-height: 1.25;
-}
-
-.left-feature-card__item span {
-  display: block;
-  margin-top: 4px;
-  font-size: 20px;
-  color: rgba(255, 255, 255, 0.8);
-}
-
-.register-page__right {
-  flex: 1;
-  min-width: 0;
-  position: relative;
-  padding: 32px 48px;
-  box-sizing: border-box;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.register-page__tools {
-  position: absolute;
-  top: 32px;
-  left: 32px;
-  right: 32px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-
-.top-pill {
-  position: static;
-  height: 38px;
-  border: 1px solid #e2e8f0;
-  border-radius: 999px;
-  background: #fff;
-  color: rgba(15, 23, 42, 0.5);
-  font-size: 14px;
-  font-weight: 700;
-  cursor: pointer;
-}
-
-.top-pill--back {
-  min-width: 98px;
-  padding: 0 18px;
-}
-
-.top-pill--locale {
-  min-width: 94px;
-  padding: 0 20px;
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.top-pill--locale img {
-  width: 16px;
-  height: 16px;
-}
-
-.register-form-wrap {
-  width: 100%;
-  max-width: 448px;
-}
-
-.register-form-wrap__header h2 {
-  margin: 0;
-  font-size: 42px;
-  line-height: 1.2;
-  font-weight: 800;
-  color: rgba(15, 23, 42, 0.9);
-}
-
-.register-form-wrap__header p {
-  margin: 8px 0 0;
-  font-size: 20px;
-  font-weight: 500;
-  color: rgba(15, 23, 42, 0.5);
-}
-
-.link-btn {
-  margin-left: 4px;
-  border: 0;
-  padding: 0;
-  background: transparent;
-  color: var(--hourx-brand);
-  font-size: 20px;
-  font-weight: 700;
-  text-decoration: underline;
-  cursor: pointer;
-}
-
-.register-form {
-  margin-top: 32px;
-}
-
-.form-item {
-  display: block;
-  margin-bottom: 16px;
-}
-
-.form-item > span {
-  display: block;
-  margin-bottom: 4px;
-  font-size: 18px;
-  font-weight: 700;
-  color: rgba(15, 23, 42, 0.9);
-}
-
-.form-item__control {
-  width: 100%;
-  height: 50px;
-  border: 1px solid #e2e8f0;
-  border-radius: 10px;
-  background: #f8fafc;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 0 12px;
-  box-sizing: border-box;
-}
-
-.form-item__control img {
-  width: 18px;
-  height: 18px;
-  flex-shrink: 0;
-}
-
-.form-item__control input {
-  flex: 1;
-  min-width: 0;
-  border: 0;
-  outline: 0;
-  background: transparent;
-  color: rgba(15, 23, 42, 0.88);
-  font-size: 16px;
-}
-
-.form-item__control select {
-  width: 100%;
-  border: 0;
-  outline: 0;
-  background: transparent;
-  color: rgba(15, 23, 42, 0.88);
-  font-size: 16px;
-}
-
-.form-item__control input::placeholder {
-  color: rgba(10, 10, 10, 0.5);
-}
-
-.phone-row {
-  display: flex;
-  gap: 12px;
-}
-
-.form-item__control--dial {
-  width: 150px;
-}
-
-.form-item__control--phone {
-  flex: 1;
-}
-
-.password-toggle {
-  width: 24px;
-  height: 24px;
-  border: 0;
-  padding: 0;
-  background: transparent;
-  color: rgba(15, 23, 42, 0.58);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-}
-
-.password-toggle svg {
-  width: 18px;
-  height: 18px;
-  stroke: currentColor;
-  fill: none;
-  stroke-width: 2;
-}
-
-.code-row {
-  display: flex;
-  gap: 12px;
-}
-
-.form-item__control--code {
-  flex: 1;
-}
-
-.code-btn {
-  width: 102px;
-  border: 0;
-  border-radius: 10px;
-  background: var(--hourx-brand-soft);
-  color: var(--hourx-brand);
-  font-size: 14px;
-  font-weight: 700;
-  cursor: pointer;
-}
-
-.code-btn:disabled {
-  opacity: 0.7;
-  cursor: not-allowed;
-}
-
-.submit-btn {
-  width: 100%;
-  height: 60px;
-  margin-top: 20px;
-  border: 0;
-  border-radius: 14px;
-  background: var(--hourx-brand);
-  color: #fff;
-  font-size: 18px;
-  font-weight: 700;
-  cursor: pointer;
-}
-
-.submit-btn:disabled {
-  opacity: 0.75;
-  cursor: not-allowed;
-}
-
-.agreement {
-  margin-top: 16px;
-  text-align: center;
-  font-size: 12px;
-  line-height: 1.5;
-  color: rgba(15, 23, 42, 0.35);
-}
-
-.agreement a {
-  color: rgba(15, 23, 42, 0.5);
-  text-decoration: none;
-}
-
-@media (max-width: 1320px) {
-  .register-brand__name {
-    font-size: 34px;
-  }
-
-  .register-page__headline {
-    font-size: 50px;
-  }
-
-  .register-page__slogan {
-    font-size: 26px;
-  }
-
-  .left-feature-card__item strong {
-    font-size: 26px;
-  }
-
-  .left-feature-card__item span {
-    font-size: 17px;
-  }
-
-  .register-form-wrap__header h2 {
-    font-size: 36px;
-  }
-
-  .register-form-wrap__header p,
-  .link-btn,
-  .form-item > span {
-    font-size: 16px;
-  }
-}
-
-@media (max-width: 1024px) {
-  .register-page {
-    flex-direction: column;
-  }
-
-  .register-page__left {
-    width: 100%;
-    min-width: 0;
-    padding: 24px 20px 32px;
-  }
-
-  .register-brand__name {
-    font-size: 28px;
-  }
-
-  .register-page__left-content {
-    margin-top: 56px;
-  }
-
-  .register-page__headline {
-    font-size: 36px;
-  }
-
-  .register-page__slogan {
-    margin-top: 24px;
-    font-size: 22px;
-  }
-
-  .left-feature-card {
-    margin-top: 24px;
-  }
-
-  .left-feature-card__item strong {
-    font-size: 24px;
-  }
-
-  .left-feature-card__item span {
-    font-size: 15px;
-  }
-
-  .register-page__right {
-    padding: 82px 16px 24px;
-    align-items: flex-start;
-  }
-
-  .register-page__tools {
-    top: 18px;
-    left: 16px;
-    right: 16px;
-  }
-
-  .register-form-wrap__header h2 {
-    font-size: 30px;
-  }
-}
-
-@media (max-width: 520px) {
-  .left-feature-card__item strong {
-    font-size: 18px;
-  }
-
-  .left-feature-card__item span {
-    font-size: 12px;
-  }
-
-  .phone-row {
-    gap: 8px;
-  }
-
-  .form-item__control--dial {
-    width: 130px;
-  }
-
-  .code-row {
-    gap: 8px;
-  }
-
-  .code-btn {
-    width: 96px;
-  }
-}
+@use '../style/auth';
 </style>

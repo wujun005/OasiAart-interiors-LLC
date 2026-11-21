@@ -1,6 +1,7 @@
 import { createRouter, createWebHistory, RouteRecordRaw } from 'vue-router';
 import ProfilePage from '@/modules/client/pages/profile.vue';
 import { clearStoredAuthState, getStoredAuthSnapshot } from '@/utils/auth-state';
+import { trackPageView } from '@/modules/client/utils/metaPixel';
 
 const routes: RouteRecordRaw[] = [
   // C端：/index 开头
@@ -156,6 +157,10 @@ router.beforeEach((to) => {
     name: 'login',
     query: { redirect: to.fullPath },
   };
+});
+
+router.afterEach(() => {
+  trackPageView();
 });
 
 export default router;

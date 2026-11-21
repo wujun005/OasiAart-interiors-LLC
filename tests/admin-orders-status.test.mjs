@@ -11,6 +11,7 @@ import {
 import ts from "typescript"
 import * as Vue from "vue"
 import { baseParse } from "@vue/compiler-dom"
+import * as supplierMine from "../src/modules/admin/utils/supplier-mine.ts"
 
 // 编译实际订单组件与翻译，只模拟接口边界，不访问真实订单或供应商。
 const root = new URL("../", import.meta.url)
@@ -68,6 +69,7 @@ const deferred = () => {
 
 async function harness(t, options = {}) {
   const calls = {
+    pages: [],
     queries: [],
     updates: [],
     dispatches: [],
@@ -78,7 +80,7 @@ async function harness(t, options = {}) {
     windowEvents: [],
   }
   const locale = Vue.ref("en")
-  const route = Vue.reactive({ name: options.routeName || "admin-orders" })
+  const route = Vue.reactive({ name: options.routeName || "admin-orders", query: options.routeQuery || {} })
   const translate = (key, params = {}) => {
     const value = key
       .split(".")
@@ -101,7 +103,10 @@ async function harness(t, options = {}) {
     orderDetail: async (orderId) => ({ data: { orderId, fulfillmentList: [] } }),
   }
   const api = {
-    page: async () => ({ data: { list: [], total: 0 } }),
+    page: async (payload) => {
+      calls.pages.push(clone(payload))
+      return { data: { list: [], total: 0 } }
+    },
     querySuppliers: async (params) => {
       calls.queries.push(clone(params))
       return controls.query(params)
@@ -151,6 +156,7 @@ async function harness(t, options = {}) {
           },
         }
       if (name === "@/modules/admin/api/order") return api
+      if (name === "@/modules/admin/utils/menuPermission") return { canAction: () => true }
       if (name === "@/modules/admin/api/spu")
         return { page: async () => ({ list: [] }) }
       if (name === "@/modules/admin/api/supplier")
@@ -161,6 +167,7 @@ async function harness(t, options = {}) {
           },
         }
       if (name === "@/modules/admin/utils/i18n") return adminI18n
+      if (name === "@/modules/admin/utils/supplier-mine") return supplierMine
       throw new Error(`未允许的依赖：${name}`)
     },
   })
@@ -181,6 +188,29 @@ async function harness(t, options = {}) {
     })
   return { state, calls, controls, row, locale, translate, route }
 }
+
+test("覆盖看板链接在 PC 和 H5 上按迪拜服务日筛选已支付普通订单", async (t) => {
+  for (const routeName of ["admin-orders", "admin-orders-h5"]) {
+    const { calls, route } = await harness(t, {
+      routeName,
+      routeQuery: { coverageDispatchDate: "2026-11-15", orderNo: "HX-101" },
+    })
+    assert.deepEqual(calls.pages, [{
+      pageNum: 1, pageSize: 10, orderNo: "HX-101", serviceTimeStart: "2026-11-15", serviceTimeEnd: "2026-11-15",
+      orderStatuses: [1], paymentStatuses: [1], rescheduleFilter: "ALL", packageOrder: false,
+      sortField: "serviceTime", sortOrder: "ASC",
+    }])
+    route.query = { coverageDispatchDate: "2026-11-16" }
+    await flush()
+    assert.equal(calls.pages.at(-1).serviceTimeStart, "2026-11-16")
+    assert.equal(calls.pages.at(-1).orderNo, undefined)
+  }
+})
+
+test("无效的覆盖日期不会改变订单列表的默认筛选", async (t) => {
+  const { calls } = await harness(t, { routeQuery: { coverageDispatchDate: "2026-02-31", orderNo: "HX-101" } })
+  assert.deepEqual(calls.pages, [{ pageNum: 1, pageSize: 10, rescheduleFilter: "ALL" }])
+})
 
 test("业务状态 0—6、字符串与枚举名称均映射正确，仅未付款已取消保持中性", async (t) => {
   const { state, row } = await harness(t)

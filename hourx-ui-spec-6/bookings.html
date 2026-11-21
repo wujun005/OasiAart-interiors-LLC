@@ -1,0 +1,247 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>My Bookings · HourX</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=Manrope:wght@700&amp;display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<header class="header">
+  <div class="wrap">
+    <a href="index.html" class="logo" aria-label="HourX home"><img src="img/logo-dark.png" alt="HourX" width="63" height="37"></a>
+    <nav class="nav" aria-label="Main"><a href="index.html">Home</a><a href="index.html#services">Services</a><a href="index.html#packages">Packages</a><a href="partner.html">Become a Partner</a></nav>
+    <div class="header-actions">
+      <div class="srch"><button class="icon-btn" type="button" aria-label="Search" aria-expanded="false" id="srch-btn"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#06182F" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg></button>
+        <div class="srch-pop" id="srch-pop" hidden>
+          <label class="input" for="srch-q"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#666B73" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input id="srch-q" placeholder="Search services" autocomplete="off"></label>
+          <span class="srch-h" id="srch-h">Popular Services</span>
+          <div class="srch-list" id="srch-list"></div>
+        </div></div>
+      <button class="lang" type="button"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#06182F" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c3 3 3 15 0 18M12 3c-3 3-3 15 0 18"/></svg>EN</button>
+      <a href="cart.html" class="icon-btn" aria-label="Cart"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#06182F" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 4h2l2.4 11h10.2L20 8H6.3"/><circle cx="9" cy="19.5" r="1.3"/><circle cx="17" cy="19.5" r="1.3"/></svg></a>
+      <details class="umenu"><summary class="user-btn" aria-label="Account menu"><span class="avatar">SC</span>Sofia C<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#06182F" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></summary><div class="umenu-list"><a href="bookings.html">My Bookings</a><a href="account.html#packages">My Packages</a><a href="account.html#profile">Account Settings</a><hr><a href="index.html" class="danger">Log Out</a></div></details>
+    </div>
+  </div>
+</header>
+
+<main class="page">
+  <div class="wrap">
+    <section class="profile slim grid-bg">
+      <div class="who"><span class="big-av">SC</span><div><h1>Sofia C</h1><div class="meta"><span>Manage your home services in one place</span></div></div></div>
+    </section>
+    <div class="acct-grid">
+      <nav class="panel menu" aria-label="Account"><span class="mgrp">Bookings</span><a href="bookings.html" class="on"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>My Bookings<span class="r"></span></a><a href="account.html#packages"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 8 12 3 3 8v8l9 5 9-5z"/><path d="m3 8 9 5 9-5M12 13v8"/></svg>My Packages<span class="r"></span></a><span class="mgrp">Account</span><a href="account.html#addresses"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 21s-7-6.2-7-11.5A7 7 0 0 1 19 9.5C19 14.8 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/></svg>Saved Addresses<span class="r"></span></a><a href="account.html#payments"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="6" width="18" height="13" rx="2"/><path d="M3 10h18M7 15h4"/></svg>Payment Methods<span class="r"></span></a><span class="mgrp">Settings</span><a href="account.html#profile"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6"/></svg>Personal Information<span class="r"></span></a><a href="account.html#security"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>Account Security<span class="r"></span></a><a href="account.html#notifications"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 16V11a6 6 0 0 1 12 0v5l2 2H4z"/><path d="M10 21h4"/></svg>Notification Settings<span class="r"></span></a><a href="account.html#language"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6h10M9 4v2M6 6c0 4 3 7 7 8M12 6c0 4-3 7-7 8M14 20l4-9 4 9M15.5 17h5"/></svg>Language<span class="r">English</span></a><a href="account.html#help"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9.5 9a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .9-1 1.6V14M12 17v.01"/></svg>Help &amp; Support<span class="r"></span></a><hr><a href="index.html" class="danger"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#B42318" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 4h4v16h-4M10 8l-4 4 4 4M6 12h11"/></svg>Log Out</a></nav>
+      <div class="panes">
+    <div class="page-head">
+      <div class="left"><h2 class="t-sec">My Bookings</h2><p class="t-body">View and manage your service bookings.</p></div>
+    </div>
+    <div class="bk-tools">
+      <div class="seg" role="tablist" aria-label="Booking status">
+        <button class="tab on" role="tab" aria-selected="true" type="button" data-pane="active">Active <span>3</span></button>
+        <button class="tab" role="tab" aria-selected="false" type="button" data-pane="hist">History <span>68</span></button>
+      </div>
+      <div class="right">
+        <label class="input" for="bks"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#666B73" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input id="bks" type="text" placeholder="Search by booking reference or service"></label>
+        <button class="icon-btn" type="button" aria-label="Filter"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#06182F" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5h16l-6 8v6l-4-2v-4z"/></svg></button>
+      </div>
+    </div>
+    <div class="tabpane on" id="active">
+      <div class="attn page-attn"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#B54708" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3 2 20h20z"/><path d="M12 10v4M12 17v.01"/></svg><div><b>3 bookings require review</b><span>The scheduled service dates have passed, but completion has not been confirmed. Please contact support if you need assistance.</span></div></div>
+      <article class="panel bk2">
+  <div class="bk-thumb grid-bg"><svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#D9D2C5" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 21c-5 0-8-3-8-7 3 0 6 1 8 4 2-3 5-4 8-4 0 4-3 7-8 7z"/><path d="M12 18c-2-3-2-8 0-13 2 5 2 10 0 13z"/></svg></div>
+  <div class="bk-main">
+    <div class="bk-top">
+      <div>
+        <div class="bk-title"><h3>Relaxation Massage</h3><span class="badge badge-warn"><i></i>Needs Attention</span></div>
+        <div class="bk-id"><span>Booking Reference: SW202610051208298068</span><span>One-Time Booking</span></div>
+      </div>
+      <div class="bk-price"><b>AED 2.63</b><span>Total Amount</span></div>
+    </div>
+    <div class="bk-row">
+      <div class="kv"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#666B73" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg><div><span>Service Date &amp; Time</span><b>6 Oct 2026 · 1:00 PM</b></div></div>
+      <div class="kv"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#666B73" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 21s-7-6.2-7-11.5A7 7 0 0 1 19 9.5C19 14.8 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/></svg><div><span>Location</span><b>Al Barsha South, Dubai</b>
+        <details class="addr-d"><summary>View Full Address</summary><p>364R+VM – Al Barsha South Third – Al Barsha South – Dubai – United Arab Emirates, Building A, Diamond Business Center, 205, Al Barsha South</p><span class="ai">Access Instructions: Upstairs of 7 Diamond clinic</span></details></div></div>
+      <div class="kv"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#666B73" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg><div><span>Service</span><b>Single · 60 Minutes</b></div></div>
+    </div>
+    <div class="bk-foot">
+      <a href="#report" class="link"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#06182F" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 21V4h11l-1.5 4L16 12H5"/></svg>Report an Issue</a>
+      <div class="btns"><a href="#support" class="btn btn-outline" style="height:44px">Contact Support</a><a href="booking-details.html" class="btn btn-dark" style="height:44px">View Details</a></div>
+    </div>
+  </div>
+</article>
+
+      <article class="panel bk2">
+  <div class="bk-thumb grid-bg"><svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#D9D2C5" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3s6 6.5 6 11a6 6 0 0 1-12 0c0-4.5 6-11 6-11z"/></svg></div>
+  <div class="bk-main">
+    <div class="bk-top">
+      <div>
+        <div class="bk-title"><h3>Basic Home Cleaning</h3><span class="badge badge-warn"><i></i>Needs Attention</span></div>
+        <div class="bk-id"><span>Booking Reference: BA202609301418473751_1</span><span>One-Time Booking</span></div>
+      </div>
+      <div class="bk-price"><b>AED 2.63</b><span>Total Amount</span></div>
+    </div>
+    <div class="bk-row">
+      <div class="kv"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#666B73" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg><div><span>Service Date &amp; Time</span><b>8 Oct 2026 · 9:00 AM</b></div></div>
+      <div class="kv"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#666B73" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 21s-7-6.2-7-11.5A7 7 0 0 1 19 9.5C19 14.8 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/></svg><div><span>Location</span><b>Al Barsha South, Dubai</b>
+        <details class="addr-d"><summary>View Full Address</summary><p>364R+VM – Al Barsha South Third – Al Barsha South – Dubai – United Arab Emirates, Building A, Diamond Business Center, 205, Al Barsha South</p><span class="ai">Access Instructions: Upstairs of 7 Diamond clinic</span></details></div></div>
+      <div class="kv"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#666B73" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg><div><span>Service</span><b>2 Hours · 1 Cleaner · Supplies Not Included</b></div></div>
+    </div>
+    <div class="bk-foot">
+      <a href="#report" class="link"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#06182F" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 21V4h11l-1.5 4L16 12H5"/></svg>Report an Issue</a>
+      <div class="btns"><a href="#support" class="btn btn-outline" style="height:44px">Contact Support</a><a href="booking-details.html" class="btn btn-dark" style="height:44px">View Details</a></div>
+    </div>
+  </div>
+</article>
+
+      <article class="panel bk2">
+  <div class="bk-thumb grid-bg"><svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#D9D2C5" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 10.5 12 4l9 6.5V20H3z"/><path d="M9 20v-6h6v6"/></svg></div>
+  <div class="bk-main">
+    <div class="bk-top">
+      <div>
+        <div class="bk-title"><h3>Regular Home Cleaning</h3><span class="badge badge-warn"><i></i>Needs Attention</span></div>
+        <div class="bk-id"><span>Booking Reference: HC202609261019071563</span><span>One-Time Booking</span></div>
+      </div>
+      <div class="bk-price"><b>AED 2.10</b><span>Total Amount</span></div>
+    </div>
+    <div class="bk-row">
+      <div class="kv"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#666B73" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg><div><span>Service Date &amp; Time</span><b>1 Oct 2026 · 1:30 PM</b></div></div>
+      <div class="kv"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#666B73" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 21s-7-6.2-7-11.5A7 7 0 0 1 19 9.5C19 14.8 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/></svg><div><span>Location</span><b>Al Barsha South, Dubai</b>
+        <details class="addr-d"><summary>View Full Address</summary><p>3 Street, Diamond Business Center, Building A, 205, Al Barsha South 3</p></details></div></div>
+      <div class="kv"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#666B73" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg><div><span>Service</span><b>2 Hours · 1 Cleaner · Supplies Not Included</b></div></div>
+    </div>
+    <div class="bk-foot">
+      <a href="#report" class="link"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#06182F" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 21V4h11l-1.5 4L16 12H5"/></svg>Report an Issue</a>
+      <div class="btns"><a href="#support" class="btn btn-outline" style="height:44px">Contact Support</a><a href="booking-details.html" class="btn btn-dark" style="height:44px">View Details</a></div>
+    </div>
+  </div>
+</article>
+
+      <article class="panel bk2 ref">
+  <span class="ref-tag">Design reference · upcoming booking state</span>
+  <div class="bk-thumb grid-bg"><svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#D9D2C5" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3s6 6.5 6 11a6 6 0 0 1-12 0c0-4.5 6-11 6-11z"/></svg></div>
+  <div class="bk-main">
+    <div class="bk-top">
+      <div>
+        <div class="bk-title"><h3>Home Cleaning</h3><span class="badge badge-ok"><i></i>Confirmed</span></div>
+        <div class="bk-id"><span>Booking Reference: HX-10025</span><span>One-Time Booking</span></div>
+      </div>
+      <div class="bk-price"><b>AED 135.59</b><span>Total Amount</span></div>
+    </div>
+    <div class="bk-row">
+      <div class="kv"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#666B73" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg><div><span>Service Date &amp; Time</span><b>20 Nov 2026 · 10:00 AM</b></div></div>
+      <div class="kv"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#666B73" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 21s-7-6.2-7-11.5A7 7 0 0 1 19 9.5C19 14.8 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/></svg><div><span>Location</span><b>Dubai, UAE</b><details class="addr-d"><summary>View Full Address</summary><p>[Full service address]</p></details></div></div>
+      <div class="kv"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#666B73" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg><div><span>Service</span><b>2 Hours · 1 Cleaner</b></div></div>
+    </div>
+    <div class="bk-foot">
+      <a href="#extras" class="link"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#06182F" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>Add Extras</a>
+      <div class="btns"><button type="button" class="btn btn-outline" style="height:44px" data-open="dlg-cancel">Cancel Booking</button><button type="button" class="btn btn-dark" style="height:44px" data-open="dlg-resched">Reschedule</button></div>
+    </div>
+  </div>
+</article>
+    </div>
+    <div class="tabpane" id="hist">
+      <section class="panel empty" style="padding:48px 24px">
+        <span class="ring"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#06182F" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3h12v18l-3-2-3 2-3-2-3 2z"/><path d="M9 8h6M9 12h6"/></svg></span>
+        <h2 style="font-size:20px">68 Past Bookings</h2>
+        <p class="t-body">Completed bookings: View Receipt · Book Again · Report an Issue.<br>Cancelled bookings: View Details · Book Again.</p>
+      </section>
+    </div>
+
+      </div>
+    </div>
+  </div>
+</main>
+
+<dialog id="dlg-resched" class="dlg" aria-labelledby="rs-t">
+  <form method="dialog" class="dlg-in">
+    <div class="dlg-hd"><h2 id="rs-t">Reschedule Booking</h2><button value="close" class="icon-btn" aria-label="Close"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#06182F" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg></button></div>
+    <div class="cur"><span>Current Appointment</span><b>Home Cleaning</b><em>20 Nov 2026 · 10:00 AM</em></div>
+    <div class="field"><label for="rs-date">New Service Date</label><div class="input"><input id="rs-date" type="date" required></div></div>
+    <div class="field"><span class="lbl">Available Time Slots</span><p class="slot-hint" id="rs-hint">Select a date to check available times.</p><div class="slots" role="group" aria-label="Time slots"><button type="button" class="slot" disabled data-state="ok">9:00 AM</button><button type="button" class="slot" disabled data-state="ok">10:00 AM</button><button type="button" class="slot" disabled data-state="full">11:00 AM<small>Full</small></button><button type="button" class="slot" disabled data-state="ok">12:00 PM</button><button type="button" class="slot" disabled data-state="ok">1:00 PM</button><button type="button" class="slot" disabled data-state="full">2:00 PM<small>Full</small></button><button type="button" class="slot" disabled data-state="ok">3:00 PM</button><button type="button" class="slot" disabled data-state="ok">4:00 PM</button></div></div>
+    <p class="fine" style="text-align:left">All times are shown in Dubai time (GST, UTC+4). Availability is confirmed before your booking is updated.</p>
+    <div class="dlg-ft"><a href="#policy" class="link">Review Policy</a><button type="button" class="btn btn-dark" id="rs-go" disabled>Request Reschedule</button></div>
+  </form>
+</dialog>
+<dialog id="dlg-cancel" class="dlg" aria-labelledby="cn-t">
+  <form method="dialog" class="dlg-in">
+    <div class="dlg-hd"><h2 id="cn-t">Cancel This Booking?</h2><button value="close" class="icon-btn" aria-label="Close"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#06182F" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg></button></div>
+    <div class="cur"><span>Booking</span><b>Home Cleaning · HX-10025</b><em>20 Nov 2026 · 10:00 AM</em></div>
+    <div class="attn"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#B54708" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3 2 20h20z"/><path d="M12 10v4M12 17v.01"/></svg><div><b>Cancellation fees may apply</b><span>Fees and refunds depend on how close to the service time you cancel. Please review the cancellation policy before confirming.</span></div></div>
+    <div class="field"><label for="cn-r">Reason (optional)</label><div class="input"><select id="cn-r" style="flex:1"><option>Select a reason</option><option>My plans changed</option><option>Booked by mistake</option><option>Found another provider</option><option>Other</option></select></div></div>
+    <div class="dlg-ft"><a href="#policy" class="link">Cancellation Policy</a><div class="btns"><button value="keep" class="btn btn-outline">Keep Booking</button><button value="cancel" class="btn btn-danger">Cancel Booking</button></div></div>
+  </form>
+</dialog>
+<script>
+document.querySelectorAll('[data-open]').forEach(function(b){b.addEventListener('click',function(){document.getElementById(b.dataset.open).showModal();});});
+(function(){
+  var d=document.getElementById('rs-date'); if(!d) return;
+  var t=new Date(); t.setDate(t.getDate()+1); d.min=t.toISOString().slice(0,10);
+  var go=document.getElementById('rs-go'), slots=document.querySelectorAll('.slot');
+  d.addEventListener('change',function(){
+    document.getElementById('rs-hint').textContent=d.value?'Choose an available time:':'Select a date to check available times.';
+    slots.forEach(function(s){s.disabled=!d.value||s.dataset.state==='full';s.classList.remove('on');}); go.disabled=true;
+  });
+  slots.forEach(function(s){s.addEventListener('click',function(){slots.forEach(function(x){x.classList.toggle('on',x===s);x.setAttribute('aria-pressed',x===s);});go.disabled=false;});});
+})();
+</script>
+
+<script>
+function tab(id){
+  document.querySelectorAll('.seg .tab').forEach(function(x){var on=x.dataset.pane===id;x.classList.toggle('on',on);x.setAttribute('aria-selected',on);});
+  document.querySelectorAll('.tabpane').forEach(function(p){p.classList.toggle('on',p.id===id);});
+}
+document.querySelectorAll('.seg .tab').forEach(function(t){t.addEventListener('click',function(){tab(t.dataset.pane);history.replaceState(null,'','#'+t.dataset.pane);});});
+function fromHash(){if(['active','hist'].indexOf(location.hash.slice(1))>-1) tab(location.hash.slice(1));}
+fromHash();window.addEventListener('hashchange',fromHash);
+</script>
+<script>
+(function(){
+  var S=[["Basic Home Cleaning","Home Cleaning","service.html"],["Apartment Deep Cleaning","Home Cleaning","category.html"],["Villa Deep Cleaning","Home Cleaning","category.html"],
+   ["AC Cleaning","AC Services","index.html#services"],["Villa Interior Painting","Painting","painting.html"],["General Pest Control – Apartment","Pest Control","index.html#services"],
+   ["General Pest Control – Villa","Pest Control","index.html#services"],["Mattress Cleaning","Sofa, Carpet & Mattress","index.html#services"],["Curtain Cleaning","Sofa, Carpet & Mattress","index.html#services"],
+   ["Door & Window Lock Repair","Maintenance & Repairs","index.html#services"],["TV Installation & Mounting","Maintenance & Repairs","index.html#services"]];
+  var popular=[0,3,4,5];
+  var b=document.getElementById('srch-btn'),p=document.getElementById('srch-pop'),q=document.getElementById('srch-q'),l=document.getElementById('srch-list'),h=document.getElementById('srch-h');
+  if(!b) return;
+  function row(x){return '<a href="'+x[2]+'"><span>'+x[0]+'<small>'+x[1]+'</small></span><i>→</i></a>';}
+  function render(){var v=q.value.trim().toLowerCase();
+    if(!v){h.textContent='Popular Services';l.innerHTML=popular.map(function(i){return row(S[i]);}).join('');return;}
+    var m=S.filter(function(x){return (x[0]+' '+x[1]).toLowerCase().indexOf(v)>-1;});
+    h.textContent=m.length?m.length+' result'+(m.length>1?'s':''):'';
+    l.innerHTML=m.length?m.slice(0,5).map(row).join('')+(m.length>5?'<a class="all" href="index.html#services">View All Results</a>':''):'<p class="none">No Services Found</p>';}
+  function open(o){p.hidden=!o;b.setAttribute('aria-expanded',o);if(o){render();q.focus();}}
+  b.addEventListener('click',function(e){e.stopPropagation();open(p.hidden);});
+  q.addEventListener('input',render);
+  document.addEventListener('keydown',function(e){if(e.key==='Escape')open(false);});
+  document.addEventListener('click',function(e){if(!p.hidden&&!p.contains(e.target))open(false);});
+})();
+</script><footer class="footer">
+  <div class="wrap">
+    <div class="f-grid">
+      <div class="f-col">
+        <span class="logo"><img src="img/logo-light.png" alt="HourX" width="63" height="37"></span>
+        <p>Professional home services platform covering cleaning, maintenance and home wellness.</p>
+        <div class="social">
+          <a href="#facebook" aria-label="Facebook"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 8h3V4h-3a4 4 0 0 0-4 4v3H7v4h3v6h4v-6h3l1-4h-4V8z"/></svg></a>
+          <a href="#linkedin" aria-label="LinkedIn"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="3"/><path d="M8 10v7M8 7v.01M12 17v-4a2 2 0 0 1 4 0v4M12 10v7"/></svg></a>
+          <a href="#instagram" aria-label="Instagram"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/></svg></a>
+          <a href="#whatsapp" aria-label="WhatsApp"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20l1.3-3.9A8 8 0 1 1 8 19z"/></svg></a>
+        </div>
+      </div>
+      <div class="f-col"><h4>Quick links</h4><a href="index.html">Home</a><a href="index.html#services">Services</a><a href="bookings.html">My Bookings</a><a href="#about">About Us</a><a href="#faq">FAQ</a></div>
+      <div class="f-col"><h4>Customer Support Hours</h4><span>Mon – Fri: 9:00 – 18:00</span><span>Saturday: 10:00 – 17:00</span><span>Sunday: Closed</span></div>
+      <div class="f-col"><h4>Contact us</h4><a href="mailto:support@hourxportal.com">support@hourxportal.com</a><a href="#whatsapp">WhatsApp</a><span>Service area: Dubai, UAE</span></div>
+    </div>
+    <div class="f-bottom">
+      <span>© 2026 HourX PORTAL CO. L.L.C S.O.C. All rights reserved.</span>
+      <div class="f-links"><a href="#terms">Terms &amp; Conditions</a><a href="#privacy">Privacy Policy</a><a href="#deletion">Data Deletion Request</a></div>
+      <div class="pay"><span>VISA</span><span>Mastercard</span><span>Apple Pay</span></div>
+    </div>
+  </div>
+</footer>
+<a href="#support" class="support"><i></i>Support</a>
+</body>
+</html>

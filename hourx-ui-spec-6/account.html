@@ -1,0 +1,274 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>My Account · HourX</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=Manrope:wght@700&amp;display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<header class="header">
+  <div class="wrap">
+    <a href="index.html" class="logo" aria-label="HourX home"><img src="img/logo-dark.png" alt="HourX" width="63" height="37"></a>
+    <nav class="nav" aria-label="Main"><a href="index.html">Home</a><a href="index.html#services">Services</a><a href="index.html#packages">Packages</a><a href="partner.html">Become a Partner</a></nav>
+    <div class="header-actions">
+      <div class="srch"><button class="icon-btn" type="button" aria-label="Search" aria-expanded="false" id="srch-btn"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#06182F" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg></button>
+        <div class="srch-pop" id="srch-pop" hidden>
+          <label class="input" for="srch-q"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#666B73" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input id="srch-q" placeholder="Search services" autocomplete="off"></label>
+          <span class="srch-h" id="srch-h">Popular Services</span>
+          <div class="srch-list" id="srch-list"></div>
+        </div></div>
+      <button class="lang" type="button"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#06182F" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c3 3 3 15 0 18M12 3c-3 3-3 15 0 18"/></svg>EN</button>
+      <a href="cart.html" class="icon-btn" aria-label="Cart"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#06182F" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 4h2l2.4 11h10.2L20 8H6.3"/><circle cx="9" cy="19.5" r="1.3"/><circle cx="17" cy="19.5" r="1.3"/></svg></a>
+      <details class="umenu"><summary class="user-btn" aria-label="Account menu"><span class="avatar">SC</span>Sofia C<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#06182F" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></summary><div class="umenu-list"><a href="bookings.html">My Bookings</a><a href="account.html#packages">My Packages</a><a href="account.html#profile">Account Settings</a><hr><a href="index.html" class="danger">Log Out</a></div></details>
+    </div>
+  </div>
+</header>
+<div class="toast" role="status"><i><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#06182F" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 4 4 10-10"/></svg></i>Signed in successfully</div>
+<main class="page">
+  <div class="wrap">
+    <section class="profile slim grid-bg">
+      <div class="who"><span class="big-av">SC</span><div><h1>Sofia C</h1><div class="meta"><span>Manage your home services in one place</span></div></div></div>
+    </section>
+    <div class="acct-grid">
+      <nav class="panel menu" aria-label="Account"><span class="mgrp">Bookings</span><a href="bookings.html"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>My Bookings<span class="r"></span></a><a href="#packages" class="on" data-pane="packages"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 8 12 3 3 8v8l9 5 9-5z"/><path d="m3 8 9 5 9-5M12 13v8"/></svg>My Packages<span class="r"></span></a><span class="mgrp">Account</span><a href="#addresses" data-pane="addresses"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 21s-7-6.2-7-11.5A7 7 0 0 1 19 9.5C19 14.8 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/></svg>Saved Addresses<span class="r"></span></a><a href="#payments" data-pane="payments"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="6" width="18" height="13" rx="2"/><path d="M3 10h18M7 15h4"/></svg>Payment Methods<span class="r"></span></a><span class="mgrp">Settings</span><a href="#profile" data-pane="profile"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6"/></svg>Personal Information<span class="r"></span></a><a href="#security" data-pane="security"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>Account Security<span class="r"></span></a><a href="#notifications" data-pane="notifications"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 16V11a6 6 0 0 1 12 0v5l2 2H4z"/><path d="M10 21h4"/></svg>Notification Settings<span class="r"></span></a><a href="#language"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6h10M9 4v2M6 6c0 4 3 7 7 8M12 6c0 4-3 7-7 8M14 20l4-9 4 9M15.5 17h5"/></svg>Language<span class="r">English</span></a><a href="#help" data-pane="help"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9.5 9a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .9-1 1.6V14M12 17v.01"/></svg>Help &amp; Support<span class="r"></span></a><hr><a href="index.html" class="danger"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#B42318" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 4h4v16h-4M10 8l-4 4 4 4M6 12h11"/></svg>Log Out</a></nav>
+      <div class="panes">
+        <div class="apane on" id="packages">
+          <section class="panel sec-card">
+            <div class="hd"><h2>My Packages</h2><span class="sample">Demo data</span></div>
+            <div class="pkg-use">
+  <div><b>4-Visit Home Cleaning Package</b><div class="sub">Valid until DD MMM YYYY</div></div>
+  <a href="category.html" class="btn btn-dark" style="height:44px">Book Next Visit</a>
+  <div class="segbar" role="img" aria-label="2 completed, 1 scheduled, 1 available of 4 visits"><span class="s-done"></span><span class="s-done"></span><span class="s-sched"></span><span class="s-free"></span></div>
+  <div class="legend"><span><i class="s-done"></i><strong>2</strong> Completed</span><span><i class="s-sched"></i><strong>1</strong> Scheduled</span><span><i class="s-free"></i><strong>1</strong> Available</span></div>
+</div>
+            <p class="t-body" style="font-size:13px;margin-top:12px">Scheduled visits are already booked and can’t be used again. Only <strong>Available</strong> visits can be booked.</p>
+          </section>
+          <section class="panel empty ref">
+            <span class="ref-tag">Empty state</span>
+            <span class="ring"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#06182F" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 8 12 3 3 8v8l9 5 9-5z"/><path d="m3 8 9 5 9-5M12 13v8"/></svg></span>
+            <h2 style="font-size:20px">No Active Packages</h2>
+            <p class="t-body">Save on regular home care with multi-visit packages.</p>
+            <a href="index.html#packages" class="btn btn-dark" style="margin-top:6px">Browse Packages</a>
+          </section>
+        </div>
+
+        <div class="apane" id="addresses">
+          <section class="panel sec-card">
+            <div class="hd"><div><h2>Saved Service Addresses</h2><p class="t-body" style="font-size:13px;margin-top:4px">Save your service locations for faster booking.</p></div><button type="button" class="btn btn-dark" data-open="dlg-addr"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>Add New Address</button></div>
+            <div class="addr-grid">
+              <article class="addr">
+                <div class="addr-tags"><span class="chip-t"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#06182F" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 10.5 12 4l9 6.5V20H3z"/><path d="M9 20v-6h6v6"/></svg>Home</span><span class="badge badge-ok"><i></i>Default</span></div>
+                <b>Al Barsha South, Dubai, UAE</b>
+                <span>Diamond Business Center, Building A, Unit 205</span>
+                <span class="muted">Contact: Sofia · +971 •••• 230</span>
+                <span class="muted"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#06182F" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 4 4 10-10"/></svg> Access instructions saved</span>
+                <div class="addr-ft"><button type="button" class="link-btn">Edit</button><button type="button" class="link-btn danger">Delete</button></div>
+              </article>
+              <button type="button" class="addr add" data-open="dlg-addr"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#06182F" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg><b>Add New Address</b><span>Apartment, villa or office</span></button>
+            </div>
+            <p class="note" style="margin-top:16px"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#06182F" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3 5 6v5c0 4.5 3 8.5 7 10 4-1.5 7-5.5 7-10V6z"/><path d="m9 12 2 2 4-4"/></svg><span>Deleting a saved address doesn’t change past bookings. If an upcoming booking uses this address, you’ll be asked to confirm first.</span></p>
+          </section>
+        </div>
+        <div class="apane" id="payments">
+          <section class="panel sec-card">
+            <div class="hd"><div><h2>Payment Methods</h2><p class="t-body" style="font-size:13px;margin-top:4px">Manage your saved payment methods securely.</p></div><button type="button" class="btn btn-dark" data-open="dlg-pay"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>Add Payment Method</button></div>
+            <article class="paycard">
+              <span class="brand">VISA</span>
+              <div class="grow"><b>Visa •••• 8075 <span class="badge badge-ok" style="margin-left:6px"><i></i>Default</span></b><span>Expires 05/31 · Available at checkout</span></div>
+              <button type="button" class="link-btn danger">Remove Card</button>
+            </article>
+            <p class="t-body" style="font-size:13px;margin-top:14px">Card details are handled securely by Stripe. HourX never stores your full card number or security code.</p>
+          </section>
+        </div>
+        <div class="apane" id="profile">
+          <section class="panel sec-card">
+            <div class="hd"><h2>Personal Information</h2><a href="#" class="link" data-pf="edit" id="pf-edit">Edit Profile</a></div>
+            <div class="info-grid" id="pf-view">
+              <div class="info"><span>Name</span><b>Sofia C</b></div>
+              <div class="info"><span>Phone</span><b>+971 •••• 230</b></div>
+              <div class="info"><span>Email</span><b>xiaoduodubai@gmail.com</b></div>
+            </div>
+            <form class="form-grid hide" id="pf-form" onsubmit="return false">
+              <div class="field"><label for="f-name">Name</label><div class="input"><input id="f-name" value="Sofia C" autocomplete="name"></div></div>
+              <div class="field"><label for="f-phone">Phone</label><div class="input"><span class="code" style="font-weight:600">+971</span><span class="sep"></span><input id="f-phone" value="50 951 6230" autocomplete="tel-national"></div></div>
+              <div class="field span2"><label for="f-mail">Email</label><div class="input"><input id="f-mail" type="email" value="xiaoduodubai@gmail.com" autocomplete="email"></div></div>
+              <div class="note span2"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#06182F" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3 5 6v5c0 4.5 3 8.5 7 10 4-1.5 7-5.5 7-10V6z"/><path d="m9 12 2 2 4-4"/></svg><span>Changing your phone number or email? We’ll send a verification code to the new contact before it’s updated. Your current sign-in method may also be re-verified.</span></div>
+              <div class="actions span2"><button type="reset" class="btn btn-outline" data-pf="view">Cancel</button><button type="submit" class="btn btn-dark">Save Changes</button></div>
+            </form>
+          </section>
+        </div>
+
+        <div class="apane" id="security">
+          <section class="panel sec-card">
+            <div class="hd"><h2>Account Security</h2><span class="t-body" style="font-size:13px">Manage your password and account security.</span></div>
+            <form class="form-grid" onsubmit="return false">
+              <div class="field span2"><div style="display:flex;justify-content:space-between;align-items:center"><label for="p-cur">Current Password</label><a href="#forgot" class="link" style="font-size:13px">Forgot Password?</a></div><div class="input"><input id="p-cur" type="password" placeholder="Enter your current password" autocomplete="current-password"><button type="button" aria-label="Show password"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#666B73" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg></button></div></div>
+              <div class="field"><label for="p-new">New Password</label><div class="input"><input id="p-new" type="password" placeholder="Enter a new password" autocomplete="new-password"><button type="button" aria-label="Show password"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#666B73" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg></button></div></div>
+              <div class="field"><label for="p-con">Confirm New Password</label><div class="input"><input id="p-con" type="password" placeholder="Enter the new password again" autocomplete="new-password"><button type="button" aria-label="Show password"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#666B73" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg></button></div></div>
+              <div class="rules2 span2"><b>Password Requirements</b><ul><li data-r="len">At least 8 characters</li><li data-r="mix">Include letters and numbers</li><li data-r="match">Both new password fields must match</li></ul></div>
+              <div class="actions span2"><button type="reset" class="btn btn-outline">Cancel</button><button type="submit" class="btn btn-dark" id="pw-go" disabled>Change Password</button></div>
+            </form>
+            <p class="t-body" style="font-size:13px;margin-top:14px">After a password change we’ll send a security notification to your email.</p>
+          </section>
+        </div>
+        <div class="apane" id="notifications">
+          <section class="panel sec-card">
+            <div class="hd"><h2>Notification Settings</h2><span class="t-body" style="font-size:13px">Changes save automatically.</span></div>
+            <div class="nrow"><div><b>Booking &amp; Service Updates <span class="req">Required</span></b><span>Confirmations, professional assignment, reschedules, cancellations and payment notices.</span></div><label class="sw"><input type="checkbox" id="n1" checked disabled aria-label="Booking &amp; Service Updates"><i></i></label></div>
+            <div class="chan"><span>Send booking updates by</span><label><input type="checkbox" checked> Email</label><label><input type="checkbox" checked> WhatsApp</label><label><input type="checkbox"> SMS</label></div>
+            <div class="nrow"><div><b>Package Reminders </b><span>Remaining visits and expiry reminders for packages you’ve bought.</span></div><label class="sw"><input type="checkbox" id="n2" checked aria-label="Package Reminders"><i></i></label></div>
+            <div class="nrow"><div><b>Promotions &amp; Offers </b><span>Occasional discounts and HourX news. Unsubscribe anytime.</span></div><label class="sw"><input type="checkbox" id="n3" aria-label="Promotions &amp; Offers"><i></i></label></div>
+          </section>
+        </div>
+        <div class="apane" id="help">
+          <section class="panel sec-card">
+            <div class="hd"><div><h2>How Can We Help?</h2><p class="t-body" style="font-size:13px;margin-top:4px">Find answers or contact the HourX support team.</p></div></div>
+            <label class="input" for="hq" style="margin-bottom:16px"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#666B73" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input id="hq" placeholder="Search help articles"></label>
+            <div class="help-cats">
+              <a href="bookings.html"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#06182F" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>My Bookings</a><a href="#"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#06182F" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>Rescheduling</a><a href="#"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#06182F" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="6" width="18" height="13" rx="2"/><path d="M3 10h18M7 15h4"/></svg>Payments &amp; Refunds</a><a href="#packages" data-pane="packages"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#06182F" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 8 12 3 3 8v8l9 5 9-5z"/><path d="m3 8 9 5 9-5M12 13v8"/></svg>Packages</a>
+            </div>
+            <div class="help-contact"><a href="#whatsapp" class="btn btn-dark"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20l1.3-3.9A8 8 0 1 1 8 19z"/></svg>Chat on WhatsApp</a><a href="mailto:support@hourxportal.com" class="btn btn-outline"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#06182F" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/></svg>Email Support</a></div>
+          </section>
+          <section class="panel sec-card">
+            <div class="hd"><h2>Frequently Asked Questions</h2><a href="#faq" class="link" style="font-size:13px">View All FAQs <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a></div>
+            <h3 class="faq-g">Booking a Service</h3><details class="faq"><summary>How do I book a service?</summary><p>[Answer to be taken from the official HourX policy.]</p></details><details class="faq"><summary>Can I book more than one service at a time?</summary><p>[Answer to be taken from the official HourX policy.]</p></details><details class="faq"><summary>How far in advance can I book?</summary><p>[Answer to be taken from the official HourX policy.]</p></details><h3 class="faq-g">Rescheduling</h3><details class="faq"><summary>Can I reschedule a booking?</summary><p>[Answer to be taken from the official HourX policy.]</p></details><h3 class="faq-g">Payments &amp; Refunds</h3><details class="faq"><summary>What payment methods do you accept?</summary><p>[Answer to be taken from the official HourX policy.]</p></details><details class="faq"><summary>Is VAT included?</summary><p>[Answer to be taken from the official HourX policy.]</p></details><details class="faq"><summary>How long do refunds take?</summary><p>[Answer to be taken from the official HourX policy.]</p></details>
+          </section>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</main>
+<dialog id="dlg-addr" class="dlg" aria-labelledby="ad-t">
+  <form method="dialog" class="dlg-in dlg-3" onsubmit="return false">
+    <div class="dlg-top"><div class="dlg-hd"><div><span class="step-of" id="ad-step">Step 1 of 2</span><h2 id="ad-t">Add New Address</h2></div><button type="button" value="close" class="icon-btn" aria-label="Close" onclick="this.closest('dialog').close()"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#06182F" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg></button></div>
+    <div class="stepper"><span class="on" id="ad-s1">1. Location</span><span id="ad-s2">2. Address Details</span></div>
+    </div>
+    <div class="dlg-body">
+    <div id="ad-1" class="ad-pane">
+      <label class="input" for="ad-q"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#666B73" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input id="ad-q" placeholder="Search for a community, street, or building"></label>
+      <div class="map-ph grid-bg"><span class="pin"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 21s-7-6.2-7-11.5A7 7 0 0 1 19 9.5C19 14.8 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/></svg></span><span class="map-hint">Search or move the pin to your exact location</span></div>
+      <label class="confirm"><input type="checkbox" id="ad-ok"> I’ve confirmed the pin is at my service location</label>
+      <button type="button" class="link-btn" style="align-self:flex-start">Can’t find it? Enter the address manually</button>
+    </div>
+    <div id="ad-2" class="ad-pane hide">
+      <div class="loc-sum"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#06182F" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 21s-7-6.2-7-11.5A7 7 0 0 1 19 9.5C19 14.8 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/></svg><div><span>Selected Location</span><b>Al Barsha South, Dubai</b></div><button type="button" class="link-btn" id="ad-edit">Edit Location</button></div>
+      <div class="field"><span class="lbl">Property Type</span><div class="ptype" role="radiogroup">
+        <button type="button" class="on" data-pt="apt">Apartment</button><button type="button" data-pt="villa">Villa</button><button type="button" data-pt="office">Office</button><button type="button" data-pt="other">Other</button></div></div>
+      <div class="form-grid">
+        <div class="field span2"><label for="a-com">Area / Community *</label><div class="input"><input id="a-com" placeholder="e.g. Al Barsha South 3"></div></div>
+        <div class="field" data-show="apt office"><label for="a-bld">Building *</label><div class="input"><input id="a-bld" placeholder="e.g. Boulevard Plaza 1"></div></div>
+        <div class="field" data-show="apt office"><label for="a-unit"><span data-lbl>Apartment / Unit *</span></label><div class="input"><input id="a-unit" placeholder="e.g. 1204"></div></div>
+        <div class="field hide" data-show="villa"><label for="a-villa">Villa Number *</label><div class="input"><input id="a-villa" placeholder="e.g. Villa 18"></div></div>
+        <div class="field hide" data-show="villa"><label for="a-st">Street (optional)</label><div class="input"><input id="a-st" placeholder="e.g. 3 Street"></div></div>
+        <div class="field hide" data-show="other"><label for="a-desc">Address Description *</label><div class="input"><input id="a-desc" placeholder="e.g. Warehouse 4, behind the petrol station"></div></div>
+        <div class="field" data-show="apt office"><label for="a-fl">Floor (optional)</label><div class="input"><input id="a-fl" placeholder="e.g. 12"></div></div>
+        <div class="field span2"><span class="lbl">Who Should We Contact Upon Arrival?</span></div>
+        <div class="field"><label for="a-nm">Full Name *</label><div class="input"><input id="a-nm" value="Sofia C"></div></div>
+        <div class="field"><label for="a-ph">Phone Number *</label><div class="input"><span style="font-weight:600">+971</span><span class="sep"></span><input id="a-ph" placeholder="50 123 4567"></div></div>
+        <div class="field span2"><label for="a-ai">Access Instructions (Optional)</label><div class="input" style="height:auto;padding:10px 14px"><textarea id="a-ai" rows="2" placeholder="e.g. Gate code 1234, use the service lift"></textarea></div></div>
+        <label class="confirm span2"><input type="checkbox"> Set as default address</label>
+      </div>
+    </div>
+    </div>
+    <div class="dlg-ft fixed"><button type="button" class="btn btn-outline" id="ad-back" onclick="this.closest('dialog').close()">Cancel</button><button type="button" class="btn btn-dark" id="ad-next" disabled>Continue to Address Details</button></div>
+  </form>
+</dialog>
+<dialog id="dlg-pay" class="dlg" aria-labelledby="py-t">
+  <form method="dialog" class="dlg-in">
+    <div class="dlg-hd"><h2 id="py-t">Add Payment Method</h2><button value="close" class="icon-btn" aria-label="Close"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#06182F" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg></button></div>
+    <div class="stripe-ph"><b>Stripe Payment Element</b><span>Card · Apple Pay (if supported) · Link — rendered by Stripe. Card number, expiry, CVC and country appear here.</span></div>
+    <label class="confirm"><input type="checkbox" id="py-ok"> Save this card for faster checkout on future bookings. I can remove it here anytime.</label>
+    <p class="fine" style="text-align:left">Saving your card will not charge you now. You’ll confirm the amount each time you book.</p>
+    <div class="dlg-ft"><button value="cancel" class="btn btn-outline">Cancel</button><button type="button" class="btn btn-dark" id="py-go" disabled>Save Payment Method</button></div>
+  </form>
+</dialog>
+<script>
+function showPane(id){
+  if(!document.getElementById(id)) return;
+  document.querySelectorAll('.apane').forEach(function(p){p.classList.toggle('on',p.id===id);});
+  document.querySelectorAll('.menu a[data-pane]').forEach(function(a){a.classList.toggle('on',a.dataset.pane===id);});
+}
+document.querySelectorAll('[data-pane]').forEach(function(a){a.addEventListener('click',function(e){e.preventDefault();showPane(a.dataset.pane);history.replaceState(null,'','#'+a.dataset.pane);});});
+document.querySelectorAll('[data-pf]').forEach(function(b){b.addEventListener('click',function(e){e.preventDefault();var ed=b.dataset.pf==='edit';
+  document.getElementById('pf-form').classList.toggle('hide',!ed);document.getElementById('pf-view').classList.toggle('hide',ed);document.getElementById('pf-edit').classList.toggle('hide',ed);});});
+document.querySelectorAll('[data-open]').forEach(function(b){b.addEventListener('click',function(){document.getElementById(b.dataset.open).showModal();});});
+showPane(location.hash.slice(1)||'packages');
+window.addEventListener('hashchange',function(){showPane(location.hash.slice(1));});
+/* address dialog */
+(function(){
+  var ok=document.getElementById('ad-ok'),next=document.getElementById('ad-next'),back=document.getElementById('ad-back'),step=1;
+  function goBack(){step=1;document.getElementById('ad-2').classList.add('hide');document.getElementById('ad-1').classList.remove('hide');document.getElementById('ad-step').textContent='Step 1 of 2';
+    document.getElementById('ad-s1').classList.remove('done');document.getElementById('ad-s2').classList.remove('on');next.textContent='Continue to Address Details';back.textContent='Cancel';back.onclick=function(){document.getElementById('dlg-addr').close();};}
+  document.getElementById('ad-edit').addEventListener('click',goBack);
+  ok.addEventListener('change',function(){if(step===1)next.disabled=!ok.checked;});
+  next.addEventListener('click',function(){
+    if(step===1){step=2;document.getElementById('ad-1').classList.add('hide');document.getElementById('ad-2').classList.remove('hide');
+      document.getElementById('ad-step').textContent='Step 2 of 2';document.getElementById('ad-s1').classList.add('done');document.getElementById('ad-s2').classList.add('on');next.textContent='Save Address';back.textContent='Back';back.onclick=goBack;}
+    else{document.getElementById('dlg-addr').close();}
+  });
+  document.querySelectorAll('.ptype button').forEach(function(b){b.addEventListener('click',function(){
+    document.querySelectorAll('.ptype button').forEach(function(x){x.classList.toggle('on',x===b);});
+    document.querySelectorAll('[data-show]').forEach(function(f){f.classList.toggle('hide',f.dataset.show.split(' ').indexOf(b.dataset.pt)<0);});
+    var l=document.querySelector('[data-lbl]'); if(l) l.textContent=b.dataset.pt==='office'?'Office / Unit *':'Apartment / Unit *';
+  });});
+  document.querySelectorAll('button[aria-label="Show password"]').forEach(function(b){b.addEventListener('click',function(){var i=b.parentNode.querySelector('input');var sh=i.type==='password';i.type=sh?'text':'password';b.setAttribute('aria-label',sh?'Hide password':'Show password');b.classList.toggle('on',sh);});});
+  var pn=document.getElementById('p-new'),pc=document.getElementById('p-con'),pcur=document.getElementById('p-cur');
+  function chk(){var v=pn.value,r={len:v.length>=8,mix:/[a-z]/i.test(v)&&/[0-9]/.test(v),match:v&&v===pc.value};
+    Object.keys(r).forEach(function(k){document.querySelector('[data-r='+k+']').classList.toggle('ok',!!r[k]);});
+    document.getElementById('pw-go').disabled=!(r.len&&r.mix&&r.match&&pcur.value);}
+  [pn,pc,pcur].forEach(function(e){e.addEventListener('input',chk);});
+  var pk=document.getElementById('py-ok'),pg=document.getElementById('py-go');pk.addEventListener('change',function(){pg.disabled=!pk.checked;});
+})();
+</script>
+<script>
+(function(){
+  var S=[["Basic Home Cleaning","Home Cleaning","service.html"],["Apartment Deep Cleaning","Home Cleaning","category.html"],["Villa Deep Cleaning","Home Cleaning","category.html"],
+   ["AC Cleaning","AC Services","index.html#services"],["Villa Interior Painting","Painting","painting.html"],["General Pest Control – Apartment","Pest Control","index.html#services"],
+   ["General Pest Control – Villa","Pest Control","index.html#services"],["Mattress Cleaning","Sofa, Carpet & Mattress","index.html#services"],["Curtain Cleaning","Sofa, Carpet & Mattress","index.html#services"],
+   ["Door & Window Lock Repair","Maintenance & Repairs","index.html#services"],["TV Installation & Mounting","Maintenance & Repairs","index.html#services"]];
+  var popular=[0,3,4,5];
+  var b=document.getElementById('srch-btn'),p=document.getElementById('srch-pop'),q=document.getElementById('srch-q'),l=document.getElementById('srch-list'),h=document.getElementById('srch-h');
+  if(!b) return;
+  function row(x){return '<a href="'+x[2]+'"><span>'+x[0]+'<small>'+x[1]+'</small></span><i>→</i></a>';}
+  function render(){var v=q.value.trim().toLowerCase();
+    if(!v){h.textContent='Popular Services';l.innerHTML=popular.map(function(i){return row(S[i]);}).join('');return;}
+    var m=S.filter(function(x){return (x[0]+' '+x[1]).toLowerCase().indexOf(v)>-1;});
+    h.textContent=m.length?m.length+' result'+(m.length>1?'s':''):'';
+    l.innerHTML=m.length?m.slice(0,5).map(row).join('')+(m.length>5?'<a class="all" href="index.html#services">View All Results</a>':''):'<p class="none">No Services Found</p>';}
+  function open(o){p.hidden=!o;b.setAttribute('aria-expanded',o);if(o){render();q.focus();}}
+  b.addEventListener('click',function(e){e.stopPropagation();open(p.hidden);});
+  q.addEventListener('input',render);
+  document.addEventListener('keydown',function(e){if(e.key==='Escape')open(false);});
+  document.addEventListener('click',function(e){if(!p.hidden&&!p.contains(e.target))open(false);});
+})();
+</script><footer class="footer">
+  <div class="wrap">
+    <div class="f-grid">
+      <div class="f-col">
+        <span class="logo"><img src="img/logo-light.png" alt="HourX" width="63" height="37"></span>
+        <p>Professional home services platform covering cleaning, maintenance and home wellness.</p>
+        <div class="social">
+          <a href="#facebook" aria-label="Facebook"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 8h3V4h-3a4 4 0 0 0-4 4v3H7v4h3v6h4v-6h3l1-4h-4V8z"/></svg></a>
+          <a href="#linkedin" aria-label="LinkedIn"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="3"/><path d="M8 10v7M8 7v.01M12 17v-4a2 2 0 0 1 4 0v4M12 10v7"/></svg></a>
+          <a href="#instagram" aria-label="Instagram"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/></svg></a>
+          <a href="#whatsapp" aria-label="WhatsApp"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20l1.3-3.9A8 8 0 1 1 8 19z"/></svg></a>
+        </div>
+      </div>
+      <div class="f-col"><h4>Quick links</h4><a href="index.html">Home</a><a href="index.html#services">Services</a><a href="bookings.html">My Bookings</a><a href="#about">About Us</a><a href="#faq">FAQ</a></div>
+      <div class="f-col"><h4>Customer Support Hours</h4><span>Mon – Fri: 9:00 – 18:00</span><span>Saturday: 10:00 – 17:00</span><span>Sunday: Closed</span></div>
+      <div class="f-col"><h4>Contact us</h4><a href="mailto:support@hourxportal.com">support@hourxportal.com</a><a href="#whatsapp">WhatsApp</a><span>Service area: Dubai, UAE</span></div>
+    </div>
+    <div class="f-bottom">
+      <span>© 2026 HourX PORTAL CO. L.L.C S.O.C. All rights reserved.</span>
+      <div class="f-links"><a href="#terms">Terms &amp; Conditions</a><a href="#privacy">Privacy Policy</a><a href="#deletion">Data Deletion Request</a></div>
+      <div class="pay"><span>VISA</span><span>Mastercard</span><span>Apple Pay</span></div>
+    </div>
+  </div>
+</footer>
+<a href="#support" class="support"><i></i>Support</a>
+</body>
+</html>

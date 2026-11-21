@@ -34,8 +34,23 @@ export function platformSupplierQuoteServices(supplierId: number | string) {
   return http.get('/api/platform/supplierQuote/services', { params: { supplierId } });
 }
 
-export function platformSupplierQuoteSkus(supplierId: number | string, spuId: number | string) {
-  return http.get('/api/platform/supplierQuote/skus', { params: { supplierId, spuId } });
+export function platformSupplierQuoteSkus(
+  supplierId: number | string,
+  spuId: number | string,
+  packageId?: number | string,
+) {
+  const params: Record<string, number | string> = { supplierId, spuId }
+  if (Number(packageId) > 0) params.packageId = packageId as number | string
+  return http.get('/api/platform/supplierQuote/skus', { params });
+}
+
+export function platformQuotePriceSnapshots(params: {
+  supplierId: number | string;
+  spuId?: number | string;
+  skuId?: number | string;
+  attachValueId?: number | string;
+}) {
+  return http.get('/api/platform/supplierQuote/priceSnapshots', { params });
 }
 
 const COMPARE_PAGE_SIZE = 500;

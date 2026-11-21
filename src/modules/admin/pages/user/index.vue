@@ -511,6 +511,11 @@ const flattenMenuList = (
 const isButtonPermission = (item: { path?: string }) =>
   String(item?.path || '').trim().startsWith('btn:');
 
+const isSupplierPortalButton = (item: { path?: string }) =>
+  String(item?.path || '').trim().startsWith('btn:/admin/supplier-management/');
+
+const retainedSupplierButtonIds = ref<Array<string | number>>([]);
+
 const syncingPermissionTree = ref(false);
 const onPermissionCheck = (
   data: MenuPermissionNode,
@@ -547,6 +552,7 @@ const buildPermissionTree = (list: MenuPermissionItem[]): MenuPermissionNode[] =
   const flat = flattenMenuList(list);
   const nodeMap = new Map<string, MenuPermissionNode>();
   flat.forEach((item) => {
+    if (isSupplierPortalButton(item)) return;
     nodeMap.set(String(item.id), {
       ...item,
       children: [],
@@ -666,11 +672,17 @@ const openAssignPermission = async (row: User) => {
     ]);
     const allMenus = extractMenuList(allMenuRes);
     const userMenus = extractMenuList(userRoleRes);
+    const ownedMenus = flattenMenuList(userMenus);
+    retainedSupplierButtonIds.value = ownedMenus
+      .filter((item) => isSupplierPortalButton(item))
+      .map((item) => item.id);
     permissionTreeData.value = buildPermissionTree(
       allMenus.length ? allMenus : userMenus,
     );
 
-    const checkedKeys = flattenMenuList(userMenus).map((item) => item.id);
+    const checkedKeys = ownedMenus
+      .filter((item) => !isSupplierPortalButton(item))
+      .map((item) => item.id);
     await nextTick();
     permissionTreeRef.value?.setCheckedKeys(checkedKeys, false);
   } catch (error: any) {
@@ -692,6 +704,7 @@ const saveUserPermissions = async () => {
       checked.add(String(id));
     });
     includePermissionAncestors(permissionTreeData.value, checked);
+    retainedSupplierButtonIds.value.forEach((id) => checked.add(String(id)));
     const menuIds = Array.from(checked).map(
       (id) => {
         const numericId = Number(id);
@@ -714,6 +727,7 @@ const saveUserPermissions = async () => {
 const onPermissionDialogClosed = () => {
   permissionTargetUser.value = null;
   permissionTreeData.value = [];
+  retainedSupplierButtonIds.value = [];
   permissionTreeRef.value = undefined;
 };
 

@@ -1,7 +1,9 @@
+@use './typography';
+
 :root {
-  --hourx-brand: #05152B;
-  --hourx-brand-hover: #0B2747;
-  --hourx-brand-soft: #F1F4F7;
+  --hourx-brand: var(--hourx-client-text);
+  --hourx-brand-hover: #16233b;
+  --hourx-brand-soft: #f1eee8;
   --hourx-brand-filter: brightness(0) saturate(100%) invert(8%) sepia(24%) saturate(2280%) hue-rotate(174deg) brightness(91%) contrast(105%);
 }
 
@@ -19,7 +21,6 @@ body {
 }
 
 .hourx-wordmark {
-  font-family: Inter, "Avenir Next", Arial, sans-serif;
   font-size: 11px;
   font-weight: 900;
   letter-spacing: 0.24em;

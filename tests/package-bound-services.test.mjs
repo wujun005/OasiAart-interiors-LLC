@@ -37,9 +37,11 @@ async function harness(t, { cardCount = 1 } = {}) {
     getComputedStyle: (grid) => ({ columnGap: grid.columnGap || '0px' }),
     require(name) {
       if (name === 'vue') return Vue;
-      if (name === 'vue-i18n') return { useI18n: () => ({ locale, t: (_key, params) => {
+      if (name === 'vue-i18n') return { useI18n: () => ({ locale, t: (key, params) => {
         if (params?.count != null) return String(params.count);
         if (params?.price != null) return String(params.price);
+        if (key === 'client.home.packages.serviceIncluded') return 'Included';
+        if (key === 'client.home.packages.serviceFirstVisit') return 'Included on Visit 1';
         return `Service ${params?.index || ''}`.trim();
       } }) };
       if (name === '@/modules/client/utils/biz-tag') return { bizTagLabels: () => [] };
@@ -174,16 +176,66 @@ test('package cards count shared visits once and do not repeat the scroll instru
       { spuId: 1, redeemTimes: 4, spuNameI18n: { en: 'Home Cleaning' } },
       { spuId: 2, redeemTimes: 1, spuNameI18n: { en: 'AC Cleaning' } },
     ],
-  }, 'Home', 0, 0);
+  }, 'Home', 0);
   assert.equal(card.visits, '4');
-  assert.equal(card.perVisit, '100');
+  assert.equal(card.visitCount, 4);
   const listed = state.toCard({
     id: 38,
     displaySalePrice: 400,
     redeemTimes: 5,
     items: [],
     nameI18n: { en: 'Home Cleaning + AC - 4 Visits' },
-  }, 'Home', 0, 0);
+  }, 'Home', 0);
   assert.equal(listed.visits, '4');
-  assert.equal(listed.perVisit, '100');
+  assert.equal(listed.visitCount, 4);
+});
+
+test('catalog bundles use a different photo for each service and combine single redemptions', async (t) => {
+  const { state } = await harness(t);
+  const item = {
+    id: 11,
+    displaySalePrice: 230,
+    redeemTimes: 2,
+    nameI18n: { en: 'Deep Cleaning + AC — 1 Visit Each' },
+    imageUrls: ['cover.webp'],
+    spus: [
+      { spuId: 1, nameI18n: { en: 'Deep Cleaning' }, imageUrls: ['shared.webp', 'cleaning.webp'] },
+      { spuId: 2, nameI18n: { en: 'AC Cleaning' }, imageUrls: ['shared.webp'] },
+    ],
+  };
+  const card = state.toCard(item, 'Home', 0);
+  assert.equal(card.bundle, true);
+  assert.equal(card.visitCount, 1);
+  assert.deepEqual(plain(card.images), ['cleaning.webp', 'shared.webp']);
+  assert.deepEqual(plain(card.services.map(({ detail }) => detail)), ['Included', 'Included']);
+
+  const conflicting = state.toCard({ ...item, items: [{ spuId: 1, redeemTimes: 3 }] }, 'Home', 0);
+  assert.equal(conflicting.visitCount, 3);
+  const named = state.toCard({ ...item, nameI18n: { en: 'Deep Cleaning + AC — 2 Visits' } }, 'Home', 0);
+  assert.equal(named.visitCount, 2);
+});
+
+test('duplicate service photos fall back to the package cover and rows use only known redemption counts', async (t) => {
+  const { state } = await harness(t);
+  const item = {
+    id: 12,
+    displaySalePrice: 400,
+    redeemTimes: 5,
+    nameI18n: { en: 'Home Cleaning + AC — 4 Visits' },
+    imageUrls: ['cover.webp'],
+    spus: [
+      { spuId: 1, nameI18n: { en: 'Home Cleaning' }, imageUrls: ['shared.webp'] },
+      { spuId: 2, nameI18n: { en: 'AC Cleaning' }, imageUrls: ['shared.webp'] },
+    ],
+  };
+  const listed = state.toCard(item, 'Home', 0);
+  assert.deepEqual(plain(listed.images), ['cover.webp']);
+  assert.equal(listed.visitCount, 4);
+  assert.deepEqual(plain(listed.services.map(({ detail }) => detail)), ['Included', 'Included']);
+
+  const detailed = state.toCard({
+    ...item,
+    items: [{ spuId: 2, redeemTimes: 1 }, { spuId: 1, redeemTimes: 4 }],
+  }, 'Home', 0);
+  assert.deepEqual(plain(detailed.services.map(({ detail }) => detail)), ['4', 'Included on Visit 1']);
 });

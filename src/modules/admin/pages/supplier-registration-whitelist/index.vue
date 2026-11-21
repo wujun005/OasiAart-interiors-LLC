@@ -165,7 +165,7 @@ onMounted(load)
 .add-panel p, .list-panel p { margin-top: 5px; color: #728096; font-size: 13px; }
 .add-panel__form { display: flex; gap: 10px; width: min(520px, 100%); }
 .list-panel__head { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 16px; }
-.phone-value { color: #0b5cad; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-weight: 700; }
+.phone-value { color: #0b5cad; font-variant-numeric: tabular-nums; font-weight: 700; }
 .list-panel :deep(.el-table) { border-radius: 12px; }
 @media (max-width: 760px) {
   .page-header, .add-panel { align-items: stretch; flex-direction: column; }

@@ -559,10 +559,19 @@
         </el-table-column>
         <el-table-column
           :label="t('admin.orders.table.actions')"
-          width="108"
+          width="128"
         >
           <template #default="{ row }">
             <div class="order-table-actions">
+              <el-button
+                v-if="canRecommendSupplier(row)"
+                link
+                type="primary"
+                size="small"
+                @click="openRecommendDialog(row)"
+              >
+                {{ t("admin.orders.actions.recommendSupplier") }}
+              </el-button>
               <el-badge
                 :is-dot="hasOrderRemark(row)"
                 type="warning"
@@ -710,6 +719,14 @@
         </header>
 
         <div class="order-detail__toolbar">
+          <el-button
+            v-if="detailRow && canRecommendSupplier(detailRow)"
+            type="primary"
+            plain
+            @click="openRecommendDialog(detailRow)"
+          >
+            {{ t("admin.orders.actions.recommendSupplier") }}
+          </el-button>
           <el-button v-if="canAction('btn:/admin/orders:edit')" type="primary" @click="openDetailEdit">
             <span aria-hidden="true">✎</span>
             {{ t("admin.orders.detail.editOrder") }}
@@ -931,6 +948,14 @@
             </strong>
           </div>
           <div class="h5-supplier__actions">
+            <button
+              v-if="canRecommendSupplier(detailRow)"
+              type="button"
+              class="h5-supplier__btn"
+              @click="openRecommendDialog(detailRow)"
+            >
+              {{ t("admin.orders.actions.recommendSupplier") }}
+            </button>
             <button
               v-if="canAction('btn:/admin/orders:assign') && !isSupplierReadOnly(detailRow) && !hasAssignedSupplier(detailRow)"
               type="button"
@@ -1890,6 +1915,110 @@
         </el-button>
       </template>
     </el-dialog>
+
+    <el-dialog
+      v-model="recommendVisible"
+      :title="t('admin.orders.dialog.recommendSupplierTitle')"
+      :close-on-click-modal="false"
+      :close-on-press-escape="!recommendSubmitting"
+      :show-close="!recommendSubmitting"
+      width="min(960px, calc(100vw - 32px))"
+    >
+      <p class="recommend-hint">
+        {{ recommendOrderNo || "-" }}
+        ·
+        {{ t("admin.orders.dialog.recommendHint") }}
+      </p>
+      <el-form v-if="recommendVisits.length > 1" label-width="118px">
+        <p v-if="recommendPackageOrder" class="recommend-hint">
+          {{ t("admin.orders.dialog.recommendPackageVisit") }}
+        </p>
+        <el-form-item :label="t('admin.orders.dialog.recommendVisit')">
+          <el-select v-model="recommendFulfillmentId" style="width: 100%">
+            <el-option
+              v-for="visit in recommendVisits"
+              :key="visit.id || visit.key"
+              :label="visit.title || String(visit.id)"
+              :value="visit.id"
+            />
+          </el-select>
+        </el-form-item>
+      </el-form>
+      <el-table
+        v-if="recommendLoading || recommendSuppliers.length"
+        v-loading="recommendLoading"
+        :data="recommendSuppliers"
+        row-key="supplierId"
+        highlight-current-row
+        @row-click="selectRecommendSupplier"
+      >
+        <el-table-column width="48">
+          <template #default="{ row }">
+            <el-radio
+              :model-value="recommendSupplierId"
+              :value="row.supplierId"
+              @click.stop="selectRecommendSupplier(row)"
+            />
+          </template>
+        </el-table-column>
+        <el-table-column :label="t('admin.orders.table.supplier')" min-width="180">
+          <template #default="{ row }">
+            <div>{{ row.supplierName || "-" }}</div>
+            <div class="recommend-sub">
+              {{ [recommendSupplierType(row), row.supplierNo].filter(Boolean).join(" · ") || "-" }}
+            </div>
+          </template>
+        </el-table-column>
+        <el-table-column :label="t('admin.orders.dialog.recommendSkuSettlement')" min-width="120">
+          <template #default="{ row }">
+            <div>{{ formatMoneyText(row.skuSettlementPrice) }}</div>
+            <div class="recommend-sub">
+              {{ t("admin.orders.dialog.recommendSkuProfit") }}
+              {{ formatProfitRate(row.skuProfitRate) }}
+            </div>
+          </template>
+        </el-table-column>
+        <el-table-column :label="t('admin.orders.dialog.recommendAddonSettlement')" min-width="130">
+          <template #default="{ row }">
+            <div>{{ formatMoneyText(row.addonSettlementPrice) }}</div>
+            <div class="recommend-sub">
+              {{ t("admin.orders.dialog.recommendAddonProfit") }}
+              {{ formatProfitRate(row.addonProfitRate) }}
+            </div>
+          </template>
+        </el-table-column>
+        <el-table-column :label="t('admin.orders.dialog.recommendTotalSettlement')" min-width="120">
+          <template #default="{ row }">
+            {{ formatMoneyText(row.totalSettlementPrice) }}
+          </template>
+        </el-table-column>
+        <el-table-column :label="t('admin.orders.dialog.recommendTotalProfit')" min-width="110">
+          <template #default="{ row }">
+            {{ formatProfitRate(row.totalProfitRate) }}
+          </template>
+        </el-table-column>
+      </el-table>
+      <p v-if="!recommendLoading && !recommendSuppliers.length" class="recommend-empty">
+        {{ t("admin.orders.dialog.recommendEmpty") }}
+      </p>
+      <template #footer>
+        <el-button :disabled="recommendSubmitting" @click="recommendVisible = false">
+          {{ t("admin.orders.actions.cancel") }}
+        </el-button>
+        <el-button
+          type="primary"
+          :loading="recommendSubmitting"
+          :disabled="
+            recommendSupplierId == null ||
+            !recommendSuppliers.length ||
+            (recommendVisits.length > 1 && recommendFulfillmentId == null)
+          "
+          @click="submitRecommendSupplier"
+        >
+          {{ t("admin.orders.dialog.recommendAssign") }}
+        </el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -1911,11 +2040,14 @@ import {
   updateOrderStatus,
   updateAdminRemark,
   updateSupplier,
+  fulfillableSuppliers,
+  assignFulfillableSupplier,
   type OrderExportPayload,
   type OrderOperationLog,
   type RefundReasonOption,
 } from "@/modules/admin/api/order"
 import { pickI18nText } from "@/modules/admin/utils/i18n"
+import { canAction } from "@/modules/admin/utils/menuPermission"
 import {
   materialHourServiceHours,
   materialHourStaffCount,
@@ -2305,6 +2437,29 @@ const supplierViewInfo = ref<{
   supplierType?: 1 | 2
 }>({ supplierName: "", contactInfo: "" })
 const assignDialogVisible = ref(false)
+type RecommendSupplier = {
+  supplierId: number
+  supplierName: string
+  supplierNo: string
+  supplierType: 1 | 2 | null
+  skuSettlementPrice: number | null
+  skuProfitRate: number | null
+  addonSettlementPrice: number | null
+  addonProfitRate: number | null
+  totalSettlementPrice: number | null
+  totalProfitRate: number | null
+}
+const recommendVisible = ref(false)
+const recommendLoading = ref(false)
+const recommendSubmitting = ref(false)
+const recommendOrderId = ref<number | null>(null)
+const recommendOrderNo = ref("")
+const recommendPackageOrder = ref(false)
+const recommendSupplierId = ref<number | null>(null)
+const recommendFulfillmentId = ref<number | null>(null)
+const recommendVisits = ref<OrderFulfillment[]>([])
+const recommendSuppliers = ref<RecommendSupplier[]>([])
+let recommendRequest = 0
 const assignSubmitting = ref(false)
 const assignTarget = ref<OrderRow | null>(null)
 const bulkAssignMode = ref(false)
@@ -4026,7 +4181,12 @@ const parseOrderRow = (item: any): OrderRow => {
     withMaterial: optionalOrderBoolean(order.withMaterial ?? item.withMaterial),
     staffCount: optionalOrderNumber(order.staffCount ?? item.staffCount),
     serviceHours: optionalOrderNumber(order.serviceHours ?? item.serviceHours),
-    fulfillments: parseFulfillments(order.fulfillmentList ?? item.fulfillmentList),
+    fulfillments: parseFulfillments(
+      order.fulfillmentList ??
+        item.fulfillmentList ??
+        order.packageView?.fulfillmentList ??
+        item.packageView?.fulfillmentList,
+    ),
     assignedStaff: collectAssignedStaff(order, item),
     userPhone: String(
       order.userPhone ?? item.userPhone ?? order.phone ?? item.phone ?? "",
@@ -4661,6 +4821,123 @@ const openSupplierView = async (row: OrderRow) => {
 }
 
 
+const canRecommendSupplier = (row: OrderRow | null | undefined) =>
+  Boolean(row?.orderId) &&
+  row?.paymentStatusCode === 1 &&
+  canAction("btn:/admin/orders:assign")
+
+const recommendMoney = (value: unknown) => {
+  if (value == null || value === "") return null
+  const numeric = Number(value)
+  return Number.isFinite(numeric) ? numeric : null
+}
+
+const formatProfitRate = (value: unknown) => {
+  if (value == null || value === "") return "-"
+  const numeric = Number(value)
+  if (!Number.isFinite(numeric)) return "-"
+  return `${(numeric * 100).toFixed(1)}%`
+}
+
+const recommendSupplierType = (row: RecommendSupplier) => {
+  if (row.supplierType === 2) return t("admin.orders.form.individualSupplier")
+  if (row.supplierType === 1) return t("admin.orders.form.companySupplier")
+  return ""
+}
+
+const parseRecommendSuppliers = (payload: unknown): RecommendSupplier[] => {
+  const source = Array.isArray(payload)
+    ? payload
+    : Array.isArray((payload as { data?: unknown })?.data)
+      ? ((payload as { data: unknown[] }).data)
+      : Array.isArray((payload as { list?: unknown })?.list)
+        ? ((payload as { list: unknown[] }).list)
+        : []
+  return source.flatMap((item) => {
+    const row = item && typeof item === "object" ? item as Record<string, unknown> : {}
+    const supplierId = Number(row.supplierId)
+    if (!Number.isFinite(supplierId) || supplierId <= 0) return []
+    const supplierType = Number(row.supplierType)
+    return [{
+      supplierId,
+      supplierName: String(row.supplierName || "").trim(),
+      supplierNo: String(row.supplierNo || "").trim(),
+      supplierType: supplierType === 1 || supplierType === 2 ? supplierType : null,
+      skuSettlementPrice: recommendMoney(row.skuSettlementPrice),
+      skuProfitRate: recommendMoney(row.skuProfitRate),
+      addonSettlementPrice: recommendMoney(row.addonSettlementPrice),
+      addonProfitRate: recommendMoney(row.addonProfitRate),
+      totalSettlementPrice: recommendMoney(row.totalSettlementPrice),
+      totalProfitRate: recommendMoney(row.totalProfitRate),
+    }]
+  })
+}
+
+const selectRecommendSupplier = (row: RecommendSupplier) => {
+  if (row?.supplierId) recommendSupplierId.value = row.supplierId
+}
+
+const openRecommendDialog = async (row: OrderRow) => {
+  if (!row.orderId || recommendSubmitting.value) return
+  const visits = row.fulfillments.filter((visit) => visit.assignable && visit.id != null)
+  recommendOrderId.value = row.orderId
+  recommendOrderNo.value = row.orderNo
+  recommendPackageOrder.value = row.packageOrder
+  recommendSupplierId.value = null
+  recommendVisits.value = visits
+  recommendFulfillmentId.value = visits.length === 1 ? visits[0].id : null
+  recommendSuppliers.value = []
+  recommendVisible.value = true
+  const requestId = ++recommendRequest
+  recommendLoading.value = true
+  try {
+    const response = await fulfillableSuppliers(row.orderId)
+    if (requestId !== recommendRequest) return
+    recommendSuppliers.value = parseRecommendSuppliers(response)
+  } catch (error: any) {
+    if (requestId !== recommendRequest) return
+    recommendSuppliers.value = []
+    ElMessage.error(error?.message || t("admin.orders.message.recommendLoadFailed"))
+  } finally {
+    if (requestId === recommendRequest) recommendLoading.value = false
+  }
+}
+
+const submitRecommendSupplier = async () => {
+  const orderId = recommendOrderId.value
+  const supplierId = recommendSupplierId.value
+  if (!orderId || supplierId == null) {
+    ElMessage.warning(t("admin.orders.message.recommendSelect"))
+    return
+  }
+  if (recommendVisits.value.length > 1 && recommendFulfillmentId.value == null) {
+    ElMessage.warning(t("admin.orders.message.recommendSelectVisit"))
+    return
+  }
+  recommendSubmitting.value = true
+  try {
+    await assignFulfillableSupplier({
+      orderId,
+      supplierId,
+      ...(recommendFulfillmentId.value != null
+        ? { fulfillmentId: recommendFulfillmentId.value }
+        : {}),
+    })
+    ElMessage.success(t("admin.orders.message.recommendAssigned"))
+    recommendVisible.value = false
+    await fetchOrders()
+    const current = detailRow.value
+    if (detailDrawerVisible.value && current?.orderId === orderId) {
+      const fresh = orders.value.find((item) => item.orderId === orderId) || current
+      await openOrderDetail(fresh)
+    }
+  } catch (error: any) {
+    ElMessage.error(error?.message || t("admin.orders.message.recommendAssignFailed"))
+  } finally {
+    recommendSubmitting.value = false
+  }
+}
+
 const openAssignDialog = async (row: OrderRow) => {
   if (assignSubmitting.value) return
   const sequence = ++assignDialogSequence
@@ -5216,9 +5493,33 @@ const onSizeChange = (pageSize: number) => {
   fetchOrders()
 }
 
+const applyCoverageDispatchFilters = () => {
+  const date = route.query?.coverageDispatchDate
+  if (typeof date !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(date)) return false
+  const day = new Date(`${date}T00:00:00Z`)
+  if (!Number.isFinite(day.getTime()) || day.toISOString().slice(0, 10) !== date) return false
+  const orderNo = route.query?.orderNo
+  query.orderNo = typeof orderNo === "string" ? orderNo.trim() : ""
+  query.serviceTimeRange = [date, date]
+  query.orderStatuses = [1]
+  query.paymentStatuses = [1]
+  query.packageOrder = "false"
+  query.serviceTimeSort = "SERVICE_TIME_ASC"
+  query.pageNum = 1
+  return true
+}
+
+watch(
+  () => [route.query?.coverageDispatchDate, route.query?.orderNo],
+  () => {
+    if (applyCoverageDispatchFilters()) void fetchOrders()
+  },
+)
+
 onMounted(() => {
   window.addEventListener("beforeprint", handleBeforePrint)
   window.addEventListener("afterprint", handleAfterPrint)
+  applyCoverageDispatchFilters()
   void loadServiceTimeRanges()
   void loadServiceOptions()
   void fetchOrders()
@@ -5445,7 +5746,6 @@ onBeforeUnmount(() => {
   padding: 36px 40px 48px;
   background: #fff;
   color: #111;
-  font-family: Arial, "PingFang SC", "Microsoft YaHei", sans-serif;
 }
 .operation-log-sheet__header {
   display: flex;
@@ -5804,11 +6104,22 @@ onBeforeUnmount(() => {
   gap: 4px 18px;
 }
 .assign-hint,
-.h5-assign__hint {
+.h5-assign__hint,
+.recommend-hint,
+.recommend-empty {
   margin: 8px 0 0;
   color: #7a7166;
   font-size: 12px;
   line-height: 1.5;
+}
+.recommend-hint {
+  margin-top: 0;
+  margin-bottom: 12px;
+}
+.recommend-sub {
+  color: #7a7166;
+  font-size: 12px;
+  line-height: 1.4;
 }
 .assign-staff {
   display: flex;

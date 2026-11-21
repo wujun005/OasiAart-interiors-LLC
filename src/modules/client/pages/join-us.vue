@@ -1,428 +1,410 @@
 <template>
   <div class="join-page">
-    <section class="join-hero">
-      <img :src="joinHeroImageUrl" alt="Reach more customers with HourX" />
-    </section>
-
-    <section class="join-main">
-      <div class="join-container join-main__inner">
-        <section class="join-about">
-          <div class="join-about__left">
-            <span class="join-about__badge">{{ pageCopy.badge }}</span>
-            <h2>{{ pageCopy.introTitle }}</h2>
-            <p class="join-about__desc">{{ pageCopy.introDesc }}</p>
-
-            <div class="join-values">
-              <header class="join-values__head">
-                <h3>{{ pageCopy.valuesTitle }}</h3>
-                <p>{{ pageCopy.valuesDesc }}</p>
-              </header>
-
-              <article v-for="item in valueItems" :key="item.title" class="join-value">
-                <div class="join-value__icon">
-                  <img :src="item.icon" alt="" />
-                </div>
-                <div class="join-value__body">
-                  <h4>{{ item.title }}</h4>
-                  <p>{{ item.desc }}</p>
-                </div>
-              </article>
-            </div>
-          </div>
-
-          <div class="join-about__right">
-            <img :src="cityImageUrl" :alt="pageCopy.badge" />
-          </div>
-        </section>
-
-        <section class="join-partner">
-          <h2>
-            {{ pageCopy.joinTitleLine1 }}<br />
-            {{ pageCopy.joinTitleLine2 }}
-          </h2>
-          <p>{{ pageCopy.joinDesc }}</p>
-          <RouterLink class="join-apply" :to="{ name: 'supplier-onboarding' }">
-            {{ pageCopy.applyCta }}
-          </RouterLink>
-          <div class="join-partner__contact">
-            <strong>{{ pageCopy.joinContactLabel }}</strong>
-            <a :href="`mailto:${joinEmail}`">
-              <img :src="joinEmailIconUrl" alt="" />
-              {{ joinEmail }}
+    <section class="join-hero" aria-labelledby="join-heading">
+      <div class="join-container join-hero__inner">
+        <div class="join-hero__copy">
+          <p class="join-hero__label">{{ copy.label }}</p>
+          <h1 id="join-heading">{{ copy.title }} <em>{{ copy.titleSecondLine }}</em></h1>
+          <p class="join-hero__description">{{ copy.description }}</p>
+          <div class="join-hero__actions">
+            <RouterLink :to="{ name: 'supplier-onboarding' }" class="join-button join-button--accent">
+              {{ copy.apply }}
+              <span aria-hidden="true">↗</span>
+            </RouterLink>
+            <a class="join-button join-button--outline" href="#join-process" @click.prevent="showProcess">
+              {{ copy.processLink }}
+              <span aria-hidden="true">↓</span>
             </a>
           </div>
-        </section>
+        </div>
+
+        <aside class="join-eligibility" aria-labelledby="join-eligibility-heading">
+          <h2 id="join-eligibility-heading">{{ copy.eligibilityTitle }}</h2>
+          <ul>
+            <li v-for="requirement in copy.eligibility" :key="requirement">
+              <span aria-hidden="true">✓</span>{{ requirement }}
+            </li>
+          </ul>
+        </aside>
+      </div>
+    </section>
+
+    <section
+      id="join-process"
+      ref="process"
+      class="join-process join-container"
+      aria-labelledby="join-process-title"
+      tabindex="-1"
+    >
+      <header class="join-process__header">
+        <div>
+          <p class="join-process__label">{{ copy.processLink }}</p>
+          <h2 id="join-process-title">{{ copy.processTitle }}</h2>
+        </div>
+        <a :href="emailLink" class="join-contact">
+          {{ copy.contact }}
+          <span aria-hidden="true">↗</span>
+        </a>
+      </header>
+      <ol class="join-steps">
+        <li v-for="(step, index) in copy.steps" :key="step.title">
+          <span class="join-step__number" aria-hidden="true">{{ String(index + 1).padStart(2, '0') }}</span>
+          <h3>{{ step.title }}</h3>
+          <p>{{ step.description }}</p>
+        </li>
+      </ol>
+      <div class="join-review">
+        <h3>{{ copy.reviewTitle }}</h3>
+        <p>{{ copy.reviewDescription }}</p>
       </div>
     </section>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 
-type JoinValue = {
-  title: string;
-  desc: string;
-  icon: string;
-};
-
+const partnerEmail = 'partners@hourxportal.com';
+const emailLink = `mailto:${partnerEmail}`;
 const { locale } = useI18n({ useScope: 'global' });
+const process = ref<HTMLElement | null>(null);
 
-const joinHeroImageUrl = new URL('@/assets/images/client/OPTION 4 - APPROVED.png', import.meta.url).href;
-const cityImageUrl = new URL('@/assets/images/client/Container.png', import.meta.url).href;
-const valueIconShieldUrl = new URL('@/assets/images/client/icon2.png', import.meta.url).href;;
-const valueIconClockUrl = new URL('@/assets/images/client/icon3.png', import.meta.url).href;
-const valueIconPinUrl = new URL('@/assets/images/client/icon4.png', import.meta.url).href;
-const joinEmailIconUrl = new URL('@/assets/images/client/email.png', import.meta.url).href;
+function showProcess() {
+  process.value?.focus({ preventScroll: true });
+  process.value?.scrollIntoView({ block: 'start' });
+}
 
-const joinEmail = 'partners@hourxportal.com';
-const isZh = computed(() => locale.value.startsWith('zh'));
-
-const pageCopy = computed(() =>
-  isZh.value
-    ? {
-      badge: '关于我们',
-      heroTitleLine1: '加入HourX成为服务合作伙伴',
-      heroTitleLine2: '',
-      heroDesc:
-        '通过值得信赖的上门服务平台，连接迪拜各地客户,拓展您的业务并实现增长。成为合作伙伴',
-      introTitle: '为什么选择我们关于HourX',
-      introDesc:
-        'HourX是一家专注迪拜市场的本地化上门服务平台。通过统一平台预约与专业团队管理，为您提供高效、可靠的居家服务。',
-      valuesTitle: '关于HourX',
-      valuesDesc: '所有服务人员均经过严格筛选与认证，确保每一次上门服务都专业、安心、值得信赖。',
-      joinTitleLine1: '成为 HourX',
-      joinTitleLine2: '服务合作伙伴',
-      joinDesc:
-        '公司和个人都可以申请成为 HourX 服务合作伙伴。填写资料并提交后，我们会审核。',
-      applyCta: '立即注册',
-      joinContactLabel: '联系 HourX：',
-    }
-    : {
-      badge: 'About HourX',
-      heroTitleLine1: 'Join HourX as a',
-      heroTitleLine2: 'Service Partner',
-      heroDesc:
-        'Connect with customers across Dubai and grow your business through a trusted home service platform.',
-      introTitle: 'Why Choose HourX',
-      introDesc:
-        'HourX is a Dubai-based on-demand home service platform. With a unified booking system and professionally managed service network, we deliver efficient and reliable home services to your doorstep.',
-      valuesTitle: 'About HourX',
-      valuesDesc:
-        'All professionals are carefully vetted and verified to ensure every service is safe, professional, and trustworthy.',
-      joinTitleLine1: 'Become a',
-      joinTitleLine2: 'Service Partner',
-      joinDesc:
-        'Companies and individuals can apply to partner with HourX. Submit your details and we will review the application.',
-      applyCta: 'Register Now',
-      joinContactLabel: 'Contact HourX:',
-    },
-);
-
-const valueItems = computed<JoinValue[]>(() =>
-  isZh.value
-    ? [
-      {
-        title: '专业',
-        desc: '严选认证',
-        icon: valueIconShieldUrl,
-      },
-      {
-        title: '快速',
-        desc: '高效响应',
-        icon: valueIconClockUrl,
-      },
-      {
-        title: '可靠',
-        desc: '值得信赖',
-        icon: valueIconPinUrl,
-      },
-    ]
-    : [
-      {
-        title: 'Professional',
-        desc: 'Vetted professionals',
-        icon: valueIconShieldUrl,
-      },
-      {
-        title: 'Fast',
-        desc: 'Quick response',
-        icon: valueIconClockUrl,
-      },
-      {
-        title: 'Reliable',
-        desc: 'Trusted service',
-        icon: valueIconPinUrl,
-      },
+const copy = computed(() => locale.value.startsWith('zh')
+  ? {
+    label: '企业入驻',
+    title: '成为 HourX',
+    titleSecondLine: '服务合作伙伴',
+    description: '在迪拜提供上门服务的企业，可申请加入 HourX，让本地客户找到您的服务。',
+    apply: '立即申请',
+    processLink: '入驻流程',
+    eligibilityTitle: '企业申请条件',
+    eligibility: ['在迪拜提供上门服务', '拥有自己的专业服务团队', '持有有效营业执照'],
+    processTitle: '如何成为合作伙伴',
+    steps: [
+      { title: '填写企业资料', description: '提供营业执照信息、联系方式，选择可提供的服务。' },
+      { title: '提交申请', description: 'HourX 团队审核您提交的资料。' },
+      { title: '接收入驻邮件', description: '审核通过后，查收后台登录信息。' },
     ],
-);
+    contact: '合作咨询',
+    reviewTitle: '准备好加入 HourX 了吗？',
+    reviewDescription: 'HourX 团队会先审核您的申请，审核通过后即可访问合作伙伴工作台。',
+  }
+  : {
+    label: 'Company Partnerships',
+    title: 'Become an HourX',
+    titleSecondLine: 'Service Partner',
+    description: 'Connect your home services business with customers across Dubai.',
+    apply: 'Apply Now',
+    processLink: 'How It Works',
+    eligibilityTitle: 'Who Can Apply',
+    eligibility: ['Dubai-based service companies', 'With your own professional team', 'A valid trade license'],
+    processTitle: 'How to Become a Partner',
+    steps: [
+      { title: 'Enter Your Company Details', description: 'Provide your company information, trade license details, and the services you offer.' },
+      { title: 'Submit Your Application', description: 'Our team will review your application and contact you if additional information is needed.' },
+      { title: 'Get Your Approval & Access', description: 'Once approved, you’ll receive an email with instructions to access your partner workspace.' },
+    ],
+    contact: 'Partnership Inquiries',
+    reviewTitle: 'Ready to Grow with HourX?',
+    reviewDescription: 'Applications are reviewed by the HourX team before access is granted.',
+  });
 </script>
 
-<style scoped lang="scss">
+<style scoped>
 .join-page {
-  background: #ffffff;
+  min-height: 100vh;
+  background: var(--hourx-client-canvas);
+  color: var(--hourx-client-text);
 }
 
 .join-container {
-  width: min(1280px, calc(100% - 48px));
-  margin: 0 auto;
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 1200px;
+  margin-inline: auto;
+  padding-inline: 24px;
 }
 
 .join-hero {
-  width: 100%;
-  height: clamp(220px, 32vw, 420px);
-  overflow: hidden;
-  background: #05152b;
+  background-color: var(--hourx-client-text);
+  background-image:
+    linear-gradient(rgb(184 154 114 / 6%) 1px, transparent 1px),
+    linear-gradient(90deg, rgb(184 154 114 / 6%) 1px, transparent 1px);
+  background-size: 48px 48px;
+  color: #fff;
 }
 
-.join-hero > img {
-  display: block;
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  object-position: center 36%;
-}
-
-.join-main {
-  background: #f8fafc;
-  padding: 80px 0 120px;
-}
-
-.join-about {
+.join-hero__inner {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 64px;
-  align-items: start;
-}
-
-.join-about__badge {
-  height: 32px;
-  padding: 0 16px;
-  border-radius: 999px;
-  background: var(--hourx-brand-soft);
-  color: var(--hourx-brand);
-  display: inline-flex;
+  grid-template-columns: minmax(0, 1.1fr) minmax(0, .9fr);
+  min-height: 520px;
   align-items: center;
-  font-size: 14px;
-  font-weight: 700;
+  gap: 56px;
+  padding-block: 64px;
 }
 
-.join-about__left h2 {
-  margin: 24px 0 0;
-  color: rgba(15, 23, 42, 0.9);
-  font-size: 26px;
-  line-height: 1.2;
-  font-weight: 900;
-}
-
-.join-about__desc {
-  margin: 24px 0 0;
-  color: rgba(15, 23, 42, 0.55);
-  font-size: 18px;
-  line-height: 1.6;
-  font-weight: 500;
-}
-
-.join-values {
-  margin-top: 48px;
-}
-
-.join-values__head h3 {
-  margin: 0;
-  color: rgba(15, 23, 42, 0.9);
-  font-size: 24px;
-  line-height: 1.2;
-  font-weight: 900;
-}
-
-.join-values__head p {
-  margin: 12px 0 0;
-  color: rgba(15, 23, 42, 0.5);
-  font-size: 16px;
-  line-height: 1.5;
-  font-weight: 500;
-}
-
-.join-value {
-  margin-top: 24px;
+.join-hero__copy {
   display: flex;
-  gap: 16px;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 22px;
 }
 
-.join-value__icon {
-  width: 48px;
-  height: 48px;
-  border-radius: 14px;
-  background: var(--hourx-brand-soft);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-}
-
-.join-value__icon img {
-  width: 48px;
-  height: 48px;
-}
-
-.join-value__body h4 {
+.join-hero__label,
+.join-process__label {
   margin: 0;
-  color: rgba(15, 23, 42, 0.9);
-  font-size: 18px;
-  line-height: 1.4;
-  font-weight: 800;
+  font-size: var(--hourx-client-size-label);
+  font-weight: 600;
+  line-height: 1.3;
+  letter-spacing: .12em;
+  text-transform: uppercase;
 }
 
-.join-value__body p {
-  margin: 4px 0 0;
-  color: rgba(15, 23, 42, 0.5);
-  font-size: 14px;
-  line-height: 1.6;
-}
-
-.join-about__right {
-  min-height: 432px;
-  border-radius: 24px;
-  overflow: hidden;
-}
-
-.join-about__right img {
-  width: 100%;
-  height: 432px;
-  object-fit: cover;
-  display: block;
-}
-
-.join-partner {
-  margin-top: 96px;
-  border-radius: 24px;
-  background: var(--hourx-brand-soft);
-  padding: 56px 64px;
-}
-
-.join-partner h2 {
-  margin: 0;
-  color: rgba(15, 23, 42, 0.9);
-  font-size: 30px;
-  line-height: 1.15;
-  font-weight: 900;
-}
-
-.join-partner p {
-  margin: 20px 0 0;
-  color: rgba(15, 23, 42, 0.56);
-  font-size: 18px;
-  line-height: 1.6;
-  max-width: 860px;
-}
-
-.join-apply {
-  display: inline-flex;
-  align-items: center;
-  height: 48px;
-  margin-top: 28px;
-  padding: 0 22px;
-  border-radius: 12px;
-  background: var(--hourx-brand);
-  color: #f7f1e6;
-  text-decoration: none;
-  font-size: 16px;
-  font-weight: 700;
-}
-
-.join-apply:hover {
-  background: var(--hourx-brand-hover);
-}
-
-.join-partner__contact {
-  margin-top: 24px;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  flex-wrap: wrap;
-}
-
-.join-partner__contact strong {
-  color: rgba(15, 23, 42, 0.9);
-  font-size: 16px;
-  line-height: 1.5;
-  font-weight: 700;
-}
-
-.join-partner__contact a {
-  height: 40px;
-  border-radius: 10px;
-  background: #fff;
-  color: var(--hourx-brand);
-  text-decoration: none;
+.join-hero__label {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  padding: 0 16px;
-  font-size: 16px;
-  font-weight: 700;
+  padding: 7px 12px;
+  border: 1px solid rgb(184 154 114 / 35%);
+  border-radius: 999px;
+  color: var(--hourx-client-accent);
 }
 
-.join-partner__contact a img {
-  width: 16px;
-  height: 16px;
+.join-hero__label::before {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+  content: '';
+}
+
+.join-hero h1 {
+  margin: 0;
+  font: 700 var(--hourx-client-size-hero)/1.12 var(--hourx-client-heading-font);
+  letter-spacing: -.02em;
+}
+
+.join-hero h1 em {
+  color: var(--hourx-client-accent);
+  font-style: normal;
+}
+
+.join-hero__description {
+  max-width: 460px;
+  margin: 0;
+  color: var(--hourx-client-on-dark);
+  font-size: var(--hourx-client-size-body);
+  line-height: 1.6;
+}
+
+.join-hero__actions,
+.join-process__header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+}
+
+.join-button,
+.join-contact {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: var(--hourx-client-size-action);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.join-button {
+  box-sizing: border-box;
+  min-height: 52px;
+  justify-content: center;
+  padding: 8px 24px;
+  border: 1px solid transparent;
+  border-radius: 12px;
+}
+
+.join-button--accent {
+  background: var(--hourx-client-accent);
+  color: var(--hourx-client-text);
+}
+
+.join-button--accent:hover {
+  background: #efebe4;
+  color: var(--hourx-client-text);
+}
+
+.join-button--outline {
+  color: #fff;
+  border-color: rgb(255 255 255 / 24%);
+}
+
+.join-button--outline:hover {
+  color: var(--hourx-client-accent);
+  border-color: currentColor;
+}
+
+.join-eligibility {
+  display: grid;
+  gap: 18px;
+  padding: 28px;
+  border-radius: 20px;
+  background: #fff;
+  color: var(--hourx-client-text);
+  box-shadow: 0 24px 60px rgb(0 0 0 / 28%);
+}
+
+.join-eligibility h2 {
+  margin: 0;
+  font-size: 1.0625rem;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.join-eligibility ul {
+  display: grid;
+  gap: 14px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.join-eligibility li {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  font-size: var(--hourx-client-size-action);
+}
+
+.join-contact {
+  color: var(--hourx-client-text);
+}
+
+.join-contact:hover {
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+
+.join-process {
+  padding-block: var(--hourx-client-section-space);
+  scroll-margin-top: 80px;
+}
+
+.join-process__header {
+  justify-content: space-between;
+  align-items: flex-end;
+  margin-bottom: 32px;
+}
+
+.join-process__label {
+  margin-bottom: 10px;
+}
+
+.join-process h2 {
+  margin: 0;
+  font: 700 var(--hourx-client-size-section)/1.25 var(--hourx-client-heading-font);
+  letter-spacing: -.015em;
+}
+
+.join-steps {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 24px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.join-steps li,
+.join-review {
+  border: 1px solid var(--hourx-client-border);
+  border-radius: 16px;
+  background: #fff;
+}
+
+.join-steps li {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-height: 200px;
+  padding: 24px;
+}
+
+.join-step__number {
+  display: grid;
+  width: 40px;
+  height: 40px;
+  place-items: center;
+  border-radius: 12px;
+  background: var(--hourx-client-text);
+  color: var(--hourx-client-accent);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.join-process h3 {
+  margin: 0;
+  font-size: var(--hourx-client-size-card);
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.join-steps p,
+.join-review p {
+  margin: 0;
+  color: var(--hourx-client-muted);
+  font-size: var(--hourx-client-size-body);
+  line-height: 1.55;
+}
+
+.join-review {
+  margin-top: 24px;
+  padding: 28px 32px;
+}
+
+.join-review p {
+  margin-top: 6px;
 }
 
 @media (max-width: 1024px) {
-  .join-about {
+  .join-hero__inner {
     grid-template-columns: 1fr;
-    gap: 40px;
-  }
-
-  .join-about__right {
-    min-height: 320px;
-  }
-
-  .join-about__right img {
-    height: 320px;
-  }
-
-  .join-partner {
-    margin-top: 64px;
-    padding: 40px 32px;
-  }
-
-  .join-partner h2 {
-    font-size: 34px;
+    min-height: 0;
   }
 }
 
-@media (max-width: 768px) {
+@media (max-width: 640px) {
   .join-container {
-    width: min(1280px, calc(100% - 32px));
+    padding-inline: 16px;
   }
 
-  .join-main {
-    padding: 56px 0 72px;
+  .join-hero__inner {
+    gap: 28px;
+    padding-block: 40px;
   }
 
-  .join-about__left h2 {
-    font-size: 26px;
+  .join-eligibility, .join-review {
+    padding: 20px;
   }
 
-  .join-about__desc {
-    font-size: 16px;
+  .join-process__header {
+    align-items: flex-start;
+    flex-direction: column;
   }
 
-  .join-partner h2 {
-    font-size: 28px;
+  .join-steps {
+    grid-template-columns: 1fr;
+    gap: 16px;
   }
 
-  .join-partner p {
-    font-size: 16px;
-  }
-
-  .join-partner__contact a {
-    max-width: 100%;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+  .join-steps li {
+    min-height: 0;
   }
 }
 </style>

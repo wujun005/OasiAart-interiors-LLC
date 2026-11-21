@@ -438,7 +438,6 @@ const handleLocaleChange = (lang: AdminLocale) => {
   grid-template-columns: minmax(500px, 46%) minmax(540px, 54%);
   background: var(--auth-ivory);
   color: var(--auth-ink);
-  font-family: Inter, Manrope, "SF Pro Display", "Segoe UI", Arial, sans-serif;
 }
 
 .admin-auth__visual {

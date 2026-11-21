@@ -4,13 +4,13 @@
       <button type="button" :aria-label="t('h5.common.back')" @click="router.back()">
         <van-icon name="arrow-left" />
       </button>
-      <h1>{{ t('client.cart.title') }}</h1>
       <button type="button" :aria-label="t('client.cart.browseServices')" @click="goServices">
         <van-icon name="apps-o" />
       </button>
     </header>
 
-    <main class="h5-cart-main">
+    <main class="h5-cart-main" :class="{ 'h5-cart-main--empty': !items.length }">
+      <h1>{{ t('client.cart.title') }}</h1>
       <section v-if="items.length" class="h5-cart-hero">
         <div>
           <h2>{{ t('client.cart.allItems') }}</h2>
@@ -232,6 +232,7 @@ import { showConfirmDialog, showFailToast, showSuccessToast } from 'vant';
 import fallbackImage from '@/assets/images/client/kv.png';
 import { useCart, type CartItem, type CartLocalizedText } from '@/modules/client/composables/useCart';
 import { checkoutCart } from '@/modules/client/api';
+import { trackInitiateCheckout } from '@/modules/client/utils/metaPixel';
 import StripePaymentModal from '@/modules/client/components/StripePaymentModal.vue';
 import AgreementDialog from '@/modules/client/components/agreement-dialog.vue';
 import BookingPolicyDetails from '@/modules/client/components/booking-policy-details.vue';
@@ -416,6 +417,14 @@ const confirmCheckout = async () => {
     };
     const approvalUrl = String(payment?.approvalUrl || '').trim();
     const clientSecret = String(payment?.clientSecret || '').trim();
+    if (approvalUrl || clientSecret) {
+      trackInitiateCheckout({
+        contentIds: result?.orderIds,
+        contentName: checkoutSummary.value.service,
+        value: result?.totalAmount || checkoutTotal.value,
+        numItems: checkoutItems.value.length,
+      });
+    }
     if (approvalUrl) {
       window.location.href = approvalUrl;
       return;
@@ -463,10 +472,8 @@ onMounted(async () => {
 <style scoped lang="scss">
 .h5-cart-page {
   min-height: 100vh;
-  color: #05152b;
-  background:
-    radial-gradient(circle at 90% 4%, rgba(30, 105, 188, 0.12), transparent 26%),
-    #f4f7fb;
+  color: var(--hourx-client-text);
+  background: var(--hourx-client-canvas);
 }
 
 .h5-cart-topbar {
@@ -475,19 +482,12 @@ onMounted(async () => {
   z-index: 20;
   height: 58px;
   padding: 0 14px;
-  display: grid;
-  grid-template-columns: 42px 1fr 42px;
+  display: flex;
+  justify-content: space-between;
   align-items: center;
   background: rgba(255, 255, 255, 0.94);
   border-bottom: 1px solid rgba(226, 232, 240, 0.9);
   backdrop-filter: blur(14px);
-}
-
-.h5-cart-topbar h1 {
-  margin: 0;
-  text-align: center;
-  font-size: 18px;
-  font-weight: 900;
 }
 
 .h5-cart-topbar button {
@@ -497,7 +497,7 @@ onMounted(async () => {
   border: 0;
   border-radius: 12px;
   background: #f2f6fb;
-  color: #05152b;
+  color: var(--hourx-client-text);
   font-size: 19px;
 }
 
@@ -505,6 +505,17 @@ onMounted(async () => {
   width: min(430px, 100%);
   margin: 0 auto;
   padding: 16px 14px calc(154px + env(safe-area-inset-bottom));
+}
+
+.h5-cart-main h1 {
+  margin: 0 0 20px;
+  color: var(--hourx-client-text);
+  font: 700 var(--hourx-client-size-page)/1.2 var(--hourx-client-heading-font);
+  letter-spacing: -0.02em;
+}
+
+.h5-cart-main--empty {
+  padding-bottom: calc(88px + env(safe-area-inset-bottom));
 }
 
 .h5-cart-hero {
@@ -524,8 +535,7 @@ onMounted(async () => {
 
 .h5-cart-hero h2 {
   margin: 0 0 5px;
-  font-size: 22px;
-  line-height: 1;
+  font: 600 var(--hourx-client-size-card)/1.3 var(--hourx-client-font-family);
 }
 
 .h5-cart-hero p {
@@ -572,8 +582,8 @@ onMounted(async () => {
 
 .h5-cart-check--active,
 .h5-cart-check--partial {
-  border-color: #1769c2;
-  background: #1769c2;
+  border-color: var(--hourx-client-text);
+  background: var(--hourx-client-text);
   box-shadow: 0 4px 10px rgba(23, 105, 194, 0.22);
 }
 
@@ -581,7 +591,7 @@ onMounted(async () => {
   width: 28px;
   height: 28px;
   border-radius: 9px;
-  background: #05152b;
+  background: var(--hourx-client-text);
   color: #fff;
   display: grid;
   place-items: center;
@@ -668,7 +678,7 @@ onMounted(async () => {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  color: #1769c2;
+  color: var(--hourx-client-text);
   font-size: 9px;
   font-weight: 900;
   letter-spacing: 0.06em;
@@ -693,7 +703,7 @@ onMounted(async () => {
   padding: 0;
   border: 0;
   background: transparent;
-  color: #05152b;
+  color: var(--hourx-client-text);
   font-size: 14px;
   font-weight: 900;
   line-height: 1.35;
@@ -723,7 +733,7 @@ onMounted(async () => {
 .h5-cart-item__schedule :deep(.van-icon) {
   margin-top: 1px;
   flex: 0 0 auto;
-  color: #1769c2;
+  color: var(--hourx-client-text);
 }
 
 .h5-cart-item__addons {
@@ -737,7 +747,7 @@ onMounted(async () => {
   padding: 3px 6px;
   border-radius: 6px;
   background: #edf7ff;
-  color: #1769c2;
+  color: var(--hourx-client-text);
   font-size: 9px;
 }
 
@@ -749,7 +759,7 @@ onMounted(async () => {
   gap: 6px;
 }
 
-.h5-cart-item__footer strong { color: #05152b; font-size: 15px; }
+.h5-cart-item__footer strong { color: var(--hourx-client-text); font-size: 15px; }
 .h5-cart-item__footer button {
   padding: 0;
   border: 0;
@@ -775,7 +785,7 @@ onMounted(async () => {
   border: 1px dashed #8ab7e7;
   border-radius: 15px;
   background: #eef6ff;
-  color: #1769c2;
+  color: var(--hourx-client-text);
   font: inherit;
   font-size: 14px;
   font-weight: 800;
@@ -786,7 +796,10 @@ onMounted(async () => {
 }
 
 .h5-cart-empty {
-  min-height: calc(100vh - 160px);
+  padding: 48px 18px;
+  border: 1px solid var(--hourx-client-border);
+  border-radius: 16px;
+  background: #fff;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -795,29 +808,28 @@ onMounted(async () => {
 }
 
 .h5-cart-empty > span {
-  width: 92px;
-  height: 92px;
-  border-radius: 30px;
-  background: linear-gradient(145deg, #e8f3ff, #f8fbff);
-  color: #1769c2;
+  width: 88px;
+  height: 88px;
+  border-radius: 50%;
+  background: #f1eee8;
+  color: var(--hourx-client-text);
   display: grid;
   place-items: center;
-  font-size: 44px;
-  box-shadow: 0 18px 34px rgba(23, 105, 194, 0.14);
+  font-size: 36px;
 }
 
-.h5-cart-empty h2 { margin: 24px 0 8px; font-size: 22px; }
-.h5-cart-empty p { max-width: 290px; margin: 0 0 22px; color: #7c899b; font-size: 13px; line-height: 1.6; }
+.h5-cart-empty h2 { margin: 20px 0 14px; font: 700 1.5rem/1.2 var(--hourx-client-heading-font); }
+.h5-cart-empty p { max-width: 290px; margin: 0 0 22px; color: var(--hourx-client-muted); font-size: var(--hourx-client-size-body); line-height: 1.55; }
 .h5-cart-empty > button {
   min-width: 180px;
   height: 46px;
   border: 0;
   border-radius: 14px;
-  background: #05152b;
+  background: var(--hourx-client-text);
   color: #fff;
   font-weight: 800;
 }
-.h5-cart-empty .h5-cart-empty__restore { margin-top: 9px; background: transparent; color: #1769c2; }
+.h5-cart-empty .h5-cart-empty__restore { margin-top: 9px; background: transparent; color: var(--hourx-client-text); }
 
 .h5-cart-settlement {
   position: fixed;
@@ -878,11 +890,11 @@ onMounted(async () => {
 .h5-cart-settlement__price dd { color: #435168; font-weight: 700; }
 .h5-cart-settlement__price .is-total {
   margin-top: 1px;
-  color: #05152b;
+  color: var(--hourx-client-text);
   font-size: 11px;
   font-weight: 800;
 }
-.h5-cart-settlement__price .is-total dd { color: #1769c2; font-size: 14px; }
+.h5-cart-settlement__price .is-total dd { color: var(--hourx-client-text); font-size: 14px; }
 
 .h5-cart-settlement__checkout {
   min-width: 94px;
@@ -927,7 +939,7 @@ onMounted(async () => {
 
 .h5-cart-tabbar > button > :deep(.van-icon),
 .h5-cart-tabbar__icon > :deep(.van-icon) { font-size: 22px; }
-.h5-cart-tabbar .h5-cart-tabbar__active { color: #1769c2; }
+.h5-cart-tabbar .h5-cart-tabbar__active { color: var(--hourx-client-text); }
 .h5-cart-tabbar__icon { position: relative; display: inline-flex; }
 .h5-cart-tabbar__icon b {
   position: absolute;
@@ -948,12 +960,12 @@ onMounted(async () => {
   max-height: 82vh;
   padding: 10px 18px calc(22px + env(safe-area-inset-bottom));
   overflow-y: auto;
-  color: #05152b;
+  color: var(--hourx-client-text);
 }
 
 .h5-cart-checkout__handle { width: 42px; height: 4px; margin: 0 auto 16px; border-radius: 9px; background: #d8e0e9; }
 .h5-cart-checkout header { display: flex; align-items: flex-start; justify-content: space-between; }
-.h5-cart-checkout header span { color: #1769c2; font-size: 9px; font-weight: 900; letter-spacing: 0.16em; }
+.h5-cart-checkout header span { color: var(--hourx-client-text); font-size: 9px; font-weight: 900; letter-spacing: 0.16em; }
 .h5-cart-checkout h2 { margin: 4px 0 0; font-size: 22px; }
 .h5-cart-checkout header button { width: 34px; height: 34px; border: 0; border-radius: 11px; background: #f2f5f8; color: #64748b; }
 .h5-cart-checkout > p { margin: 12px 0 16px; color: #7d899a; font-size: 12px; line-height: 1.55; }
@@ -973,8 +985,8 @@ onMounted(async () => {
 .h5-cart-checkout__items strong { font-size: 11px; }
 .h5-cart-checkout dl { margin: 18px 0; padding-top: 12px; border-top: 1px solid #e9eef3; }
 .h5-cart-checkout dl div { display: flex; justify-content: space-between; margin: 8px 0; color: #728095; font-size: 12px; }
-.h5-cart-checkout dd { margin: 0; color: #05152b; font-weight: 800; }
-.h5-cart-checkout .h5-cart-checkout__total { padding-top: 10px; border-top: 1px dashed #dce3eb; color: #05152b; font-size: 15px; font-weight: 900; }
+.h5-cart-checkout dd { margin: 0; color: var(--hourx-client-text); font-weight: 800; }
+.h5-cart-checkout .h5-cart-checkout__total { padding-top: 10px; border-top: 1px dashed #dce3eb; color: var(--hourx-client-text); font-size: 15px; font-weight: 900; }
 .h5-cart-checkout__confirm {
   width: 100%;
   height: 50px;

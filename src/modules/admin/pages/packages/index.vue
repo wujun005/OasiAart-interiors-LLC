@@ -387,7 +387,7 @@ const remove = async (row: PackageRow) => {
 <style scoped>
 .package-page { padding: 20px; color: #1c2433; }
 .page-header { display: flex; justify-content: space-between; gap: 16px; align-items: flex-start; }
-.page-header h1 { margin: 0 0 6px; color: #05152b; font-family: Georgia, serif; font-size: 28px; font-weight: 500; }
+.page-header h1 { margin: 0 0 6px; color: #05152b; font-size: 28px; font-weight: 500; }
 .page-header p, .scope, .rule { margin: 0; color: #6d7686; line-height: 1.5; }
 .scope { margin: 12px 0 16px; padding: 12px 14px; border: 1px solid #f0d7a4; border-radius: 12px; background: #fff8ea; }
 .pair { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }

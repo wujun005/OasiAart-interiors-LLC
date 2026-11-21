@@ -4,13 +4,13 @@
       <button class="h5-profile-security-topbar__btn" type="button" @click="router.back()">
         <van-icon name="arrow-left" />
       </button>
-      <h1>{{ t('client.profile.title') }}</h1>
+      <h1>{{ t('client.profile.security.title') }}</h1>
       <span class="h5-profile-security-topbar__placeholder"></span>
     </header>
 
     <main class="h5-profile-security-main">
       <section class="h5-profile-security-card">
-        <p>{{ t('client.profile.subtitle') }}</p>
+        <p>{{ t('client.profile.security.description') }}</p>
         <form class="h5-profile-security-form" @submit.prevent="submitResetPassword">
           <label class="h5-profile-security-field">
             <span>{{ t('client.profile.form.currentPassword') }}</span>
@@ -26,7 +26,7 @@
             type="button"
             @click="forgotPasswordVisible = true"
           >
-            {{ t('client.login.password.forgotPassword') }}
+            {{ t('client.profile.security.forgotPassword') }}
           </button>
 
           <label class="h5-profile-security-field">
@@ -50,9 +50,14 @@
           </label>
 
           <button class="h5-profile-security-submit" type="submit" :disabled="submitting">
-            {{ submitting ? t('client.profile.actions.submitting') : t('client.profile.actions.confirm') }}
+            {{ submitting ? t('client.profile.actions.submitting') : t('client.profile.actions.submit') }}
           </button>
         </form>
+      </section>
+      <section class="h5-profile-security-card" style="margin-top: 20px">
+        <h2>{{ t('client.accountDeletion.entry') }}</h2>
+        <p>{{ t('client.accountDeletion.intro') }}</p>
+        <RouterLink :to="{ name: 'h5-account-deletion' }">{{ t('client.accountDeletion.submit') }}</RouterLink>
       </section>
     </main>
     <ForgotPasswordDialog
@@ -171,7 +176,7 @@ onMounted(() => {
 <style scoped lang="scss">
 .h5-profile-security-page {
   min-height: 100vh;
-  background: #f8fafc;
+  background: var(--hourx-client-canvas);
 }
 
 .h5-profile-security-topbar {
@@ -199,9 +204,8 @@ onMounted(() => {
 
 .h5-profile-security-topbar h1 {
   margin: 0;
-  color: #0f172a;
-  font-size: 16px;
-  font-weight: 800;
+  color: var(--hourx-client-text);
+  font: 700 1.375rem/1.2 var(--hourx-client-heading-font);
 }
 
 .h5-profile-security-main {
@@ -211,17 +215,16 @@ onMounted(() => {
 }
 
 .h5-profile-security-card {
-  border-radius: 20px;
+  border: 1px solid var(--hourx-client-border);
+  border-radius: 16px;
   background: #fff;
-  box-shadow: 0 16px 30px rgba(15, 23, 42, 0.06);
   padding: 20px 16px;
 }
 
 .h5-profile-security-card > p {
   margin: 0;
-  color: rgba(15, 23, 42, 0.55);
-  font-size: 13px;
-  line-height: 1.6;
+  color: var(--hourx-client-muted);
+  font: 400 0.8125rem/1.55 var(--hourx-client-font-family);
 }
 
 .h5-profile-security-form {
@@ -238,9 +241,8 @@ onMounted(() => {
 }
 
 .h5-profile-security-field span {
-  color: rgba(15, 23, 42, 0.9);
-  font-size: 13px;
-  font-weight: 700;
+  color: var(--hourx-client-text);
+  font: 600 0.8125rem/1 var(--hourx-client-font-family);
 }
 
 .h5-profile-security-field input {
@@ -249,8 +251,8 @@ onMounted(() => {
   border: 1px solid #dbe3ee;
   border-radius: 14px;
   background: #f8fafc;
-  color: rgba(15, 23, 42, 0.9);
-  font-size: 14px;
+  color: var(--hourx-client-text);
+  font: 400 var(--hourx-client-size-body)/1.55 var(--hourx-client-font-family);
   padding: 0 14px;
   box-sizing: border-box;
   outline: none;
@@ -263,8 +265,7 @@ onMounted(() => {
   border-radius: 16px;
   background: var(--hourx-brand);
   color: #fff;
-  font-size: 15px;
-  font-weight: 700;
+  font: 600 var(--hourx-client-size-action)/1 var(--hourx-client-font-family);
 }
 
 .h5-profile-security-submit:disabled {

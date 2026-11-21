@@ -70,7 +70,6 @@ const goResetPassword = () => {
   .forgot-password {
     min-width: 90px;
     height: 25px;
-    font-family: PingFangSC-Regular;
     font-weight: 400;
     font-size: 18px;
     color: #796f51;

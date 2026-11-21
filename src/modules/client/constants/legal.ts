@@ -16,7 +16,8 @@ type LegalDoc = {
 
 type LegalLocale = 'en' | 'zh';
 
-const privacyRevision = '2026-11-12';
+const privacyRevision = '2026-11-14';
+const deletionRevision = '2026-11-19';
 const privacyContact = {
   label: 'support@hourxportal.com',
   href: 'mailto:support@hourxportal.com',
@@ -65,7 +66,7 @@ export const LEGAL_DOCS: Record<LegalLocale, Record<LegalDocType, LegalDoc>> = {
             'To book or purchase any services, users must create an HourX account on the website.',
             'By creating an account, you agree to provide accurate personal details, maintain the confidentiality of login credentials, accept responsibility for all activity under your account, and notify HourX of any unauthorized access.',
             'HourX may suspend or terminate accounts involved in fraud, misuse, or violations of these Terms.',
-            'You may close your HourX account at any time by contacting HourX support. Closing your account does not cancel or refund any existing bookings - those remain subject to the Cancellation, Rescheduling & Refund Policy in Section 8 below.',
+            'HourX Home customers may submit an account deletion request through the Account and Data Deletion Request page. Submitting a request does not immediately delete the account, cancel bookings or start a refund. Existing bookings remain subject to the Cancellation, Rescheduling & Refund Policy in Section 8 below.',
           ],
         },
         {
@@ -240,6 +241,7 @@ export const LEGAL_DOCS: Record<LegalLocale, Record<LegalDocType, LegalDoc>> = {
             'Approved suppliers and assigned employees for booking and service delivery, and authorized supplier administrators for managing their organization and staff.',
             'Stripe for payment processing.',
             'Google Maps for address search, map display, and location lookup.',
+            'Meta for advertising measurement on the HourX website. The pixel records page views and booking actions such as viewing a service, adding a booking, starting checkout, completing a purchase, and creating an account. It does not receive your name, email address, or phone number.',
             'Legal authorities when required by UAE law.',
             'HourX technical and platform administration teams, including personnel outside the UAE, for hosting, maintaining, and operating the platform. These teams are subject to confidentiality and data protection obligations.',
           ],
@@ -261,7 +263,7 @@ export const LEGAL_DOCS: Record<LegalLocale, Record<LegalDocType, LegalDoc>> = {
         {
           heading: '5. Cookie Policy',
           paragraphs: [
-            'The HourX website may use cookies and similar tracking technologies to remember preferences, keep you signed in, and analyze site traffic. You can control or disable cookies through your browser settings; doing so may affect certain website functionality.',
+            'The HourX website uses cookies and the Meta Pixel to remember preferences, keep you signed in, measure advertising, and analyze site traffic. You can control or disable cookies through your browser settings; doing so may affect certain website functionality.',
           ],
         },
         {
@@ -300,34 +302,35 @@ export const LEGAL_DOCS: Record<LegalLocale, Record<LegalDocType, LegalDoc>> = {
     },
     deletion: {
       title: 'Account and Data Deletion Request',
-      lastUpdated: privacyRevision,
-      intro: 'HourX Portal Co. L.L.C S.O.C handles account and associated data deletion requests for HourX Home and HourX Supplier.',
+      lastUpdated: deletionRevision,
+      intro: 'HourX Home customers can submit an authenticated deletion request using the form above, including after uninstalling the app. The form does not delete an HourX Supplier business account.',
       sections: [
         {
-          heading: 'How to Request Account Deletion',
+          heading: 'HourX Home Account Deletion',
           paragraphs: [
-            'Email HourX support to request deletion of your account and associated personal data. You can submit a request even after uninstalling the app.',
-            'Include the following information in your request:',
+            'Sign in to the consumer account you want to delete. Enter your current password and type DELETE, then choose Submit deletion request. Do not send your password to support.',
+            'Your request is saved for review. You can return to this page while signed in to check whether it is requested, processing or completed. Only a completed status confirms completion; signing out or uninstalling the app does not delete the account.',
           ],
-          bullets: [
-            'Your name',
-            'The app you use, HourX Home or HourX Supplier',
-            'The phone number or email address linked to your account',
-            'Whether you want to delete the account and its associated data or only specific personal data',
-          ],
-          links: [privacyContact],
         },
         {
-          heading: 'What Happens Next',
+          heading: 'Completion Time and Existing Bookings',
           paragraphs: [
-            'HourX support will review your request within 7 business days and may contact you to verify account ownership. After verification, HourX will delete the account and its associated personal data, or the specific personal data you requested, subject to the retention exceptions below.',
+            'HourX will complete account deletion within 7 business days. If more time is needed, HourX will notify you of the reason and expected completion date. Submitting a request does not mean deletion is already complete.',
+            'Ongoing bookings, refunds or settlement obligations must be resolved before deletion can be completed. Submitting this request does not cancel bookings or initiate refunds; existing booking and refund policies still apply.',
           ],
         },
         {
           heading: 'Records We May Need to Keep',
           paragraphs: [
-            'HourX may retain specific booking, payment, or settlement records as needed to meet legal, tax, or regulatory obligations or to resolve disputes. HourX deletes or anonymizes these records when they are no longer needed.',
+            'HourX may retain specific booking, payment or settlement records as needed to meet legal, tax or regulatory obligations or to resolve disputes. HourX deletes or anonymises these records when they are no longer needed.',
           ],
+        },
+        {
+          heading: 'HourX Supplier and Other Data Requests',
+          paragraphs: [
+            'The self-service form above is for HourX Home consumer accounts only. To request deletion of an HourX Supplier business account or specific personal data, contact HourX support and identify the relevant account. Supplier deletion is not performed by this consumer form.',
+          ],
+          links: [privacyContact],
         },
       ],
     },
@@ -374,7 +377,7 @@ export const LEGAL_DOCS: Record<LegalLocale, Record<LegalDocType, LegalDoc>> = {
             '预订或购买任何服务前，用户必须在网站上创建 HourX 账户。',
             '创建账户即表示您同意提供准确的个人资料、妥善保管登录凭证、对账户下的所有活动负责，并在发现未经授权的访问时通知 HourX。',
             '如账户涉及欺诈、滥用或违反本条款，HourX 可暂停或终止该账户。',
-            '您可随时联系 HourX 客服关闭账户。关闭账户不会取消现有预订，也不会产生退款；现有预订仍适用下文第 8 节《取消、改期与退款政策》。',
+            'HourX Home 消费者可通过“账户及数据删除申请”页面提交删除申请。提交申请不会立即删除账户、取消预订或自动发起退款；现有预订仍适用下文第 8 节《取消、改期与退款政策》。',
           ],
         },
         {
@@ -547,6 +550,7 @@ export const LEGAL_DOCS: Record<LegalLocale, Record<LegalDocType, LegalDoc>> = {
             '经批准的供应商及被分派的员工，用于预订和服务交付。授权的供应商管理员可使用相关信息管理所属组织和员工。',
             'Stripe，用于处理付款。',
             'Google Maps，用于搜索地址、显示地图和查询位置。',
+            'Meta，用于统计 HourX 网站的广告效果。像素会记录页面浏览和预订动作，包括查看服务、加入预订、开始结算、完成支付和注册账户。像素不会收到您的姓名、邮箱或手机号。',
             '阿联酋法律要求时的主管机关。',
             'HourX 的技术、开发及平台管理团队，包括位于阿联酋境外、为维护、托管和运营平台而工作的人员；相关人员均受保密和数据保护义务约束。',
           ],
@@ -568,7 +572,7 @@ export const LEGAL_DOCS: Record<LegalLocale, Record<LegalDocType, LegalDoc>> = {
         {
           heading: '5. Cookie 政策',
           paragraphs: [
-            'HourX 网站可能使用 Cookie 及类似跟踪技术来记住偏好、保持登录状态并分析网站流量。您可以通过浏览器设置控制或禁用 Cookie，但这样做可能影响网站的部分功能。',
+            'HourX 网站使用 Cookie 和 Meta Pixel 来记住偏好、保持登录状态、衡量广告效果并分析网站流量。您可以通过浏览器设置控制或禁用 Cookie，但这样做可能影响网站的部分功能。',
           ],
         },
         {
@@ -607,34 +611,35 @@ export const LEGAL_DOCS: Record<LegalLocale, Record<LegalDocType, LegalDoc>> = {
     },
     deletion: {
       title: '账户及数据删除申请',
-      lastUpdated: privacyRevision,
-      intro: 'HourX Portal Co. L.L.C S.O.C 处理 HourX Home 和 HourX Supplier 的账户及关联数据删除申请。',
+      lastUpdated: deletionRevision,
+      intro: 'HourX Home 消费者可通过上方表单验证身份后提交删除申请，卸载 App 后也可使用。本表单不会删除 HourX Supplier 企业账户。',
       sections: [
         {
-          heading: '如何申请删除账户',
+          heading: '删除 HourX Home 消费者账户',
           paragraphs: [
-            '请发送邮件给 HourX 支持团队，申请删除您的账户和关联个人数据。卸载 App 后，您仍可通过邮件提交申请。',
-            '请在申请中提供以下信息：',
+            '请登录您希望删除的消费者账户，输入当前密码和 DELETE，然后选择“提交删除申请”。请勿将密码发送给客服。',
+            '申请将保存并等待审核。您可在保持登录的情况下返回本页，查看已申请、处理中或已完成状态。仅“已完成”代表处理完成；退出登录或卸载 App 不会删除账户。',
           ],
-          bullets: [
-            '您的姓名',
-            '您使用的 App（HourX Home 或 HourX Supplier）',
-            '与账户绑定的手机号或电子邮箱',
-            '您希望删除账户及关联数据，还是只删除特定个人数据',
-          ],
-          links: [privacyContact],
         },
         {
-          heading: '申请处理流程',
+          heading: '完成时间与现有预订',
           paragraphs: [
-            'HourX 支持团队将在 7 个工作日内审核您的申请，并可能联系您验证账户归属。验证后，HourX 将按申请删除账户及关联个人数据，或删除您指定的个人数据。下文所述的保留例外适用。',
+            'HourX 将在 7 个工作日内完成账户删除；如需延期，将通知您原因及预计完成时间。提交申请不代表删除已完成。',
+            '删除完成前需要处理进行中的预订、退款或结算义务。提交申请不会取消预订或自动发起退款，现有预订与退款政策仍适用。',
           ],
         },
         {
           heading: '可能保留的记录',
           paragraphs: [
-            'HourX 可能保留履行法律、税务或监管义务或解决争议所需的特定预订、付款或结算记录，并在相关用途结束后删除或匿名化这些记录。',
+            '为履行法律、税务或监管义务或解决争议，HourX 可能需要保留部分预订、付款或结算记录，并在相关用途结束后删除或匿名化。',
           ],
+        },
+        {
+          heading: 'HourX Supplier 与其他数据申请',
+          paragraphs: [
+            '上方自助表单仅适用于 HourX Home 消费者账户。如需申请删除 HourX Supplier 企业账户或特定个人数据，请联系 HourX 支持团队并说明相关账户。消费者表单不会代为删除供应商账户。',
+          ],
+          links: [privacyContact],
         },
       ],
     },

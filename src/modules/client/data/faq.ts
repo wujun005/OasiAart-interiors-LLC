@@ -111,7 +111,7 @@ const chineseFaqGroups: FaqGroup[] = [
       },
       {
         question: "如何删除账户或个人数据？",
-        answer: [text("请使用网站底部的“"), dataDeletion("数据删除申请"), text("”。")],
+        answer: [text("登录后，您可通过账户设置或网站底部的“"), dataDeletion("数据删除申请"), text("”提交 HourX Home 消费者账户删除申请，并返回该页面查询处理状态。")],
       },
     ],
   },
@@ -202,7 +202,7 @@ const englishFaqGroups: FaqGroup[] = [
       },
       {
         question: "How do I delete my account or data?",
-        answer: [text('Use "'), dataDeletion(), text('" at the bottom of the website.')],
+        answer: [text('Sign in and submit an HourX Home account deletion request through "'), dataDeletion(), text('" in account settings or the website footer. You can return there to check its review status.')],
       },
     ],
   },

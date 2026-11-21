@@ -739,7 +739,7 @@ onMounted(loadEvents)
 .availability-control.is-off { background: linear-gradient(118deg, #121c2b 0%, #29313a 58%, #6e5137 125%); }
 .availability-control__copy { min-width: 0; }
 .availability-control__kicker { display: block; margin-bottom: 8px; color: #e8c27a; font-size: 10px; font-weight: 750; letter-spacing: .18em; text-transform: uppercase; }
-.availability-control h2 { margin: 0; color: #fffdf8; font-family: Fraunces, Georgia, serif; font-size: clamp(22px, 2.2vw, 30px); font-weight: 520; line-height: 1.2; letter-spacing: -.03em; }
+.availability-control h2 { margin: 0; color: #fffdf8; font-family: var(--hx-font-sans); font-size: clamp(22px, 2.2vw, 30px); font-weight: 520; line-height: 1.2; letter-spacing: -.03em; }
 .availability-facts { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
 .availability-facts em { padding: 4px 8px; color: #fffdf8; background: rgba(255, 255, 255, .12); border-radius: 999px; font-size: 12px; font-style: normal; font-weight: 650; }
 .availability-control p { max-width: 620px; margin: 8px 0 0; color: rgba(247, 241, 230, .72); font-size: 13px; line-height: 1.55; }
@@ -758,7 +758,7 @@ onMounted(loadEvents)
 .workspace-card__header { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; padding: 20px; border-bottom: 1px solid #eee3d3; }
 .workspace-card__header > div:first-child { display: flex; align-items: flex-start; gap: 12px; min-width: 0; }
 .workspace-card__header > div:first-child > div { min-width: 0; }
-.workspace-card h2 { margin: 0; color: #05152b; font-family: Fraunces, Georgia, serif; font-size: 24px; font-weight: 520; line-height: 1.12; letter-spacing: -.025em; }
+.workspace-card h2 { margin: 0; color: #05152b; font-family: var(--hx-font-sans); font-size: 24px; font-weight: 520; line-height: 1.12; letter-spacing: -.025em; }
 .workspace-card__header p { margin: 5px 0 0; color: #74685a; font-size: 12px; line-height: 1.45; }
 .workspace-card__header :deep(.el-button) { flex: 0 0 auto; min-height: 38px; border-color: #d8c8b2; border-radius: 10px; color: #05152b; background: #fff; font-weight: 650; }
 .workspace-card__header :deep(.el-button--primary) { color: #fffdf8; background: #05152b; border-color: #05152b; }

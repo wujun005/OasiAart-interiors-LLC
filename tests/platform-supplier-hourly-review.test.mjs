@@ -46,7 +46,7 @@ const hourly = {
 }
 
 async function harness(t, quote = hourly, query = { id: '10' }, extras = {}) {
-  const calls = { reviews: [], skus: [], messages: [], downloads: [], blobs: [], quoteExports: [], confirms: [], onboarding: [], priceChanges: [], supplierPages: [], productPages: [], catalogs: [] }
+  const calls = { reviews: [], skus: [], messages: [], downloads: [], blobs: [], quoteExports: [], confirms: [], onboarding: [], priceChanges: [], supplierPages: [], quotePages: [], productPages: [], catalogs: [] }
   const controls = { quote, confirm: async () => {} }
   const locale = Vue.ref('en')
   const translate = (key, params = {}) => {
@@ -58,6 +58,8 @@ async function harness(t, quote = hourly, query = { id: '10' }, extras = {}) {
   const emptyPage = async () => ({ data: { list: [], total: 0 } })
   const api = {
     platformSupplierQuotePage: async (payload) => {
+      calls.quotePages.push(clone(payload))
+      if (extras.quotePage) return extras.quotePage(payload)
       if (extras.quoteRows) return { data: { list: extras.quoteRows, total: extras.quoteRows.length } }
       return emptyPage(payload)
     },
@@ -748,6 +750,46 @@ test('supplier list filters can return to every supplier', async (t) => {
   assert.match(descriptor.template.content, /showEverySupplier/)
   assert.match(descriptor.template.content, /admin\.platformSuppliers\.filterAll/)
   assert.match(descriptor.template.content, /quoteRejectedFilter/)
+})
+
+test('quote desk deep links apply their review queue on entry and when the URL changes', async (t) => {
+  const rows = [
+    { id: 10, status: 1, pendingCount: 1 },
+    { id: 20, status: 3 },
+    { id: 30, status: 0 },
+    { id: 40, status: 2, priceChangePendingCount: 2 },
+  ]
+  const { state, route, calls } = await harness(t, hourly, { quoteStatus: '1' }, {
+    props: { desk: 'quotes' },
+    quotePage: ({ quoteStatus, pageSize }) => {
+      const matches = rows.filter((row) => quoteStatus === undefined || row.status === quoteStatus)
+      return { data: { list: matches.slice(0, pageSize), total: matches.length } }
+    },
+  })
+  const supplierIds = () => clone(state.suppliers).map((row) => row.id)
+  assert.deepEqual(supplierIds(), [10])
+  assert.equal(state.visibleReviewChips.find((chip) => chip.key === 'quotePending').active, true)
+
+  for (const [status, id] of [[3, 20], [0, 30]]) {
+    state.pageNum = 2
+    calls.quotePages.length = 0
+    route.query = { quoteStatus: String(status) }
+    await flush()
+    assert.ok(calls.quotePages.some((page) => page.pageSize === 100 && page.quoteStatus === status))
+    assert.deepEqual(supplierIds(), [id])
+    assert.equal(state.pageNum, 1)
+  }
+
+  route.query = { queueFocus: 'priceChange' }
+  await flush()
+  assert.deepEqual(supplierIds(), [40])
+  assert.equal(state.visibleReviewChips.find((chip) => chip.key === 'priceChange').active, true)
+
+  route.query = { quoteStatus: ['0', '1'] }
+  await flush()
+  assert.equal(state.suppliers.length, 4)
+  assert.equal(state.quoteStatus, '')
+  assert.equal(state.queueFocus, '')
 })
 
 test('platform supplier template compiles against the actual setup bindings', () => {

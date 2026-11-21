@@ -279,6 +279,7 @@ import {
   List,
   PriceTag,
   DataAnalysis,
+  ChatDotRound,
   Location,
   Wallet,
   Fold,
@@ -673,6 +674,7 @@ const iconMap: Record<string, Component> = {
   list: List,
   pricetag: PriceTag,
   dataanalysis: DataAnalysis,
+  chatdotround: ChatDotRound,
   location: Location,
   wallet: Wallet,
   bell: Bell,
@@ -685,6 +687,8 @@ const resolveMenuIcon = (item: AdminMenuPermissionItem) => {
     return iconMap[iconKey];
   }
   const path = item.path || '';
+  if (path.startsWith('/admin/supplier-coverage')) return DataAnalysis;
+  if (path.startsWith('/admin/comments')) return ChatDotRound;
   if (path.startsWith('/admin/products')) return Goods;
   if (path.startsWith('/admin/package/services')) return Goods;
   if (path.startsWith('/admin/package/packages')) return Tickets;
@@ -723,6 +727,8 @@ const resolveMenuIcon = (item: AdminMenuPermissionItem) => {
 
 const menuLabelKeyByPath: Record<string, string> = {
   '/admin': 'admin.layout.overview',
+  '/admin/supplier-coverage': 'admin.layout.dataBoard',
+  '/admin/comments': 'admin.layout.comments',
   '/admin/orders': 'admin.layout.order',
   '/admin/products': 'admin.layout.product',
   '/admin/packages': 'admin.layout.packages',
@@ -750,6 +756,7 @@ const menuLabelKeyByPath: Record<string, string> = {
   '/admin/sys-config': 'admin.layout.sysConfig',
   '/admin/developer': 'admin.layout.developerTools',
   '/admin/developer/supplier-registration-whitelist': 'admin.layout.supplierRegistrationWhitelist',
+  '/admin/developer/dev-config': 'admin.layout.devConfig',
   '/admin/supplier-management': 'admin.supplierPortal.workspaceTitle',
   '/admin/supplier-management/overview': 'admin.supplierPortal.workspaceTitle',
   '/admin/supplier-management/profile': 'admin.supplierPortal.profile',
@@ -850,7 +857,6 @@ syncPasswordGate();
   overflow: hidden;
   color: var(--hx-ink, #0a1d33);
   background: var(--hx-ivory-100, #f9f5ed);
-  font-family: var(--hx-font-sans, Inter, "PingFang SC", "Microsoft YaHei", sans-serif);
 }
 
 .layout {
@@ -928,7 +934,6 @@ syncPasswordGate();
 
 .brand__copy strong {
   color: #fffdf8;
-  font-family: "Iowan Old Style", "Songti SC", Georgia, serif;
   font-size: 24px;
   line-height: 1;
   font-weight: 600;
@@ -1041,8 +1046,7 @@ syncPasswordGate();
   font-size: 13.5px;
   transition:
     color 0.2s ease,
-    background-color 0.2s ease,
-    transform 0.2s ease;
+    background-color 0.2s ease;
 }
 
 .admin-page :deep(.el-menu-item .el-icon),
@@ -1056,7 +1060,6 @@ syncPasswordGate();
 .admin-page :deep(.el-sub-menu__title:hover) {
   color: #fff;
   background: rgba(255, 255, 255, 0.07);
-  transform: translateX(2px);
 }
 
 .admin-page :deep(.el-menu-item.is-active) {
@@ -1257,7 +1260,6 @@ syncPasswordGate();
   max-width: min(100%, 480px);
   overflow: hidden;
   color: #07182d;
-  font-family: "Iowan Old Style", "Songti SC", Georgia, serif;
   font-size: 24px;
   line-height: 1.1;
   font-weight: 600;

@@ -1,19 +1,11 @@
 <template>
   <div class="h5-orders-page">
-    <header class="h5-orders-topbar">
-      <h1>{{ listTitle }}</h1>
-    </header>
-
     <main class="h5-orders-main">
-      <section class="h5-orders-search">
-        <van-icon name="search" />
-        <input
-          v-model.trim="searchKeyword"
-          type="text"
-          :placeholder="t('client.orderList.searchPlaceholder')"
-          @keyup.enter="onSearchNow"
-        />
-      </section>
+      <AccountBanner>{{ t("client.profile.subtitle") }}</AccountBanner>
+      <header class="h5-orders-header">
+        <h1>{{ listTitle }}</h1>
+        <p>{{ listSubtitle }}</p>
+      </header>
 
       <section class="h5-orders-tabs">
         <button
@@ -28,6 +20,16 @@
           {{ item.label }}
           <b>{{ item.count }}</b>
         </button>
+      </section>
+
+      <section class="h5-orders-search">
+        <van-icon name="search" />
+        <input
+          v-model.trim="searchKeyword"
+          type="text"
+          :placeholder="t('client.orderList.searchPlaceholder')"
+          @keyup.enter="onSearchNow"
+        />
       </section>
 
       <section class="h5-orders-list">
@@ -57,7 +59,7 @@
           class="h5-order-card"
           tabindex="0"
           @click="goDetail(item)"
-          @keyup.enter="goDetail(item)"
+          @keyup.enter.self="goDetail(item)"
         >
           <header class="h5-order-card__head">
             <div class="h5-order-card__order-no">
@@ -363,7 +365,7 @@
     >
       <div class="h5-review-sheet h5-reschedule-sheet">
         <div class="h5-review-sheet__header">
-          <h3>{{ locale.startsWith("zh") ? "管理预订" : "Manage Booking" }}</h3>
+          <h3>{{ locale.startsWith("zh") ? "管理预订" : "Reschedule Booking" }}</h3>
           <button
             type="button"
             :disabled="isRescheduleSubmitting"
@@ -375,13 +377,13 @@
         <div class="h5-reschedule-sheet__summary">
           <span>{{ rescheduleForm.serviceName }}</span>
           <small>{{
-            locale.startsWith("zh") ? "当前安排" : "Current schedule"
+            locale.startsWith("zh") ? "当前安排" : "Current Appointment"
           }}</small>
           <strong>{{ rescheduleForm.currentSchedule }}</strong>
         </div>
         <label class="h5-reschedule-sheet__field">
           <span>{{
-            locale.startsWith("zh") ? "新的服务日期" : "New service date"
+            locale.startsWith("zh") ? "新的服务日期" : "New Service Date"
           }}</span>
           <div
             class="h5-reschedule-sheet__date"
@@ -406,7 +408,7 @@
         </label>
         <label class="h5-reschedule-sheet__field">
           <span>{{
-            locale.startsWith("zh") ? "新的服务时段" : "New time slot"
+            locale.startsWith("zh") ? "新的服务时段" : "Available Time Slots"
           }}</span>
           <select
             v-model.number="rescheduleForm.timeRange"
@@ -461,7 +463,7 @@
                   : "Submitting…"
                 : locale.startsWith("zh")
                   ? "确认改期"
-                  : "Confirm Reschedule"
+                  : "Request Reschedule"
             }}
           </button>
         </div>
@@ -502,6 +504,7 @@ import { useCart } from "@/modules/client/composables/useCart"
 import CancellationPolicyGate from "@/modules/client/components/CancellationPolicyGate.vue"
 import CancellationModalContent from "@/modules/client/components/CancellationModalContent.vue"
 import AddExtraServiceButton from "@/modules/client/components/AddExtraServiceButton.vue"
+import AccountBanner from "@/modules/client/components/AccountBanner.vue"
 import {
   formatCreatedAt,
   formatServiceSchedule,
@@ -594,6 +597,11 @@ const listTitle = computed(() =>
   listKind.value === "package"
     ? t("client.orderList.packagesTitle")
     : t("client.orderList.bookingsTitle"),
+)
+const listSubtitle = computed(() =>
+  listKind.value === "package"
+    ? t("client.orderList.packagesSubtitle")
+    : t("client.orderList.bookingsSubtitle"),
 )
 const emptyLabel = computed(() =>
   listKind.value === "package"
@@ -735,7 +743,7 @@ const rescheduleTimePlaceholder = computed(() => {
   if (!rescheduleForm.value.serviceTime)
     return locale.value.startsWith("zh")
       ? "请先选择日期"
-      : "Please select a date first"
+      : "Select a date to check available times."
   if (isRescheduleTimeLoading.value)
     return locale.value.startsWith("zh") ? "时间加载中…" : "Loading times…"
   if (!selectableRescheduleTimeOptions.value.length)
@@ -1766,37 +1774,31 @@ onBeforeUnmount(() => {
 <style scoped lang="scss">
 .h5-orders-page {
   min-height: 100vh;
-  background: #f8fafc;
+  background: var(--hourx-client-canvas);
   padding-bottom: calc(84px + env(safe-area-inset-bottom));
 }
 
-.h5-orders-topbar {
-  position: sticky;
-  top: 0;
-  z-index: 20;
-  height: 56px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: rgba(255, 255, 255, 0.96);
-  border-bottom: 1px solid #f3f4f6;
-}
-
-.h5-orders-topbar h1 {
+.h5-orders-header { margin: 22px 0 16px; }
+.h5-orders-header h1 {
   margin: 0;
-  color: #0f172a;
-  font-size: 16px;
-  font-weight: 700;
+  color: var(--hourx-client-text);
+  font: 700 var(--hourx-client-size-section)/1.25 var(--hourx-client-heading-font);
+}
+.h5-orders-header p {
+  margin: 6px 0 0;
+  color: var(--hourx-client-muted);
+  font-size: var(--hourx-client-size-body);
 }
 
 .h5-orders-main {
-  padding: 12px 16px 24px;
+  padding: 20px 16px 24px;
 }
 
 .h5-orders-search {
-  height: 38px;
-  border: 1px solid #e5e7eb;
-  border-radius: 14px;
+  min-height: 44px;
+  margin-top: 10px;
+  border: 1px solid var(--hourx-client-border);
+  border-radius: 12px;
   background: #fff;
   display: flex;
   align-items: center;
@@ -1824,9 +1826,8 @@ onBeforeUnmount(() => {
 
 .h5-orders-tabs {
   margin-top: 12px;
-  border: 1px solid #f3f4f6;
   border-radius: 14px;
-  background: #fff;
+  background: #efece6;
   padding: 4px;
   display: flex;
   gap: 4px;
@@ -1841,8 +1842,8 @@ onBeforeUnmount(() => {
   border-radius: 10px;
   background: transparent;
   color: rgba(15, 23, 42, 0.5);
-  font-size: clamp(10px, 3vw, 13px);
-  font-weight: 700;
+  font-size: var(--hourx-client-size-action);
+  font-weight: 600;
   line-height: 1.15;
   white-space: nowrap;
   padding: 0 11px;
@@ -1902,7 +1903,7 @@ onBeforeUnmount(() => {
   gap: 2px;
   padding: 8px 10px;
   border-radius: 10px;
-  background: #f8fafc;
+  background: var(--hourx-client-canvas);
 }
 
 .h5-order-card__services b {
@@ -2091,10 +2092,10 @@ onBeforeUnmount(() => {
 
 .h5-order-card__title-row h3 {
   margin: 0;
-  color: rgba(15, 23, 42, 0.9);
-  font-size: 14px;
-  line-height: 1.5;
-  font-weight: 700;
+  color: var(--hourx-client-text);
+  font-size: 1.0625rem;
+  line-height: 1.3;
+  font-weight: 600;
 }
 
 .h5-order-card__kind-badge {
@@ -2124,16 +2125,16 @@ onBeforeUnmount(() => {
 
 .h5-order-card__title-row strong {
   white-space: nowrap;
-  color: var(--hourx-brand);
-  font-size: 14px;
-  line-height: 1.5;
-  font-weight: 900;
+  color: var(--hourx-client-text);
+  font-size: var(--hourx-client-size-card);
+  line-height: 1.3;
+  font-weight: 700;
 }
 
 .h5-order-card__meta {
   margin-top: 12px;
   border-radius: 10px;
-  background: #f8fafc;
+  background: var(--hourx-client-canvas);
   padding: 10px;
   display: flex;
   flex-direction: column;
@@ -2219,9 +2220,10 @@ onBeforeUnmount(() => {
 .h5-order-card__actions {
   margin-top: 10px;
   padding-top: 10px;
-  border-top: 1px solid #eef2f7;
+  border-top: 1px solid var(--hourx-client-border);
   display: flex;
   justify-content: flex-end;
+  flex-wrap: wrap;
   gap: 8px;
 }
 
@@ -2231,10 +2233,10 @@ onBeforeUnmount(() => {
 
 .h5-order-card__btn {
   min-width: 46px;
-  height: 24px;
-  border-radius: 6px;
-  font-size: 10px;
-  font-weight: 700;
+  min-height: 36px;
+  border-radius: 10px;
+  font-size: var(--hourx-client-size-label);
+  font-weight: 600;
   padding: 0 10px;
 }
 
@@ -2539,7 +2541,7 @@ onBeforeUnmount(() => {
   align-items: center;
   padding: 0 12px;
   border-radius: 10px;
-  background: #f8fafc;
+  background: var(--hourx-client-canvas);
   color: #475569;
   font-size: 13px;
   overflow-wrap: anywhere;
@@ -2553,7 +2555,7 @@ onBeforeUnmount(() => {
   align-items: center;
   padding: 0 12px;
   border-radius: 10px;
-  background: #f8fafc;
+  background: var(--hourx-client-canvas);
   color: #0f172a;
   font-size: 14px;
   box-sizing: border-box;

@@ -6,7 +6,7 @@
     <div class="client-order-detail__container">
       <button class="client-order-detail__back" type="button" @click="goBack">
         <span aria-hidden="true">←</span>
-        {{ locale.startsWith("zh") ? "返回全部订单" : "Back to All Orders" }}
+        {{ locale.startsWith("zh") ? "返回全部订单" : "Back to My Bookings" }}
       </button>
 
       <section v-if="loading" class="client-order-detail__state">
@@ -30,7 +30,7 @@
           }}
         </p>
         <button type="button" @click="goBack">
-          {{ locale.startsWith("zh") ? "查看订单列表" : "View Orders" }}
+          {{ locale.startsWith("zh") ? "查看订单列表" : "View My Bookings" }}
         </button>
       </section>
 
@@ -38,383 +38,386 @@
         <header class="client-order-detail__hero">
           <div>
             <span class="client-order-detail__eyebrow hourx-wordmark"
-              >HOURX HOME</span
+              >HourX Home Services</span
             >
             <h1>
               {{ locale.startsWith("zh") ? "订单详情" : "Booking Details" }}
             </h1>
-            <p>{{ order.orderNo }}</p>
+            <p>{{ locale.startsWith("zh") ? "预约编号" : "Booking Reference" }}: {{ order.orderNo }}</p>
           </div>
-          <span
-            class="client-order-detail__status"
-            :class="`is-${statusTone}`"
-            >{{ statusText }}</span
-          >
+          <div class="client-order-detail__hero-actions">
+            <span class="client-order-detail__status" :class="`is-${statusTone}`">{{ statusText }}</span>
+            <div v-if="visibleActions.length" class="client-order-detail__actions">
+              <button
+                v-for="action in visibleActions"
+                :key="action.key"
+                type="button"
+                :class="action.tone"
+                @click="runAction(action.key)"
+              >
+                {{ action.label }}
+              </button>
+            </div>
+          </div>
         </header>
 
-        <section
-          class="client-order-detail__progress"
-          aria-label="Booking progress"
-        >
-          <div
-            v-for="(step, index) in progressSteps"
-            :key="step"
-            :class="{ 'is-active': index <= progressIndex }"
+        <div class="client-order-detail__progress-panel">
+          <section
+            class="client-order-detail__progress"
+            aria-label="Booking progress"
           >
-            <span class="client-order-detail__progress-icon">
-              <i>{{ index < progressIndex ? "✓" : index + 1 }}</i>
-            </span>
-            <span class="client-order-detail__progress-label">{{ step }}</span>
-          </div>
-        </section>
+            <div
+              v-for="(step, index) in progressSteps"
+              :key="step"
+              :class="{ 'is-active': index <= progressIndex }"
+            >
+              <span class="client-order-detail__progress-icon">
+                <i>{{ index < progressIndex ? "✓" : index + 1 }}</i>
+              </span>
+              <span class="client-order-detail__progress-label">{{ step }}</span>
+            </div>
+          </section>
 
-        <section
-          class="client-order-detail__status-box"
-          :class="`is-${statusTone}`"
-          aria-live="polite"
-        >
-          <span aria-hidden="true">✓</span>
-          <div>
-            <strong>{{ statusBoxTitle }}</strong>
-            <p>{{ statusBoxMessage }}</p>
-          </div>
-        </section>
+          <section
+            class="client-order-detail__status-box"
+            :class="`is-${statusTone}`"
+            aria-live="polite"
+          >
+            <span aria-hidden="true">✓</span>
+            <div>
+              <strong>{{ statusBoxTitle }}</strong>
+              <p>{{ statusBoxMessage }}</p>
+            </div>
+          </section>
+        </div>
 
         <AddExtraServiceButton v-if="canAddExtra" class="client-order-detail__extras" @click="runAction('add-addons')" />
 
         <div class="client-order-detail__grid">
-          <section
-            class="client-order-detail__panel client-order-detail__service"
-          >
-            <div class="client-order-detail__section-title">
-              <span>{{
-                locale.startsWith("zh") ? "服务内容" : "Service booked"
-              }}</span>
-            </div>
-            <div class="client-order-detail__service-main">
-              <img :src="orderImage || order.spuImage || fallbackImage" :alt="serviceTitle" />
-              <div>
-                <h2>{{ serviceTitle }}</h2>
-                <div
-                  v-if="serviceDescriptionHtml"
-                  class="client-order-detail__service-description"
-                  v-html="serviceDescriptionHtml"
-                />
-                <p v-if="naturalSpecText" class="client-order-detail__service-variant">
-                  {{ naturalSpecText }}
-                </p>
-                <div v-if="purchasedAttaches.length" class="client-order-detail__attaches">
-                  <b>{{ locale.startsWith("zh") ? "附加项" : "Add-ons" }}</b>
-                  <ul>
-                    <li v-for="item in purchasedAttaches" :key="item.id">
-                      <div>
-                        <strong>{{ item.label }}</strong>
-                        <small v-if="item.typeName && item.typeName !== item.label">{{ item.typeName }}</small>
-                        <small v-if="item.source" :class="{ 'is-addon': item.addon }">{{ item.source }}</small>
-                        <em v-if="attachQuantityText(item)">{{ attachQuantityText(item) }}</em>
-                      </div>
-                      <dl>
-                        <div v-if="item.unitPriceWithTax != null">
-                          <dt>{{ locale.startsWith("zh") ? "含税单价" : "Unit price incl. VAT" }}</dt>
-                          <dd>{{ formatAed(item.unitPriceWithTax) }}</dd>
-                        </div>
-                        <div v-else-if="item.unitPriceWithoutTax != null">
-                          <dt>{{ locale.startsWith("zh") ? "不含税单价" : "Unit price excl. VAT" }}</dt>
-                          <dd>{{ formatAed(item.unitPriceWithoutTax) }}</dd>
-                        </div>
-                        <div v-if="item.amountWithoutTax != null">
-                          <dt>{{ locale.startsWith("zh") ? "不含税小计" : "Subtotal excl. VAT" }}</dt>
-                          <dd>{{ formatAed(item.amountWithoutTax) }}</dd>
-                        </div>
-                        <div v-if="item.taxAmount != null">
-                          <dt>{{ locale.startsWith("zh") ? "税额" : "VAT" }}</dt>
-                          <dd>{{ formatAed(item.taxAmount) }}</dd>
-                        </div>
-                        <div v-if="item.amountWithTax != null">
-                          <dt>{{ locale.startsWith("zh") ? "含税金额" : "Total incl. VAT" }}</dt>
-                          <dd>{{ formatAed(item.amountWithTax) }}</dd>
-                        </div>
-                      </dl>
-                    </li>
-                  </ul>
-                </div>
-                <p v-for="item in packageItemViews" :key="item.id">
-                  <b>{{ item.name }}</b> {{ item.times }}
-                </p>
-              </div>
-            </div>
-          </section>
-
-          <section
-            v-if="isPackageOrder"
-            class="client-order-detail__panel client-order-detail__fulfillments"
-          >
-            <div class="client-order-detail__section-title">
-              <span>{{
-                locale.startsWith("zh") ? "预约与履约记录" : "Visits & fulfilment"
-              }}</span>
-              <div class="client-order-detail__section-actions">
-                <button
-                  v-if="canBookPackageVisit"
-                  type="button"
-                  class="client-order-detail__book-visit"
-                  @click="openBookVisit"
-                >
-                  {{ locale.startsWith("zh") ? "预约上门" : "Book a visit" }}
-                </button>
-                <strong v-if="packageFulfillmentViews.length">
-                  {{
-                    locale.startsWith("zh")
-                      ? `${packageFulfillmentViews.length} 条记录`
-                      : `${packageFulfillmentViews.length} record${packageFulfillmentViews.length === 1 ? "" : "s"}`
-                  }}
-                </strong>
-              </div>
-            </div>
-
-            <p
-              v-if="!packageFulfillmentViews.length"
-              class="client-order-detail__fulfillment-empty"
+          <div class="client-order-detail__column">
+            <section
+              class="client-order-detail__panel client-order-detail__service"
             >
-              {{
-                locale.startsWith("zh")
-                  ? "暂无预约记录，后续预约会显示在这里。"
-                  : "No visits have been scheduled yet. Future bookings will appear here."
-              }}
-            </p>
+              <div class="client-order-detail__section-title">
+                <span>{{
+                  locale.startsWith("zh") ? "服务内容" : "Booked Service"
+                }}</span>
+              </div>
+              <div class="client-order-detail__service-main">
+                <img :src="orderImage || order.spuImage || fallbackImage" :alt="serviceTitle" />
+                <div>
+                  <h2>{{ serviceTitle }}</h2>
+                  <div
+                    v-if="serviceDescriptionHtml"
+                    class="client-order-detail__service-description"
+                    v-html="serviceDescriptionHtml"
+                  />
+                  <p v-if="naturalSpecText" class="client-order-detail__service-variant">
+                    {{ naturalSpecText }}
+                  </p>
+                  <div v-if="purchasedAttaches.length" class="client-order-detail__attaches">
+                    <b>{{ locale.startsWith("zh") ? "附加项" : "Add-ons" }}</b>
+                    <ul>
+                      <li v-for="item in purchasedAttaches" :key="item.id">
+                        <div>
+                          <strong>{{ item.label }}</strong>
+                          <small v-if="item.typeName && item.typeName !== item.label">{{ item.typeName }}</small>
+                          <small v-if="item.source" :class="{ 'is-addon': item.addon }">{{ item.source }}</small>
+                          <em v-if="attachQuantityText(item)">{{ attachQuantityText(item) }}</em>
+                        </div>
+                        <dl>
+                          <div v-if="item.unitPriceWithTax != null">
+                            <dt>{{ locale.startsWith("zh") ? "含税单价" : "Unit price incl. VAT" }}</dt>
+                            <dd>{{ formatAed(item.unitPriceWithTax) }}</dd>
+                          </div>
+                          <div v-else-if="item.unitPriceWithoutTax != null">
+                            <dt>{{ locale.startsWith("zh") ? "不含税单价" : "Unit price excl. VAT" }}</dt>
+                            <dd>{{ formatAed(item.unitPriceWithoutTax) }}</dd>
+                          </div>
+                          <div v-if="item.amountWithoutTax != null">
+                            <dt>{{ locale.startsWith("zh") ? "不含税小计" : "Subtotal excl. VAT" }}</dt>
+                            <dd>{{ formatAed(item.amountWithoutTax) }}</dd>
+                          </div>
+                          <div v-if="item.taxAmount != null">
+                            <dt>{{ locale.startsWith("zh") ? "税额" : "VAT" }}</dt>
+                            <dd>{{ formatAed(item.taxAmount) }}</dd>
+                          </div>
+                          <div v-if="item.amountWithTax != null">
+                            <dt>{{ locale.startsWith("zh") ? "含税金额" : "Total incl. VAT" }}</dt>
+                            <dd>{{ formatAed(item.amountWithTax) }}</dd>
+                          </div>
+                        </dl>
+                      </li>
+                    </ul>
+                  </div>
+                  <p v-for="item in packageItemViews" :key="item.id">
+                    <b>{{ item.name }}</b> {{ item.times }}
+                  </p>
+                </div>
+              </div>
+            </section>
 
-            <div v-else class="client-order-detail__fulfillment-list">
-              <article
-                v-for="visit in packageFulfillmentViews"
-                :key="visit.id"
-                class="client-order-detail__fulfillment-card"
+            <section
+              v-if="isPackageOrder"
+              class="client-order-detail__panel client-order-detail__fulfillments"
+            >
+              <div class="client-order-detail__section-title">
+                <span>{{
+                  locale.startsWith("zh") ? "预约与履约记录" : "Visits & fulfilment"
+                }}</span>
+                <div class="client-order-detail__section-actions">
+                  <button
+                    v-if="canBookPackageVisit"
+                    type="button"
+                    class="client-order-detail__book-visit"
+                    @click="openBookVisit"
+                  >
+                    {{ locale.startsWith("zh") ? "预约上门" : "Book a visit" }}
+                  </button>
+                  <strong v-if="packageFulfillmentViews.length">
+                    {{
+                      locale.startsWith("zh")
+                        ? `${packageFulfillmentViews.length} 条记录`
+                        : `${packageFulfillmentViews.length} record${packageFulfillmentViews.length === 1 ? "" : "s"}`
+                    }}
+                  </strong>
+                </div>
+              </div>
+
+              <p
+                v-if="!packageFulfillmentViews.length"
+                class="client-order-detail__fulfillment-empty"
               >
-                <header>
-                  <div class="client-order-detail__fulfillment-identity">
-                    <span>{{ visit.visitLabel }}</span>
+                {{
+                  locale.startsWith("zh")
+                    ? "暂无预约记录，后续预约会显示在这里。"
+                    : "No visits have been scheduled yet. Future bookings will appear here."
+                }}
+              </p>
+
+              <div v-else class="client-order-detail__fulfillment-list">
+                <article
+                  v-for="visit in packageFulfillmentViews"
+                  :key="visit.id"
+                  class="client-order-detail__fulfillment-card"
+                >
+                  <header>
+                    <div class="client-order-detail__fulfillment-identity">
+                      <span>{{ visit.visitLabel }}</span>
+                      <div>
+                        <h3>{{ visit.serviceName }}</h3>
+                        <small v-if="visit.fulfillmentNo">{{ visit.fulfillmentNo }}</small>
+                      </div>
+                    </div>
+                    <span
+                      class="client-order-detail__fulfillment-status"
+                      :class="`is-${visit.statusTone}`"
+                    >
+                      {{ visit.statusText }}
+                    </span>
+                  </header>
+
+                  <div class="client-order-detail__fulfillment-facts">
                     <div>
-                      <h3>{{ visit.serviceName }}</h3>
-                      <small v-if="visit.fulfillmentNo">{{ visit.fulfillmentNo }}</small>
+                      <span aria-hidden="true">◷</span>
+                      <p>
+                        <small>{{
+                          locale.startsWith("zh") ? "预约时间" : "Scheduled time"
+                        }}</small>
+                        <strong>{{ visit.scheduleText }}</strong>
+                      </p>
+                    </div>
+                    <div>
+                      <span aria-hidden="true">⌖</span>
+                      <p>
+                        <small>{{
+                          locale.startsWith("zh") ? "服务地址" : "Service address"
+                        }}</small>
+                        <strong>{{ visit.addressText }}</strong>
+                      </p>
+                    </div>
+                    <div v-if="visit.contactText">
+                      <span aria-hidden="true">♙</span>
+                      <p>
+                        <small>{{
+                          locale.startsWith("zh") ? "预约联系人" : "Booking contact"
+                        }}</small>
+                        <strong>{{ visit.contactText }}</strong>
+                      </p>
+                    </div>
+                    <div v-if="visit.supplierName">
+                      <span aria-hidden="true">◇</span>
+                      <p>
+                        <small>{{
+                          locale.startsWith("zh") ? "服务商" : "Service provider"
+                        }}</small>
+                        <strong>{{ visit.supplierName }}</strong>
+                      </p>
                     </div>
                   </div>
-                  <span
-                    class="client-order-detail__fulfillment-status"
-                    :class="`is-${visit.statusTone}`"
+
+                  <p v-if="visit.remark" class="client-order-detail__fulfillment-note">
+                    <b>{{ locale.startsWith("zh") ? "预约备注" : "Booking notes" }}</b>
+                    {{ visit.remark }}
+                  </p>
+                  <p
+                    v-if="visit.cancelDetail"
+                    class="client-order-detail__fulfillment-note is-cancelled"
                   >
-                    {{ visit.statusText }}
-                  </span>
-                </header>
+                    <b>{{ locale.startsWith("zh") ? "取消信息" : "Cancellation" }}</b>
+                    {{ visit.cancelDetail }}
+                  </p>
+                </article>
+              </div>
+            </section>
 
-                <div class="client-order-detail__fulfillment-facts">
-                  <div>
-                    <span aria-hidden="true">◷</span>
-                    <p>
-                      <small>{{
-                        locale.startsWith("zh") ? "预约时间" : "Scheduled time"
-                      }}</small>
-                      <strong>{{ visit.scheduleText }}</strong>
-                    </p>
+            <section class="client-order-detail__panel">
+              <div class="client-order-detail__section-title">
+                <span>{{
+                  locale.startsWith("zh") ? "服务安排" : "Service Schedule"
+                }}</span>
+              </div>
+              <dl class="client-order-detail__facts">
+                <template v-if="isPackageOrder">
+                  <div
+                    v-for="service in packageServiceSummaries"
+                    :key="service.key"
+                  >
+                    <dt>◷</dt>
+                    <dd>
+                      <small
+                        >{{ service.name
+                        }}<template v-if="service.spec">
+                          · {{ service.spec }}</template
+                        ></small
+                      ><strong>{{ service.timesText }}</strong>
+                    </dd>
                   </div>
-                  <div>
-                    <span aria-hidden="true">⌖</span>
-                    <p>
-                      <small>{{
-                        locale.startsWith("zh") ? "服务地址" : "Service address"
-                      }}</small>
-                      <strong>{{ visit.addressText }}</strong>
-                    </p>
+                  <div v-if="!packageServiceSummaries.length">
+                    <dt>◷</dt>
+                    <dd>
+                      <small>{{ t("client.home.packages.remainingLabel") }}</small
+                      ><strong>{{ packageRemainingText }}</strong>
+                    </dd>
                   </div>
-                  <div v-if="visit.contactText">
-                    <span aria-hidden="true">♙</span>
-                    <p>
-                      <small>{{
-                        locale.startsWith("zh") ? "预约联系人" : "Booking contact"
-                      }}</small>
-                      <strong>{{ visit.contactText }}</strong>
-                    </p>
+                  <div v-if="packageValidText">
+                    <dt>⌖</dt>
+                    <dd>
+                      <small>{{ t("client.home.packages.validity") }}</small
+                      ><strong>{{ packageValidText }}</strong>
+                    </dd>
                   </div>
-                  <div v-if="visit.supplierName">
-                    <span aria-hidden="true">◇</span>
-                    <p>
-                      <small>{{
-                        locale.startsWith("zh") ? "服务商" : "Service provider"
-                      }}</small>
-                      <strong>{{ visit.supplierName }}</strong>
-                    </p>
-                  </div>
-                </div>
-
-                <p v-if="visit.remark" class="client-order-detail__fulfillment-note">
-                  <b>{{ locale.startsWith("zh") ? "预约备注" : "Booking notes" }}</b>
-                  {{ visit.remark }}
-                </p>
-                <p
-                  v-if="visit.cancelDetail"
-                  class="client-order-detail__fulfillment-note is-cancelled"
-                >
-                  <b>{{ locale.startsWith("zh") ? "取消信息" : "Cancellation" }}</b>
-                  {{ visit.cancelDetail }}
-                </p>
-              </article>
-            </div>
-          </section>
-
-          <section class="client-order-detail__panel">
-            <div class="client-order-detail__section-title">
-              <span>{{
-                locale.startsWith("zh") ? "服务安排" : "Service schedule"
-              }}</span>
-            </div>
-            <dl class="client-order-detail__facts">
-              <template v-if="isPackageOrder">
-                <div
-                  v-for="service in packageServiceSummaries"
-                  :key="service.key"
-                >
+                </template>
+                <div v-if="!isPackageOrder">
                   <dt>◷</dt>
                   <dd>
-                    <small
-                      >{{ service.name
-                      }}<template v-if="service.spec">
-                        · {{ service.spec }}</template
-                      ></small
-                    ><strong>{{ service.timesText }}</strong>
+                    <small>{{
+                      locale.startsWith("zh") ? "服务时间" : "Service Date & Time"
+                    }}</small
+                    ><strong>{{ formattedServiceSchedule }}</strong>
                   </dd>
                 </div>
-                <div v-if="!packageServiceSummaries.length">
-                  <dt>◷</dt>
-                  <dd>
-                    <small>{{ t("client.home.packages.remainingLabel") }}</small
-                    ><strong>{{ packageRemainingText }}</strong>
-                  </dd>
-                </div>
-                <div v-if="packageValidText">
+                <div v-if="!isPackageOrder">
                   <dt>⌖</dt>
                   <dd>
-                    <small>{{ t("client.home.packages.validity") }}</small
-                    ><strong>{{ packageValidText }}</strong>
+                    <small>{{
+                      locale.startsWith("zh") ? "服务地址" : "Service Address"
+                    }}</small
+                    ><strong>{{ displayValue(serviceAddressText) }}</strong>
                   </dd>
                 </div>
-              </template>
-              <div v-if="!isPackageOrder">
-                <dt>◷</dt>
-                <dd>
-                  <small>{{
-                    locale.startsWith("zh") ? "服务时间" : "Date & time"
-                  }}</small
-                  ><strong>{{ formattedServiceSchedule }}</strong>
-                </dd>
-              </div>
-              <div v-if="!isPackageOrder">
-                <dt>⌖</dt>
-                <dd>
-                  <small>{{
-                    locale.startsWith("zh") ? "服务地址" : "Service address"
-                  }}</small
-                  ><strong>{{ displayValue(serviceAddressText) }}</strong>
-                </dd>
-              </div>
-              <div>
-                <dt>▣</dt>
-                <dd>
-                  <small>{{
-                    locale.startsWith("zh") ? "创建时间" : "Booked on"
-                  }}</small
-                  ><strong>{{ formattedCreatedAt }}</strong>
-                </dd>
-              </div>
-            </dl>
-          </section>
+                <div>
+                  <dt>▣</dt>
+                  <dd>
+                    <small>{{
+                      locale.startsWith("zh") ? "创建时间" : "Booked On"
+                    }}</small
+                    ><strong>{{ formattedCreatedAt }}</strong>
+                  </dd>
+                </div>
+              </dl>
+            </section>
+          </div>
 
-          <section class="client-order-detail__panel">
-            <div class="client-order-detail__section-title">
-              <span>{{
-                locale.startsWith("zh") ? "支付摘要" : "Payment summary"
-              }}</span>
-            </div>
-            <dl class="client-order-detail__info-list">
-              <div>
-                <dt>{{ paymentSummaryLabel }}</dt>
-                <dd>{{ paymentSummaryText }}</dd>
+          <div class="client-order-detail__column">
+            <section class="client-order-detail__panel">
+              <div class="client-order-detail__section-title">
+                <span>{{
+                  locale.startsWith("zh") ? "支付摘要" : "Payment Summary"
+                }}</span>
               </div>
-              <div>
-                <dt>{{ locale.startsWith("zh") ? "小计" : "Subtotal" }}</dt>
-                <dd>{{ formatAed(orderSubtotal) }}</dd>
-              </div>
-              <div>
-                <dt>{{ locale.startsWith("zh") ? "增值税 VAT（5%）" : "VAT (5%)" }}</dt>
-                <dd>{{ formatAed(orderTax) }}</dd>
-              </div>
-              <div
-                class="is-total"
-                :class="{ 'has-refund-breakdown': showRefundBreakdown }"
-              >
-                <dt>
-                  {{ locale.startsWith("zh") ? "总额" : "Total" }}
-                </dt>
-                <dd>{{ formatAed(order.orderAmount) }}</dd>
-              </div>
-              <div v-if="showRefundBreakdown" class="is-refund-deduction">
-                <dt>{{ locale.startsWith("zh") ? "扣款金额" : "Deducted amount" }}</dt>
-                <dd>− {{ formatAed(refundHandlingFeeAmount) }}</dd>
-              </div>
-              <div v-if="showRefundBreakdown" class="is-refund-amount">
-                <dt>{{ locale.startsWith("zh") ? "退款金额" : "Refund amount" }}</dt>
-                <dd>{{ formatAed(refundedAmount) }}</dd>
-              </div>
-            </dl>
-          </section>
+              <dl class="client-order-detail__info-list">
+                <div>
+                  <dt>{{ paymentSummaryLabel }}</dt>
+                  <dd>{{ paymentSummaryText }}</dd>
+                </div>
+                <div>
+                  <dt>{{ locale.startsWith("zh") ? "小计" : "Subtotal" }}</dt>
+                  <dd>{{ formatAed(orderSubtotal) }}</dd>
+                </div>
+                <div>
+                  <dt>{{ locale.startsWith("zh") ? "增值税 VAT（5%）" : "VAT (5%)" }}</dt>
+                  <dd>{{ formatAed(orderTax) }}</dd>
+                </div>
+                <div
+                  class="is-total"
+                  :class="{ 'has-refund-breakdown': showRefundBreakdown }"
+                >
+                  <dt>
+                    {{ locale.startsWith("zh") ? "总额" : rawStatus === 1 || rawStatus === 2 ? "Total Paid" : "Total" }}
+                  </dt>
+                  <dd>{{ formatAed(order.orderAmount) }}</dd>
+                </div>
+                <div v-if="showRefundBreakdown" class="is-refund-deduction">
+                  <dt>{{ locale.startsWith("zh") ? "扣款金额" : "Deducted amount" }}</dt>
+                  <dd>− {{ formatAed(refundHandlingFeeAmount) }}</dd>
+                </div>
+                <div v-if="showRefundBreakdown" class="is-refund-amount">
+                  <dt>{{ locale.startsWith("zh") ? "退款金额" : "Refund amount" }}</dt>
+                  <dd>{{ formatAed(refundedAmount) }}</dd>
+                </div>
+              </dl>
+            </section>
 
-          <section class="client-order-detail__panel">
-            <div class="client-order-detail__section-title">
-              <span>{{
-                locale.startsWith("zh") ? "联系人信息" : "Contact details"
-              }}</span>
-            </div>
-            <dl class="client-order-detail__info-list">
-              <div>
-                <dt>{{ locale.startsWith("zh") ? "联系人" : "Customer" }}</dt>
-                <dd>
-                  {{
-                    displayValue(formatContactName(order.firstName, order.lastName))
-                  }}
-                </dd>
+            <section class="client-order-detail__panel">
+              <div class="client-order-detail__section-title">
+                <span>{{
+                  locale.startsWith("zh") ? "联系人信息" : "Contact Details"
+                }}</span>
               </div>
-              <div>
-                <dt>{{ locale.startsWith("zh") ? "联系电话" : "Phone" }}</dt>
-                <dd>{{ displayValue(order.phone) }}</dd>
-              </div>
-              <div>
-                <dt>{{ locale.startsWith("zh") ? "邮箱" : "Email" }}</dt>
-                <dd>{{ displayValue(orderEmail) }}</dd>
-              </div>
-              <div v-if="String(order.remark || '').trim()">
-                <dt>
-                  {{ locale.startsWith("zh") ? "预订备注" : "Booking notes" }}
-                </dt>
-                <dd>{{ displayValue(order.remark) }}</dd>
-              </div>
-              <div v-if="String(order.additionalNotes || '').trim()">
-                <dt>
-                  {{ locale.startsWith("zh") ? "地址额外备注" : "Address notes" }}
-                </dt>
-                <dd>{{ displayValue(order.additionalNotes) }}</dd>
-              </div>
-            </dl>
-          </section>
+              <dl class="client-order-detail__info-list">
+                <div>
+                  <dt>{{ locale.startsWith("zh") ? "联系人" : "Customer" }}</dt>
+                  <dd>
+                    {{
+                      displayValue(formatContactName(order.firstName, order.lastName))
+                    }}
+                  </dd>
+                </div>
+                <div>
+                  <dt>{{ locale.startsWith("zh") ? "联系电话" : "Phone" }}</dt>
+                  <dd>{{ displayValue(order.phone) }}</dd>
+                </div>
+                <div>
+                  <dt>{{ locale.startsWith("zh") ? "邮箱" : "Email" }}</dt>
+                  <dd>{{ displayValue(orderEmail) }}</dd>
+                </div>
+                <div v-if="String(order.remark || '').trim()">
+                  <dt>
+                    {{ locale.startsWith("zh") ? "预订备注" : "Booking notes" }}
+                  </dt>
+                  <dd>{{ displayValue(order.remark) }}</dd>
+                </div>
+                <div v-if="String(order.additionalNotes || '').trim()">
+                  <dt>
+                    {{ locale.startsWith("zh") ? "地址额外备注" : "Address notes" }}
+                  </dt>
+                  <dd>{{ displayValue(order.additionalNotes) }}</dd>
+                </div>
+              </dl>
+            </section>
+          </div>
         </div>
-
-        <section v-if="visibleActions.length" class="client-order-detail__actions">
-          <button
-            v-for="action in visibleActions"
-            :key="action.key"
-            type="button"
-            :class="action.tone"
-            @click="runAction(action.key)"
-          >
-            {{ action.label }}
-          </button>
-        </section>
       </template>
     </div>
 
@@ -553,13 +556,13 @@
           locale.startsWith("zh") ? "管理预订" : "MANAGE BOOKING"
         }}</span>
         <h2>
-          {{ locale.startsWith("zh") ? "调整服务时间" : "Reschedule Service" }}
+          {{ locale.startsWith("zh") ? "调整服务时间" : "Reschedule Booking" }}
         </h2>
 
         <div class="client-order-detail__reschedule-summary">
           <span>{{ serviceTitle }}</span>
           <small>{{
-            locale.startsWith("zh") ? "当前安排" : "Current schedule"
+            locale.startsWith("zh") ? "当前安排" : "Current Appointment"
           }}</small>
           <strong>{{ formattedServiceSchedule }}</strong>
         </div>
@@ -567,7 +570,7 @@
         <div class="client-order-detail__reschedule-grid">
           <label>
             <span>{{
-              locale.startsWith("zh") ? "新的服务日期" : "New service date"
+              locale.startsWith("zh") ? "新的服务日期" : "New Service Date"
             }}</span>
             <el-config-provider :locale="rescheduleDatePickerLocale">
               <el-date-picker
@@ -593,7 +596,7 @@
           </label>
           <label>
             <span>{{
-              locale.startsWith("zh") ? "新的服务时段" : "New time slot"
+              locale.startsWith("zh") ? "新的服务时段" : "Available Time Slots"
             }}</span>
             <select
               v-model.number="rescheduleForm.timeRange"
@@ -647,7 +650,7 @@
                   : "Submitting…"
                 : locale.startsWith("zh")
                   ? "确认改期"
-                  : "Confirm Reschedule"
+                  : "Request Reschedule"
             }}
           </button>
         </div>
@@ -1461,7 +1464,7 @@ const teamAssigned = computed(
 )
 const statusText = computed(() => {
   if (rawStatus.value === 1 && teamAssigned.value) {
-    return locale.value.startsWith("zh") ? "团队已分配" : "Team Assigned"
+    return locale.value.startsWith("zh") ? "团队已分配" : "Professional Assigned"
   }
   return fallbackStatusText.value
 })
@@ -1483,16 +1486,16 @@ const progressSteps = computed(() => {
   if (rawStatus.value === 4 || rawStatus.value === 5) {
     return zh
       ? ["预订已确认", "退款中", "已退款"]
-      : ["Booking confirmed", "Refunding", "Refunded"]
+      : ["Booking Confirmed", "Refunding", "Refunded"]
   }
   if (rawStatus.value === 3) {
     return zh
       ? ["预订已确认", "已取消", "流程结束"]
-      : ["Booking confirmed", "Cancelled", "Closed"]
+      : ["Booking Confirmed", "Cancelled", "Closed"]
   }
   return zh
     ? ["预订已确认", "团队已分配", "服务已完成"]
-    : ["Booking confirmed", "Team assigned", "Service completed"]
+    : ["Booking Confirmed", "Professional Assigned", "Service Completed"]
 })
 const statusBoxTitle = computed(
   () =>
@@ -1533,7 +1536,7 @@ const addonAction = () =>
     ? [
         {
           key: "add-addons",
-          label: locale.value.startsWith("zh") ? "添加额外服务" : "Add extra services",
+          label: t("client.orderList.addExtra"),
           tone: "secondary",
         },
       ]
@@ -1648,7 +1651,7 @@ const formattedCreatedAt = computed(() =>
   formatCreatedAt(order.value?.createTime, locale.value, displayValue()),
 )
 const paymentSummaryLabel = computed(() =>
-  locale.value.startsWith("zh") ? "支付信息" : "Payment",
+  locale.value.startsWith("zh") ? "支付信息" : "Payment Method",
 )
 const paymentSummaryText = computed(() => {
   const current = order.value as
@@ -2443,26 +2446,21 @@ onMounted(async () => {
 <style scoped lang="scss">
 .client-order-detail {
   min-height: 100vh;
-  padding: 38px 22px 110px;
-  background:
-    radial-gradient(
-      circle at 92% 4%,
-      rgba(23, 105, 194, 0.12),
-      transparent 28%
-    ),
-    #f4f7fb;
-  color: #05152b;
+  padding: 48px 24px 110px;
+  background: var(--hourx-client-canvas);
+  color: var(--hourx-client-text);
 }
 .client-order-detail__container {
-  width: min(1120px, 100%);
+  width: min(1152px, 100%);
   margin: 0 auto;
 }
 .client-order-detail__back {
   padding: 0;
   border: 0;
   background: transparent;
-  color: #1769c2;
-  font-weight: 800;
+  color: var(--hourx-client-text);
+  font-size: var(--hourx-client-size-action);
+  font-weight: 600;
   cursor: pointer;
 }
 .client-order-detail__back span {
@@ -2470,39 +2468,49 @@ onMounted(async () => {
   font-size: 20px;
 }
 .client-order-detail__hero {
-  margin-top: 26px;
-  padding: 28px 30px;
-  border-radius: 24px;
+  margin-top: 20px;
+  padding: 32px;
+  border-radius: 20px;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 22px;
-  background: linear-gradient(135deg, #05152b, #12385e);
+  gap: 24px;
+  flex-wrap: wrap;
+  background-color: var(--hourx-client-text);
+  background-image: linear-gradient(rgb(184 154 114 / 6%) 1px, transparent 1px),
+    linear-gradient(90deg, rgb(184 154 114 / 6%) 1px, transparent 1px);
+  background-size: 48px 48px;
   color: #fff;
-  box-shadow: 0 22px 54px rgba(5, 21, 43, 0.2);
 }
 .client-order-detail__eyebrow {
-  color: #7fc0ff;
-  font-family: Inter, "Avenir Next", Arial, sans-serif;
-  font-size: 11px;
-  font-weight: 900;
-  letter-spacing: 0.24em;
+  color: var(--hourx-client-accent);
+  font-size: var(--hourx-client-size-label);
+  font-weight: 600;
+  letter-spacing: 0.12em;
   line-height: 1;
   text-transform: uppercase;
 }
 .client-order-detail__hero h1 {
-  margin: 7px 0 5px;
-  font-size: clamp(26px, 4vw, 38px);
+  margin: 10px 0 8px;
+  font: 700 var(--hourx-client-size-page)/1.2 var(--hourx-client-heading-font);
+  letter-spacing: -0.02em;
 }
 .client-order-detail__hero p {
   margin: 0;
-  color: rgba(255, 255, 255, 0.64);
+  color: var(--hourx-client-on-dark);
+  font-size: var(--hourx-client-size-action);
+  overflow-wrap: anywhere;
+}
+.client-order-detail__hero-actions {
+  display: grid;
+  justify-items: end;
+  gap: 14px;
 }
 .client-order-detail__status {
   padding: 9px 14px;
   border-radius: 999px;
-  font-size: 12px;
-  font-weight: 900;
+  font-size: var(--hourx-client-size-label);
+  font-weight: 600;
   background: rgba(255, 255, 255, 0.12);
 }
 .client-order-detail__status.is-success {
@@ -2521,16 +2529,19 @@ onMounted(async () => {
   background: #fee2e2;
   color: #b91c1c;
 }
-.client-order-detail__progress {
-  margin: 22px 0;
-  padding: 22px 26px;
-  border: 1px solid #e2e8f0;
-  border-radius: 20px;
-  background: #fff;
+.client-order-detail__progress-panel {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  gap: 18px;
+  margin-top: 24px;
+  padding: 24px;
+  border: 1px solid var(--hourx-client-border);
+  border-radius: 16px;
+  background: #fff;
+}
+.client-order-detail__progress {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 10px;
-  box-shadow: 0 10px 26px rgba(5, 21, 43, 0.05);
 }
 .client-order-detail__progress div {
   position: relative;
@@ -2571,25 +2582,25 @@ onMounted(async () => {
   font-weight: 800;
 }
 .client-order-detail__progress-label {
-  color: #94a3b8;
-  font-size: 13px;
-  font-weight: 800;
+  color: var(--hourx-client-muted);
+  font-size: var(--hourx-client-size-action);
+  font-weight: 600;
 }
 .client-order-detail__progress .is-active {
   color: #1769c2;
 }
 .client-order-detail__progress .is-active i {
-  background: #1769c2;
+  background: var(--hourx-client-text);
   color: #fff;
 }
 .client-order-detail__progress .is-active .client-order-detail__progress-label {
-  color: #1769c2;
+  color: var(--hourx-client-text);
 }
 .client-order-detail__progress .is-active:not(:last-child)::after {
-  background: #1769c2;
+  background: var(--hourx-client-accent);
 }
 .client-order-detail__status-box {
-  margin: 0 0 18px;
+  margin: 0;
   padding: 16px 18px;
   border: 1px solid #bdd9f8;
   border-radius: 16px;
@@ -2667,16 +2678,22 @@ onMounted(async () => {
 }
 .client-order-detail__grid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 18px;
+  grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr);
+  gap: 24px;
+  margin-top: 24px;
+  align-items: start;
+}
+.client-order-detail__column {
+  display: grid;
+  gap: 24px;
+  min-width: 0;
 }
 .client-order-detail__panel {
   min-width: 0;
-  padding: 22px;
-  border: 1px solid #e1e8f0;
-  border-radius: 20px;
+  padding: 24px;
+  border: 1px solid var(--hourx-client-border);
+  border-radius: 16px;
   background: #fff;
-  box-shadow: 0 12px 32px rgba(5, 21, 43, 0.055);
 }
 .client-order-detail__section-title {
   display: flex;
@@ -2684,9 +2701,9 @@ onMounted(async () => {
   justify-content: space-between;
   padding-bottom: 14px;
   border-bottom: 1px solid #edf1f5;
-  color: #05152b;
-  font-size: 15px;
-  font-weight: 900;
+  color: var(--hourx-client-text);
+  font-size: 1.0625rem;
+  font-weight: 600;
 }
 .client-order-detail__section-title strong {
   color: #1769c2;
@@ -3102,9 +3119,9 @@ onMounted(async () => {
 }
 .client-order-detail__facts small,
 .client-order-detail__info-list dt {
-  color: #94a3b8;
-  font-size: 11px;
-  font-weight: 700;
+  color: var(--hourx-client-muted);
+  font-size: 0.8125rem;
+  font-weight: 400;
 }
 .client-order-detail__facts strong {
   color: #334155;
@@ -3120,8 +3137,9 @@ onMounted(async () => {
 }
 .client-order-detail__info-list dd {
   margin: 0;
-  color: #334155;
-  font-size: 13px;
+  color: var(--hourx-client-text);
+  font-size: var(--hourx-client-size-action);
+  font-weight: 600;
   text-align: right;
   overflow-wrap: anywhere;
 }
@@ -3133,9 +3151,9 @@ onMounted(async () => {
 }
 .client-order-detail__info-list .is-total dt,
 .client-order-detail__info-list .is-total dd {
-  color: #05152b;
-  font-size: 16px;
-  font-weight: 900;
+  color: var(--hourx-client-text);
+  font-size: var(--hourx-client-size-card);
+  font-weight: 700;
 }
 .client-order-detail__info-list .is-refund-deduction dd {
   color: #a65b00;
@@ -3152,14 +3170,10 @@ onMounted(async () => {
 }
 .client-order-detail__extras { margin: 18px 0; }
 .client-order-detail__actions {
-  margin-top: 20px;
-  padding: 18px;
-  border: 1px solid #e1e8f0;
-  border-radius: 18px;
   display: flex;
   justify-content: flex-end;
+  flex-wrap: wrap;
   gap: 10px;
-  background: #fff;
 }
 .client-order-detail__actions button,
 .client-order-detail__cart-bar button,
@@ -3167,10 +3181,15 @@ onMounted(async () => {
   min-height: 44px;
   padding: 0 18px;
   border-radius: 12px;
-  font-weight: 900;
+  font-size: var(--hourx-client-size-action);
+  font-weight: 600;
   cursor: pointer;
 }
-.client-order-detail__actions .primary,
+.client-order-detail__actions .primary {
+  border: 0;
+  background: var(--hourx-client-accent);
+  color: var(--hourx-client-text);
+}
 .client-order-detail__cart-bar button,
 .client-order-detail__state button {
   border: 0;
@@ -3178,14 +3197,14 @@ onMounted(async () => {
   color: #fff;
 }
 .client-order-detail__actions .secondary {
-  border: 1px solid #d5dee8;
-  background: #fff;
-  color: #334155;
+  border: 1px solid rgb(255 255 255 / 24%);
+  background: transparent;
+  color: #fff;
 }
 .client-order-detail__actions .danger {
-  border: 1px solid #dc2626;
+  border: 1px solid #fee2e2;
   background: #fff;
-  color: #dc2626;
+  color: #b42318;
 }
 .client-order-detail__cart-bar {
   position: fixed;
@@ -3536,21 +3555,11 @@ onMounted(async () => {
     padding: 15px 16px;
     border-radius: 17px;
   }
-  .client-order-detail__hero h1 {
-    margin: 4px 0 2px;
-    font-size: 21px;
+  .client-order-detail__hero-actions {
+    justify-items: start;
   }
-  .client-order-detail__hero p {
-    font-size: 11px;
-  }
-  .client-order-detail__status {
-    padding: 7px 10px;
-    font-size: 10px;
-  }
-  .client-order-detail__progress {
-    margin: 10px 0 12px;
-    padding: 11px 8px;
-    border-radius: 15px;
+  .client-order-detail__progress-panel {
+    padding: 14px;
   }
   .client-order-detail__progress div {
     flex-direction: column;
@@ -3558,17 +3567,15 @@ onMounted(async () => {
     font-size: 10px;
   }
   .client-order-detail__progress-label {
-    font-size: 10px;
+    font-size: var(--hourx-client-size-label);
   }
   .client-order-detail__progress div:not(:last-child)::after {
     top: 16px;
     left: 58%;
     right: -42%;
   }
-  .client-order-detail__status-box {
-    display: none;
-  }
-  .client-order-detail__grid {
+  .client-order-detail__grid,
+  .client-order-detail__column {
     grid-template-columns: 1fr;
     gap: 12px;
   }
@@ -3609,11 +3616,7 @@ onMounted(async () => {
     gap: 10px;
   }
   .client-order-detail__actions {
-    position: sticky;
-    bottom: 10px;
-    z-index: 5;
-    display: grid;
-    grid-template-columns: repeat(2, 1fr);
+    justify-content: flex-start;
   }
   .client-order-detail__actions button {
     padding: 0 10px;

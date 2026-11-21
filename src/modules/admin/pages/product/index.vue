@@ -219,6 +219,19 @@
             </el-button>
           </template>
         </el-table-column>
+        <el-table-column :label="t('admin.product.table.staffHours')" width="88">
+          <template #default="{ row }">
+            <el-button
+              v-if="row.quoteMode === 3 && canAction(isPackageService ? 'btn:/admin/package/services:price' : 'btn:/admin/products:price')"
+              link
+              type="primary"
+              size="small"
+              @click="openStaffHoursDialog(row)"
+            >
+              {{ t('admin.product.table.staffHours') }}
+            </el-button>
+          </template>
+        </el-table-column>
         <el-table-column :label="t('admin.product.table.createdUpdated')" width="132">
           <template #default="{ row }">
             <el-tooltip
@@ -635,6 +648,14 @@
               >{{ t('admin.product.actions.addAddonGroup') }}</el-button
             >
           </el-form-item>
+          <div v-if="configuredAddonLines.length" class="spec-price-lines configured-addons">
+            <p class="configured-addons__title">{{ t('admin.product.form.configuredAddons') }}</p>
+            <p v-for="line in configuredAddonLines" :key="line.key">
+              <span>{{ line.kind }} · {{ line.label }}</span>
+              <strong>{{ line.priceText }}</strong>
+            </p>
+          </div>
+          <p v-else class="quote-mode-hint">{{ t('admin.product.form.configuredAddonsEmpty') }}</p>
         </div>
         <el-form-item v-if="!isPackageService" :label="t('admin.product.form.sale')" prop="product.isOnSale">
           <el-switch v-model="form.product.isOnSale" />
@@ -990,15 +1011,40 @@
       width="min(1040px, calc(100vw - 32px))"
     >
       <p class="sku-valid-hint">{{ t('admin.product.message.skuValidHint') }} {{ t('admin.product.message.fulfillRemarkHint') }}</p>
-      <div v-if="priceAddons.length" class="price-addon-hint">
+      <div class="price-discount-bar">
+        <label class="price-discount-bar__field">
+          <span>{{ t('admin.product.table.discountOff') }}</span>
+          <el-input-number
+            v-model="priceDiscountPercent"
+            :min="0"
+            :max="99.99"
+            :precision="2"
+            :step="1"
+            :value-on-clear="null"
+            controls-position="right"
+            :aria-label="t('admin.product.table.discountOff')"
+          />
+          <span aria-hidden="true">%</span>
+        </label>
+        <el-button type="primary" plain :disabled="priceLoading || !priceRows.length" @click="applyPriceDiscount">
+          {{ t('admin.product.actions.applyDiscount') }}
+        </el-button>
+        <p>{{ t('admin.product.message.discountFillHint') }}</p>
+      </div>
+      <div v-if="priceAddons.length || priceCatalogAttaches.length" class="price-addon-hint">
         <p>{{ t('admin.product.message.priceAddonHint') }}</p>
         <div class="price-addon-list">
           <span v-for="group in priceAddons" :key="group.key">
-            <strong>{{ group.label }}</strong>
+            <strong>{{ t('admin.product.form.pricedAddon') }} · {{ group.label }}</strong>
             <template v-for="(option, index) in group.options" :key="option.id">
               {{ index ? t('admin.product.text.separator') : (String(locale).startsWith('en') ? ': ' : '：') }}{{ option.label }}
               {{ option.price == null ? t('admin.product.message.optionPriceMissing') : `+${formatSkuMoney(option.price)}` }}
             </template>
+          </span>
+          <span v-for="item in priceCatalogAttaches" :key="item.key">
+            <strong>{{ t('admin.product.form.regularAddon') }} · {{ item.typeLabel }}</strong>
+            {{ String(locale).startsWith('en') ? ': ' : '：' }}{{ item.label }}
+            {{ item.priceText }}
           </span>
         </div>
       </div>
@@ -1103,6 +1149,35 @@
         <el-button v-if="canAction(isPackageService ? 'btn:/admin/package/services:price' : 'btn:/admin/products:price')" type="primary" @click="savePrice">{{ t('admin.product.actions.save') }}</el-button>
       </template>
     </el-dialog>
+    <el-dialog
+      v-model="staffHoursVisible"
+      class="price-maintain-dialog"
+      :title="t('admin.product.dialog.staffHoursTitle')"
+      :close-on-click-modal="false"
+      width="min(860px, calc(100vw - 32px))"
+    >
+      <p class="sku-valid-hint">{{ staffHoursHourly ? t('admin.product.message.staffHoursHourlyHint') : t('admin.product.message.staffHoursZeroHint') }}</p>
+      <p v-if="!staffHoursLoading && !staffHoursRows.length" class="sku-valid-hint">{{ t('admin.product.message.staffHoursEmpty') }}</p>
+      <el-table v-else v-loading="staffHoursLoading" :data="staffHoursRows" border stripe class="price-table">
+        <el-table-column :label="t('admin.product.table.combo')" min-width="220">
+          <template #default="{ row }">{{ row.combo }}</template>
+        </el-table-column>
+        <el-table-column :label="t('admin.product.table.staffCount')" width="160">
+          <template #default="{ row }">
+            <el-input-number v-model="row.staffCount" :min="0" :precision="0" :step="1" :value-on-clear="null" controls-position="right" />
+          </template>
+        </el-table-column>
+        <el-table-column :label="t('admin.product.table.serviceHours')" width="160">
+          <template #default="{ row }">
+            <el-input-number v-model="row.serviceHours" :min="0" :precision="2" :step="0.5" :value-on-clear="null" controls-position="right" />
+          </template>
+        </el-table-column>
+      </el-table>
+      <template #footer>
+        <el-button @click="staffHoursVisible = false">{{ t('admin.product.actions.cancel') }}</el-button>
+        <el-button type="primary" :disabled="!staffHoursRows.length" :loading="staffHoursSaving" @click="saveStaffHours">{{ t('admin.product.actions.save') }}</el-button>
+      </template>
+    </el-dialog>
     <SupplierQuoteCompareDialog
       v-model="quoteCompareOpen"
       :title="quoteCompareTarget?.name"
@@ -1137,7 +1212,9 @@ import {
   enable,
   disable,
   batchUpdatePrices,
+  batchUpdateStaffHours,
   listBySpu,
+  prepareStaffHours,
 } from '@/modules/admin/api/spu';
 import {
   fuzzySearchCategory,
@@ -1165,12 +1242,16 @@ import {
 } from '@/modules/admin/utils/productQuote';
 import {
   buildSkuPriceEditor,
+  buildStaffHourRows,
   effectiveSalePrice,
   formatSkuMoney,
+  saleFromPercentOff,
+  skuPriceBases,
   skuPriceTotals,
   skuValidsFromRows,
   type SkuPriceAddonGroup,
   type SkuPriceRow,
+  type StaffHourRow,
   type SkuPriceEditor,
 } from '@/modules/admin/utils/skuPriceTable';
 import { bizTagsByRef } from '@/modules/admin/api/bizTag';
@@ -1256,6 +1337,7 @@ type ProductRow = {
   specIds?: number[];
   specNames: string[];
   tags: BizTag[];
+  quoteMode: number;
   quoteModeLabel: string;
   quotedSupplierCount: number;
   fullyApprovedSupplierCount: number;
@@ -1555,6 +1637,32 @@ const pricedSpecLines = (group: SpecGroup) => {
   });
 };
 
+const configuredAddonLines = computed(() => {
+  const priced = form.specGroups.flatMap((group) =>
+    pricedSpecLines(group).map((item) => ({
+      key: `priced-${item.value}`,
+      kind: t('admin.product.form.pricedAddon'),
+      label: item.label,
+      priceText: item.price == null
+        ? t('admin.product.message.optionPriceMissing')
+        : `+${formatSkuMoney(item.price)}`,
+    })),
+  );
+  const regular = form.addonGroups.flatMap((group) => {
+    const category = addonCategoryOptions.value.find((item) => item.value === group.categoryId);
+    return (group.addonIds || []).map((id) => {
+      const option = addonOptions.value.find((item) => item.value === id);
+      return {
+        key: `attach-${id}`,
+        kind: t('admin.product.form.regularAddon'),
+        label: [category?.label, option?.label || String(id)].filter(Boolean).join(' / '),
+        priceText: option?.price == null ? '—' : formatSkuMoney(option.price),
+      };
+    });
+  });
+  return [...priced, ...regular];
+});
+
 const query = reactive({
   pageNum: 1,
   pageSize: 10,
@@ -1632,8 +1740,18 @@ const uploading = computed(() => uploadCount.value > 0);
 type PriceColumn = { key: string; label: string };
 const priceProductId = ref<number | null>(null);
 const priceRows = ref<SkuPriceRow[]>([]);
+const priceDiscountPercent = ref<number | null>(null);
 const priceColumns = ref<PriceColumn[]>([]);
 const priceAddons = ref<SkuPriceAddonGroup[]>([]);
+type PriceCatalogAttach = { key: string; typeLabel: string; label: string; priceText: string };
+const priceCatalogAttaches = ref<PriceCatalogAttach[]>([]);
+const staffHoursVisible = ref(false);
+const staffHoursLoading = ref(false);
+const staffHoursSaving = ref(false);
+const staffHoursProductId = ref<number | null>(null);
+const staffHoursQuoteMode = ref(1);
+const staffHoursRows = ref<StaffHourRow[]>([]);
+const staffHoursHourly = computed(() => staffHoursQuoteMode.value === 2 || staffHoursQuoteMode.value === 3);
 
 const normalizeCurrencyOptions = (
   list: any,
@@ -2097,6 +2215,7 @@ const toRow = (item: any): ProductRow => {
     specIds: [],
     specNames,
     tags: Array.isArray(item?.tags) ? item.tags : [],
+    quoteMode: normalizeQuoteMode(spu.quoteMode),
     quoteModeLabel: pickName(item?.quoteModeI18n, fallbackQuoteModeLabel(spu.quoteMode)),
     quotedSupplierCount: countOf(item?.quotedSupplierCount),
     fullyApprovedSupplierCount: countOf(item?.fullyApprovedSupplierCount),
@@ -3366,13 +3485,34 @@ const filledMoney = (value: number | null | undefined) =>
 const priceTotalLines = (row: SkuPriceRow) =>
   skuPriceTotals(row.originPrice, row.discountPrice, priceAddons.value);
 
+const catalogAttachLines = (attaches: unknown[]): PriceCatalogAttach[] => {
+  const rows = Array.isArray(attaches) ? attaches : [];
+  return rows.flatMap((raw) => {
+    const item = raw && typeof raw === 'object' ? raw as Record<string, unknown> : null;
+    if (!item) return [];
+    const id = Number(item.attachValueId);
+    if (!Number.isFinite(id) || id <= 0) return [];
+    const typeLabel = pickName(item.attachTypeNameI18n, String(item.attachTypeName || ''));
+    const label = pickName(item.attachValueNameI18n, String(item.attachValueName || id));
+    const price = item.platformPrice == null || item.platformPrice === '' ? null : Number(item.platformPrice);
+    return [{
+      key: `attach-${id}`,
+      typeLabel: typeLabel || t('admin.product.form.regularAddon'),
+      label,
+      priceText: price == null || !Number.isFinite(price) ? '—' : formatSkuMoney(price),
+    }];
+  });
+};
+
 const openPriceDialog = async (row: ProductRow) => {
   priceProductId.value = row.id;
   priceDialogVisible.value = true;
   priceLoading.value = true;
+  priceDiscountPercent.value = null;
   priceRows.value = [];
   priceColumns.value = [];
   priceAddons.value = [];
+  priceCatalogAttaches.value = [];
   try {
     const res = await listBySpu(row.id);
     const data = res?.data ?? res ?? {};
@@ -3384,14 +3524,50 @@ const openPriceDialog = async (row: ProductRow) => {
     priceColumns.value = editor.columns;
     priceRows.value = editor.rows;
     priceAddons.value = editor.addons;
+    priceCatalogAttaches.value = catalogAttachLines(Array.isArray(data.attaches) ? data.attaches : []);
   } catch (error: any) {
     ElMessage.error(error?.message || t('admin.product.message.fetchSpecFailed'));
     priceRows.value = [];
     priceColumns.value = [];
     priceAddons.value = [];
+    priceCatalogAttaches.value = [];
   } finally {
     priceLoading.value = false;
   }
+};
+
+const applyPriceDiscount = () => {
+  const percent = priceDiscountPercent.value;
+  if (percent == null || !Number.isFinite(percent) || percent < 0 || percent >= 100) {
+    ElMessage.warning(t('admin.product.message.discountPercentInvalid'));
+    return;
+  }
+  let filled = 0;
+  let skipped = 0;
+  let tooSmall = 0;
+  priceRows.value.forEach((row) => {
+    if (!filledMoney(row.originPrice) || row.originPrice == null) {
+      skipped += 1;
+      return;
+    }
+    const sale = saleFromPercentOff(row.originPrice, percent);
+    if (sale == null) {
+      tooSmall += 1;
+      return;
+    }
+    row.discountPrice = sale;
+    filled += 1;
+  });
+  if (!filled) {
+    ElMessage.warning(t(tooSmall ? 'admin.product.message.discountTooSmall' : 'admin.product.message.discountNoOrigin'));
+    return;
+  }
+  const detail = [
+    t('admin.product.message.discountApplied', { count: filled }),
+    skipped ? t('admin.product.message.discountSkipped', { count: skipped }) : '',
+    tooSmall ? t('admin.product.message.discountTooSmall') : '',
+  ].filter(Boolean).join(' ');
+  ElMessage.success(detail);
 };
 
 const savePrice = () => {
@@ -3410,11 +3586,7 @@ const savePrice = () => {
   }
   const payload = {
     productId: priceProductId.value,
-    bases: priceRows.value.map((row) => ({
-      specValueIds: row.specValueIds,
-      price: Number(effectiveSalePrice(row.originPrice, row.discountPrice)),
-      originalPrice: Number(row.originPrice),
-    })),
+    bases: skuPriceBases(priceRows.value),
     skuValids: skuValidsFromRows(priceRows.value),
   };
   batchUpdatePrices(payload)
@@ -3425,6 +3597,80 @@ const savePrice = () => {
     .catch((err: any) => {
       ElMessage.error(err?.message || t('admin.product.message.saveFailed'));
     });
+};
+
+let staffHoursRequest = 0;
+
+const openStaffHoursDialog = (row: ProductRow) => {
+  staffHoursProductId.value = row.id;
+  staffHoursQuoteMode.value = normalizeQuoteMode(row.quoteMode);
+  staffHoursRows.value = [];
+  staffHoursVisible.value = true;
+  void loadStaffHours();
+};
+
+const loadStaffHours = async () => {
+  if (staffHoursProductId.value == null) return;
+  const productId = staffHoursProductId.value;
+  const requestId = ++staffHoursRequest;
+  staffHoursLoading.value = true;
+  try {
+    const res = await prepareStaffHours(productId);
+    if (requestId !== staffHoursRequest) return;
+    const data = res?.data ?? res ?? {};
+    staffHoursRows.value = buildStaffHourRows(
+      Array.isArray(data.specTypes) ? data.specTypes : [],
+      Array.isArray(data.skus) ? data.skus : [],
+      (value, fallback = '') => pickName(value, fallback),
+    );
+  } catch (error: any) {
+    if (requestId !== staffHoursRequest) return;
+    staffHoursRows.value = [];
+    ElMessage.error(error?.message || t('admin.product.message.fetchSpecFailed'));
+  } finally {
+    if (requestId === staffHoursRequest) staffHoursLoading.value = false;
+  }
+};
+
+const staffHoursValid = (row: StaffHourRow) => {
+  const staff = row.staffCount;
+  const hours = row.serviceHours;
+  if (staff == null || hours == null) return false;
+  if (!Number.isInteger(staff) || staff < 0) return false;
+  if (!Number.isFinite(hours) || hours < 0) return false;
+  if (Math.abs(hours * 100 - Math.round(hours * 100)) > 1e-6) return false;
+  if (staffHoursHourly.value && (staff <= 0 || hours <= 0)) return false;
+  return true;
+};
+
+const saveStaffHours = async () => {
+  if (staffHoursProductId.value == null || staffHoursSaving.value || !staffHoursRows.value.length) return;
+  const incomplete = staffHoursRows.value.some((row) => row.staffCount == null || row.serviceHours == null);
+  if (incomplete || staffHoursRows.value.some((row) => !staffHoursValid(row))) {
+    ElMessage.error(incomplete
+      ? t('admin.product.message.staffHoursFill')
+      : staffHoursHourly.value
+        ? t('admin.product.message.staffHoursRequired')
+        : t('admin.product.message.staffHoursNonNegative'));
+    return;
+  }
+  staffHoursSaving.value = true;
+  try {
+    await batchUpdateStaffHours({
+      productId: staffHoursProductId.value,
+      items: staffHoursRows.value.map((row) => ({
+        skuId: row.skuId,
+        staffCount: Number(row.staffCount),
+        serviceHours: Number(row.serviceHours),
+      })),
+    });
+    ElMessage.success(t('admin.product.message.staffHoursSaved'));
+    staffHoursVisible.value = false;
+  } catch (error: any) {
+    ElMessage.error(error?.message || t('admin.product.message.saveFailed'));
+  } finally {
+    staffHoursSaving.value = false;
+  }
 };
 
 const save = () => {
@@ -3949,6 +4195,10 @@ watch(
   font-weight: 650;
   font-variant-numeric: tabular-nums;
 }
+.configured-addons__title {
+  color: var(--hx-ink, #1d2a38);
+  font-weight: 650;
+}
 .spec-box__title {
   font-weight: 600;
 }
@@ -3960,6 +4210,31 @@ watch(
   color: #61738a;
   font-size: 13px;
   line-height: 1.6;
+}
+.price-discount-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  margin: 0 0 12px;
+}
+.price-discount-bar__field {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: #1d2a38;
+  font-size: 13px;
+  font-weight: 650;
+}
+.price-discount-bar__field :deep(.el-input-number) {
+  width: 132px;
+}
+.price-discount-bar p {
+  flex: 1 1 240px;
+  margin: 0;
+  color: #61738a;
+  font-size: 12px;
+  line-height: 1.5;
 }
 .sku-valid-line {
   display: grid;

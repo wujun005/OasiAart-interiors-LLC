@@ -9,7 +9,7 @@
       >
         <van-icon name="arrow-left" />
       </button>
-      <h1>{{ t('client.productDetail.pageTitle') }}</h1>
+      <p class="h5-detail-topbar__title">{{ t('client.header.nav.packages') }}</p>
       <button
         class="h5-detail-topbar__cart"
         type="button"
@@ -47,22 +47,64 @@
           <div v-else class="h5-package-gallery-empty" aria-hidden="true">{{ view.mark }}</div>
           <div v-if="view.images.length > 1" class="h5-detail-gallery__dots" aria-hidden="true">
             <span
-              v-for="(image, index) in view.images"
-              :key="`dot-${index}`"
+              v-for="(_, index) in view.images"
+              :key="index"
               :class="{ 'h5-detail-gallery__dot--active': index === selectedImageIndex }"
             />
           </div>
+          <div v-if="view.images.length > 1" class="h5-detail-gallery__controls">
+            <button type="button" :aria-label="t('client.productDetail.previousImage')" @click="swipeRef?.prev()">
+              <van-icon name="arrow-left" />
+            </button>
+            <span>{{ selectedImageIndex + 1 }} / {{ view.images.length }}</span>
+            <button type="button" :aria-label="t('client.productDetail.nextImage')" @click="swipeRef?.next()">
+              <van-icon name="arrow" />
+            </button>
+          </div>
         </section>
+
+        <div class="h5-package-trust">
+          <span><van-icon name="shield-o" />{{ t('client.productDetail.trust.professional') }}</span>
+          <span><van-icon name="calendar-o" />{{ t('client.productDetail.trust.flexible') }}</span>
+          <span><van-icon name="passed" />{{ t('client.productDetail.trust.clearPricing') }}</span>
+        </div>
+
+        <DetailContentTabs package-terms>
+          <template #description>
+            <div v-if="view.descHtml" class="h5-detail-html" v-html="view.descHtml" />
+            <p v-else class="h5-detail-card__empty">{{ t('client.productDetail.emptyDesc') }}</p>
+          </template>
+          <template #includes>
+            <div v-if="view.aboutHtml" class="h5-detail-html" v-html="view.aboutHtml" />
+            <p v-else class="h5-detail-card__empty">{{ t('client.productDetail.emptyDesc') }}</p>
+          </template>
+          <template #notice>
+            <div v-if="view.noticeHtml" class="h5-detail-html" v-html="view.noticeHtml" />
+            <p v-else class="h5-detail-card__empty">{{ t('client.productDetail.emptyDesc') }}</p>
+          </template>
+          <template #reviews>
+            <div class="h5-detail-card__review-head">
+              <div class="h5-detail-card__heading h5-detail-card__heading--compact">
+                <span />
+                <h3>{{ t('client.productDetail.reviewsTitle') }}</h3>
+              </div>
+            </div>
+            <p class="h5-detail-card__empty">
+              <strong>{{ t('client.productDetail.emptyReviews') }}</strong><br />
+              {{ t('client.productDetail.emptyReviewsHint') }}
+            </p>
+          </template>
+        </DetailContentTabs>
 
         <section class="h5-detail-card h5-detail-card--summary">
           <div class="h5-detail-card__title-row">
-            <h2>{{ view.title }}</h2>
+            <h1>{{ view.title }}</h1>
             <strong>{{ formatAed(view.saleAmount) }}</strong>
           </div>
           <div class="h5-package-price-meta">
             <span>{{ t('client.home.packages.dealPrice') }}</span>
             <del v-if="view.original">
-              {{ t('client.home.packages.originalPrice') }} AED {{ view.original }}
+              {{ t('client.home.packages.detailOriginalPrice') }} AED {{ view.original }}
             </del>
             <strong v-if="view.save">{{ view.save }}</strong>
           </div>
@@ -79,15 +121,6 @@
             <span v-if="view.validDays">{{ view.validDays }}</span>
             <span v-if="view.perVisit">{{ view.perVisit }}</span>
           </div>
-          <div class="h5-detail-card__divider" />
-          <div class="h5-detail-card__section">
-            <h3>{{ t('client.productDetail.serviceDescription') }}</h3>
-            <div v-if="view.descHtml" class="h5-detail-html" v-html="view.descHtml" />
-            <p v-else class="h5-detail-card__empty">{{ t('client.productDetail.emptyDesc') }}</p>
-          </div>
-        </section>
-
-        <section class="h5-detail-card">
           <div class="h5-detail-card__heading">
             <span />
             <h3>{{ t('client.home.packages.included') }}</h3>
@@ -128,37 +161,6 @@
             </div>
           </div>
           <p v-else class="h5-detail-card__empty">{{ t('client.productDetail.emptyDesc') }}</p>
-        </section>
-
-        <section class="h5-detail-card">
-          <div class="h5-detail-card__heading">
-            <span />
-            <h3>{{ t('client.productDetail.includesTitle') }}</h3>
-          </div>
-          <div v-if="view.aboutHtml" class="h5-detail-html" v-html="view.aboutHtml" />
-          <p v-else class="h5-detail-card__empty">{{ t('client.productDetail.emptyDesc') }}</p>
-        </section>
-
-        <section class="h5-detail-card">
-          <div class="h5-detail-card__heading">
-            <span />
-            <h3>{{ t('client.productDetail.noticeTitle') }}</h3>
-          </div>
-          <div v-if="view.noticeHtml" class="h5-detail-html" v-html="view.noticeHtml" />
-          <p v-else class="h5-detail-card__empty">{{ t('client.productDetail.emptyDesc') }}</p>
-        </section>
-
-        <section class="h5-detail-card">
-          <div class="h5-detail-card__review-head">
-            <div class="h5-detail-card__heading h5-detail-card__heading--compact">
-              <span />
-              <h3>{{ t('client.productDetail.reviewsTitle') }}</h3>
-            </div>
-          </div>
-          <p class="h5-detail-card__empty">{{ t('client.productDetail.emptyReviews') }}</p>
-        </section>
-
-        <section class="h5-detail-card">
           <div class="h5-detail-card__heading">
             <span />
             <h3>{{ t('client.productDetail.booking.summaryTitle') }}</h3>
@@ -166,7 +168,7 @@
           <p class="h5-package-booking-note">{{ t('client.home.packages.visitLater') }}</p>
           <dl class="h5-package-price-breakdown">
             <div>
-              <dt>{{ t('client.productDetail.booking.subtotal') }}</dt>
+              <dt>{{ t('client.home.packages.subtotal') }}</dt>
               <dd>{{ formatAed(view.saleAmount) }}</dd>
             </div>
             <div>
@@ -196,7 +198,7 @@
           :disabled="!purchasable || busy"
           @click="purchasable && !busy && emit('add-to-cart')"
         >
-          <van-icon name="cart-o" />
+          <van-icon name="cart-o" aria-hidden="true" />
           <span>{{ t('client.productDetail.booking.addToCart') }}</span>
         </button>
         <button
@@ -205,7 +207,7 @@
           :disabled="!purchasable || busy"
           @click="purchasable && !busy && emit('checkout')"
         >
-          {{ t(priceLoading ? 'client.home.packages.priceLoading' : busy ? 'client.profile.actions.submitting' : 'client.productDetail.booking.bookNow') }}
+          {{ t(priceLoading ? 'client.home.packages.priceLoading' : busy ? 'client.profile.actions.submitting' : 'client.productDetail.booking.bookNowCompact') }}
         </button>
       </div>
     </footer>
@@ -258,6 +260,7 @@ import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { Icon as VanIcon, Swipe as VanSwipe, SwipeItem as VanSwipeItem, type SwipeInstance } from 'vant'
 import PackageSharedSpecs from '@/modules/client/components/PackageSharedSpecs.vue'
+import DetailContentTabs from './DetailContentTabs.vue'
 
 const props = defineProps<{
   view: PackageDetailView | null
@@ -297,17 +300,43 @@ watch(() => props.selectedImageIndex, (index) => {
 <style scoped lang="scss" src="../styles/product-detail.scss"></style>
 
 <style scoped lang="scss">
+.h5-package-trust {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  border: 1px solid var(--hourx-client-border);
+  border-radius: 1rem;
+  background: #fff;
+}
+
+.h5-package-trust > span {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.375rem;
+  padding: 0.625rem 0.25rem;
+  color: var(--hourx-client-text);
+  font-size: var(--hourx-client-size-label);
+  font-weight: 600;
+  line-height: 1.25;
+  text-align: center;
+}
+
+.h5-package-trust > span + span {
+  border-left: 1px solid var(--hourx-client-border);
+}
+
 .h5-package-state {
   min-height: 240px;
   display: grid;
   place-items: center;
-  color: #62748e;
+  color: var(--hourx-client-muted);
   font-size: 13px;
   text-align: center;
 }
 
 .h5-package-gallery-empty {
-  height: 192px;
+  height: 15rem;
   display: grid;
   place-items: center;
   background: var(--hourx-brand-soft);
@@ -316,7 +345,7 @@ watch(() => props.selectedImageIndex, (index) => {
   font-weight: 800;
 }
 
-.h5-detail-card__title-row h2 {
+.h5-detail-card__title-row h1 {
   min-width: 0;
   overflow-wrap: anywhere;
 }
@@ -327,25 +356,25 @@ watch(() => props.selectedImageIndex, (index) => {
   align-items: center;
   gap: 6px 8px;
   margin-top: 8px;
-  color: #62748e;
+  color: var(--hourx-client-muted);
   font-size: 11px;
 
   del {
-    color: #90a1b9;
+    color: var(--hourx-client-muted);
   }
 
   strong {
     padding: 3px 6px;
     border-radius: 5px;
-    background: #ecfdf5;
-    color: #047857;
+    background: var(--hourx-client-accent);
+    color: var(--hourx-client-text);
     font-size: 11px;
   }
 }
 
 .h5-package-booking-note {
   margin: 10px 0 0;
-  color: #62748e;
+  color: var(--hourx-client-muted);
   font-size: 11px;
   line-height: 1.6;
 }
@@ -365,7 +394,7 @@ watch(() => props.selectedImageIndex, (index) => {
   font-size: 12px;
 }
 
-.package-shared-applied { color: #527279; }
+.package-shared-applied { color: var(--hourx-client-muted); }
 
 .package-sku-groups {
   display: grid;
@@ -375,7 +404,7 @@ watch(() => props.selectedImageIndex, (index) => {
 
 .package-sku-group__label {
   margin: 0 0 6px;
-  color: #61738a;
+  color: var(--hourx-client-muted);
   font-size: 12px;
   line-height: 1.4;
 }
@@ -391,7 +420,7 @@ watch(() => props.selectedImageIndex, (index) => {
   background: #fff;
   border-radius: 999px;
   padding: 6px 12px;
-  color: #334155;
+  color: var(--hourx-client-text);
   font: inherit;
   font-size: 12px;
   line-height: 1.4;
@@ -411,7 +440,7 @@ watch(() => props.selectedImageIndex, (index) => {
   align-items: center;
   gap: 8px;
   margin-top: 10px;
-  color: #61738a;
+  color: var(--hourx-client-muted);
   font-size: 12px;
   line-height: 1.5;
 }
@@ -429,7 +458,7 @@ watch(() => props.selectedImageIndex, (index) => {
   display: grid;
   gap: 12px;
   margin: 16px 0 0;
-  color: #62748e;
+  color: var(--hourx-client-muted);
   font-size: 12px;
 
   > div {
@@ -445,7 +474,7 @@ watch(() => props.selectedImageIndex, (index) => {
 
   dd {
     margin: 0;
-    color: #1d293d;
+    color: var(--hourx-client-text);
     font-weight: 700;
     white-space: nowrap;
   }
@@ -453,8 +482,8 @@ watch(() => props.selectedImageIndex, (index) => {
 
 .h5-package-price-breakdown__total {
   padding-top: 12px;
-  border-top: 1px solid #f3f4f6;
-  color: #1d293d;
+  border-top: 1px solid var(--hourx-client-border);
+  color: var(--hourx-client-text);
   font-weight: 700;
 }
 

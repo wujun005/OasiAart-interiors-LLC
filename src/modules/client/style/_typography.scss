@@ -1,0 +1,66 @@
+@use '../../../styles/font-stack';
+
+@font-face {
+  font-family: Inter;
+  src: url('../../../assets/fonts/inter-latin.woff2') format('woff2');
+  font-weight: 400 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: Manrope;
+  src: url('../../../assets/fonts/manrope-latin-700.woff2') format('woff2');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+:root {
+  --hourx-client-font-family: Inter, #{font-stack.$family};
+  --hourx-client-heading-font: Manrope, var(--hourx-client-font-family);
+  --hourx-client-text: #06182f;
+  --hourx-client-muted: #666b73;
+  --hourx-client-on-dark: #c9c5be;
+  --hourx-client-accent: #b89a72;
+  --hourx-client-accent-ink: #8a7350;
+  --hourx-client-canvas: #f7f6f3;
+  --hourx-client-border: #e8e4dd;
+  --hourx-client-section-space: 80px;
+  --hourx-client-size-hero: 3rem;
+  --hourx-client-size-page: 2.25rem;
+  --hourx-client-size-section: 1.875rem;
+  --hourx-client-size-card: 1.125rem;
+  --hourx-client-size-body: 0.9375rem;
+  --hourx-client-size-action: 0.875rem;
+  --hourx-client-size-label: 0.75rem;
+  --hourx-client-size-price: 1.75rem;
+
+  @media (max-width: 640px) {
+    --hourx-client-section-space: 56px;
+    --hourx-client-size-hero: 2.125rem;
+    --hourx-client-size-page: 1.875rem;
+    --hourx-client-size-section: 1.625rem;
+  }
+}
+
+html,
+body {
+  font-family: var(--hourx-client-font-family);
+}
+
+body {
+  color: var(--hourx-client-text);
+  background: var(--hourx-client-canvas);
+  font-size: var(--hourx-client-size-body);
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+}
+
+button,
+input,
+optgroup,
+select,
+textarea {
+  font-family: inherit;
+}

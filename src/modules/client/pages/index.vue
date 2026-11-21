@@ -1,48 +1,6 @@
 <template>
   <div id="home" class="home-page">
-    <section class="hero-section" aria-labelledby="home-hero-title">
-      <img
-        class="hero-section__image"
-        :src="homeBannerUrl"
-        alt="HourX home services"
-      />
-      <div class="hero-section__overlay">
-        <div class="hero-section__content">
-          <h1 id="home-hero-title">{{ t("client.home.hero.headline") }}</h1>
-          <p>{{ t("client.home.hero.description") }}</p>
-          <ul
-            class="hero-section__trust"
-            aria-label="HourX booking information"
-          >
-            <li>
-              <span aria-hidden="true">✓</span
-              >{{ t("client.home.hero.trustPlatform") }}
-            </li>
-            <li>
-              <span aria-hidden="true">✓</span
-              >{{ t("client.home.hero.trustBooking") }}
-            </li>
-          </ul>
-          <div class="hero-section__actions" aria-label="Banner actions">
-            <button
-              class="hero-section__action hero-section__action--primary"
-              type="button"
-              @click="scrollToServices"
-            >
-              {{ t("client.home.hero.cta") }}
-            </button>
-            <button
-              class="hero-section__action hero-section__action--whatsapp"
-              type="button"
-              @click="openWhatsApp"
-            >
-              <img :src="whatsappIconUrl" alt="" />
-              <span>{{ t("client.home.hero.whatsappCta") }}</span>
-            </button>
-          </div>
-        </div>
-      </div>
-    </section>
+    <HomeHero @select="selectHomeBanner" />
 
     <button
       class="contact-card"
@@ -50,7 +8,7 @@
       :aria-label="t('client.home.contactCard.button')"
       @click="openWhatsApp"
     >
-      <img :src="kefuImageUrl" :alt="t('client.home.contactCard.button')" />
+      <span class="contact-card__dot" aria-hidden="true" />
       <span class="contact-card__text">{{
         t("client.home.contactCard.button")
       }}</span>
@@ -117,12 +75,10 @@
 
     <section class="booking-section">
       <div class="home-container">
+        <p class="home-section-label home-section-label--light">{{ t("client.home.sections.bookingEyebrow") }}</p>
         <h2 class="section-title section-title--light">
           {{ t("client.home.sections.bookingTitle") }}
         </h2>
-        <p class="section-subtitle section-subtitle--light">
-          {{ t("client.home.sections.bookingSubtitle") }}
-        </p>
 
         <div class="booking-steps">
           <div class="booking-steps__line" />
@@ -134,7 +90,10 @@
             <div class="booking-step__icon">
               <img :src="item.icon" :alt="item.title" />
             </div>
-            <h3>{{ index + 1 }}. {{ item.title }}</h3>
+            <span class="home-section-label home-section-label--light">
+              {{ t("client.home.steps.number", { number: String(index + 1).padStart(2, "0") }) }}
+            </span>
+            <h3>{{ item.title }}</h3>
             <p>{{ item.desc }}</p>
           </article>
         </div>
@@ -143,6 +102,7 @@
 
     <section id="join-us" class="trust-section">
       <div class="home-container">
+        <p class="home-section-label">{{ t("client.home.sections.aboutEyebrow") }}</p>
         <h2 class="section-title">
           {{ t("client.home.sections.aboutTitle") }}
         </h2>
@@ -196,6 +156,7 @@
 import { computed, onBeforeUnmount, onMounted, ref } from "vue"
 import { useI18n } from "vue-i18n"
 import { useRouter } from "vue-router"
+import HomeHero from "@/modules/client/components/HomeHero.vue"
 import PackageShowcase from "@/modules/client/components/PackageShowcase.vue"
 import {
   level1Categories,
@@ -224,12 +185,6 @@ type Reason = {
   icon: string
 }
 
-const kefuImageUrl = new URL("@/assets/images/client/kefu.png", import.meta.url)
-  .href
-const homeBannerUrl = new URL(
-  "@/assets/images/client/home-banner.png",
-  import.meta.url,
-).href
 const whatsappIconUrl = new URL(
   "@/assets/images/client/icon_whatsapp.svg",
   import.meta.url,
@@ -333,7 +288,7 @@ const canToggleServices = computed(
 const syncServiceColumns = () => {
   if (window.matchMedia("(max-width: 640px)").matches) {
     serviceColumns.value = 1
-  } else if (window.matchMedia("(max-width: 960px)").matches) {
+  } else if (window.matchMedia("(max-width: 1024px)").matches) {
     serviceColumns.value = 2
   } else {
     serviceColumns.value = 3
@@ -415,6 +370,19 @@ const openServiceList = (item: ServiceTile) => {
   })
 }
 
+const selectHomeBanner = (topic: 'cleaning' | 'ac' | 'app') => {
+  const categoryName = {
+    cleaning: /home cleaning|daily cleaning|日常清洁|家庭清洁|居家清洁/,
+    ac: /\bac\b|air conditioning|空调/i,
+  }
+  const category = topic === 'app' ? undefined : serviceTiles.value.find(item => {
+    const names = [item.title, ...Object.values(item.source?.nameI18n || {})]
+    return names.some(name => categoryName[topic].test(name.toLowerCase()))
+  })
+  if (category) openServiceList(category)
+  else scrollToServices()
+}
+
 const scrollToServices = () => {
   const servicesSection = document.getElementById("services")
   if (!servicesSection) {
@@ -451,12 +419,8 @@ onBeforeUnmount(() => {
 
 .home-page {
   --primary: var(--hourx-brand);
-  --primary-dark: var(--hourx-brand-hover);
-  --text-main: rgba(15, 23, 42, 0.9);
-  --text-sub: rgba(15, 23, 42, 0.5);
-  background: #fff;
-  color: var(--text-main);
-  font-family: "Inter", "Noto Sans SC", "PingFang SC", sans-serif;
+  background: var(--hourx-client-canvas);
+  color: var(--hourx-client-text);
 }
 
 .home-container {
@@ -464,202 +428,40 @@ onBeforeUnmount(() => {
   margin: 0 auto;
 }
 
-.hero-section {
-  position: relative;
-  width: 100%;
-  height: clamp(420px, 36vw, 550px);
-  overflow: hidden;
-  line-height: 0;
-  background: var(--hourx-brand-soft);
-}
-
-.hero-section__overlay {
-  position: absolute;
-  inset: 0;
-  z-index: 1;
-  display: flex;
-  align-items: center;
-  background: linear-gradient(
-    90deg,
-    var(--hourx-brand) 0%,
-    var(--hourx-brand) 60%,
-    rgba(7, 33, 59, 0.82) 76%,
-    rgba(7, 33, 59, 0.28) 100%
-  );
-}
-
-.hero-section__content {
-  width: min(620px, calc(100% - 72px));
-  margin-left: max(36px, calc((100vw - 1280px) / 2));
-  color: #fff;
-  line-height: normal;
-}
-
-.hero-section__content h1 {
-  max-width: 600px;
-  margin: 0;
-  font-size: clamp(38px, 3.2vw, 42px);
-  line-height: 1.05;
-  font-weight: 900;
-  letter-spacing: -0.035em;
-}
-
-.hero-section__content > p {
-  max-width: 570px;
-  margin: 22px 0 0;
-  color: rgba(255, 255, 255, 0.82);
-  font-size: 19px;
-  line-height: 1.6;
-  font-weight: 500;
-}
-
-.hero-section__trust {
-  margin: 24px 0 0;
-  padding: 0;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 14px 28px;
-  list-style: none;
-}
-
-.hero-section__trust li {
-  display: inline-flex;
-  align-items: center;
-  gap: 9px;
-  color: #fff;
-  font-size: 15px;
-  font-weight: 750;
-}
-
-.hero-section__trust li > span {
-  width: 24px;
-  height: 24px;
-  border: 1px solid rgba(255, 255, 255, 0.72);
-  border-radius: 999px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 13px;
-}
-
-.hero-section__image {
-  display: block;
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  object-position: center 48%;
-}
-
-.hero-section__actions {
-  margin-top: 28px;
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  line-height: normal;
-}
-
-.hero-section__action {
-  min-width: 152px;
-  height: 54px;
-  padding: 0 28px;
-  border: 1px solid transparent;
-  border-radius: 14px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 9px;
-  color: #fff;
-  font: inherit;
-  font-size: 16px;
-  font-weight: 800;
-  letter-spacing: 0.01em;
-  cursor: pointer;
-  transition:
-    transform 180ms ease,
-    box-shadow 180ms ease,
-    background 180ms ease;
-}
-
-.hero-section__action:hover {
-  transform: translateY(-2px);
-}
-
-.hero-section__action:focus-visible {
-  outline: 3px solid rgba(5, 21, 43, 0.36);
-  outline-offset: 3px;
-}
-
-.hero-section__action--primary {
-  min-width: 200px;
-  min-height: 62px;
-  border: none;
-  background: linear-gradient(135deg, #77f4dd 0%, #2ed8bd 100%);
-  color: #05152b;
-  font-size: 17px;
-  font-weight: 900;
-  box-shadow:
-    0 18px 40px rgba(4, 25, 48, 0.48),
-    0 0 0 6px rgba(119, 244, 221, 0.16);
-}
-
-.hero-section__action--primary:hover {
-  background: linear-gradient(135deg, #91f8e5 0%, #43e3c8 100%);
-  box-shadow:
-    0 22px 48px rgba(4, 25, 48, 0.56),
-    0 0 0 8px rgba(119, 244, 221, 0.22);
-}
-
-.hero-section__action--whatsapp {
-  background: transparent;
-  border-color: rgba(255, 255, 255, 0.3);
-  color: rgba(255, 255, 255, 0.72);
-  box-shadow: none;
-  font-weight: 600;
-}
-
-.hero-section__action--whatsapp:hover {
-  background: rgba(255, 255, 255, 0.08);
-  border-color: rgba(255, 255, 255, 0.45);
-  color: rgba(255, 255, 255, 0.88);
-}
-
-.hero-section__action--whatsapp img {
-  width: 24px;
-  height: 24px;
-}
-
 .contact-card {
   position: fixed;
   right: 32px;
   bottom: 32px;
-  width: 160px;
-  height: 112px;
-  padding: 8px;
-  border: 0;
-  background: transparent;
+  width: auto;
+  height: 48px;
+  padding: 0 17px;
+  border: 1px solid rgb(184 154 114 / 50%);
+  background: var(--hourx-client-text);
   z-index: 60;
   cursor: pointer;
+  display: inline-flex;
+  gap: 8px;
+  align-items: center;
+  border-radius: 999px;
+  color: #fff;
 }
 
-.contact-card img {
-  width: 100%;
-  height: 100%;
-  object-fit: contain;
+.contact-card__dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--hourx-client-accent);
 }
 
 .contact-card__text {
-  position: absolute;
-  left: 50%;
-  top: 50%;
-  transform: translate(-50%, -50%);
   color: #fff;
-  font-size: 12px;
-  font-weight: 700;
+  font-size: var(--hourx-client-size-action);
+  font-weight: 600;
   white-space: nowrap;
 }
 
 .services-section {
-  padding: 48px 0 40px;
+  padding: 64px 0 0;
 }
 
 .home-intro {
@@ -676,48 +478,51 @@ onBeforeUnmount(() => {
 
 .home-intro__eyebrow {
   margin: 0;
-  color: var(--primary);
-  font-size: 10px;
-  line-height: 1.4;
-  font-weight: 750;
-  letter-spacing: 0.16em;
+  color: var(--hourx-client-accent-ink);
+  font-size: var(--hourx-client-size-label);
+  line-height: 1.2;
+  font-weight: 600;
+  letter-spacing: 0.12em;
   text-transform: uppercase;
 }
 
 .home-intro h2 {
   margin: 8px 0 0;
-  color: var(--hourx-brand);
-  font-size: clamp(26px, 2.4vw, 32px);
-  line-height: 1.2;
-  font-weight: 750;
-  letter-spacing: -0.035em;
+  color: var(--hourx-client-text);
+  font-size: var(--hourx-client-size-section);
+  line-height: 1.25;
+  font-weight: 700;
+  letter-spacing: -0.015em;
+  font-family: var(--hourx-client-heading-font);
 }
 
 .home-intro__description {
   max-width: 310px;
   margin: 0 0 2px;
-  color: #738093;
-  font-size: 13px;
-  line-height: 1.65;
+  color: var(--hourx-client-muted);
+  font-size: var(--hourx-client-size-body);
+  line-height: 1.55;
   font-weight: 400;
 }
 
 .section-title {
   margin: 0;
-  color: var(--primary);
+  color: var(--hourx-client-text);
   text-align: center;
-  font-size: 26px;
-  line-height: 1.2;
-  font-weight: 800;
+  font-size: var(--hourx-client-size-section);
+  line-height: 1.25;
+  font-weight: 700;
+  font-family: var(--hourx-client-heading-font);
+  letter-spacing: -0.015em;
 }
 
 .section-subtitle {
   margin: 20px auto 0;
-  color: rgba(15, 23, 42, 0.35);
+  color: var(--hourx-client-muted);
   text-align: center;
-  font-size: 20px;
-  line-height: 1.4;
-  font-weight: 700;
+  font-size: var(--hourx-client-size-body);
+  line-height: 1.55;
+  font-weight: 400;
 }
 
 .section-subtitle--line {
@@ -743,17 +548,17 @@ onBeforeUnmount(() => {
   margin-top: 24px;
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 14px;
+  gap: 24px;
 }
 
 .services-grid__item {
   position: relative;
   min-width: 0;
-  height: 148px;
-  padding: 17px 18px;
+  height: auto;
+  padding: 24px;
   box-sizing: border-box;
   border: 1px solid #e5eaf0;
-  border-radius: 14px;
+  border-radius: 16px;
   overflow: hidden;
   background: #fff;
   display: grid;
@@ -769,6 +574,8 @@ onBeforeUnmount(() => {
     transform 0.22s ease,
     border-color 0.22s ease,
     box-shadow 0.22s ease;
+  min-height: 166px;
+  border-color: var(--hourx-client-border);
 }
 
 .services-grid__item:hover {
@@ -826,11 +633,10 @@ onBeforeUnmount(() => {
   max-height: 42px;
   margin: 1px 0 0;
   overflow: hidden;
-  color: var(--hourx-brand);
-  font-size: 16px;
+  color: var(--hourx-client-text);
+  font-size: var(--hourx-client-size-card);
   line-height: 1.3;
-  font-weight: 700;
-  letter-spacing: -0.02em;
+  font-weight: 600;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
   line-clamp: 2;
@@ -839,14 +645,15 @@ onBeforeUnmount(() => {
 .services-grid__description {
   max-width: 100%;
   margin-top: 6px;
-  color: #738093;
-  font-size: 12px;
-  line-height: 1.5;
+  color: var(--hourx-client-muted);
+  font-size: var(--hourx-client-size-body);
+  line-height: 1.55;
   display: -webkit-box;
   overflow: hidden;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
   line-clamp: 2;
+  font-weight: 400;
 }
 
 .services-grid__link {
@@ -855,10 +662,10 @@ onBeforeUnmount(() => {
   display: inline-flex;
   align-items: center;
   gap: 7px;
-  color: var(--hourx-brand);
-  font-size: 11px;
-  line-height: 1.3;
-  font-weight: 650;
+  color: var(--hourx-client-text);
+  font-size: var(--hourx-client-size-action);
+  line-height: 1;
+  font-weight: 600;
 }
 
 .services-grid__link span {
@@ -899,10 +706,11 @@ onBeforeUnmount(() => {
   justify-content: center;
   gap: 8px;
   font: inherit;
-  font-size: 14px;
-  font-weight: 700;
+  font-size: var(--hourx-client-size-action);
+  font-weight: 600;
   cursor: pointer;
   box-shadow: 0 2px 8px rgba(15, 23, 42, 0.025);
+  line-height: 1;
 }
 
 .services-toggle:hover {
@@ -937,8 +745,23 @@ onBeforeUnmount(() => {
   color: #fff;
 }
 
-.section-subtitle--light {
-  color: #e5eaf1;
+.home-section-label {
+  margin: 0 0 10px;
+  color: var(--hourx-client-accent-ink);
+  font-size: var(--hourx-client-size-label);
+  font-weight: 600;
+  line-height: 1;
+  letter-spacing: 0.12em;
+  text-align: center;
+  text-transform: uppercase;
+}
+
+.home-section-label--light {
+  color: var(--hourx-client-accent);
+}
+
+.booking-step .home-section-label {
+  margin-bottom: 0;
 }
 
 .booking-steps {
@@ -988,17 +811,17 @@ onBeforeUnmount(() => {
 .booking-step h3 {
   margin: 0;
   color: #fff;
-  font-size: 24px;
-  line-height: 32px;
-  font-weight: 700;
+  font-size: var(--hourx-client-size-card);
+  line-height: 1.3;
+  font-weight: 600;
 }
 
 .booking-step p {
   margin: 0;
-  color: rgba(219, 234, 254, 0.8);
-  font-size: 16px;
-  line-height: 26px;
-  font-weight: 500;
+  color: var(--hourx-client-on-dark);
+  font-size: var(--hourx-client-size-action);
+  line-height: 1.55;
+  font-weight: 400;
 }
 
 .trust-section {
@@ -1045,18 +868,18 @@ onBeforeUnmount(() => {
 
 .trust-card h3 {
   margin: 24px 0 0;
-  color: var(--hourx-brand);
-  font-size: 21px;
-  line-height: 1.35;
-  font-weight: 800;
+  color: var(--hourx-client-text);
+  font-size: var(--hourx-client-size-card);
+  line-height: 1.3;
+  font-weight: 600;
 }
 
 .trust-card p {
   margin: 12px 0 0;
-  color: rgba(15, 23, 42, 0.58);
-  font-size: 15px;
-  line-height: 1.65;
-  font-weight: 500;
+  color: var(--hourx-client-muted);
+  font-size: var(--hourx-client-size-action);
+  line-height: 1.55;
+  font-weight: 400;
 }
 
 .final-cta-section {
@@ -1082,16 +905,19 @@ onBeforeUnmount(() => {
 .final-cta__copy h2 {
   margin: 0;
   color: #fff;
-  font-size: 30px;
+  font-size: var(--hourx-client-size-section);
   line-height: 1.25;
-  font-weight: 850;
+  font-weight: 700;
+  font-family: var(--hourx-client-heading-font);
+  letter-spacing: -0.015em;
 }
 
 .final-cta__copy p {
   margin: 10px 0 0;
-  color: rgba(255, 255, 255, 0.72);
-  font-size: 16px;
-  line-height: 1.6;
+  color: var(--hourx-client-on-dark);
+  font-size: var(--hourx-client-size-body);
+  line-height: 1.55;
+  font-weight: 400;
 }
 
 .final-cta__actions {
@@ -1110,9 +936,10 @@ onBeforeUnmount(() => {
   justify-content: center;
   gap: 8px;
   font: inherit;
-  font-size: 14px;
-  font-weight: 800;
+  font-size: var(--hourx-client-size-action);
+  font-weight: 600;
   cursor: pointer;
+  line-height: 1;
 }
 
 .final-cta__button--primary {
@@ -1138,39 +965,9 @@ onBeforeUnmount(() => {
 
 }
 
-@media (max-width: 960px) {
+@media (max-width: 1024px) {
   .home-container {
     width: calc(100% - 32px);
-  }
-
-  .hero-section {
-    width: 100%;
-    height: clamp(410px, 51vw, 500px);
-  }
-
-  .hero-section__actions {
-    margin-top: 22px;
-  }
-
-  .hero-section__content {
-    width: min(560px, calc(100% - 48px));
-    margin-left: 24px;
-  }
-
-  .hero-section__content h1 {
-    font-size: clamp(38px, 6vw, 52px);
-  }
-
-  .hero-section__action {
-    min-width: 136px;
-    height: 48px;
-    padding: 0 22px;
-    border-radius: 12px;
-    font-size: 15px;
-  }
-
-  .section-title {
-    font-size: 26px;
   }
 
   .section-subtitle {
@@ -1231,10 +1028,6 @@ onBeforeUnmount(() => {
     gap: 16px;
   }
 
-  .booking-step h3 {
-    font-size: 24px;
-  }
-
   .trust-grid {
     grid-template-columns: 1fr;
     gap: 16px;
@@ -1256,9 +1049,6 @@ onBeforeUnmount(() => {
   }
 
   .contact-card {
-    width: 136px;
-    height: 96px;
-    padding: 6px;
     right: 16px;
     bottom: 16px;
     cursor: pointer;
@@ -1272,14 +1062,6 @@ onBeforeUnmount(() => {
 
   .services-section {
     padding: 32px 0;
-  }
-
-  .home-intro h2 {
-    font-size: 25px;
-  }
-
-  .home-intro__description {
-    font-size: 12px;
   }
 
   .services-grid {
@@ -1307,10 +1089,6 @@ onBeforeUnmount(() => {
   .final-cta {
     padding: 28px 22px;
     border-radius: 20px;
-  }
-
-  .final-cta__copy h2 {
-    font-size: 24px;
   }
 
   .final-cta__actions {

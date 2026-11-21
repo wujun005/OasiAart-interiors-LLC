@@ -36,7 +36,6 @@ const handleClick = (item: Crumb) => {
   align-items: center;
   height: 40px;
   line-height: 40px;
-  font-family: PingFangSC-Regular;
   font-weight: 400;
   font-size: 14px;
   color: #000000e6;

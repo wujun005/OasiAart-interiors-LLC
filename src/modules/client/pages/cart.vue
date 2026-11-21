@@ -4,9 +4,9 @@
       <header class="cart-page__header">
         <div>
           <h1>{{ t('client.cart.title') }}</h1>
-          <p>{{ t('client.cart.subtitle') }}</p>
+          <p v-if="items.length">{{ t('client.cart.subtitle') }}</p>
         </div>
-        <RouterLink class="cart-page__browse" :to="{ path: '/', hash: '#services' }">
+        <RouterLink v-if="items.length" class="cart-page__browse" :to="{ path: '/', hash: '#services' }">
           {{ t('client.cart.browseServices') }}
           <el-icon><ArrowRight /></el-icon>
         </RouterLink>
@@ -215,6 +215,7 @@ import { ArrowRight, ShoppingCart } from '@element-plus/icons-vue';
 import fallbackImage from '@/assets/images/client/kv.png';
 import { useCart, type CartItem, type CartLocalizedText } from '@/modules/client/composables/useCart';
 import { checkoutCart } from '@/modules/client/api';
+import { trackInitiateCheckout } from '@/modules/client/utils/metaPixel';
 import StripePaymentModal from '@/modules/client/components/StripePaymentModal.vue';
 import AgreementDialog from '@/modules/client/components/agreement-dialog.vue';
 import BookingPolicyDetails from '@/modules/client/components/booking-policy-details.vue';
@@ -412,6 +413,14 @@ const confirmCheckout = async () => {
     };
     const approvalUrl = String(payment?.approvalUrl || '').trim();
     const clientSecret = String(payment?.clientSecret || '').trim();
+    if (approvalUrl || clientSecret) {
+      trackInitiateCheckout({
+        contentIds: result?.orderIds,
+        contentName: checkoutSummary.value.service,
+        value: result?.totalAmount || checkoutTotal.value,
+        numItems: checkoutItems.value.length,
+      });
+    }
     if (approvalUrl) {
       window.location.href = approvalUrl;
       return;
@@ -458,14 +467,14 @@ onMounted(async () => {
 
 <style scoped lang="scss">
 .cart-page {
-  min-height: calc(100vh - 96px);
-  padding: 38px 24px 76px;
-  background: #f4f7fb;
-  color: #05152b;
+  min-height: calc(100vh - 72px);
+  padding: 48px 24px 80px;
+  background: var(--hourx-client-canvas);
+  color: var(--hourx-client-text);
 }
 
 .cart-container {
-  width: min(1240px, 100%);
+  width: min(1152px, 100%);
   margin: 0 auto;
 }
 
@@ -478,14 +487,14 @@ onMounted(async () => {
 }
 
 .cart-page__header h1 {
-  margin: 7px 0 8px;
-  font-size: clamp(30px, 4vw, 44px);
-  line-height: 1.1;
+  margin: 0;
+  font: 700 var(--hourx-client-size-page)/1.2 var(--hourx-client-heading-font);
+  letter-spacing: -0.02em;
 }
 
 .cart-page__header p {
   margin: 0;
-  color: #718095;
+  color: var(--hourx-client-muted);
   font-size: 15px;
 }
 
@@ -494,7 +503,7 @@ onMounted(async () => {
   align-items: center;
   gap: 7px;
   padding: 10px 0;
-  color: #1769c2;
+  color: var(--hourx-client-text);
   font-size: 14px;
   font-weight: 800;
   text-decoration: none;
@@ -530,7 +539,7 @@ onMounted(async () => {
   padding: 0 2px;
   border: 0;
   background: transparent;
-  color: #05152b;
+  color: var(--hourx-client-text);
   font: inherit;
   font-size: 16px;
   font-weight: 900;
@@ -543,13 +552,13 @@ onMounted(async () => {
   left: 0;
   height: 3px;
   border-radius: 99px 99px 0 0;
-  background: #1769c2;
+  background: var(--hourx-client-text);
   content: '';
 }
 
 .cart-tab span {
   margin-left: 5px;
-  color: #1769c2;
+  color: var(--hourx-client-text);
 }
 
 .cart-group {
@@ -579,7 +588,7 @@ onMounted(async () => {
   align-items: center;
   justify-content: center;
   border-radius: 8px;
-  background: #05152b;
+  background: var(--hourx-client-text);
   color: #fff;
   font-size: 13px;
   font-weight: 900;
@@ -672,7 +681,7 @@ onMounted(async () => {
 .cart-item__category {
   display: inline-block;
   margin-bottom: 5px;
-  color: #1769c2;
+  color: var(--hourx-client-text);
   font-size: 11px;
   font-weight: 900;
   letter-spacing: 0.04em;
@@ -681,7 +690,7 @@ onMounted(async () => {
 
 .cart-item__title {
   display: block;
-  color: #05152b;
+  color: var(--hourx-client-text);
   font-size: 15px;
   font-weight: 900;
   line-height: 1.45;
@@ -689,7 +698,7 @@ onMounted(async () => {
 }
 
 .cart-item__title:hover {
-  color: #1769c2;
+  color: var(--hourx-client-text);
 }
 
 .cart-item__spec,
@@ -721,7 +730,7 @@ onMounted(async () => {
 
 .cart-item__price {
   text-align: center;
-  color: #1769c2;
+  color: var(--hourx-client-text);
   font-size: 15px;
   font-weight: 800;
 }
@@ -747,7 +756,7 @@ onMounted(async () => {
 }
 
 .cart-item__actions a:hover {
-  color: #1769c2;
+  color: var(--hourx-client-text);
 }
 
 .cart-item__actions button:hover {
@@ -840,7 +849,7 @@ onMounted(async () => {
 }
 
 .cart-summary__breakdown .is-total dd {
-  color: #1769c2;
+  color: var(--hourx-client-text);
   font-size: 18px;
 }
 
@@ -854,7 +863,7 @@ onMounted(async () => {
   gap: 2px;
   border: 0;
   border-radius: 14px;
-  background: #05152b;
+  background: var(--hourx-client-text);
   color: #fff;
   font: inherit;
   font-size: 15px;
@@ -873,34 +882,33 @@ onMounted(async () => {
 }
 
 .cart-empty {
-  padding: 78px 24px;
-  border: 1px solid #e1e7ef;
-  border-radius: 20px;
+  padding: 72px 24px;
+  border: 1px solid var(--hourx-client-border);
+  border-radius: 16px;
   background: #fff;
-  box-shadow: 0 14px 38px rgb(5 21 43 / 6%);
   text-align: center;
 }
 
 .cart-empty__icon {
   display: inline-flex;
-  width: 84px;
-  height: 84px;
+  width: 88px;
+  height: 88px;
   align-items: center;
   justify-content: center;
   border-radius: 50%;
-  background: #edf4fb;
-  color: #1769c2;
-  font-size: 38px;
+  background: #f1eee8;
+  color: var(--hourx-client-text);
+  font-size: 36px;
 }
 
 .cart-empty h2 {
-  margin: 22px 0 8px;
-  font-size: 24px;
+  margin: 20px 0 14px;
+  font: 700 1.5rem/1.2 var(--hourx-client-heading-font);
 }
 
 .cart-empty p {
   margin: 0;
-  color: #778498;
+  color: var(--hourx-client-muted);
 }
 
 .cart-empty > div {
@@ -916,20 +924,19 @@ onMounted(async () => {
   padding: 12px 18px;
   border: 1px solid #05152b;
   border-radius: 11px;
-  font: inherit;
-  font-weight: 800;
+  font: 600 var(--hourx-client-size-action)/1.6 var(--hourx-client-font-family);
   text-decoration: none;
   cursor: pointer;
 }
 
 .cart-empty a {
-  background: #05152b;
+  background: var(--hourx-client-text);
   color: #fff;
 }
 
 .cart-empty button {
   background: #fff;
-  color: #05152b;
+  color: var(--hourx-client-text);
 }
 
 .checkout-dialog__intro {
@@ -975,7 +982,7 @@ onMounted(async () => {
 .checkout-dialog__total > div:last-child {
   padding-top: 10px;
   border-top: 1px solid #e4e9f0;
-  color: #05152b;
+  color: var(--hourx-client-text);
   font-size: 16px;
   font-weight: 900;
 }
@@ -992,7 +999,7 @@ onMounted(async () => {
 
 .dialog-primary {
   border: 1px solid #05152b;
-  background: #05152b;
+  background: var(--hourx-client-text);
   color: #fff;
 }
 
@@ -1005,8 +1012,8 @@ onMounted(async () => {
 
 :deep(.el-checkbox__input.is-checked .el-checkbox__inner),
 :deep(.el-checkbox__input.is-indeterminate .el-checkbox__inner) {
-  border-color: #1769c2;
-  background-color: #1769c2;
+  border-color: var(--hourx-client-text);
+  background-color: var(--hourx-client-text);
 }
 
 @media (max-width: 980px) {

@@ -19,11 +19,10 @@
     <section class="service-body">
       <div class="service-container">
         <article class="service-hero">
-          <img class="service-hero__bg" :src="heroImage" alt="" />
-          <div class="service-hero__mask" />
           <div class="service-hero__content">
-            <h1>{{ heroTitle }}</h1>
-            <p>{{ heroDesc }}</p>
+            <span v-if="heroTitle !== pageTitle" class="service-hero__eyebrow">{{ pageTitle }}</span>
+          <h1>{{ heroTitle }}</h1>
+            <p v-if="heroDesc">{{ heroDesc }}</p>
             <div class="service-hero__tags">
               <span
                 v-for="(tag, index) in heroTags"
@@ -33,6 +32,9 @@
                 {{ tag.label }}
               </span>
             </div>
+          </div>
+          <div v-if="categoryImage && !isSearchMode" class="service-hero__icon" aria-hidden="true">
+            <img :src="categoryImage" alt="" />
           </div>
         </article>
 
@@ -47,7 +49,10 @@
             {{ locale === "zh" ? "正在查找服务…" : "Searching for services…" }}
           </p>
         </div>
-        <section v-else-if="serviceCards.length" class="service-grid">
+        <section
+          v-else-if="serviceCards.length"
+          class="service-grid"
+        >
           <article
             v-for="item in serviceCards"
             :key="item.key"
@@ -61,16 +66,28 @@
           >
             <div class="service-card__media">
               <img :src="item.icon" :alt="item.title" />
+              <ul v-if="item.tags.length" class="service-card__tags" role="list">
+                <li v-for="tag in item.tags.slice(0, 3)" :key="tag" :title="tag">{{ tag }}</li>
+                <li
+                  v-if="item.tags.length > 3"
+                  class="service-card__tag-count"
+                  :title="item.tags.slice(3).join(' · ')"
+                >
+                  +{{ item.tags.length - 3 }}
+                </li>
+              </ul>
             </div>
             <div class="service-card__body">
-              <h3>{{ item.title }}</h3>
-              <div v-if="item.tags.length" class="biz-tags">
-                <span v-for="tag in item.tags" :key="tag">{{ tag }}</span>
+              <div class="service-card__heading">
+                <h3 :title="item.title">{{ item.title }}</h3>
               </div>
-              <p class="service-card__price">{{ item.price }}</p>
-              <button type="button" @click.stop="goProductDetail(item.spuId)">
-                {{ t("client.serviceList.card.bookNow") }}
-              </button>
+              <p v-if="item.description" class="service-card__description">{{ item.description }}</p>
+              <div class="service-card__foot">
+                <p class="service-card__price">{{ item.price }}</p>
+                <button type="button" @click.stop="goProductDetail(item.spuId)">
+                  {{ t("client.serviceList.card.bookNow") }}
+                </button>
+              </div>
             </div>
           </article>
         </section>
@@ -84,6 +101,7 @@
 
 <script setup lang="ts">
 import { computed, ref, watch } from "vue"
+import { toPlainText } from "@/modules/client/utils/plain-text"
 import { bizTagLabels } from "@/modules/client/utils/biz-tag"
 import { useI18n } from "vue-i18n"
 import { type LocationQueryValue, useRoute, useRouter } from "vue-router"
@@ -99,13 +117,12 @@ type ServiceCardView = {
   key: string
   spuId: string
   title: string
+  description: string
   price: string
   icon: string
   tags: string[]
 }
 
-const heroImage =
-  "https://www.figma.com/api/mcp/asset/9940165e-0acb-4e47-a159-467533923434"
 const tagIconCertified = new URL(
   "@/assets/images/client/icon10.png",
   import.meta.url,
@@ -242,6 +259,8 @@ const pageTitle = computed(() => {
   )
 })
 
+const categoryImage = computed(() => selectedLevel1.value?.imageUrls?.[0])
+
 const heroTitle = computed(() =>
   pickI18nValue(selectedLevel1.value?.bannerTitleI18n, pageTitle.value),
 )
@@ -288,6 +307,7 @@ const serviceCards = computed<ServiceCardView[]>(() => {
         key: String(item.id ?? `service-${index + 1}`),
         spuId: String(item.id ?? ""),
         title: pickI18nValue(item.nameI18n, ""),
+        description: toPlainText(pickI18nValue(item.descI18n, "")),
         price: formatPrice(item.minNotIncTaxPrice),
         icon: item.imageUrls?.[0] || cardIconSet[index % cardIconSet.length],
         tags: bizTagLabels(item.tags, locale.value),
@@ -392,32 +412,30 @@ const goProductDetail = (spuId: string) => {
 
 <style scoped lang="scss">
 .service-page {
-  background: #f8fafc;
+  background: var(--hourx-client-canvas);
   min-height: 100%;
 }
 
 .service-container {
-  width: min(1280px, calc(100% - 48px));
+  width: min(1200px, calc(100% - 48px));
   margin: 0 auto;
 }
 
 .service-subheader {
-  height: 64px;
-  background: #fff;
-  border-top: 1px solid #f3f4f6;
-  border-bottom: 1px solid #e5e7eb;
+  height: auto;
+  background: transparent;
 }
 
 .service-back {
-  height: 64px;
+  height: auto;
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  color: rgba(15, 23, 42, 0.78);
-  font-size: 17px;
+  color: var(--hourx-client-muted);
+  font-size: 0.8125rem;
   line-height: 1;
-  font-weight: 600;
-  padding: 0;
+  font-weight: 500;
+  padding: 24px 0 16px;
 }
 
 .service-back__link {
@@ -437,68 +455,80 @@ const goProductDetail = (spuId: string) => {
 }
 
 .service-back__current {
-  color: rgba(15, 23, 42, 0.88);
+  color: var(--hourx-client-text);
   font-size: inherit;
   line-height: 1;
-  font-weight: 700;
+  font-weight: 600;
 }
 
 .service-body {
-  padding: 18px 0 48px;
+  padding: 0 0 var(--hourx-client-section-space);
 }
 
 .service-hero {
   position: relative;
-  border-radius: 16px;
+  border-radius: 20px;
   overflow: hidden;
-  min-height: 248px;
-  box-shadow:
-    0 10px 15px -3px rgba(0, 0, 0, 0.1),
-    0 4px 6px -4px rgba(0, 0, 0, 0.1);
-}
-
-.service-hero__bg {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  opacity: 0.2;
-}
-
-.service-hero__mask {
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(
-    90deg,
-    var(--hourx-brand) 0%,
-    rgba(5, 21, 43, 0.8) 50%,
-    rgba(0, 0, 0, 0) 100%
-  );
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: linear-gradient(rgb(184 154 114 / 8%) 1px, transparent 1px), linear-gradient(90deg, rgb(184 154 114 / 8%) 1px, transparent 1px), var(--hourx-client-text);
+  background-size: 48px 48px;
 }
 
 .service-hero__content {
   position: relative;
   z-index: 1;
   // min-height: 248px;
-  padding: 46px 32px;
+  padding: 40px;
+  max-width: 760px;
+}
+
+.service-hero__eyebrow {
+  display: block;
+  margin-bottom: 12px;
+  color: var(--hourx-client-accent);
+  font-size: var(--hourx-client-size-label);
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.service-hero__icon {
+  display: grid;
+  place-items: center;
+  flex: 0 0 120px;
+  height: 120px;
+  margin-right: 40px;
+  border: 1px solid rgb(184 154 114 / 30%);
+  border-radius: 24px;
+  background: rgb(184 154 114 / 10%);
+}
+
+.service-hero__icon img {
+  width: 58px;
+  height: 58px;
+  border-radius: 10px;
+  object-fit: contain;
 }
 
 .service-hero__content h1 {
   margin: 0;
   color: #fff;
-  font-size: 26px;
+  font-size: var(--hourx-client-size-page);
   line-height: 1.2;
-  font-weight: 900;
+  font-weight: 700;
+  font-family: var(--hourx-client-heading-font);
+  letter-spacing: -0.02em;
 }
 
 .service-hero__content p {
   margin: 16px 0 0;
   width: min(1060px, 100%);
-  color: #e5eaf1;
-  font-size: 20px;
-  line-height: 1.45;
-  font-weight: 500;
+  color: var(--hourx-client-on-dark);
+  font-size: var(--hourx-client-size-body);
+  line-height: 1.55;
+  font-weight: 400;
 }
 
 .service-hero__tags {
@@ -510,14 +540,14 @@ const goProductDetail = (spuId: string) => {
 }
 
 .service-hero__tags span {
-  height: 38px;
-  padding: 0 17px;
+  height: 32px;
+  padding: 0 10px;
   border-radius: 999px;
   border: 1px solid rgba(255, 255, 255, 0.1);
   background: rgba(255, 255, 255, 0.1);
-  color: #fff;
-  font-size: 14px;
-  font-weight: 700;
+  color: var(--hourx-client-on-dark);
+  font-size: 0.8125rem;
+  font-weight: 600;
   display: inline-flex;
   align-items: center;
   gap: 8px;
@@ -574,16 +604,15 @@ const goProductDetail = (spuId: string) => {
 }
 
 .service-grid {
-  margin-top: 22px;
+  margin-top: 24px;
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 32px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 24px;
 }
 
 .service-card {
   display: flex;
   flex-direction: column;
-  height: 100%;
   border: 1px solid #f3f4f6;
   background: #fff;
   border-radius: 16px;
@@ -593,6 +622,7 @@ const goProductDetail = (spuId: string) => {
     transform 180ms ease,
     border-color 180ms ease,
     box-shadow 180ms ease;
+  border-color: var(--hourx-client-border);
 }
 
 .service-card:hover {
@@ -612,13 +642,64 @@ const goProductDetail = (spuId: string) => {
 
 .service-card__media {
   position: relative;
-  height: 184px;
+  flex: none;
+  overflow: hidden;
+  background: var(--hourx-brand-soft);
+  height: 180px;
 }
 
 .service-card__media img {
+  display: block;
   width: 100%;
   height: 100%;
   object-fit: cover;
+}
+
+.service-card__tags {
+  position: absolute;
+  inset-inline-start: 12px;
+  bottom: 12px;
+  display: grid;
+  gap: 3px;
+  box-sizing: border-box;
+  width: max-content;
+  max-width: calc(100% - 24px);
+  margin: 0;
+  padding: 7px 10px;
+  border: 1px solid rgb(255 255 255 / 22%);
+  border-radius: 9px;
+  background: rgb(5 21 43 / 89%);
+  color: #fff;
+  box-shadow: 0 3px 12px rgb(5 21 43 / 24%);
+  backdrop-filter: blur(8px);
+  list-style: none;
+}
+
+.service-card__tags li {
+  position: relative;
+  min-width: 0;
+  overflow: hidden;
+  padding-inline-start: 11px;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.4;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.service-card__tags li:not(.service-card__tag-count)::before {
+  content: "";
+  position: absolute;
+  inset-inline-start: 0;
+  top: 0.48em;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: #82e1c5;
+}
+
+.service-card__tag-count {
+  color: #bbd0e1;
 }
 
 .service-card__body {
@@ -626,83 +707,48 @@ const goProductDetail = (spuId: string) => {
   flex: 1;
   flex-direction: column;
   padding: 24px;
-  text-align: center;
+  text-align: start;
+  gap: 8px;
 }
 
-.biz-tags {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: 6px;
-  margin-top: 10px;
-}
-.biz-tags span {
-  padding: 2px 8px;
-  border-radius: 999px;
-  background: #f6f1e7;
-  color: #6d5428;
-  font-size: 12px;
-  font-weight: 700;
-  line-height: 1.5;
-}
 .service-card__body h3 {
   margin: 0;
-  min-height: 44px;
-  display: flex;
-  align-items: flex-end;
-  justify-content: center;
-  font-size: 17px;
-  line-height: 22px;
-  font-weight: 800;
+  display: -webkit-box;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  font-size: var(--hourx-client-size-card);
+  line-height: 1.3;
+  font-weight: 600;
 }
 
 .service-card__price {
-  margin: 8px 0 0;
+  margin: 0;
   color: var(--hourx-brand);
-  text-align: center;
-  font-size: 14px;
-  line-height: 20px;
+  text-align: start;
+  font-size: 1.125rem;
+  line-height: 1.2;
   font-weight: 700;
 }
 
 .service-card__body button {
-  margin-top: 12px;
-  width: 100%;
-  height: 48px;
+  margin-top: auto;
+  width: auto;
+  min-height: 44px;
   border: none;
-  border-radius: 10px;
+  border-radius: 12px;
   background: var(--hourx-brand);
   color: #fff;
-  font-size: 14px;
-  font-weight: 700;
+  font-size: var(--hourx-client-size-action);
+  font-weight: 600;
   cursor: pointer;
-}
-
-@media (max-width: 1260px) {
-  .service-grid {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
-
-  .service-hero__content h1 {
-    font-size: 34px;
-  }
-
-  .service-hero__content p {
-    font-size: 18px;
-  }
-
-  .service-card__body h3 {
-    font-size: 17px;
-  }
+  padding: 0 14px;
 }
 
 @media (max-width: 960px) {
   .service-container {
     width: calc(100% - 32px);
-  }
-
-  .service-back {
-    font-size: 16px;
   }
 
   .service-grid {
@@ -711,26 +757,12 @@ const goProductDetail = (spuId: string) => {
 }
 
 @media (max-width: 680px) {
-  .service-subheader,
-  .service-back {
-    height: 56px;
-  }
-
-  .service-body {
-    padding-top: 14px;
+  .service-hero__icon {
+    display: none;
   }
 
   .service-hero__content {
     padding: 24px 18px;
-  }
-
-  .service-hero__content h1 {
-    font-size: 26px;
-  }
-
-  .service-hero__content p {
-    font-size: 15px;
-    margin-top: 12px;
   }
 
   .service-grid {
@@ -738,8 +770,27 @@ const goProductDetail = (spuId: string) => {
     gap: 20px;
   }
 
-  .service-card__body h3 {
-    font-size: 16px;
-  }
+}
+
+.service-card__description {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  margin: 0;
+  color: var(--hourx-client-muted);
+  font-size: var(--hourx-client-size-action);
+  line-height: 1.55;
+}
+
+.service-card__foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: auto;
+  padding-top: 12px;
+  border-top: 1px solid var(--hourx-client-border);
 }
 </style>

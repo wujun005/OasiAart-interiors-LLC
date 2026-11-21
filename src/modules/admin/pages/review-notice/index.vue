@@ -155,7 +155,7 @@ onMounted(() => {
 
 <style scoped>
 .review-page { color: #1c2433; }
-.review-page__head h1 { margin: 0 0 6px; color: #05152b; font-family: Georgia, serif; font-size: 28px; font-weight: 500; }
+.review-page__head h1 { margin: 0 0 6px; color: #05152b; font-size: 28px; font-weight: 500; }
 .review-page__head p { margin: 0 0 16px; color: #6d7686; }
 .board { padding: 14px; background: #fff; border: 1px solid #e7ebf2; border-radius: 14px; }
 .review-tabs { display: flex; gap: 8px; margin-bottom: 12px; }

@@ -44,7 +44,6 @@
     height: 21px;
   }
   .desc {
-    font-family: PingFangSC-Regular;
     font-weight: 400;
     font-size: 14px;
     color: #ffffffe6;

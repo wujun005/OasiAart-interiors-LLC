@@ -1,9 +1,11 @@
 <template>
   <div class="apply">
     <header class="apply-hero">
-      <p>HourX</p>
-      <h1>{{ copy.title }}</h1>
-      <span>{{ copy.lead }}</span>
+      <div class="apply-hero__inner">
+        <p>HourX</p>
+        <h1>{{ copy.title }}</h1>
+        <span>{{ copy.lead }}</span>
+      </div>
     </header>
 
     <div v-if="done" class="apply-sheet apply-done">
@@ -16,11 +18,6 @@
 
     <form v-else class="apply-sheet" @submit.prevent="submit">
       <p class="apply-legend">{{ copy.requiredHint }}</p>
-      <div class="apply-channel" role="radiogroup" :aria-label="copy.channelLabel">
-        <button type="button" role="radio" :aria-checked="form.supplierType === 1" :class="{ 'is-on': form.supplierType === 1 }" @click="form.supplierType = 1">{{ copy.channelCompany }}</button>
-        <button type="button" role="radio" :aria-checked="form.supplierType === 2" :class="{ 'is-on': form.supplierType === 2 }" @click="form.supplierType = 2">{{ copy.channelIndividual }}</button>
-      </div>
-      <p class="apply-channel__hint">{{ individual ? copy.individualLead : copy.lead }}</p>
 
       <section class="apply-block">
         <h2>{{ individual ? copy.stepPerson : copy.stepCompany }}</h2>
@@ -66,9 +63,24 @@
               />
             </el-config-provider>
           </label>
-          <label><span>{{ copy.vat }}</span><input v-model="form.vatTrn" /></label>
+          <label><span>{{ copy.vat }}</span><input v-model="form.vatTrn" maxlength="128" /></label>
           <label><span>{{ copy.years }}</span><input :value="wholeText(form.yearsInBusiness)" inputmode="numeric" @input="form.yearsInBusiness = wholeNumber(($event.target as HTMLInputElement).value)" /></label>
           <label class="span-2"><span>{{ copy.address }}<i class="req">*</i></span><input v-model="form.officeAddress" required /></label>
+        </div>
+        <div v-if="form.vatTrn.trim()" class="tax-files">
+          <span>{{ copy.taxFile }}<i class="req">*</i></span>
+          <small>{{ copy.taxFileHint }}</small>
+          <ul v-if="vatFiles.length" class="file-list">
+            <li v-for="(file, index) in vatFiles" :key="`${file.url}-${index}`">
+              <span>{{ file.name }}</span>
+              <button type="button" @click="removeVatFile(index)">{{ copy.removeFile }}</button>
+            </li>
+          </ul>
+          <label class="file-pick" :class="{ 'is-done': vatFiles.length }">
+            <input type="file" accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png" multiple :disabled="vatUploading" @change="onVatFiles" />
+            <span class="file-pick__btn">{{ vatUploading ? copy.uploading : (vatFiles.length ? copy.addFiles : copy.uploadTax) }}</span>
+            <span class="file-pick__meta">{{ copy.fileTypes }}</span>
+          </label>
         </div>
       </section>
 
@@ -174,7 +186,7 @@
 
       <p v-if="errorText" class="apply-error">{{ errorText }}</p>
       <footer class="apply-actions">
-        <button class="primary" type="submit" :disabled="saving">{{ saving ? copy.saving : copy.submit }}</button>
+        <button class="primary" type="submit" :disabled="saving || vatUploading">{{ saving ? copy.saving : copy.submit }}</button>
       </footer>
     </form>
   </div>
@@ -185,7 +197,7 @@ import { computed, onMounted, reactive, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import elLocaleEn from 'element-plus/es/locale/lang/en';
 import elLocaleZhCn from 'element-plus/es/locale/lang/zh-cn';
-import { categoryIdPayload, isOtherService, listServiceCategories, serviceCategoryLabel, submitOnboarding, type ServiceCategoryOption } from '@/modules/client/api/supplier-onboarding';
+import { categoryIdPayload, isOtherService, listServiceCategories, serviceCategoryLabel, submitOnboarding, uploadOnboardingFile, type ServiceCategoryOption } from '@/modules/client/api/supplier-onboarding';
 import { DEFAULT_PHONE_DIAL, PHONE_DIAL_OPTIONS, joinPhone, nationalNumberOk, phoneDialLabel } from '@/utils/phone-dial';
 
 type Bit = 0 | 1 | null;
@@ -202,6 +214,10 @@ const categoriesError = ref('');
 const selectedIds = ref<string[]>([]);
 const expectedServiceRemark = ref('');
 const whatsappSame = ref(false);
+const vatFiles = ref<Array<{ name: string; url: string }>>([]);
+const vatUploading = ref(false);
+const VAT_FILE_LIMIT = 20;
+const VAT_FILE_BYTES = 20 * 1024 * 1024;
 const individual = computed(() => form.supplierType === 2);
 const otherSelected = computed(() => categories.value.some((option) => selectedIds.value.includes(option.categoryId) && isOtherService(option)));
 
@@ -255,7 +271,7 @@ const copy = computed(() =>
   isZh.value
     ? {
         title: '服务伙伴注册',
-        lead: '可以选择企业入驻或个人入驻，提交后进入审核。',
+        lead: '填写公司资料并提交，我们会审核。',
         channelLabel: '入驻类型',
         channelCompany: '企业入驻',
         channelIndividual: '个人入驻',
@@ -276,6 +292,10 @@ const copy = computed(() =>
         licenseHint: '营业执照日期不可低于当前日期',
         datePlaceholder: '请选择日期',
         vat: 'VAT / TRN 号码（如有）',
+        taxFile: '税务文件',
+        taxFileHint: '填写了税号时，请至少上传一份税务文件。',
+        taxFileRequired: '填写了税号时请至少上传一份税务文件',
+        uploadTax: '上传税务文件',
         years: '您的公司经营多少年了？',
         address: '办公地址',
         contact: '联系人',
@@ -330,7 +350,7 @@ const copy = computed(() =>
       }
     : {
         title: 'Service Partner Registration',
-        lead: 'Apply as a company or as an individual. We review every application.',
+        lead: 'Applications are reviewed by the HourX team before access is granted.',
         channelLabel: 'Application type',
         channelCompany: 'Company',
         channelIndividual: 'Individual',
@@ -351,6 +371,10 @@ const copy = computed(() =>
         licenseHint: 'The business license expiration date must be later than today',
         datePlaceholder: 'Select a date',
         vat: 'VAT / TRN number (if you have one)',
+        taxFile: 'Tax document',
+        taxFileHint: 'If you enter a VAT / TRN, upload at least one tax document.',
+        taxFileRequired: 'Please attach at least one tax document when VAT / TRN is provided',
+        uploadTax: 'Upload tax document',
         years: 'How many years have you been in business?',
         address: 'Office address',
         contact: 'Contact person',
@@ -492,11 +516,48 @@ const individualReady = () => Boolean(
   && contactReady(),
 );
 
+const removeVatFile = (index: number) => {
+  vatFiles.value = vatFiles.value.filter((_, item) => item !== index);
+};
+const onVatFiles = async (event: Event) => {
+  const input = event.target as HTMLInputElement;
+  const picked = Array.from(input.files || []);
+  input.value = '';
+  if (!picked.length || vatUploading.value) return;
+  if (vatFiles.value.length + picked.length > VAT_FILE_LIMIT) {
+    errorText.value = copy.value.fileLimit;
+    return;
+  }
+  const oversized = picked.find((file) => file.size > VAT_FILE_BYTES);
+  const unsupported = picked.find((file) => !/\.(pdf|jpe?g|png)$/i.test(file.name));
+  if (oversized) {
+    errorText.value = copy.value.fileSize;
+    return;
+  }
+  if (unsupported) {
+    errorText.value = copy.value.fileTypes;
+    return;
+  }
+  vatUploading.value = true;
+  errorText.value = '';
+  try {
+    const uploaded: Array<{ name: string; url: string }> = [];
+    for (const file of picked) {
+      uploaded.push({ name: file.name, url: await uploadOnboardingFile(file) });
+    }
+    vatFiles.value = [...vatFiles.value, ...uploaded];
+  } catch (error) {
+    errorText.value = error instanceof Error ? error.message : copy.value.required;
+  } finally {
+    vatUploading.value = false;
+  }
+};
 const sharedPayload = () => ({
   mobile: joinPhone(form.mobileCode, form.mobile),
   whatsapp: joinPhone(form.whatsappCode, form.whatsapp),
   email: form.email.trim(),
   vatTrn: form.vatTrn.trim() || null,
+  vatTrnFile: form.vatTrn.trim() ? vatFiles.value.map((file) => file.url) : null,
   yearsInBusiness: form.yearsInBusiness,
   totalAvailableWorkers: individual.value ? null : form.totalAvailableWorkers,
   workingHours: `${form.workStart}-${form.workEnd}`,
@@ -515,11 +576,14 @@ const submit = async () => {
   const uniformReady = form.wearUniform === 0 || form.wearUniform === 1
   const noteReady = individual.value || form.otherCommunityOnboarded !== 1 || Boolean(form.applyRenmark.trim())
   const identityReady = individual.value ? individualReady() : companyReady()
-  if (!identityReady || !bits || !uniformReady || !noteReady || !form.workStart || !form.workEnd) {
+  const taxReady = !form.vatTrn.trim() || vatFiles.value.length > 0
+  if (vatUploading.value) return
+  if (!identityReady || !bits || !uniformReady || !noteReady || !form.workStart || !form.workEnd || !taxReady) {
     if (individual.value && form.dateOfBirth && !birthNotFuture(form.dateOfBirth)) errorText.value = copy.value.birthHint;
     else if (!individual.value && form.licenseExpiry && !licenseAfterToday(form.licenseExpiry)) errorText.value = copy.value.licenseHint;
     else if ((form.mobile.trim() || form.whatsapp.trim()) && (!phoneOk(form.mobile) || !phoneOk(form.whatsapp))) errorText.value = copy.value.phone;
     else if (!noteReady) errorText.value = copy.value.communityNoteRequired;
+    else if (!taxReady) errorText.value = copy.value.taxFileRequired;
     else errorText.value = copy.value.required;
     return;
   }
@@ -558,99 +622,118 @@ const submit = async () => {
 
 <style scoped>
 .apply, .apply *, .apply *::before, .apply *::after { box-sizing: border-box; }
-.apply { min-height: 100%; background: #f4f1eb; color: #05152b; }
-.apply-hero { padding: 36px 28px 28px; background: #05152b; color: #f7f1e6; }
-.apply-hero p { margin: 0 0 8px; color: #e8c27a; font-size: 12px; font-weight: 700; letter-spacing: .16em; text-transform: uppercase; }
-.apply-hero h1 { margin: 0; font-family: Georgia, "Times New Roman", serif; font-size: 40px; font-weight: 500; letter-spacing: -.03em; }
-.apply-hero span { display: block; max-width: 640px; margin-top: 10px; color: #d9d1c5; }
-.apply-sheet { width: min(980px, calc(100% - 32px)); margin: -18px auto 48px; padding: 22px; background: #fffdf8; border: 1px solid #e4d8c6; border-radius: 22px; }
+.apply { min-height: 100%; background: var(--hourx-client-canvas); color: var(--hourx-client-text); }
+.apply-hero {
+  padding: 48px 24px;
+  color: #fff;
+  background-color: var(--hourx-client-text);
+  background-image:
+    linear-gradient(rgb(184 154 114 / 6%) 1px, transparent 1px),
+    linear-gradient(90deg, rgb(184 154 114 / 6%) 1px, transparent 1px);
+  background-size: 48px 48px;
+}
+.apply-hero__inner { width: min(100%, 980px); margin: 0 auto; }
+.apply-hero p { margin: 0 0 8px; color: var(--hourx-client-accent); font-size: var(--hourx-client-size-label); font-weight: 600; letter-spacing: .16em; text-transform: uppercase; }
+.apply-hero h1 { margin: 0; font: 700 var(--hourx-client-size-page)/1.2 var(--hourx-client-heading-font); letter-spacing: -.02em; }
+.apply-hero span { display: block; max-width: 640px; margin-top: 10px; color: var(--hourx-client-on-dark); }
+.apply-sheet { width: min(980px, calc(100% - 48px)); margin: 32px auto 0; padding-bottom: 48px; }
 .yes-no button, .apply-actions button, .file-pick { font: inherit; }
-.apply-legend { margin: 0 0 16px; color: #5c564c; font-size: 13px; font-weight: 650; }
+.apply-legend { margin: 0 0 16px; color: var(--hourx-client-muted); font-size: .8125rem; font-weight: 600; }
 .apply-channel { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-.apply-channel button { min-height: 46px; border: 1px solid #e4d8c6; border-radius: 12px; background: #fff; color: #05152b; font: inherit; font-weight: 750; cursor: pointer; }
-.apply-channel button.is-on { border-color: #05152b; background: #05152b; color: #fff; }
-.apply-channel__hint { margin: 10px 0 18px; color: #74685a; font-size: 13px; line-height: 1.55; }
+.apply-channel button { min-height: 46px; border: 1px solid var(--hourx-client-border); border-radius: 12px; background: #fff; color: var(--hourx-client-text); font: inherit; font-weight: 600; cursor: pointer; }
+.apply-channel button.is-on { border-color: var(--hourx-client-text); background: var(--hourx-client-text); color: #fff; }
+.apply-channel__hint { margin: 10px 0 18px; color: var(--hourx-client-muted); font-size: .8125rem; line-height: 1.55; }
 .phone-pair { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); column-gap: 16px; row-gap: 8px; align-items: start; }
 .phone-pair > label { display: grid; gap: 6px; min-width: 0; }
 .phone-pair > label > span { min-height: 1.35em; }
-.same-mobile { grid-column: 2; display: flex; align-items: center; gap: 8px; min-height: 22px; margin: 0; color: #74685a; font-size: 13px; font-weight: 500; }
-.same-mobile input { width: 16px; height: 16px; margin: 0; flex: none; accent-color: #05152b; }
-.apply-block--next { margin-top: 28px; padding-top: 24px; border-top: 1px solid #eadfce; }
-.apply-block h2, .apply-done h2 { margin: 0 0 8px; font-family: Georgia, "Times New Roman", serif; font-size: 32px; font-weight: 500; }
-.apply-block h3 { margin: 22px 0 10px; font-size: 16px; }
-.req { color: #c2412d; font-style: normal; font-weight: 800; letter-spacing: 0; text-transform: none; }
-.opt { color: #8a8175; font-size: 12px; font-style: normal; font-weight: 650; letter-spacing: 0; text-transform: none; }
+.same-mobile { grid-column: 2; display: flex; align-items: center; gap: 8px; min-height: 22px; margin: 0; color: var(--hourx-client-muted); font-size: .8125rem; font-weight: 500; }
+.same-mobile input { width: 16px; height: 16px; margin: 0; flex: none; accent-color: var(--hourx-client-text); }
+.apply-block, .apply-done {
+  padding: 24px;
+  border: 1px solid var(--hourx-client-border);
+  border-radius: 16px;
+  background: #fff;
+}
+.apply-block--next { margin-top: 24px; }
+.apply-block h2, .apply-done h2 { margin: 0 0 16px; font: 700 var(--hourx-client-size-section)/1.25 var(--hourx-client-heading-font); }
+.apply-block h3 { margin: 22px 0 10px; font-size: var(--hourx-client-size-card); }
+.req { color: #c2412d; font-style: normal; font-weight: 600; letter-spacing: 0; text-transform: none; }
+.opt { color: var(--hourx-client-muted); font-size: var(--hourx-client-size-label); font-style: normal; font-weight: 600; letter-spacing: 0; text-transform: none; }
 .apply-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 14px 16px; align-items: start; }
 .apply-grid label, .apply-choices article { display: grid; gap: 6px; min-width: 0; align-content: start; }
-.apply-grid label { color: #5c564c; font-size: 13px; font-weight: 700; letter-spacing: 0; text-transform: none; }
+.apply-grid label { color: var(--hourx-client-text); font-size: var(--hourx-client-size-action); font-weight: 600; letter-spacing: 0; text-transform: none; }
 .apply-grid label > span { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 6px; min-height: 1.35em; line-height: 1.35; }
 .apply-grid.align-fields > label > span { min-height: 2.7em; }
-.apply :deep(.apply-date.el-date-editor) { width: 100%; height: 40px; }
-.apply :deep(.apply-date .el-input__wrapper) { height: 40px; padding: 0 12px; border-radius: 10px; background: #fff; box-shadow: 0 0 0 1px #e6dccb inset; }
-.apply :deep(.apply-date .el-input__inner) { color: #05152b; font-size: 14px; font-weight: 500; }
+.apply :deep(.apply-date.el-date-editor) { width: 100%; height: 48px; }
+.apply :deep(.apply-date .el-input__wrapper) { height: 48px; padding: 0 12px; border-radius: 12px; background: #fff; box-shadow: 0 0 0 1px var(--hourx-client-border) inset; }
+.apply :deep(.apply-date .el-input__inner) { color: var(--hourx-client-text); font-size: var(--hourx-client-size-body); font-weight: 400; }
 .apply :deep(.el-input__inner) { text-transform: none; }
-.apply-grid > label > input, .phone-field input { width: 100%; height: 40px; padding: 0 12px; border: 1px solid #e6dccb; border-radius: 10px; background: #fff; color: #05152b; font: inherit; font-size: 14px; font-weight: 500; letter-spacing: 0; text-transform: none; }
+.apply-grid > label > input, .phone-field input { width: 100%; height: 48px; padding: 0 12px; border: 1px solid var(--hourx-client-border); border-radius: 12px; background: #fff; color: var(--hourx-client-text); font: inherit; font-size: var(--hourx-client-size-body); font-weight: 400; letter-spacing: 0; text-transform: none; }
 .apply :deep(.apply-time) { width: 100%; }
-.apply :deep(.apply-time .el-select__wrapper) { min-height: 40px; padding: 0 12px; border-radius: 10px; background: #fff; box-shadow: 0 0 0 1px #e6dccb inset; cursor: pointer; }
+.apply :deep(.apply-time .el-select__wrapper) { min-height: 48px; padding: 0 12px; border-radius: 12px; background: #fff; box-shadow: 0 0 0 1px var(--hourx-client-border) inset; cursor: pointer; }
 .apply :deep(.apply-time .el-select__selected-item),
-.apply :deep(.apply-time .el-select__placeholder) { color: #05152b; font-size: 14px; font-weight: 500; }
+.apply :deep(.apply-time .el-select__placeholder) { color: var(--hourx-client-text); font-size: var(--hourx-client-size-body); font-weight: 400; }
 .phone-field { display: flex; align-items: center; gap: 8px; }
-.phone-field select { flex: 0 0 auto; max-width: 148px; height: 40px; padding: 0 22px 0 10px; border: 0; border-radius: 10px; background: #05152b url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath fill='%23f7f1e6' d='M1 1.2 6 6.2 11 1.2'/%3E%3C/svg%3E") no-repeat right 8px center; color: #f7f1e6; font: inherit; font-size: 13px; font-weight: 750; appearance: none; cursor: pointer; }
-.phone-field select option { color: #05152b; background: #fff; }
+.phone-field select { flex: 0 0 auto; max-width: 148px; height: 48px; padding: 0 22px 0 10px; border: 0; border-radius: 12px; background: var(--hourx-client-text) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath fill='%23f7f1e6' d='M1 1.2 6 6.2 11 1.2'/%3E%3C/svg%3E") no-repeat right 8px center; color: #fff; font: inherit; font-size: .8125rem; font-weight: 600; appearance: none; cursor: pointer; }
+.phone-field select option { color: var(--hourx-client-text); background: #fff; }
 .phone-field input { min-width: 0; }
-.field-hint { color: #8a5a2b; font-size: 12px; font-weight: 650; line-height: 1.45; }
+.field-hint { color: #8a5a2b; font-size: var(--hourx-client-size-label); font-weight: 600; line-height: 1.45; }
+.tax-files { display: grid; gap: 8px; margin-top: 14px; }
+.tax-files > span { display: flex; align-items: center; gap: 6px; color: var(--hourx-client-text); font-size: .8125rem; font-weight: 600; }
+.tax-files > small { color: var(--hourx-client-muted); font-size: var(--hourx-client-size-label); font-weight: 500; }
 .span-2 { grid-column: span 2; }
 .community-picks { display: grid; gap: 12px; margin-top: 18px; }
-.community-picks > strong { color: #111827; font-size: 16px; font-weight: 800; }
+.community-picks > strong { color: var(--hourx-client-text); font-size: var(--hourx-client-size-card); font-weight: 600; }
 .community-picks > strong .req { margin-left: 2px; }
 .community-picks__options { display: flex; flex-wrap: wrap; gap: 12px; }
-.community-picks__options button { min-height: 44px; padding: 0 22px; border: 1.5px solid #d5dbe3; border-radius: 999px; background: #fff; color: #05152b; font: inherit; font-size: 15px; font-weight: 750; cursor: pointer; }
-.community-picks__options button.is-on { border-color: #071426; background: #071426; color: #fff; }
-.community-note { display: grid; gap: 6px; margin-top: 14px; color: #5c564c; font-size: 13px; font-weight: 700; }
+.community-picks__options button { min-height: 44px; padding: 0 22px; border: 1.5px solid var(--hourx-client-border); border-radius: 999px; background: #fff; color: var(--hourx-client-text); font: inherit; font-size: var(--hourx-client-size-body); font-weight: 600; cursor: pointer; }
+.community-picks__options button.is-on { border-color: var(--hourx-client-text); background: var(--hourx-client-text); color: #fff; }
+.community-note { display: grid; gap: 6px; margin-top: 14px; color: var(--hourx-client-muted); font-size: .8125rem; font-weight: 600; }
 .community-note > span { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
-.community-note textarea { width: 100%; min-height: 88px; padding: 10px 12px; border: 1px solid #e6dccb; border-radius: 10px; background: #fff; color: #05152b; font: inherit; font-size: 14px; font-weight: 500; resize: vertical; }
+.community-note textarea { width: 100%; min-height: 88px; padding: 10px 12px; border: 1px solid var(--hourx-client-border); border-radius: 12px; background: #fff; color: var(--hourx-client-text); font: inherit; font-size: var(--hourx-client-size-body); font-weight: 400; resize: vertical; }
 .service-categories { display: grid; gap: 10px; margin-bottom: 18px; }
 .service-categories__head { display: grid; gap: 4px; }
-.service-categories__head strong { color: #05152b; font-size: 14px; }
-.service-categories__head small { color: #7a7166; font-size: 12px; font-weight: 500; }
+.service-categories__head strong { color: var(--hourx-client-text); font-size: var(--hourx-client-size-action); }
+.service-categories__head small { color: var(--hourx-client-muted); font-size: var(--hourx-client-size-label); font-weight: 500; }
 .service-categories__options { display: flex; flex-wrap: wrap; gap: 8px; }
-.service-categories__options button { min-height: 36px; padding: 6px 14px; border: 1px solid #eadfce; border-radius: 999px; background: #fff; color: #05152b; font: inherit; font-size: 14px; font-weight: 650; cursor: pointer; }
-.service-categories__options button.is-on { color: #f7f1e6; background: #05152b; border-color: #05152b; }
+.service-categories__options button { min-height: 36px; padding: 6px 14px; border: 1px solid var(--hourx-client-border); border-radius: 999px; background: #fff; color: var(--hourx-client-text); font: inherit; font-size: var(--hourx-client-size-action); font-weight: 600; cursor: pointer; }
+.service-categories__options button.is-on { color: #fff; background: var(--hourx-client-text); border-color: var(--hourx-client-text); }
 .apply-choices { display: grid; gap: 10px; margin-top: 18px; }
-.apply-choices article { grid-template-columns: minmax(0, 1fr) auto; align-items: center; padding: 14px; background: #fff; border: 1px solid #eadfce; border-radius: 14px; }
+.apply-choices article { grid-template-columns: minmax(0, 1fr) auto; align-items: center; padding: 14px; background: #fff; border: 1px solid var(--hourx-client-border); border-radius: 14px; }
 .apply-choices article > div:first-child { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; min-width: 0; }
-.apply-choices strong { color: #05152b; font-size: 14px; letter-spacing: 0; text-transform: none; }
+.apply-choices strong { color: var(--hourx-client-text); font-size: var(--hourx-client-size-action); letter-spacing: 0; text-transform: none; }
 .apply-choices strong .req { margin-left: 2px; }
-.apply-choices small, .apply-muted { color: #7a7166; font-size: 12px; font-weight: 500; letter-spacing: 0; text-transform: none; }
+.apply-choices small, .apply-muted { color: var(--hourx-client-muted); font-size: var(--hourx-client-size-label); font-weight: 500; letter-spacing: 0; text-transform: none; }
 .yes-no { display: flex; gap: 6px; }
-.yes-no button { height: 34px; padding: 0 12px; border: 1px solid #eadfce; border-radius: 999px; background: #fff; cursor: pointer; }
-.yes-no button.is-on { color: #f7f1e6; background: #05152b; border-color: #05152b; }
+.yes-no button { height: 34px; padding: 0 12px; border: 1px solid var(--hourx-client-border); border-radius: 999px; background: #fff; cursor: pointer; }
+.yes-no button.is-on { color: #fff; background: var(--hourx-client-text); border-color: var(--hourx-client-text); }
 .policy-files { grid-column: 1 / -1; display: grid; gap: 8px; }
-.file-pick { position: relative; display: flex; align-items: center; gap: 12px; min-height: 48px; margin-top: 4px; padding: 8px; border: 1px dashed #05152b; border-radius: 12px; background: #f4f1eb; cursor: pointer; }
+.file-pick { position: relative; display: flex; align-items: center; gap: 12px; min-height: 48px; margin-top: 4px; padding: 8px; border: 1px dashed var(--hourx-client-text); border-radius: 12px; background: var(--hourx-client-canvas); cursor: pointer; }
 .file-list { margin: 0; padding: 0; list-style: none; display: grid; gap: 6px; }
-.file-list li { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 36px; padding: 6px 12px; border: 1px solid #eadfce; border-radius: 10px; background: #fff; color: #05152b; font-size: 13px; font-weight: 650; }
+.file-list li { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 36px; padding: 6px 12px; border: 1px solid var(--hourx-client-border); border-radius: 12px; background: #fff; color: var(--hourx-client-text); font-size: .8125rem; font-weight: 600; }
 .file-list li span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.file-list button { flex: 0 0 auto; border: 0; background: transparent; color: #8d5a32; font: inherit; font-size: 13px; font-weight: 700; cursor: pointer; }
+.file-list button { flex: 0 0 auto; border: 0; background: transparent; color: #8d5a32; font: inherit; font-size: .8125rem; font-weight: 600; cursor: pointer; }
 .file-pick input { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; }
-.file-pick__btn { position: relative; z-index: 1; display: inline-flex; align-items: center; flex: 0 0 auto; height: 36px; padding: 0 14px; border-radius: 9px; background: #05152b; color: #f7f1e6; font-size: 14px; font-weight: 750; letter-spacing: 0; text-transform: none; white-space: nowrap; pointer-events: none; }
+.file-pick__btn { position: relative; z-index: 1; display: inline-flex; align-items: center; flex: 0 0 auto; height: 36px; padding: 0 14px; border-radius: 9px; background: var(--hourx-client-text); color: #fff; font-size: var(--hourx-client-size-action); font-weight: 600; letter-spacing: 0; text-transform: none; white-space: nowrap; pointer-events: none; }
 .file-pick__btn .req { color: #ffb4a2; }
-.file-pick__meta { position: relative; z-index: 1; color: #05152b; font-size: 13px; font-weight: 650; letter-spacing: 0; text-transform: none; pointer-events: none; }
+.file-pick__meta { position: relative; z-index: 1; color: var(--hourx-client-text); font-size: .8125rem; font-weight: 600; letter-spacing: 0; text-transform: none; pointer-events: none; }
 .file-pick.is-done { border-style: solid; background: #fff; }
-.file-pick.is-done .file-pick__btn { background: #fff; color: #05152b; box-shadow: inset 0 0 0 1px #05152b; }
+.file-pick.is-done .file-pick__btn { background: #fff; color: var(--hourx-client-text); box-shadow: inset 0 0 0 1px var(--hourx-client-text); }
 .apply-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 22px; }
-.apply-actions button, .apply-done a { height: 44px; padding: 0 18px; border-radius: 12px; border: 0; cursor: pointer; font-weight: 700; text-decoration: none; }
-.primary { color: #f7f1e6; background: #05152b; }
-.ghost { color: #05152b; background: transparent; border: 1px solid #eadfce !important; }
+.apply-actions button, .apply-done a { min-height: 52px; padding: 8px 22px; border-radius: 12px; border: 0; cursor: pointer; font-size: var(--hourx-client-size-action); font-weight: 600; text-decoration: none; }
+.primary { color: #fff; background: var(--hourx-client-text); }
+.ghost { color: var(--hourx-client-text); background: transparent; border: 1px solid var(--hourx-client-border) !important; }
 .apply-error { margin: 14px 0 0; color: #9a3b32; }
-.apply-done { padding: 36px 28px 32px; }
-.apply-done p { max-width: 640px; color: #5c564c; line-height: 1.6; }
+.apply-done { margin-bottom: 48px; }
+.apply-done p { max-width: 640px; color: var(--hourx-client-muted); line-height: 1.6; }
 .apply-done__actions { display: flex; flex-wrap: wrap; gap: 10px; }
-.apply-done__actions a { display: inline-flex; align-items: center; color: #f7f1e6; background: #05152b; }
-.apply-done__actions a.ghost { color: #05152b; background: transparent; box-shadow: inset 0 0 0 1px #eadfce; }
+.apply-done__actions a { display: inline-flex; align-items: center; color: #fff; background: var(--hourx-client-text); }
+.apply-done__actions a.ghost { color: var(--hourx-client-text); background: transparent; box-shadow: inset 0 0 0 1px var(--hourx-client-border); }
 @media (max-width: 720px) {
-  .apply-hero { padding: 28px 18px 22px; }
-  .apply-hero h1 { font-size: 32px; }
-  .apply-sheet { width: min(100% - 20px, 980px); margin-bottom: 28px; padding: 16px; border-radius: 16px; }
+  .apply-hero { padding: 32px 16px; }
+  .apply-sheet { width: calc(100% - 32px); margin-top: 24px; padding-bottom: 28px; }
+  .apply-block, .apply-done { padding: 16px; }
+  .apply-block--next { margin-top: 16px; }
   .apply-grid, .phone-pair, .apply-choices article { grid-template-columns: 1fr; }
   .same-mobile { grid-column: auto; }
   .apply-grid.align-fields > label > span { min-height: 0; }

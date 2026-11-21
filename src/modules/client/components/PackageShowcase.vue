@@ -106,47 +106,60 @@
               class="package-card"
               :to="{ name: platform === 'h5' ? 'h5-package-detail' : 'package-detail', params: { id: card.id } }"
             >
-              <div class="package-card__media" :class="{ 'is-empty': !card.image }">
-                <img v-if="card.image" :src="card.image" alt="" />
+              <div class="package-card__media" :class="{ 'is-split': card.images.length === 2 }">
+                <template v-if="card.images.length">
+                  <img v-for="image in card.images" :key="image" :src="image" alt="" />
+                </template>
                 <span v-else class="package-card__mark" aria-hidden="true">{{ card.mark }}</span>
-                <span class="package-card__badge" :class="card.badgeTone">{{ card.badge }}</span>
-                <span v-if="card.discount" class="package-card__discount">{{ card.discount }}</span>
-                <span v-if="card.visits" class="package-card__visits">{{ card.visits }}</span>
+                <span v-if="card.images.length === 2" class="package-card__plus" aria-hidden="true">
+                  <svg viewBox="0 0 16 16"><path d="M3 8h10M8 3v10" /></svg>
+                </span>
+                <div class="package-card__media-labels">
+                  <span class="package-card__badge">{{
+                    card.visitCount > 1 ? t('client.home.packages.multiVisitPackage') :
+                    card.bundle ? t(card.visitCount === 1 ? 'client.home.packages.singleVisitBundle' : 'client.home.packages.bundle') : card.badge
+                  }}</span>
+                  <span v-if="card.visits" class="package-card__visits">{{
+                    card.visitCount === 1 && card.bundle ? t('client.home.packages.combinedVisit') : card.visits
+                  }}</span>
+                </div>
               </div>
               <div class="package-card__body">
                 <div class="package-card__copy">
+                  <span class="package-card__eyebrow">{{ t(card.bundle ? 'client.home.packages.bundleEyebrow' : 'client.home.packages.packageEyebrow') }}</span>
                   <h3>{{ card.title }}</h3>
+                  <p v-if="card.desc">{{ card.desc }}</p>
                   <div v-if="card.tags.length" class="biz-tags">
                     <span v-for="tag in card.tags" :key="tag">{{ tag }}</span>
                   </div>
-                  <p v-if="card.desc">{{ card.desc }}</p>
                 </div>
-                <div v-if="card.services.length" class="package-card__services">
-                  <span>{{ t('client.home.packages.includedServices') }}</span>
-                  <ul>
-                    <li v-for="service in card.services" :key="service.key">{{ service.name }}</li>
-                  </ul>
-                </div>
-                <div v-if="card.perVisit || card.save" class="package-card__meta">
-                  <span v-if="card.perVisit">{{ card.perVisit }}</span>
-                  <span v-if="card.save" class="is-save">{{ card.save }}</span>
-                </div>
+                <ul v-if="card.services.length" class="package-card__services" :aria-label="t('client.home.packages.includedServices')">
+                  <li v-for="service in card.services" :key="service.key">
+                    <svg aria-hidden="true" viewBox="0 0 18 18">
+                      <circle cx="9" cy="9" r="7.5" />
+                      <path d="m5.625 9.375 2.25 2.25 4.5-4.5" />
+                    </svg>
+                    <span class="package-card__service-name">{{ service.name }}</span>
+                    <span class="package-card__service-detail">{{ service.detail }}</span>
+                  </li>
+                </ul>
                 <div class="package-card__foot">
                   <div class="package-card__price">
                     <span class="package-card__price-label">{{ t('client.home.packages.dealPrice') }}</span>
-                    <div>
-                      <small>AED</small>
+                    <div class="package-card__amount">
+                      <span>AED</span>
                       <strong>{{ card.sale }}</strong>
+                      <small>{{ t('client.home.packages.exclVat') }}</small>
                     </div>
-                    <div v-if="card.original" class="package-card__original">
-                      <span>{{ t('client.home.packages.originalPrice') }}</span>
-                      <s>AED {{ card.original }}</s>
+                    <div v-if="card.original || card.save" class="package-card__savings">
+                      <s v-if="card.original" :aria-label="`${t('client.home.packages.originalPrice')} AED ${card.original}`">AED {{ card.original }}</s>
+                      <span v-if="card.save">{{ card.save }}</span>
                     </div>
                   </div>
                   <span class="package-card__action">
-                    <span>{{ t('client.home.packages.viewPackage') }}</span>
-                    <svg aria-hidden="true" viewBox="0 0 20 20">
-                      <path d="M4.5 10h10m-4-4 4 4-4 4" />
+                    {{ t('client.home.packages.viewPackage') }}
+                    <svg aria-hidden="true" viewBox="0 0 24 24">
+                      <path d="M5 12h14m-6-6 6 6-6 6" />
                     </svg>
                   </span>
                 </div>
@@ -188,8 +201,10 @@ import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import {
   packageCatalog,
+  type PackageBoundService,
   type PackageCatalogCard,
   type PackageCatalogCategory,
+  type PackageCatalogItem,
 } from '@/modules/client/api'
 import { bizTagLabels } from '@/modules/client/utils/biz-tag'
 import { packageVisitCount } from '@/modules/client/utils/package-visits'
@@ -248,7 +263,7 @@ const amount = (value: unknown) => {
 
 const money = (value: number) =>
   new Intl.NumberFormat('en-AE', {
-    minimumFractionDigits: Number.isInteger(value) ? 0 : 2,
+    minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   }).format(value)
 
@@ -259,31 +274,68 @@ type CardView = {
   desc: string
   sale: string
   original: string
-  discount: string
   visits: string
-  perVisit: string
+  visitCount: number
+  bundle: boolean
   save: string
   badge: string
-  badgeTone: string
-  image: string
+  images: string[]
   tags: string[]
-  services: Array<{ key: string; name: string }>
+  services: Array<{ key: string; name: string; detail?: string }>
 }
 
-const boundServices = (item: PackageCatalogCard): CardView['services'] => {
-  const sources = Array.isArray(item.spus) && item.spus.length ? item.spus : item.items
-  const seen = new Set<string>()
-  return (Array.isArray(sources) ? sources : []).flatMap((service, index) => {
-    if (!service || typeof service !== 'object') return []
-    const nameMap = ('nameI18n' in service ? service.nameI18n : undefined)
-      || ('spuNameI18n' in service ? service.spuNameI18n : undefined)
-    const name = pickText(nameMap, t('client.home.packages.serviceFallback', { index: index + 1 }))
-    const id = Number(service.spuId)
-    const key = Number.isFinite(id) && id > 0 ? `spu:${id}` : `name:${name}`
-    if (seen.has(key)) return []
-    seen.add(key)
-    return [{ key, name }]
+type ServiceSource = PackageBoundService | PackageCatalogItem
+type BoundService = { key: string; name: string; images?: string[]; redeemTimes?: number }
+
+const imageUrls = (urls?: string[]) =>
+  Array.isArray(urls) ? urls.map((url) => typeof url === 'string' ? url.trim() : '').filter(Boolean) : []
+
+const serviceIdentity = (service: ServiceSource, index: number) => {
+  const nameMap = ('nameI18n' in service ? service.nameI18n : undefined)
+    || ('spuNameI18n' in service ? service.spuNameI18n : undefined)
+  const name = pickText(nameMap, t('client.home.packages.serviceFallback', { index: index + 1 }))
+  const id = Number(service.spuId)
+  const key = Number.isFinite(id) && id > 0 ? `spu:${id}` : `name:${name}`
+  return { key, name }
+}
+
+const boundServices = (item: PackageCatalogCard): BoundService[] => {
+  const items = Array.isArray(item.items) ? item.items : []
+  const sources = Array.isArray(item.spus) && item.spus.length ? item.spus : items
+  const services = new Map<string, BoundService>()
+  sources.forEach((source, index) => {
+    if (!source || typeof source !== 'object') return
+    const identity = serviceIdentity(source, index)
+    const service: BoundService = services.get(identity.key) || identity
+    const images = imageUrls(source.imageUrls)
+    if (images.length) service.images = [...new Set([...(service.images || []), ...images])]
+    services.set(service.key, service)
   })
+  items.forEach((source, index) => {
+    if (!source || typeof source !== 'object') return
+    const service = services.get(serviceIdentity(source, index).key)
+    if (!service) return
+    const count = Number(source.redeemTimes)
+    if (Number.isInteger(count) && count > (service.redeemTimes || 0)) service.redeemTimes = count
+    const images = imageUrls(source.imageUrls)
+    if (images.length) service.images = [...new Set([...(service.images || []), ...images])]
+  })
+  return [...services.values()]
+}
+
+const packageImages = (services: BoundService[], cover: string) => {
+  const galleries = services.flatMap((service) => service.images?.length ? [service.images] : [])
+  const [first = [], ...others] = galleries
+  const primary = first[0]
+  if (primary) {
+    for (const gallery of others) {
+      const secondary = gallery.find((url) => url !== primary)
+      if (secondary) return [primary, secondary]
+      const alternative = first.find((url) => url !== gallery[0])
+      if (alternative) return [alternative, gallery[0]]
+    }
+  }
+  return [cover || primary].filter(Boolean)
 }
 
 const groups = computed(() =>
@@ -295,26 +347,37 @@ const groups = computed(() =>
       const savings = packages.map((item) => Math.max(0, amount(item.displaySavedPrice) || 0))
       const bestSaving = Math.max(0, ...savings)
       const cards = packages
-        .map((item, index) => toCard(item, name, index, bestSaving))
+        .map((item) => toCard(item, name, bestSaving))
         .filter((item): item is CardView => Boolean(item))
       return { id, name, cards }
     })
     .filter((group) => group.id && group.name && group.cards.length),
 )
 
-const toCard = (item: PackageCatalogCard, categoryName: string, index: number, bestSaving: number): CardView | null => {
+const toCard = (item: PackageCatalogCard, categoryName: string, bestSaving: number): CardView | null => {
   const id = String(item.id ?? '')
   const sale = amount(item.displaySalePrice)
   if (!id || sale == null) return null
   const original = amount(item.displayTotalPrice)
   const saved = Math.max(0, amount(item.displaySavedPrice) ?? (original != null ? original - sale : 0))
-  const discount = original != null && original > sale
-    ? Math.round(((original - sale) / original) * 100)
-    : 0
-  const visits = packageVisitCount(item)
+  const bound = boundServices(item)
+  const bundle = bound.length > 1
+  // The catalog lists distinct services and sums their redemptions. If each
+  // service has exactly one redemption, all are booked on the first visit.
+  const combinedVisit = bundle && amount(item.redeemTimes) === bound.length
+    && bound.every(({ key }) => key.startsWith('spu:'))
+    && packageVisitCount({ items: item.items }) <= 1
+    && packageVisitCount({ packageName: item.packageName, nameI18n: item.nameI18n }) <= 1
+  const visits = combinedVisit ? 1 : packageVisitCount(item)
+  const cover = imageUrls(item.imageUrls)[0] || ''
+  const services = bound.map(({ key, name, redeemTimes }) => {
+    const count = redeemTimes || (!bundle ? visits : 0)
+    if (count > 1) return { key, name, detail: t('client.home.packages.cardVisits', { count }) }
+    if (count === 1 && visits > 1) return { key, name, detail: t('client.home.packages.serviceFirstVisit') }
+    return { key, name, detail: t('client.home.packages.serviceIncluded') }
+  })
   const name = pickText(item.nameI18n, item.packageName || '')
   const isBest = saved > 0 && saved === bestSaving
-  const tones = ['is-mint', 'is-sand', 'is-sky']
   return {
     id,
     title: name,
@@ -322,15 +385,14 @@ const toCard = (item: PackageCatalogCard, categoryName: string, index: number, b
     desc: pickText(item.descI18n, item.packageDesc || ''),
     sale: money(sale),
     original: original != null && original > sale ? money(original) : '',
-    discount: discount > 0 ? t('client.home.packages.off', { percent: discount }) : '',
-    visits: visits > 0 ? t('client.home.packages.visits', { count: visits }) : '',
-    perVisit: visits > 1 ? t('client.home.packages.perVisit', { price: money(sale / visits) }) : '',
+    visits: visits > 0 ? t('client.home.packages.cardVisits', { count: visits }) : '',
+    visitCount: visits,
+    bundle,
     save: saved > 0 ? t('client.home.packages.save', { price: money(saved) }) : '',
     badge: isBest ? t('client.home.packages.bestValue') : categoryName,
-    badgeTone: isBest ? 'is-best' : tones[index % tones.length],
-    image: item.imageUrls?.find((url) => String(url || '').trim()) || '',
+    images: packageImages(bound, cover),
     tags: bizTagLabels(item.tags, locale.value),
-    services: boundServices(item),
+    services,
   }
 }
 
@@ -395,21 +457,28 @@ onMounted(async () => {
 </script>
 
 <style scoped lang="scss">
+@font-face {
+  font-family: "Manrope Package";
+  src: url('@/assets/fonts/manrope-latin-800.woff2') format('woff2');
+  font-weight: 800;
+  font-style: normal;
+  font-display: swap;
+}
+
 .biz-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
 .biz-tags span { padding: 2px 8px; border-radius: 999px; background: #f6f1e7; color: #6d5428; font-size: 12px; font-weight: 700; line-height: 1.5; }
 
 .packages {
-  --package-navy: #05152b;
-  --package-navy-soft: #102843;
-  --package-mint: #63dbc7;
-  --package-mint-pale: #e4f8f4;
-  --package-line: #dfe6ec;
-  --package-muted: #68778a;
-  --package-media-height: 112px;
-  padding: 32px 0 36px;
+  --package-navy: var(--hourx-client-text);
+  --package-navy-soft: #16233b;
+  --package-mint: var(--hourx-client-accent);
+  --package-mint-pale: #f1eee8;
+  --package-line: var(--hourx-client-border);
+  --package-muted: var(--hourx-client-muted);
+  --package-media-height: 150px;
+  padding: var(--hourx-client-section-space) 0;
   overflow: hidden;
-  background: #f3f6f8;
-  font-family: "Inter", "Noto Sans SC", "PingFang SC", sans-serif;
+  background: var(--hourx-client-canvas);
 }
 
 .packages--page {
@@ -420,12 +489,12 @@ onMounted(async () => {
 .packages__inner {
   width: min(1200px, calc(100% - 48px));
   margin: 0 auto;
-  padding: 20px 22px 22px;
-  border: 1px solid #e1e7ec;
+  padding: 0;
+  border: 0;
   border-radius: 20px;
-  background: #fff;
+  background: transparent;
   box-sizing: border-box;
-  box-shadow: 0 14px 40px rgba(5, 21, 43, 0.07);
+  box-shadow: none;
 }
 
 .packages__inner::after {
@@ -448,12 +517,12 @@ onMounted(async () => {
   display: flex;
   align-items: center;
   gap: 9px;
-  margin: 0 0 5px !important;
-  color: #247f72 !important;
-  font-size: 10px !important;
-  font-weight: 850;
-  letter-spacing: 0.14em;
-  line-height: 1.35 !important;
+  margin: 0 0 8px;
+  color: var(--hourx-client-accent-ink);
+  font-size: var(--hourx-client-size-label);
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  line-height: 1.2;
   text-transform: uppercase;
 }
 
@@ -467,18 +536,19 @@ onMounted(async () => {
 .packages__head h2 {
   margin: 0;
   color: var(--package-navy);
-  font-size: clamp(24px, 2.3vw, 28px);
-  font-weight: 850;
-  letter-spacing: -0.035em;
-  line-height: 1.12;
+  font-size: var(--hourx-client-size-section);
+  font-weight: 700;
+  letter-spacing: -0.015em;
+  line-height: 1.25;
+  font-family: var(--hourx-client-heading-font);
 }
 
 .packages__head-copy > p:last-child {
   max-width: 640px;
   margin: 6px 0 0;
   color: var(--package-muted);
-  font-size: 13px;
-  font-weight: 500;
+  font-size: var(--hourx-client-size-body);
+  font-weight: 400;
   line-height: 1.55;
 }
 
@@ -488,18 +558,19 @@ onMounted(async () => {
   align-items: center;
   justify-content: center;
   gap: 8px;
-  min-height: 36px;
-  padding: 0 5px 0 12px;
+  min-height: 44px;
+  padding: 0 10px 0 14px;
   border: 1px solid #cdd7e0;
-  border-radius: 999px;
+  border-radius: 12px;
   background: #fff;
   color: var(--package-navy);
-  font-size: 12px;
-  font-weight: 800;
+  font-size: var(--hourx-client-size-action);
+  font-weight: 600;
   text-decoration: none;
   white-space: nowrap;
   box-shadow: none;
   transition: border-color 180ms ease, background 180ms ease, transform 180ms ease;
+  border-color: var(--package-line);
 }
 
 .packages__all:hover {
@@ -515,8 +586,7 @@ onMounted(async () => {
   outline-offset: 3px;
 }
 
-.packages__all svg,
-.package-card__action svg {
+.packages__all svg {
   width: 26px;
   height: 26px;
   padding: 6px;
@@ -527,17 +597,14 @@ onMounted(async () => {
   stroke-linecap: round;
   stroke-linejoin: round;
   stroke-width: 1.8;
-}
-
-.packages__all svg {
   background: var(--package-navy);
   color: #fff;
 }
 
 .packages__catalog {
-  margin-top: 16px;
-  padding-top: 12px;
-  border-top: 1px solid var(--package-line);
+  margin-top: 24px;
+  padding-top: 0;
+  border-top: 0;
 }
 
 .packages__toolbar {
@@ -551,10 +618,13 @@ onMounted(async () => {
 .packages__tabs {
   display: flex;
   min-width: 0;
-  flex: 1;
+  flex: 0 1 auto;
   gap: 6px;
   overflow-x: auto;
   scrollbar-width: none;
+  padding: 4px;
+  border-radius: 14px;
+  background: #efece6;
 }
 
 .packages__tabs::-webkit-scrollbar,
@@ -570,12 +640,12 @@ onMounted(async () => {
   gap: 6px;
   padding: 0 6px 0 11px;
   border: 1px solid #dce3e9;
-  border-radius: 999px;
+  border-radius: 10px;
   background: #f6f8fa;
-  color: #526176;
+  color: var(--package-navy);
   font: inherit;
-  font-size: 12px;
-  font-weight: 750;
+  font-size: var(--hourx-client-size-action);
+  font-weight: 600;
   cursor: pointer;
   transition: color 180ms ease, background 180ms ease, border-color 180ms ease;
 }
@@ -625,11 +695,12 @@ onMounted(async () => {
 }
 
 .packages__filter-side > span {
-  color: #7d8997;
-  font-size: 10px;
-  font-weight: 750;
+  color: var(--package-muted);
+  font-size: 0.8125rem;
+  font-weight: 500;
   letter-spacing: 0.04em;
   white-space: nowrap;
+  text-transform: none;
 }
 
 .packages__nav {
@@ -754,332 +825,289 @@ onMounted(async () => {
 }
 
 .package-card {
+  --card-muted: #55657a;
+  --card-gold-text: #8a6a2e;
+  --card-gold-tint: #f6eedc;
+  --card-heading-font: "Manrope Package", var(--hourx-client-heading-font);
   display: flex;
-  min-height: 328px;
   min-width: 0;
-  box-sizing: border-box;
   flex-direction: column;
   overflow: hidden;
-  border: 1px solid #dce4ea;
-  border-radius: 15px;
+  border-radius: 20px;
   background: #fff;
-  color: inherit;
+  color: var(--package-navy);
+  font-family: var(--hourx-client-font-family);
   text-decoration: none;
-  box-shadow: 0 8px 22px rgba(5, 21, 43, 0.075);
-  transition: transform 180ms ease, box-shadow 180ms ease, border-color 180ms ease;
+  box-shadow: 0 1px 2px rgba(6, 24, 47, 0.06), 0 12px 32px rgba(6, 24, 47, 0.08);
+  transition: box-shadow 180ms ease;
 }
 
 .package-card:hover {
-  transform: translateY(-3px);
-  border-color: #bac8d3;
-  box-shadow: 0 13px 28px rgba(5, 21, 43, 0.12);
+  box-shadow: 0 1px 2px rgba(6, 24, 47, 0.08), 0 12px 32px rgba(6, 24, 47, 0.14);
 }
 
 .package-card__media {
   position: relative;
+  display: grid;
   flex: 0 0 var(--package-media-height);
+  grid-template-columns: minmax(0, 1fr);
   height: var(--package-media-height);
-  overflow: hidden;
-  background: linear-gradient(145deg, #17334e, var(--package-navy));
+  background: #edf2f8;
 }
 
-.package-card__media img,
-.package-card__mark {
-  width: 100%;
-  height: 100%;
-  transition: transform 260ms ease;
+.package-card__media.is-split {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 3px;
+  background: #fff;
 }
 
 .package-card__media img {
   display: block;
+  width: 100%;
+  height: var(--package-media-height);
   object-fit: cover;
-}
-
-.package-card:hover .package-card__media img,
-.package-card:hover .package-card__mark {
-  transform: scale(1.025);
-}
-
-.package-card__media::after {
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(180deg, rgba(5, 21, 43, 0.02) 46%, rgba(5, 21, 43, 0.42) 100%);
-  content: "";
-  pointer-events: none;
 }
 
 .package-card__mark {
   display: grid;
   place-items: center;
-  color: rgba(255, 255, 255, 0.88);
-  font-size: 44px;
-  font-weight: 350;
-  letter-spacing: -0.05em;
+  color: #60738b;
+  font-family: var(--card-heading-font);
+  font-size: 56px;
+  font-weight: 800;
+}
+
+.package-card__plus {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  display: grid;
+  width: 38px;
+  height: 38px;
+  box-sizing: border-box;
+  place-items: center;
+  transform: translate(-50%, -50%);
+  border: 3px solid #fff;
+  border-radius: 50%;
+  background: var(--package-navy);
+  color: #fff;
+}
+
+.package-card__plus svg,
+.package-card__action svg {
+  width: 16px;
+  height: 16px;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.8;
+}
+
+.package-card__media-labels {
+  position: absolute;
+  inset: auto 12px 12px;
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 6px;
 }
 
 .package-card__badge,
-.package-card__discount,
 .package-card__visits {
-  position: absolute;
-  z-index: 1;
-  max-width: calc(100% - 22px);
-  overflow: hidden;
-  border-radius: 999px;
-  box-sizing: border-box;
-  font-size: 10px;
-  font-weight: 850;
-  line-height: 22px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  padding: 6px 10px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.2;
 }
 
 .package-card__badge {
-  top: 10px;
-  left: 10px;
-  height: 22px;
-  padding: 0 9px;
-  border: 1px solid rgba(255, 255, 255, 0.18);
-  background: rgba(5, 21, 43, 0.82);
+  background: rgba(6, 24, 47, 0.85);
   color: #fff;
-  backdrop-filter: blur(8px);
-}
-
-.package-card__badge.is-best,
-.package-card__discount {
-  border-color: transparent;
-  background: var(--package-mint-pale);
-  color: #09675c;
-}
-
-.package-card__badge.is-sand,
-.package-card__badge.is-sky,
-.package-card__badge.is-mint {
-  color: #fff;
-}
-
-.package-card__discount {
-  top: 10px;
-  right: 10px;
-  min-width: 48px;
-  height: 22px;
-  padding: 0 9px;
-  box-shadow: 0 4px 12px rgba(5, 21, 43, 0.12);
+  font-weight: 600;
 }
 
 .package-card__visits {
-  right: 10px;
-  bottom: 9px;
-  height: 22px;
-  padding: 0 9px;
-  border: 1px solid rgba(255, 255, 255, 0.16);
-  background: rgba(5, 21, 43, 0.72);
-  color: #fff;
-  line-height: 21px;
-  backdrop-filter: blur(8px);
+  margin-inline-start: auto;
+  background: #fff;
+  color: var(--package-navy);
 }
 
 .package-card__body {
   display: flex;
-  min-height: 0;
   flex: 1;
   flex-direction: column;
-  padding: 11px 12px 12px;
+  gap: 12px;
+  padding: 18px 20px 20px;
 }
 
 .package-card__copy {
-  flex: 0 0 auto;
-  min-height: 58px;
-}
-
-.package-card h3 {
-  display: -webkit-box;
-  max-height: 40px;
-  margin: 0;
-  overflow: hidden;
-  color: var(--package-navy);
-  font-size: 16px;
-  font-weight: 820;
-  letter-spacing: -0.02em;
-  line-height: 1.24;
-  overflow-wrap: anywhere;
-  text-overflow: ellipsis;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
-  line-clamp: 2;
-}
-
-.package-card__copy > p {
-  display: -webkit-box;
-  max-height: 33px;
-  margin: 4px 0 0;
-  overflow: hidden;
-  color: var(--package-muted);
-  font-size: 11.5px;
-  font-weight: 500;
-  line-height: 1.4;
-  overflow-wrap: anywhere;
-  text-overflow: ellipsis;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
-  line-clamp: 2;
-}
-
-.package-card__meta {
-  display: flex;
-  min-height: 22px;
-  flex-shrink: 0;
-  flex-wrap: nowrap;
+  display: grid;
   gap: 6px;
-  margin-top: 5px;
-  margin-bottom: 8px;
-  overflow: hidden;
-  color: #58677a;
-  font-size: 10px;
-  line-height: 1.35;
 }
 
-.package-card__services {
-  flex-shrink: 0;
-  margin-top: 6px;
-  padding: 6px 8px;
-  border-radius: 9px;
-  background: #f4f8f8;
-  font-size: 10px;
-  line-height: 1.35;
-}
-
-.package-card__services > span {
-  color: #68778a;
+.package-card__eyebrow {
+  color: var(--card-gold-text);
   font-size: 10px;
   font-weight: 700;
-}
-
-.package-card__services ul {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 3px 5px;
-  margin: 4px 0 0;
-  padding: 0;
-  list-style: none;
-}
-
-.package-card__services li {
-  max-width: 100%;
-  padding: 1px 5px;
-  border: 1px solid #dfe8e8;
-  border-radius: 5px;
-  background: #fff;
-  color: #264d49;
-  font-size: 11px;
-  line-height: 1.5;
-  overflow-wrap: anywhere;
-}
-
-.package-card__meta span {
-  display: inline-flex;
-  min-width: 0;
-  min-height: 22px;
-  align-items: center;
-  padding: 0 8px;
-  overflow: hidden;
-  border-radius: 999px;
-  background: #f0f3f6;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.package-card__meta .is-save {
-  flex: 0 0 auto;
-  border: 1px solid #bcebe3;
-  background: var(--package-mint-pale);
-  color: #09675c;
-  font-weight: 850;
-}
-
-.package-card__foot {
-  display: flex;
-  align-items: flex-end;
-  justify-content: space-between;
-  gap: 10px;
-  margin-top: auto;
-  padding-top: 8px;
-  border-top: 1px solid #edf1f4;
-}
-
-.package-card__price {
-  min-width: 0;
-}
-
-.package-card__price-label {
-  display: block;
-  margin-bottom: 3px;
-  color: #36766d;
-  font-size: 8.5px;
-  font-weight: 900;
-  letter-spacing: 0.1em;
+  letter-spacing: 0.12em;
   line-height: 1.2;
   text-transform: uppercase;
 }
 
-.package-card__price > div {
-  display: flex;
-  align-items: baseline;
-  gap: 5px;
+.package-card h3,
+.package-card__copy > p {
+  display: -webkit-box;
+  min-height: 2lh;
+  margin: 0;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
 }
 
-.package-card__price strong {
+.package-card h3 {
   color: var(--package-navy);
-  font-size: 24px;
-  font-weight: 880;
-  font-variant-numeric: tabular-nums;
-  letter-spacing: -0.045em;
+  font-family: var(--card-heading-font);
+  font-size: 20px;
+  font-weight: 800;
+  line-height: 1.25;
+}
+
+.package-card__copy > p {
+  color: var(--card-muted);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.package-card__services {
+  margin: 0;
+  padding: 4px 14px;
+  border-radius: 12px;
+  background: #f5f8fc;
+  list-style: none;
+}
+
+.package-card__services li {
+  display: grid;
+  grid-template-columns: 18px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 0;
+  line-height: 1.3;
+}
+
+.package-card__services li + li {
+  border-top: 1px solid #e3eaf2;
+}
+
+.package-card__services svg {
+  width: 18px;
+  height: 18px;
+  fill: none;
+  stroke: var(--card-gold-text);
+  stroke-width: 1.65;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.package-card__service-name {
+  overflow-wrap: anywhere;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.package-card__service-detail {
+  color: var(--card-muted);
+  font-size: 12px;
+  font-weight: 600;
+  text-align: end;
+}
+
+.package-card__foot {
+  display: grid;
+  gap: 12px;
+  margin-top: auto;
+}
+
+.package-card__price {
+  display: grid;
+  gap: 4px;
+}
+
+.package-card__price-label {
+  color: var(--card-muted);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  line-height: 1.2;
+  text-transform: uppercase;
+}
+
+.package-card__amount,
+.package-card__savings {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 6px;
+}
+
+.package-card__amount > span {
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.package-card__amount strong {
+  font-family: var(--card-heading-font);
+  font-size: 28px;
+  font-weight: 800;
+  letter-spacing: -0.01em;
   line-height: 1;
 }
 
-.package-card__price small {
-  color: #637286;
-  font-size: 9px;
-  font-weight: 900;
-  letter-spacing: 0.08em;
-}
-
-.package-card__original {
-  width: fit-content;
-  margin-top: 5px;
-  padding: 3px 6px;
-  border-radius: 6px;
-  background: #f3f5f7;
-  color: #788493;
-  font-size: 10px;
-  font-weight: 750;
-}
-
-.package-card__original span {
-  letter-spacing: 0.02em;
-}
-
-.package-card__original s {
-  color: #8c3f49;
+.package-card__amount small {
+  margin-inline-start: 4px;
+  color: #6b7a90;
   font-size: 12px;
-  font-weight: 850;
-  text-decoration-thickness: 1.3px;
+  font-weight: 500;
+}
+
+.package-card__savings {
+  align-items: center;
+  gap: 4px 10px;
+  color: #6b7a90;
+  font-size: 13px;
+  line-height: 1.2;
+}
+
+.package-card__savings span {
+  padding: 4px 8px;
+  border-radius: 6px;
+  background: var(--card-gold-tint);
+  color: var(--card-gold-text);
+  font-weight: 700;
 }
 
 .package-card__action {
-  display: inline-flex;
-  flex: 0 0 auto;
+  display: flex;
+  min-height: 48px;
   align-items: center;
-  gap: 6px;
-  color: var(--package-navy);
-  font-size: 10.5px;
-  font-weight: 800;
-  white-space: nowrap;
+  justify-content: center;
+  gap: 8px;
+  border-radius: 12px;
+  background: var(--package-navy);
+  color: #fff;
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.2;
 }
 
 .package-card__action svg {
-  flex: 0 0 auto;
-  background: var(--package-navy);
-  color: #fff;
+  width: 18px;
+  height: 18px;
+  stroke-width: 2.4;
   transition: transform 180ms ease;
 }
 
@@ -1101,11 +1129,7 @@ onMounted(async () => {
 @media (max-width: 1080px) {
   .packages__inner {
     width: min(100% - 36px, 1200px);
-    padding-inline: 22px;
-  }
-
-  .package-card__action > span {
-    display: none;
+    padding-inline: 0;
   }
 }
 
@@ -1140,13 +1164,13 @@ onMounted(async () => {
 @media (max-width: 640px) {
   .packages,
   .packages--page {
-    --package-media-height: 104px;
+    --package-media-height: 150px;
     padding: 28px 0 32px;
   }
 
   .packages__inner {
-    width: calc(100% - 20px);
-    padding: 16px 14px;
+    width: calc(100% - 32px);
+    padding: 0;
     border-radius: 16px;
   }
 
@@ -1157,7 +1181,7 @@ onMounted(async () => {
   }
 
   .packages__head h2 {
-    font-size: 24px;
+    font-size: var(--hourx-client-size-section);
   }
 
   .packages__head-copy > p:last-child {
@@ -1200,34 +1224,27 @@ onMounted(async () => {
   .packages__grid.is-scrollable,
   .packages__grid.is-single,
   .packages__grid.is-double {
-    grid-auto-columns: calc((100% - 10px) / 1.15);
+    grid-auto-columns: min(100%, 340px);
     gap: 10px;
   }
 
   .packages__carousel { margin-top: 10px; }
-  .packages__edge { width: 44px; height: 44px; }
-  .packages__edge--previous { left: -10px; }
-  .packages__edge--next { right: -10px; }
 
-  .package-card {
-    min-height: 316px;
-    border-radius: 13px;
-  }
-
-  .package-card__body {
-    padding: 10px 11px 11px;
+  .packages__carousel.can-scroll-next::after,
+  .packages__edge {
+    display: none;
   }
 }
 
 .packages--compact {
-  --package-media-height: 96px;
+  --package-media-height: 150px;
   padding: 20px 0;
 
   .packages__inner {
-    width: calc(100% - 24px);
-    padding: 14px 12px;
+    width: calc(100% - 32px);
+    padding: 0;
     border-radius: 16px;
-    box-shadow: 0 4px 16px rgba(5, 21, 43, 0.04);
+    box-shadow: none;
   }
 
   .packages__head {
@@ -1237,11 +1254,11 @@ onMounted(async () => {
   }
 
   .packages__head h2 {
-    font-size: 21px;
+    font-size: var(--hourx-client-size-section);
   }
 
   .packages__head-copy > p:last-child {
-    font-size: 11.5px;
+    font-size: var(--hourx-client-size-body);
     font-weight: 400;
   }
 
@@ -1281,34 +1298,11 @@ onMounted(async () => {
   .packages__filter-side {
     width: auto;
   }
-
-  .package-card {
-    min-height: 304px;
-    border-radius: 13px;
-  }
-
-  .package-card__body {
-    padding: 10px;
-  }
-
-  .package-card h3 {
-    font-size: 15px;
-  }
-
-  .package-card__copy {
-    min-height: 54px;
-  }
-
-  .package-card__price strong {
-    font-size: 23px;
-  }
 }
 
 @media (prefers-reduced-motion: reduce) {
   .packages__all,
   .package-card,
-  .package-card__media img,
-  .package-card__mark,
   .package-card__action svg {
     transition: none;
   }

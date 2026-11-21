@@ -39,13 +39,21 @@
               role="menu"
               @click.stop
             >
+              <button type="button" role="menuitem" @click="openAccountList('booking')">
+                <van-icon name="orders-o" aria-hidden="true" />
+                <span>{{ t("h5.profile.menu.bookings") }}</span>
+              </button>
+              <button type="button" role="menuitem" @click="openAccountList('package')">
+                <van-icon name="gift-o" aria-hidden="true" />
+                <span>{{ t("h5.profile.menu.packages") }}</span>
+              </button>
               <button
                 type="button"
                 role="menuitem"
                 @click="openAccountSection()"
               >
-                <van-icon name="contact-o" />
-                <span>{{ t("h5.profile.accountMenu.myProfile") }}</span>
+                <van-icon name="contact-o" aria-hidden="true" />
+                <span>{{ t("client.header.accountSettings") }}</span>
               </button>
               <button
                 type="button"
@@ -74,7 +82,7 @@
                 @click="handleHeaderLogout"
               >
                 <van-icon name="close" />
-                <span>{{ t("h5.profile.logOut") }}</span>
+                <span>{{ t("client.header.logout") }}</span>
               </button>
             </div>
           </div>
@@ -90,48 +98,7 @@
     ></div>
 
     <main class="h5-home-main">
-      <section class="h5-hero" aria-labelledby="h5-home-hero-title">
-        <img
-          class="h5-hero__image"
-          :src="homeBannerUrl"
-          alt="HourX home services"
-        />
-        <div class="h5-hero__overlay">
-          <div class="h5-hero__content">
-            <h1 id="h5-home-hero-title">
-              {{ t("client.home.hero.headline") }}
-            </h1>
-            <p>{{ t("client.home.hero.description") }}</p>
-            <ul class="h5-hero__trust" aria-label="HourX booking information">
-              <li>
-                <span aria-hidden="true">✓</span
-                >{{ t("client.home.hero.trustPlatform") }}
-              </li>
-              <li>
-                <span aria-hidden="true">✓</span
-                >{{ t("client.home.hero.trustBooking") }}
-              </li>
-            </ul>
-          </div>
-          <div class="h5-hero__actions" aria-label="Banner actions">
-            <button
-              class="h5-hero__action h5-hero__action--primary"
-              type="button"
-              @click="scrollToServices"
-            >
-              {{ t("client.home.hero.cta") }}
-            </button>
-            <button
-              class="h5-hero__action h5-hero__action--whatsapp"
-              type="button"
-              @click="openWhatsApp"
-            >
-              <img :src="whatsappIconUrl" alt="" />
-              <span>{{ t("client.home.hero.whatsappCta") }}</span>
-            </button>
-          </div>
-        </div>
-      </section>
+      <HomeHero @select="selectHomeBanner" />
 
       <section id="services" class="h5-section">
         <form
@@ -175,7 +142,11 @@
             <span class="h5-service-tile__icon">
               <img :src="item.icon" :alt="item.title" />
             </span>
-            <span class="h5-service-tile__label">{{ item.title }}</span>
+            <span class="h5-service-tile__copy">
+              <span class="h5-service-tile__label">{{ item.title }}</span>
+              <span v-if="item.description" class="h5-service-tile__description">{{ item.description }}</span>
+              <span class="h5-service-tile__link">{{ t("client.home.serviceTile.action") }} →</span>
+            </span>
           </button>
         </div>
         <button
@@ -199,8 +170,8 @@
 
       <section class="h5-booking-section">
         <div class="h5-section__header h5-section__header--light">
+          <span class="h5-section__eyebrow">{{ t("client.home.sections.bookingEyebrow") }}</span>
           <h2>{{ t("client.home.sections.bookingTitle") }}</h2>
-          <p>{{ t("client.home.sections.bookingSubtitle") }}</p>
         </div>
         <div class="h5-booking-steps">
           <article
@@ -211,14 +182,18 @@
             <span class="h5-booking-step__icon">
               <img :src="item.icon" :alt="item.title" />
             </span>
-            <h3>{{ index + 1 }}. {{ item.title }}</h3>
-            <!-- <p>{{ item.desc }}</p> -->
+            <span class="h5-section__eyebrow">
+              {{ t("client.home.steps.number", { number: String(index + 1).padStart(2, "0") }) }}
+            </span>
+            <h3>{{ item.title }}</h3>
+            <p>{{ item.desc }}</p>
           </article>
         </div>
       </section>
 
       <section id="why-hourx" class="h5-trust-section">
         <div class="h5-section__header">
+          <span class="h5-section__eyebrow">{{ t("client.home.sections.aboutEyebrow") }}</span>
           <h2>{{ t("client.home.sections.aboutTitle") }}</h2>
           <p>{{ t("client.home.sections.aboutSubtitle") }}</p>
         </div>
@@ -357,6 +332,12 @@
             >{{ t("client.header.nav.joinUs") }}</a>
             <a href="/faq">{{ t("client.footer.faq") }}</a>
           </section>
+          <section class="h5-footer__section">
+            <h4>{{ t("client.footer.businessHours") }}</h4>
+            <p>{{ t("client.footer.weekday") }}</p>
+            <p>{{ t("client.footer.saturday") }}</p>
+            <p>{{ t("client.footer.sunday") }}</p>
+          </section>
         </div>
 
         <div class="h5-footer__bottom">
@@ -426,12 +407,14 @@ import {
 import { useAuth } from "@/modules/h5/composables/useAuth"
 import { setClientLocale } from "@/modules/client/locales"
 import { useCart } from "@/modules/client/composables/useCart"
+import HomeHero from "@/modules/client/components/HomeHero.vue"
 import PackageShowcase from "@/modules/client/components/PackageShowcase.vue"
 
 type ServiceTile = {
   id: string
   categoryId: string
   title: string
+  description: string
   icon: string
   placeholder: boolean
   source?: Level1CategoryRecord
@@ -492,10 +475,6 @@ const mastercardIconUrl = new URL(
 ).href
 const applePayIconUrl = new URL(
   "@/assets/images/client/payment_apple_pay.svg",
-  import.meta.url,
-).href
-const homeBannerUrl = new URL(
-  "@/assets/images/client/home-banner.png",
   import.meta.url,
 ).href
 const bookingStepIcons = [
@@ -565,7 +544,7 @@ const syncLocales = (value: string) => {
 const localeLabel = computed(() =>
   locale.value === "zh"
     ? t("client.header.languageZh")
-    : t("client.header.languageEn"),
+    : "EN",
 )
 const authButtonLabel = computed(() =>
   isLoggedIn.value ? t("client.header.profile") : t("client.header.auth"),
@@ -587,6 +566,7 @@ const mobileServiceTiles = computed<ServiceTile[]>(() => {
       item.category?.categoryName?.trim() ||
         t("client.home.defaults.unnamedService"),
     ),
+    description: pickI18nValue(item.bannerDescI18n, ""),
     icon:
       item.imageUrls?.[0] ||
       serviceFallbackIcons[index % serviceFallbackIcons.length],
@@ -595,16 +575,15 @@ const mobileServiceTiles = computed<ServiceTile[]>(() => {
   }))
 })
 
-const MOBILE_SERVICE_COLUMNS = 2
-const MOBILE_SERVICE_ROWS = 2
+const MOBILE_VISIBLE_SERVICES = 4
 const servicesExpanded = ref(false)
 const visibleMobileServiceTiles = computed(() =>
   servicesExpanded.value
     ? mobileServiceTiles.value
-    : mobileServiceTiles.value.slice(0, MOBILE_SERVICE_COLUMNS * MOBILE_SERVICE_ROWS),
+    : mobileServiceTiles.value.slice(0, MOBILE_VISIBLE_SERVICES),
 )
 const canToggleMobileServices = computed(
-  () => mobileServiceTiles.value.length > MOBILE_SERVICE_COLUMNS * MOBILE_SERVICE_ROWS,
+  () => mobileServiceTiles.value.length > MOBILE_VISIBLE_SERVICES,
 )
 
 const bookingSteps = computed<BookingStep[]>(() => [
@@ -668,6 +647,11 @@ const goAuthEntry = () => {
   router.push({ name: isLoggedIn.value ? "h5-profile" : "h5-login" })
 }
 
+const openAccountList = (kind: "booking" | "package") => {
+  accountMenuOpen.value = false
+  router.push({ name: "h5-orders", query: { kind } })
+}
+
 const openAccountSection = (section?: "addresses" | "payments" | "support") => {
   accountMenuOpen.value = false
   router.push({
@@ -707,30 +691,29 @@ const openServiceList = (item: ServiceTile) => {
   if (item.placeholder) {
     return
   }
-  const level1Payload = item.source
-    ? JSON.stringify({
-        category: item.source.category || {},
-        nameI18n: item.source.nameI18n || {},
-        imageUrls: item.source.imageUrls || [],
-        bannerTitleI18n: item.source.bannerTitleI18n || {},
-        bannerDescI18n: item.source.bannerDescI18n || {},
-        bannerTagsI18n: item.source.bannerTagsI18n || {},
-      })
-    : ""
-
   const query: Record<string, string> = {
     name: item.title,
   }
   if (item.categoryId) {
     query.categoryId = item.categoryId
   }
-  if (level1Payload) {
-    query.level1 = level1Payload
-  }
   router.push({
     name: "h5-service-list",
     query,
   })
+}
+
+const selectHomeBanner = (topic: 'cleaning' | 'ac' | 'app') => {
+  const categoryName = {
+    cleaning: /home cleaning|daily cleaning|日常清洁|家庭清洁|居家清洁/,
+    ac: /\bac\b|air conditioning|空调/i,
+  }
+  const category = topic === 'app' ? undefined : mobileServiceTiles.value.find(item => {
+    const names = [item.title, ...Object.values(item.source?.nameI18n || {})]
+    return names.some(name => categoryName[topic].test(name.toLowerCase()))
+  })
+  if (category) openServiceList(category)
+  else scrollToServices()
 }
 
 const scrollToServices = () => {
@@ -773,8 +756,8 @@ onMounted(() => {
 
 <style scoped lang="scss">
 .h5-home-page {
-  background: #f8fafc;
-  color: rgba(15, 23, 42, 0.92);
+  background: var(--hourx-client-canvas);
+  color: var(--hourx-client-text);
   min-height: 100vh;
   padding-bottom: calc(84px + env(safe-area-inset-bottom));
 }
@@ -809,8 +792,8 @@ onMounted(() => {
 }
 
 .h5-topbar__logo {
-  width: 84px;
-  height: 52px;
+  width: 63px;
+  height: 37px;
   object-fit: contain;
 }
 
@@ -835,8 +818,8 @@ onMounted(() => {
   align-items: center;
   gap: 6px;
   padding: 0 12px;
-  font-size: 12px;
-  font-weight: 700;
+  font-size: var(--hourx-client-size-action);
+  font-weight: 600;
 }
 
 .h5-pill__icon {
@@ -902,9 +885,9 @@ onMounted(() => {
   display: flex;
   align-items: center;
   gap: 11px;
-  color: #243244;
-  font-size: 13px;
-  font-weight: 650;
+  color: var(--hourx-client-text);
+  font-size: var(--hourx-client-size-action);
+  font-weight: 600;
   text-align: left;
 }
 
@@ -938,159 +921,14 @@ onMounted(() => {
 }
 
 .h5-home-main {
-  max-width: 430px;
+  max-width: 75rem;
   margin: 0 auto;
-  background: #fff;
+  background: var(--hourx-client-canvas);
   min-height: calc(100vh - 64px);
-  box-shadow: 0 0 0 1px rgba(226, 232, 240, 0.55);
-}
-
-.h5-hero {
-  position: relative;
-  height: 356px;
-  overflow: hidden;
-  line-height: 0;
-  background: var(--hourx-brand-soft);
-}
-
-.h5-hero__image {
-  display: block;
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  object-position: 62% center;
-}
-
-.h5-hero__overlay {
-  position: absolute;
-  inset: 0;
-  z-index: 1;
-  padding: 32px 18px 18px;
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  background: linear-gradient(
-    90deg,
-    var(--hourx-brand) 0%,
-    var(--hourx-brand) 68%,
-    rgba(6, 29, 52, 0.92) 84%,
-    rgba(6, 29, 52, 0.7) 100%
-  );
-}
-
-.h5-hero__content {
-  max-width: 330px;
-  color: #fff;
-  line-height: normal;
-}
-
-.h5-hero__content h1 {
-  max-width: 325px;
-  margin: 0;
-  color: #fff;
-  font-size: 31px;
-  line-height: 1.08;
-  font-weight: 900;
-  letter-spacing: -0.035em;
-}
-
-.h5-hero__content > p {
-  max-width: 310px;
-  margin: 14px 0 0;
-  color: rgba(255, 255, 255, 0.82);
-  font-size: 14px;
-  line-height: 1.55;
-  font-weight: 500;
-}
-
-.h5-hero__trust {
-  margin: 18px 0 0;
-  padding: 0;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px 16px;
-  list-style: none;
-}
-
-.h5-hero__trust li {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  color: #fff;
-  font-size: 11px;
-  line-height: 1.3;
-  font-weight: 750;
-}
-
-.h5-hero__trust li > span {
-  width: 21px;
-  height: 21px;
-  border: 1px solid rgba(255, 255, 255, 0.74);
-  border-radius: 999px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 11px;
-}
-
-.h5-hero__actions {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 8px;
-  line-height: normal;
-}
-
-.h5-hero__action {
-  height: 46px;
-  padding: 0 12px;
-  border: 1px solid transparent;
-  border-radius: 11px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 7px;
-  color: #fff;
-  font: inherit;
-  font-size: 14px;
-  font-weight: 800;
-  letter-spacing: 0.01em;
-  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.16);
-}
-
-.h5-hero__action:active {
-  transform: translateY(1px);
-}
-
-.h5-hero__action--primary {
-  background: linear-gradient(135deg, #77f4dd 0%, #2ed8bd 100%);
-  color: #05152b;
-  font-size: 15px;
-  font-weight: 900;
-  border: none;
-  box-shadow:
-    0 12px 28px rgba(4, 25, 48, 0.38),
-    0 0 0 4px rgba(119, 244, 221, 0.12);
-}
-
-.h5-hero__action--primary:active {
-  background: linear-gradient(135deg, #91f8e5 0%, #43e3c8 100%);
-}
-
-.h5-hero__action--whatsapp {
-  background: transparent;
-  border-color: rgba(255, 255, 255, 0.3);
-  color: rgba(255, 255, 255, 0.72);
-  box-shadow: none;
-  font-weight: 600;
-}
-
-.h5-hero__action--whatsapp img {
-  width: 20px;
-  height: 20px;
 }
 
 .h5-section {
-  padding: 34px 20px 36px;
+  padding: 56px 16px 0;
 }
 
 .h5-home-search {
@@ -1159,30 +997,31 @@ onMounted(() => {
 
 .h5-home-intro__eyebrow {
   margin: 0;
-  color: var(--hourx-brand);
-  font-size: 11px;
-  line-height: 1.4;
-  font-weight: 850;
-  letter-spacing: 0.13em;
+  color: var(--hourx-client-accent-ink);
+  font-size: var(--hourx-client-size-label);
+  line-height: 1.2;
+  font-weight: 600;
+  letter-spacing: 0.12em;
   text-transform: uppercase;
 }
 
 .h5-home-intro h2 {
   margin: 10px 0 0;
-  color: var(--hourx-brand);
-  font-size: 26px;
-  line-height: 1.16;
-  font-weight: 850;
-  letter-spacing: -0.02em;
+  color: var(--hourx-client-text);
+  font-size: var(--hourx-client-size-section);
+  line-height: 1.25;
+  font-weight: 700;
+  letter-spacing: -0.015em;
+  font-family: var(--hourx-client-heading-font);
 }
 
 .h5-home-intro__description {
   max-width: 360px;
   margin: 12px 0 0;
-  color: rgba(15, 23, 42, 0.56);
-  font-size: 13px;
-  line-height: 1.6;
-  font-weight: 500;
+  color: var(--hourx-client-muted);
+  font-size: var(--hourx-client-size-body);
+  line-height: 1.55;
+  font-weight: 400;
 }
 
 .h5-section__header {
@@ -1191,58 +1030,68 @@ onMounted(() => {
 
 .h5-section__header h2 {
   margin: 0;
-  font-size: 18px;
-  line-height: 1.2;
-  font-weight: 900;
-  color: var(--hourx-brand);
+  font-size: var(--hourx-client-size-section);
+  line-height: 1.25;
+  font-weight: 700;
+  color: var(--hourx-client-text);
+  font-family: var(--hourx-client-heading-font);
+  letter-spacing: -0.015em;
 }
 
 .h5-section__header p {
   margin: 8px auto 0;
   max-width: 320px;
-  color: rgba(15, 23, 42, 0.56);
-  font-size: 13px;
-  line-height: 1.5;
-  font-weight: 600;
+  color: var(--hourx-client-muted);
+  font-size: var(--hourx-client-size-body);
+  line-height: 1.55;
+  font-weight: 400;
 }
 
-.h5-section__header--light h2,
-.h5-section__header--light p {
+.h5-section__header--light h2 {
   color: #fff;
 }
 
-.h5-section__header--light p {
-  opacity: 0.82;
+.h5-section__eyebrow {
+  display: block;
+  margin: 0 0 10px;
+  color: var(--hourx-client-accent-ink);
+  font-size: var(--hourx-client-size-label);
+  font-weight: 600;
+  line-height: 1;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.h5-section__header--light .h5-section__eyebrow,
+.h5-booking-step .h5-section__eyebrow {
+  color: var(--hourx-client-accent);
 }
 
 .h5-service-grid {
-  margin-top: 12px;
+  margin-top: 24px;
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 8px;
+  grid-template-columns: 1fr;
+  gap: 16px;
 }
 
 .h5-service-tile {
   min-width: 0;
-  min-height: 84px;
+  min-height: 144px;
   border: 1px solid #dce7f3;
   border-radius: 14px;
-  background:
-    radial-gradient(circle at 88% 8%, rgba(5, 21, 43, 0.11), transparent 42%),
-    var(--hourx-brand-soft);
-  padding: 10px 8px 9px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
+  background: #fff;
+  padding: 20px;
+  display: grid;
+  align-items: start;
   justify-content: center;
-  gap: 6px;
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.92),
-    0 4px 12px rgba(31, 80, 122, 0.045);
+  gap: 16px;
   transition:
     transform 0.18s ease,
     border-color 0.18s ease,
     box-shadow 0.18s ease;
+  grid-template-columns: 44px minmax(0, 1fr);
+  border-color: var(--hourx-client-border);
+  text-align: start;
 }
 
 .h5-service-tile:active {
@@ -1252,8 +1101,8 @@ onMounted(() => {
 }
 
 .h5-service-tile__icon {
-  width: 36px;
-  height: 36px;
+  width: 44px;
+  height: 44px;
   border: 1px solid rgba(5, 21, 43, 0.12);
   border-radius: 12px;
   background: linear-gradient(
@@ -1266,6 +1115,7 @@ onMounted(() => {
   justify-content: center;
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.85);
   box-sizing: border-box;
+  border-color: var(--hourx-client-border);
 }
 
 .h5-service-tile__icon img {
@@ -1279,21 +1129,40 @@ onMounted(() => {
   max-width: 100%;
   display: -webkit-box;
   overflow: hidden;
-  color: #0f172a;
-  font-size: 13px;
+  color: var(--hourx-client-text);
+  font-size: var(--hourx-client-size-card);
   line-height: 1.3;
-  font-weight: 750;
-  text-align: center;
+  font-weight: 600;
+  text-align: start;
   overflow-wrap: anywhere;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
   line-clamp: 2;
 }
 
+.h5-service-tile__copy {
+  display: grid;
+  gap: 6px;
+}
+
+.h5-service-tile__description {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  color: var(--hourx-client-muted);
+  font-size: var(--hourx-client-size-body);
+}
+
+.h5-service-tile__link {
+  font-size: var(--hourx-client-size-action);
+  font-weight: 600;
+}
+
 .h5-service-toggle {
-  width: 100%;
-  height: 34px;
-  margin-top: 8px;
+  width: auto;
+  height: 44px;
+  margin-top: 16px;
   border: 1px solid #dce7f3;
   border-radius: 12px;
   background: #fff;
@@ -1303,9 +1172,12 @@ onMounted(() => {
   justify-content: center;
   gap: 6px;
   font: inherit;
-  font-size: 13px;
-  font-weight: 750;
+  font-size: var(--hourx-client-size-action);
+  font-weight: 600;
   cursor: pointer;
+  line-height: 1;
+  padding-inline: 16px;
+  border-color: var(--hourx-client-border);
 }
 
 .h5-service-toggle__chevron {
@@ -1342,22 +1214,6 @@ onMounted(() => {
 }
 
 @media (max-width: 360px) {
-  .h5-hero {
-    height: 340px;
-  }
-
-  .h5-hero__overlay {
-    padding: 26px 14px 14px;
-  }
-
-  .h5-hero__content h1 {
-    font-size: 28px;
-  }
-
-  .h5-hero__content > p {
-    font-size: 13px;
-  }
-
   .h5-section {
     padding-right: 14px;
     padding-left: 14px;
@@ -1383,25 +1239,18 @@ onMounted(() => {
     height: 20px;
   }
 
-  .h5-service-tile__label {
-    font-size: 12px;
-  }
 }
 
 .h5-booking-section {
-  background: linear-gradient(
-    180deg,
-    var(--hourx-brand) 0%,
-    var(--hourx-brand-hover) 100%
-  );
-  padding: 28px 16px 32px;
+  background: var(--hourx-client-text);
+  padding: 56px 16px;
 }
 
 .h5-booking-steps {
   margin-top: 24px;
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 12px;
+  grid-template-columns: 1fr;
+  gap: 24px;
 }
 
 .h5-booking-step {
@@ -1432,21 +1281,23 @@ onMounted(() => {
 
 .h5-booking-step h3 {
   margin: 0;
-  font-size: 13px;
-  line-height: 1.4;
-  font-weight: 800;
+  font-size: var(--hourx-client-size-card);
+  line-height: 1.3;
+  font-weight: 600;
+  color: #fff;
 }
 
 .h5-booking-step p {
   margin: 8px 0 0;
-  color: rgba(255, 255, 255, 0.78);
-  font-size: 11px;
-  line-height: 1.45;
+  color: var(--hourx-client-on-dark);
+  font-size: var(--hourx-client-size-action);
+  line-height: 1.55;
+  font-weight: 400;
 }
 
 .h5-trust-section {
-  padding: 30px 16px 32px;
-  background: #f8fafc;
+  padding: 56px 16px 0;
+  background: var(--hourx-client-canvas);
 }
 
 .h5-trust-grid {
@@ -1464,7 +1315,7 @@ onMounted(() => {
   align-items: start;
   gap: 13px;
   background: #fff;
-  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.04);
+  border-color: var(--hourx-client-border);
 }
 
 .h5-trust-card__icon {
@@ -1489,54 +1340,52 @@ onMounted(() => {
 
 .h5-trust-card h3 {
   margin: 1px 0 0;
-  color: var(--hourx-brand);
-  font-size: 14px;
-  line-height: 1.4;
-  font-weight: 850;
+  color: var(--hourx-client-text);
+  font-size: var(--hourx-client-size-card);
+  line-height: 1.3;
+  font-weight: 600;
 }
 
 .h5-trust-card p {
   margin: 5px 0 0;
-  color: rgba(15, 23, 42, 0.58);
-  font-size: 12px;
+  color: var(--hourx-client-muted);
+  font-size: var(--hourx-client-size-action);
   line-height: 1.55;
-  font-weight: 500;
+  font-weight: 400;
 }
 
 .h5-final-cta {
-  margin: 24px 16px 28px;
-  padding: 24px 18px;
+  margin: 56px 16px;
+  padding: 28px 20px;
   border-radius: 20px;
-  text-align: center;
+  text-align: start;
   color: #fff;
-  background: linear-gradient(
-    145deg,
-    var(--hourx-brand) 0%,
-    var(--hourx-brand-hover) 66%,
-    var(--hourx-brand) 135%
-  );
-  box-shadow: 0 14px 30px rgba(15, 41, 74, 0.16);
+  background: var(--hourx-client-text);
 }
 
 .h5-final-cta h2 {
   margin: 0;
-  font-size: 20px;
-  line-height: 1.3;
-  font-weight: 850;
+  font-size: var(--hourx-client-size-section);
+  line-height: 1.25;
+  font-weight: 700;
+  color: #fff;
+  font-family: var(--hourx-client-heading-font);
+  letter-spacing: -0.015em;
 }
 
 .h5-final-cta p {
   margin: 8px auto 0;
   max-width: 300px;
-  color: rgba(255, 255, 255, 0.72);
-  font-size: 12px;
+  color: var(--hourx-client-on-dark);
+  font-size: var(--hourx-client-size-body);
   line-height: 1.55;
+  font-weight: 400;
 }
 
 .h5-final-cta__actions {
   margin-top: 18px;
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: 1fr;
   gap: 8px;
 }
 
@@ -1550,8 +1399,9 @@ onMounted(() => {
   justify-content: center;
   gap: 6px;
   font: inherit;
-  font-size: 12px;
-  font-weight: 800;
+  font-size: var(--hourx-client-size-action);
+  font-weight: 600;
+  line-height: 1;
 }
 
 .h5-final-cta__button--primary {
@@ -1571,9 +1421,9 @@ onMounted(() => {
 }
 
 .h5-footer {
-  background: var(--hourx-brand);
+  background: #08121f;
   border-top: 1px solid #1d293d;
-  color: rgba(255, 255, 255, 0.6);
+  color: var(--hourx-client-on-dark);
   padding: 24px 24px calc(76px + env(safe-area-inset-bottom));
 }
 
@@ -1649,17 +1499,19 @@ onMounted(() => {
 .h5-footer__section h4 {
   margin: 0 0 16px;
   color: #fff;
-  font-size: 14px;
-  font-weight: 800;
-  line-height: 20px;
+  font-size: var(--hourx-client-size-label);
+  font-weight: 600;
+  line-height: 1.2;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
 }
 
 .h5-footer__section p,
 .h5-footer__section a {
   margin: 0 0 12px;
-  font-size: 12px;
-  line-height: 16px;
-  font-weight: 500;
+  font-size: var(--hourx-client-size-action);
+  line-height: 1.6;
+  font-weight: 400;
   word-break: break-word;
   color: inherit;
   text-decoration: none;
@@ -1695,9 +1547,9 @@ onMounted(() => {
 }
 
 .h5-footer__legal-links a {
-  color: rgba(255, 255, 255, 0.66);
-  font-size: 11px;
-  line-height: 16px;
+  color: var(--hourx-client-on-dark);
+  font-size: 0.8125rem;
+  line-height: 1.5;
   text-decoration: none;
 }
 

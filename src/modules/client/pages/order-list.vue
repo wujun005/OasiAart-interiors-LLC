@@ -2,237 +2,244 @@
   <div class="order-list-page">
     <section class="order-list-body">
       <div class="order-list-container">
-        <header class="order-list-head">
-          <div>
-            <h1>{{ listTitle }}</h1>
-            <p>{{ listSubtitle }}</p>
-          </div>
+        <AccountBanner>
+          {{ t("client.profile.subtitle") }}
+        </AccountBanner>
+        <div class="order-list-layout">
+          <AccountMenu :current="listKind" />
+          <div class="order-list-pane">
+            <header class="order-list-head">
+              <h1>{{ listTitle }}</h1>
+              <p>{{ listSubtitle }}</p>
+            </header>
 
-          <div class="order-list-search">
-            <div class="order-list-search__input">
-              <img :src="searchIconUrl" alt="" />
-              <input
-                v-model.trim="searchKeyword"
-                type="text"
-                :placeholder="t('client.orderList.searchPlaceholder')"
-                @keyup.enter="onSearchNow"
-              />
+            <div class="order-list-tools">
+              <section class="order-status-tabs">
+                <button
+                  v-for="item in statusTabs"
+                  :key="item.value"
+                  type="button"
+                  class="order-status-tab"
+                  :class="{
+                    'order-status-tab--active': selectedStatus === item.value,
+                  }"
+                  @click="onStatusChange(item.value)"
+                >
+                  <i v-if="item.dot" :style="{ background: item.dot }" />
+                  {{ item.label }}
+                  <b>{{ item.count }}</b>
+                </button>
+              </section>
+              <div class="order-list-search">
+                <div class="order-list-search__input">
+                  <img :src="searchIconUrl" alt="" />
+                  <input
+                    v-model.trim="searchKeyword"
+                    type="text"
+                    :placeholder="t('client.orderList.searchPlaceholder')"
+                    @keyup.enter="onSearchNow"
+                  />
+                </div>
+                <button type="button" :aria-label="t('client.orderList.searchPlaceholder')" @click="onSearchNow">
+                  <img :src="filterIconUrl" alt="" />
+                </button>
+              </div>
             </div>
-            <button type="button" @click="onSearchNow">
-              <img :src="filterIconUrl" alt="" />
-            </button>
-          </div>
-        </header>
 
-        <section class="order-status-tabs">
-          <button
-            v-for="item in statusTabs"
-            :key="item.value"
-            type="button"
-            class="order-status-tab"
-            :class="{
-              'order-status-tab--active': selectedStatus === item.value,
-            }"
-            @click="onStatusChange(item.value)"
-          >
-            <i v-if="item.dot" :style="{ background: item.dot }" />
-            {{ item.label }}
-            <b>{{ item.count }}</b>
-          </button>
-        </section>
-
-        <section class="order-list-content">
-          <p v-if="isLoading" class="order-list-empty">
-            {{ t("client.orderList.loading") }}
-          </p>
-          <div v-else-if="loadError" class="order-list-error" role="alert">
-            <strong>{{
-              locale === "zh" ? "订单暂时无法加载" : "Unable to load orders"
-            }}</strong>
-            <span>{{
-              locale === "zh"
-                ? "请检查网络或稍后重试。"
-                : "Please check your connection or try again shortly."
-            }}</span>
-            <button type="button" @click="loadOrders">
-              {{ locale === "zh" ? "重试" : "Try Again" }}
-            </button>
-          </div>
-          <p v-else-if="!orderCards.length" class="order-list-empty">
-            {{ emptyLabel }}
-          </p>
-
-          <template v-else>
-            <article
-              v-for="item in orderCards"
-              :key="item.orderNo"
-              class="order-card"
-              :class="[
-                `order-card--status-${item.rawOrderStatus ?? 'unknown'}`,
-                { 'order-card--history': selectedStatus === 'HISTORY' },
-              ]"
-              tabindex="0"
-              @click="goDetail(item)"
-              @keyup.enter="goDetail(item)"
-            >
-              <div class="order-card__image-wrap">
-                <img
-                  class="order-card__image"
-                  :src="item.image"
-                  :alt="item.title"
-                />
-                <span class="order-card__badge">{{ item.statusText }}</span>
+            <section class="order-list-content">
+              <p v-if="isLoading" class="order-list-empty">
+                {{ t("client.orderList.loading") }}
+              </p>
+              <div v-else-if="loadError" class="order-list-error" role="alert">
+                <strong>{{
+                  locale === "zh" ? "订单暂时无法加载" : "Unable to load orders"
+                }}</strong>
+                <span>{{
+                  locale === "zh"
+                    ? "请检查网络或稍后重试。"
+                    : "Please check your connection or try again shortly."
+                }}</span>
+                <button type="button" @click="loadOrders">
+                  {{ locale === "zh" ? "重试" : "Try Again" }}
+                </button>
               </div>
+              <p v-else-if="!orderCards.length" class="order-list-empty">
+                {{ emptyLabel }}
+              </p>
 
-              <div class="order-card__main">
-                <div class="order-card__title-row">
-                  <div class="order-card__title-copy">
-                    <h3>{{ item.title }}</h3>
-                    <span
-                      class="order-card__kind-badge"
-                      :class="`order-card__kind-badge--${item.orderKind}`"
+              <template v-else>
+                <article
+                  v-for="item in orderCards"
+                  :key="item.orderNo"
+                  class="order-card"
+                  :class="[
+                    `order-card--status-${item.rawOrderStatus ?? 'unknown'}`,
+                    { 'order-card--history': selectedStatus === 'HISTORY' },
+                  ]"
+                  tabindex="0"
+                  @click="goDetail(item)"
+                  @keyup.enter.self="goDetail(item)"
+                >
+                  <div class="order-card__image-wrap">
+                    <img
+                      class="order-card__image"
+                      :src="item.image"
+                      :alt="item.title"
+                    />
+                  </div>
+
+                  <div class="order-card__main">
+                    <div class="order-card__title-row">
+                      <div class="order-card__title-copy">
+                        <h3>{{ item.title }}</h3>
+                        <span class="order-card__badge">{{ item.statusText }}</span>
+                        <span
+                          class="order-card__kind-badge"
+                          :class="`order-card__kind-badge--${item.orderKind}`"
+                        >
+                          {{ item.orderKindText }}
+                        </span>
+                      </div>
+                      <strong>{{ item.amountText }}</strong>
+                    </div>
+
+                    <div class="order-card__meta-row">
+                      <span>
+                        <img :src="orderNoIconUrl" alt="" />
+                        {{ t("client.orderList.orderNo") }}: {{ item.orderNo }}
+                      </span>
+                      <span>
+                        <img :src="dateIconUrl" alt="" />
+                        {{ t("client.orderList.createdTime") }}:
+                        {{ item.createdTimeText }}
+                      </span>
+                    </div>
+
+                    <div class="order-card__details">
+                      <div class="order-card__detail">
+                        <img :src="timeIconUrl" alt="" />
+                        <span>
+                          <small>{{ item.scheduleLabel || t("client.orderList.serviceTime") }}</small>
+                          <strong>{{ item.serviceTimeText }}</strong>
+                        </span>
+                      </div>
+                      <div class="order-card__detail order-card__detail--address">
+                        <img :src="addressIconUrl" alt="" />
+                        <span>
+                          <small>{{ item.addressLabel || t("client.orderList.serviceAddress") }}</small>
+                          <strong>{{ item.addressText }}</strong>
+                          <em v-if="item.additionalNotes" class="order-card__note">{{ t('client.orderList.additionalNotes') }}: {{ item.additionalNotes }}</em>
+                        </span>
+                      </div>
+                    </div>
+
+                    <ul v-if="item.packageServices.length" class="order-card__services">
+                      <li v-for="service in item.packageServices" :key="service.key">
+                        <b>{{ service.name }}</b>
+                        <span v-if="service.spec">{{ service.spec }}</span>
+                        <em>{{ service.timesText }}</em>
+                      </li>
+                    </ul>
+
+                    <div
+                      v-if="item.specText || item.addOnsText"
+                      class="order-card__selections"
                     >
-                      {{ item.orderKindText }}
-                    </span>
+                      <span v-if="item.specText">
+                        {{ item.specText }}
+                      </span>
+                      <span v-if="item.addOnsText">
+                        <b>{{ t("client.orderList.addOns") }}:</b>
+                        {{ item.addOnsText }}
+                      </span>
+                    </div>
+
+                    <div
+                      v-if="item.refundHandlingFeeText"
+                      class="order-card__refund-fee"
+                    >
+                      <span>{{ t("client.orderList.refundHandlingFee") }}</span>
+                      <strong>{{ item.refundHandlingFeeText }}</strong>
+                    </div>
+
+                    <div
+                      v-if="item.canAddAddons"
+                      class="order-card__extras"
+                      @keyup.enter.stop
+                    >
+                      <AddExtraServiceButton compact @click.stop="goAddAddons(item)" />
+                    </div>
+
+                    <div class="order-card__actions">
+                      <button
+                        v-if="item.canContinue"
+                        type="button"
+                        class="order-card__btn order-card__btn--primary"
+                        :disabled="isManageResolving"
+                        @click.stop="goContinueBooking(item)"
+                      >
+                        {{ locale === "zh" ? "继续预订" : "Continue Booking" }}
+                      </button>
+                      <button
+                        v-if="item.canBookVisit"
+                        type="button"
+                        class="order-card__btn order-card__btn--primary"
+                        @click.stop="goBookVisit(item)"
+                      >
+                        {{ locale === "zh" ? "预约上门" : "Book a visit" }}
+                      </button>
+                      <button
+                        v-if="item.canManage"
+                        type="button"
+                        class="order-card__btn order-card__btn--primary"
+                        @click.stop="requestReschedule(item)"
+                      >
+                        {{ locale === "zh" ? "管理预订" : "Manage Booking" }}
+                      </button>
+                      <button
+                        v-if="item.canReview && !item.reviewed"
+                        type="button"
+                        class="order-card__btn order-card__btn--ghost"
+                        @click.stop="openReview(item)"
+                      >
+                        {{ t("client.orderList.review") }}
+                      </button>
+                      <button
+                        v-if="item.canRebook"
+                        type="button"
+                        class="order-card__btn order-card__btn--primary"
+                        @click.stop="goRebook(item)"
+                      >
+                        {{ t("client.orderList.rebook") }}
+                      </button>
+                    </div>
                   </div>
-                  <strong>{{ item.amountText }}</strong>
-                </div>
-
-                <div class="order-card__meta-row">
-                  <span>
-                    <img :src="orderNoIconUrl" alt="" />
-                    {{ t("client.orderList.orderNo") }}: {{ item.orderNo }}
-                  </span>
-                  <span>
-                    <img :src="dateIconUrl" alt="" />
-                    {{ t("client.orderList.createdTime") }}:
-                    {{ item.createdTimeText }}
-                  </span>
-                </div>
-
-                <div class="order-card__details">
-                  <div class="order-card__detail">
-                    <img :src="timeIconUrl" alt="" />
-                    <span>
-                      <small>{{ item.scheduleLabel || t("client.orderList.serviceTime") }}</small>
-                      <strong>{{ item.serviceTimeText }}</strong>
-                    </span>
-                  </div>
-                  <div class="order-card__detail order-card__detail--address">
-                    <img :src="addressIconUrl" alt="" />
-                    <span>
-                      <small>{{ item.addressLabel || t("client.orderList.serviceAddress") }}</small>
-                      <strong>{{ item.addressText }}</strong>
-                      <em v-if="item.additionalNotes" class="order-card__note">{{ t('client.orderList.additionalNotes') }}: {{ item.additionalNotes }}</em>
-                    </span>
-                  </div>
-                </div>
-
-                <ul v-if="item.packageServices.length" class="order-card__services">
-                  <li v-for="service in item.packageServices" :key="service.key">
-                    <b>{{ service.name }}</b>
-                    <span v-if="service.spec">{{ service.spec }}</span>
-                    <em>{{ service.timesText }}</em>
-                  </li>
-                </ul>
-
-                <div
-                  v-if="item.specText || item.addOnsText"
-                  class="order-card__selections"
+                </article>
+              </template>
+              <nav
+                v-if="!isLoading && !loadError && pageCount > 1"
+                class="order-list-pager"
+                :aria-label="t('client.orderList.pagerStatus', { page: pageNum, pages: pageCount })"
+              >
+                <button
+                  type="button"
+                  :disabled="listRefreshing || pageNum <= 1"
+                  @click="changePage(pageNum - 1)"
                 >
-                  <span v-if="item.specText">
-                    {{ item.specText }}
-                  </span>
-                  <span v-if="item.addOnsText">
-                    <b>{{ t("client.orderList.addOns") }}:</b>
-                    {{ item.addOnsText }}
-                  </span>
-                </div>
-
-                <div
-                  v-if="item.refundHandlingFeeText"
-                  class="order-card__refund-fee"
+                  {{ t("client.orderList.pagerPrev") }}
+                </button>
+                <span>{{ t("client.orderList.pagerStatus", { page: pageNum, pages: pageCount }) }}</span>
+                <button
+                  type="button"
+                  :disabled="listRefreshing || pageNum >= pageCount"
+                  @click="changePage(pageNum + 1)"
                 >
-                  <span>{{ t("client.orderList.refundHandlingFee") }}</span>
-                  <strong>{{ item.refundHandlingFeeText }}</strong>
-                </div>
-
-                <div
-                  v-if="item.canAddAddons"
-                  class="order-card__extras"
-                  @keyup.enter.stop
-                >
-                  <AddExtraServiceButton compact @click.stop="goAddAddons(item)" />
-                </div>
-
-                <div class="order-card__actions">
-                  <button
-                    v-if="item.canContinue"
-                    type="button"
-                    class="order-card__btn order-card__btn--primary"
-                    :disabled="isManageResolving"
-                    @click.stop="goContinueBooking(item)"
-                  >
-                    {{ locale === "zh" ? "继续预订" : "Continue Booking" }}
-                  </button>
-                  <button
-                    v-if="item.canBookVisit"
-                    type="button"
-                    class="order-card__btn order-card__btn--primary"
-                    @click.stop="goBookVisit(item)"
-                  >
-                    {{ locale === "zh" ? "预约上门" : "Book a visit" }}
-                  </button>
-                  <button
-                    v-if="item.canManage"
-                    type="button"
-                    class="order-card__btn order-card__btn--primary"
-                    @click.stop="requestReschedule(item)"
-                  >
-                    {{ locale === "zh" ? "管理预订" : "Manage Booking" }}
-                  </button>
-                  <button
-                    v-if="item.canReview && !item.reviewed"
-                    type="button"
-                    class="order-card__btn order-card__btn--ghost"
-                    @click.stop="openReview(item)"
-                  >
-                    {{ t("client.orderList.review") }}
-                  </button>
-                  <button
-                    v-if="item.canRebook"
-                    type="button"
-                    class="order-card__btn order-card__btn--primary"
-                    @click.stop="goRebook(item)"
-                  >
-                    {{ t("client.orderList.rebook") }}
-                  </button>
-                </div>
-              </div>
-            </article>
-          </template>
-          <nav
-            v-if="!isLoading && !loadError && pageCount > 1"
-            class="order-list-pager"
-            :aria-label="t('client.orderList.pagerStatus', { page: pageNum, pages: pageCount })"
-          >
-            <button
-              type="button"
-              :disabled="listRefreshing || pageNum <= 1"
-              @click="changePage(pageNum - 1)"
-            >
-              {{ t("client.orderList.pagerPrev") }}
-            </button>
-            <span>{{ t("client.orderList.pagerStatus", { page: pageNum, pages: pageCount }) }}</span>
-            <button
-              type="button"
-              :disabled="listRefreshing || pageNum >= pageCount"
-              @click="changePage(pageNum + 1)"
-            >
-              {{ t("client.orderList.pagerNext") }}
-            </button>
-          </nav>
-        </section>
+                  {{ t("client.orderList.pagerNext") }}
+                </button>
+              </nav>
+            </section>
+          </div>
+        </div>
       </div>
     </section>
 
@@ -345,7 +352,7 @@
 
     <el-dialog
       v-model="rescheduleDialogVisible"
-      :title="locale.startsWith('zh') ? '管理预订' : 'Manage Booking'"
+      :title="locale.startsWith('zh') ? '管理预订' : 'Reschedule Booking'"
       class="order-reschedule-dialog"
       width="min(560px, calc(100vw - 32px))"
       :close-on-click-modal="false"
@@ -355,14 +362,14 @@
         <div class="order-reschedule-form__summary">
           <span>{{ rescheduleForm.serviceName }}</span>
           <small>{{
-            locale.startsWith("zh") ? "当前安排" : "Current schedule"
+            locale.startsWith("zh") ? "当前安排" : "Current Appointment"
           }}</small>
           <strong>{{ rescheduleForm.currentSchedule }}</strong>
         </div>
         <div class="order-reschedule-form__grid">
           <label>
             <span>{{
-              locale.startsWith("zh") ? "新的服务日期" : "New service date"
+              locale.startsWith("zh") ? "新的服务日期" : "New Service Date"
             }}</span>
             <el-config-provider :locale="rescheduleDatePickerLocale">
               <el-date-picker
@@ -388,7 +395,7 @@
           </label>
           <label>
             <span>{{
-              locale.startsWith("zh") ? "新的服务时段" : "New time slot"
+              locale.startsWith("zh") ? "新的服务时段" : "Available Time Slots"
             }}</span>
             <select
               v-model.number="rescheduleForm.timeRange"
@@ -446,7 +453,7 @@
                   : "Submitting…"
                 : locale.startsWith("zh")
                   ? "确认改期"
-                  : "Confirm Reschedule"
+                  : "Request Reschedule"
             }}
           </button>
         </div>
@@ -465,6 +472,8 @@ import { useRoute, useRouter } from "vue-router"
 import CancellationPolicyGate from "@/modules/client/components/CancellationPolicyGate.vue"
 import CancellationModalContent from "@/modules/client/components/CancellationModalContent.vue"
 import AddExtraServiceButton from "@/modules/client/components/AddExtraServiceButton.vue"
+import AccountBanner from "@/modules/client/components/AccountBanner.vue"
+import AccountMenu from "@/modules/client/components/AccountMenu.vue"
 import {
   formatCreatedAt,
   formatServiceSchedule,
@@ -744,7 +753,7 @@ const rescheduleTimePlaceholder = computed(() => {
   if (!rescheduleForm.serviceTime)
     return locale.value.startsWith("zh")
       ? "请先选择日期"
-      : "Please select a date first"
+      : "Select a date to check available times."
   if (isRescheduleTimeLoading.value)
     return locale.value.startsWith("zh") ? "时间加载中…" : "Loading times…"
   if (!selectableRescheduleTimeOptions.value.length)
@@ -1740,7 +1749,8 @@ onBeforeUnmount(() => {
 <style scoped lang="scss">
 .order-list-page {
   min-height: 100%;
-  background: #f8fafc;
+  background: var(--hourx-client-canvas);
+  color: var(--hourx-client-text);
 }
 
 .order-list-body {
@@ -1748,31 +1758,41 @@ onBeforeUnmount(() => {
 }
 
 .order-list-container {
-  width: min(1280px, calc(100% - 48px));
+  width: min(1152px, calc(100% - 48px));
   margin: 0 auto;
 }
 
-.order-list-head {
+.order-list-layout {
+  display: grid;
+  grid-template-columns: 250px minmax(0, 1fr);
+  gap: 24px;
+  align-items: start;
+  margin-top: 24px;
+}
+
+.order-list-pane { min-width: 0; }
+
+.order-list-tools {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 24px;
+  gap: 12px;
+  margin-top: 20px;
+  flex-wrap: wrap;
 }
 
 .order-list-head h1 {
   margin: 0;
-  color: rgba(15, 23, 42, 0.9);
-  font-size: 26px;
-  line-height: 1.2;
-  font-weight: 900;
+  color: var(--hourx-client-text);
+  font: 700 var(--hourx-client-size-section)/1.25 var(--hourx-client-heading-font);
+  letter-spacing: -0.015em;
 }
 
 .order-list-head p {
   margin: 4px 0 0;
-  color: rgba(15, 23, 42, 0.5);
-  font-size: 16px;
-  line-height: 1.5;
-  font-weight: 500;
+  color: var(--hourx-client-muted);
+  font-size: var(--hourx-client-size-body);
+  line-height: 1.55;
 }
 
 .order-list-search {
@@ -1782,7 +1802,7 @@ onBeforeUnmount(() => {
 }
 
 .order-list-search__input {
-  width: 256px;
+  width: min(320px, 43vw);
   height: 42px;
   border-radius: 14px;
   border: 1px solid #e5e7eb;
@@ -1826,20 +1846,22 @@ onBeforeUnmount(() => {
 }
 
 .order-status-tabs {
-  margin-top: 30px;
   width: fit-content;
   display: flex;
-  gap: 10px;
+  gap: 4px;
+  padding: 4px;
+  border-radius: 14px;
+  background: #efece6;
 }
 
 .order-status-tab {
   height: 40px;
   border: 0;
-  border-radius: 999px;
-  background: #edeff2;
-  color: #3a3f45;
-  font-size: 14px;
-  font-weight: 700;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--hourx-client-text);
+  font-size: var(--hourx-client-size-action);
+  font-weight: 600;
   cursor: pointer;
   padding: 0 16px;
   display: inline-flex;
@@ -1925,15 +1947,12 @@ onBeforeUnmount(() => {
 
 .order-card {
   border-radius: 16px;
-  border: 1px solid #f3f4f6;
+  border: 1px solid var(--hourx-client-border);
   background: #fff;
-  box-shadow:
-    0 1px 3px rgba(0, 0, 0, 0.1),
-    0 1px 2px rgba(0, 0, 0, 0.1);
   padding: 18px;
   display: grid;
-  grid-template-columns: 190px minmax(0, 1fr);
-  gap: 22px;
+  grid-template-columns: 96px minmax(0, 1fr);
+  gap: 18px;
   cursor: pointer;
   transition:
     transform 0.2s ease,
@@ -1952,8 +1971,8 @@ onBeforeUnmount(() => {
 }
 
 .order-card__image-wrap {
-  width: 190px;
-  height: 150px;
+  width: 96px;
+  height: 96px;
   border-radius: 12px;
   overflow: hidden;
   position: relative;
@@ -1967,10 +1986,7 @@ onBeforeUnmount(() => {
 }
 
 .order-card__badge {
-  position: absolute;
-  left: 8px;
-  top: 8px;
-  height: 24px;
+  min-height: 24px;
   border-radius: 999px;
   background: var(--hourx-brand-soft);
   color: var(--hourx-brand);
@@ -2029,10 +2045,10 @@ onBeforeUnmount(() => {
 
 .order-card__title-row h3 {
   margin: 0;
-  color: rgba(15, 23, 42, 0.9);
-  font-size: 20px;
-  line-height: 1.2;
-  font-weight: 800;
+  color: var(--hourx-client-text);
+  font-size: 1.25rem;
+  line-height: 1.3;
+  font-weight: 600;
 }
 
 .order-card__kind-badge {
@@ -2062,9 +2078,9 @@ onBeforeUnmount(() => {
 
 .order-card__title-row strong {
   color: var(--hourx-brand);
-  font-size: 18px;
+  font-size: 1.375rem;
   line-height: 1.2;
-  font-weight: 900;
+  font-weight: 700;
   white-space: nowrap;
 }
 
@@ -2080,9 +2096,9 @@ onBeforeUnmount(() => {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  color: rgba(15, 23, 42, 0.5);
-  font-size: 14px;
-  line-height: 20px;
+  color: var(--hourx-client-muted);
+  font-size: 0.8125rem;
+  line-height: 1.5;
   font-weight: 500;
 }
 
@@ -2241,10 +2257,12 @@ onBeforeUnmount(() => {
 }
 
 .order-card__actions {
-  margin-top: auto;
+  margin-top: 14px;
   padding-top: 14px;
+  border-top: 1px solid var(--hourx-client-border);
   display: flex;
   justify-content: flex-end;
+  flex-wrap: wrap;
   gap: 8px;
 }
 
@@ -2253,11 +2271,11 @@ onBeforeUnmount(() => {
 }
 
 .order-card__btn {
-  height: 36px;
-  border-radius: 10px;
+  min-height: 44px;
+  border-radius: 12px;
   padding: 0 14px;
-  font-size: 12px;
-  font-weight: 700;
+  font-size: var(--hourx-client-size-action);
+  font-weight: 600;
   border: 1px solid transparent;
   cursor: pointer;
 }
@@ -2605,24 +2623,24 @@ onBeforeUnmount(() => {
 
 @media (max-width: 1024px) {
   .order-card {
-    grid-template-columns: 140px minmax(0, 1fr);
+    grid-template-columns: 96px minmax(0, 1fr);
     gap: 16px;
     padding: 16px;
   }
 
   .order-card__image-wrap {
-    width: 140px;
-    height: 140px;
+    width: 96px;
+    height: 96px;
   }
 
   .order-card__details {
     grid-template-columns: 1fr;
   }
 
-  .order-card__title-row h3,
-  .order-card__title-row strong {
-    font-size: 20px;
-  }
+}
+
+@media (max-width: 900px) {
+  .order-list-layout { grid-template-columns: 1fr; }
 }
 
 @media (max-width: 768px) {
@@ -2653,11 +2671,6 @@ onBeforeUnmount(() => {
     width: min(1280px, calc(100% - 24px));
   }
 
-  .order-list-head {
-    flex-direction: column;
-    align-items: flex-start;
-  }
-
   .order-list-search {
     width: 100%;
   }
@@ -2677,20 +2690,13 @@ onBeforeUnmount(() => {
 
   .order-card__image-wrap {
     width: 100%;
-    height: 180px;
+    height: 96px;
   }
 
   .order-card__title-row {
     align-items: center;
   }
 
-  .order-card__title-row h3 {
-    font-size: 22px;
-  }
-
-  .order-card__title-row strong {
-    font-size: 18px;
-  }
 
   .order-card__details {
     grid-template-columns: 1fr;

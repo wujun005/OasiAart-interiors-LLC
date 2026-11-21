@@ -2,12 +2,12 @@
   <section v-if="!props.editorOnly" class="address-manager">
     <header class="address-manager__header">
       <div>
-        <h3>{{ locale === 'zh' ? '联系信息与服务地址' : 'Contact & Service Addresses' }}</h3>
-        <p>{{ locale === 'zh' ? '联系人和服务地址在这里统一维护，下单时直接选择。' : 'Manage contacts and service addresses here, then select one at checkout.' }}</p>
+        <h3>{{ locale === 'zh' ? '联系信息与服务地址' : 'Saved Service Addresses' }}</h3>
+        <p>{{ locale === 'zh' ? '联系人和服务地址在这里统一维护，下单时直接选择。' : 'Save your service locations for faster booking.' }}</p>
       </div>
       <button class="address-manager__add" type="button" @click="openCreate">
         <span aria-hidden="true">+</span>
-        {{ locale === 'zh' ? '新增地址' : 'Add Address' }}
+        {{ addAddressLabel }}
       </button>
     </header>
 
@@ -29,7 +29,7 @@
             <AddressCategoryIcon :category="normalizeCategory(item.category)" />
             {{ categoryLabel(item.category) }}
           </span>
-          <span v-if="item.isDefault" class="is-default">{{ t('client.orderConfirm.addressBook.defaultTag') }}</span>
+          <span v-if="item.isDefault" class="is-default">{{ locale === 'zh' ? t('client.orderConfirm.addressBook.defaultTag') : 'Default' }}</span>
         </div>
         <strong>{{ getAddressFullName(item) }}</strong>
         <p>{{ formatPhone(item) }}</p>
@@ -46,7 +46,7 @@
     <div v-else class="address-manager__state address-manager__state--empty">
       <strong>{{ locale === 'zh' ? '还没有保存的联系地址' : 'No saved contact addresses yet' }}</strong>
       <span>{{ locale === 'zh' ? '新增后即可在订单确认页直接选择。' : 'Add one to select it directly during checkout.' }}</span>
-      <button type="button" @click="openCreate">{{ locale === 'zh' ? '新增地址' : 'Add Address' }}</button>
+      <button type="button" @click="openCreate">{{ addAddressLabel }}</button>
     </div>
   </section>
 
@@ -250,9 +250,11 @@ const categoryOptions = computed(() => [
   { value: 'office' as AddressCategory, label: t('client.orderConfirm.addressBook.categories.office') },
   { value: 'others' as AddressCategory, label: t('client.orderConfirm.addressBook.categories.others') },
 ]);
-const editorTitle = computed(() => editingId.value
-  ? t('client.orderConfirm.addressBook.editTitle')
-  : t('client.orderConfirm.addressBook.addTitle'));
+const addAddressLabel = computed(() => locale.value === 'zh' ? '新增地址' : 'Add New Address');
+const editorTitle = computed(() => {
+  if (editingId.value) return t('client.orderConfirm.addressBook.editTitle');
+  return props.editorOnly ? t('client.orderConfirm.addressBook.addTitle') : addAddressLabel.value;
+});
 const normalize = (value: unknown) => String(value || '').trim();
 const normalizeCoordinate = (value: unknown) => {
   if (value === null || value === undefined || String(value).trim() === '') return null;
@@ -525,10 +527,10 @@ onBeforeUnmount(() => {
 <style scoped>
 .address-manager { display: grid; gap: 18px; }
 .address-manager__header { display: flex; justify-content: space-between; align-items: flex-start; gap: 18px; }
-.address-manager__header h3 { margin: 0; color: #05152b; font-size: 17px; }
-.address-manager__header p { margin: 6px 0 0; color: #64748b; font-size: 13px; line-height: 1.55; }
-.address-manager button { font: inherit; }
-.address-manager__add, .address-manager__state button { min-height: 38px; padding: 0 16px; border: 0; border-radius: 10px; background: #1769c2; color: #fff; font-weight: 800; cursor: pointer; white-space: nowrap; }
+.address-manager__header h3 { margin: 0; color: var(--hourx-client-text); font: 600 1.0625rem/1.3 var(--hourx-client-font-family); }
+.address-manager__header p { margin: 6px 0 0; color: var(--hourx-client-muted); font: 400 0.8125rem/1.55 var(--hourx-client-font-family); }
+.address-manager button { font: 600 var(--hourx-client-size-action)/1 var(--hourx-client-font-family); }
+.address-manager__add, .address-manager__state button { min-height: 38px; padding: 0 16px; border: 0; border-radius: 10px; background: var(--hourx-client-text); color: #fff; cursor: pointer; white-space: nowrap; }
 .address-manager__add span { margin-right: 5px; font-size: 18px; }
 .address-manager__message { margin: 0; padding: 10px 12px; border-radius: 10px; background: #ecfdf5; color: #047857; font-size: 13px; }
 .address-manager__message.is-error { background: #fef2f2; color: #b91c1c; }
@@ -538,8 +540,8 @@ onBeforeUnmount(() => {
 .address-manager__state--error { color: #b91c1c; }
 .address-manager__list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
 .address-manager__card { min-width: 0; padding: 16px; border: 1px solid #e2e8f0; border-radius: 14px; background: #fff; box-shadow: 0 8px 20px rgb(15 23 42 / 5%); }
-.address-manager__card > strong { display: block; margin-top: 10px; color: #0f172a; font-size: 15px; }
-.address-manager__card p { margin: 5px 0 0; color: #64748b; font-size: 12px; overflow-wrap: anywhere; }
+.address-manager__card > strong { display: block; margin-top: 10px; color: var(--hourx-client-text); font: 600 var(--hourx-client-size-body)/1.35 var(--hourx-client-font-family); }
+.address-manager__card p { margin: 5px 0 0; color: var(--hourx-client-muted); font-size: 0.8125rem; overflow-wrap: anywhere; }
 .address-manager__card small { display: block; margin-top: 6px; color: #94a3b8; }
 .address-manager__address { color: #334155 !important; line-height: 1.5; }
 .address-manager__tags { display: flex; gap: 6px; }
@@ -548,7 +550,7 @@ onBeforeUnmount(() => {
 .address-manager__category :deep(.address-category-icon) { font-size: 13px; }
 .address-manager__tags .is-default { background: #ecfdf5; color: #047857; }
 .address-manager__actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 14px; padding-top: 12px; border-top: 1px solid #f1f5f9; }
-.address-manager__actions button { min-height: 32px; padding: 0 12px; border: 1px solid #dbe3ec; border-radius: 9px; background: #fff; color: #1769c2; font-size: 12px; font-weight: 800; cursor: pointer; }
+.address-manager__actions button { min-height: 32px; padding: 0 12px; border: 1px solid var(--hourx-client-border); border-radius: 9px; background: #fff; color: var(--hourx-client-text); cursor: pointer; }
 .address-manager__actions .is-danger { color: #dc2626; }
 .address-manager__actions button:disabled { opacity: .5; cursor: wait; }
 .address-editor { position: fixed; inset: 0; z-index: 3000; padding: 24px; display: grid; place-items: center; background: rgb(5 21 43 / 58%); backdrop-filter: blur(5px); }
@@ -556,7 +558,7 @@ onBeforeUnmount(() => {
 .address-editor__panel header { position: sticky; top: 0; z-index: 8; padding: 20px 22px 16px; display: flex; justify-content: space-between; align-items: flex-start; gap: 14px; border-bottom: 1px solid #eef2f7; background: rgb(255 255 255 / 96%); backdrop-filter: blur(14px); }
 .address-editor__heading { min-width: 0; }
 .address-editor__panel header span { color: #1769c2; font-size: 10px; font-weight: 900; letter-spacing: .14em; }
-.address-editor__panel header h3 { margin: 5px 0 0; color: #05152b; font-size: 20px; }
+.address-editor__panel header h3 { margin: 5px 0 0; color: var(--hourx-client-text); font: 700 1.375rem/1.2 var(--hourx-client-heading-font); }
 .address-editor__header-search { min-width: 0; display: none; }
 .address-editor__panel header button { width: 34px; height: 34px; border: 0; border-radius: 50%; background: #f1f5f9; color: #334155; font-size: 22px; cursor: pointer; }
 .address-editor__stage { position: relative; }

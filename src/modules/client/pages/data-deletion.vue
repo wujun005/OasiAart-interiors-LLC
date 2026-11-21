@@ -7,6 +7,7 @@
         </button>
       </div>
 
+      <AccountDeletionFlow />
       <article class="legal-card">
         <h1>{{ doc.title }}</h1>
         <p class="legal-card__updated">
@@ -47,6 +48,7 @@
 
 <script setup lang="ts">
 import { computed } from 'vue';
+import AccountDeletionFlow from '@/modules/client/components/AccountDeletionFlow.vue';
 import { useRouter } from 'vue-router';
 import { useI18n } from 'vue-i18n';
 import { LEGAL_DOCS, resolveLegalLocale } from '@/modules/client/constants/legal';
@@ -66,7 +68,7 @@ const goHome = () => {
 <style scoped lang="scss">
 .legal-page {
   min-height: calc(100vh - 168px);
-  background: #f8fafc;
+  background: #f7f6f3;
   padding: 28px 20px 56px;
 }
 
@@ -92,6 +94,7 @@ const goHome = () => {
 }
 
 .legal-card {
+  margin-top: 24px;
   background: #fff;
   border: 1px solid #e2e8f0;
   border-radius: 18px;

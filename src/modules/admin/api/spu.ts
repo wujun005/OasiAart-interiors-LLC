@@ -99,6 +99,14 @@ export function batchUpdatePrices(payload: any) {
     return http.post(`/api/productSku/batchUpdatePrices`, payload);
 }
 
+export function prepareStaffHours(productId: number) {
+  return http.post(`/api/productSku/prepareStaffHours?productId=${productId}`);
+}
+
+export function batchUpdateStaffHours(payload: { productId: number; items: Array<{ skuId: number; staffCount: number; serviceHours: number }> }) {
+  return http.post('/api/productSku/batchUpdateStaffHours', payload);
+}
+
 // 上架特卖/api/productSpu/enableExclusive/{id}
 export function enableExclusive(id: any) {
   return http.post(`/api/productSpu/enableExclusive/${id}`);

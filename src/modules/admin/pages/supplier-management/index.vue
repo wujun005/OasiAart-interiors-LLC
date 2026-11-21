@@ -427,12 +427,27 @@
                     issueOf("licenseExpiry")
                   }}</small>
                 </label>
-                <label class="profile-field"
-                  ><span>{{ t("admin.supplierProfile.vat") }}</span
-                  ><el-input
+                <label id="profile-field-vat" class="profile-field">
+                  <span
+                    >{{ t("admin.supplierProfile.vat") }}
+                    <i v-if="companyForm.trn.trim()">*</i></span
+                  >
+                  <el-input
                     v-model="companyForm.trn"
+                    maxlength="128"
                     :disabled="profileReadOnly"
-                /></label>
+                  />
+                  <small v-if="companyForm.trn.trim()" class="field-note">
+                    {{ t("admin.supplierProfile.vatFileHint") }}
+                    <button
+                      type="button"
+                      class="field-note__jump"
+                      @click="openVatCertificateUpload"
+                    >
+                      {{ t("admin.supplierProfile.uploadCertificate") }}
+                    </button>
+                  </small>
+                </label>
                 <label class="profile-field"
                   ><span>{{ individualSupplier ? t("admin.supplierProfile.yearsPersonal") : t("admin.supplierProfile.years") }}</span>
                   ><input
@@ -863,7 +878,9 @@
                   ><el-input
                     v-model="bankForm.accountName"
                     :disabled="profileReadOnly"
-                  /><small>{{ t("admin.supplierProfile.accountNameHint") }}</small
+                  /><small class="field-note">{{
+                    t("admin.supplierProfile.accountNameHint")
+                  }}</small
                   ><small v-if="issueOf('accountName')">{{
                     issueOf("accountName")
                   }}</small></label
@@ -1152,10 +1169,15 @@
                   }}</el-button>
                 </el-upload>
               </div>
-              <div id="profile-field-vatCertificate" class="doc-row">
+              <div
+                id="profile-field-vatCertificate"
+                class="doc-row"
+                :class="{ error: issueOf('vatCertificate') }"
+              >
                 <div>
                   <strong
                     >{{ t("admin.supplierProfile.vatCertificate") }}
+                    <i v-if="companyForm.trn.trim()">*</i>
                     <el-tag
                       size="small"
                       :type="vatCertificateFiles.length ? 'success' : 'info'"
@@ -1186,6 +1208,9 @@
                   </p>
                   <small v-if="!vatCertificateFiles.length">{{
                     t("admin.supplierProfile.notUploaded")
+                  }}</small>
+                  <small v-if="issueOf('vatCertificate')">{{
+                    issueOf("vatCertificate")
                   }}</small>
                   <small v-if="docUploading('vat')" class="doc-uploading">{{
                     uploadStatusText("vat")
@@ -2638,13 +2663,12 @@
               v-for="line in packageVisibleLines()"
               :key="line.key"
               class="package-price-row"
-              :class="{ 'is-off': !familyEnabled(line) }"
             >
               <el-checkbox
                 v-if="packageQuotedSection.quoteMode === 1"
                 :model-value="familyEnabled(line)"
                 :disabled="!packageSectionEditable(packageQuotedSection)"
-                @change="setFamilyEnabled(line, $event)"
+                @update:model-value="setPackageFamilyEnabled(line, $event)"
               />
               <div>
                 <strong>
@@ -2652,6 +2676,9 @@
                   <em v-if="packageLineDirect(line)">{{ t("admin.supplierPricing.acceptDirect") }}</em>
                 </strong>
                 <p v-if="familyPricingNote(line)" class="quote-line__note">{{ familyPricingNote(line) }}</p>
+                <p v-if="packageLineRejectReason(line)" class="line-reject">
+                  {{ t("admin.supplierPricing.lineRejected", { reason: packageLineRejectReason(line) }) }}
+                </p>
                 <p>{{ packageLineMeta(line) }}</p>
               </div>
               <div v-if="packageQuotedSection.quoteMode === 1">
@@ -2660,7 +2687,7 @@
                   <el-input
                     :model-value="familyPrice(line)"
                     :placeholder="t('admin.supplierPortal.packagePricePlaceholder')"
-                    :disabled="!packageSectionEditable(packageQuotedSection) || !familyEnabled(line)"
+                    :disabled="!packageSectionEditable(packageQuotedSection)"
                     @update:model-value="setFamilyPrice(line, $event)"
                   />
                 </label>
@@ -2674,14 +2701,26 @@
               </li>
             </ul>
             <p class="package-price-foot">{{ t("admin.supplierPortal.packagePriceFoot") }}</p>
+            <div v-if="Number(packageQuotedSection.status) === 1" class="pricing-editor-alert">
+              <span>!</span>
+              <div>
+                <strong>{{ t("admin.supplierPricing.statusPending") }}</strong>
+                <p>{{ t("admin.supplierPricing.packageReviewLock") }}</p>
+              </div>
+            </div>
           </article>
           <footer class="package-bundle__foot">
-            <el-button :loading="packageBundle.saving" @click="savePackageBundle(false)">{{
-              t('admin.supplierPricing.saveDraft')
-            }}</el-button>
-            <el-button type="primary" :loading="packageBundle.saving" @click="savePackageBundle(true)">{{
-              t('admin.supplierPricing.submitReview')
-            }}</el-button>
+            <el-button
+              :loading="packageBundle.saving"
+              :disabled="!packageQuotedSection || !packageSectionEditable(packageQuotedSection)"
+              @click="savePackageBundle(false)"
+            >{{ t('admin.supplierPricing.saveDraft') }}</el-button>
+            <el-button
+              type="primary"
+              :loading="packageBundle.saving"
+              :disabled="!packageQuotedSection || !packageSectionEditable(packageQuotedSection)"
+              @click="savePackageBundle(true)"
+            >{{ t('admin.supplierPricing.submitReview') }}</el-button>
           </footer>
         </section>
         <section
@@ -3038,17 +3077,17 @@
                 </div>
               </section>
 
-              <div v-if="hourlyQuote && !addonOnlyQuote && optionPrices.length" class="option-prices">
+              <div v-if="hourlyQuote && !addonOnlyQuote && showOptionPrices && optionPrices.length" class="option-prices">
                     <div class="option-prices__head">
-                      <strong>{{ t(showOptionPrices ? "admin.supplierPricing.optionPriceTitle" : "admin.supplierPricing.optionPriceOptionsTitle") }}</strong>
-                      <p>{{ t(showOptionPrices ? optionPriceHintKey : "admin.supplierPricing.optionPriceOptionsHint") }}</p>
+                      <strong>{{ t("admin.supplierPricing.optionPriceTitle") }}</strong>
+                      <p>{{ t(optionPriceHintKey) }}</p>
                     </div>
                     <div class="option-prices__stats">
                       <span>{{ t("admin.supplierPricing.optionPriceCount", { count: optionPrices.length }) }}</span>
-                      <span v-if="showOptionPrices && optionPriceRange.low != null">{{
+                      <span v-if="optionPriceRange.low != null">{{
                         t("admin.supplierPricing.optionPriceLow", { price: moneyText(optionPriceRange.low) })
                       }}</span>
-                      <span v-if="showOptionPrices && optionPriceRange.high != null">{{
+                      <span v-if="optionPriceRange.high != null">{{
                         t("admin.supplierPricing.optionPriceHigh", { price: moneyText(optionPriceRange.high) })
                       }}</span>
                     </div>
@@ -3079,18 +3118,16 @@
                           <tr>
                             <th>{{ t("admin.supplierPricing.optionPriceColOption") }}</th>
                             <th>{{ t("admin.supplierPricing.optionPriceColNote") }}</th>
-                            <th v-if="showOptionPrices">{{ t("admin.supplierPricing.optionPriceColCalc") }}</th>
-                            <th v-if="showOptionPrices">{{ t("admin.supplierPricing.optionPriceColExcl") }}</th>
-                            <th v-if="showOptionPrices">{{ t("admin.supplierPricing.optionPriceColPrice") }}</th>
+                            <th>{{ t("admin.supplierPricing.optionPriceColPrice") }}</th>
                           </tr>
                         </thead>
                         <tbody>
                           <tr v-if="!visibleOptionPrices.length">
-                            <td :colspan="showOptionPrices ? 5 : 2" class="is-empty">{{ t("admin.supplierPricing.optionPriceEmpty") }}</td>
+                            <td colspan="3" class="is-empty">{{ t("admin.supplierPricing.optionPriceEmpty") }}</td>
                           </tr>
                           <template v-for="group in visibleOptionPriceGroups" :key="group.key">
                             <tr v-if="group.title" class="is-group">
-                              <td :colspan="showOptionPrices ? 5 : 2">
+                              <td colspan="3">
                                 <b>{{ group.title }}</b>
                                 <em>{{ t("admin.supplierPricing.optionPriceGroupCount", { count: group.rows.length }) }}</em>
                               </td>
@@ -3100,13 +3137,8 @@
                                 <b>{{ row.title }}</b>
                                 <small v-if="row.detail">{{ row.detail }}</small>
                               </td>
-                              <td class="is-note">
-                                <span v-if="row.remark && !row.pills.length">{{ row.remark }}</span>
-                                <span v-for="pill in row.pills" :key="pill">{{ pill }}</span>
-                              </td>
-                              <td v-if="showOptionPrices" class="is-calc">{{ row.calculation }}</td>
-                              <td v-if="showOptionPrices" class="is-money">{{ row.excl == null ? "—" : `AED ${moneyText(row.excl)}` }}</td>
-                              <td v-if="showOptionPrices" class="is-price">{{ row.price == null ? "—" : `AED ${moneyText(row.price)}` }}</td>
+                              <td class="is-note">{{ row.remark || (row.pills.length ? row.pills.join(" · ") : row.note) }}</td>
+                              <td class="is-price">{{ row.price == null ? "—" : `AED ${moneyText(row.price)}` }}</td>
                             </tr>
                           </template>
                         </tbody>
@@ -3293,8 +3325,8 @@
                 <dt>{{ t(rate.label) }}</dt>
                 <dd class="portal-numeric portal-numeric--money">AED {{ moneyText(quoteDialog[rate.key]) }}</dd>
               </div>
-              <div v-if="optionPrices.length" class="quantity-sku-notes">
-                <dt>{{ t(showOptionPrices ? "admin.supplierPricing.optionPriceTitle" : "admin.supplierPricing.optionPriceOptionsTitle") }}</dt>
+              <div v-if="showOptionPrices && optionPrices.length" class="quantity-sku-notes">
+                <dt>{{ t("admin.supplierPricing.optionPriceTitle") }}</dt>
                 <dd>
                   <span v-for="row in optionPrices" :key="row.id">{{ optionPriceLine(row) }}</span>
                 </dd>
@@ -3467,12 +3499,6 @@
                     <dt>{{ t(rate.label) }}</dt>
                     <dd class="portal-numeric portal-numeric--money">AED {{ moneyText(quoteDialog[rate.key]) }}</dd>
                   </div>
-                  <div v-if="optionPrices.length" class="quantity-sku-notes">
-                    <dt>{{ t(showOptionPrices ? "admin.supplierPricing.optionPriceTitle" : "admin.supplierPricing.optionPriceOptionsTitle") }}</dt>
-                    <dd>
-                      <span v-for="row in optionPrices" :key="row.id">{{ optionPriceLine(row) }}</span>
-                    </dd>
-                  </div>
                 </template>
                 <div v-if="!hourlyQuote && !addonOnlyQuote">
                   <dt>{{ t("admin.supplierPortal.enabledOptions") }}</dt>
@@ -3484,70 +3510,90 @@
               </dl>
             </section>
             <section
-              v-if="!hourlyQuote && !addonOnlyQuote"
+              v-if="!addonOnlyQuote && (hourlyQuote ? showOptionPrices && optionPrices.length : quoteDialog.rows.length)"
               class="portal-review-card"
             >
               <h2>{{ t("admin.supplierPortal.optionsPrices") }}</h2>
-              <div class="portal-review-options">
-                <div
-                  v-if="showQuoteGroupTabs"
-                  class="quote-group-tabs"
-                  role="tablist"
-                  :aria-label="quoteGroupType || t('admin.supplierPortal.optionsPrices')"
-                >
-                  <span v-if="quoteGroupType" class="quote-group-tabs__type">{{
-                    quoteGroupType
-                  }}</span>
-                  <button
-                    v-for="group in quoteGroupTabs"
-                    :key="group.key"
-                    type="button"
-                    role="tab"
-                    :aria-selected="group.key === quoteGroupTab"
-                    :class="{ 'is-on': group.key === quoteGroupTab }"
-                    @click="quoteGroupTab = group.key"
-                  >
-                    {{ group.title }}
-                  </button>
-                </div>
-                <section
-                  v-for="group in visibleQuoteGroups"
+              <div
+                v-if="!hourlyQuote && showQuoteGroupTabs"
+                class="quote-group-tabs"
+                role="tablist"
+                :aria-label="quoteGroupType || t('admin.supplierPortal.optionsPrices')"
+              >
+                <span v-if="quoteGroupType" class="quote-group-tabs__type">{{
+                  quoteGroupType
+                }}</span>
+                <button
+                  v-for="group in quoteGroupTabs"
                   :key="group.key"
-                  class="quote-group"
+                  type="button"
+                  role="tab"
+                  :aria-selected="group.key === quoteGroupTab"
+                  :class="{ 'is-on': group.key === quoteGroupTab }"
+                  @click="quoteGroupTab = group.key"
                 >
-                  <header v-if="!showQuoteGroupTabs && group.title" class="quote-group__head">
-                    <small v-if="group.type">{{ group.type }}</small>
-                    <strong>{{ group.title }}</strong>
-                  </header>
-                  <article
-                    v-for="line in quoteDisplayLines(group.rows)"
-                    :key="line.key"
-                    :class="{ 'is-blocked': line.rows.some((row) => quoteOutcomeName(row) === 'blocked') }"
-                  >
-                    <h3>
-                      <span>{{ line.title }}</span>
-                      <span
-                        v-if="familyBadge(line)"
-                        class="quote-accept-band"
-                        :class="`is-${familyBadge(line).tone}`"
-                      >{{ familyBadge(line).label }}</span>
-                    </h3>
-                    <p v-if="familyPricingNote(line)" class="quote-line__note">{{ familyPricingNote(line) }}</p>
-                    <p v-if="familyRemark(line)" class="quote-fulfill-remark">{{
-                      t("admin.supplierOrders.fulfillRemarkLine", { remark: familyRemark(line) })
-                    }}</p>
-                    <dl>
-                      <div v-if="familyPrice(line) != null && familyPrice(line) !== ''">
-                        <dt>{{ t("admin.supplierPortal.customerPrice") }}</dt>
-                        <dd class="portal-review-price portal-numeric portal-numeric--money">
-                          AED {{ moneyText(familyPrice(line)) }}<template v-if="line.unit"> / {{ line.unit }}</template>
-                        </dd>
-                      </div>
-                    </dl>
-                  </article>
-                </section>
+                  {{ group.title }}
+                </button>
               </div>
-              <p class="portal-review-note">
+              <table class="portal-review-table">
+                <thead>
+                  <tr>
+                    <th>{{ t("admin.supplierPortal.reviewColOption") }}</th>
+                    <th>{{ t("admin.supplierPortal.reviewColStatus") }}</th>
+                    <th>{{ t("admin.supplierPortal.reviewColPrice") }}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <template v-if="hourlyQuote">
+                    <tr v-for="row in optionPrices" :key="row.id">
+                      <td>
+                        <b>{{ row.title }}</b>
+                        <small v-if="row.remark || row.pills.length || row.note">{{
+                          row.remark || (row.pills.length ? row.pills.join(" · ") : row.note)
+                        }}</small>
+                      </td>
+                      <td>
+                        <span class="portal-review-status">{{ t("admin.supplierPricing.priceUnderReview") }}</span>
+                      </td>
+                      <td class="portal-review-price portal-numeric">{{
+                        row.price == null ? "—" : `AED ${moneyText(row.price)}`
+                      }}</td>
+                    </tr>
+                  </template>
+                  <template v-else>
+                    <template v-for="group in visibleQuoteGroups" :key="group.key">
+                      <tr v-if="!showQuoteGroupTabs && group.title" class="is-group">
+                        <td colspan="3">{{ group.title }}</td>
+                      </tr>
+                      <tr
+                        v-for="line in quoteDisplayLines(group.rows)"
+                        :key="line.key"
+                        :class="{ 'is-blocked': line.rows.some((row) => quoteOutcomeName(row) === 'blocked') }"
+                      >
+                        <td>
+                          <b>{{ line.title }}</b>
+                          <small v-if="familyPricingNote(line)">{{ familyPricingNote(line) }}</small>
+                        </td>
+                        <td>
+                          <span
+                            v-if="familyBadge(line)"
+                            class="quote-accept-band"
+                            :class="`is-${familyBadge(line).tone}`"
+                          >{{ familyBadge(line).label }}</span>
+                          <span v-else class="portal-review-status">{{ t("admin.supplierPricing.priceUnderReview") }}</span>
+                        </td>
+                        <td class="portal-review-price portal-numeric">
+                          <template v-if="familyPrice(line) != null && familyPrice(line) !== ''">
+                            AED {{ moneyText(familyPrice(line)) }}<template v-if="line.unit"> / {{ line.unit }}</template>
+                          </template>
+                          <template v-else>—</template>
+                        </td>
+                      </tr>
+                    </template>
+                  </template>
+                </tbody>
+              </table>
+              <p v-if="!hourlyQuote" class="portal-review-note">
                 {{ t("admin.supplierPortal.fixedRule") }}
               </p>
             </section>
@@ -6198,11 +6244,12 @@ const zeroAddonSpecPrices = () => {
   if (!addonOnlyQuote.value) return
   for (const row of quoteDialog.rows) {
     if (row.available === false) continue
-    row.quotePrice = 0
+    row.quotePrice = ""
     row.enabled = true
   }
 }
 const quoteHasRejectedLines = computed(() =>
+  !addonOnlyQuote.value &&
   quoteDialog.rows.some(
     (row) =>
       Number(row.reviewStatus) === 3 || String(row.rejectReason || "").trim(),
@@ -8510,7 +8557,9 @@ const attachBadge = (item: {
   if (!quoteDispatchVisible() || !band) return null
   return { tone: band, label: acceptBandLabel(band) }
 }
+const priceChangeSpuId = ref<number | null>(null)
 const openPriceChange = () => {
+  if (!packageMode.value) priceChangeSpuId.value = null
   priceChangeReason.value = ""
   priceChangeOpen.value = true
 }
@@ -8520,13 +8569,14 @@ const submitPriceChange = async () => {
     ElMessage.warning(t("admin.supplierPricing.priceChangeReasonRequired"))
     return
   }
-  if (!supplierRecordId.value || !quoteDialog.spuId || priceChangeSaving.value) return
+  const spuId = priceChangeSpuId.value || quoteDialog.spuId
+  if (!supplierRecordId.value || !spuId || priceChangeSaving.value) return
   priceChangeSaving.value = true
   try {
     const saved = unwrap(
       await applyQuotePriceChange({
         supplierId: supplierRecordId.value,
-        spuId: quoteDialog.spuId,
+        spuId,
         reason,
       }),
     )
@@ -9129,7 +9179,8 @@ const buildProfilePayload = (status?: number, areaIds?: number[]) => ({
         officeAddress: companyForm.address,
         contactPerson: companyForm.contact,
       }),
-  vatTrn: companyForm.trn,
+  vatTrn: companyForm.trn.trim() || null,
+  vatTrnFile: companyForm.trn.trim() ? [...vatCertificateFiles.value] : [],
   mobile: joinPhone(companyForm.mobileCode, companyForm.mobile),
   whatsapp: joinPhone(companyForm.whatsappCode, companyForm.whatsapp),
   email: companyForm.email,
@@ -9211,7 +9262,7 @@ const buildProfilePayload = (status?: number, areaIds?: number[]) => ({
     },
     tradeLicenseFiles: [...tradeLicenseFiles.value],
     otherDocuments: [...otherDocumentFiles.value],
-    vatFile: [...vatCertificateFiles.value],
+    vatTrnFile: companyForm.trn.trim() ? [...vatCertificateFiles.value] : [],
     documentNames: { ...documentNames.value },
   },
 })
@@ -9299,7 +9350,14 @@ const applyProfile = (detail: any) => {
   bankForm.currency = "AED"
   tradeLicenseFiles.value = asFileList(extra.tradeLicenseFiles)
   otherDocumentFiles.value = asFileList(extra.otherDocuments)
-  vatCertificateFiles.value = asFileList(extra.vatFile)
+  const savedTaxFiles = asFileList(detail?.vatTrnFile)
+  const savedTaxExtra = asFileList(extra.vatTrnFile)
+  const legacyTaxFiles = asFileList(extra.vatFile)
+  vatCertificateFiles.value = savedTaxFiles.length
+    ? savedTaxFiles
+    : savedTaxExtra.length
+      ? savedTaxExtra
+      : legacyTaxFiles
   if (!profileEditable.value) {
     profileView.value = "all"
     profileFromAll.value = false
@@ -9615,6 +9673,9 @@ const licenseAfterToday = (value: string) => {
 }
 const profileProblem = (status: number) => {
   if (status === 1) return profileIssues.value[0]?.message || ""
+  if (companyForm.trn.trim() && !vatCertificateFiles.value.length) {
+    return t("admin.supplierProfile.vatFileRequired")
+  }
   if (
     individualSupplier.value &&
     companyForm.dateOfBirth &&
@@ -9829,6 +9890,13 @@ const profileIssues = computed(() => {
     otherDocumentFiles.value.length > 0,
     t("admin.supplierProfile.bankCertificateRequired"),
   )
+  add(
+    "vatCertificate",
+    3,
+    t("admin.supplierProfile.vatCertificate"),
+    !companyForm.trn.trim() || vatCertificateFiles.value.length > 0,
+    t("admin.supplierProfile.vatFileRequired"),
+  )
   return issues
 })
 const issueOf = (id: string) =>
@@ -9923,6 +9991,17 @@ const insuranceDocs = computed(() => [
         },
       ]),
 ])
+const openVatCertificateUpload = async () => {
+  profileFromAll.value = false
+  profileView.value = "section"
+  profileSection.value = 3
+  await nextTick()
+  const field = document.getElementById("profile-field-vatCertificate")
+  field?.scrollIntoView({ behavior: "smooth", block: "center" })
+  field
+    ?.querySelector<HTMLElement>(".el-upload button:not([disabled])")
+    ?.focus({ preventScroll: true })
+}
 const jumpProfileField = async (issue: { section: number; id: string }) => {
   profileFromAll.value = false
   profileView.value = "section"
@@ -10684,10 +10763,11 @@ const familyPrice = (line: { rows: Array<{ quotePrice?: unknown }> }) => {
   const first = prices[0]
   return prices.every((price) => String(price ?? "") === String(first ?? "")) ? (first ?? "") : ""
 }
-const setFamilyPrice = (line: { rows: Array<{ quotePrice?: unknown }> }, value: unknown) => {
+const setFamilyPrice = (line: { rows: any[] }, value: unknown) => {
   line.rows.forEach((row) => {
     row.quotePrice = value
   })
+  if (String(value ?? "").trim()) setFamilyEnabled(line, true)
 }
 const familyEnabled = (line: { rows: Array<{ available?: boolean; enabled?: boolean }> }) =>
   line.rows.every((row) => row.available === false || row.enabled)
@@ -10695,6 +10775,14 @@ const setFamilyEnabled = (line: { rows: any[] }, enabled: boolean) => {
   line.rows.forEach((row) => {
     if (row.available === false || quoteLineHeld(row)) return
     row.enabled = enabled
+  })
+}
+const setPackageFamilyEnabled = (line: { rows: any[] }, enabled: unknown) => {
+  const on = enabled === true || enabled === 1 || enabled === "1"
+  line.rows.forEach((row) => {
+    if (row.available === false) return
+    row.enabled = on
+    if (!on) row.quotePrice = ""
   })
 }
 const familyHeld = (line: { rows: any[] }) =>
@@ -10741,7 +10829,7 @@ const quoteItems = () =>
         ? row.available !== false
         : skuEnabled(row.enabled, row.available !== false)
     const quotePrice = addonOnlyQuote.value
-      ? 0
+      ? null
       : singleRateMode(quoteDialog.quoteMode)
         ? null
         : row.quotePrice == null || row.quotePrice === ""
@@ -11018,8 +11106,8 @@ const packageSectionRates = (block: { quoteMode?: number; onlyAddonPrice?: boole
   if (block.quoteMode === 4) return quantityRateFields
   return []
 }
-const packageSectionEditable = (block: { status?: number; priceEditable?: boolean }) =>
-  Number(block.status) !== 1 && block.priceEditable !== false
+const packageSectionEditable = (block: { status?: number }) =>
+  Number(block.status) !== 1
 const packageOptionLabel = (sku: any) => {
   const group = localizedName(sku?.groupSpecValueNameI18n, sku?.groupSpecValueName)
   const specs = (Array.isArray(sku?.specs) ? sku.specs : [])
@@ -11063,6 +11151,8 @@ const packageSectionFromQuote = (entry: any) => {
     quoteMode: mode,
     status: quote.status == null ? undefined : Number(quote.status),
     priceEditable: quote.priceEditable !== false,
+    canApplyPriceChange: quote.canApplyPriceChange === true,
+    priceChangeStatus: quote.priceChangeStatus == null ? null : Number(quote.priceChangeStatus),
     onlyAddonPrice: onlyAddon,
     showOptionPrice: true,
     quoteDesc: supplierQuoteDescription(quote?.supplierQuoteDescI18n),
@@ -11090,19 +11180,23 @@ const packageSectionFromQuote = (entry: any) => {
         .map((spec: any) => localizedName(spec?.specValueNameI18n, spec?.specValueName))
         .filter((text: string) => text && text !== "—" && text !== groupLabel)
         .join(" · ")
+      const quotePrice =
+        onlyAddon || mode !== 1
+          ? "0"
+          : sku.quotePrice == null || sku.quotePrice === ""
+            ? ""
+            : String(sku.quotePrice)
+      const priced = mode === 1 && !onlyAddon && Number(quotePrice) > 0
       return {
         skuId: Number(sku.skuId),
         label: packageOptionLabel(sku),
         groupLabel,
         optionLabel,
-        enabled: sku.enabled == null || Number(sku.enabled) !== 0,
+        enabled: priced || sku.enabled == null || Number(sku.enabled) !== 0,
         acceptBand: sku.acceptBand ?? null,
-        quotePrice:
-          onlyAddon || mode !== 1
-            ? "0"
-            : sku.quotePrice == null || sku.quotePrice === ""
-              ? ""
-              : String(sku.quotePrice),
+        reviewStatus: sku.reviewStatus == null ? null : Number(sku.reviewStatus),
+        rejectReason: String(sku.rejectReason || "").trim(),
+        quotePrice,
         staffCount: blankPositive(sku.staffCount),
         serviceHours: blankPositive(sku.serviceHours),
       }
@@ -11121,10 +11215,10 @@ const packageSectionPayload = (block: any) => {
       staffCount: blankPositive(row.staffCount) ?? 0,
       serviceHours: blankPositive(row.serviceHours) ?? 0,
       quotePrice: block.onlyAddonPrice
-        ? 0
+        ? null
         : unitQuoteMode(block.quoteMode)
           ? null
-          : row.quotePrice == null || row.quotePrice === ""
+          : row.enabled === false || row.quotePrice == null || String(row.quotePrice).trim() === ""
             ? null
             : Number(row.quotePrice),
       enabled: row.enabled === false ? 0 : 1,
@@ -11226,6 +11320,8 @@ const packageVisibleLines = () => {
 }
 const packageLineDirect = (line: { rows: any[] }) =>
   line.rows.some((row) => acceptBandName(row.acceptBand) === "direct")
+const packageLineRejectReason = (line: { rows: Array<{ rejectReason?: unknown }> }) =>
+  line.rows.map((row) => supplierRejectCopy(row.rejectReason)).find(Boolean) || ""
 const packageLineMeta = (line: { title?: string; tails?: string[]; rows: any[] }) => {
   const text = [line.title, ...(line.tails || []), ...line.rows.map((row) => row.label)].filter(Boolean).join("\n")
   const staff = firstCount([text], STAFF_COUNT)
@@ -11248,7 +11344,7 @@ const packagePriceCalc = (line: { rows: Array<{ quotePrice?: unknown }> }) => {
   return t("admin.supplierPortal.packageExclVat", { price: moneyText(exclVat(amount)) })
 }
 const setPackageQuoteEnabled = (enabled: boolean) => {
-  packageVisibleLines().forEach((line) => setFamilyEnabled(line, enabled))
+  packageVisibleLines().forEach((line) => setPackageFamilyEnabled(line, enabled))
 }
 const openPackageQuote = (group: { rows: any[] }, sync = true) => {
   const packageId = Number(group.rows[0]?.packageId)
@@ -11324,6 +11420,7 @@ const savePackageBundle = async (submit: boolean) => {
         await submitQuote({
           supplierId: supplierRecordId.value,
           spuId: block.spuId,
+          packageId: packageBundle.packageId,
           confirmation: { pricesIncludeVat: true, informationAccurate: true },
         })
       }
@@ -11769,6 +11866,7 @@ const submitServiceQuote = async () => {
       await submitQuote({
         supplierId: supplierRecordId.value,
         spuId: quoteDialog.spuId,
+        ...(packageMode.value && quoteDialog.packageId ? { packageId: quoteDialog.packageId } : {}),
         confirmation: { pricesIncludeVat: true, informationAccurate: true },
       }),
     )
@@ -12275,7 +12373,7 @@ watch(areaKeyword, (keyword) => {
   box-sizing: border-box;
   padding: 28px 32px 40px;
   color: var(--ink);
-  font-family: Sora, "PingFang SC", "Segoe UI", sans-serif;
+  font-family: var(--hx-font-sans);
 }
 .supplier-demo--profile {
   padding: 0 0 28px;
@@ -12316,7 +12414,7 @@ watch(areaKeyword, (keyword) => {
 .supplier-demo--profile .page-header h1 {
   margin: 0;
   color: #f7f1e6;
-  font-family: Fraunces, Georgia, serif;
+  font-family: var(--hx-font-sans);
   font-size: 40px;
   font-weight: 520;
   letter-spacing: -0.03em;
@@ -12364,7 +12462,7 @@ watch(areaKeyword, (keyword) => {
 .page-header h1 {
   margin: 0;
   color: #05152b;
-  font-family: Fraunces, Georgia, serif;
+  font-family: var(--hx-font-sans);
   font-size: 40px;
   font-weight: 520;
   line-height: 1.05;
@@ -12415,7 +12513,7 @@ watch(areaKeyword, (keyword) => {
   border-radius: 16px;
   color: #e8c27a;
   background: #05152b;
-  font-family: Fraunces, Georgia, serif;
+  font-family: var(--hx-font-sans);
   font-size: 18px;
   font-weight: 520;
 }
@@ -12437,7 +12535,7 @@ watch(areaKeyword, (keyword) => {
   padding-left: 0;
   background: transparent;
   box-shadow: none !important;
-  font-family: Fraunces, Georgia, serif;
+  font-family: var(--hx-font-sans);
   font-size: 22px;
   font-weight: 520;
 }
@@ -12579,7 +12677,7 @@ watch(areaKeyword, (keyword) => {
 }
 .dossier-rail strong {
   display: block;
-  font-family: Fraunces, Georgia, serif;
+  font-family: var(--hx-font-sans);
   font-size: 28px;
   font-weight: 520;
   line-height: 1.12;
@@ -12617,7 +12715,7 @@ watch(areaKeyword, (keyword) => {
 }
 .profile-status__heading strong {
   color: #05152b;
-  font-family: Fraunces, Georgia, serif;
+  font-family: var(--hx-font-sans);
   font-size: 18px;
   font-weight: 600;
   letter-spacing: -0.01em;
@@ -12736,7 +12834,7 @@ watch(areaKeyword, (keyword) => {
 }
 .lightbox h2 {
   margin: 4px 0;
-  font-family: Fraunces, Georgia, serif;
+  font-family: var(--hx-font-sans);
   font-size: 28px;
   font-weight: 520;
   color: #05152b;
@@ -12835,6 +12933,24 @@ watch(areaKeyword, (keyword) => {
   color: #c0392b;
   font-size: 13px;
   font-weight: 700;
+}
+.profile-field > small.field-note {
+  color: #8a8378;
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 1.45;
+}
+.profile-field > small.field-note .field-note__jump {
+  margin-left: 6px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: #5f6b7a;
+  font: inherit;
+  font-weight: 400;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
 }
 .profile-field.error :deep(.el-input__wrapper),
 .profile-field.error :deep(.el-textarea__inner) {
@@ -13011,7 +13127,7 @@ watch(areaKeyword, (keyword) => {
 }
 .dossier-sheet h2 {
   margin: 0;
-  font-family: Fraunces, Georgia, serif;
+  font-family: var(--hx-font-sans);
   font-size: 30px;
   font-weight: 520;
   letter-spacing: -0.03em;
@@ -13429,7 +13545,7 @@ watch(areaKeyword, (keyword) => {
 .section-heading h2 {
   margin: 0 0 4px;
   color: #05152b;
-  font-family: Fraunces, Georgia, serif;
+  font-family: var(--hx-font-sans);
   font-size: 26px;
   font-weight: 520;
   letter-spacing: -0.03em;
@@ -14291,7 +14407,7 @@ watch(areaKeyword, (keyword) => {
   display: block;
   margin-top: 7px;
   color: #fffdf8;
-  font-family: Fraunces, Georgia, serif;
+  font-family: var(--hx-font-sans);
   font-size: 25px;
   font-weight: 520;
   line-height: 1.1;
@@ -14424,7 +14540,7 @@ watch(areaKeyword, (keyword) => {
 .sv-title {
   margin: 0;
   color: #05152b;
-  font-family: Fraunces, Georgia, serif;
+  font-family: var(--hx-font-sans);
   font-size: 34px;
   font-weight: 520;
   letter-spacing: -0.02em;
@@ -14539,7 +14655,7 @@ watch(areaKeyword, (keyword) => {
 .sv-quote h3 {
   margin: 0;
   color: #05152b;
-  font-family: Fraunces, Georgia, serif;
+  font-family: var(--hx-font-sans);
   font-weight: 520;
 }
 .sv-quote h3 {
@@ -15596,7 +15712,7 @@ watch(areaKeyword, (keyword) => {
 }
 .orders-command__copy h2 {
   margin: 8px 0 8px;
-  font-family: Fraunces, Georgia, serif;
+  font-family: var(--hx-font-sans);
   font-size: clamp(30px, 3.2vw, 44px);
   font-weight: 520;
   line-height: 1;
@@ -15900,7 +16016,7 @@ watch(areaKeyword, (keyword) => {
   max-width: 560px;
   margin: 7px 0 7px;
   color: #fffdf8;
-  font-family: Fraunces, Georgia, serif;
+  font-family: var(--hx-font-sans);
   font-size: clamp(26px, 4vw, 38px);
   font-weight: 520;
   line-height: 1.1;
@@ -16060,7 +16176,7 @@ watch(areaKeyword, (keyword) => {
 }
 .order-quote strong > small {
   color: #8d5a32;
-  font-family: Sora, "PingFang SC", sans-serif;
+  font-family: var(--hx-font-sans);
   font-size: 9px;
   letter-spacing: 0.08em;
 }
@@ -16380,7 +16496,7 @@ watch(areaKeyword, (keyword) => {
   .order-mobile-card h3 {
     margin: 14px 0 5px;
     color: #05152b;
-    font-family: Fraunces, Georgia, serif;
+    font-family: var(--hx-font-sans);
     font-size: 21px;
     font-weight: 520;
     line-height: 1.25;
@@ -16565,7 +16681,7 @@ watch(areaKeyword, (keyword) => {
   max-width: 720px;
   margin: 9px 0 8px;
   color: #fffdf8;
-  font-family: Fraunces, Georgia, serif;
+  font-family: var(--hx-font-sans);
   font-size: clamp(34px, 4vw, 50px);
   font-weight: 520;
   letter-spacing: -0.035em;
@@ -16952,7 +17068,7 @@ watch(areaKeyword, (keyword) => {
 .pricing-section-head h2 {
   margin: 0;
   color: #05152b;
-  font-family: Fraunces, Georgia, serif;
+  font-family: var(--hx-font-sans);
   font-size: 22px;
   font-weight: 520;
   letter-spacing: -0.02em;
@@ -17619,7 +17735,7 @@ watch(areaKeyword, (keyword) => {
   margin: 8px 0 15px;
   padding: 0;
   color: #fffdf8;
-  font-family: Fraunces, Georgia, serif;
+  font-family: var(--hx-font-sans);
   font-size: 22px;
   font-weight: 520;
   line-height: 1.2;
@@ -17754,7 +17870,7 @@ watch(areaKeyword, (keyword) => {
 }
 .service-editor-intro strong {
   color: #fffdf8;
-  font-family: Fraunces, Georgia, serif;
+  font-family: var(--hx-font-sans);
   font-size: 23px;
   font-weight: 520;
   line-height: 1.2;
@@ -18104,7 +18220,7 @@ watch(areaKeyword, (keyword) => {
 .order-drawer .el-drawer__title {
   min-width: 0;
   color: #05152b;
-  font-family: Fraunces, Georgia, serif;
+  font-family: var(--hx-font-sans);
   font-size: 24px;
   font-weight: 520;
   letter-spacing: -0.025em;
@@ -18161,7 +18277,7 @@ watch(areaKeyword, (keyword) => {
 }
 .supplier-form-dialog .el-dialog__title {
   color: #05152b;
-  font-family: Fraunces, Georgia, serif;
+  font-family: var(--hx-font-sans);
   font-size: 24px;
   font-weight: 520;
   line-height: 1.25;

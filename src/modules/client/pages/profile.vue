@@ -1,57 +1,35 @@
 <template>
   <div class="profile-page">
     <div class="profile-container">
-      <section class="profile-hero">
-        <img class="profile-hero__avatar" src="@/assets/images/client/icon13.png" alt="" />
-        <div class="profile-hero__identity">
-          <h1>{{ displayName }}</h1>
-          <p v-if="displayPhone">{{ displayPhone }}</p>
-          <p v-if="displayEmail" class="profile-hero__email" :title="displayEmail">{{ displayEmail }}</p>
-          <p v-if="!displayPhone && !displayEmail">{{ t("client.profile.defaultAccount") }}</p>
-        </div>
-      </section>
+      <AccountBanner :name="displayName">
+        <span>{{ t("client.profile.subtitle") }}</span>
+        <span v-if="displayPhone">{{ displayPhone }}</span>
+        <span v-if="displayEmail">{{ displayEmail }}</span>
+      </AccountBanner>
 
       <div class="profile-layout">
-        <main class="profile-main-card">
-          <header class="profile-heading">
-            <h2>{{ t("client.profile.title") }}</h2>
-            <p>{{ t("client.profile.subtitle") }}</p>
-          </header>
+        <AccountMenu :current="activeSection" />
 
-          <div class="profile-sections">
-            <article class="profile-section">
-              <button class="profile-section__trigger" type="button" @click="openAccountList('booking')">
-                <span class="profile-section__icon"><el-icon><Calendar /></el-icon></span>
-                <span class="profile-section__label">{{ t("client.profile.menu.bookings") }}</span>
-                <el-icon class="profile-section__arrow"><ArrowRight /></el-icon>
-              </button>
-            </article>
-            <article class="profile-section">
-              <button class="profile-section__trigger" type="button" @click="openAccountList('package')">
-                <span class="profile-section__icon"><el-icon><Box /></el-icon></span>
-                <span class="profile-section__label">{{ t("client.profile.menu.packages") }}</span>
-                <el-icon class="profile-section__arrow"><ArrowRight /></el-icon>
-              </button>
-            </article>
-            <article class="profile-section" :class="{ 'is-open': activeSection === 'personal' }">
-              <button class="profile-section__trigger" type="button" @click="toggleSection('personal')">
-                <span class="profile-section__icon"><el-icon><User /></el-icon></span>
-                <span class="profile-section__label">{{ t("client.profile.menu.personal") }}</span>
-                <el-icon class="profile-section__arrow"><ArrowRight /></el-icon>
-              </button>
-
+        <div class="profile-panes">
+          <section class="profile-main-card" :class="{ 'profile-main-card--managed': hasManagerHeading }">
+            <header v-if="!hasManagerHeading" class="profile-heading">
+              <h1>{{ sectionTitle }}</h1>
+            </header>
+            <div class="profile-sections">
               <div v-if="activeSection === 'personal'" class="profile-section__content">
                 <div class="personal-details__toolbar">
                   <span>{{ profileLoading ? (locale === 'zh' ? '加载中…' : 'Loading…') : '' }}</span>
                   <button type="button" class="text-action" @click="profileEditing ? cancelProfileEdit() : startProfileEdit()">
-                    {{ profileEditing ? (locale === 'zh' ? '取消' : 'Cancel') : (locale === 'zh' ? '编辑个人信息' : 'Edit profile') }}
+                    {{ t(profileEditing ? "client.profile.personal.cancel" : "client.profile.personal.edit") }}
                   </button>
                 </div>
                 <form v-if="profileEditing" class="profile-edit-form" @submit.prevent="saveProfile">
                   <label><span>{{ t("client.profile.personal.name") }}</span><input v-model.trim="profileForm.name" class="profile-input" type="text" autocomplete="name" /></label>
                   <label><span>{{ t("client.profile.personal.phone") }}</span><input v-model.trim="profileForm.phone" class="profile-input" type="tel" autocomplete="tel" /></label>
                   <label><span>{{ t("client.profile.personal.email") }}</span><input v-model.trim="profileForm.email" class="profile-input" type="email" autocomplete="email" /></label>
-                  <button class="primary-btn" type="submit" :disabled="profileSubmitting">{{ profileSubmitting ? (locale === 'zh' ? '保存中…' : 'Saving…') : (locale === 'zh' ? '保存个人信息' : 'Save profile') }}</button>
+                  <button class="primary-btn" type="submit" :disabled="profileSubmitting">
+                    {{ t(profileSubmitting ? "client.profile.personal.saving" : "client.profile.personal.save") }}
+                  </button>
                 </form>
                 <dl v-else class="personal-details">
                   <div>
@@ -80,6 +58,10 @@
                 </div>
 
                 <form v-if="passwordExpanded" class="password-form" @submit.prevent="handleSubmit">
+                  <div class="password-form__heading">
+                    <h2>{{ t("client.profile.security.title") }}</h2>
+                    <p>{{ t("client.profile.security.description") }}</p>
+                  </div>
                   <label class="field-label" for="profile-current-password">
                     {{ t("client.profile.form.currentPassword") }}
                   </label>
@@ -112,7 +94,7 @@
                   <p v-if="errors.currentPassword" class="field-error">{{ errors.currentPassword }}</p>
                   <div class="password-form__forgot">
                     <button type="button" @click="forgotPasswordVisible = true">
-                      {{ t("client.login.password.forgotPassword") }}
+                      {{ t("client.profile.security.forgotPassword") }}
                     </button>
                   </div>
 
@@ -187,41 +169,28 @@
                     </button>
                   </div>
                 </form>
+                <div class="password-entry">
+                  <span class="password-entry__copy">
+                    <strong>{{ t("client.accountDeletion.entry") }}</strong>
+                    <small>{{ t("client.accountDeletion.timeframe", { days: 7 }) }}</small>
+                  </span>
+                  <RouterLink class="text-action" :to="{ name: 'legal-data-deletion' }">{{ t("client.accountDeletion.entry") }}</RouterLink>
+                </div>
               </div>
-            </article>
 
-            <article class="profile-section" :class="{ 'is-open': activeSection === 'addresses' }">
-              <button class="profile-section__trigger" type="button" @click="toggleSection('addresses')">
-                <span class="profile-section__icon"><el-icon><Location /></el-icon></span>
-                <span class="profile-section__label">{{ t("client.profile.menu.addresses") }}</span>
-                <el-icon class="profile-section__arrow"><ArrowRight /></el-icon>
-              </button>
-              <div v-if="activeSection === 'addresses'" class="profile-section__content">
+              <div v-else-if="activeSection === 'addresses'" class="profile-section__content">
                 <button v-if="checkoutReturnPath" type="button" class="profile-return-checkout" @click="router.push(checkoutReturnPath)">
                   ← {{ locale === 'zh' ? '返回订单确认' : 'Back to checkout' }}
                 </button>
                 <SavedAddressManager />
               </div>
-            </article>
 
-            <article class="profile-section" :class="{ 'is-open': activeSection === 'payments' }">
-              <button class="profile-section__trigger" type="button" @click="toggleSection('payments')">
-                <span class="profile-section__icon"><el-icon><CreditCard /></el-icon></span>
-                <span class="profile-section__label">{{ t("client.profile.menu.payments") }}</span>
-                <el-icon class="profile-section__arrow"><ArrowRight /></el-icon>
-              </button>
-              <div v-if="activeSection === 'payments'" class="profile-section__content">
+              <div v-else-if="activeSection === 'payments'" class="profile-section__content">
                 <SavedPaymentMethodManager />
               </div>
-            </article>
 
-            <article class="profile-section" :class="{ 'is-open': activeSection === 'notifications' }">
-              <button class="profile-section__trigger" type="button" @click="toggleSection('notifications')">
-                <span class="profile-section__icon"><el-icon><Bell /></el-icon></span>
-                <span class="profile-section__label">{{ t("client.profile.menu.notifications") }}</span>
-                <el-icon class="profile-section__arrow"><ArrowRight /></el-icon>
-              </button>
-              <div v-if="activeSection === 'notifications'" class="profile-section__content notification-list">
+              <div v-else-if="activeSection === 'notifications'" class="profile-section__content notification-list">
+                <p class="notification-list__hint">{{ t("client.profile.notifications.saveHint") }}</p>
                 <label class="notification-row">
                   <span>
                     <strong>{{ t("client.profile.notifications.bookingTitle") }}</strong>
@@ -237,21 +206,14 @@
                   <el-switch v-model="offerNotifications" @change="saveNotificationPreferences" />
                 </label>
               </div>
-            </article>
 
-            <article class="profile-section" :class="{ 'is-open': activeSection === 'support' }">
-              <button class="profile-section__trigger" type="button" @click="toggleSection('support')">
-                <span class="profile-section__icon"><el-icon><Service /></el-icon></span>
-                <span class="profile-section__label">{{ t("client.profile.menu.support") }}</span>
-                <el-icon class="profile-section__arrow"><ArrowRight /></el-icon>
-              </button>
-              <div v-if="activeSection === 'support'" class="profile-section__content support-panel">
+              <div v-else-if="activeSection === 'support'" class="profile-section__content support-panel">
                 <p>{{ t("client.profile.support.description") }}</p>
                 <div class="support-actions">
                   <a href="https://wa.me/971502100284/?text=Hi%2C+I%E2%80%99m+interested+in+HourX+services.+Could+you+please+help+me%3F" target="_blank" rel="noopener noreferrer">
                     {{ t("client.profile.support.whatsapp") }}
                   </a>
-                  <a href="mailto:support@hourxportal.com">support@hourxportal.com</a>
+                  <a href="mailto:support@hourxportal.com">{{ t("client.profile.support.email") }}</a>
                 </div>
                 <h3>{{ t("client.profile.support.faqTitle") }}</h3>
                 <div class="support-faq-groups">
@@ -279,41 +241,29 @@
                   </section>
                 </div>
               </div>
-            </article>
 
-            <article class="profile-section" :class="{ 'is-open': activeSection === 'language' }">
-              <button class="profile-section__trigger" type="button" @click="toggleSection('language')">
-                <span class="profile-section__icon"><el-icon><Operation /></el-icon></span>
-                <span class="profile-section__label">{{ t("client.profile.menu.language") }}</span>
-                <span class="profile-section__value">{{ localeLabel }}</span>
-                <el-icon class="profile-section__arrow"><ArrowRight /></el-icon>
-              </button>
-              <div v-if="activeSection === 'language'" class="profile-section__content language-options">
+              <div v-else-if="activeSection === 'language'" class="profile-section__content language-options">
                 <button type="button" :class="{ 'is-active': locale === 'en' }" @click="changeLocale('en')">English</button>
                 <button type="button" :class="{ 'is-active': locale === 'zh' }" @click="changeLocale('zh')">中文</button>
               </div>
-            </article>
-          </div>
-          <button v-if="!isLoggedIn" class="profile-signin" type="button" @click="goLogin">
-            {{ t("client.header.auth") }}
-          </button>
-        </main>
+            </div>
+            <button v-if="!isLoggedIn" class="profile-signin" type="button" @click="goLogin">
+              {{ t("client.header.auth") }}
+            </button>
+          </section>
 
-        <section class="partner-card">
-          <img src="@/assets/images/client/icon16.png" alt="" />
-          <div class="partner-card__copy">
-            <h2>{{ t("client.profile.partner.title") }}</h2>
-            <p>{{ t("client.profile.partner.desc") }}</p>
-          </div>
-          <a href="mailto:partners@hourxportal.com">
-            <img src="@/assets/images/client/email.png" alt="" />
-            <span>partners@hourxportal.com</span>
-          </a>
-        </section>
-
-        <button v-if="isLoggedIn" type="button" class="logout-button" @click="handleLogout">
-          {{ t("client.profile.logOut") }}
-        </button>
+          <section class="partner-card">
+            <img src="@/assets/images/client/icon16.png" alt="" />
+            <div class="partner-card__copy">
+              <h2>{{ t("client.profile.partner.title") }}</h2>
+              <p>{{ t("client.profile.partner.desc") }}</p>
+            </div>
+            <a href="mailto:partners@hourxportal.com">
+              <img src="@/assets/images/client/email.png" alt="" />
+              <span>partners@hourxportal.com</span>
+            </a>
+          </section>
+        </div>
       </div>
     </div>
     <ForgotPasswordDialog
@@ -325,11 +275,11 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref, watch } from "vue"
+import { computed, onMounted, reactive, ref } from "vue"
 import { useI18n } from "vue-i18n"
 import { useRoute, useRouter } from "vue-router"
-import { ElMessage, ElMessageBox } from "element-plus"
-import { ArrowRight, Bell, Box, Calendar, CreditCard, Location, Lock, Operation, Service, User } from "@element-plus/icons-vue"
+import { ElMessage } from "element-plus"
+import { Lock } from "@element-plus/icons-vue"
 import { getClientProfile, updateClientProfile, type ClientProfileRecord } from "../api"
 import { changePasswordByOld } from "../api/login"
 import {
@@ -343,7 +293,11 @@ import SavedAddressManager from "@/modules/client/components/SavedAddressManager
 import SavedPaymentMethodManager from "@/modules/client/components/SavedPaymentMethodManager.vue"
 import ForgotPasswordDialog from "@/modules/client/components/ForgotPasswordDialog.vue"
 
-type ProfileSection = "personal" | "addresses" | "payments" | "notifications" | "support" | "language"
+import AccountBanner from "@/modules/client/components/AccountBanner.vue"
+import AccountMenu from "@/modules/client/components/AccountMenu.vue"
+
+const profileSections = ["personal", "addresses", "payments", "notifications", "support", "language"] as const
+type ProfileSection = typeof profileSections[number]
 
 const { t, locale } = useI18n()
 const router = useRouter()
@@ -363,7 +317,14 @@ const errors = reactive({
   confirmPassword: ""
 })
 
-const activeSection = ref<ProfileSection | "">("personal")
+const activeSection = computed(() => {
+  const section = route.query.section as ProfileSection
+  return profileSections.includes(section) ? section : "personal"
+})
+const hasManagerHeading = computed(() => activeSection.value === "addresses" || activeSection.value === "payments")
+const sectionTitle = computed(() => t(activeSection.value === "support"
+  ? "client.profile.support.title"
+  : `client.profile.menu.${activeSection.value}`))
 const passwordExpanded = ref(false)
 const showCurrentPassword = ref(false)
 const showNewPassword = ref(false)
@@ -443,7 +404,6 @@ const saveProfile = async () => {
   } finally { profileSubmitting.value = false }
 }
 
-const localeLabel = computed(() => (locale.value === "zh" ? "中文" : "English"))
 
 const checkoutReturnPath = computed(() => {
   const value = Array.isArray(route.query.returnTo) ? route.query.returnTo[0] : route.query.returnTo
@@ -530,18 +490,6 @@ const goLogin = () => {
   router.push({ name: "login", query: { redirect: route.fullPath } })
 }
 
-const openAccountList = (kind: "booking" | "package") => {
-  router.push({ name: "order-list", query: { kind } })
-}
-
-const toggleSection = (section: ProfileSection) => {
-  if (!isLoggedIn.value && (section === "personal" || section === "addresses" || section === "payments")) {
-    goLogin()
-    return
-  }
-  activeSection.value = activeSection.value === section ? "" : section
-}
-
 const changeLocale = (nextLocale: "en" | "zh") => {
   locale.value = nextLocale
   setClientLocale(nextLocale)
@@ -557,32 +505,6 @@ const restoreNotificationPreferences = () => {
   offerNotifications.value = window.localStorage.getItem("hourx-h5-offer-notifications") === "true"
 }
 
-const handleLogout = async () => {
-  try {
-    await ElMessageBox.confirm(
-      t("client.profile.logoutConfirm.message"),
-      t("client.profile.logoutConfirm.title"),
-      {
-        confirmButtonText: t("client.profile.logoutConfirm.confirm"),
-        cancelButtonText: t("client.profile.logoutConfirm.cancel"),
-        confirmButtonClass: "hourx-confirm-button"
-      }
-    )
-    clearAuth()
-    ElMessage.success(t("client.profile.logoutSuccess"))
-    await router.replace("/")
-  } catch {
-    // User cancelled the confirmation dialog.
-  }
-}
-
-const applySectionFromRoute = (section: unknown) => {
-  const supported: ProfileSection[] = ["personal", "addresses", "payments", "notifications", "support", "language"]
-  if (typeof section === "string" && supported.includes(section as ProfileSection)) {
-    activeSection.value = section as ProfileSection
-  }
-}
-
 onMounted(async () => {
   checkLoginStatus()
   if (!isLoggedIn.value) {
@@ -592,26 +514,21 @@ onMounted(async () => {
     return
   }
   restoreNotificationPreferences()
-  applySectionFromRoute(route.query.section)
   await loadProfile()
 })
 
-watch(
-  () => route.query.section,
-  (section) => applySectionFromRoute(section)
-)
 </script>
 
 <style scoped>
 .profile-page {
-  min-height: calc(100vh - 76px);
-  padding: 34px 24px 72px;
-  background: #f4f7fb;
-  color: #05152b;
+  min-height: calc(100vh - 72px);
+  padding: 48px 24px 80px;
+  background: var(--hourx-client-canvas);
+  color: var(--hourx-client-text);
 }
 
 .profile-container {
-  width: min(1160px, 100%);
+  width: min(1152px, 100%);
   margin: 0 auto;
 }
 
@@ -620,151 +537,50 @@ watch(
   padding: 0;
   border: 0;
   background: transparent;
-  color: #1769c2;
+  color: var(--hourx-client-text);
   font-weight: 800;
   cursor: pointer;
 }
 
-.profile-hero {
-  display: flex;
-  align-items: center;
-  gap: 22px;
-  min-height: 168px;
-  padding: 30px 38px;
-  border-radius: 24px;
-  background: linear-gradient(135deg, #05152b 0%, #102c50 100%);
-  color: #fff;
-  box-shadow: 0 18px 40px rgb(5 21 43 / 14%);
-}
-
-.profile-hero__avatar {
-  width: 86px;
-  height: 86px;
-  flex: 0 0 auto;
-  border: 3px solid rgb(255 255 255 / 70%);
-  border-radius: 50%;
-  object-fit: cover;
-  background: #fff;
-}
-
-.profile-hero__identity {
-  min-width: 0;
-}
-
-.profile-hero h1 {
-  margin: 0 0 8px;
-  font-size: 28px;
-  line-height: 1.2;
-}
-
-.profile-hero p {
-  max-width: 640px;
-  margin: 4px 0 0;
-  color: rgb(255 255 255 / 72%);
-  font-size: 14px;
-}
-
-.profile-hero__email {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
 .profile-layout {
   display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  gap: 16px;
+  grid-template-columns: 250px minmax(0, 1fr);
+  gap: 24px;
   align-items: start;
   margin-top: 24px;
 }
 
+.profile-panes {
+  min-width: 0;
+  display: grid;
+  gap: 20px;
+}
+
 .profile-main-card,
 .partner-card {
-  border: 1px solid #e4eaf2;
-  border-radius: 20px;
+  border: 1px solid var(--hourx-client-border);
+  border-radius: 16px;
   background: #fff;
-  box-shadow: 0 12px 32px rgb(5 21 43 / 6%);
 }
 
 .profile-heading {
-  padding: 28px 30px 22px;
-  border-bottom: 1px solid #edf1f6;
+  padding: 24px 24px 12px;
 }
 
-.profile-heading h2 {
+.profile-main-card--managed {
+  padding-top: 24px;
+}
+
+.profile-heading h1,
+.password-form__heading h2,
+.support-panel h3 {
   margin: 0;
-  color: #05152b;
-  font-size: 24px;
-}
-
-.profile-heading p {
-  margin: 8px 0 0;
-  color: #6f7d91;
-  font-size: 14px;
+  color: var(--hourx-client-text);
+  font: 600 1.0625rem/1.3 var(--hourx-client-font-family);
 }
 
 .profile-sections {
-  padding: 6px 30px 22px;
-}
-
-.profile-section {
-  border-bottom: 1px solid #edf1f6;
-}
-
-.profile-section:last-child {
-  border-bottom: 0;
-}
-
-.profile-section__trigger {
-  display: flex;
-  width: 100%;
-  min-height: 72px;
-  align-items: center;
-  gap: 14px;
-  padding: 14px 2px;
-  border: 0;
-  background: transparent;
-  color: #05152b;
-  text-align: left;
-  cursor: pointer;
-}
-
-.profile-section__icon,
-.password-entry__icon {
-  display: inline-flex;
-  width: 40px;
-  height: 40px;
-  flex: 0 0 40px;
-  align-items: center;
-  justify-content: center;
-  border-radius: 12px;
-  background: #eef4fc;
-  color: #1769c2;
-  font-size: 20px;
-}
-
-.profile-section__label {
-  flex: 1;
-  font-size: 16px;
-  font-weight: 700;
-}
-
-.profile-section__value {
-  color: #768397;
-  font-size: 14px;
-}
-
-.profile-section__arrow {
-  color: #98a4b5;
-  transition: transform 0.2s ease;
-}
-
-.profile-section.is-open .profile-section__arrow {
-  transform: rotate(90deg);
-}
-
-.profile-section__content {
-  padding: 2px 2px 24px 56px;
+  padding: 0 24px 24px;
 }
 
 .personal-details {
@@ -784,18 +600,30 @@ watch(
 
 .personal-details dt {
   margin-bottom: 7px;
-  color: #7a8798;
-  font-size: 12px;
+  color: var(--hourx-client-muted);
+  font-size: var(--hourx-client-size-label);
 }
 
 .personal-details dd {
   overflow: hidden;
   margin: 0;
-  color: #05152b;
-  font-size: 14px;
-  font-weight: 700;
+  color: var(--hourx-client-text);
+  font: 600 var(--hourx-client-size-body)/1.3 var(--hourx-client-font-family);
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.password-entry__icon {
+  display: inline-flex;
+  width: 40px;
+  height: 40px;
+  flex: 0 0 40px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 12px;
+  background: #eef4fc;
+  color: #1769c2;
+  font-size: 20px;
 }
 
 .password-entry {
@@ -834,9 +662,8 @@ watch(
   padding: 0;
   border: 0;
   background: transparent;
-  color: #1769c2;
-  font: inherit;
-  font-weight: 700;
+  color: var(--hourx-client-text);
+  font: 600 var(--hourx-client-size-action)/1 var(--hourx-client-font-family);
   cursor: pointer;
 }
 
@@ -847,12 +674,22 @@ watch(
   background: #f7f9fc;
 }
 
+.password-form__heading {
+  margin-bottom: 16px;
+}
+
+.password-form__heading p,
+.notification-list__hint {
+  margin: 4px 0 0;
+  color: var(--hourx-client-muted);
+  font: 400 0.8125rem/1.55 var(--hourx-client-font-family);
+}
+
 .field-label {
   display: block;
   margin: 0 0 8px;
-  color: #27374d;
-  font-size: 13px;
-  font-weight: 700;
+  color: var(--hourx-client-text);
+  font: 600 0.8125rem/1 var(--hourx-client-font-family);
 }
 
 .password-input-wrap {
@@ -869,13 +706,13 @@ watch(
   border-radius: 10px;
   outline: none;
   background: #fff;
-  color: #05152b;
+  color: var(--hourx-client-text);
   font: inherit;
   transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
 .profile-input:focus {
-  border-color: #1769c2;
+  border-color: var(--hourx-client-text);
   box-shadow: 0 0 0 3px rgb(23 105 194 / 12%);
 }
 
@@ -924,10 +761,8 @@ watch(
   padding: 0;
   border: 0;
   background: transparent;
-  color: #1769c2;
-  font: inherit;
-  font-size: 12px;
-  font-weight: 800;
+  color: var(--hourx-client-text);
+  font: 600 0.8125rem/1 var(--hourx-client-font-family);
   cursor: pointer;
 }
 
@@ -944,8 +779,7 @@ watch(
   height: 42px;
   padding: 0 18px;
   border-radius: 10px;
-  font: inherit;
-  font-weight: 700;
+  font: 600 var(--hourx-client-size-action)/1 var(--hourx-client-font-family);
   cursor: pointer;
 }
 
@@ -1000,7 +834,7 @@ watch(
 
 .saved-address-card strong {
   display: block;
-  color: #05152b;
+  color: var(--hourx-client-text);
   font-size: 15px;
 }
 
@@ -1032,18 +866,18 @@ watch(
 }
 
 .notification-row strong {
-  font-size: 14px;
+  font: 600 var(--hourx-client-size-body)/1.3 var(--hourx-client-font-family);
 }
 
 .notification-row small {
-  color: #778498;
-  line-height: 1.5;
+  color: var(--hourx-client-muted);
+  font: 400 0.8125rem/1.55 var(--hourx-client-font-family);
 }
 
 .support-panel > p {
   margin: 0 0 14px;
-  color: #66758a;
-  line-height: 1.65;
+  color: var(--hourx-client-muted);
+  font: 400 0.8125rem/1.55 var(--hourx-client-font-family);
 }
 
 .support-actions {
@@ -1057,15 +891,13 @@ watch(
   padding: 9px 13px;
   border: 1px solid #d9e2ed;
   border-radius: 9px;
-  color: #1769c2;
-  font-size: 13px;
-  font-weight: 700;
+  color: var(--hourx-client-text);
+  font: 600 var(--hourx-client-size-action)/1 var(--hourx-client-font-family);
   text-decoration: none;
 }
 
 .support-panel h3 {
   margin: 0 0 8px;
-  font-size: 15px;
 }
 
 .support-faq-groups {
@@ -1084,9 +916,10 @@ watch(
 
 .support-faq-groups h4 {
   margin: 0;
-  color: #1769c2;
-  font-size: 13px;
-  font-weight: 800;
+  color: var(--hourx-client-text);
+  font: 600 var(--hourx-client-size-label)/1 var(--hourx-client-font-family);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
 }
 
 .support-panel details {
@@ -1099,21 +932,19 @@ watch(
 }
 
 .support-panel summary {
-  color: #27374d;
-  font-size: 14px;
-  font-weight: 700;
+  color: var(--hourx-client-text);
+  font: 600 var(--hourx-client-size-action)/1.4 var(--hourx-client-font-family);
   cursor: pointer;
 }
 
 .support-panel details p {
   margin: 10px 0 0;
-  color: #718095;
-  font-size: 13px;
-  line-height: 1.6;
+  color: var(--hourx-client-muted);
+  font: 400 var(--hourx-client-size-action)/1.55 var(--hourx-client-font-family);
 }
 
 .support-panel details p a {
-  color: #1769c2;
+  color: var(--hourx-client-text);
   font-weight: 700;
 }
 
@@ -1134,7 +965,7 @@ watch(
 }
 
 .language-options button.is-active {
-  border-color: #05152b;
+  border-color: var(--hourx-client-text);
   background: #05152b;
   color: #fff;
   font-weight: 700;
@@ -1179,7 +1010,7 @@ watch(
   margin: 0;
   padding: 0;
   border: 0;
-  color: #1769c2;
+  color: var(--hourx-client-text);
   font-size: 13px;
   font-weight: 700;
   text-decoration: none;
@@ -1207,18 +1038,6 @@ watch(
   cursor: pointer;
 }
 
-.logout-button {
-  justify-self: start;
-  margin-left: 8px;
-  padding: 8px 16px;
-  border: 0;
-  background: transparent;
-  color: #a63d43;
-  font: inherit;
-  font-size: 14px;
-  font-weight: 700;
-  cursor: pointer;
-}
 
 @media (max-width: 900px) {
   .profile-signin {
@@ -1237,21 +1056,6 @@ watch(
 @media (max-width: 640px) {
   .profile-page {
     padding: 18px 14px 52px;
-  }
-
-  .profile-hero {
-    min-height: 132px;
-    padding: 22px;
-    border-radius: 18px;
-  }
-
-  .profile-hero__avatar {
-    width: 68px;
-    height: 68px;
-  }
-
-  .profile-hero h1 {
-    font-size: 22px;
   }
 
   .profile-heading,
@@ -1277,10 +1081,6 @@ watch(
     width: 100%;
   }
 
-  .profile-section__content {
-    padding-left: 0;
-  }
-
   .password-form {
     padding: 16px;
   }
@@ -1294,9 +1094,13 @@ watch(
     width: 100%;
   }
 }
-.personal-details__toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; color: #64748b; font-size: 12px; }
+@media (max-width: 900px) {
+  .profile-layout { grid-template-columns: 1fr; }
+}
+
+.personal-details__toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; color: var(--hourx-client-muted); font-size: 12px; }
 .profile-edit-form { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; margin-bottom: 20px; padding: 18px; border: 1px solid #e4eaf1; border-radius: 14px; background: #f8fafc; }
-.profile-edit-form label { display: grid; gap: 7px; color: #334155; font-size: 12px; font-weight: 700; }
+.profile-edit-form label { display: grid; gap: 7px; color: var(--hourx-client-text); font: 600 0.8125rem/1 var(--hourx-client-font-family); }
 .profile-edit-form label:last-of-type { grid-column: 1 / -1; }
 .profile-edit-form .primary-btn { justify-self: start; }
 @media (max-width: 640px) { .profile-edit-form { grid-template-columns: 1fr; } .profile-edit-form label:last-of-type { grid-column: auto; } }

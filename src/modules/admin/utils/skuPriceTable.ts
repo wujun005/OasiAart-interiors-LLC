@@ -29,6 +29,13 @@ export type SkuPriceRow = {
   variants: SkuPriceVariant[];
 };
 
+export type StaffHourRow = {
+  skuId: number;
+  combo: string;
+  staffCount: number | null;
+  serviceHours: number | null;
+};
+
 export type SkuPriceEditor = {
   columns: SkuPriceColumn[];
   rows: SkuPriceRow[];
@@ -254,6 +261,22 @@ export const buildSkuPriceEditor = (
   };
 };
 
+/**
+ * 按减免百分比计算优惠价。10 表示减 10%，优惠价 = 原价 × 90%，四舍五入到分。
+ * 0 表示不优惠，返回 0。原价大于 0 但折后不足 1 分时返回 null，避免被当成不优惠。
+ */
+export const saleFromPercentOff = (origin: number, percentOff: number) => {
+  if (!Number.isFinite(origin) || origin < 0) return null;
+  if (!Number.isFinite(percentOff) || percentOff < 0 || percentOff >= 100) return null;
+  const originCents = cents(origin);
+  const basis = Math.round(percentOff * 100);
+  if (originCents === 0 || basis <= 0) return 0;
+  if (basis >= 10000) return null;
+  const saleCents = Math.round((originCents * (10000 - basis)) / 10000);
+  if (saleCents <= 0) return null;
+  return saleCents / 100;
+};
+
 /** 优惠价留空或为 0 表示不优惠，售价按原价。 */
 export const effectiveSalePrice = (origin: number | null, sale: number | null) => {
   if (sale == null || cents(sale) === 0) return origin;
@@ -318,6 +341,38 @@ export const skuPriceBases = (rows: SkuPriceRow[]) =>
     price: effectiveSalePrice(row.originPrice, row.discountPrice),
     originalPrice: row.originPrice,
   }));
+
+const workloadNumber = (value: unknown, integer: boolean) => {
+  if (value == null || value === '') return null;
+  const amount = Number(value);
+  if (!Number.isFinite(amount) || amount < 0) return null;
+  if (integer) return Number.isInteger(amount) ? amount : null;
+  return Math.round(amount * 100) / 100;
+};
+
+/** 人数小时维护：每个已生成 SKU 一行，规格按绑定顺序拼成组合名。 */
+export const buildStaffHourRows = (
+  specTypes: unknown[],
+  skus: unknown[],
+  labelOf: NameFn,
+): StaffHourRow[] => {
+  const dimensions = dimensionsOf(specTypes, labelOf).filter((dimension) => dimension.options.length);
+  return skus.flatMap((item) => {
+    const sku = asRecord(item);
+    const skuId = skuIdOf(sku ?? undefined);
+    if (!sku || skuId == null) return [];
+    const combo = dimensions
+      .map((dimension) => matchOption(sku[dimension.key], dimension.options)?.label || '')
+      .filter(Boolean)
+      .join(' / ');
+    return [{
+      skuId,
+      combo: combo || String(sku.skuCode || skuId),
+      staffCount: workloadNumber(sku.staffCount, true),
+      serviceHours: workloadNumber(sku.serviceHours, false),
+    }];
+  });
+};
 
 /** Imported prices must survive both the editor's zero-discount and the server's zero-base rules. */
 export const buildImportedSkuPriceEditor = (

@@ -62,6 +62,21 @@ const routes: RouteRecordRaw[] = [
         component: () => import('@/modules/admin/pages/product/index.vue'),
       },
       {
+        path: 'comments',
+        name: 'admin-comments',
+        component: () => import('@/modules/admin/pages/comment/index.vue'),
+      },
+      {
+        path: 'account-deletions',
+        name: 'admin-account-deletions',
+        component: () => import('@/modules/admin/pages/account-deletions/index.vue'),
+      },
+      {
+        path: 'supplier-coverage',
+        name: 'admin-supplier-coverage',
+        component: () => import('@/modules/admin/pages/supplier-coverage/index.vue'),
+      },
+      {
         path: 'packages',
         redirect: '/admin/package/packages',
       },
@@ -148,6 +163,11 @@ const routes: RouteRecordRaw[] = [
             path: 'supplier-registration-whitelist',
             name: 'admin-supplier-registration-whitelist',
             component: () => import('@/modules/admin/pages/supplier-registration-whitelist/index.vue'),
+          },
+          {
+            path: 'dev-config',
+            name: 'admin-dev-config',
+            component: () => import('@/modules/admin/pages/dev-config/index.vue'),
           },
         ],
       },
@@ -350,6 +370,16 @@ router.beforeEach(async (to) => {
     return true;
   }
 
+  if (
+    (to.path === '/admin/developer/dev-config'
+      || to.path === '/admin/supplier-coverage'
+      || to.path === '/admin/comments'
+      || to.path === '/admin/account-deletions')
+    && !adminMenuState.superAdmin
+  ) {
+    return { path: getFirstAllowedAdminPath(), replace: true };
+  }
+
   const staffOrdersOnly = isSupplierStaffOrdersOnly();
   const supplierSection = supplierSectionFromPath(to.path);
   if (supplierSection) {
@@ -387,6 +417,23 @@ router.beforeEach(async (to) => {
   }
 
   return true;
+});
+
+const chunkReloadKey = 'hourx.admin.chunk-reload';
+const chunkLoadFailed = (error: unknown) => {
+  const message = error instanceof Error ? error.message : String(error || '');
+  return /Failed to fetch dynamically imported module|Importing a module script failed|error loading dynamically imported module/i.test(message);
+};
+
+router.afterEach(() => {
+  sessionStorage.removeItem(chunkReloadKey);
+});
+
+router.onError((error, to) => {
+  if (!chunkLoadFailed(error) || !to?.fullPath) return;
+  if (sessionStorage.getItem(chunkReloadKey) === to.fullPath) return;
+  sessionStorage.setItem(chunkReloadKey, to.fullPath);
+  window.location.assign(to.fullPath);
 });
 
 export default router;

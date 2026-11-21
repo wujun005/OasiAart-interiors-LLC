@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {
   buildImportedSkuPriceEditor,
   buildSkuPriceEditor,
+  buildStaffHourRows,
   formatSkuMoney,
   skuPriceBases,
   skuPriceTotals,
@@ -322,4 +323,30 @@ test('import clears every ordinary base candidate for an ambiguous source option
     [[782], null, null],
     [[784], 120, 100],
   ]);
+});
+
+test('staff hours are read per sku and are not sent with the price payload', () => {
+  const rows = buildStaffHourRows([duct, staff], [
+    { skuId: 1, staffCount: 2, serviceHours: 1.5, 339: { en: '带家具' }, 340: { en: '456' } },
+    { skuId: 2, staffCount: 0, serviceHours: 0, 339: { en: '不带家具' }, 340: { en: '1212' } },
+  ], labelOf);
+  assert.deepEqual(rows, [
+    { skuId: 1, combo: '带家具 / 456', staffCount: 2, serviceHours: 1.5 },
+    { skuId: 2, combo: '不带家具 / 1212', staffCount: 0, serviceHours: 0 },
+  ]);
+  const editor = buildSkuPriceEditor([staff], [
+    { skuId: 1, price: 80, originalPrice: 100, staffCount: 2, serviceHours: 1.5, 340: { en: '456' } },
+  ], labelOf);
+  assert.equal(Object.hasOwn(editor.rows[0], 'staffCount'), false);
+  assert.deepEqual(skuPriceBases([editor.rows[0]]), [{
+    specValueIds: [783],
+    price: 80,
+    originalPrice: 100,
+  }]);
+  assert.equal(Object.hasOwn(skuPriceBases(editor.rows)[0], 'staffCount'), false);
+  assert.deepEqual(skuValidsFromRows(editor.rows)[0], {
+    skuId: 1,
+    valid: 1,
+    supplierFulfillRemark: '',
+  });
 });

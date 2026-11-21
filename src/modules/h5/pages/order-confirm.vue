@@ -734,6 +734,7 @@ import {
   splitContactName,
 } from "@/modules/client/utils/order-localization"
 import { toPlainText } from "@/modules/client/utils/plain-text"
+import { trackAddToCart, trackInitiateCheckout } from "@/modules/client/utils/metaPixel"
 import { usePackageFirstBooking } from "@/modules/client/composables/usePackageFirstBooking"
 import { loadPackageBookingTimes } from "@/modules/client/utils/package-booking-times"
 
@@ -2547,6 +2548,13 @@ const submitBooking = async () => {
         lastName: normalizeText(form.lastName),
         skuDetail: cartSkuDetail.value,
       })
+      if (!isCartEditMode.value) {
+        trackAddToCart({
+          contentId: getQueryText("spuId") || getQueryText("skuId"),
+          contentName: summaryTitle.value,
+          value: getQueryNumber("total"),
+        })
+      }
       if (isCartEditMode.value && editingCartItemId.value) {
         await removeItems([editingCartItemId.value])
       }
@@ -2607,6 +2615,15 @@ const confirmPolicyAndContinue = async () => {
 }
 
 onMounted(async () => {
+  if (!isCartMode.value) {
+    trackInitiateCheckout({
+      contentId: packageId.value || getQueryText("spuId") || orderId.value,
+      contentName: summaryTitle.value,
+      contentType: isPackageMode.value ? "product_group" : "product",
+      value: getQueryNumber("total"),
+      numItems: 1,
+    })
+  }
   let preferredAddressId: number | null = null
   if (isCartEditMode.value && editingCartItemId.value) {
     try {

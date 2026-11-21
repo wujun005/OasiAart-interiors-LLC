@@ -254,7 +254,6 @@ onBeforeUnmount(invalidateAndClear)
 
 .quote-history {
   color: #24374b;
-  font-family: var(--hx-font-sans, Inter, "PingFang SC", "Microsoft YaHei", sans-serif);
   font-size: 12px;
   font-variant-numeric: normal;
 }

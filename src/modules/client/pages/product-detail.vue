@@ -3,6 +3,8 @@
     <section class="product-detail-subheader">
       <div class="product-detail-container">
         <nav class="product-detail-back" aria-label="breadcrumb">
+          <RouterLink class="product-detail-back__link" to="/">{{ t('client.header.nav.home') }}</RouterLink>
+          <span class="product-detail-back__separator" aria-hidden="true">&rsaquo;</span>
           <button
             class="product-detail-back__link"
             type="button"
@@ -11,7 +13,7 @@
             {{ t("client.header.nav.services") }}
           </button>
           <span class="product-detail-back__separator" aria-hidden="true"
-            >&lt;</span
+            >&rsaquo;</span
           >
           <template v-if="parentBreadcrumbTitle">
             <button
@@ -22,7 +24,7 @@
               {{ parentBreadcrumbTitle }}
             </button>
             <span class="product-detail-back__separator" aria-hidden="true"
-              >&lt;</span
+              >&rsaquo;</span
             >
           </template>
           <span class="product-detail-back__current">{{ displayTitle }}</span>
@@ -34,62 +36,39 @@
       <div class="product-detail-container product-detail-layout">
         <div class="product-main">
           <section class="product-gallery">
-            <div class="product-gallery__thumbs">
-              <button
-                v-for="(image, index) in galleryImages"
-                :key="`thumb-${index}`"
-                class="product-gallery__thumb"
-                :class="{
-                  'product-gallery__thumb--active':
-                    index === selectedImageIndex,
-                }"
-                type="button"
-                @click="selectedImageIndex = index"
-              >
-                <img :src="image" :alt="displayTitle" />
-              </button>
-            </div>
-
             <div class="product-gallery__hero">
               <img :src="heroImage" :alt="displayTitle" />
-              <button
-                v-if="galleryImages.length > 1"
-                class="product-gallery__arrow product-gallery__arrow--prev"
-                type="button"
-                :aria-label="t('client.productDetail.previousImage')"
-                @click="showPreviousImage"
-              >
-                <svg viewBox="0 0 24 24" aria-hidden="true">
-                  <path d="m15 18-6-6 6-6" />
-                </svg>
-              </button>
-              <button
-                v-if="galleryImages.length > 1"
-                class="product-gallery__arrow product-gallery__arrow--next"
-                type="button"
-                :aria-label="t('client.productDetail.nextImage')"
-                @click="showNextImage"
-              >
-                <svg viewBox="0 0 24 24" aria-hidden="true">
-                  <path d="m9 18 6-6-6-6" />
-                </svg>
-              </button>
-              <span class="product-gallery__badge">
-                {{ t("client.productDetail.badge") }}
-              </span>
-              <div class="product-gallery__dots">
+              <div v-if="galleryImages.length > 1" class="product-gallery__thumbs">
                 <button
                   v-for="(image, index) in galleryImages"
-                  :key="`dot-${index}`"
+                  :key="`thumb-${index}`"
                   type="button"
-                  class="product-gallery__dot"
-                  :class="{
-                    'product-gallery__dot--active':
-                      index === selectedImageIndex,
-                  }"
+                  class="product-gallery__thumb"
                   :aria-label="`${displayTitle} image ${index + 1}`"
+                  :aria-pressed="index === selectedImageIndex"
                   @click="selectedImageIndex = index"
-                />
+                >
+                  <img :src="image" alt="" />
+                </button>
+              </div>
+              <div v-if="galleryImages.length > 1" class="product-gallery__controls">
+                <button
+                  class="product-gallery__arrow"
+                  type="button"
+                  :aria-label="t('client.productDetail.previousImage')"
+                  @click="showPreviousImage"
+                >
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 18-6-6 6-6" /></svg>
+                </button>
+                <span role="status">{{ selectedImageIndex + 1 }} / {{ galleryImages.length }}</span>
+                <button
+                  class="product-gallery__arrow"
+                  type="button"
+                  :aria-label="t('client.productDetail.nextImage')"
+                  @click="showNextImage"
+                >
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 18 6-6-6-6" /></svg>
+                </button>
               </div>
             </div>
           </section>
@@ -286,7 +265,8 @@
                   </article>
                 </div>
                 <p v-else class="product-card__empty">
-                  {{ t("client.productDetail.emptyReviews") }}
+                  <strong>{{ t("client.productDetail.emptyReviews") }}</strong><br />
+                  {{ t("client.productDetail.emptyReviewsHint") }}
                 </p>
               </section>
             </div>
@@ -297,7 +277,7 @@
           <section class="booking-card">
             <div class="booking-card__hero">
               <span class="booking-card__eyebrow">{{
-                t("client.productDetail.pageTitle")
+                parentBreadcrumbTitle || t("client.productDetail.pageTitle")
               }}</span>
               <h1>{{ displayTitle }}</h1>
               <div v-if="productTags.length" class="biz-tags">
@@ -350,6 +330,7 @@
                           selectedSpecValues[group.typeId] === option.id,
                       }"
                       type="button"
+                      :aria-pressed="selectedSpecValues[group.typeId] === option.id"
                       @click="selectSpecValue(group.typeId, option.id)"
                     >
                       <span class="booking-option__topline">
@@ -363,6 +344,9 @@
                           <path d="m8 12 2.5 2.5L16 9" />
                         </svg>
                       </span>
+                      <small v-if="option.priceText" class="booking-option__price">
+                        {{ option.priceText }}
+                      </small>
                       <small v-if="option.remark" class="booking-option__remark">
                         {{ option.remark }}
                       </small>
@@ -371,13 +355,14 @@
                 </div>
               </template>
 
-              <template v-if="bookingAttachGroups.length">
-                <div class="booking-card__section-heading booking-card__section-heading--addons">
-                  <div class="booking-card__section-title-row">
-                    <h2>{{ attachModuleTitle || t("client.productDetail.booking.addOnsTitle") }}</h2>
-                    <p>{{ attachModuleDesc || t("client.productDetail.booking.addOnsHint") }}</p>
-                  </div>
-                </div>
+              <details v-if="bookingAttachGroups.length" class="booking-addons" open>
+                <summary>
+                  <span>
+                    <strong>{{ attachModuleTitle || t("client.productDetail.booking.addOnsTitle") }}</strong>
+                    <small>{{ attachModuleDesc || t("client.productDetail.booking.addOnsHint") }}</small>
+                  </span>
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6" /></svg>
+                </summary>
                 <div
                   v-for="group in bookingAttachGroups"
                   :key="group.typeId"
@@ -431,7 +416,7 @@
                     </div>
                   </div>
                 </div>
-              </template>
+              </details>
 
               <p
                 v-if="!bookingSpecGroups.length && !bookingAttachGroups.length"
@@ -545,6 +530,7 @@ import {
   createOrder,
 } from "@/modules/client/api"
 import { normalizeRichTextHtml } from "@/modules/client/utils/richText"
+import { trackViewContent } from "@/modules/client/utils/metaPixel"
 import {
   isOfferedSku,
   loadValidSkuKeys,
@@ -578,6 +564,7 @@ type ProductDetailRecord = {
     specTypeId?: number | string
     specValueIds?: Array<number | string>
   }>
+  specTypePriced?: Record<string, number | string>
   specTypeNameI18n?: Record<string, I18nText>
   specValueNameI18n?: Record<string, SpecValueI18nEntry>
   specValueRemarkI18n?: Record<string, I18nText>
@@ -1257,6 +1244,7 @@ type BookingSpecOption = {
   id: string
   label: string
   remark: string
+  priceText: string
 }
 
 type BookingSpecGroup = {
@@ -1373,6 +1361,7 @@ const bookingSpecGroups = computed<BookingSpecGroup[]>(() => {
       if (!typeId) {
         return null
       }
+      const priced = Number(record?.specTypePriced?.[typeId]) === 1
       const label = pickI18nValue(record?.specTypeNameI18n?.[typeId], typeId)
       const valueIds = Array.isArray(binding.specValueIds)
         ? binding.specValueIds
@@ -1389,7 +1378,12 @@ const bookingSpecGroups = computed<BookingSpecGroup[]>(() => {
             record?.specValueRemarkI18n?.[id] || optionI18n?.remarkI18n,
             "",
           )
-          return optionLabel ? { id, label: optionLabel, remark } : null
+          const rawPrice = optionI18n && typeof optionI18n === "object" ? optionI18n.price : null
+          const price = rawPrice == null || rawPrice === "" ? null : Number(rawPrice)
+          const priceText = priced && price != null && Number.isFinite(price)
+            ? `+AED ${price.toFixed(2)}`
+            : ""
+          return optionLabel ? { id, label: optionLabel, remark, priceText } : null
         })
         .filter((item): item is BookingSpecOption => Boolean(item))
       if (!options.length) {
@@ -1507,6 +1501,12 @@ const loadProductDetail = async () => {
       payload && typeof payload === "object"
         ? (payload as ProductDetailRecord)
         : null
+    if (productDetail.value) {
+      trackViewContent({
+        contentId: spuId.value,
+        contentName: displayTitle.value,
+      })
+    }
   } catch (error) {
     console.error("load product detail failed:", error)
     productDetail.value = null

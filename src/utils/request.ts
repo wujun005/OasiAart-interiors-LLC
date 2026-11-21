@@ -42,6 +42,10 @@ function isApiSuccessEnvelope(value: unknown): value is ApiSuccessEnvelope {
   return typeof maybe.success === 'boolean';
 }
 
+function asRecord(value: unknown): Record<string, unknown> | null {
+  return value && typeof value === 'object' ? value as Record<string, unknown> : null;
+}
+
 function getServerMessage(payload: unknown, fallback = 'Request failed'): string {
   if (payload && typeof payload === 'object') {
     const maybe = payload as Record<string, unknown>;
@@ -57,8 +61,10 @@ function normalizeAxiosError(error: unknown): Error {
     const axiosError = error as AxiosError<any>;
     const status = axiosError.response?.status;
     const serverMessage = getServerMessage(axiosError.response?.data, axiosError.message);
+    const errorCode = asRecord(axiosError.response?.data)?.errorCode;
     return Object.assign(new Error(serverMessage || `Request failed (${status ?? 'network'})`), {
       status,
+      code: typeof errorCode === 'string' ? errorCode : undefined,
       data: axiosError.response?.data,
       cause: error,
     });
@@ -111,7 +117,7 @@ export function createHttpClient(overrides?: {
     (response) => {
       const payload = response.data;
       if (isApiEnvelope(payload)) {
-        const maybe = payload as Record<string, unknown>;
+        const maybe = payload as unknown as Record<string, unknown>;
         if (typeof maybe.success === 'boolean' && !maybe.success) {
           throw Object.assign(new Error(getServerMessage(payload)), {
             code: maybe.errorCode || 'BUSINESS_ERROR',

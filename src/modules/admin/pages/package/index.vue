@@ -92,6 +92,16 @@
             <span v-else>-</span>
           </template>
         </el-table-column>
+        <el-table-column :label="t('admin.product.table.quoteProgress')" min-width="220">
+          <template #default="{ row }">
+            <span>{{ t('admin.product.table.quoteProgressCounts', {
+              quoted: row.quotedSupplierCount,
+              approved: row.fullyApprovedSupplierCount,
+              reviewing: row.reviewingSupplierCount,
+              pending: row.pendingQuoteSupplierCount,
+            }) }}</span>
+          </template>
+        </el-table-column>
         <el-table-column :label="t('admin.packageList.table.status')" width="92">
           <template #default="{ row }">
             <span class="sale-status-button" :class="row.onShelf ? 'is-on' : 'is-off'">
@@ -466,6 +476,10 @@ type PackageRow = {
   displayTotalPrice: number | null;
   displaySalePrice: number | null;
   displaySavedPrice: number | null;
+  quotedSupplierCount: number;
+  fullyApprovedSupplierCount: number;
+  reviewingSupplierCount: number;
+  pendingQuoteSupplierCount: number;
   createdAt: string;
   updatedAt: string;
 };
@@ -590,6 +604,10 @@ const mapRow = (item: any): PackageRow => ({
   displayTotalPrice: moneyNumber(item.displayTotalPrice),
   displaySalePrice: moneyNumber(item.displaySalePrice),
   displaySavedPrice: moneyNumber(item.displaySavedPrice),
+  quotedSupplierCount: Number(item.quotedSupplierCount) || 0,
+  fullyApprovedSupplierCount: Number(item.fullyApprovedSupplierCount) || 0,
+  reviewingSupplierCount: Number(item.reviewingSupplierCount) || 0,
+  pendingQuoteSupplierCount: Number(item.pendingQuoteSupplierCount) || 0,
   createdAt: item.createTime || '',
   updatedAt: item.modifyTime || '',
 });

@@ -13,7 +13,6 @@
               aria-label="Back to homepage"
             >
               <img class="site-footer__logo" :src="logoUrl" alt="HourX Logo" />
-              <span>HourX Home Service</span>
             </a>
           </h3>
           <p class="site-footer__text">{{ t("client.footer.tagline") }}</p>
@@ -210,21 +209,21 @@ const copySupportEmail = async () => {
 
 <style scoped lang="scss">
 .site-footer {
-  background: var(--hourx-brand);
-  color: rgba(255, 255, 255, 0.72);
+  background: #08121f;
+  color: var(--hourx-client-on-dark);
 }
 
 .site-footer__inner {
-  max-width: 1680px;
+  width: min(1200px, calc(100% - 48px));
   margin: 0 auto;
-  padding: 56px clamp(24px, 3vw, 48px) 20px;
+  padding: 64px 0 28px;
 }
 
 .site-footer__main {
   display: grid;
   grid-template-columns: 1.3fr repeat(3, 1fr);
-  gap: 36px;
-  margin-bottom: 28px;
+  gap: 32px;
+  margin-bottom: 48px;
 }
 
 .site-footer__title {
@@ -302,15 +301,17 @@ const copySupportEmail = async () => {
 .site-footer__col-title {
   margin: 0 0 4px;
   color: #fff;
-  font-size: 16px;
-  font-weight: 700;
+  font-size: var(--hourx-client-size-label);
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
 }
 
 .site-footer__col a,
 .site-footer__col p {
   margin: 0;
   font-size: 14px;
-  color: rgba(255, 255, 255, 0.72);
+  color: var(--hourx-client-on-dark);
   text-decoration: none;
 }
 
@@ -368,7 +369,7 @@ const copySupportEmail = async () => {
 
 .site-footer__bottom p {
   margin: 0;
-  font-size: 12px;
+  font-size: 0.8125rem;
 }
 
 .site-footer__links {
@@ -377,8 +378,8 @@ const copySupportEmail = async () => {
 }
 
 .site-footer__links a {
-  font-size: 12px;
-  color: rgba(255, 255, 255, 0.72);
+  font-size: 0.8125rem;
+  color: var(--hourx-client-on-dark);
   text-decoration: none;
 }
 
@@ -400,34 +401,14 @@ const copySupportEmail = async () => {
   padding-bottom: 28px;
 }
 
-@media (min-width: 1440px) {
+@media (max-width: 1024px) {
   .site-footer__inner {
-    padding-top: 64px;
-    padding-bottom: 24px;
+    width: calc(100% - 32px);
+    padding: 40px 0 16px;
   }
 
   .site-footer__main {
-    gap: clamp(40px, 4vw, 72px);
-  }
-
-  .site-footer__title {
-    font-size: 20px;
-  }
-
-  .site-footer__text,
-  .site-footer__col a,
-  .site-footer__col p {
-    font-size: 15px;
-  }
-}
-
-@media (max-width: 1100px) {
-  .site-footer__inner {
-    padding: 40px 16px 16px;
-  }
-
-  .site-footer__main {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 20px;
   }
 
@@ -447,6 +428,10 @@ const copySupportEmail = async () => {
 }
 
 @media (max-width: 640px) {
+  .site-footer__main {
+    grid-template-columns: 1fr;
+  }
+
   .site-footer--support-space .site-footer__inner {
     padding-right: 16px;
   }

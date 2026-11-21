@@ -140,6 +140,18 @@ export function dispatchSupplier(payload: {
   return http.post('/api/orderHeader/dispatchSupplier', payload);
 }
 
+export function fulfillableSuppliers(orderId: number) {
+  return http.get('/api/orderHeader/fulfillableSuppliers', { params: { orderId } });
+}
+
+export function assignFulfillableSupplier(payload: {
+  orderId: number;
+  supplierId: number;
+  fulfillmentId?: number;
+}) {
+  return http.post('/api/orderHeader/assignFulfillableSupplier', payload);
+}
+
 // /api/orderHeader/operationLogs 按订单号查询全链路操作记录
 export async function operationLogs(orderNo: string): Promise<OrderOperationLog[]> {
   const response = await http.get('/api/orderHeader/operationLogs', {

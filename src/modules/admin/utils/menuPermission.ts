@@ -62,6 +62,8 @@ const FIXED_DEVELOPER_MENU_ID = 'fixed-developer-tools';
 const FIXED_WHITELIST_MENU_ID = 'fixed-supplier-registration-whitelist';
 const DEVELOPER_PATH = '/admin/developer';
 const WHITELIST_PATH = '/admin/developer/supplier-registration-whitelist';
+const DEV_CONFIG_PATH = '/admin/developer/dev-config';
+const FIXED_DEV_CONFIG_MENU_ID = 'fixed-dev-config';
 const PACKAGE_PATH = '/admin/package';
 const PACKAGE_CATEGORY_PATH = '/admin/package/categories';
 const PACKAGE_SERVICE_SUBCATEGORY_PATH = '/admin/package/service-subcategories';
@@ -137,10 +139,15 @@ const normalizePath = (rawPath?: unknown): string => {
 const isButtonPath = (rawPath?: unknown) =>
   typeof rawPath === 'string' && rawPath.trim().startsWith('btn:');
 
+const SUPPLIER_PORTAL_BUTTON_PREFIX = 'btn:/admin/supplier-management/';
+
+const isSupplierPortalButton = (rawPath?: unknown) =>
+  typeof rawPath === 'string' && rawPath.trim().startsWith(SUPPLIER_PORTAL_BUTTON_PREFIX);
+
 const collectButtonPaths = (list: RawMenuItem[], target: string[] = []) => {
   list.forEach((item) => {
     const path = typeof item?.path === 'string' ? item.path.trim() : '';
-    if (isButtonPath(path)) target.push(path);
+    if (isButtonPath(path) && !isSupplierPortalButton(path)) target.push(path);
     if (Array.isArray(item?.children) && item.children.length) {
       collectButtonPaths(item.children, target);
     }
@@ -388,6 +395,74 @@ const pinPackageMenu = (roots: AdminMenuPermissionItem[]) => {
   sortMenus(parent.children);
 };
 
+const COVERAGE_PATH = '/admin/supplier-coverage';
+const COMMENT_PATH = '/admin/comments';
+
+const pinCoverageMenu = (roots: AdminMenuPermissionItem[]) => {
+  const paths = collectPaths(roots);
+  if (!paths.length) return;
+  if (paths.every((path) => path.startsWith('/admin/supplier-management'))) {
+    removeMenuByPath(roots, COVERAGE_PATH);
+    return;
+  }
+  removeMenuByPath(roots, COVERAGE_PATH);
+  const item: AdminMenuPermissionItem = {
+    id: 'fixed-supplier-coverage',
+    name: '数据大盘',
+    path: COVERAGE_PATH,
+    icon: 'data-analysis',
+    parentId: 0,
+    sortOrder: -0.5,
+    children: [],
+  };
+  const overviewIndex = roots.findIndex(
+    (node) => node.path === ROOT_PATH && node.children.length === 0,
+  );
+  if (overviewIndex >= 0) roots.splice(overviewIndex + 1, 0, item);
+  else roots.unshift(item);
+};
+
+const removeMenuByPath = (nodes: AdminMenuPermissionItem[], path: string) => {
+  for (let index = nodes.length - 1; index >= 0; index -= 1) {
+    const node = nodes[index]!;
+    removeMenuByPath(node.children, path);
+    if (node.path === path) nodes.splice(index, 1);
+  }
+};
+
+const pinCommentMenu = (roots: AdminMenuPermissionItem[]) => {
+  const paths = collectPaths(roots);
+  if (!paths.length) return;
+  if (paths.every((path) => path.startsWith('/admin/supplier-management'))) {
+    removeMenuByPath(roots, COMMENT_PATH);
+    return;
+  }
+  removeMenuByPath(roots, COMMENT_PATH);
+  const product = findMenuByPath(roots, '/admin/products');
+  const item: AdminMenuPermissionItem = {
+    id: 'fixed-comments',
+    name: '评论管理',
+    path: COMMENT_PATH,
+    icon: 'chat-dot-round',
+    parentId: product?.parentId ?? 0,
+    sortOrder: Number(product?.sortOrder ?? 0) + 0.5,
+    children: [],
+  };
+  const insertAfterProduct = (nodes: AdminMenuPermissionItem[], parentId: number | string = 0): boolean => {
+    const index = nodes.findIndex((node) => node.path === '/admin/products');
+    if (index >= 0) {
+      item.parentId = parentId || nodes[index]!.parentId;
+      nodes.splice(index + 1, 0, item);
+      return true;
+    }
+    return nodes.some((node) => insertAfterProduct(node.children, node.id));
+  };
+  if (insertAfterProduct(roots)) return;
+  const overviewIndex = roots.findIndex((node) => node.path === ROOT_PATH && node.children.length === 0);
+  if (overviewIndex >= 0) roots.splice(overviewIndex + 1, 0, item);
+  else roots.unshift(item);
+};
+
 const pinSupplierQuoteMenu = (roots: AdminMenuPermissionItem[]) => {
   if (!hasMenuPath(roots, SUPPLIER_MENU_PATH) || hasMenuPath(roots, QUOTE_MENU_PATH)) return;
   const supplier = findMenuByPath(roots, SUPPLIER_MENU_PATH);
@@ -425,23 +500,40 @@ const pinSuperAdminOverview = (roots: AdminMenuPermissionItem[]) => {
       children: [],
     });
   }
-  if (!hasMenuPath(roots, WHITELIST_PATH)) {
-    roots.push({
+  let developer = findMenuByPath(roots, DEVELOPER_PATH);
+  if (!developer) {
+    developer = {
       id: FIXED_DEVELOPER_MENU_ID,
       name: '开发工具',
       path: DEVELOPER_PATH,
       icon: 'setting',
       parentId: 0,
       sortOrder: 90,
-      children: [{
-        id: FIXED_WHITELIST_MENU_ID,
-        name: '供应商注册白名单',
-        path: WHITELIST_PATH,
-        icon: 'setting',
-        parentId: FIXED_DEVELOPER_MENU_ID,
-        sortOrder: 1,
-        children: [],
-      }],
+      children: [],
+    };
+    roots.push(developer);
+  }
+  developer.children = developer.children || [];
+  if (!hasMenuPath(roots, WHITELIST_PATH)) {
+    developer.children.push({
+      id: FIXED_WHITELIST_MENU_ID,
+      name: '供应商注册白名单',
+      path: WHITELIST_PATH,
+      icon: 'setting',
+      parentId: developer.id,
+      sortOrder: 1,
+      children: [],
+    });
+  }
+  if (!hasMenuPath(roots, DEV_CONFIG_PATH)) {
+    developer.children.push({
+      id: FIXED_DEV_CONFIG_MENU_ID,
+      name: '研发配置',
+      path: DEV_CONFIG_PATH,
+      icon: 'setting',
+      parentId: developer.id,
+      sortOrder: 2,
+      children: [],
     });
   }
 };
@@ -521,6 +613,13 @@ const hydrateMenuState = (list: RawMenuItem[], pinOverview = false, pinStaff = f
     pinSupplierStaffMenu(prunedRoots);
     orderSupplierPortalMenus(prunedRoots);
     sortMenus(prunedRoots);
+  }
+  if (pinOverview) {
+    pinCoverageMenu(prunedRoots);
+    pinCommentMenu(prunedRoots);
+  } else {
+    removeMenuByPath(prunedRoots, COVERAGE_PATH);
+    removeMenuByPath(prunedRoots, COMMENT_PATH);
   }
   const flat = flattenMenus(prunedRoots, []);
   const allowedPaths = Array.from(
@@ -649,13 +748,15 @@ const SUPPLIER_OWNER_PATHS = [
 
 export { ADMIN_NO_ACCESS_PATH };
 
-export const canAction = (code: string) =>
-  buttonAllowed({
+export const canAction = (code: string) => {
+  if (isSupplierPortalButton(code)) return true;
+  return buttonAllowed({
     superAdmin: adminMenuState.superAdmin,
     catalog: adminMenuState.buttonCatalog,
     granted: adminMenuState.buttonCodes,
     code,
   });
+};
 
 export const getFirstAllowedAdminPath = () =>
   pickAdminEntryPath(adminMenuState.allowedPaths, adminMenuState.firstPath);

@@ -4,7 +4,7 @@
       <button class="h5-detail-topbar__back" type="button" @click="handleBack">
         <van-icon name="arrow-left" />
       </button>
-      <h1>{{ t("client.productDetail.pageTitle") }}</h1>
+      <p class="h5-detail-topbar__title">{{ t("client.productDetail.pageTitle") }}</p>
       <button
         class="h5-detail-topbar__cart"
         type="button"
@@ -19,6 +19,7 @@
     <main class="h5-detail-main">
       <section class="h5-detail-gallery">
         <van-swipe
+          ref="swipeRef"
           class="h5-detail-gallery__swipe"
           :autoplay="3000"
           lazy-render
@@ -32,24 +33,28 @@
             <img :src="image" :alt="displayTitle" />
           </van-swipe-item>
         </van-swipe>
-        <span class="h5-detail-gallery__badge">{{
-          t("client.productDetail.badge")
-        }}</span>
-        <div class="h5-detail-gallery__dots">
+        <div v-if="galleryImages.length > 1" class="h5-detail-gallery__dots" aria-hidden="true">
           <span
-            v-for="(image, index) in galleryImages"
-            :key="`dot-${index}`"
-            :class="{
-              'h5-detail-gallery__dot--active': index === selectedImageIndex,
-            }"
+            v-for="(_, index) in galleryImages"
+            :key="index"
+            :class="{ 'h5-detail-gallery__dot--active': index === selectedImageIndex }"
           />
+        </div>
+        <div v-if="galleryImages.length > 1" class="h5-detail-gallery__controls">
+          <button type="button" :aria-label="t('client.productDetail.previousImage')" @click="swipeRef?.prev()">
+            <van-icon name="arrow-left" />
+          </button>
+          <span>{{ selectedImageIndex + 1 }} / {{ galleryImages.length }}</span>
+          <button type="button" :aria-label="t('client.productDetail.nextImage')" @click="swipeRef?.next()">
+            <van-icon name="arrow" />
+          </button>
         </div>
       </section>
 
       <section class="h5-detail-card h5-detail-card--summary">
         <div class="h5-detail-card__title-row">
-          <h2>{{ displayTitle }}</h2>
-          <strong>{{ formatPriceBlock(subtotalPrice) }}</strong>
+          <h1>{{ displayTitle }}</h1>
+          <strong>{{ formatAed(subtotalPrice) }}</strong>
         </div>
         <div v-if="productTags.length" class="biz-tags">
           <span v-for="tag in productTags" :key="tag">{{ tag }}</span>
@@ -77,22 +82,6 @@
             }}</span>
           </template>
         </div>
-        <div class="h5-detail-card__divider" />
-        <div class="h5-detail-card__section">
-          <h3>{{ t("client.productDetail.serviceDescription") }}</h3>
-          <p v-if="isLoading">{{ t("client.productDetail.loading") }}</p>
-          <div
-            v-else-if="serviceDescriptionHtml"
-            class="h5-detail-html"
-            v-html="serviceDescriptionHtml"
-          />
-          <p v-else class="h5-detail-card__empty">
-            {{ t("client.productDetail.emptyDesc") }}
-          </p>
-        </div>
-      </section>
-
-      <section class="h5-detail-card">
         <div class="h5-detail-card__heading">
           <span />
           <h3>{{ t("h5.productDetail.bookingOptions") }}</h3>
@@ -118,6 +107,7 @@
                     selectedSpecValues[group.typeId] === option.id,
                 }"
                 type="button"
+                :aria-pressed="selectedSpecValues[group.typeId] === option.id"
                 @click="selectSpecValue(group.typeId, option.id)"
               >
                 <span class="h5-booking-option__name">{{ option.label }}</span>
@@ -128,47 +118,52 @@
             </div>
           </div>
 
-          <div v-if="bookingAttachGroups.length" class="h5-attach-module">
-            <p class="h5-booking-group__label">{{ attachModuleTitle || t("client.productDetail.booking.addOnsTitle") }}</p>
-            <p class="h5-attach-module__desc">{{ attachModuleDesc || t("client.productDetail.booking.addOnsHint") }}</p>
-          </div>
-          <div
-            v-for="group in bookingAttachGroups"
-            :key="group.typeId"
-            class="h5-booking-group"
-          >
-            <p class="h5-booking-group__label">{{ group.label }}</p>
-            <div class="h5-attach-list">
-              <div
-                v-for="option in group.options"
-                :key="`${group.typeId}-${option.id}`"
-                class="h5-attach-item"
-              >
-                <div class="h5-attach-item__meta">
-                  <strong>{{ option.label }}</strong>
-                  <span>
-                    {{
-                      t("client.productDetail.booking.attachUnitPrice", {
-                        price: option.price.toFixed(2),
-                        unit:
-                          option.unit ||
-                          t("client.productDetail.booking.attachUnitFallback"),
-                      })
-                    }}
-                  </span>
-                </div>
-                <div class="h5-attach-item__stepper">
-                  <button type="button" @click="decreaseAttachQty(option.id)">
-                    -
-                  </button>
-                  <span>{{ attachQuantities[option.id] || 0 }}</span>
-                  <button type="button" @click="increaseAttachQty(option.id)">
-                    +
-                  </button>
+          <details v-if="bookingAttachGroups.length" class="h5-booking-addons" open>
+            <summary>
+              <span>
+                <strong>{{ attachModuleTitle || t("client.productDetail.booking.addOnsTitle") }}</strong>
+                <small>{{ attachModuleDesc || t("client.productDetail.booking.addOnsHint") }}</small>
+              </span>
+              <van-icon name="arrow-down" />
+            </summary>
+            <div
+              v-for="group in bookingAttachGroups"
+              :key="group.typeId"
+              class="h5-booking-group"
+            >
+              <p class="h5-booking-group__label">{{ group.label }}</p>
+              <div class="h5-attach-list">
+                <div
+                  v-for="option in group.options"
+                  :key="`${group.typeId}-${option.id}`"
+                  class="h5-attach-item"
+                >
+                  <div class="h5-attach-item__meta">
+                    <strong>{{ option.label }}</strong>
+                    <span>
+                      {{
+                        t("client.productDetail.booking.attachUnitPrice", {
+                          price: option.price.toFixed(2),
+                          unit:
+                            option.unit ||
+                            t("client.productDetail.booking.attachUnitFallback"),
+                        })
+                      }}
+                    </span>
+                  </div>
+                  <div class="h5-attach-item__stepper">
+                    <button type="button" @click="decreaseAttachQty(option.id)">
+                      -
+                    </button>
+                    <span>{{ attachQuantities[option.id] || 0 }}</span>
+                    <button type="button" @click="increaseAttachQty(option.id)">
+                      +
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
+          </details>
           <p v-if="skuAvailabilityReady && !skuOffered" class="h5-detail-card__empty">
             {{ t("client.productDetail.booking.skuUnavailable") }}
           </p>
@@ -178,111 +173,112 @@
         </p>
       </section>
 
-      <section class="h5-detail-card">
-        <div class="h5-detail-card__heading">
-          <span />
-          <h3>{{ t("client.productDetail.includesTitle") }}</h3>
-        </div>
-        <div
-          v-if="serviceContentHtml"
-          class="h5-detail-html"
-          v-html="serviceContentHtml"
-        />
-        <p v-else class="h5-detail-card__empty">
-          {{ t("client.productDetail.emptyDesc") }}
-        </p>
-      </section>
-
-      <section class="h5-detail-card">
-        <div class="h5-detail-card__heading">
-          <span />
-          <h3>{{ t("client.productDetail.noticeTitle") }}</h3>
-        </div>
-        <div
-          v-if="bookingNoticeHtml"
-          class="h5-detail-html"
-          v-html="bookingNoticeHtml"
-        />
-        <p v-else class="h5-detail-card__empty">
-          {{ t("client.productDetail.emptyDesc") }}
-        </p>
-      </section>
-
-      <section class="h5-detail-card">
-        <div class="h5-detail-card__review-head">
-          <div class="h5-detail-card__heading h5-detail-card__heading--compact">
-            <span />
-            <h3>{{ t("client.productDetail.reviewsTitle") }}</h3>
-          </div>
-          <div class="h5-detail-card__review-summary" v-if="averageRating > 0">
-            <van-rate
-              :model-value="averageRating"
-              allow-half
-              readonly
-              size="12"
-              color="#fbbf24"
-            />
-            <strong>{{ averageRating.toFixed(1) }}</strong>
-            <span>{{
-              t("h5.productDetail.reviewCount", { count: reviewCount })
-            }}</span>
-          </div>
-        </div>
-        <div v-if="visibleReviewItems.length" class="h5-review-list">
-          <article
-            v-for="item in visibleReviewItems"
-            :key="`${item.commenter}-${item.commentTime}-${item.content}`"
-            class="h5-review-card"
-          >
-            <div class="h5-review-card__head">
-              <div class="h5-review-card__user">
-                <span class="h5-review-card__avatar">{{
-                  item.avatarText
-                }}</span>
-                <strong>{{ item.commenter }}</strong>
-              </div>
-              <span class="h5-review-card__time" v-if="item.commentTime">{{
-                item.commentTime
+      <DetailContentTabs>
+        <template #description>
+          <p v-if="isLoading">{{ t("client.productDetail.loading") }}</p>
+          <div
+            v-else-if="serviceDescriptionHtml"
+            class="h5-detail-html"
+            v-html="serviceDescriptionHtml"
+          />
+          <p v-else class="h5-detail-card__empty">
+            {{ t("client.productDetail.emptyDesc") }}
+          </p>
+        </template>
+        <template #includes>
+          <div
+            v-if="serviceContentHtml"
+            class="h5-detail-html"
+            v-html="serviceContentHtml"
+          />
+          <p v-else class="h5-detail-card__empty">
+            {{ t("client.productDetail.emptyDesc") }}
+          </p>
+        </template>
+        <template #notice>
+          <div
+            v-if="bookingNoticeHtml"
+            class="h5-detail-html"
+            v-html="bookingNoticeHtml"
+          />
+          <p v-else class="h5-detail-card__empty">
+            {{ t("client.productDetail.emptyDesc") }}
+          </p>
+        </template>
+        <template #reviews>
+          <div class="h5-detail-card__review-head">
+            <div class="h5-detail-card__heading h5-detail-card__heading--compact">
+              <span />
+              <h3>{{ t("client.productDetail.reviewsTitle") }}</h3>
+            </div>
+            <div class="h5-detail-card__review-summary" v-if="averageRating > 0">
+              <van-rate
+                :model-value="averageRating"
+                allow-half
+                readonly
+                size="12"
+                color="#fbbf24"
+              />
+              <strong>{{ averageRating.toFixed(1) }}</strong>
+              <span>{{
+                t("h5.productDetail.reviewCount", { count: reviewCount })
               }}</span>
             </div>
-            <van-rate
-              :model-value="item.rating"
-              readonly
-              size="12"
-              color="#fbbf24"
-            />
-            <p>{{ item.content }}</p>
-          </article>
-        </div>
-        <p v-else class="h5-detail-card__empty">
-          {{ t("client.productDetail.emptyReviews") }}
-        </p>
-        <button
-          v-if="reviewItems.length > 3"
-          class="h5-review-list__toggle"
-          type="button"
-          :aria-expanded="reviewsExpanded"
-          @click="reviewsExpanded = !reviewsExpanded"
-        >
-          {{
-            reviewsExpanded
-              ? locale.startsWith("zh")
-                ? "收起评价"
-                : "Show fewer reviews"
-              : locale.startsWith("zh")
-                ? `查看全部 ${reviewItems.length} 条评价`
-                : `View all ${reviewItems.length} reviews`
-          }}
-          <van-icon :name="reviewsExpanded ? 'arrow-up' : 'arrow-down'" />
-        </button>
-      </section>
+          </div>
+          <div v-if="visibleReviewItems.length" class="h5-review-list">
+            <article
+              v-for="item in visibleReviewItems"
+              :key="`${item.commenter}-${item.commentTime}-${item.content}`"
+              class="h5-review-card"
+            >
+              <div class="h5-review-card__head">
+                <div class="h5-review-card__user">
+                  <span class="h5-review-card__avatar">{{
+                    item.avatarText
+                  }}</span>
+                  <strong>{{ item.commenter }}</strong>
+                </div>
+                <span class="h5-review-card__time" v-if="item.commentTime">{{
+                  item.commentTime
+                }}</span>
+              </div>
+              <van-rate
+                :model-value="item.rating"
+                readonly
+                size="12"
+                color="#fbbf24"
+              />
+              <p>{{ item.content }}</p>
+            </article>
+          </div>
+          <p v-else class="h5-detail-card__empty">
+            <strong>{{ t("client.productDetail.emptyReviews") }}</strong><br />
+            {{ t("client.productDetail.emptyReviewsHint") }}
+          </p>
+          <button
+            v-if="reviewItems.length > 3"
+            class="h5-review-list__toggle"
+            type="button"
+            :aria-expanded="reviewsExpanded"
+            @click="reviewsExpanded = !reviewsExpanded"
+          >
+            {{
+              reviewsExpanded
+                ? t("client.productDetail.showFewerReviews")
+                : t("client.productDetail.viewAllReviews", { count: reviewItems.length })
+            }}
+            <van-icon :name="reviewsExpanded ? 'arrow-up' : 'arrow-down'" />
+          </button>
+        </template>
+      </DetailContentTabs>
+
     </main>
 
     <footer class="h5-detail-bottom">
       <div class="h5-detail-bottom__summary">
         <div>
           <span>{{ t("client.productDetail.booking.total") }}</span>
-          <strong>{{ formatAed(subtotalPrice) }}</strong>
+          <strong>{{ formatAed(totalPrice) }}</strong>
         </div>
       </div>
       <div class="h5-detail-bottom__actions">
@@ -292,7 +288,7 @@
           :disabled="skuAvailabilityReady && !skuOffered"
           @click="handleAddToCart"
         >
-          <van-icon name="cart-o" />
+          <van-icon name="cart-o" aria-hidden="true" />
           <span>{{ t("client.productDetail.booking.addToCart") }}</span>
         </button>
         <button
@@ -304,7 +300,7 @@
           {{
             isCreatingOrder
               ? t("client.profile.actions.submitting")
-              : t("client.productDetail.booking.bookNow")
+              : t("client.productDetail.booking.bookNowCompact")
           }}
         </button>
       </div>
@@ -316,9 +312,11 @@
 import { computed, ref, watch } from "vue"
 import { bizTagLabels } from "@/modules/client/utils/biz-tag"
 import { attachShownAt } from "@/modules/client/utils/order-addons"
+import { trackViewContent } from "@/modules/client/utils/metaPixel"
 import { useI18n } from "vue-i18n"
 import { useRoute, useRouter } from "vue-router"
-import { showFailToast } from "vant"
+import { showFailToast, type SwipeInstance } from "vant"
+import DetailContentTabs from '@/modules/h5/components/DetailContentTabs.vue'
 import {
   createOrder,
   getProductDetail,
@@ -471,6 +469,7 @@ const reviewsExpanded = ref(false)
 const isCreatingOrder = ref(false)
 const productDetail = ref<ProductDetailRecord | null>(null)
 const skuPrice = ref<ProductSkuRecord | null>(null)
+const swipeRef = ref<SwipeInstance>()
 const selectedImageIndex = ref(0)
 const selectedSpecValues = ref<Record<string, string>>({})
 const validSkuKeys = ref<Set<string> | null>(null)
@@ -1118,6 +1117,12 @@ const loadProductDetail = async () => {
       payload && typeof payload === "object"
         ? (payload as ProductDetailRecord)
         : null
+    if (productDetail.value) {
+      trackViewContent({
+        contentId: spuId.value,
+        contentName: displayTitle.value,
+      })
+    }
   } catch (error) {
     console.error("load product detail failed:", error)
     productDetail.value = null
@@ -1304,7 +1309,6 @@ const decreaseAttachQty = (valueId: string) => {
 }
 
 const formatAed = (value: number) => `AED ${value.toFixed(2)}`
-const formatPriceBlock = (value: number) => `AED ${value.toFixed(2)}`
 
 const handleBack = () => {
   const back = (window.history.state as { back?: unknown } | null)?.back

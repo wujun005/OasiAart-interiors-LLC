@@ -41,8 +41,9 @@
 
     <main class="h5-service-main">
       <section class="h5-service-hero">
+        <span v-if="heroTitle !== pageTitle" class="h5-service-hero__eyebrow">{{ pageTitle }}</span>
         <h2>{{ heroTitle }}</h2>
-        <p>{{ heroDesc }}</p>
+        <p v-if="heroDesc">{{ heroDesc }}</p>
         <div class="h5-service-hero__tags">
           <span v-for="(tag, index) in heroTags" :key="`${tag.label}-${index}`">
             <img :src="tag.icon" alt="" />
@@ -53,9 +54,7 @@
 
       <section class="h5-service-section">
         <div class="h5-service-section__title">
-          <span />
           <h3>{{ serviceSectionTitle }}</h3>
-          <span />
         </div>
 
         <div
@@ -82,18 +81,22 @@
             @keydown.space.prevent="goProductDetail(item.spuId)"
           >
             <div class="h5-service-card__icon">
-              <img :src="item.icon" :alt="item.title" />
+              <img :src="item.icon" alt="" />
+              <div v-if="item.tags.length" class="biz-tags">
+                <span v-for="tag in item.tags.slice(0, 3)" :key="tag">{{ tag }}</span>
+                <span v-if="item.tags.length > 3" :title="item.tags.slice(3).join(' · ')">+{{ item.tags.length - 3 }}</span>
+              </div>
             </div>
             <div class="h5-service-card__content">
               <h4>{{ item.title }}</h4>
-              <div v-if="item.tags.length" class="biz-tags">
-                <span v-for="tag in item.tags" :key="tag">{{ tag }}</span>
+              <p v-if="item.description" class="h5-service-card__description">{{ item.description }}</p>
+              <div class="h5-service-card__foot">
+                <p class="h5-service-card__price">{{ item.price }}</p>
+                <button type="button" @click.stop="goProductDetail(item.spuId)">
+                  {{ t("h5.serviceList.bookNow") }}
+                </button>
               </div>
-              <p>{{ item.price }}</p>
             </div>
-            <button type="button" @click.stop="goProductDetail(item.spuId)">
-              {{ t("h5.serviceList.bookNow") }}
-            </button>
           </article>
         </div>
         <p v-else class="h5-service-search__empty">
@@ -106,6 +109,7 @@
 
 <script setup lang="ts">
 import { computed, ref, watch } from "vue"
+import { toPlainText } from "@/modules/client/utils/plain-text"
 import { bizTagLabels } from "@/modules/client/utils/biz-tag"
 import { useI18n } from "vue-i18n"
 import { useRoute, useRouter, type LocationQueryValue } from "vue-router"
@@ -122,6 +126,7 @@ type ServiceCardView = {
   key: string
   spuId: string
   title: string
+  description: string
   price: string
   icon: string
   tags: string[]
@@ -158,6 +163,7 @@ const onShelfRecords = ref<ExclusiveSpuRecord[]>([])
 const serviceSearch = ref("")
 const isServiceLoading = ref(false)
 let serviceRequestId = 0
+let categoryRequestId = 0
 
 const getPreferredLangs = () =>
   locale.value === "zh"
@@ -312,6 +318,7 @@ const serviceCards = computed<ServiceCardView[]>(() => {
       key: String(item.id ?? `service-${index + 1}`),
       spuId: String(item.id ?? ""),
       title: pickI18nValue(item.nameI18n, ""),
+      description: toPlainText(pickI18nValue(item.descI18n, "")),
       price: formatPrice(item.minNotIncTaxPrice),
       icon: item.imageUrls?.[0] || cardIconSet[index % cardIconSet.length],
       tags: bizTagLabels(item.tags, locale.value),
@@ -324,25 +331,33 @@ const syncLocaleToClient = () => {
 }
 
 const loadLevel1Context = async () => {
-  const fromQuery = parseLevel1FromQuery()
-  if (fromQuery) {
-    selectedLevel1.value = fromQuery
-    return
-  }
-  if (!categoryId.value) {
-    selectedLevel1.value = null
-    return
-  }
+  const requestId = ++categoryRequestId
+  const id = categoryId.value
+  const routeName = route.name
+  selectedLevel1.value = parseLevel1FromQuery()
+  if (!id) return
+
   try {
     const records = await level1Categories()
-    selectedLevel1.value =
-      records.find((item) => {
-        const id = item.category?.categoryId || item.category?.id
-        return String(id ?? "") === categoryId.value
-      }) || null
+    if (requestId !== categoryRequestId || categoryId.value !== id || route.name !== routeName) {
+      return
+    }
+
+    const record = records.find((item) =>
+      String(item.category?.categoryId || item.category?.id || "") === id,
+    )
+    if (!record) return
+    selectedLevel1.value = record
+
+    if (route.name === "h5-service-list" && "level1" in route.query) {
+      const query = { ...route.query }
+      delete query.level1
+      void router.replace({ name: "h5-service-list", query, hash: route.hash })
+    }
   } catch (error) {
-    console.error("load level1 category context failed:", error)
-    selectedLevel1.value = null
+    if (requestId === categoryRequestId) {
+      console.error("load level1 category context failed:", error)
+    }
   }
 }
 
@@ -386,14 +401,11 @@ const loadOnShelfRecords = async () => {
 }
 
 watch(
-  () => [
-    route.name,
-    route.query.categoryId,
-    route.query.level1,
-    route.query.keyword,
-    locale.value,
-  ],
-  () => {
+  [() => route.name, categoryId, searchKeyword, locale],
+  (_current, _previous, onCleanup) => {
+    onCleanup(() => {
+      categoryRequestId += 1
+    })
     syncLocaleToClient()
     serviceSearch.value = searchKeyword.value
     void loadLevel1Context()
@@ -426,7 +438,7 @@ const goProductDetail = (spuId: string) => {
 <style scoped lang="scss">
 .h5-service-page {
   min-height: 100vh;
-  background: #f8fafc;
+  background: var(--hourx-client-canvas);
 }
 
 .h5-service-topbar {
@@ -435,7 +447,7 @@ const goProductDetail = (spuId: string) => {
   z-index: 20;
   padding: 0 16px 12px;
   background: rgba(255, 255, 255, 0.96);
-  border-bottom: 1px solid #f1f5f9;
+  border-bottom: 1px solid var(--hourx-client-border);
   backdrop-filter: blur(12px);
 }
 
@@ -465,42 +477,50 @@ const goProductDetail = (spuId: string) => {
 .h5-service-topbar h1 {
   margin: 0;
   text-align: center;
-  color: #0f172a;
-  font-size: 18px;
-  font-weight: 800;
+  color: var(--hourx-client-text);
+  font-size: var(--hourx-client-size-card);
+  font-weight: 600;
 }
 
 .h5-service-main {
-  max-width: 430px;
+  max-width: 760px;
   margin: 0 auto;
   padding: 24px 16px 40px;
 }
 
 .h5-service-hero {
-  padding: 30px 20px 20px;
-  border-radius: 16px;
-  background: linear-gradient(
-    180deg,
-    var(--hourx-brand) 0%,
-    var(--hourx-brand-hover) 100%
-  );
-  box-shadow: 0 18px 40px rgba(5, 21, 43, 0.22);
+  padding: 26px 20px;
+  border-radius: 20px;
+  background: linear-gradient(rgb(184 154 114 / 8%) 1px, transparent 1px), linear-gradient(90deg, rgb(184 154 114 / 8%) 1px, transparent 1px), var(--hourx-client-text);
+  background-size: 48px 48px;
+}
+
+.h5-service-hero__eyebrow {
+  display: block;
+  margin-bottom: 12px;
+  color: var(--hourx-client-accent);
+  font-size: var(--hourx-client-size-label);
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
 }
 
 .h5-service-hero h2 {
   margin: 0;
   color: #fff;
-  font-size: 16px;
-  line-height: 1.22;
-  font-weight: 900;
+  font-size: var(--hourx-client-size-page);
+  line-height: 1.2;
+  font-weight: 700;
+  font-family: var(--hourx-client-heading-font);
+  letter-spacing: -0.02em;
 }
 
 .h5-service-hero p {
   margin: 12px 0 0;
-  color: #e5eaf1;
-  font-size: 12px;
-  line-height: 1.6;
-  font-weight: 500;
+  color: var(--hourx-client-on-dark);
+  font-size: var(--hourx-client-size-body);
+  line-height: 1.55;
+  font-weight: 400;
 }
 
 .h5-service-hero__tags {
@@ -511,16 +531,17 @@ const goProductDetail = (spuId: string) => {
 }
 
 .h5-service-hero__tags span {
-  height: 24px;
+  height: auto;
   padding: 0 8px;
   border-radius: 6px;
   background: rgba(255, 255, 255, 0.16);
-  color: #fff;
+  color: var(--hourx-client-on-dark);
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  font-size: 10px;
-  font-weight: 700;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  min-height: 26px;
 }
 
 .h5-service-hero__tags img {
@@ -534,30 +555,24 @@ const goProductDetail = (spuId: string) => {
 }
 
 .h5-service-section__title {
-  display: grid;
-  grid-template-columns: 1fr auto 1fr;
-  align-items: center;
-  gap: 16px;
   margin-bottom: 20px;
-}
-
-.h5-service-section__title span {
-  height: 1px;
-  background: #cad5e2;
 }
 
 .h5-service-section__title h3 {
   margin: 0;
-  color: #0f172a;
-  font-size: 18px;
-  font-weight: 900;
+  color: var(--hourx-client-text);
+  font-size: var(--hourx-client-size-section);
+  font-weight: 700;
+  font-family: var(--hourx-client-heading-font);
+  line-height: 1.2;
+  letter-spacing: -0.02em;
 }
 
 .h5-service-list {
   margin-top: 14px;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 16px;
 }
 
 .h5-service-search {
@@ -666,19 +681,19 @@ const goProductDetail = (spuId: string) => {
 }
 
 .h5-service-card {
-  display: grid;
-  grid-template-columns: 48px minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 16px;
-  padding: 16px;
-  border-radius: 14px;
+  display: flex;
+  align-items: stretch;
+  padding: 0;
+  border-radius: 16px;
   background: #fff;
-  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.05);
   cursor: pointer;
   transition:
     transform 180ms ease,
     border-color 180ms ease,
     box-shadow 180ms ease;
+  flex-direction: column;
+  border: 1px solid var(--hourx-client-border);
+  overflow: hidden;
 }
 
 .h5-service-card:active {
@@ -691,63 +706,93 @@ const goProductDetail = (spuId: string) => {
 }
 
 .h5-service-card__icon {
-  width: 48px;
-  height: 48px;
-  border-radius: 10px;
+  width: 100%;
+  height: 180px;
   background: var(--hourx-brand-soft);
   display: flex;
   align-items: center;
   justify-content: center;
   overflow: hidden;
+  position: relative;
 }
 
 .h5-service-card__icon img {
-  width: auto;
+  width: 100%;
   height: 100%;
-  object-fit: contain;
+  object-fit: cover;
 }
 
 .biz-tags {
   display: flex;
   flex-wrap: wrap;
-  justify-content: center;
+  justify-content: flex-start;
   gap: 4px;
-  margin-top: 4px;
+  position: absolute;
+  bottom: 12px;
+  left: 12px;
+  right: 12px;
 }
 .biz-tags span {
-  padding: 1px 6px;
+  padding: 2px 8px;
   border-radius: 999px;
-  background: #f6f1e7;
-  color: #6d5428;
-  font-size: 10px;
-  font-weight: 700;
+  background: rgb(6 24 47 / 88%);
+  color: #fff;
+  font-size: var(--hourx-client-size-label);
+  font-weight: 600;
   line-height: 1.5;
 }
-.h5-service-card__content h4 {
-  margin: 0;
-  color: #0f172a;
-  font-size: 15px;
-  line-height: 1.4;
-  font-weight: 800;
-  text-align: center;
+.h5-service-card__content {
+  padding: 18px;
 }
 
-.h5-service-card__content p {
-  margin: 4px 0 0;
+.h5-service-card__content h4 {
+  margin: 0;
+  color: var(--hourx-client-text);
+  font-size: var(--hourx-client-size-card);
+  line-height: 1.3;
+  font-weight: 600;
+  text-align: start;
+}
+
+.h5-service-card__price {
+  margin: 0;
   color: var(--hourx-brand);
-  font-size: 12px;
+  font-size: 1.125rem;
   font-weight: 700;
-  text-align: center;
+  text-align: start;
 }
 
 .h5-service-card button {
-  width: 56px;
-  height: 32px;
+  width: auto;
   border: 0;
-  border-radius: 999px;
+  border-radius: 12px;
   background: var(--hourx-brand);
   color: #fff;
-  font-size: 12px;
-  font-weight: 800;
+  font-size: var(--hourx-client-size-action);
+  font-weight: 600;
+  min-height: 44px;
+  padding-inline: 14px;
+}
+
+.h5-service-card__description {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  margin: 0;
+  color: var(--hourx-client-muted);
+  font-size: var(--hourx-client-size-action);
+  line-height: 1.55;
+}
+
+.h5-service-card__foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--hourx-client-border);
 }
 </style>

@@ -572,7 +572,6 @@ const systemItems = computed(() => [
   max-width: 600px;
   margin: 25px 0 0;
   color: #fffdf8;
-  font-family: Fraunces, "Songti SC", "Noto Serif SC", Georgia, serif;
   font-size: clamp(32px, 3.2vw, 46px);
   font-weight: 520;
   line-height: 1.06;
@@ -858,7 +857,6 @@ const systemItems = computed(() => [
 .section-heading h2 {
   margin: 0;
   color: var(--home-ink);
-  font-family: Fraunces, "Songti SC", "Noto Serif SC", Georgia, serif;
   font-size: 21px;
   font-weight: 520;
   line-height: 1.12;
@@ -1036,7 +1034,7 @@ const systemItems = computed(() => [
   transform: translate(-50%, -50%);
 }
 
-.radar-map__core span { font-family: Fraunces, Georgia, serif; font-size: 21px; font-weight: 620; letter-spacing: -0.05em; }
+.radar-map__core span { font-size: 21px; font-weight: 620; letter-spacing: -0.05em; }
 
 .radar-node {
   z-index: 3;

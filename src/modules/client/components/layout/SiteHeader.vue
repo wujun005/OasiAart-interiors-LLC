@@ -10,99 +10,95 @@
         <RouterLink
           class="site-header__link"
           :to="{ path: '/', hash: '#home' }"
+          :class="{ 'is-current': route.path === '/' && (!route.hash || route.hash === '#home') }"
           >{{ t("client.header.nav.home") }}</RouterLink
         >
         <RouterLink
           class="site-header__link"
           :to="{ path: '/', hash: '#services' }"
+          :class="{ 'is-current': route.path === '/' && route.hash === '#services' }"
           >{{ t("client.header.nav.services") }}</RouterLink
         >
         <RouterLink
           class="site-header__link"
           :to="{ path: '/', hash: '#packages' }"
+          :class="{ 'is-current': route.path === '/' && route.hash === '#packages' }"
           >{{ t("client.header.nav.packages") }}</RouterLink
         >
-        <RouterLink class="site-header__link" :to="{ name: 'order-list' }">{{
-          t("client.header.nav.orders")
-        }}</RouterLink>
-        <RouterLink class="site-header__link" :to="{ name: 'join-us' }">{{
-          t("client.header.nav.joinUs")
-        }}</RouterLink>
+        <RouterLink
+          class="site-header__link"
+          :class="{ 'is-current': route.name === 'join-us' || route.name === 'supplier-onboarding' }"
+          :to="{ name: 'join-us' }"
+        >
+          {{ t("client.header.nav.joinUs") }}
+        </RouterLink>
       </nav>
 
-      <div ref="searchRoot" class="site-header__search-root">
-        <button
-          class="site-header__search-trigger"
-          type="button"
-          :aria-label="t('client.home.sections.searchPlaceholder')"
-          :aria-expanded="searchOpen"
-          aria-controls="site-header-search-panel"
-          @click="toggleServiceSearch"
-        >
-          <el-icon><Search /></el-icon>
-        </button>
-        <div
-          v-if="searchOpen"
-          id="site-header-search-panel"
-          class="site-header__search-panel"
-        >
-          <form
-            class="site-header__search-form"
-            role="search"
-            @submit.prevent="submitServiceSearch"
+      <div class="site-header__actions">
+        <div ref="searchRoot" class="site-header__search-root">
+          <button
+            class="site-header__search-trigger"
+            type="button"
+            :aria-label="t('client.home.sections.searchPlaceholder')"
+            :aria-expanded="searchOpen"
+            aria-controls="site-header-search-panel"
+            @click="toggleServiceSearch"
           >
-            <input
-              ref="searchInput"
-              v-model="serviceSearch"
-              type="search"
-              autocomplete="off"
-              :placeholder="t('client.home.sections.searchPlaceholder')"
-              :aria-label="t('client.home.sections.searchPlaceholder')"
-            />
-            <button
-              type="submit"
-              :aria-label="t('client.home.sections.searchPlaceholder')"
+            <el-icon><Search /></el-icon>
+          </button>
+          <div
+            v-if="searchOpen"
+            id="site-header-search-panel"
+            class="site-header__search-panel"
+          >
+            <form
+              class="site-header__search-form"
+              role="search"
+              @submit.prevent="submitServiceSearch"
             >
-              <el-icon><Search /></el-icon>
-            </button>
-          </form>
-          <div class="site-header__search-results" aria-live="polite">
-            <p v-if="searchLoading" class="site-header__search-state">
-              <span class="site-header__search-spinner" aria-hidden="true" />
-              {{ locale === "zh" ? "正在搜索服务…" : "Searching services…" }}
-            </p>
-            <template v-else>
+              <input
+                ref="searchInput"
+                v-model="serviceSearch"
+                type="search"
+                autocomplete="off"
+                :placeholder="t('client.home.sections.searchPlaceholder')"
+                :aria-label="t('client.home.sections.searchPlaceholder')"
+              />
               <button
-                v-for="item in searchSuggestions"
-                :key="String(item.id)"
-                type="button"
-                @click="openSearchSuggestion(item)"
+                type="submit"
+                :aria-label="t('client.home.sections.searchPlaceholder')"
               >
-                <span>{{ searchSuggestionTitle(item) }}</span>
-                <span aria-hidden="true">→</span>
+                <el-icon><Search /></el-icon>
               </button>
-              <p
-                v-if="serviceSearch.trim() && !searchSuggestions.length"
-                class="site-header__search-state"
-              >
-                {{ t("client.home.sections.searchNoResults") }}
+            </form>
+            <div class="site-header__search-results" aria-live="polite">
+              <p v-if="searchLoading" class="site-header__search-state">
+                <span class="site-header__search-spinner" aria-hidden="true" />
+                {{ locale === "zh" ? "正在搜索服务…" : "Searching services…" }}
               </p>
-            </template>
+              <template v-else>
+                <p v-if="searchSuggestions.length" class="site-header__search-heading">
+                  {{ t(serviceSearch.trim() ? "client.home.sections.searchResults" : "client.home.sections.popularServices") }}
+                </p>
+                <button
+                  v-for="item in searchSuggestions"
+                  :key="String(item.id)"
+                  type="button"
+                  @click="openSearchSuggestion(item)"
+                >
+                  <span>{{ searchSuggestionTitle(item) }}</span>
+                  <span aria-hidden="true">→</span>
+                </button>
+                <p
+                  v-if="serviceSearch.trim() && !searchSuggestions.length"
+                  class="site-header__search-state"
+                >
+                  {{ t("client.home.sections.searchNoResults") }}
+                </p>
+              </template>
+            </div>
           </div>
         </div>
-      </div>
-
-      <div class="site-header__actions">
-        <RouterLink
-          class="site-header__cart-btn"
-          :to="{ name: 'cart' }"
-          :aria-label="t('client.header.nav.cart')"
-        >
-          <el-icon><ShoppingCart /></el-icon>
-          <span class="site-header__cart-label">{{ t("client.header.nav.cart") }}</span>
-          <span v-if="cartCount" class="site-header__cart-count">{{ cartCount > 99 ? '99+' : cartCount }}</span>
-        </RouterLink>
-
         <el-dropdown trigger="click" @command="handleLocaleCommand">
           <button class="site-header__locale-btn" type="button">
             <img src="@/assets/images/client/language-Icon.png" alt="" />
@@ -121,12 +117,24 @@
           </template>
         </el-dropdown>
 
+        <RouterLink
+          class="site-header__cart-btn"
+          :to="{ name: 'cart' }"
+          :aria-label="t('client.header.nav.cart')"
+        >
+          <el-icon><ShoppingCart /></el-icon>
+          <span v-if="cartCount" class="site-header__cart-count">{{ cartCount > 99 ? '99+' : cartCount }}</span>
+        </RouterLink>
+
         <el-dropdown
           v-if="isLoggedIn"
           trigger="click"
+          placement="bottom-end"
+          :show-arrow="false"
+          popper-class="site-header-account-menu"
           @command="handleUserCommand"
         >
-          <button class="site-header__user-btn" type="button">
+          <button class="site-header__user-btn" type="button" :aria-label="t('client.header.accountMenu')">
             <span class="site-header__user-icon-wrap">
               <img
                 class="site-header__user-icon-wrap"
@@ -144,12 +152,18 @@
           </button>
           <template #dropdown>
             <el-dropdown-menu>
-              <el-dropdown-item command="profile">{{
-                t("client.header.profile")
-              }}</el-dropdown-item>
-              <el-dropdown-item command="logout">{{
-                t("client.header.logout")
-              }}</el-dropdown-item>
+              <el-dropdown-item command="booking">
+                {{ t("client.profile.menu.bookings") }}
+              </el-dropdown-item>
+              <el-dropdown-item command="package">
+                {{ t("client.profile.menu.packages") }}
+              </el-dropdown-item>
+              <el-dropdown-item command="profile">
+                {{ t("client.header.accountSettings") }}
+              </el-dropdown-item>
+              <el-dropdown-item class="site-header-account-menu__logout" command="logout" divided>
+                {{ t("client.header.logout") }}
+              </el-dropdown-item>
             </el-dropdown-menu>
           </template>
         </el-dropdown>
@@ -206,7 +220,7 @@ const currentLocale = computed<ClientLocale>({
 const localeLabel = computed(() =>
   currentLocale.value === "zh"
     ? t("client.header.languageZh")
-    : t("client.header.languageEn"),
+    : "EN",
 )
 
 const isLoggedIn = computed(() => hasToken.value)
@@ -335,6 +349,10 @@ watch(
 )
 
 const handleUserCommand = async (command: string | number | object) => {
+  if (command === "booking" || command === "package") {
+    router.push({ name: "order-list", query: { kind: command } })
+    return
+  }
   if (command === "profile") {
     router.push({ name: "profile" })
     return
@@ -382,23 +400,18 @@ onBeforeUnmount(() => {
   position: sticky;
   top: 0;
   z-index: 40;
-  backdrop-filter: blur(10px);
-  background: rgba(255, 255, 255, 0.82);
-  border-bottom: 1px solid rgba(243, 244, 246, 0.9);
-  box-shadow:
-    0 1px 3px rgba(0, 0, 0, 0.08),
-    0 1px 2px rgba(0, 0, 0, 0.08);
+  background: #fff;
+  border-bottom: 1px solid var(--hourx-client-border);
 }
 
 .site-header__inner {
-  max-width: 1680px;
-  height: 58px;
+  width: min(1200px, calc(100% - 48px));
+  min-height: 72px;
   margin: 0 auto;
-  padding: 0 clamp(24px, 3vw, 48px);
-  display: flex;
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
   align-items: center;
-  justify-content: space-between;
-  gap: 24px;
+  gap: 20px;
 }
 
 .site-header__brand {
@@ -409,8 +422,8 @@ onBeforeUnmount(() => {
 }
 
 .site-header__logo {
-  width: 56px;
-  height: 54px;
+  width: 63px;
+  height: 37px;
   object-fit: contain;
 }
 
@@ -424,8 +437,7 @@ onBeforeUnmount(() => {
 .site-header__nav {
   display: flex;
   align-items: center;
-  gap: 4px;
-  margin-left: auto;
+  gap: 18px;
 }
 
 .site-header__search-root {
@@ -538,18 +550,30 @@ onBeforeUnmount(() => {
   border: 0;
   border-radius: 10px;
   background: transparent;
-  color: #233044;
+  color: var(--hourx-client-text);
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 16px;
   text-align: left;
   cursor: pointer;
+  font-family: var(--hourx-client-font-family);
+  font-size: var(--hourx-client-size-action);
+  font-weight: 600;
 }
 
 .site-header__search-results > button:hover {
-  background: #f2f6fb;
-  color: #1769c2;
+  background: var(--hourx-client-canvas);
+}
+
+.site-header__search-heading {
+  margin: 4px 0;
+  padding: 0 12px;
+  color: var(--hourx-client-muted);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
 }
 
 .site-header__search-state {
@@ -580,32 +604,29 @@ onBeforeUnmount(() => {
 }
 
 .site-header__link {
-  height: 36px;
-  padding: 0 16px;
-  border-radius: 999px;
+  min-height: 36px;
+  padding: 0;
+  border-bottom: 2px solid transparent;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  color: rgba(15, 23, 42, 0.9);
-  font-size: 14px;
-  font-weight: 700;
+  color: var(--hourx-client-text);
+  font-size: var(--hourx-client-size-body);
+  font-weight: 600;
   text-decoration: none;
-  transition:
-    background-color 0.2s ease,
-    color 0.2s ease;
+  white-space: nowrap;
 }
 
-.site-header__link:hover {
-  color: var(--hourx-brand);
-  background: rgba(5, 21, 43, 0.08);
+.site-header__link:hover,
+.site-header__link.is-current {
+  border-color: var(--hourx-client-accent);
 }
 
 .site-header__actions {
   display: flex;
   align-items: center;
   gap: 12px;
-  border-left: 1px solid #e5e7eb;
-  padding-left: 12px;
+  justify-content: flex-end;
 }
 
 .site-header__locale-btn,
@@ -627,11 +648,13 @@ onBeforeUnmount(() => {
 .site-header__cart-btn {
   position: relative;
   display: inline-flex;
-  height: 40px;
   align-items: center;
-  gap: 7px;
-  padding: 0 11px;
-  border-radius: 999px;
+  justify-content: center;
+  box-sizing: border-box;
+  width: 44px;
+  height: 44px;
+  border: 1px solid var(--hourx-client-border);
+  border-radius: 12px;
   color: #05152b;
   font-size: 14px;
   font-weight: 800;
@@ -657,10 +680,13 @@ onBeforeUnmount(() => {
   justify-content: center;
   padding: 0 5px;
   border-radius: 999px;
-  background: #1769c2;
-  color: #fff;
+  position: absolute;
+  top: -5px;
+  right: -5px;
+  background: var(--hourx-client-accent);
+  color: var(--hourx-client-text);
   font-size: 10px;
-  font-weight: 900;
+  font-weight: 700;
   line-height: 1;
 }
 
@@ -681,8 +707,17 @@ onBeforeUnmount(() => {
 }
 
 .site-header__user-btn {
-  height: 52px;
-  padding: 0 20px;
+  height: 44px;
+  padding: 0 10px 0 4px;
+  border: 1px solid var(--hourx-client-border);
+  font-weight: 600;
+}
+
+.site-header__user-name {
+  overflow: hidden;
+  max-width: 110px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .site-header__user-icon-wrap {
@@ -700,67 +735,65 @@ onBeforeUnmount(() => {
   height: 18px;
 }
 
+:global(.site-header-account-menu.el-popper) {
+  border: 1px solid var(--hourx-client-border);
+  border-radius: 12px;
+  box-shadow: 0 8px 24px rgb(6 24 47 / 10%);
+}
+
+:global(.site-header-account-menu .el-dropdown-menu) {
+  box-sizing: border-box;
+  min-width: 200px;
+  padding: 6px;
+  border-radius: inherit;
+}
+
+:global(.site-header-account-menu .el-dropdown-menu__item) {
+  min-height: 40px;
+  padding: 0 12px;
+  border-radius: 8px;
+  color: var(--hourx-client-text);
+  font-size: var(--hourx-client-size-action);
+  font-weight: 600;
+}
+
+:global(.site-header-account-menu .el-dropdown-menu__item:focus) {
+  background: var(--hourx-client-canvas);
+  color: var(--hourx-client-text);
+}
+
+:global(.site-header-account-menu .site-header-account-menu__logout),
+:global(.site-header-account-menu .site-header-account-menu__logout:focus) {
+  color: #b42318;
+}
+
 .site-header__login-btn {
-  height: 40px;
+  height: 44px;
   padding: 0 16px;
-  border-radius: 999px;
+  border-radius: 12px;
   background: var(--hourx-brand);
   color: #fff;
   text-decoration: none;
   display: inline-flex;
   align-items: center;
-  font-size: 14px;
-  font-weight: 700;
-}
-
-@media (min-width: 1440px) {
-  .site-header__inner {
-    height: 62px;
-  }
-
-  .site-header__logo {
-    width: 62px;
-    height: 58px;
-  }
-
-  .site-header__link,
-  .site-header__locale-btn,
-  .site-header__cart-btn,
-  .site-header__login-btn {
-    font-size: 15px;
-  }
-
-  .site-header__link {
-    height: 42px;
-    padding: 0 20px;
-  }
-
-  .site-header__search-trigger {
-    width: 48px;
-    height: 48px;
-  }
-
-  .site-header__cart-btn,
-  .site-header__login-btn {
-    height: 44px;
-  }
+  font-size: var(--hourx-client-size-action);
+  font-weight: 600;
 }
 
 @media (max-width: 1180px) {
   .site-header__inner {
     gap: 14px;
-    padding: 0 20px;
+
   }
 
   .site-header__link {
-    padding: 0 10px;
+    padding: 0;
   }
 
   .site-header__actions {
     gap: 6px;
   }
 
-  .site-header__cart-label,
   .site-header__locale-btn span,
   .site-header__user-name {
     display: none;
@@ -773,8 +806,9 @@ onBeforeUnmount(() => {
 
 @media (max-width: 900px) {
   .site-header__inner {
-    height: 44px;
-    padding: 0 16px;
+    min-height: 64px;
+    width: calc(100% - 32px);
+    grid-template-columns: 1fr auto;
   }
 
   .site-header__logo {
@@ -792,7 +826,7 @@ onBeforeUnmount(() => {
 
   .site-header__search-panel {
     position: fixed;
-    top: 48px;
+    top: 68px;
     right: 16px;
     left: 16px;
     width: auto;
@@ -817,8 +851,23 @@ onBeforeUnmount(() => {
     display: none;
   }
 
-  .site-header__cart-label {
-    display: none;
+}
+
+@media (max-width: 420px) {
+  .site-header__inner {
+    gap: 6px;
+    width: calc(100% - 20px);
+  }
+
+  .site-header__cart-btn,
+  .site-header__locale-btn {
+    padding-inline: 7px;
+  }
+
+  .site-header__login-btn {
+    padding-inline: 12px;
+    font-size: 13px;
+    white-space: nowrap;
   }
 }
 </style>

@@ -1,0 +1,31 @@
+{
+  "compilerOptions": {
+    "module": "ESNext",
+    "target": "ES2022",
+    "moduleResolution": "Bundler",
+    "lib": [
+      "ES2022",
+      "DOM"
+    ],
+    "strict": true,
+    "skipLibCheck": true,
+    "resolveJsonModule": true,
+    "allowSyntheticDefaultImports": true,
+    "baseUrl": "..",
+    "paths": {
+      "@/*": [
+        "src/*"
+      ]
+    },
+    "types": [
+      "vite/client"
+    ],
+    "noEmit": true
+  },
+  "files": [
+    "../src/modules/client/api/account-deletion.ts",
+    "../src/modules/client/components/AccountDeletionFlow.vue",
+    "../src/modules/client/pages/data-deletion.vue",
+    "../src/modules/client/locales/account-deletion.ts"
+  ]
+}
