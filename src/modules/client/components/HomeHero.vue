@@ -2,6 +2,7 @@
   <section
     ref="carousel"
     class="home-hero"
+    :class="{ 'is-image-only': active.imageOnly }"
     aria-roledescription="carousel"
     :aria-label="t('client.home.hero.headline')"
     @focusin="handleFocusChange"
@@ -21,38 +22,38 @@
         ]"
         :src="banner.image"
         :fetchpriority="index === 0 ? 'high' : 'low'"
-        alt=""
+        :alt="banner.alt"
         width="1536"
         height="1024"
       />
     </div>
 
     <div class="home-hero__inner">
-      <div class="home-hero__copy">
-        <p class="home-hero__eyebrow">{{ t(slideKey + '.label') }}</p>
+      <div v-if="!active.imageOnly" class="home-hero__copy">
+        <p class="home-hero__eyebrow">{{ active.eyebrow }}</p>
         <h1>
-          <span>{{ t(slideKey + '.title') }}</span>
-          <em>{{ t(slideKey + '.accent') }}</em>
+          <span>{{ active.title }}</span>
+          <em v-if="active.accent">{{ active.accent }}</em>
         </h1>
-        <p class="home-hero__description">{{ t(slideKey + '.description') }}</p>
+        <p class="home-hero__description">{{ active.description }}</p>
 
         <div class="home-hero__actions">
-          <div class="home-hero__offer">
-            <strong>{{ t(slideKey + '.offer') }}</strong>
-            <small>{{ t(slideKey + '.terms') }}</small>
+          <div v-if="active.offer" class="home-hero__offer">
+            <strong>{{ active.offer }}</strong>
           </div>
-          <button type="button" class="home-hero__book" @click="emit('select', active.key)">
-            {{ t(slideKey + '.action') }} <span aria-hidden="true">→</span>
+          <button type="button" class="home-hero__book" @click="choose">
+            {{ active.action }} <span aria-hidden="true">→</span>
           </button>
         </div>
       </div>
+      <button v-else class="home-hero__image-link" type="button" @click="choose">{{ active.alt }}</button>
 
       <div class="home-hero__controls">
         <button
           v-for="(banner, index) in banners"
           :key="banner.key"
           type="button"
-          :aria-label="t('client.home.banners.' + banner.key + '.label')"
+          :aria-label="banner.eyebrow || banner.alt || banner.title"
           :aria-current="activeIndex === index ? 'true' : undefined"
           @click="selectSlide(index)"
         />
@@ -62,26 +63,81 @@
 </template>
 
 <script setup lang="ts">
-import { computed, nextTick, onMounted, onUnmounted, ref } from 'vue'
+import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { useRouter } from 'vue-router'
 import cleaningImage from '@/assets/images/client/home-hero-cleaning.webp'
 import acImage from '@/assets/images/client/home-hero-ac.webp'
 import appImage from '@/assets/images/client/home-hero-app.webp'
+import type { PromotionCard } from '@/modules/client/api/promotion'
+import {
+  openPromotion,
+  promotionDevice,
+  promotionImage,
+  promotionText,
+  rememberImpression,
+  useWebsitePromotion,
+} from '@/modules/client/utils/website-promotion'
+
+type Slide = {
+  key: string
+  topic?: 'cleaning' | 'ac' | 'app'
+  image: string
+  alt: string
+  imageOnly: boolean
+  eyebrow: string
+  title: string
+  accent: string
+  description: string
+  offer: string
+  action: string
+  card?: PromotionCard
+}
 
 const emit = defineEmits<{
   select: [topic: 'cleaning' | 'ac' | 'app']
 }>()
-const { t } = useI18n()
-const banners = [
-  { key: 'cleaning', image: cleaningImage },
-  { key: 'ac', image: acImage },
-  { key: 'app', image: appImage },
-] as const
-const rotationDelay = 6000
+const { t, locale } = useI18n()
+const router = useRouter()
+const { home } = useWebsitePromotion(() => 'home')
+const fallbackSlides = computed<Slide[]>(() => [
+  ['cleaning', cleaningImage],
+  ['ac', acImage],
+  ['app', appImage],
+].map(([key, image]) => ({
+  key,
+  topic: key as Slide['topic'],
+  image,
+  alt: t(`client.home.banners.${key}.label`),
+  imageOnly: false,
+  eyebrow: t(`client.home.banners.${key}.label`),
+  title: t(`client.home.banners.${key}.title`),
+  accent: t(`client.home.banners.${key}.accent`),
+  description: t(`client.home.banners.${key}.description`),
+  offer: t(`client.home.banners.${key}.offer`),
+  action: t(`client.home.banners.${key}.action`),
+})))
+const banners = computed<Slide[]>(() => {
+  const remote = home.value.banners
+  if (!remote.length) return fallbackSlides.value
+  return remote.map((card, index) => ({
+    key: String(card.id || index),
+    image: promotionImage(card, locale.value, promotionDevice()) || cleaningImage,
+    alt: promotionText(card.altI18n, promotionText(card.titleI18n, '', locale.value), locale.value),
+    imageOnly: Number(card.cardStyle) === 2,
+    eyebrow: promotionText(card.eyebrowI18n, '', locale.value),
+    title: promotionText(card.titleI18n, card.title || '', locale.value),
+    accent: promotionText(card.titleLine2I18n, '', locale.value),
+    description: promotionText(card.subtitleI18n, '', locale.value),
+    offer: promotionText(card.badgeI18n, '', locale.value),
+    action: promotionText(card.buttonI18n, t('client.home.banners.cleaning.action'), locale.value),
+    card,
+  }))
+})
+const rotationDelay = computed(() => Math.max(3, Number(home.value.bannerAutoplaySeconds || 6)) * 1000)
 const carousel = ref<HTMLElement | null>(null)
 const activeIndex = ref(0)
-const active = computed(() => banners[activeIndex.value]!)
-const slideKey = computed(() => 'client.home.banners.' + active.value.key)
+const active = computed(() => banners.value[activeIndex.value] || banners.value[0]!)
 let rotationTimer: ReturnType<typeof setTimeout> | undefined
 let motionPreference: MediaQueryList | undefined
 let swipeStart: { x: number; y: number; pointerId: number } | null = null
@@ -103,8 +159,8 @@ function finishSwipe(event: PointerEvent) {
   swipeStart = null
   if (Math.abs(dx) < 48 || Math.abs(dx) <= Math.abs(dy)) return
   const next = dx < 0
-    ? (activeIndex.value + 1) % banners.length
-    : (activeIndex.value - 1 + banners.length) % banners.length
+    ? (activeIndex.value + 1) % banners.value.length
+    : (activeIndex.value - 1 + banners.value.length) % banners.value.length
   selectSlide(next)
 }
 
@@ -118,9 +174,9 @@ function scheduleRotation() {
 
   rotationTimer = setTimeout(() => {
     if (!canRotate()) return
-    activeIndex.value = (activeIndex.value + 1) % banners.length
+    activeIndex.value = (activeIndex.value + 1) % banners.value.length
     scheduleRotation()
-  }, rotationDelay)
+  }, rotationDelay.value)
 }
 
 function selectSlide(index: number) {
@@ -131,6 +187,19 @@ function selectSlide(index: number) {
 function handleFocusChange() {
   void nextTick(scheduleRotation)
 }
+
+function choose() {
+  if (active.value.card) {
+    void openPromotion(active.value.card, router, promotionDevice() === 'mobile', home.value.limitedTimeDeals)
+    return
+  }
+  if (active.value.topic) emit('select', active.value.topic)
+}
+
+watch(active, (slide) => rememberImpression(slide.card?.id), { immediate: true })
+watch(banners, () => {
+  if (activeIndex.value >= banners.value.length) activeIndex.value = 0
+})
 
 onMounted(() => {
   motionPreference = window.matchMedia('(prefers-reduced-motion: reduce)')
@@ -183,6 +252,24 @@ onUnmounted(() => {
 
 .home-hero__image.is-active {
   opacity: 1;
+}
+
+.home-hero.is-image-only .home-hero__media {
+  inset: 0;
+  width: 100%;
+}
+
+.home-hero.is-image-only .home-hero__media::after {
+  background: linear-gradient(90deg, rgb(9 26 48 / 28%), transparent 42%);
+}
+
+.home-hero__image-link {
+  position: absolute;
+  inset: 0;
+  border: 0;
+  background: transparent;
+  color: transparent;
+  cursor: pointer;
 }
 
 .home-hero__image--ac {

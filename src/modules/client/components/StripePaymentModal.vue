@@ -16,12 +16,16 @@
             <dt>{{ locale === 'zh' ? '小计' : 'Subtotal' }}</dt>
             <dd>{{ formatAed(subtotal) }}</dd>
           </div>
+          <div v-if="Number(voucherDiscount) > 0">
+            <dt>{{ locale === 'zh' ? '优惠券抵扣' : 'Voucher discount' }}</dt>
+            <dd>-{{ formatAed(voucherDiscount) }}</dd>
+          </div>
           <div>
-            <dt>{{ locale === 'zh' ? '增值税 VAT（5%）' : 'VAT (5%)' }}</dt>
+            <dt>{{ locale === 'zh' ? '增值税（VAT 5%）' : 'VAT (5%)' }}</dt>
             <dd>{{ formatAed(tax) }}</dd>
           </div>
           <div class="is-total">
-            <dt>{{ locale === 'zh' ? '总额' : 'Total' }}</dt>
+            <dt>{{ locale === 'zh' ? '订单总计（含税）' : 'Total' }}</dt>
             <dd>{{ formatAed(total) }}</dd>
           </div>
         </dl>
@@ -53,6 +57,7 @@ const props = defineProps<{
   customerSessionClientSecret?: string;
   locale: string;
   subtotal?: number;
+  voucherDiscount?: number;
   tax?: number;
   total?: number;
 }>();

@@ -330,6 +330,10 @@
                 <span>{{ t("client.orderConfirm.summary.subtotal") }}</span>
                 <span>{{ formatAed(subtotal) }}</span>
               </div>
+              <div v-if="voucherDiscount > 0" class="order-summary-card__voucher">
+                <span>{{ voucherLabel }}</span>
+                <span>-{{ formatAed(voucherDiscount) }}</span>
+              </div>
               <div>
                 <span>{{ t("client.orderConfirm.summary.vat") }}</span>
                 <span>{{ formatAed(tax) }}</span>
@@ -1312,6 +1316,13 @@ const subtotal = computed(() =>
 const tax = computed(() =>
   getQueryText("tax") ? explicitTax.value : Math.max(0, total.value - subtotal.value),
 )
+const voucherCode = computed(() => getQueryText("couponCode"))
+const voucherDiscount = computed(() => Math.max(0, getQueryNumber("couponDiscount", 0)))
+const voucherLabel = computed(() => (
+  voucherCode.value
+    ? `${t("client.orderConfirm.summary.voucher")} (${voucherCode.value})`
+    : t("client.orderConfirm.summary.voucher")
+))
 
 const formatAed = (value: number) => `AED ${value.toFixed(2)}`
 const roundMoney = (value: number) =>
@@ -3028,6 +3039,10 @@ onMounted(async () => {
   color: rgba(15, 23, 42, 0.5);
   font-size: 16px;
   font-weight: 600;
+}
+
+.order-summary-card__voucher span:last-child {
+  color: #0f7a4a;
 }
 
 .order-summary-card__total {

@@ -273,6 +273,8 @@ import {
   Collection,
   Tickets,
   Ticket,
+  Clock,
+  Picture,
   OfficeBuilding,
   UserFilled,
   Calendar,
@@ -668,6 +670,8 @@ const iconMap: Record<string, Component> = {
   collection: Collection,
   tickets: Tickets,
   ticket: Ticket,
+  picture: Picture,
+  clock: Clock,
   officebuilding: OfficeBuilding,
   userfilled: UserFilled,
   calendar: Calendar,
@@ -689,6 +693,9 @@ const resolveMenuIcon = (item: AdminMenuPermissionItem) => {
   const path = item.path || '';
   if (path.startsWith('/admin/supplier-coverage')) return DataAnalysis;
   if (path.startsWith('/admin/comments')) return ChatDotRound;
+  if (path.startsWith('/admin/marketing/campaigns')) return Clock;
+  if (path.startsWith('/admin/marketing/banners')) return Picture;
+  if (path.startsWith('/admin/marketing')) return Ticket;
   if (path.startsWith('/admin/products')) return Goods;
   if (path.startsWith('/admin/package/services')) return Goods;
   if (path.startsWith('/admin/package/packages')) return Tickets;
@@ -698,6 +705,7 @@ const resolveMenuIcon = (item: AdminMenuPermissionItem) => {
   if (path.startsWith('/admin/package/specs')) return Tickets;
   if (path.startsWith('/admin/package') || path.startsWith('/admin/packages')) return Present;
   if (path.startsWith('/admin/orders')) return Document;
+  if (path.startsWith('/admin/customers')) return User;
   if (path.startsWith('/admin/users/suppliers')) return OfficeBuilding;
   if (path.startsWith('/admin/users')) return User;
   if (path.startsWith('/admin/supplier-management/overview')) return DataAnalysis;
@@ -729,6 +737,10 @@ const menuLabelKeyByPath: Record<string, string> = {
   '/admin': 'admin.layout.overview',
   '/admin/supplier-coverage': 'admin.layout.dataBoard',
   '/admin/comments': 'admin.layout.comments',
+  '/admin/marketing': 'admin.layout.marketing',
+  '/admin/marketing/coupons': 'admin.layout.coupons',
+  '/admin/marketing/campaigns': 'admin.layout.campaigns',
+  '/admin/marketing/banners': 'admin.layout.banners',
   '/admin/orders': 'admin.layout.order',
   '/admin/products': 'admin.layout.product',
   '/admin/packages': 'admin.layout.packages',
@@ -739,6 +751,7 @@ const menuLabelKeyByPath: Record<string, string> = {
   '/admin/package/specs': 'admin.layout.packageSpecs',
   '/admin/package/services': 'admin.layout.packageServices',
   '/admin/package/packages': 'admin.layout.packageList',
+  '/admin/customers': 'admin.layout.customers',
   '/admin/users': 'admin.layout.user',
   '/admin/users/platform': 'admin.layout.platformAccounts',
   '/admin/users/suppliers': 'admin.layout.supplierAccounts',

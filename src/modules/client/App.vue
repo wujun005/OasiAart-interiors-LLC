@@ -11,6 +11,7 @@
       <RouterView />
     </main>
     <SiteFooter v-if="!isPlainLayout" :reserve-support-space="route.path === '/'" />
+    <PromotionPopup v-if="!isPlainLayout" />
   </div>
 </template>
 
@@ -20,6 +21,7 @@ import { useI18n } from 'vue-i18n';
 import { useRoute } from 'vue-router';
 import SiteHeader from '@/modules/client/components/layout/SiteHeader.vue';
 import SiteFooter from '@/modules/client/components/layout/SiteFooter.vue';
+import PromotionPopup from '@/modules/client/components/PromotionPopup.vue';
 
 const route = useRoute();
 const { locale } = useI18n({ useScope: 'global' });

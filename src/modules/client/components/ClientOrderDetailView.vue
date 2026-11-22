@@ -351,12 +351,52 @@
                   <dt>{{ paymentSummaryLabel }}</dt>
                   <dd>{{ paymentSummaryText }}</dd>
                 </div>
+                <div v-if="campaignCatalog != null">
+                  <dt>{{ locale.startsWith("zh") ? "活动前价格（不含税）" : "Price before deal excl. VAT" }}</dt>
+                  <dd>{{ formatAed(campaignCatalog) }}</dd>
+                </div>
+                <div v-if="campaignDiscount > 0" class="is-discount">
+                  <dt>{{ campaignLabel }}</dt>
+                  <dd>− {{ formatAed(campaignDiscount) }}</dd>
+                </div>
+                <div v-if="couponPriceLines.length" class="client-order-detail__price-lines">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>{{ locale.startsWith("zh") ? "项目" : "Item" }}</th>
+                        <th>{{ locale.startsWith("zh") ? "原价" : "Original" }}</th>
+                        <th>{{ locale.startsWith("zh") ? "折后价" : "Discounted" }}</th>
+                        <th>{{ locale.startsWith("zh") ? "优惠" : "Saved" }}</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr v-for="line in couponPriceLines" :key="line.key">
+                        <td>{{ line.name }}</td>
+                        <td>{{ formatAed(line.original) }}</td>
+                        <td>{{ formatAed(line.discounted) }}</td>
+                        <td>− {{ formatAed(line.discount) }}</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+                <div v-else-if="couponOriginal != null">
+                  <dt>{{ locale.startsWith("zh") ? "商品原价（不含税）" : "Original price excl. VAT" }}</dt>
+                  <dd>{{ formatAed(couponOriginal) }}</dd>
+                </div>
+                <div v-if="couponBefore != null">
+                  <dt>{{ locale.startsWith("zh") ? "用券前含税" : "Before voucher incl. VAT" }}</dt>
+                  <dd>{{ formatAed(couponBefore) }}</dd>
+                </div>
+                <div v-if="couponDiscount > 0" class="is-discount">
+                  <dt>{{ couponLabel }}</dt>
+                  <dd>− {{ formatAed(couponDiscount) }}</dd>
+                </div>
                 <div>
                   <dt>{{ locale.startsWith("zh") ? "小计" : "Subtotal" }}</dt>
                   <dd>{{ formatAed(orderSubtotal) }}</dd>
                 </div>
                 <div>
-                  <dt>{{ locale.startsWith("zh") ? "增值税 VAT（5%）" : "VAT (5%)" }}</dt>
+                  <dt>{{ locale.startsWith("zh") ? "增值税（VAT 5%）" : "VAT (5%)" }}</dt>
                   <dd>{{ formatAed(orderTax) }}</dd>
                 </div>
                 <div
@@ -364,7 +404,7 @@
                   :class="{ 'has-refund-breakdown': showRefundBreakdown }"
                 >
                   <dt>
-                    {{ locale.startsWith("zh") ? "总额" : rawStatus === 1 || rawStatus === 2 ? "Total Paid" : "Total" }}
+                    {{ locale.startsWith("zh") ? "订单总计（含税）" : rawStatus === 1 || rawStatus === 2 ? "Total Paid" : "Total" }}
                   </dt>
                   <dd>{{ formatAed(order.orderAmount) }}</dd>
                 </div>
@@ -1353,8 +1393,63 @@ const attachQuantityText = (item: { quantity: number; unit: string }) => {
   return ""
 }
 const orderTotal = computed(() => Math.max(0, Number(order.value?.orderAmount) || 0))
-const orderSubtotal = computed(() => orderTotal.value / 1.05)
-const orderTax = computed(() => orderTotal.value - orderSubtotal.value)
+const orderCoupon = computed(() => order.value?.coupon || null)
+const orderCampaign = computed(() => order.value?.campaign || null)
+const couponAmount = (value: unknown) => {
+  const amount = Number(value)
+  return Number.isFinite(amount) ? amount : null
+}
+const campaignCatalog = computed(() => couponAmount(orderCampaign.value?.catalogAmountWithoutTax))
+const campaignDiscount = computed(() => Math.max(0, couponAmount(orderCampaign.value?.discountAmountWithoutTax) || 0))
+const campaignLabel = computed(() => {
+  const zh = locale.value.startsWith("zh")
+  const names = orderCampaign.value?.nameI18n || {}
+  const name = String((zh ? names.zh : names.en) || orderCampaign.value?.name || "").trim()
+  const offers = orderCampaign.value?.offerI18n || {}
+  const offer = String((zh ? offers.zh : offers.en) || orderCampaign.value?.offerText || "").trim()
+  const prefix = zh ? "限时活动（不含税）" : "Limited-time deal excl. VAT"
+  return [prefix, name, offer].filter(Boolean).join(" · ")
+})
+const couponOriginal = computed(() => couponAmount(orderCoupon.value?.productOriginalAmount))
+const couponBefore = computed(() => couponAmount(orderCoupon.value?.amountBeforeDiscount))
+const couponDiscount = computed(() => Math.max(0, couponAmount(orderCoupon.value?.discountAmount) || 0))
+const couponPriceLines = computed(() => {
+  const rows = Array.isArray(orderCoupon.value?.lines) ? orderCoupon.value.lines : []
+  const zh = locale.value.startsWith("zh")
+  return rows.map((line, index) => ({
+    key: `${line.lineType || "line"}-${index}`,
+    name: String((zh ? line.name : line.nameEn || line.name) || "").trim() || (zh ? "项目" : "Item"),
+    original: couponAmount(line.originalWithTax),
+    discounted: couponAmount(line.discountedWithTax),
+    discount: couponAmount(line.discountAmount) || 0,
+  })).filter((line) => line.original != null || line.discounted != null)
+})
+const couponLabel = computed(() => {
+  const code = String(orderCoupon.value?.couponCode || "").trim()
+  const offer = orderCoupon.value?.offerI18n?.[locale.value.startsWith("zh") ? "zh" : "en"]
+    || orderCoupon.value?.offerText
+    || ""
+  const prefix = locale.value.startsWith("zh") ? "优惠券" : "Voucher"
+  return [prefix, code, offer].filter(Boolean).join(" · ")
+})
+const couponMatchesTotal = computed(() => {
+  const payable = couponAmount(orderCoupon.value?.payableWithTax)
+  return payable != null && Math.abs(orderTotal.value - payable) < 0.05
+})
+const orderSubtotal = computed(() => {
+  if (couponMatchesTotal.value) {
+    const payable = couponAmount(orderCoupon.value?.payableWithoutTax)
+    if (payable != null) return payable
+  }
+  return orderTotal.value / 1.05
+})
+const orderTax = computed(() => {
+  if (couponMatchesTotal.value) {
+    const tax = couponAmount(orderCoupon.value?.payableTax)
+    if (tax != null) return tax
+  }
+  return orderTotal.value - orderSubtotal.value
+})
 const nullableAmount = (value: unknown) => {
   if (value === null || value === undefined || String(value).trim() === "") return null
   const amount = Number(value)
@@ -3148,6 +3243,36 @@ onMounted(async () => {
 }
 .client-order-detail__info-list .is-total.has-refund-breakdown {
   border-bottom: 1px solid #f0f3f6;
+}
+.client-order-detail__info-list > .client-order-detail__price-lines {
+  display: block;
+  grid-column: 1 / -1;
+  padding-bottom: 4px;
+}
+.client-order-detail__price-lines table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+.client-order-detail__price-lines th,
+.client-order-detail__price-lines td {
+  padding: 8px 0;
+  border-bottom: 1px solid #e7edf3;
+  text-align: right;
+}
+.client-order-detail__price-lines th:first-child,
+.client-order-detail__price-lines td:first-child {
+  text-align: left;
+}
+.client-order-detail__price-lines th {
+  color: #6b7a90;
+  font-weight: 600;
+}
+.client-order-detail__price-lines td:last-child {
+  color: #0f7a4a;
+}
+.client-order-detail__info-list .is-discount dd {
+  color: #0f7a4a;
 }
 .client-order-detail__info-list .is-total dt,
 .client-order-detail__info-list .is-total dd {

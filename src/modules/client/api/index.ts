@@ -85,9 +85,63 @@ export interface PackageFulfillmentRecord {
   cancelReason?: string;
 }
 
+export interface OrderCampaignInfo {
+  name?: string;
+  nameI18n?: Record<string, string>;
+  offerText?: string;
+  offerI18n?: Record<string, string>;
+  redemptionStatusI18n?: Record<string, string>;
+  priceMode?: number | string;
+  discountPercent?: number | string;
+  quantity?: number | string;
+  catalogAmountWithoutTax?: number | string;
+  campaignAmountWithoutTax?: number | string;
+  discountAmountWithoutTax?: number | string;
+  catalogAmountWithTax?: number | string;
+  campaignAmountWithTax?: number | string;
+  discountAmountWithTax?: number | string;
+}
+
+export interface OrderCouponInfo {
+  couponCode?: string;
+  name?: string;
+  nameI18n?: Record<string, string>;
+  offerText?: string;
+  offerI18n?: Record<string, string>;
+  redemptionStatusI18n?: Record<string, string>;
+  productOriginalAmount?: number | string;
+  productOriginalUnitPrice?: number | string;
+  saleAmountWithoutTax?: number | string;
+  taxBeforeDiscount?: number | string;
+  amountBeforeDiscount?: number | string;
+  discountAmount?: number | string;
+  payableWithoutTax?: number | string;
+  payableTax?: number | string;
+  payableWithTax?: number | string;
+  platformAmount?: number | string;
+  supplierAmount?: number | string;
+  platformRatio?: number | string;
+  supplierRatio?: number | string;
+  lines?: OrderCouponPriceLine[];
+}
+
+export interface OrderCouponPriceLine {
+  lineType?: string;
+  name?: string;
+  nameEn?: string;
+  quantity?: number | string;
+  originalWithoutTax?: number | string;
+  originalWithTax?: number | string;
+  discountAmount?: number | string;
+  discountedWithoutTax?: number | string;
+  discountedWithTax?: number | string;
+}
+
 export interface OrderListRecord {
   orderId?: number | string;
   orderAmount?: number | string;
+  coupon?: OrderCouponInfo | null;
+  campaign?: OrderCampaignInfo | null;
   refundHandlingFee?: number | string | null;
   refundedAmount?: number | string | null;
   spuName?: string;
@@ -287,6 +341,7 @@ export interface ClientCartItemRecord {
   imageUrls?: string[];
   specValueIds?: Array<number | string>;
   attachItems?: Array<{ attachValueId?: number | string; quantity?: number }>;
+  packageSelections?: PackageSkuSelection[];
   addressId?: number | string;
   firstName?: string;
   lastName?: string;
@@ -751,12 +806,42 @@ export function removeCartItems(cartItemIds: string[]) {
   return http.post('/client/cart/remove', { cartItemIds });
 }
 
-export async function checkoutCart(cartItemIds: string[], paymentMethod = 'STRIPE', validationUrl?: string) {
+export async function checkoutCart(
+  cartItemIds: string[],
+  paymentMethod = 'STRIPE',
+  validationUrl?: string,
+  couponCode?: string,
+) {
+  const code = String(couponCode || '').trim()
   return getEnvelopeData<CartCheckoutResult>(await http.post('/client/cart/checkout', {
     cartItemIds,
     paymentMethod,
     ...(validationUrl ? { validationUrl } : {}),
+    ...(code ? { couponCode: code } : {}),
   }));
+}
+
+export interface CouponVerifyResult {
+  usable?: boolean
+  message?: string
+  messageI18n?: Record<string, string>
+  couponCode?: string
+  discountAmount?: number | string
+  amountBeforeDiscount?: number | string
+  payableWithoutTax?: number | string
+  payableTax?: number | string
+  payableWithTax?: number | string
+}
+
+export async function verifyCoupon(payload: {
+  couponCode: string
+  spuId?: number | string
+  specValueIds?: Array<number | string>
+  attachItems?: Array<{ attachValueId: number | string; quantity: number }>
+  packageId?: number | string
+  selections?: PackageSkuSelection[]
+}) {
+  return getEnvelopeData<CouponVerifyResult>(await http.post('/client/coupon/verify', payload))
 }
 
 // ========== 订单相关接口 ==========
@@ -1037,11 +1122,17 @@ export async function createOrder(params: any) {
 }
 
 // 套餐直购：只创建订单，支付沿用订单确认页，不经过购物车。
-export async function createPackageOrder(packageId: number | string, selections: PackageSkuSelection[] = []) {
+export async function createPackageOrder(
+  packageId: number | string,
+  selections: PackageSkuSelection[] = [],
+  couponCode?: string,
+) {
+  const code = String(couponCode || '').trim()
   return getEnvelopeData<number | string>(await http.post('/client/order/placePackage', {
     packageId,
     bookFirstVisit: true,
     ...(selections.length ? { selections } : {}),
+    ...(code ? { couponCode: code } : {}),
   }));
 }
 

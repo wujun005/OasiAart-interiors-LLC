@@ -12,6 +12,17 @@
       :selection-locked="selectionLocked"
       :selected-image-index="selectedImageIndex"
       :cart-count="cartCount"
+      :promo-code="promoCode"
+      :promo-loading="promoLoading"
+      :promo-error="promoError"
+      :promo-notice="promoNotice"
+      :promo-applied-code="activeCoupon?.couponCode || ''"
+      :promo-discount="activeCoupon ? activeCoupon.discountAmount : null"
+      :summary-vat="summaryVat"
+      :summary-total="summaryTotal"
+      @update:promo-code="promoCode = $event"
+      @apply-promo="applyPromo"
+      @remove-promo="resetPromo"
       @back="goBack"
       @cart="router.push({ name: routeNames.cart })"
       @image-change="selectedImageIndex = $event"
@@ -284,13 +295,26 @@
                 </span>
                 <strong>{{ formatAed(view.saleAmount) }}</strong>
               </div>
+              <PromoCodeField
+                v-model="promoCode"
+                :loading="promoLoading"
+                :error="promoError"
+                :notice="promoNotice"
+                :applied-code="activeCoupon?.couponCode || ''"
+                @apply="applyPromo"
+                @remove="resetPromo"
+              />
+              <div v-if="activeCoupon" class="booking-summary__row">
+                <span>{{ t('client.productDetail.booking.promoDiscount') }}</span>
+                <strong>-{{ formatAed(activeCoupon.discountAmount) }}</strong>
+              </div>
               <div class="booking-summary__row booking-summary__row--tax">
                 <span>{{ t('client.productDetail.booking.vat') }}</span>
-                <strong>{{ formatAed(view.vat) }}</strong>
+                <strong>{{ formatAed(summaryVat) }}</strong>
               </div>
               <div class="booking-summary__row booking-summary__row--total">
                 <span>{{ t('client.productDetail.booking.total') }}</span>
-                <strong>{{ formatAed(view.total) }}</strong>
+                <strong>{{ formatAed(summaryTotal) }}</strong>
               </div>
             </div>
 
@@ -345,6 +369,8 @@ import { useCart } from '@/modules/client/composables/useCart'
 import PackageDetailMobile from '@/modules/h5/components/PackageDetailMobile.vue'
 import PackageSharedSpecs from '@/modules/client/components/PackageSharedSpecs.vue'
 import { getStoredAuthSnapshot, clearStoredAuthState } from '@/utils/auth-state'
+import PromoCodeField from '@/modules/client/components/PromoCodeField.vue'
+import { usePromoCode } from '@/modules/client/composables/usePromoCode'
 import { trackAddToCart, trackViewContent } from '@/modules/client/utils/metaPixel'
 
 const props = withDefaults(defineProps<{
@@ -471,6 +497,15 @@ const pricePayload = computed<PackagePricePayload | null>(() => {
   return { packageId, selections }
 })
 const priceSignature = computed(() => pricePayload.value ? JSON.stringify(pricePayload.value) : '')
+const {
+  code: promoCode,
+  loading: promoLoading,
+  error: promoError,
+  dropped: promoDropped,
+  active: activeCoupon,
+  apply: submitPromo,
+  reset: resetPromo,
+} = usePromoCode(() => priceSignature.value)
 const priceReady = computed(() => Boolean(priceQuote.value && !priceLoading.value && quotedSignature.value === priceSignature.value))
 
 const loadPrice = async () => {
@@ -643,6 +678,12 @@ const view = computed(() => {
   }
 })
 
+const summaryVat = computed(() => activeCoupon.value?.payableTax ?? view.value?.vat ?? null)
+const summaryTotal = computed(() => activeCoupon.value?.payableWithTax ?? view.value?.total ?? null)
+const promoNotice = computed(() => (
+  promoDropped.value ? t('client.productDetail.booking.promoRemoved') : ''
+))
+
 const galleryImages = computed(() => view.value?.images || [])
 const heroImage = computed(() => galleryImages.value[selectedImageIndex.value] || '')
 
@@ -762,6 +803,18 @@ const selectSpec = (itemId: string, typeKey: string, valueKey: string) => {
 
 const packageSelections = (): PackageSkuSelection[] => (pricePayload.value?.selections || []).map((selection) => ({ ...selection }))
 
+const applyPromo = async () => {
+  if (!ensureSkuSelections() || !ensurePriceReady()) return
+  if (!(await ensureLogin())) return
+  const packageId = String(route.params.id || '').trim()
+  await submitPromo(
+    packageId ? { packageId, selections: packageSelections() } : null,
+    locale.value,
+    t('client.productDetail.booking.promoEnter'),
+    t('client.home.packages.chooseSkuRequired'),
+  )
+}
+
 const ensureSkuSelections = () => {
   if (pricePayload.value) return true
   ElMessage.warning(t('client.home.packages.chooseSkuRequired'))
@@ -818,7 +871,7 @@ const openCheckout = async () => {
   )
   buying.value = true
   try {
-    const createdOrderId = await createPackageOrder(packageId, selections)
+    const createdOrderId = await createPackageOrder(packageId, selections, activeCoupon.value?.couponCode)
     if (!/^[1-9]\d*$/.test(String(createdOrderId ?? ''))) {
       throw new Error(t('client.productDetail.booking.createOrderFailed'))
     }
@@ -834,8 +887,14 @@ const openCheckout = async () => {
         specSummary: locale.value === 'zh' ? '下单时预约首次服务' : 'Book your first visit at checkout',
         imageUrls: JSON.stringify(selectedPackage.images),
         subtotal: String(selectedPackage.saleAmount),
-        tax: String(selectedPackage.vat),
-        total: String(selectedPackage.total),
+        tax: String(summaryVat.value),
+        total: String(summaryTotal.value),
+        ...(activeCoupon.value
+          ? {
+              couponCode: activeCoupon.value.couponCode,
+              couponDiscount: String(activeCoupon.value.discountAmount),
+            }
+          : {}),
       },
     })
   } catch (error: any) {

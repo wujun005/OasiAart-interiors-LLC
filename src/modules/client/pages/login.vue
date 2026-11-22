@@ -63,7 +63,7 @@
               {{ t(isCodeLogin ? 'client.login.password.phoneEmailLabel' : 'client.login.password.accountLabel') }}
             </label>
             <div class="auth-account">
-              <div v-if="!isEmailAccount" class="auth-prefix">
+              <div v-if="!showEmailAccount" class="auth-prefix">
                 <select
                   v-model="form.countryCode"
                   autocomplete="tel-country-code"
@@ -85,7 +85,8 @@
                   v-model.trim="form.account"
                   type="text"
                   autocomplete="username"
-                  :placeholder="t(isEmailAccount ? 'client.login.register.emailPlaceholder' : 'client.login.register.phoneNumberPlaceholder')"
+                  :placeholder="t(showEmailAccount ? 'client.login.register.emailPlaceholder' : 'client.login.register.phoneNumberPlaceholder')"
+                  :inputmode="showEmailAccount ? 'email' : 'tel'"
                 />
               </div>
             </div>
@@ -177,12 +178,12 @@
             {{
               isCodeLogin
                 ? t('client.login.password.usePasswordLogin')
-                : t(isEmailAccount ? 'client.login.password.useCodeLoginEmail' : 'client.login.password.useCodeLogin')
+                : t(showEmailAccount ? 'client.login.password.useCodeLoginEmail' : 'client.login.password.useCodeLogin')
             }}
           </button>
 
-          <p v-if="!isEmailAccount" class="auth-note" role="note">
-            {{ t('client.login.password.otpNote') }}
+          <p v-if="emailLoginHint || !showEmailAccount" class="auth-note" role="note">
+            {{ emailLoginHint || t('client.login.password.otpNote') }}
           </p>
         </form>
 
@@ -202,7 +203,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onBeforeUnmount, reactive, ref, watch } from 'vue';
+import { computed, nextTick, onBeforeUnmount, reactive, ref, watch } from 'vue';
 import { ElMessage } from 'element-plus';
 import { useI18n } from 'vue-i18n';
 import { useRoute, useRouter } from 'vue-router';
@@ -212,7 +213,7 @@ import {
   sendCode,
 } from '@/modules/client/api/login';
 import { setClientLocale, type ClientLocale } from '@/modules/client/locales';
-import { preferEmailErrorCode } from '@/modules/client/utils/verificationChannel';
+import { preferEmailErrorCode, preferEmailMessage } from '@/modules/client/utils/verificationChannel';
 import {
   clearStoredAuthState,
   setClientAuthStorageValue,
@@ -257,6 +258,9 @@ const localeLabel = computed(() =>
 const isCodeLogin = computed(() => loginMode.value === 'code');
 const countryCodeOptions = LOGIN_COUNTRY_CODE_OPTIONS;
 const isEmailAccount = computed(() => isEmailLoginAccount(form.account));
+const preferEmailLogin = ref(false);
+const emailLoginHint = ref('');
+const showEmailAccount = computed(() => preferEmailLogin.value || isEmailAccount.value);
 const lastPhoneCountryCode = ref(form.countryCode);
 const resolvedLoginAccount = computed(() => resolveLoginAccount(form.account, form.countryCode));
 
@@ -324,6 +328,21 @@ const toggleLoginMode = () => {
     return;
   }
   form.code = '';
+  preferEmailLogin.value = false;
+  emailLoginHint.value = '';
+};
+
+const promptEmailCodeLogin = (error: unknown) => {
+  const message = preferEmailMessage(error, String(locale.value)) || t('client.login.password.preferEmail');
+  loginMode.value = 'code';
+  form.password = '';
+  form.code = '';
+  form.account = '';
+  showPassword.value = false;
+  preferEmailLogin.value = true;
+  emailLoginHint.value = message;
+  ElMessage.warning(message);
+  void nextTick(() => document.getElementById('login-account')?.focus());
 };
 
 const saveClientToken = (raw: any, account?: string) => {
@@ -370,6 +389,10 @@ const validatePasswordLogin = () => {
 };
 
 const validateCodeLogin = () => {
+  if (preferEmailLogin.value && !isEmailAccount.value) {
+    ElMessage.warning(emailLoginHint.value || t('client.login.password.preferEmail'));
+    return false;
+  }
   if (!form.account.trim()) {
     ElMessage.warning(t('client.login.password.accountRequired'));
     return false;
@@ -409,6 +432,10 @@ const startCodeCountdown = () => {
 };
 
 const requestLoginCode = async () => {
+  if (preferEmailLogin.value && !isEmailAccount.value) {
+    ElMessage.warning(emailLoginHint.value || t('client.login.password.preferEmail'));
+    return;
+  }
   const accountValue = resolvedLoginAccount.value;
   if (!accountValue) {
     ElMessage.warning(t('client.login.password.accountRequired'));
@@ -419,12 +446,15 @@ const requestLoginCode = async () => {
     await sendCode({
       phoneOrEmail: accountValue,
     });
+    emailLoginHint.value = '';
     ElMessage.success(t('client.login.password.codeSent'));
     startCodeCountdown();
   } catch (error: any) {
-    ElMessage.error(preferEmailErrorCode(error)
-      ? t('client.login.password.preferEmail')
-      : (error?.message || t('client.login.password.codeSendFailed')));
+    if (preferEmailErrorCode(error) && !isEmailAccount.value) {
+      promptEmailCodeLogin(error);
+      return;
+    }
+    ElMessage.error(error?.message || t('client.login.password.codeSendFailed'));
   } finally {
     sendingCode.value = false;
   }

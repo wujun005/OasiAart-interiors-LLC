@@ -166,18 +166,32 @@
             <h3>{{ t('client.productDetail.booking.summaryTitle') }}</h3>
           </div>
           <p class="h5-package-booking-note">{{ t('client.home.packages.visitLater') }}</p>
+          <PromoCodeField
+            :model-value="promoCode"
+            :loading="promoLoading"
+            :error="promoError"
+            :notice="promoNotice"
+            :applied-code="promoAppliedCode"
+            @update:model-value="emit('update:promoCode', $event)"
+            @apply="emit('applyPromo')"
+            @remove="emit('removePromo')"
+          />
           <dl class="h5-package-price-breakdown">
             <div>
               <dt>{{ t('client.home.packages.subtotal') }}</dt>
               <dd>{{ formatAed(view.saleAmount) }}</dd>
             </div>
+            <div v-if="promoDiscount != null">
+              <dt>{{ t('client.productDetail.booking.promoDiscount') }}</dt>
+              <dd>-{{ formatAed(promoDiscount) }}</dd>
+            </div>
             <div>
               <dt>{{ t('client.productDetail.booking.vat') }}</dt>
-              <dd>{{ formatAed(view.vat) }}</dd>
+              <dd>{{ formatAed(summaryVat) }}</dd>
             </div>
             <div class="h5-package-price-breakdown__total">
               <dt>{{ t('client.productDetail.booking.total') }}</dt>
-              <dd>{{ formatAed(view.total) }}</dd>
+              <dd>{{ formatAed(summaryTotal) }}</dd>
             </div>
           </dl>
         </section>
@@ -188,7 +202,7 @@
       <div class="h5-detail-bottom__summary">
         <div>
           <span>{{ t('client.productDetail.booking.total') }}</span>
-          <strong>{{ purchasable && view ? formatAed(view.total) : '—' }}</strong>
+          <strong>{{ purchasable && view ? formatAed(summaryTotal) : '—' }}</strong>
         </div>
       </div>
       <div class="h5-detail-bottom__actions">
@@ -260,6 +274,7 @@ import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { Icon as VanIcon, Swipe as VanSwipe, SwipeItem as VanSwipeItem, type SwipeInstance } from 'vant'
 import PackageSharedSpecs from '@/modules/client/components/PackageSharedSpecs.vue'
+import PromoCodeField from '@/modules/client/components/PromoCodeField.vue'
 import DetailContentTabs from './DetailContentTabs.vue'
 
 const props = defineProps<{
@@ -273,6 +288,14 @@ const props = defineProps<{
   selectionLocked: boolean
   selectedImageIndex: number
   cartCount: number
+  promoCode: string
+  promoLoading: boolean
+  promoError: string
+  promoNotice: string
+  promoAppliedCode: string
+  promoDiscount: number | null
+  summaryVat: number | null
+  summaryTotal: number | null
 }>()
 
 const emit = defineEmits<{
@@ -281,6 +304,9 @@ const emit = defineEmits<{
   'image-change': [index: number]
   'add-to-cart': []
   checkout: []
+  'update:promoCode': [value: string]
+  applyPromo: []
+  removePromo: []
   'select-spec': [itemId: string, typeKey: string, valueKey: string]
   'retry-price': []
   'select-shared-spec': [typeKey: string, valueKey: string]

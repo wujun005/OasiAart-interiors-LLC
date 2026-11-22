@@ -67,9 +67,33 @@ const routes: RouteRecordRaw[] = [
         component: () => import('@/modules/admin/pages/comment/index.vue'),
       },
       {
+        path: 'marketing',
+        redirect: '/admin/marketing/coupons',
+      },
+      {
+        path: 'marketing/coupons',
+        name: 'admin-marketing-coupons',
+        component: () => import('@/modules/admin/pages/marketing/coupons/index.vue'),
+      },
+      {
+        path: 'marketing/campaigns',
+        name: 'admin-marketing-campaigns',
+        component: () => import('@/modules/admin/pages/marketing/campaigns/index.vue'),
+      },
+      {
+        path: 'marketing/banners',
+        name: 'admin-marketing-banners',
+        component: () => import('@/modules/admin/pages/marketing/banners/index.vue'),
+      },
+      {
         path: 'account-deletions',
         name: 'admin-account-deletions',
         component: () => import('@/modules/admin/pages/account-deletions/index.vue'),
+      },
+      {
+        path: 'customers',
+        name: 'admin-customers',
+        component: () => import('@/modules/admin/pages/client-user/index.vue'),
       },
       {
         path: 'supplier-coverage',
@@ -374,7 +398,8 @@ router.beforeEach(async (to) => {
     (to.path === '/admin/developer/dev-config'
       || to.path === '/admin/supplier-coverage'
       || to.path === '/admin/comments'
-      || to.path === '/admin/account-deletions')
+      || to.path === '/admin/account-deletions'
+      || to.path === '/admin/customers')
     && !adminMenuState.superAdmin
   ) {
     return { path: getFirstAllowedAdminPath(), replace: true };

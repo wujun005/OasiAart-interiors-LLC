@@ -1,6 +1,7 @@
 <template>
   <div id="home" class="home-page">
     <HomeHero @select="selectHomeBanner" />
+    <WebsitePromotions />
 
     <button
       class="contact-card"
@@ -40,6 +41,7 @@
               <img v-if="item.icon" :src="item.icon" alt="" loading="lazy" decoding="async" />
             </div>
             <div class="services-grid__content">
+              <span v-if="tilePromo(item.categoryId)" class="services-grid__promo">{{ tilePromo(item.categoryId) }}</span>
               <h3>{{ item.title }}</h3>
               <span v-if="item.description" class="services-grid__description">
                 {{ item.description }}
@@ -91,7 +93,7 @@
               <img :src="item.icon" :alt="item.title" />
             </div>
             <span class="home-section-label home-section-label--light">
-              {{ t("client.home.steps.number", { number: String(index + 1).padStart(2, "0") }) }}
+              {{ t("client.home.steps.number", { number: index + 1 }) }}
             </span>
             <h3>{{ item.title }}</h3>
             <p>{{ item.desc }}</p>
@@ -157,7 +159,9 @@ import { computed, onBeforeUnmount, onMounted, ref } from "vue"
 import { useI18n } from "vue-i18n"
 import { useRouter } from "vue-router"
 import HomeHero from "@/modules/client/components/HomeHero.vue"
+import WebsitePromotions from "@/modules/client/components/WebsitePromotions.vue"
 import PackageShowcase from "@/modules/client/components/PackageShowcase.vue"
+import { serviceTagLabels, useWebsitePromotion } from "@/modules/client/utils/website-promotion"
 import {
   level1Categories,
   type Level1CategoryRecord,
@@ -211,6 +215,9 @@ const reasonIcons = [
 ]
 
 const { t, locale } = useI18n({ useScope: "global" })
+const { home: websitePromotions } = useWebsitePromotion(() => "home")
+const tilePromo = (categoryId: string) =>
+  serviceTagLabels(websitePromotions.value.serviceTags, "", categoryId, locale.value)[0] || ""
 const router = useRouter()
 
 const serviceMenuRecords = ref<Level1CategoryRecord[]>([])
@@ -625,6 +632,17 @@ onBeforeUnmount(() => {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
+}
+
+.services-grid__promo {
+  display: inline-flex;
+  margin-bottom: 6px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: #e8faf7;
+  color: #0a7a6a;
+  font-size: 11px;
+  font-weight: 700;
 }
 
 .services-grid__item h3 {

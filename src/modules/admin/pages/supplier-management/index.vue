@@ -2838,6 +2838,14 @@
                     </span>
                   </label>
                 </div>
+                <button
+                  v-if="showOptionPrices && (personHourDetail || optionPrices.length)"
+                  type="button"
+                  class="option-price-open"
+                  @click="optionPricesOpen = true"
+                >
+                  {{ t("admin.supplierPricing.viewOptionPrices") }}
+                </button>
               </section>
 
               <section
@@ -3077,18 +3085,29 @@
                 </div>
               </section>
 
-              <div v-if="hourlyQuote && !addonOnlyQuote && showOptionPrices && optionPrices.length" class="option-prices">
+              <el-dialog
+                v-model="optionPricesOpen"
+                class="supplier-form-dialog option-price-dialog"
+                :title="t('admin.supplierPricing.optionPriceTitle')"
+                width="min(960px, calc(100vw - 32px))"
+                append-to-body
+              >
+              <div
+                v-if="hourlyQuote && !addonOnlyQuote && showOptionPrices && (personHourDetail || optionPrices.length)"
+                v-loading="personHourDetail && staffHourLoading"
+                class="option-prices"
+              >
                     <div class="option-prices__head">
-                      <strong>{{ t("admin.supplierPricing.optionPriceTitle") }}</strong>
                       <p>{{ t(optionPriceHintKey) }}</p>
                     </div>
+                    <p v-if="staffHourError" class="option-prices__error">{{ staffHourError }}</p>
                     <div class="option-prices__stats">
-                      <span>{{ t("admin.supplierPricing.optionPriceCount", { count: optionPrices.length }) }}</span>
-                      <span v-if="optionPriceRange.low != null">{{
-                        t("admin.supplierPricing.optionPriceLow", { price: moneyText(optionPriceRange.low) })
+                      <span>{{ t("admin.supplierPricing.optionPriceCount", { count: quoteDetailRows.length }) }}</span>
+                      <span v-if="quoteDetailRange.low != null">{{
+                        t("admin.supplierPricing.optionPriceLow", { price: moneyText(quoteDetailRange.low) })
                       }}</span>
-                      <span v-if="optionPriceRange.high != null">{{
-                        t("admin.supplierPricing.optionPriceHigh", { price: moneyText(optionPriceRange.high) })
+                      <span v-if="quoteDetailRange.high != null">{{
+                        t("admin.supplierPricing.optionPriceHigh", { price: moneyText(quoteDetailRange.high) })
                       }}</span>
                     </div>
                     <div class="option-prices__filters">
@@ -3104,7 +3123,7 @@
                       >
                         <option value="">{{ t("admin.supplierPricing.optionPriceAllGroups") }}</option>
                         <option
-                          v-for="group in optionPriceGroups"
+                          v-for="group in quoteDetailGroups"
                           :key="group.key"
                           :value="group.key"
                         >
@@ -3118,16 +3137,18 @@
                           <tr>
                             <th>{{ t("admin.supplierPricing.optionPriceColOption") }}</th>
                             <th>{{ t("admin.supplierPricing.optionPriceColNote") }}</th>
+                            <th>{{ t("admin.supplierPricing.optionPriceColCalc") }}</th>
+                            <th>{{ t("admin.supplierPricing.optionPriceColExcl") }}</th>
                             <th>{{ t("admin.supplierPricing.optionPriceColPrice") }}</th>
                           </tr>
                         </thead>
                         <tbody>
-                          <tr v-if="!visibleOptionPrices.length">
-                            <td colspan="3" class="is-empty">{{ t("admin.supplierPricing.optionPriceEmpty") }}</td>
+                          <tr v-if="!visibleQuoteDetailRows.length">
+                            <td colspan="5" class="is-empty">{{ t("admin.supplierPricing.optionPriceEmpty") }}</td>
                           </tr>
-                          <template v-for="group in visibleOptionPriceGroups" :key="group.key">
+                          <template v-for="group in visibleQuoteDetailGroups" :key="group.key">
                             <tr v-if="group.title" class="is-group">
-                              <td colspan="3">
+                              <td colspan="5">
                                 <b>{{ group.title }}</b>
                                 <em>{{ t("admin.supplierPricing.optionPriceGroupCount", { count: group.rows.length }) }}</em>
                               </td>
@@ -3136,8 +3157,14 @@
                               <td class="is-option">
                                 <b>{{ row.title }}</b>
                                 <small v-if="row.detail">{{ row.detail }}</small>
+                                <span v-if="row.types">{{ row.types }}</span>
                               </td>
-                              <td class="is-note">{{ row.remark || (row.pills.length ? row.pills.join(" · ") : row.note) }}</td>
+                              <td class="is-note">
+                                <span v-if="row.remark && !row.pills.length">{{ row.remark }}</span>
+                                <span v-for="pill in row.pills" :key="pill">{{ pill }}</span>
+                              </td>
+                              <td class="is-calc">{{ row.calculation || "—" }}</td>
+                              <td class="is-money">{{ row.excl == null ? "—" : `AED ${moneyText(row.excl)}` }}</td>
                               <td class="is-price">{{ row.price == null ? "—" : `AED ${moneyText(row.price)}` }}</td>
                             </tr>
                           </template>
@@ -3148,6 +3175,7 @@
                   {{ t("admin.supplierPortal.vatNote") }}
                 </p>
               </div>
+              </el-dialog>
             </div>
 
             <aside class="pricing-review-panel">
@@ -4680,6 +4708,7 @@ import { useI18n } from "vue-i18n"
 import { useRouter } from "vue-router"
 import AdminBreadcrumb from "@/modules/admin/components/AdminBreadcrumb.vue"
 import SupplierDocumentPreview from "@/modules/admin/components/SupplierDocumentPreview.vue"
+import { openPdfInNewPage } from "@/modules/admin/utils/documentPreview"
 import {
   onboardingMine,
   onboardingResubmit,
@@ -4733,7 +4762,7 @@ import {
   materialHourServiceHours,
   materialHourStaffCount,
 } from "@/modules/admin/utils/supplier-mine"
-import { listBySpu, listSpuAttachCatalog } from "@/modules/admin/api/spu"
+import { listBySpu, listSpuAttachCatalog, staffHourGroups } from "@/modules/admin/api/spu"
 import SupplierAvailability from "@/modules/admin/pages/supplier-management/availability.vue"
 import StaffBoard from "@/modules/admin/pages/supplier-management/staff-board.vue"
 import { useAdminSessionStore } from "@/modules/admin/stores/session"
@@ -4995,6 +5024,7 @@ const profileExtra = ref<Record<string, unknown>>({})
 const independentOperationsReady = ref(false)
 const profileSubmittedOpen = ref(false)
 const documentNames = ref<Record<string, string>>({})
+const pdfPreviewUrls = ref<Record<string, string>>({})
 const needsResubmit = computed(
   () =>
     profileEditable.value &&
@@ -5247,9 +5277,14 @@ const filePreview = reactive({
 })
 
 const openFilePreview = (url: string) => {
+  const kind = fileKind(url)
+  if (kind === "pdf") {
+    openPdfInNewPage(url, pdfPreviewUrls.value)
+    return
+  }
   filePreview.url = url
   filePreview.name = fileNameFromUrl(url)
-  filePreview.kind = fileKind(url)
+  filePreview.kind = kind
   filePreview.open = true
 }
 
@@ -6139,8 +6174,31 @@ const quoteCategory = ref(
 const quoteStatusFilter = ref("all")
 const quoteScreen = ref<"setup" | "review" | "submitted">("setup")
 const quoteConfirmed = ref(false)
+type StaffHourSku = {
+  skuId: number
+  skuCode?: string
+  name?: string
+  nameI18n?: Record<string, string>
+  withMaterial?: boolean | null
+  quote?: number | string | null
+  price?: number | string | null
+}
+type StaffHourGroup = {
+  staffCount?: number | string | null
+  serviceHours?: number | string | null
+  title?: string
+  titleI18n?: Record<string, string>
+  price?: number | string | null
+  skus?: StaffHourSku[]
+}
 const optionPriceQuery = ref("")
 const optionPriceGroup = ref("")
+const optionPricesOpen = ref(false)
+const staffHourLoading = ref(false)
+const staffHourError = ref("")
+const staffHourGroupsData = ref<StaffHourGroup[]>([])
+let staffHourRequest = 0
+let staffHourTimer: ReturnType<typeof setTimeout> | null = null
 const liveQuotes = ref<any[]>([])
 const packageCatalog = ref<any[]>([])
 const packageFlat = ref<any[]>([])
@@ -6442,6 +6500,7 @@ const quantityRateFields = [
 const unitQuoteMode = (mode?: number | null) => mode === 2 || mode === 3 || mode === 4
 const singleRateMode = (mode?: number | null) => mode === 3 || mode === 4
 const hourlyQuote = computed(() => unitQuoteMode(quoteDialog.quoteMode))
+const personHourDetail = computed(() => quoteDialog.quoteMode === 2 || quoteDialog.quoteMode === 3)
 const hourlyRuleKey = computed(() =>
   quoteDialog.quoteMode === 4
     ? 'admin.supplierPortal.quantityRule'
@@ -8994,6 +9053,160 @@ const visibleOptionPriceGroups = computed(() => {
   }
   return groups
 })
+const quoteDetailRows = computed(() =>
+  personHourDetail.value ? staffHourDetailRows.value : optionPrices.value,
+)
+const quoteDetailRange = computed(() => {
+  const prices = quoteDetailRows.value
+    .map((row) => row.price)
+    .filter((price): price is number => price != null)
+  if (!prices.length) return { low: null, high: null }
+  return { low: Math.min(...prices), high: Math.max(...prices) }
+})
+const quoteDetailGroups = computed(() => {
+  const groups: Array<{ key: string; title: string }> = []
+  for (const row of quoteDetailRows.value) {
+    if (!row.groupTitle || groups.some((group) => group.key === row.groupId)) continue
+    groups.push({ key: row.groupId, title: row.groupTitle })
+  }
+  return groups
+})
+const visibleQuoteDetailRows = computed(() => {
+  const query = optionPriceQuery.value.trim().toLowerCase()
+  return quoteDetailRows.value.filter((row) => {
+    if (optionPriceGroup.value && row.groupId !== optionPriceGroup.value) return false
+    if (!query) return true
+    return [row.title, row.detail, row.types, row.groupTitle, row.text, row.note, row.remark]
+      .join(" ")
+      .toLowerCase()
+      .includes(query)
+  })
+})
+const visibleQuoteDetailGroups = computed(() => {
+  const groups: Array<{ key: string; title: string; rows: typeof visibleQuoteDetailRows.value }> = []
+  for (const row of visibleQuoteDetailRows.value) {
+    let group = groups.find((item) => item.key === row.groupId)
+    if (!group) {
+      group = { key: row.groupId, title: row.groupTitle, rows: [] }
+      groups.push(group)
+    }
+    group.rows.push(row)
+  }
+  return groups
+})
+const staffHourText = (i18n: Record<string, string> | undefined, plain?: string) => {
+  const english = String(locale.value).toLowerCase().startsWith("en")
+  return (english ? i18n?.en : i18n?.zh) || i18n?.zh || i18n?.en || plain || ""
+}
+const staffHourCount = (value: unknown) => {
+  if (value == null || value === "") return ""
+  const amount = Number(value)
+  if (!Number.isFinite(amount) || amount <= 0) return ""
+  return String(Math.round(amount * 100) / 100)
+}
+const staffHourAmount = (value: unknown) => {
+  if (value == null || value === "") return null
+  const amount = Number(value)
+  return Number.isFinite(amount) ? amount : null
+}
+const staffHourDetailRows = computed(() => {
+  const role = cleaningQuote.value ? "cleaner" as const : "tech" as const
+  return staffHourGroupsData.value.flatMap((group) => {
+    const staff = staffHourCount(group.staffCount)
+    const hours = staffHourCount(group.serviceHours)
+    const roleLabel = staff ? staffRoleLabel(staff, role) : ""
+    const groupId = `${staff}|${hours}`
+    const groupTitle = staffHourText(group.titleI18n, group.title)
+    return (group.skus || []).map((sku) => {
+      const rate = staffHourAmount(sku.quote)
+      const price = staffHourAmount(sku.price)
+      return {
+        id: sku.skuId,
+        groupId,
+        groupTitle,
+        title: staffHourText(sku.nameI18n, sku.name || sku.skuCode || String(sku.skuId)),
+        detail: "",
+        types: "",
+        text: "",
+        remark: "",
+        note: "",
+        pills: staff && hours
+          ? [
+              t("admin.supplierPricing.optionPriceStaff", { count: staff, role: roleLabel }),
+              t("admin.supplierPricing.optionPriceHour", { count: hours }),
+            ]
+          : [],
+        calculation: rate != null && staff && hours
+          ? t("admin.supplierPricing.optionPriceCalc", {
+              rate: moneyText(rate),
+              staff,
+              role: staffRoleLabel(staff, role, true),
+              hours,
+            })
+          : "",
+        excl: price == null ? null : exclVat(price),
+        price,
+      }
+    })
+  })
+})
+const finiteRate = (value: unknown) => {
+  const amount = staffHourAmount(value)
+  return amount != null && amount > 0 ? amount : undefined
+}
+const loadStaffHourDetail = async () => {
+  const productId = Number(quoteDialog.spuId)
+  const mode = quoteDialog.quoteMode
+  if (!optionPricesOpen.value || !productId || (mode !== 2 && mode !== 3)) return
+  const requestId = ++staffHourRequest
+  staffHourLoading.value = true
+  staffHourError.value = ""
+  try {
+    const payload = unwrap(await staffHourGroups({
+      productId,
+      supplierId: supplierRecordId.value || undefined,
+      unitPrice: mode === 3 ? finiteRate(quoteDialog.unitPrice) : undefined,
+      unitPriceWithMaterial: mode === 2 ? finiteRate(quoteDialog.unitPriceWithMaterial) : undefined,
+      unitPriceWithoutMaterial: mode === 2 ? finiteRate(quoteDialog.unitPriceWithoutMaterial) : undefined,
+    })) as { groups?: StaffHourGroup[] } | null
+    if (requestId !== staffHourRequest) return
+    staffHourGroupsData.value = Array.isArray(payload?.groups) ? payload.groups : []
+  } catch (error: any) {
+    if (requestId !== staffHourRequest) return
+    staffHourGroupsData.value = []
+    staffHourError.value = error?.message || t("admin.supplierPricing.optionPriceLoadFailed")
+  } finally {
+    if (requestId === staffHourRequest) staffHourLoading.value = false
+  }
+}
+const scheduleStaffHourDetail = () => {
+  if (staffHourTimer) clearTimeout(staffHourTimer)
+  staffHourTimer = setTimeout(() => {
+    staffHourTimer = null
+    void loadStaffHourDetail()
+  }, 250)
+}
+watch(
+  () => [
+    optionPricesOpen.value,
+    quoteDialog.quoteMode,
+    quoteDialog.spuId,
+    quoteDialog.unitPrice,
+    quoteDialog.unitPriceWithMaterial,
+    quoteDialog.unitPriceWithoutMaterial,
+    supplierRecordId.value,
+  ],
+  () => {
+    if (!optionPricesOpen.value || !personHourDetail.value) {
+      if (staffHourTimer) clearTimeout(staffHourTimer)
+      return
+    }
+    scheduleStaffHourDetail()
+  },
+)
+onBeforeUnmount(() => {
+  if (staffHourTimer) clearTimeout(staffHourTimer)
+})
 const optionPriceLine = (row: {
   title?: string
   detail?: string
@@ -9335,6 +9548,10 @@ const applyProfile = (detail: any) => {
   documentNames.value =
     extra.documentNames && typeof extra.documentNames === "object"
       ? { ...extra.documentNames }
+      : {}
+  pdfPreviewUrls.value =
+    detail?.pdfPreviewUrls && typeof detail.pdfPreviewUrls === "object"
+      ? { ...detail.pdfPreviewUrls }
       : {}
   bankForm.accountName = String(bank.accountName || "")
   const savedBank = String(bank.bankName || "")
@@ -11459,6 +11676,9 @@ const openServiceQuote = async (row: {
   quoteConfirmed.value = false
   optionPriceQuery.value = ""
   optionPriceGroup.value = ""
+  optionPricesOpen.value = false
+  staffHourGroupsData.value = []
+  staffHourError.value = ""
   quoteScreen.value =
     router.currentRoute.value.query.quoteStep === "review" ? "review" : "setup"
   quoteDialog.loading = true
@@ -17173,6 +17393,30 @@ watch(areaKeyword, (keyword) => {
 .rate-card > .option-prices {
   grid-column: 1 / -1;
 }
+.option-price-open {
+  justify-self: start;
+  margin-top: 12px;
+  height: 36px;
+  padding: 0 14px;
+  border: 1px solid #e4d8c6;
+  border-radius: 10px;
+  background: #fff;
+  color: #1b2839;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 650;
+  cursor: pointer;
+}
+.option-price-open:hover {
+  border-color: #c9b89a;
+  background: #faf7f2;
+}
+.option-price-dialog .option-prices {
+  margin-top: 0;
+  padding: 0;
+  background: transparent;
+  border: 0;
+}
 .option-prices {
   display: grid;
   gap: 12px;
@@ -17190,6 +17434,12 @@ watch(areaKeyword, (keyword) => {
 .option-prices__head p {
   margin: 4px 0 0;
   color: #7a7166;
+  font-size: 12px;
+  line-height: 1.5;
+}
+.option-prices__error {
+  margin: 0;
+  color: #a33b32;
   font-size: 12px;
   line-height: 1.5;
 }

@@ -158,8 +158,8 @@ const copy = computed(() =>
         refundAmount: "预计退款金额",
         refundHint: "退款将原路退回，实际到账时间以发卡行处理为准。",
         subtotal: "小计",
-        vat: "增值税 VAT（5%）",
-        total: "总额",
+        vat: "增值税（VAT 5%）",
+        total: "订单总计（含税）",
         continue:
           props.context === "cancellation"
             ? "同意并继续取消"

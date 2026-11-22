@@ -1055,6 +1055,115 @@
                   </div>
                 </div>
               </div>
+              <section v-if="detailRow.campaign" class="order-price-card">
+                <header class="order-price-card__head">
+                  <div>
+                    <h4>{{ t("admin.orders.detail.campaign") }}</h4>
+                    <p>
+                      <b>{{ detailRow.campaign.name }}</b>
+                    </p>
+                    <small v-if="detailRow.campaign.offer">{{ detailRow.campaign.offer }}</small>
+                  </div>
+                  <em v-if="detailRow.campaign.status">{{ detailRow.campaign.status }}</em>
+                </header>
+                <table class="order-price-card__table">
+                  <thead>
+                    <tr>
+                      <th>{{ t("admin.orders.detail.priceItem") }}</th>
+                      <th>{{ t("admin.orders.detail.catalogPrice") }}</th>
+                      <th>{{ t("admin.orders.detail.campaignPrice") }}</th>
+                      <th>{{ t("admin.orders.detail.campaignDiscount") }}</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td>
+                        <b>{{ t("admin.orders.detail.lineSku") }}</b>
+                        <small v-if="detailRow.campaign.quantity">× {{ detailRow.campaign.quantity }}</small>
+                      </td>
+                      <td>
+                        <b>{{ detailRow.campaign.catalogInclText }}</b>
+                        <small>{{ t("admin.orders.detail.exclTax") }} {{ detailRow.campaign.catalogText }}</small>
+                      </td>
+                      <td>
+                        <b>{{ detailRow.campaign.campaignInclText }}</b>
+                        <small>{{ t("admin.orders.detail.exclTax") }} {{ detailRow.campaign.campaignText }}</small>
+                      </td>
+                      <td class="is-save">
+                        − {{ detailRow.campaign.discountInclText }}
+                        <small>{{ t("admin.orders.detail.exclTax") }} {{ detailRow.campaign.discountText }}</small>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </section>
+              <section v-if="detailRow.marketing" class="order-price-card">
+                <header class="order-price-card__head">
+                  <div>
+                    <h4>{{ t("admin.orders.detail.priceLines") }}</h4>
+                    <p>
+                      <b>{{ detailRow.marketing.code }}</b>
+                      <span v-if="detailRow.marketing.name">{{ detailRow.marketing.name }}</span>
+                    </p>
+                    <small v-if="detailRow.marketing.offer">{{ detailRow.marketing.offer }}</small>
+                  </div>
+                  <em v-if="detailRow.marketing.status">{{ detailRow.marketing.status }}</em>
+                </header>
+                <table class="order-price-card__table">
+                  <thead>
+                    <tr>
+                      <th>{{ t("admin.orders.detail.priceItem") }}</th>
+                      <th>{{ t("admin.orders.detail.originalPrice") }}</th>
+                      <th>{{ t("admin.orders.detail.discountedPrice") }}</th>
+                      <th>{{ t("admin.orders.detail.couponDiscount") }}</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr v-for="line in detailRow.marketing.lines" :key="line.key">
+                      <td>
+                        <b>{{ line.name }}</b>
+                        <small>{{ line.kind }}<template v-if="line.quantity"> · × {{ line.quantity }}</template></small>
+                        <small v-if="line.catalogText">{{ t("admin.orders.detail.catalogOriginal") }} {{ line.catalogText }}</small>
+                      </td>
+                      <td>
+                        <b>{{ line.originalText }}</b>
+                        <small>{{ t("admin.orders.detail.exclTax") }} {{ line.originalExclText }}</small>
+                      </td>
+                      <td>
+                        <b>{{ line.discountedText }}</b>
+                        <small>{{ t("admin.orders.detail.exclTax") }} {{ line.discountedExclText }}</small>
+                      </td>
+                      <td class="is-save">− {{ line.discountText }}</td>
+                    </tr>
+                  </tbody>
+                  <tfoot>
+                    <tr>
+                      <th>{{ t("admin.orders.detail.priceTotal") }}</th>
+                      <td>
+                        <b>{{ detailRow.marketing.beforeText }}</b>
+                        <small>{{ t("admin.orders.detail.exclTax") }} {{ detailRow.marketing.saleText }}</small>
+                      </td>
+                      <td>
+                        <b>{{ detailRow.marketing.payableTotalText }}</b>
+                        <small>{{ t("admin.orders.detail.exclTax") }} {{ detailRow.marketing.payableText }}</small>
+                      </td>
+                      <td class="is-save">− {{ detailRow.marketing.discountText }}</td>
+                    </tr>
+                  </tfoot>
+                </table>
+                <div class="order-price-card__shares">
+                  <article>
+                    <span>{{ t("admin.orders.detail.platformShare") }}</span>
+                    <strong>{{ detailRow.marketing.platformRatioText }}</strong>
+                    <b>{{ detailRow.marketing.platformAmountText }}</b>
+                  </article>
+                  <article>
+                    <span>{{ t("admin.orders.detail.supplierShare") }}</span>
+                    <strong>{{ detailRow.marketing.supplierRatioText }}</strong>
+                    <b>{{ detailRow.marketing.supplierAmountText }}</b>
+                  </article>
+                </div>
+              </section>
               <div class="order-detail__summary-row">
                 <span>{{ t("admin.orders.detail.subtotal") }}</span>
                 <strong>{{ displayValue(detailRow.subtotalText) }}</strong>
@@ -2167,9 +2276,54 @@ type OrderRow = {
   subtotalText: string
   taxText: string
   amountText: string
+  marketing: OrderMarketing | null
+  campaign: OrderCampaign | null
   createdAt: string
   lineItems: OrderLineItem[]
   refundInfo: OrderRefundInfo | null
+}
+
+type OrderPriceLine = {
+  key: string
+  name: string
+  kind: string
+  quantity: string
+  catalogText: string
+  originalText: string
+  originalExclText: string
+  discountedText: string
+  discountedExclText: string
+  discountText: string
+}
+
+type OrderCampaign = {
+  name: string
+  offer: string
+  status: string
+  quantity: string
+  catalogText: string
+  catalogInclText: string
+  campaignText: string
+  campaignInclText: string
+  discountText: string
+  discountInclText: string
+}
+
+type OrderMarketing = {
+  code: string
+  name: string
+  offer: string
+  status: string
+  lines: OrderPriceLine[]
+  beforeText: string
+  saleText: string
+  discountText: string
+  payableText: string
+  payableTotalText: string
+  platformRatioText: string
+  platformAmountText: string
+  supplierRatioText: string
+  supplierAmountText: string
 }
 
 type OrderRefundInfo = {
@@ -3636,6 +3790,82 @@ const addonPaymentLabel = (value: unknown) => {
   return t("admin.orders.detail.addonPayment", { id })
 }
 
+const ratioText = (value: unknown) => {
+  if (value == null || String(value).trim() === "") return "-"
+  const amount = Number(value)
+  if (!Number.isFinite(amount)) return String(value)
+  return `${amount.toFixed(2).replace(/\.00$/, "")}%`
+}
+
+const priceLineKind = (value: unknown) => {
+  const kind = String(value || "").toUpperCase()
+  if (kind === "ATTACH") return t("admin.orders.detail.lineAttach")
+  if (kind === "PACKAGE") return t("admin.orders.detail.linePackage")
+  return t("admin.orders.detail.lineSku")
+}
+
+const parsePriceLines = (coupon: any): OrderPriceLine[] => {
+  const rows = Array.isArray(coupon?.lines) ? coupon.lines : []
+  return rows.map((line: any, index: number) => {
+    const zh = String(locale.value || "").startsWith("zh")
+    const name = String((zh ? line?.name : line?.nameEn || line?.name) || "").trim() || "-"
+    return {
+      key: `${line?.lineType || "line"}-${line?.skuId || line?.attachValueId || line?.packageId || index}`,
+      name,
+      kind: priceLineKind(line?.lineType),
+      quantity: line?.quantity == null ? "" : String(line.quantity),
+      catalogText: line?.catalogOriginalWithoutTax == null ? "" : formatMoneyText(line.catalogOriginalWithoutTax),
+      originalText: formatMoneyText(line?.originalWithTax),
+      originalExclText: formatMoneyText(line?.originalWithoutTax),
+      discountedText: formatMoneyText(line?.discountedWithTax),
+      discountedExclText: formatMoneyText(line?.discountedWithoutTax),
+      discountText: formatMoneyText(line?.discountAmount),
+    }
+  })
+}
+
+const parseCampaign = (item: any): OrderCampaign | null => {
+  const campaign = item?.campaign
+  if (!campaign || typeof campaign !== "object") return null
+  if (campaign.catalogUnitPrice == null && campaign.discountAmountWithoutTax == null) return null
+  return {
+    name: pickI18nValue(campaign.nameI18n, campaign.name || t("admin.orders.detail.campaign")),
+    offer: pickI18nValue(campaign.offerI18n, campaign.offerText || ""),
+    status: pickI18nValue(campaign.redemptionStatusI18n, ""),
+    quantity: campaign.quantity == null ? "" : String(campaign.quantity),
+    catalogText: formatMoneyText(campaign.catalogAmountWithoutTax),
+    catalogInclText: formatMoneyText(campaign.catalogAmountWithTax),
+    campaignText: formatMoneyText(campaign.campaignAmountWithoutTax),
+    campaignInclText: formatMoneyText(campaign.campaignAmountWithTax),
+    discountText: formatMoneyText(campaign.discountAmountWithoutTax),
+    discountInclText: formatMoneyText(campaign.discountAmountWithTax),
+  }
+}
+
+const parseMarketing = (item: any): OrderMarketing | null => {
+  const coupon = item?.coupon
+  if (!coupon || typeof coupon !== "object") return null
+  const code = String(coupon.couponCode || "").trim()
+  const lines = parsePriceLines(coupon)
+  if (!code && coupon.discountAmount == null && !lines.length) return null
+  return {
+    code,
+    name: pickI18nValue(coupon.nameI18n, coupon.name || ""),
+    offer: pickI18nValue(coupon.offerI18n, coupon.offerText || ""),
+    status: pickI18nValue(coupon.redemptionStatusI18n, ""),
+    lines,
+    beforeText: formatMoneyText(coupon.amountBeforeDiscount),
+    saleText: formatMoneyText(coupon.saleAmountWithoutTax),
+    discountText: formatMoneyText(coupon.discountAmount),
+    payableText: formatMoneyText(coupon.payableWithoutTax),
+    payableTotalText: formatMoneyText(coupon.payableWithTax),
+    platformRatioText: ratioText(coupon.platformRatio),
+    platformAmountText: formatMoneyText(coupon.platformAmount),
+    supplierRatioText: ratioText(coupon.supplierRatio),
+    supplierAmountText: formatMoneyText(coupon.supplierAmount),
+  }
+}
+
 const formatMoneyText = (value: unknown, currency = "AED") => {
   const text = String(value ?? "").trim()
   if (!text) return "-"
@@ -4390,6 +4620,8 @@ const parseOrderRow = (item: any): OrderRow => {
     ]),
     taxText: parseMoneyText(item, ["taxText", "taxAmount", "vatAmount", "vat"]),
     amountText: parseAmountText(item),
+    marketing: parseMarketing(item),
+    campaign: parseCampaign(item),
     createdAt: String(
       order.orderTime ??
         item.orderTime ??
@@ -6531,6 +6763,113 @@ onBeforeUnmount(() => {
   border-bottom: 1px solid #edf0f4;
   color: #05152b;
   font-size: 16px;
+}
+.order-price-card {
+  margin: 4px 0 18px;
+  padding: 14px;
+  border: 1px solid #e3eaf2;
+  border-radius: 14px;
+  background: #f8fafd;
+}
+.order-price-card__head {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: flex-start;
+  margin-bottom: 12px;
+}
+.order-price-card__head h4 {
+  margin: 0;
+  font-size: 14px;
+}
+.order-price-card__head p {
+  margin: 4px 0 0;
+  color: #303b4b;
+}
+.order-price-card__head span,
+.order-price-card__head small {
+  margin-left: 8px;
+  color: #6b7a90;
+}
+.order-price-card__head em {
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: #e8faf7;
+  color: #0a7a6a;
+  font-style: normal;
+  font-size: 12px;
+  font-weight: 700;
+}
+.order-price-card__table {
+  width: 100%;
+  border-collapse: collapse;
+}
+.order-price-card__table th,
+.order-price-card__table td {
+  padding: 10px 8px;
+  border-top: 1px solid #e3eaf2;
+  text-align: right;
+  vertical-align: top;
+}
+.order-price-card__table th:first-child,
+.order-price-card__table td:first-child {
+  text-align: left;
+}
+.order-price-card__table thead th {
+  border-top: 0;
+  color: #6b7a90;
+  font-size: 12px;
+  font-weight: 700;
+}
+.order-price-card__table b,
+.order-price-card__table small {
+  display: block;
+}
+.order-price-card__table small {
+  margin-top: 2px;
+  color: #6b7a90;
+  font-size: 12px;
+}
+.order-price-card__table tfoot th,
+.order-price-card__table tfoot td {
+  background: #fff;
+  font-weight: 700;
+}
+.order-price-card__table .is-save {
+  color: #0a7a6a;
+  font-weight: 700;
+}
+.order-price-card__shares {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-top: 12px;
+}
+.order-price-card__shares article {
+  padding: 12px;
+  border-radius: 12px;
+  background: #fff;
+}
+.order-price-card__shares span,
+.order-price-card__shares strong,
+.order-price-card__shares b {
+  display: block;
+}
+.order-price-card__shares span {
+  color: #6b7a90;
+  font-size: 12px;
+}
+.order-price-card__shares strong {
+  margin-top: 4px;
+  color: #06182f;
+  font-size: 18px;
+}
+.order-price-card__shares b {
+  margin-top: 2px;
+  color: #0a7a6a;
+}
+.order-detail__summary-row.is-discount strong {
+  color: #0a7a6a;
 }
 .order-detail__service-heading,
 .order-detail__summary-row {

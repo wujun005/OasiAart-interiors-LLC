@@ -85,7 +85,7 @@ const copy = computed(() => locale.value.startsWith('zh')
     processLink: '入驻流程',
     eligibilityTitle: '企业申请条件',
     eligibility: ['在迪拜提供上门服务', '拥有自己的专业服务团队', '持有有效营业执照'],
-    processTitle: '如何成为合作伙伴',
+    processTitle: '如何开展商家合作',
     steps: [
       { title: '填写企业资料', description: '提供营业执照信息、联系方式，选择可提供的服务。' },
       { title: '提交申请', description: 'HourX 团队审核您提交的资料。' },

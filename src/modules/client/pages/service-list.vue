@@ -103,6 +103,7 @@
 import { computed, ref, watch } from "vue"
 import { toPlainText } from "@/modules/client/utils/plain-text"
 import { bizTagLabels } from "@/modules/client/utils/biz-tag"
+import { serviceTagLabels, useWebsitePromotion } from "@/modules/client/utils/website-promotion"
 import { useI18n } from "vue-i18n"
 import { type LocationQueryValue, useRoute, useRouter } from "vue-router"
 import {
@@ -146,6 +147,7 @@ const cardIconSet = [
 ]
 
 const { t, locale } = useI18n({ useScope: "global" })
+const { home: websitePromotions } = useWebsitePromotion(() => "services")
 const route = useRoute()
 const router = useRouter()
 
@@ -310,7 +312,10 @@ const serviceCards = computed<ServiceCardView[]>(() => {
         description: toPlainText(pickI18nValue(item.descI18n, "")),
         price: formatPrice(item.minNotIncTaxPrice),
         icon: item.imageUrls?.[0] || cardIconSet[index % cardIconSet.length],
-        tags: bizTagLabels(item.tags, locale.value),
+        tags: [...new Set([
+          ...serviceTagLabels(websitePromotions.value.serviceTags, item.id, categoryId.value, locale.value),
+          ...bizTagLabels(item.tags, locale.value),
+        ])],
       }
     })
     .filter((item) => item.title)

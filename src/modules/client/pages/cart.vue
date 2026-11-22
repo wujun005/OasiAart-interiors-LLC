@@ -158,18 +158,37 @@
           <strong>{{ formatAed(item.unitPrice) }}</strong>
         </div>
       </div>
+      <div class="checkout-promo">
+        <PromoCodeField
+          v-if="checkoutItems.length === 1"
+          v-model="promoCode"
+          :loading="promoLoading"
+          :error="promoError"
+          :notice="promoNotice"
+          :applied-code="activeCoupon?.couponCode || ''"
+          @apply="applyPromo"
+          @remove="resetPromo"
+        />
+        <p v-else-if="checkoutItems.length > 1" class="checkout-promo-note">
+          {{ t('client.productDetail.booking.promoSingleOnly') }}
+        </p>
+      </div>
       <dl class="checkout-dialog__total">
         <div>
           <dt>{{ t('client.cart.subtotal') }}</dt>
           <dd>{{ formatAed(checkoutSubtotal) }}</dd>
         </div>
+        <div v-if="activeCoupon">
+          <dt>{{ t('client.productDetail.booking.promoDiscount') }}</dt>
+          <dd>-{{ formatAed(activeCoupon.discountAmount) }}</dd>
+        </div>
         <div>
           <dt>{{ t('client.cart.vat') }}</dt>
-          <dd>{{ formatAed(checkoutTax) }}</dd>
+          <dd>{{ formatAed(payableTax) }}</dd>
         </div>
         <div>
           <dt>{{ t('client.cart.estimatedTotal') }}</dt>
-          <dd>{{ formatAed(checkoutTotal) }}</dd>
+          <dd>{{ formatAed(payableTotal) }}</dd>
         </div>
       </dl>
       <BookingPolicyDetails
@@ -196,8 +215,9 @@
       :customer-session-client-secret="stripeCustomerSessionClientSecret"
       :locale="locale"
       :subtotal="checkoutSubtotal"
-      :tax="checkoutTax"
-      :total="checkoutTotal"
+      :voucher-discount="activeCoupon?.discountAmount || 0"
+      :tax="payableTax"
+      :total="payableTotal"
       @close="stripeVisible = false"
       @error="handleStripeError"
       @paid="handlePaymentSuccess"
@@ -215,6 +235,9 @@ import { ArrowRight, ShoppingCart } from '@element-plus/icons-vue';
 import fallbackImage from '@/assets/images/client/kv.png';
 import { useCart, type CartItem, type CartLocalizedText } from '@/modules/client/composables/useCart';
 import { checkoutCart } from '@/modules/client/api';
+import PromoCodeField from '@/modules/client/components/PromoCodeField.vue';
+import { usePromoCode } from '@/modules/client/composables/usePromoCode';
+import { cartItemCouponBody } from '@/modules/client/utils/promo-code';
 import { trackInitiateCheckout } from '@/modules/client/utils/metaPixel';
 import StripePaymentModal from '@/modules/client/components/StripePaymentModal.vue';
 import AgreementDialog from '@/modules/client/components/agreement-dialog.vue';
@@ -266,6 +289,21 @@ const checkoutTotal = computed(() =>
   checkoutItems.value.reduce((sum, item) => sum + item.priceWithTax, 0),
 );
 const checkoutTax = computed(() => checkoutTotal.value - checkoutSubtotal.value);
+const promoSignature = computed(() => checkoutItems.value.length === 1 ? checkoutItems.value[0]?.id || '' : '');
+const {
+  code: promoCode,
+  loading: promoLoading,
+  error: promoError,
+  dropped: promoDropped,
+  active: activeCoupon,
+  apply: submitPromo,
+  reset: resetPromo,
+} = usePromoCode(() => promoSignature.value);
+const payableTax = computed(() => activeCoupon.value?.payableTax ?? checkoutTax.value);
+const payableTotal = computed(() => activeCoupon.value?.payableWithTax ?? checkoutTotal.value);
+const promoNotice = computed(() => (
+  promoDropped.value ? t('client.productDetail.booking.promoRemoved') : ''
+));
 
 const pickLocalizedText = (value?: CartLocalizedText, fallback = '') => {
   const source = value || {};
@@ -385,7 +423,19 @@ const openCheckout = async () => {
   checkoutItemIds.value = [...selectedIds.value];
   if (!checkoutItemIds.value.length) return;
   checkoutPolicyAgreed.value = false;
+  resetPromo();
   checkoutVisible.value = true;
+};
+
+const applyPromo = async () => {
+  const item = checkoutItems.value.length === 1 ? checkoutItems.value[0] : null;
+  if (!item) return;
+  await submitPromo(
+    cartItemCouponBody(item),
+    locale.value,
+    t('client.productDetail.booking.promoEnter'),
+    t('client.productDetail.booking.promoSingleOnly'),
+  );
 };
 
 const openLegal = (docType: LegalDocType) => {
@@ -400,7 +450,12 @@ const confirmCheckout = async () => {
   isCheckingOut.value = true;
   try {
     checkedOutItemIds.value = checkoutIds;
-    const result = await checkoutCart(checkedOutItemIds.value, 'STRIPE', window.location.href);
+    const result = await checkoutCart(
+      checkedOutItemIds.value,
+      'STRIPE',
+      window.location.href,
+      activeCoupon.value?.couponCode,
+    );
     const payment = result?.payment;
     checkoutSummary.value = {
       orderNo: (result?.orderNos || []).join(', '),
@@ -409,7 +464,7 @@ const confirmCheckout = async () => {
         ? itemTitle(checkoutItems.value[0])
         : (locale.value === 'zh' ? `${checkoutItems.value.length} 项家居服务` : `${checkoutItems.value.length} home services`),
       scheduled: checkoutItems.value.length === 1 ? itemSchedule(checkoutItems.value[0]!) : '',
-      amount: String(result?.totalAmount || checkoutTotal.value || ''),
+      amount: String(result?.totalAmount || payableTotal.value || ''),
     };
     const approvalUrl = String(payment?.approvalUrl || '').trim();
     const clientSecret = String(payment?.clientSecret || '').trim();
@@ -417,7 +472,7 @@ const confirmCheckout = async () => {
       trackInitiateCheckout({
         contentIds: result?.orderIds,
         contentName: checkoutSummary.value.service,
-        value: result?.totalAmount || checkoutTotal.value,
+        value: result?.totalAmount || payableTotal.value,
         numItems: checkoutItems.value.length,
       });
     }
@@ -1161,4 +1216,6 @@ onMounted(async () => {
   }
 }
 .checkout-dialog__policy { margin-top: 20px; padding-top: 18px; border-top: 1px solid #e5e7eb; }
+.checkout-promo { margin-top: 14px; }
+.checkout-promo-note { margin: 0; color: var(--hourx-client-muted); font-size: 12px; line-height: 1.4; }
 </style>

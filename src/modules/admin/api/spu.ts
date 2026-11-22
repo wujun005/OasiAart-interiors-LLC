@@ -107,6 +107,16 @@ export function batchUpdateStaffHours(payload: { productId: number; items: Array
   return http.post('/api/productSku/batchUpdateStaffHours', payload);
 }
 
+export function staffHourGroups(params: {
+  productId: number
+  supplierId?: number
+  unitPrice?: number
+  unitPriceWithMaterial?: number
+  unitPriceWithoutMaterial?: number
+}) {
+  return http.get('/api/productSku/staffHourGroups', { params });
+}
+
 // 上架特卖/api/productSpu/enableExclusive/{id}
 export function enableExclusive(id: any) {
   return http.post(`/api/productSpu/enableExclusive/${id}`);

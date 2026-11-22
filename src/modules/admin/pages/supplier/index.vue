@@ -884,6 +884,7 @@ import SupplierDocumentPreview from '@/modules/admin/components/SupplierDocument
 import { listBySpu, listSpuAttachCatalog, page as productPage } from '@/modules/admin/api/spu'
 import { page as supplierPage } from '@/modules/admin/api/supplier'
 import SupplierQuoteImportHistory from '@/modules/admin/components/SupplierQuoteImportHistory.vue'
+import { openPdfInNewPage } from '@/modules/admin/utils/documentPreview'
 import { pickI18nText } from '@/modules/admin/utils/i18n'
 import { dispatchEligibility, licenceExpiryState, supplierOperationsReady } from '@/modules/admin/utils/supplierReviewState'
 import { countQuoteLineStatuses, hourlyCompareGap, hourlyMarginPercent, hourlySupplierCost, quotePriceView, summarizeHourlyCompare, summarizeQuantityCompare } from '@/modules/admin/utils/supplierPortal'
@@ -1190,9 +1191,14 @@ const imagePreviewList = (files: DocFile[]) =>
 const imagePreviewIndex = (files: DocFile[], url: string) =>
   Math.max(0, imagePreviewList(files).indexOf(url))
 const openFilePreview = (url: string) => {
+  const kind = fileKind(url)
+  if (kind === 'pdf') {
+    openPdfInNewPage(url, profile.pdfPreviewUrls)
+    return
+  }
   filePreview.url = url
   filePreview.name = fileNameFromUrl(url)
-  filePreview.kind = fileKind(url)
+  filePreview.kind = kind
   filePreview.open = true
 }
 

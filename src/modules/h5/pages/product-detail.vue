@@ -167,6 +167,17 @@
           <p v-if="skuAvailabilityReady && !skuOffered" class="h5-detail-card__empty">
             {{ t("client.productDetail.booking.skuUnavailable") }}
           </p>
+          <PromoCodeField
+            v-if="skuRequestPayload"
+            v-model="promoCode"
+            class="h5-promo-field"
+            :loading="promoLoading"
+            :error="promoError"
+            :notice="promoNotice"
+            :applied-code="activeCoupon?.couponCode || ''"
+            @apply="applyPromo"
+            @remove="resetPromo"
+          />
         </div>
         <p v-else class="h5-detail-card__empty">
           {{ t("client.productDetail.emptyDesc") }}
@@ -278,7 +289,7 @@
       <div class="h5-detail-bottom__summary">
         <div>
           <span>{{ t("client.productDetail.booking.total") }}</span>
-          <strong>{{ formatAed(totalPrice) }}</strong>
+          <strong>{{ formatAed(displayTotalPrice) }}</strong>
         </div>
       </div>
       <div class="h5-detail-bottom__actions">
@@ -335,6 +346,8 @@ import {
 import { formatCreatedAt } from "@/modules/client/utils/order-date-time"
 import { formatContactName } from "@/modules/client/utils/order-localization"
 import { clearStoredAuthState, getStoredAuthSnapshot } from "@/utils/auth-state"
+import PromoCodeField from "@/modules/client/components/PromoCodeField.vue"
+import { usePromoCode } from "@/modules/client/composables/usePromoCode"
 
 type I18nText = Record<string, string>
 type I18nTextArray = Record<string, string[] | string>
@@ -1027,6 +1040,44 @@ const totalPrice = computed(
     subtotalPrice.value,
 )
 
+const {
+  code: promoCode,
+  loading: promoLoading,
+  error: promoError,
+  dropped: promoDropped,
+  active: activeCoupon,
+  apply: submitPromo,
+  reset: resetPromo,
+} = usePromoCode(() => skuRequestSignature.value)
+
+const displayVatPrice = computed(() => activeCoupon.value?.payableTax ?? vatPrice.value)
+const displayTotalPrice = computed(() => activeCoupon.value?.payableWithTax ?? totalPrice.value)
+const promoNotice = computed(() => (
+  promoDropped.value ? t("client.productDetail.booking.promoRemoved") : ""
+))
+
+const applyPromo = async () => {
+  const authSnapshot = getStoredAuthSnapshot()
+  if (authSnapshot.isExpired) clearStoredAuthState()
+  if (!authSnapshot.isLoggedIn) {
+    await router.push({ name: "h5-login", query: { redirect: route.fullPath } })
+    return
+  }
+  const payload = skuRequestPayload.value
+  await submitPromo(
+    payload
+      ? {
+          spuId: payload.spuId,
+          specValueIds: payload.specValueIds,
+          attachItems: payload.attachItems,
+        }
+      : null,
+    locale.value,
+    t("client.productDetail.booking.promoEnter"),
+    t("client.productDetail.booking.createOrderInvalid"),
+  )
+}
+
 const normalizeRating = (value: unknown): number => {
   const rating = Number(value)
   if (!Number.isFinite(rating)) return 0
@@ -1378,7 +1429,10 @@ const goOrderConfirm = async () => {
   }
   isCreatingOrder.value = true
   try {
-    const createdOrderId = await createOrder(payload)
+    const createdOrderId = await createOrder({
+      ...payload,
+      ...(activeCoupon.value ? { couponCode: activeCoupon.value.couponCode } : {}),
+    })
     const orderIdText = String(createdOrderId ?? "").trim()
     if (!orderIdText) {
       showFailToast(t("client.productDetail.booking.createOrderFailed"))
@@ -1413,8 +1467,14 @@ const goOrderConfirm = async () => {
         ),
         ...attachCheckoutQuery(),
         subtotal: subtotalPrice.value.toFixed(2),
-        tax: vatPrice.value.toFixed(2),
-        total: totalPrice.value.toFixed(2),
+        tax: displayVatPrice.value.toFixed(2),
+        total: displayTotalPrice.value.toFixed(2),
+        ...(activeCoupon.value
+          ? {
+              couponCode: activeCoupon.value.couponCode,
+              couponDiscount: activeCoupon.value.discountAmount.toFixed(2),
+            }
+          : {}),
       },
     })
   } catch (error: any) {
@@ -1428,3 +1488,8 @@ const goOrderConfirm = async () => {
 </script>
 
 <style scoped lang="scss" src="../styles/product-detail.scss"></style>
+<style scoped>
+.h5-promo-field {
+  margin-top: 14px;
+}
+</style>

@@ -32,6 +32,11 @@ export interface CartItem {
   selectedSpecValueIds?: string[];
   specValueNameI18n?: Record<string, CartLocalizedText>;
   skuDetail?: CartSkuDetail;
+  packageSelections?: Array<{
+    packageItemId?: number;
+    spuId?: number;
+    skuId: number;
+  }>;
   /** Service price before VAT, used for cart line-item display. */
   unitPrice: number;
   /** Amount charged for the line item after VAT. */
@@ -155,6 +160,7 @@ const normalizeRecord = (record: ClientCartItemRecord): CartItem => {
     selectedSpecValueIds: (record.specValueIds || []).map((item) => String(item)),
     specValueNameI18n,
     skuDetail,
+    packageSelections: Array.isArray(record.packageSelections) ? record.packageSelections : [],
     unitPrice,
     priceWithTax,
     detailPath: isPackage && packageId

@@ -981,11 +981,6 @@
                   <el-input-number v-model="row.originPrice" :min="0" :precision="2" :value-on-clear="null" controls-position="right" />
                 </template>
               </el-table-column>
-              <el-table-column :label="t('admin.product.table.discountPrice')" min-width="155">
-                <template #default="{ row }">
-                  <el-input-number v-model="row.discountPrice" :min="0" :precision="2" :value-on-clear="null" controls-position="right" />
-                </template>
-              </el-table-column>
             </el-table>
           </div>
         </el-form-item>
@@ -1011,26 +1006,6 @@
       width="min(1040px, calc(100vw - 32px))"
     >
       <p class="sku-valid-hint">{{ t('admin.product.message.skuValidHint') }} {{ t('admin.product.message.fulfillRemarkHint') }}</p>
-      <div class="price-discount-bar">
-        <label class="price-discount-bar__field">
-          <span>{{ t('admin.product.table.discountOff') }}</span>
-          <el-input-number
-            v-model="priceDiscountPercent"
-            :min="0"
-            :max="99.99"
-            :precision="2"
-            :step="1"
-            :value-on-clear="null"
-            controls-position="right"
-            :aria-label="t('admin.product.table.discountOff')"
-          />
-          <span aria-hidden="true">%</span>
-        </label>
-        <el-button type="primary" plain :disabled="priceLoading || !priceRows.length" @click="applyPriceDiscount">
-          {{ t('admin.product.actions.applyDiscount') }}
-        </el-button>
-        <p>{{ t('admin.product.message.discountFillHint') }}</p>
-      </div>
       <div v-if="priceAddons.length || priceCatalogAttaches.length" class="price-addon-hint">
         <p>{{ t('admin.product.message.priceAddonHint') }}</p>
         <div class="price-addon-list">
@@ -1094,19 +1069,6 @@
             />
           </template>
         </el-table-column>
-
-        <el-table-column :label="t('admin.product.table.discountPrice')" width="168">
-          <template #default="{ row }">
-            <el-input-number
-              :model-value="row.discountPrice ?? undefined"
-              :min="0"
-              :precision="2"
-              :step="1"
-              :value-on-clear="null"
-              @update:model-value="(value) => { row.discountPrice = value == null ? null : Number(value) }"
-            />
-          </template>
-        </el-table-column>
         <el-table-column :label="t('admin.product.table.fulfillRemark')" min-width="220">
           <template #default="{ row }">
             <div
@@ -1136,10 +1098,7 @@
             >
               <span v-if="line.label" class="price-total-line__name">{{ line.label }}</span>
               <span v-if="line.missingPrice">{{ t('admin.product.message.optionPriceMissing') }}</span>
-              <template v-else>
-                <span>{{ t('admin.product.table.originPrice') }} {{ formatSkuMoney(line.origin) }}</span>
-                <span>{{ t('admin.product.table.discountPrice') }} {{ formatSkuMoney(line.sale) }}</span>
-              </template>
+              <span v-else>{{ formatSkuMoney(line.origin) }}</span>
             </div>
           </template>
         </el-table-column>
@@ -1243,10 +1202,7 @@ import {
 import {
   buildSkuPriceEditor,
   buildStaffHourRows,
-  effectiveSalePrice,
   formatSkuMoney,
-  saleFromPercentOff,
-  skuPriceBases,
   skuPriceTotals,
   skuValidsFromRows,
   type SkuPriceAddonGroup,
@@ -1740,7 +1696,6 @@ const uploading = computed(() => uploadCount.value > 0);
 type PriceColumn = { key: string; label: string };
 const priceProductId = ref<number | null>(null);
 const priceRows = ref<SkuPriceRow[]>([]);
-const priceDiscountPercent = ref<number | null>(null);
 const priceColumns = ref<PriceColumn[]>([]);
 const priceAddons = ref<SkuPriceAddonGroup[]>([]);
 type PriceCatalogAttach = { key: string; typeLabel: string; label: string; priceText: string };
@@ -3483,7 +3438,7 @@ const filledMoney = (value: number | null | undefined) =>
   value != null && Number.isFinite(Number(value)) && Number(value) >= 0;
 
 const priceTotalLines = (row: SkuPriceRow) =>
-  skuPriceTotals(row.originPrice, row.discountPrice, priceAddons.value);
+  skuPriceTotals(row.originPrice, null, priceAddons.value);
 
 const catalogAttachLines = (attaches: unknown[]): PriceCatalogAttach[] => {
   const rows = Array.isArray(attaches) ? attaches : [];
@@ -3508,7 +3463,6 @@ const openPriceDialog = async (row: ProductRow) => {
   priceProductId.value = row.id;
   priceDialogVisible.value = true;
   priceLoading.value = true;
-  priceDiscountPercent.value = null;
   priceRows.value = [];
   priceColumns.value = [];
   priceAddons.value = [];
@@ -3536,40 +3490,6 @@ const openPriceDialog = async (row: ProductRow) => {
   }
 };
 
-const applyPriceDiscount = () => {
-  const percent = priceDiscountPercent.value;
-  if (percent == null || !Number.isFinite(percent) || percent < 0 || percent >= 100) {
-    ElMessage.warning(t('admin.product.message.discountPercentInvalid'));
-    return;
-  }
-  let filled = 0;
-  let skipped = 0;
-  let tooSmall = 0;
-  priceRows.value.forEach((row) => {
-    if (!filledMoney(row.originPrice) || row.originPrice == null) {
-      skipped += 1;
-      return;
-    }
-    const sale = saleFromPercentOff(row.originPrice, percent);
-    if (sale == null) {
-      tooSmall += 1;
-      return;
-    }
-    row.discountPrice = sale;
-    filled += 1;
-  });
-  if (!filled) {
-    ElMessage.warning(t(tooSmall ? 'admin.product.message.discountTooSmall' : 'admin.product.message.discountNoOrigin'));
-    return;
-  }
-  const detail = [
-    t('admin.product.message.discountApplied', { count: filled }),
-    skipped ? t('admin.product.message.discountSkipped', { count: skipped }) : '',
-    tooSmall ? t('admin.product.message.discountTooSmall') : '',
-  ].filter(Boolean).join(' ');
-  ElMessage.success(detail);
-};
-
 const savePrice = () => {
   if (priceProductId.value == null) return;
   const missingAddon = priceAddons.value.some((group) =>
@@ -3586,7 +3506,11 @@ const savePrice = () => {
   }
   const payload = {
     productId: priceProductId.value,
-    bases: skuPriceBases(priceRows.value),
+    bases: priceRows.value.map((row) => ({
+      specValueIds: [...row.specValueIds],
+      price: Number(row.originPrice),
+      originalPrice: Number(row.originPrice),
+    })),
     skuValids: skuValidsFromRows(priceRows.value),
   };
   batchUpdatePrices(payload)
@@ -3805,7 +3729,7 @@ const save = () => {
           productId: newId,
           bases: copiedPrices.rows.map((row) => ({
             specValueIds: [...row.specValueIds],
-            price: Number(effectiveSalePrice(row.originPrice, row.discountPrice)),
+            price: Number(row.originPrice),
             originalPrice: Number(row.originPrice),
           })),
         });

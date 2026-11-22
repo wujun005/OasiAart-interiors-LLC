@@ -7,6 +7,20 @@ export class UnsupportedDocumentError extends Error {
   }
 }
 
+export function pdfOpenUrl(url: string, previewUrls?: unknown) {
+  if (previewUrls && typeof previewUrls === 'object' && !Array.isArray(previewUrls)) {
+    const signed = (previewUrls as Record<string, unknown>)[url]
+    if (typeof signed === 'string' && /^https?:\/\//i.test(signed)) return signed
+  }
+  return url
+}
+
+export function openPdfInNewPage(url: string, previewUrls?: unknown) {
+  const target = pdfOpenUrl(url, previewUrls)
+  if (!/^(https?:\/\/|\/(?!\/))/i.test(target)) return
+  window.open(target, '_blank', 'noopener,noreferrer')
+}
+
 export async function loadPdfPreviewBlob(url: string, signal?: AbortSignal): Promise<Blob> {
   const response = await fetch(url, { signal, credentials: 'same-origin' })
   if (!response.ok) throw new Error(`Unable to load document (HTTP ${response.status}).`)

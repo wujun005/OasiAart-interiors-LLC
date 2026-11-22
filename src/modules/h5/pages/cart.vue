@@ -185,15 +185,32 @@
           <strong>{{ formatAed(item.unitPrice) }}</strong>
         </div>
       </div>
+      <div class="h5-cart-checkout__promo">
+        <PromoCodeField
+          v-if="checkoutItems.length === 1"
+          v-model="promoCode"
+          :loading="promoLoading"
+          :error="promoError"
+          :notice="promoNotice"
+          :applied-code="activeCoupon?.couponCode || ''"
+          @apply="applyPromo"
+          @remove="resetPromo"
+        />
+        <p v-else-if="checkoutItems.length > 1">{{ t('client.productDetail.booking.promoSingleOnly') }}</p>
+      </div>
       <dl>
         <div>
           <dt>{{ t('client.cart.subtotal') }}</dt><dd>{{ formatAed(checkoutSubtotal) }}</dd>
         </div>
+        <div v-if="activeCoupon">
+          <dt>{{ t('client.productDetail.booking.promoDiscount') }}</dt>
+          <dd>-{{ formatAed(activeCoupon.discountAmount) }}</dd>
+        </div>
         <div>
-          <dt>{{ t('client.cart.vat') }}</dt><dd>{{ formatAed(checkoutTax) }}</dd>
+          <dt>{{ t('client.cart.vat') }}</dt><dd>{{ formatAed(payableTax) }}</dd>
         </div>
         <div class="h5-cart-checkout__total">
-          <dt>{{ t('client.cart.estimatedTotal') }}</dt><dd>{{ formatAed(checkoutTotal) }}</dd>
+          <dt>{{ t('client.cart.estimatedTotal') }}</dt><dd>{{ formatAed(payableTotal) }}</dd>
         </div>
       </dl>
       <BookingPolicyDetails
@@ -214,8 +231,9 @@
       :customer-session-client-secret="stripeCustomerSessionClientSecret"
       :locale="locale"
       :subtotal="checkoutSubtotal"
-      :tax="checkoutTax"
-      :total="checkoutTotal"
+      :voucher-discount="activeCoupon?.discountAmount || 0"
+      :tax="payableTax"
+      :total="payableTotal"
       @close="stripeVisible = false"
       @error="handleStripeError"
       @paid="handlePaymentSuccess"
@@ -232,6 +250,9 @@ import { showConfirmDialog, showFailToast, showSuccessToast } from 'vant';
 import fallbackImage from '@/assets/images/client/kv.png';
 import { useCart, type CartItem, type CartLocalizedText } from '@/modules/client/composables/useCart';
 import { checkoutCart } from '@/modules/client/api';
+import PromoCodeField from '@/modules/client/components/PromoCodeField.vue';
+import { usePromoCode } from '@/modules/client/composables/usePromoCode';
+import { cartItemCouponBody } from '@/modules/client/utils/promo-code';
 import { trackInitiateCheckout } from '@/modules/client/utils/metaPixel';
 import StripePaymentModal from '@/modules/client/components/StripePaymentModal.vue';
 import AgreementDialog from '@/modules/client/components/agreement-dialog.vue';
@@ -282,6 +303,21 @@ const checkoutTotal = computed(() =>
   checkoutItems.value.reduce((sum, item) => sum + item.priceWithTax, 0),
 );
 const checkoutTax = computed(() => checkoutTotal.value - checkoutSubtotal.value);
+const promoSignature = computed(() => checkoutItems.value.length === 1 ? checkoutItems.value[0]?.id || '' : '');
+const {
+  code: promoCode,
+  loading: promoLoading,
+  error: promoError,
+  dropped: promoDropped,
+  active: activeCoupon,
+  apply: submitPromo,
+  reset: resetPromo,
+} = usePromoCode(() => promoSignature.value);
+const payableTax = computed(() => activeCoupon.value?.payableTax ?? checkoutTax.value);
+const payableTotal = computed(() => activeCoupon.value?.payableWithTax ?? checkoutTotal.value);
+const promoNotice = computed(() => (
+  promoDropped.value ? t('client.productDetail.booking.promoRemoved') : ''
+));
 
 const pickLocalizedText = (value?: CartLocalizedText, fallback = '') => {
   const source = value || {};
@@ -389,7 +425,19 @@ const openCheckout = async () => {
   checkoutItemIds.value = selectedItems.value.map((item) => item.id);
   if (!checkoutItemIds.value.length) return;
   checkoutPolicyAgreed.value = false;
+  resetPromo();
   checkoutVisible.value = true;
+};
+
+const applyPromo = async () => {
+  const item = checkoutItems.value.length === 1 ? checkoutItems.value[0] : null;
+  if (!item) return;
+  await submitPromo(
+    cartItemCouponBody(item),
+    locale.value,
+    t('client.productDetail.booking.promoEnter'),
+    t('client.productDetail.booking.promoSingleOnly'),
+  );
 };
 
 const openLegal = (docType: LegalDocType) => {
@@ -404,7 +452,12 @@ const confirmCheckout = async () => {
   isCheckingOut.value = true;
   try {
     checkedOutItemIds.value = checkoutIds;
-    const result = await checkoutCart(checkedOutItemIds.value, 'STRIPE', window.location.href);
+    const result = await checkoutCart(
+      checkedOutItemIds.value,
+      'STRIPE',
+      window.location.href,
+      activeCoupon.value?.couponCode,
+    );
     const payment = result?.payment;
     checkoutSummary.value = {
       orderNo: (result?.orderNos || []).join(', '),
@@ -413,7 +466,7 @@ const confirmCheckout = async () => {
         ? itemTitle(checkoutItems.value[0])
         : (locale.value === 'zh' ? `${checkoutItems.value.length} 项家居服务` : `${checkoutItems.value.length} home services`),
       scheduled: checkoutItems.value.length === 1 ? itemSchedule(checkoutItems.value[0]!) : '',
-      amount: String(result?.totalAmount || checkoutTotal.value || ''),
+      amount: String(result?.totalAmount || payableTotal.value || ''),
     };
     const approvalUrl = String(payment?.approvalUrl || '').trim();
     const clientSecret = String(payment?.clientSecret || '').trim();
@@ -421,7 +474,7 @@ const confirmCheckout = async () => {
       trackInitiateCheckout({
         contentIds: result?.orderIds,
         contentName: checkoutSummary.value.service,
-        value: result?.totalAmount || checkoutTotal.value,
+        value: result?.totalAmount || payableTotal.value,
         numItems: checkoutItems.value.length,
       });
     }
@@ -983,6 +1036,8 @@ onMounted(async () => {
 .h5-cart-checkout__items img { width: 42px; height: 42px; border-radius: 10px; object-fit: cover; }
 .h5-cart-checkout__items span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; font-weight: 700; }
 .h5-cart-checkout__items strong { font-size: 11px; }
+.h5-cart-checkout__promo { margin-top: 14px; }
+.h5-cart-checkout__promo > p { margin: 0; color: #7d899a; font-size: 12px; line-height: 1.45; }
 .h5-cart-checkout dl { margin: 18px 0; padding-top: 12px; border-top: 1px solid #e9eef3; }
 .h5-cart-checkout dl div { display: flex; justify-content: space-between; margin: 8px 0; color: #728095; font-size: 12px; }
 .h5-cart-checkout dd { margin: 0; color: var(--hourx-client-text); font-weight: 800; }

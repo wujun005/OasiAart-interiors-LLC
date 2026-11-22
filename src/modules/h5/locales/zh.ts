@@ -24,7 +24,7 @@ const zh = {
     bannerCta: '立即预约',
     tabbar: {
       home: '首页',
-      services: '服务',
+      services: '服务项目',
       profile: '我的',
     },
     banners: [
@@ -73,7 +73,7 @@ const zh = {
   services: {
     navTitle: '服务项目',
     back: '返回',
-    bookNow: '预定',
+    bookNow: '立即预约',
     schemes: '精选方案',
     tabs: [
       {
@@ -119,7 +119,7 @@ const zh = {
     },
   },
   serviceList: {
-    bookNow: '预定',
+    bookNow: '立即预约',
   },
   productDetail: {
     bookingOptions: '预约选项',
@@ -130,7 +130,7 @@ const zh = {
     methodTitle: '安全支付',
     methodDesc: '由 Stripe 提供',
     paymentNote: '可用的支付选项由 Stripe 安全提供，并可能因设备而异。',
-    totalLabel: '总额',
+    totalLabel: '订单总计（含税）',
   },
   auth: {
     navTitle: '账户登录',
@@ -207,7 +207,7 @@ const zh = {
       ordersAnswer: '进入“我的账户”中的“我的预约”，即可查看预约状态。',
     },
     partner: {
-      title: '成为服务合作伙伴',
+      title: '商家合作',
       desc: '公司可以申请成为 HourX 服务合作伙伴，提交资料后我们会审核。',
       apply: '立即注册',
     },

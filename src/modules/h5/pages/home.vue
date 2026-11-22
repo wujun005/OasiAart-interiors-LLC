@@ -99,6 +99,7 @@
 
     <main class="h5-home-main">
       <HomeHero @select="selectHomeBanner" />
+      <WebsitePromotions />
 
       <section id="services" class="h5-section">
         <form
@@ -143,6 +144,7 @@
               <img :src="item.icon" :alt="item.title" />
             </span>
             <span class="h5-service-tile__copy">
+              <span v-if="tilePromo(item.categoryId)" class="h5-service-tile__promo">{{ tilePromo(item.categoryId) }}</span>
               <span class="h5-service-tile__label">{{ item.title }}</span>
               <span v-if="item.description" class="h5-service-tile__description">{{ item.description }}</span>
               <span class="h5-service-tile__link">{{ t("client.home.serviceTile.action") }} →</span>
@@ -183,7 +185,7 @@
               <img :src="item.icon" :alt="item.title" />
             </span>
             <span class="h5-section__eyebrow">
-              {{ t("client.home.steps.number", { number: String(index + 1).padStart(2, "0") }) }}
+              {{ t("client.home.steps.number", { number: index + 1 }) }}
             </span>
             <h3>{{ item.title }}</h3>
             <p>{{ item.desc }}</p>
@@ -408,7 +410,9 @@ import { useAuth } from "@/modules/h5/composables/useAuth"
 import { setClientLocale } from "@/modules/client/locales"
 import { useCart } from "@/modules/client/composables/useCart"
 import HomeHero from "@/modules/client/components/HomeHero.vue"
+import WebsitePromotions from "@/modules/client/components/WebsitePromotions.vue"
 import PackageShowcase from "@/modules/client/components/PackageShowcase.vue"
+import { serviceTagLabels, useWebsitePromotion } from "@/modules/client/utils/website-promotion"
 
 type ServiceTile = {
   id: string
@@ -502,6 +506,9 @@ const serviceFallbackIcons = [
 ]
 
 const { t, locale } = useI18n({ useScope: "global" })
+const { home: websitePromotions } = useWebsitePromotion(() => "home")
+const tilePromo = (categoryId: string) =>
+  serviceTagLabels(websitePromotions.value.serviceTags, "", categoryId, locale.value)[0] || ""
 const router = useRouter()
 const { cartCount } = useCart()
 const { isLoggedIn, clearAuth, checkLoginStatus } = useAuth()
@@ -1125,6 +1132,17 @@ onMounted(() => {
   filter: var(--hourx-brand-filter);
 }
 
+.h5-service-tile__promo {
+  display: inline-flex;
+  width: fit-content;
+  margin-bottom: 4px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: #e8faf7;
+  color: #0a7a6a;
+  font-size: 11px;
+  font-weight: 700;
+}
 .h5-service-tile__label {
   max-width: 100%;
   display: -webkit-box;

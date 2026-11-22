@@ -1,6 +1,7 @@
 <template>
   <div class="h5-app">
     <RouterView />
+    <PromotionPopup />
     <!-- <van-button class="lang-toggle" size="small" type="primary" plain @click="toggleLocale">
       {{ locale === 'zh' ? 'EN' : '中' }}
     </van-button> -->
@@ -14,6 +15,7 @@ import { Locale } from "vant"
 import vantEnUS from "vant/es/locale/lang/en-US"
 import vantZhCN from "vant/es/locale/lang/zh-CN"
 import { setClientLocale } from "@/modules/client/locales"
+import PromotionPopup from "@/modules/client/components/PromotionPopup.vue"
 
 const { locale } = useI18n()
 

@@ -397,6 +397,11 @@ const pinPackageMenu = (roots: AdminMenuPermissionItem[]) => {
 
 const COVERAGE_PATH = '/admin/supplier-coverage';
 const COMMENT_PATH = '/admin/comments';
+const MARKETING_PATH = '/admin/marketing';
+const COUPON_PATH = '/admin/marketing/coupons';
+const CAMPAIGN_PATH = '/admin/marketing/campaigns';
+const BANNER_PATH = '/admin/marketing/banners';
+const CUSTOMER_PATH = '/admin/customers';
 
 const pinCoverageMenu = (roots: AdminMenuPermissionItem[]) => {
   const paths = collectPaths(roots);
@@ -458,6 +463,101 @@ const pinCommentMenu = (roots: AdminMenuPermissionItem[]) => {
     return nodes.some((node) => insertAfterProduct(node.children, node.id));
   };
   if (insertAfterProduct(roots)) return;
+  const overviewIndex = roots.findIndex((node) => node.path === ROOT_PATH && node.children.length === 0);
+  if (overviewIndex >= 0) roots.splice(overviewIndex + 1, 0, item);
+  else roots.unshift(item);
+};
+
+const pinMarketingMenu = (roots: AdminMenuPermissionItem[]) => {
+  const paths = collectPaths(roots);
+  if (!paths.length) return;
+  if (paths.every((path) => path.startsWith('/admin/supplier-management'))) {
+    removeMenuByPath(roots, COUPON_PATH);
+    removeMenuByPath(roots, CAMPAIGN_PATH);
+    removeMenuByPath(roots, BANNER_PATH);
+    removeMenuByPath(roots, MARKETING_PATH);
+    return;
+  }
+  const couponItem = (parentId: number | string): AdminMenuPermissionItem => ({
+    id: 'fixed-marketing-coupons',
+    name: '优惠券',
+    path: COUPON_PATH,
+    icon: 'ticket',
+    parentId,
+    sortOrder: 1,
+    children: [],
+  });
+  const campaignItem = (parentId: number | string): AdminMenuPermissionItem => ({
+    id: 'fixed-marketing-campaigns',
+    name: '限时活动',
+    path: CAMPAIGN_PATH,
+    icon: 'clock',
+    parentId,
+    sortOrder: 2,
+    children: [],
+  });
+  const bannerItem = (parentId: number | string): AdminMenuPermissionItem => ({
+    id: 'fixed-marketing-banners',
+    name: '横幅广告和弹出窗口',
+    path: BANNER_PATH,
+    icon: 'picture',
+    parentId,
+    sortOrder: 3,
+    children: [],
+  });
+  const parent = findMenuByPath(roots, MARKETING_PATH);
+  if (parent) {
+    if (!hasMenuPath(roots, COUPON_PATH)) parent.children.push(couponItem(parent.id));
+    if (!hasMenuPath(roots, CAMPAIGN_PATH)) parent.children.push(campaignItem(parent.id));
+    if (!hasMenuPath(roots, BANNER_PATH)) parent.children.push(bannerItem(parent.id));
+    sortMenus(parent.children);
+    return;
+  }
+  const product = findMenuByPath(roots, '/admin/products');
+  roots.push({
+    id: 'fixed-marketing',
+    name: '营销中心',
+    path: MARKETING_PATH,
+    icon: 'ticket',
+    parentId: 0,
+    sortOrder: Number(product?.sortOrder ?? 0) + 2,
+    children: [couponItem('fixed-marketing'), campaignItem('fixed-marketing'), bannerItem('fixed-marketing')],
+  });
+};
+
+const pinCustomerMenu = (roots: AdminMenuPermissionItem[]) => {
+  const paths = collectPaths(roots);
+  if (!paths.length) return;
+  if (paths.every((path) => path.startsWith('/admin/supplier-management'))) {
+    removeMenuByPath(roots, CUSTOMER_PATH);
+    return;
+  }
+  removeMenuByPath(roots, CUSTOMER_PATH);
+  const users = findMenuByPath(roots, '/admin/users')
+    || findMenuByPath(roots, USER_PLATFORM_PATH)
+    || findMenuByPath(roots, USER_SUPPLIER_PATH);
+  const item: AdminMenuPermissionItem = {
+    id: 'fixed-customers',
+    name: '客户管理',
+    path: CUSTOMER_PATH,
+    icon: 'user',
+    parentId: users?.parentId ?? 0,
+    sortOrder: Number(users?.sortOrder ?? 0) + 0.5,
+    children: [],
+  };
+  const insertAfterUsers = (nodes: AdminMenuPermissionItem[], parentId: number | string = 0): boolean => {
+    const index = nodes.findIndex((node) =>
+      node.path === '/admin/users'
+      || node.path === USER_PLATFORM_PATH
+      || node.path === USER_SUPPLIER_PATH);
+    if (index >= 0) {
+      item.parentId = parentId || nodes[index]!.parentId;
+      nodes.splice(index + 1, 0, item);
+      return true;
+    }
+    return nodes.some((node) => insertAfterUsers(node.children, node.id));
+  };
+  if (insertAfterUsers(roots)) return;
   const overviewIndex = roots.findIndex((node) => node.path === ROOT_PATH && node.children.length === 0);
   if (overviewIndex >= 0) roots.splice(overviewIndex + 1, 0, item);
   else roots.unshift(item);
@@ -617,9 +717,12 @@ const hydrateMenuState = (list: RawMenuItem[], pinOverview = false, pinStaff = f
   if (pinOverview) {
     pinCoverageMenu(prunedRoots);
     pinCommentMenu(prunedRoots);
+    pinMarketingMenu(prunedRoots);
+    pinCustomerMenu(prunedRoots);
   } else {
     removeMenuByPath(prunedRoots, COVERAGE_PATH);
     removeMenuByPath(prunedRoots, COMMENT_PATH);
+    removeMenuByPath(prunedRoots, CUSTOMER_PATH);
   }
   const flat = flattenMenus(prunedRoots, []);
   const allowedPaths = Array.from(

@@ -29,7 +29,7 @@
               {{ t(isCodeLogin ? 'client.login.password.phoneEmailLabel' : 'client.login.password.accountLabel') }}
             </label>
             <div class="auth-account">
-              <div class="auth-prefix">
+              <div v-if="!showEmailAccount" class="auth-prefix">
                 <select
                   v-model="form.countryCode"
                   autocomplete="tel-country-code"
@@ -51,7 +51,8 @@
                   v-model.trim="form.account"
                   type="text"
                   autocomplete="username"
-                  :placeholder="t(isEmailAccount ? 'client.login.register.emailPlaceholder' : 'client.login.register.phoneNumberPlaceholder')"
+                  :placeholder="t(showEmailAccount ? 'client.login.register.emailPlaceholder' : 'client.login.register.phoneNumberPlaceholder')"
+                  :inputmode="showEmailAccount ? 'email' : 'tel'"
                 />
               </div>
             </div>
@@ -127,12 +128,12 @@
             {{
               isCodeLogin
                 ? t('client.login.password.usePasswordLogin')
-                : t(isEmailAccount ? 'client.login.password.useCodeLoginEmail' : 'client.login.password.useCodeLogin')
+                : t(showEmailAccount ? 'client.login.password.useCodeLoginEmail' : 'client.login.password.useCodeLogin')
             }}
           </button>
 
-          <p v-if="!isEmailAccount" class="auth-note" role="note">
-            {{ t('client.login.password.otpNote') }}
+          <p v-if="emailLoginHint || !showEmailAccount" class="auth-note" role="note">
+            {{ emailLoginHint || t('client.login.password.otpNote') }}
           </p>
         </form>
 
@@ -148,13 +149,13 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onBeforeUnmount, reactive, ref } from 'vue';
+import { computed, nextTick, onBeforeUnmount, reactive, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRoute, useRouter } from 'vue-router';
 import { showFailToast, showSuccessToast } from 'vant';
 import { login as loginByPassword, loginByVerifyCode, sendCode } from '@/modules/client/api/login';
 import { setClientLocale } from '@/modules/client/locales';
-import { preferEmailErrorCode } from '@/modules/client/utils/verificationChannel';
+import { preferEmailErrorCode, preferEmailMessage } from '@/modules/client/utils/verificationChannel';
 import { openClientLegalPage, saveClientToken } from '@/modules/h5/utils/auth';
 import {
   DEFAULT_LOGIN_COUNTRY_CODE,
@@ -188,10 +189,14 @@ let codeTimer: number | null = null;
 
 const isCodeLogin = computed(() => loginMode.value === 'code');
 const isEmailAccount = computed(() => isEmailLoginAccount(form.account));
+const preferEmailLogin = ref(false);
+const emailLoginHint = ref('');
+const showEmailAccount = computed(() => preferEmailLogin.value || isEmailAccount.value);
 const countryCodeOptions = LOGIN_COUNTRY_CODE_OPTIONS;
 const resolvedLoginAccount = computed(() => resolveLoginAccount(form.account, form.countryCode));
 const isCodeDestinationValid = computed(() => {
   const value = resolvedLoginAccount.value;
+  if (preferEmailLogin.value) return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
   if (!value) return false;
   if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) return true;
   return /^\+?[\d\s()-]{7,}$/.test(value) && value.replace(/\D/g, '').length >= 7;
@@ -252,6 +257,21 @@ const toggleLoginMode = () => {
     return;
   }
   form.code = '';
+  preferEmailLogin.value = false;
+  emailLoginHint.value = '';
+};
+
+const promptEmailCodeLogin = (error: unknown) => {
+  const message = preferEmailMessage(error, String(locale.value)) || t('client.login.password.preferEmail');
+  loginMode.value = 'code';
+  form.password = '';
+  form.code = '';
+  form.account = '';
+  showPassword.value = false;
+  preferEmailLogin.value = true;
+  emailLoginHint.value = message;
+  showFailToast(message);
+  void nextTick(() => document.getElementById('login-account')?.focus());
 };
 
 const openTerms = () => openClientLegalPage('/terms');
@@ -285,12 +305,15 @@ const requestLoginCode = async () => {
   try {
     await sendCode({ phoneOrEmail: accountValue });
     codeSentDestination.value = accountValue;
+    emailLoginHint.value = '';
     showSuccessToast(t('client.login.password.codeSent'));
     startCodeCountdown();
   } catch (error: any) {
-    showFailToast(preferEmailErrorCode(error)
-      ? t('client.login.password.preferEmail')
-      : (error?.message || t('client.login.password.codeSendFailed')));
+    if (preferEmailErrorCode(error) && !isEmailAccount.value) {
+      promptEmailCodeLogin(error);
+      return;
+    }
+    showFailToast(error?.message || t('client.login.password.codeSendFailed'));
   } finally {
     sendingCode.value = false;
   }
@@ -309,6 +332,10 @@ const validatePasswordLogin = () => {
 };
 
 const validateCodeLogin = () => {
+  if (preferEmailLogin.value && !isEmailAccount.value) {
+    showFailToast(emailLoginHint.value || t('client.login.password.preferEmail'));
+    return false;
+  }
   if (!form.account.trim()) {
     showFailToast(t('client.login.password.accountRequired'));
     return false;

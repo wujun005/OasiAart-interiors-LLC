@@ -102,7 +102,7 @@ import {
   resetPasswordByPhone,
   sendCode,
 } from "@/modules/client/api/login"
-import { preferEmailErrorCode } from "@/modules/client/utils/verificationChannel"
+import { preferEmailErrorCode, preferEmailMessage } from "@/modules/client/utils/verificationChannel"
 
 const props = withDefaults(
   defineProps<{
@@ -151,7 +151,7 @@ const copy = computed(() =>
         sendingCode: "发送中…",
         resendIn: (seconds: number) => `${seconds} 秒后重发`,
         codeSent: "验证码已发送，请注意查收。",
-        preferEmail: "该号码可能未注册 WhatsApp，或短信无法送达。请改用邮箱接收验证码和通知。",
+        preferEmail: "由于手机号没有注册过 WhatsApp，可以使用邮箱接收验证码登录",
         invalidAccount: "请输入有效的邮箱或带国际区号的手机号码，例如 +971501234567。",
         invalidCode: "请输入 6 位数字验证码。",
         passwordRequired: "新密码至少需要 6 个字符。",
@@ -177,7 +177,7 @@ const copy = computed(() =>
         sendingCode: "Sending…",
         resendIn: (seconds: number) => `Resend in ${seconds}s`,
         codeSent: "Verification code sent. Please check your messages.",
-        preferEmail: "This number may not be on WhatsApp, or messages may not arrive. Use email for verification codes and notifications.",
+        preferEmail: "This phone number is not registered on WhatsApp. You can use email to receive the verification code and sign in.",
         invalidAccount: "Enter a valid email or an international phone number such as +971501234567.",
         invalidCode: "Enter the 6-digit verification code.",
         passwordRequired: "The new password must contain at least 6 characters.",
@@ -258,9 +258,14 @@ const requestCode = async () => {
     statusMessage.value = copy.value.codeSent
     startCountdown()
   } catch (error: any) {
-    errorMessage.value = preferEmailErrorCode(error)
-      ? copy.value.preferEmail
-      : (error?.message || copy.value.failed)
+    if (preferEmailErrorCode(error) && !account.includes("@")) {
+      form.account = ""
+      form.verifyCode = ""
+      countdown.value = 0
+      stopCountdown()
+    }
+    errorMessage.value = preferEmailMessage(error, String(locale.value))
+      || (preferEmailErrorCode(error) ? copy.value.preferEmail : (error?.message || copy.value.failed))
   } finally {
     sendingCode.value = false
   }
