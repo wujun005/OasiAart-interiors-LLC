@@ -197,6 +197,14 @@
                         {{ locale === "zh" ? "管理预订" : "Manage Booking" }}
                       </button>
                       <button
+                        v-if="item.canManagePackage"
+                        type="button"
+                        class="order-card__btn order-card__btn--primary"
+                        @click.stop="goDetail(item)"
+                      >
+                        {{ locale === "zh" ? "管理预订" : "Manage Booking" }}
+                      </button>
+                      <button
                         v-if="item.canReview && !item.reviewed"
                         type="button"
                         class="order-card__btn order-card__btn--ghost"
@@ -553,6 +561,7 @@ type OrderCardView = {
   canContinue: boolean
   canBookVisit: boolean
   canManage: boolean
+  canManagePackage: boolean
   canAddAddons: boolean
   canReview: boolean
   canRebook: boolean
@@ -1222,6 +1231,7 @@ const orderCards = computed<OrderCardView[]>(() =>
           packageStillValid(item) &&
           packageHasRemainingVisit(item),
         canManage: orderStatus === 1 && !isPackage,
+        canManagePackage: orderStatus === 1 && isPackage,
         canReview: orderStatus === 2 || orderStatus === 3,
         canRebook: !isPackage && [2, 3, 4, 5].includes(orderStatus ?? -1),
         specSelections,

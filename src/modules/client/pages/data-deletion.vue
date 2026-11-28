@@ -7,8 +7,17 @@
         </button>
       </div>
 
-      <AccountDeletionFlow />
-      <article class="legal-card">
+      <nav class="legal-page__accounts" :aria-label="chinese ? '选择应用' : 'Choose an app'">
+        <RouterLink :to="{ path: route.path }" :aria-current="supplier ? undefined : 'page'">HourX Home</RouterLink>
+        <RouterLink :to="{ path: route.path, hash: '#supplier' }" :aria-current="supplier ? 'page' : undefined">HourX Supplier</RouterLink>
+        <select v-if="supplier" :value="chinese ? 'zh' : 'en'" :aria-label="chinese ? '语言' : 'Language'" @change="changeLanguage">
+          <option value="en">English</option><option value="zh">中文</option>
+        </select>
+      </nav>
+
+      <SupplierAccountDeletionFlow v-if="supplier && !trackedDocument" :chinese="chinese" />
+      <AccountDeletionFlow v-if="!supplier" />
+      <article v-if="!supplier" class="legal-card">
         <h1>{{ doc.title }}</h1>
         <p class="legal-card__updated">
           {{ t('client.login.legal.lastUpdated') }}
@@ -36,9 +45,10 @@
             </li>
           </ul>
           <div v-if="section.links?.length" class="legal-card__links">
-            <a v-for="link in section.links" :key="link.href" :href="link.href">
-              {{ link.label }}
-            </a>
+            <template v-for="link in section.links" :key="link.href">
+              <RouterLink v-if="link.href === '/data-deletion#supplier'" :to="{ path: route.path, hash: '#supplier' }">{{ link.label }}</RouterLink>
+              <a v-else :href="link.href">{{ link.label }}</a>
+            </template>
           </div>
         </section>
       </article>
@@ -47,14 +57,32 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, ref, watch } from 'vue';
 import AccountDeletionFlow from '@/modules/client/components/AccountDeletionFlow.vue';
-import { useRouter } from 'vue-router';
+import SupplierAccountDeletionFlow from '@/modules/client/components/SupplierAccountDeletionFlow.vue';
+import { useRoute, useRouter } from 'vue-router';
 import { useI18n } from 'vue-i18n';
 import { LEGAL_DOCS, resolveLegalLocale } from '@/modules/client/constants/legal';
+import { setClientLocale } from '@/modules/client/locales';
 
 const router = useRouter();
+const route = useRoute();
 const { locale, t } = useI18n({ useScope: 'global' });
+const supplier = computed(() => route.hash === '#supplier');
+const chinese = computed(() => resolveLegalLocale(String(locale.value)) === 'zh');
+const trackedDocument = ref(typeof window !== 'undefined' &&
+  typeof (window as Window & { fbq?: unknown }).fbq === 'function');
+
+// A consumer SPA may already have loaded the advertising script. Never render
+// Supplier credentials in that document: reload on the dedicated legal URL.
+watch(supplier, (selected) => {
+  if (selected && trackedDocument.value) window.location.reload();
+}, { immediate: true });
+
+function changeLanguage(event: Event) {
+  locale.value = setClientLocale((event.target as HTMLSelectElement).value);
+  if (route.name === 'h5-account-deletion') localStorage.setItem('h5-locale', locale.value);
+}
 
 const doc = computed(
   () => LEGAL_DOCS[resolveLegalLocale(String(locale.value))].deletion,
@@ -79,6 +107,34 @@ const goHome = () => {
 
 .legal-page__toolbar {
   margin-bottom: 14px;
+}
+
+.legal-page__accounts {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0 0 12px;
+}
+
+.legal-page__accounts a, .legal-page__accounts select {
+  display: inline-flex;
+  align-items: center;
+  min-height: 42px;
+  padding: 6px 14px;
+  border: 1px solid #dbe3ee;
+  border-radius: 9px;
+  background: white;
+  color: #06182f;
+  font: inherit;
+  font-size: 14px;
+}
+
+.legal-page__accounts a[aria-current="page"] {
+  background: #06182f;
+  border-color: #06182f;
+  color: white;
+  font-weight: 700;
 }
 
 .legal-page__home-btn {

@@ -23,6 +23,30 @@ body {
   background: var(--hourx-client-canvas);
 }
 
+.h5-list-topbar {
+  display: grid;
+  grid-template-columns: minmax(max-content, 1fr) minmax(0, auto) minmax(0, 1fr);
+  gap: 0.375rem;
+  align-items: center;
+  min-height: 3.5rem;
+  padding-block: 0.3125rem;
+}
+
+.h5-list-topbar::after {
+  content: '';
+}
+
+.h5-list-topbar h1 {
+  margin: 0;
+  color: var(--hourx-client-text);
+  font-family: var(--hourx-client-heading-font);
+  font-size: clamp(1rem, 4.25vw, var(--hourx-client-size-card));
+  font-weight: 700;
+  line-height: 1.2;
+  text-align: center;
+  overflow-wrap: anywhere;
+}
+
 .hourx-wordmark {
   font-size: 11px;
   font-weight: 900;

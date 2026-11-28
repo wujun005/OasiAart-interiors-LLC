@@ -1,5 +1,6 @@
 <template>
   <main class="deletion-queue">
+    <RouterLink :to="{ name: 'admin-supplier-account-deletions' }" class="queue-link">{{ copy.supplierQueue }}</RouterLink>
     <header><div><p>HOURX HOME · PRIVACY</p><h1>{{ copy.title }}</h1><span>{{ copy.intro }}</span></div>
       <el-button :loading="loading" @click="load">{{ copy.refresh }}</el-button>
     </header>
@@ -48,6 +49,7 @@ import { listDeletionRequests, getDeletionRequest, startDeletionRequest, complet
 
 const { locale } = useI18n();
 const en = {
+  supplierQueue: 'Supplier deletion requests',
   title: 'Account deletion requests', intro: 'Customer self-service requests · Platform super administrators only',
   refresh: 'Refresh', sla: 'Complete within 7 business days', warning: 'If more time is required, notify the customer of the reason and expected completion date. Starting work does not delete an account.',
   requested: 'Requested', processing: 'Processing', completed: 'Completed', all: 'All statuses', requests: 'requests',
@@ -69,6 +71,7 @@ const en = {
   close: 'Close', cancel: 'Cancel', confirmButton: 'Confirm fulfilment', failed: 'Unable to load or update the request. Please refresh and try again.',
 };
 const zh: typeof en = {
+  supplierQueue: '供应商注销申请',
   title: '账户删除申请', intro: '消费者自助申请 · 仅平台超级管理员可处理', refresh: '刷新', sla: '7 个工作日内完成删除',
   warning: '需要延期时，应向用户通知原因和预计完成时间。“开始处理”不代表账户已删除。',
   requested: '待处理', processing: '处理中', completed: '已完成', all: '全部状态', requests: '份申请', empty: '暂无该状态申请',
@@ -161,6 +164,7 @@ onBeforeUnmount(() => { disposed = true; ++loadSerial; ++detailSerial; window.re
 <style scoped lang="scss">
 .deletion-queue { padding: 24px; color: #182334; header { display: flex; justify-content: space-between; align-items: center; gap: 20px; margin-bottom: 22px; p { color: #8a7350; font-size: 12px; letter-spacing: .1em; } h1 { margin: 8px 0; font-size: 27px; } span { color: #666b73; } } }
 .queue-panel { background: white; padding: 22px; border: 1px solid #e8e4dd; border-radius: 12px; margin-top: 22px; }
+.queue-link { display: inline-block; padding: 6px 0; color: #1d4ed8; font-weight: 600; }
 .filters { display: flex; align-items: center; gap: 20px; margin-bottom: 18px; .el-select { width: 200px; } }
 .el-pagination { margin-top: 20px; } dl { display: grid; grid-template-columns: 160px 1fr; gap: 10px; dd { margin: 0; overflow-wrap: anywhere; } dt { color: #666b73; } }
 .steps { padding-left: 23px; line-height: 1.6; li { margin-bottom: 8px; } }

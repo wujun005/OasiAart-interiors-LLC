@@ -1801,6 +1801,25 @@
             >
           </div>
         </div>
+        <section
+          v-if="pinnedScheduleNotices.length"
+          class="schedule-pin"
+          :aria-label="t('admin.supplierOrders.schedulePinTitle')"
+        >
+          <strong>{{ t("admin.supplierOrders.schedulePinTitle") }}</strong>
+          <button
+            v-for="item in pinnedScheduleNotices"
+            :key="`${item.orderId}-${item.fulfillmentId || item.serviceDate}`"
+            type="button"
+            @click="openScheduleNotice(item)"
+          >
+            <em>{{ schedulePinLabel(item) }}</em>
+            <span>{{ item.orderNo || "—" }}</span>
+            <span v-if="noticeVisit(item)">{{ noticeVisit(item) }}</span>
+            <b v-if="orderScheduleLead(item)">{{ orderScheduleLead(item) }}</b>
+            <span class="portal-numeric">{{ item.serviceDate }} {{ noticeTime(item) }}</span>
+          </button>
+        </section>
         <div
           v-if="supplierOrders.length"
           class="orders-table-shell portal-orders-table-shell"
@@ -1856,7 +1875,7 @@
                     class="order-fulfill-remark"
                     >{{ t("admin.supplierOrders.fulfillRemarkLine", { remark: note }) }}</small
                   >
-                  <small v-if="orderCancelled(row)" class="order-alert">{{
+                  <small v-if="Number(row.orderStatus) === 3" class="order-alert">{{
                     row.cancelReason
                       ? t("admin.supplierOrders.cancelReason", {
                           reason: row.cancelReason,
@@ -1864,9 +1883,9 @@
                       : t("admin.supplierOrders.orderCancelled")
                   }}</small>
                   <small
-                    v-else-if="orderRescheduleUnread(row)"
+                    v-else-if="visitNoticeText(row)"
                     class="order-reschedule"
-                    >{{ t("admin.supplierOrders.rescheduleNotice") }}</small
+                    >{{ visitNoticeText(row) }}</small
                   >
                 </div>
               </template>
@@ -1896,7 +1915,16 @@
             >
               <template #default="{ row }">
                 <div class="order-cell">
-                  <strong class="portal-numeric">{{ row.serviceDate || "—" }}</strong>
+                  <strong
+                    v-if="orderScheduleLead(row)"
+                    class="schedule-day"
+                    :class="`schedule-day--${orderDayKind(row)}`"
+                    >{{ orderScheduleLead(row) }}</strong
+                  >
+                  <strong v-else class="portal-numeric">{{ row.serviceDate || "—" }}</strong>
+                  <small v-if="orderScheduleLead(row)" class="portal-numeric">{{
+                    row.serviceDate
+                  }}</small>
                   <small class="portal-numeric" v-if="orderStartTime(row.serviceTime)">{{
                     orderStartTime(row.serviceTime)
                   }}</small>
@@ -1940,12 +1968,20 @@
                   <el-button link @click="openAssignedOrder(row)">{{
                     t("admin.supplierOrders.viewDetail")
                   }}</el-button>
+                  <a
+                    v-if="googleNavigateUrl(row)"
+                    class="order-map"
+                    :href="googleNavigateUrl(row)"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    >{{ t("admin.supplierOrders.navigateGoogle") }}</a
+                  >
                   <el-button
                     v-if="canAction('btn:/admin/supplier-management/orders:assign') && canAssignStaff(row)"
                     link
                     type="primary"
                     @click="openAssignStaff(row)"
-                    >{{ t("admin.supplierOrders.assignStaff") }}</el-button
+                    >{{ assignedStaffText(row) ? t("admin.supplierOrders.changeStaff") : t("admin.supplierOrders.assignStaff") }}</el-button
                   >
                   <el-button
                     v-if="canAction('btn:/admin/supplier-management/orders:reject') && serviceStep(row) === 0 && !orderCancelled(row)"
@@ -2024,7 +2060,7 @@
               :key="note"
               class="order-fulfill-remark"
             >{{ t("admin.supplierOrders.fulfillRemarkLine", { remark: note }) }}</p>
-            <p v-if="orderCancelled(row)" class="order-alert">
+            <p v-if="Number(row.orderStatus) === 3" class="order-alert">
               {{
                 row.cancelReason
                   ? t("admin.supplierOrders.cancelReason", {
@@ -2033,13 +2069,22 @@
                   : t("admin.supplierOrders.orderCancelled")
               }}
             </p>
-            <p v-else-if="orderRescheduleUnread(row)" class="order-reschedule">
-              {{ t("admin.supplierOrders.rescheduleNotice") }}
+            <p v-else-if="visitNoticeText(row)" class="order-reschedule">
+              {{ visitNoticeText(row) }}
             </p>
+            <p v-if="row.serviceAddress" class="order-place">{{ row.serviceAddress }}</p>
             <dl>
               <div>
                 <dt>{{ t("admin.supplierOrders.serviceTime") }}</dt>
-                <dd class="portal-numeric">{{ orderWhen(row) }}</dd>
+                <dd class="portal-numeric">
+                  <span
+                    v-if="orderScheduleLead(row)"
+                    class="schedule-day"
+                    :class="`schedule-day--${orderDayKind(row)}`"
+                    >{{ orderScheduleLead(row) }}</span
+                  >
+                  {{ orderWhen(row) }}
+                </dd>
               </div>
               <div>
                 <dt>{{ t("admin.supplierOrders.price") }}</dt>
@@ -2060,11 +2105,19 @@
               <el-button @click="openAssignedOrder(row)">{{
                 t("admin.supplierOrders.viewDetail")
               }}</el-button>
+              <a
+                v-if="googleNavigateUrl(row)"
+                class="order-map"
+                :href="googleNavigateUrl(row)"
+                target="_blank"
+                rel="noopener noreferrer"
+                >{{ t("admin.supplierOrders.navigateGoogle") }}</a
+              >
               <el-button
                 v-if="canAction('btn:/admin/supplier-management/orders:assign') && canAssignStaff(row)"
                 type="primary"
                 @click="openAssignStaff(row)"
-                >{{ t("admin.supplierOrders.assignStaff") }}</el-button
+                >{{ assignedStaffText(row) ? t("admin.supplierOrders.changeStaff") : t("admin.supplierOrders.assignStaff") }}</el-button
               >
               <el-button
                 v-if="canAction('btn:/admin/supplier-management/orders:reject') && serviceStep(row) === 0 && !orderCancelled(row)"
@@ -4225,7 +4278,7 @@
               <template v-if="packageVisitText(selectedOrder)">{{ packageVisitText(selectedOrder) }}</template>
             </p>
             <p>{{ t("admin.supplierOrders.detailHint") }}</p>
-            <p v-if="orderCancelled(selectedOrder)" class="order-alert">
+            <p v-if="Number(selectedOrder.orderStatus) === 3" class="order-alert">
               {{
                 selectedOrder.cancelReason
                   ? t("admin.supplierOrders.cancelReason", {
@@ -4234,14 +4287,18 @@
                   : t("admin.supplierOrders.orderCancelled")
               }}
             </p>
-            <p v-else-if="selectedOrder.rescheduled" class="order-reschedule">
-              {{ t("admin.supplierOrders.rescheduleNotice") }}
+            <p v-else-if="visitNoticeText(selectedOrder, true)" class="order-reschedule">
+              {{ visitNoticeText(selectedOrder, true) }}
             </p>
             <div class="order-lead__summary">
               <div>
                 <Calendar /><span
                   ><small>{{ t("admin.supplierOrders.serviceTime") }}</small
-                  ><strong class="portal-numeric">{{ orderWhen(selectedOrder) }}</strong></span
+                  ><strong class="portal-numeric">{{
+                    orderScheduleLead(selectedOrder)
+                      ? `${orderScheduleLead(selectedOrder)} · ${orderWhen(selectedOrder)}`
+                      : orderWhen(selectedOrder)
+                  }}</strong></span
                 >
               </div>
               <div>
@@ -4502,7 +4559,7 @@
             v-if="canAction('btn:/admin/supplier-management/orders:assign') && canAssignStaff(selectedOrder)"
             type="primary"
             @click="openAssignStaff(selectedOrder)"
-            >{{ t("admin.supplierOrders.assignStaff") }}</el-button
+            >{{ assignedStaffText(selectedOrder) ? t("admin.supplierOrders.changeStaff") : t("admin.supplierOrders.assignStaff") }}</el-button
           >
           <el-button
             v-if="
@@ -4751,7 +4808,10 @@ import {
 import { supplierShelfNoticeUnread } from "@/modules/admin/utils/supplierShelfNotice"
 import {
   packageVisitProgress,
+  schedulePinKind,
+  supplierVisitNotice,
   supplierMineCounts,
+  supplierScheduleNotices,
   supplierAttachEarning,
   supplierLineEarning,
   supplierOrderEarning,
@@ -4770,6 +4830,7 @@ import { supplierOperationsApiEnabled } from "@/modules/admin/utils/features"
 import { isSupplierStaffOrdersOnly, resolveAllowedAdminPath } from "@/modules/admin/utils/menuPermission"
 import { pickI18nText } from "@/modules/admin/utils/i18n"
 import { googleNavigateUrl } from "@/modules/admin/utils/supplierMap"
+import { serviceDayRelation } from "@/modules/admin/utils/serviceDay"
 import {
   countCoverageStatuses,
   countSingleReviewStatus,
@@ -5941,6 +6002,16 @@ const orderCancelled = (row: any) =>
   String(row?.supplierStage || "").toUpperCase() === "CANCELLED"
 const orderRescheduleUnread = (row: any) =>
   row?.rescheduled === true && row?.rescheduleRead !== true
+const visitNoticeText = (row: any, includeRead = false) => {
+  const notice = supplierVisitNotice(row, includeRead)
+  if (notice.kind === "cancel") {
+    return notice.seq
+      ? t("admin.orders.table.attentionCancel", { seq: notice.seq })
+      : t("admin.supplierOrders.schedulePinCancelled")
+  }
+  if (notice.kind === "reschedule") return t("admin.supplierOrders.rescheduleNotice")
+  return ""
+}
 const serviceStatusText = (row: any) => {
   const localized = specText(row?.serviceStatusI18n)
   if (localized !== "—") return localized
@@ -5958,9 +6029,13 @@ const serviceStatusTag = (status: unknown) => {
   return "info"
 }
 const workbenchStatusText = (row: any) => {
+  const code = String(row?.supplierStage || "").toUpperCase()
+  const step = serviceStep(row)
+  if (!orderCancelled(row) && code !== "CANCELLED" && [1, 2, 3, 4].includes(step)) {
+    return serviceStatusText(row)
+  }
   const localized = specText(row?.supplierStageI18n)
   if (localized !== "—") return localized
-  const code = String(row?.supplierStage || "").toUpperCase()
   if (code === "NEW") return t("admin.supplierPortal.newRequests")
   if (code === "UPCOMING") return t("admin.supplierPortal.upcoming")
   if (code === "IN_PROGRESS") return t("admin.supplierPortal.inProgress")
@@ -8089,12 +8164,18 @@ const staffOrderUserId = computed(() => {
   return Number.isFinite(id) && id > 0 ? id : 0
 })
 const visibleSupplierOrders = computed(() => {
-  if (!staffOrderUserId.value) return supplierOrders.value
-  return supplierOrders.value.filter((row) =>
-    (Array.isArray(row?.assignedStaff) ? row.assignedStaff : []).some(
-      (item: any) => Number(item?.adminUserId) === staffOrderUserId.value,
-    ),
-  )
+  const rows = !staffOrderUserId.value
+    ? supplierOrders.value
+    : supplierOrders.value.filter((row) =>
+        (Array.isArray(row?.assignedStaff) ? row.assignedStaff : []).some(
+          (item: any) => Number(item?.adminUserId) === staffOrderUserId.value,
+        ),
+      )
+  return [...rows].sort((left, right) => {
+    const leftPin = schedulePinKind(left) ? 0 : 1
+    const rightPin = schedulePinKind(right) ? 0 : 1
+    return leftPin - rightPin
+  })
 })
 const orderLoading = ref(false)
 const orderLoadFailed = ref(false)
@@ -9358,6 +9439,77 @@ const orderWhen = (row: any) =>
   [row?.serviceDate, orderStartTime(row?.serviceTime)]
     .filter(Boolean)
     .join(", ") || "—"
+const orderScheduleValue = (row: any) => row?.serviceDate || row?.serviceTime
+const orderDayKind = (row: any) => serviceDayRelation(orderScheduleValue(row))
+const orderScheduleLead = (row: any) => {
+  const kind = orderDayKind(row)
+  if (kind === "today") return t("admin.orders.table.today")
+  if (kind === "tomorrow") return t("admin.orders.table.tomorrow")
+  return ""
+}
+const noticeTime = (row: any) => orderStartTime(row?.serviceTime)
+const noticeVisit = (row: any) => {
+  const seq = Number(row?.seqNo)
+  const total = Number(row?.totalTimes)
+  if (!Number.isFinite(seq) || seq <= 0) return ""
+  if (!Number.isFinite(total) || total <= 0) return ""
+  return t("admin.supplierOrders.schedulePinVisit", { seq, total })
+}
+const orderScheduleNotices = ref<any[]>([])
+const schedulePinLabel = (item: any) => {
+  const seq = Number(item?.seqNo ?? item?.attentionSeq)
+  if (item?.kind === "cancelled") {
+    return Number.isFinite(seq) && seq > 0
+      ? t("admin.orders.table.attentionCancel", { seq })
+      : t("admin.supplierOrders.schedulePinCancelled")
+  }
+  if (item?.kind === "updated") return t("admin.supplierOrders.schedulePinUpdated")
+  return t("admin.supplierOrders.schedulePinConfirmed")
+}
+const pinnedScheduleNotices = computed(() => {
+  if (orderScheduleNotices.value.length) return orderScheduleNotices.value
+  const rows = visibleSupplierOrders.value
+  const cancelSeq = new Map<string, number>()
+  rows.forEach((row) => {
+    const key = String(row.orderId)
+    if (schedulePinKind(row) === "cancelled" && !cancelSeq.has(key)) {
+      cancelSeq.set(key, Number(row.seqNo))
+    }
+  })
+  const seen = new Set<string>()
+  return rows
+    .filter((row) => {
+      const kind = schedulePinKind(row)
+      if (!kind) return false
+      if (kind === "confirmed") return true
+      const key = String(row.orderId)
+      if (seen.has(key)) return false
+      seen.add(key)
+      return true
+    })
+    .slice(0, 8)
+    .map((row) => {
+      const key = String(row.orderId)
+      return {
+        orderId: row.orderId,
+        fulfillmentId: row.fulfillmentId,
+        orderNo: row.orderNo,
+        serviceDate: row.serviceDate,
+        serviceTime: orderStartTime(row.serviceTime),
+        seqNo: row.attentionSeq || cancelSeq.get(key) || row.seqNo,
+        totalTimes: row.totalTimes,
+        kind: cancelSeq.has(key) ? "cancelled" : schedulePinKind(row),
+      }
+    })
+})
+const openScheduleNotice = (item: any) => {
+  const current = supplierOrders.value.find((row) => {
+    if (Number(row?.orderId) !== Number(item?.orderId)) return false
+    if (!item?.fulfillmentId) return true
+    return Number(row?.fulfillmentId) === Number(item.fulfillmentId)
+  })
+  openAssignedOrder(current || item)
+}
 const orderPhones = (row: any) =>
   listedPhones(
     (Array.isArray(row?.contactPhones) ? row.contactPhones : []).map(
@@ -12173,11 +12325,13 @@ const loadOrders = async () => {
     )
     if (requestId !== orderListRequest) return
     orderSummary.value = supplierMineCounts(page)
+    orderScheduleNotices.value = supplierScheduleNotices(page)
     supplierOrders.value = Array.isArray(page?.list) ? page.list : []
     orderTotal.value = Number(page?.total || 0)
   } catch (error: any) {
     if (requestId !== orderListRequest) return
     supplierOrders.value = []
+    orderScheduleNotices.value = []
     orderTotal.value = 0
     orderSummary.value = {}
     orderLoadFailed.value = true
@@ -16112,6 +16266,68 @@ watch(areaKeyword, (keyword) => {
   color: #74685a;
   font-size: 12px;
   line-height: 1.4;
+}
+.schedule-day {
+  display: inline-flex;
+  width: fit-content;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 800;
+  line-height: 1.3;
+}
+.order-cell > .schedule-day--today,
+.schedule-day--today {
+  background: #fff0d5;
+  color: #9a5700;
+}
+.order-cell > .schedule-day--tomorrow,
+.schedule-day--tomorrow {
+  background: #e8f2ff;
+  color: #185ca8;
+}
+.schedule-pin {
+  position: sticky;
+  top: 0;
+  z-index: 4;
+  display: grid;
+  gap: 8px;
+  margin: 0 0 12px;
+  padding: 12px 14px;
+  border: 1px solid #f3d7a1;
+  border-radius: 12px;
+  background: #fff8ec;
+}
+.schedule-pin > strong {
+  color: #9a5700;
+  font-size: 14px;
+}
+.schedule-pin button {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 8px 10px;
+  border: 0;
+  border-radius: 8px;
+  background: #fff;
+  color: #243044;
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+}
+.schedule-pin em {
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: #fff0d5;
+  color: #9a5700;
+  font-size: 12px;
+  font-style: normal;
+  font-weight: 800;
+}
+.schedule-pin b {
+  color: #9a5700;
 }
 .order-clamp {
   display: -webkit-box;

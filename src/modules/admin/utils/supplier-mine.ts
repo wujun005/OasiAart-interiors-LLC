@@ -23,6 +23,77 @@ const positive = (value: unknown) => {
   return count != null && count > 0 ? count : null
 }
 
+export type SchedulePinKind = "updated" | "cancelled" | "confirmed" | ""
+
+/** Unread reschedules, cancelled visits, and newly dated package visits stay pinned until handled. */
+export function schedulePinKind(row: {
+  rescheduled?: unknown
+  rescheduleRead?: unknown
+  attentionKind?: unknown
+  packageOrder?: unknown
+  orderType?: unknown
+  supplierStage?: unknown
+  serviceDate?: unknown
+  orderStatus?: unknown
+} | null | undefined): SchedulePinKind {
+  const stage = String(row?.supplierStage || "").toUpperCase()
+  const unread = row?.rescheduled === true && row?.rescheduleRead !== true
+  if (Number(row?.orderStatus) === 3) return ""
+  if (unread && (row?.attentionKind === "cancel" || stage === "CANCELLED")) return "cancelled"
+  if (stage === "CANCELLED") return ""
+  if (unread) return "updated"
+  if (
+    isSupplierPackageOrder(row) &&
+    stage === "NEW" &&
+    String(row?.serviceDate || "").trim()
+  ) {
+    return "confirmed"
+  }
+  return ""
+}
+
+/** One cancelled visit stays a visit notice. A fully cancelled order is handled separately. */
+export function supplierVisitNotice(
+  row: {
+    orderStatus?: unknown
+    supplierStage?: unknown
+    rescheduled?: unknown
+    rescheduleRead?: unknown
+    attentionKind?: unknown
+    attentionSeq?: unknown
+    seqNo?: unknown
+  } | null | undefined,
+  includeReadReschedule = false,
+): { kind: "cancel" | "reschedule" | ""; seq: number | null } {
+  const empty = { kind: "" as const, seq: null }
+  if (!row || Number(row.orderStatus) === 3) return empty
+  const stage = String(row.supplierStage || "").toUpperCase()
+  const unread = row.rescheduled === true && row.rescheduleRead !== true
+  const positive = (value: unknown) => {
+    const seq = Number(value)
+    return Number.isFinite(seq) && seq > 0 ? seq : null
+  }
+  if (row.attentionKind === "cancel" && (unread || stage === "CANCELLED") || stage === "CANCELLED") {
+    return {
+      kind: "cancel",
+      seq: positive(row.attentionSeq) ?? (stage === "CANCELLED" ? positive(row.seqNo) : null),
+    }
+  }
+  if (unread || (includeReadReschedule && row.rescheduled === true)) {
+    return { kind: "reschedule", seq: null }
+  }
+  return empty
+}
+
+export function supplierScheduleNotices(page: unknown) {
+  const record = page && typeof page === "object" ? (page as Record<string, unknown>) : {}
+  const list = record.scheduleNotices
+  if (!Array.isArray(list)) return []
+  return list
+    .filter((item) => item && typeof item === "object")
+    .slice(0, 8) as Array<Record<string, unknown>>
+}
+
 /** Counts stay on the page payload and do not follow the selected tab. */
 export function supplierMineCounts(page: unknown) {
   const record = page && typeof page === "object" ? (page as Record<string, unknown>) : {}

@@ -694,7 +694,7 @@ const resolveMenuIcon = (item: AdminMenuPermissionItem) => {
   if (path.startsWith('/admin/supplier-coverage')) return DataAnalysis;
   if (path.startsWith('/admin/comments')) return ChatDotRound;
   if (path.startsWith('/admin/marketing/campaigns')) return Clock;
-  if (path.startsWith('/admin/marketing/banners')) return Picture;
+  if (path.startsWith('/admin/marketing/banners') || path.startsWith('/admin/marketing/promotions')) return Picture;
   if (path.startsWith('/admin/marketing')) return Ticket;
   if (path.startsWith('/admin/products')) return Goods;
   if (path.startsWith('/admin/package/services')) return Goods;

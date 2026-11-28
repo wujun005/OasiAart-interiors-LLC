@@ -120,6 +120,7 @@ const normalizeEnglishValue = (value: string) => {
     .replace(/(\d+)\s*(?:小时|小時)/g, (_, count) =>
       `${count} Hour${Number(count) === 1 ? "" : "s"}`,
     )
+    .replace(/(\d+)\s*分钟/g, (_, count) => `${count} min`)
     .replace(/(\d+)\s*(?:人|位|technicians?|people|persons?)/gi, (_, count) =>
       `${count} Person${Number(count) === 1 ? "" : "s"}`,
     )

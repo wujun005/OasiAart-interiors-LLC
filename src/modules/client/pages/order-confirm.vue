@@ -330,7 +330,19 @@
                 <span>{{ t("client.orderConfirm.summary.subtotal") }}</span>
                 <span>{{ formatAed(subtotal) }}</span>
               </div>
-              <div v-if="voucherDiscount > 0" class="order-summary-card__voucher">
+              <CheckoutPromoRow
+                v-if="canEditPromo"
+                v-model="promoCode"
+                class="pay-promo"
+                :loading="promoLoading"
+                :error="promoError"
+                :applied-code="voucherCode"
+                :discount="voucherDiscount"
+                @update:model-value="promoCode = $event; promoError = ''"
+                @apply="applyCheckoutPromo"
+                @remove="removeCheckoutPromo"
+              />
+              <div v-else-if="voucherDiscount > 0" class="order-summary-card__voucher">
                 <span>{{ voucherLabel }}</span>
                 <span>-{{ formatAed(voucherDiscount) }}</span>
               </div>
@@ -347,7 +359,7 @@
             <button
               class="order-summary-card__submit"
               type="button"
-              :disabled="isSubmitting"
+              :disabled="isSubmitting || promoLoading"
               @click="handleConfirm"
             >
               {{
@@ -475,8 +487,11 @@ import {
   type LatestAddressRecord,
   getAvailableSelectTime,
   createPay,
+  applyOrderCoupon,
   type CartSkuDetail,
+  type OrderCouponCheckoutResult,
 } from "@/modules/client/api"
+import CheckoutPromoRow from "@/modules/client/components/CheckoutPromoRow.vue"
 import { useCart } from "@/modules/client/composables/useCart"
 import AgreementDialog from "@/modules/client/components/agreement-dialog.vue"
 import BookingPolicyConfirm from "@/modules/client/components/booking-policy-confirm.vue"
@@ -575,6 +590,9 @@ const policyDialogVisible = ref(false)
 const legalDialogVisible = ref(false)
 const legalDocType = ref<LegalDocType>("terms")
 const isSubmitting = ref(false)
+const promoCode = ref("")
+const promoLoading = ref(false)
+const promoError = ref("")
 const addressList = ref<ClientAddressRecord[]>([])
 const addressListLoading = ref(false)
 const addressListError = ref(false)
@@ -1243,6 +1261,7 @@ const editingCartItemId = computed(() => getQueryText("cartItemId"))
 const isCartMode = computed(() =>
   ["cart", "cart-edit"].includes(getQueryText("mode")),
 )
+const canEditPromo = computed(() => !isCartMode.value && orderId.value !== null)
 const cartSkuDetail = computed(() =>
   parseQueryJson<CartSkuDetail | null>("cartSkuDetail", null),
 )
@@ -2009,7 +2028,75 @@ const submitBooking = async () => {
   }
 }
 
+const moneyText = (value: unknown) => {
+  const numeric = Number(value)
+  return Number.isFinite(numeric) ? numeric.toFixed(2) : "0.00"
+}
+
+const syncPromoTotals = async (result: OrderCouponCheckoutResult | null) => {
+  if (!result) {
+    throw new Error(t("client.productDetail.booking.createOrderFailed"))
+  }
+  const nextQuery: Record<string, string> = {}
+  Object.entries(route.query).forEach(([key, value]) => {
+    if (key === "couponCode" || key === "couponDiscount") return
+    const text = Array.isArray(value) ? value[0] : value
+    if (typeof text === "string") nextQuery[key] = text
+  })
+  nextQuery.subtotal = moneyText(result.amountWithoutTax)
+  nextQuery.tax = moneyText(result.taxAmount)
+  nextQuery.total = moneyText(result.amountWithTax)
+  const code = String(result.couponCode || "").trim()
+  const discount = Number(result.discountAmount || 0)
+  if (code && discount > 0) {
+    nextQuery.couponCode = code
+    nextQuery.couponDiscount = moneyText(discount)
+  }
+  promoCode.value = ""
+  await router.replace({ query: nextQuery })
+}
+
+const applyCheckoutPromo = async () => {
+  if (promoLoading.value || orderId.value === null) return
+  const code = promoCode.value.trim()
+  if (!code) {
+    promoError.value = t("client.orderConfirm.summary.promoPlaceholder")
+    return
+  }
+  promoLoading.value = true
+  promoError.value = ""
+  try {
+    await syncPromoTotals(await applyOrderCoupon(orderId.value, code))
+  } catch (error: unknown) {
+    promoError.value = promoFailure(error)
+  } finally {
+    promoLoading.value = false
+  }
+}
+
+const removeCheckoutPromo = async () => {
+  if (promoLoading.value || orderId.value === null) return
+  promoLoading.value = true
+  promoError.value = ""
+  try {
+    await syncPromoTotals(await applyOrderCoupon(orderId.value, ""))
+  } catch (error: unknown) {
+    promoError.value = promoFailure(error)
+  } finally {
+    promoLoading.value = false
+  }
+}
+
+const promoFailure = (error: unknown) => {
+  const message = error instanceof Error ? error.message.trim() : ""
+  if (!message || /request failed|network error|timeout/i.test(message)) {
+    return t("client.orderConfirm.summary.promoUnavailable")
+  }
+  return message
+}
+
 const handleConfirm = () => {
+  if (promoLoading.value) return
   const validationMessage = getValidationMessage()
   if (validationMessage) {
     ElMessage.warning(validationMessage)
@@ -3037,6 +3124,13 @@ onMounted(async () => {
   align-items: center;
   justify-content: space-between;
   color: rgba(15, 23, 42, 0.5);
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.order-summary-card__prices > .pay-promo {
+  display: block;
+  color: rgba(15, 23, 42, 0.62);
   font-size: 16px;
   font-weight: 600;
 }

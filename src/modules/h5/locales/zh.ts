@@ -1,6 +1,8 @@
 const zh = {
   common: {
     back: '返回',
+    homeAction: '返回首页',
+    backToHome: '返回首页',
     submit: '提交',
     login: '登录',
     reserve: '预约',
@@ -120,9 +122,18 @@ const zh = {
   },
   serviceList: {
     bookNow: '立即预约',
+    searchPrompt: '输入服务名称或关键词，例如家庭清洁。',
+    searchResultsFor: '“{keyword}”的相关服务',
   },
   productDetail: {
     bookingOptions: '预约选项',
+    closeBookingOptions: '关闭预约选项',
+    continueBooking: '继续预约',
+    continueWithOptions: '继续',
+    noBookingOptions: '此服务无需选择规格或附加项。',
+    bookingPriceFailed: '暂时无法计算价格。',
+    increaseAddOn: '增加一份{name}',
+    decreaseAddOn: '减少一份{name}',
     reviewCount: '({count}条评价)',
     soldCount: '已售 {count}+',
   },

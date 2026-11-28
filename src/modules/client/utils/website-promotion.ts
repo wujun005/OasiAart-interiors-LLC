@@ -29,7 +29,10 @@ export function promotionDevice(): 'pc' | 'mobile' {
   return window.matchMedia('(max-width: 768px)').matches ? 'mobile' : 'pc';
 }
 
-export function promotionPage(path: string) {
+export function promotionPage(path: string, categoryId?: string) {
+  const key = String(categoryId || '').trim();
+  const serviceList = path.startsWith('/services') && !path.includes('/detail/') && !path.endsWith('/search');
+  if (key && serviceList) return `category:${key}`.slice(0, 80);
   if (!path || path === '/') return 'home';
   if (path.startsWith('/services')) return 'services';
   if (path.startsWith('/packages')) return 'packages';
@@ -134,6 +137,76 @@ export function serviceTagLabels(tags: PromotionCard[], spuId: unknown, category
   });
 }
 
+function routeNames(mobile: boolean) {
+  const h5 = typeof window !== 'undefined' ? /\/h5(\/|$)/i.test(window.location.pathname) : mobile;
+  return h5
+    ? { home: 'h5-home', services: 'h5-service-search', product: 'h5-product-detail', packages: 'h5-packages', packageDetail: 'h5-package-detail', campaign: 'h5-campaign-services' }
+    : { home: 'home', services: 'service-search', product: 'product-detail', packages: 'packages', packageDetail: 'package-detail', campaign: 'campaign-services' };
+}
+
+function siteLocation(raw: string) {
+  let path = raw.trim();
+  if (/^https?:\/\//i.test(path)) {
+    const url = new URL(path);
+    if (typeof window !== 'undefined' && url.host !== window.location.host) return 'external' as const;
+    path = url.hash.startsWith('#/') ? url.hash.slice(1) : `${url.pathname}${url.search}`;
+  } else if (path.startsWith('#/')) {
+    path = path.slice(1);
+  }
+  const url = new URL(path, 'http://local');
+  let pathname = url.pathname.replace(/^\/h5(?=\/|$)/, '') || '/';
+  if (pathname.length > 1) pathname = pathname.replace(/\/+$/, '');
+  return { pathname, query: Object.fromEntries(url.searchParams.entries()) };
+}
+
+export async function openSitePath(router: Router, mobile: boolean, raw: string) {
+  const value = raw.trim();
+  if (!value) return;
+  let location: ReturnType<typeof siteLocation>;
+  try {
+    location = siteLocation(value);
+  } catch {
+    window.open(value, '_blank', 'noopener');
+    return;
+  }
+  if (location === 'external') {
+    window.open(value, '_blank', 'noopener');
+    return;
+  }
+  const names = routeNames(mobile);
+  const { pathname, query } = location;
+  const queryOrEmpty = Object.keys(query).length ? query : undefined;
+  const detail = pathname.match(/^\/services\/detail\/([^/]+)$/);
+  if (detail) {
+    await router.push({ name: names.product, params: { spuId: decodeURIComponent(detail[1]) } });
+    return;
+  }
+  if (pathname === '/services/search' || pathname === '/services/daily-cleaning' || pathname === '/services') {
+    await router.push({ name: names.services, query: queryOrEmpty });
+    return;
+  }
+  const campaign = pathname.match(/^\/campaigns\/(\d+)$/);
+  if (campaign) {
+    await router.push({ name: names.campaign, params: { id: campaign[1] } });
+    return;
+  }
+  const pack = pathname.match(/^\/packages\/([^/]+)$/);
+  if (pack) {
+    await router.push({ name: names.packageDetail, params: { id: decodeURIComponent(pack[1]) } });
+    return;
+  }
+  if (pathname === '/packages') {
+    await router.push({ name: names.packages, query: queryOrEmpty });
+    return;
+  }
+  if (pathname === '/' || pathname === '/home') {
+    if (names.home === 'h5-home') await router.push({ name: names.home });
+    else await router.push('/');
+    return;
+  }
+  await router.push({ path: pathname, query: queryOrEmpty });
+}
+
 export async function openPromotion(
   card: PromotionCard | CampaignDealCard,
   router: Router,
@@ -142,9 +215,7 @@ export async function openPromotion(
 ) {
   const id = 'id' in card ? Number(card.id || 0) : 0;
   if (id) void trackPromotion(id, 2);
-  const names = mobile
-    ? { home: 'h5-home', services: 'h5-service-search', product: 'h5-product-detail', packages: 'h5-packages', packageDetail: 'h5-package-detail' }
-    : { home: 'home', services: 'service-search', product: 'product-detail', packages: 'packages', packageDetail: 'package-detail' };
+  const names = routeNames(mobile);
   if ('bookNow' in card || ('spuId' in card && !('linkType' in card))) {
     const deal = card as CampaignDealCard;
     if (deal.spuId) {
@@ -156,11 +227,7 @@ export async function openPromotion(
   if (promo.couponCode) sessionStorage.setItem('hourx.pendingCoupon', promo.couponCode);
   const link = Number(promo.linkType || 0);
   if (link === 6 && promo.externalUrl) {
-    if (/^https?:\/\//i.test(promo.externalUrl)) {
-      window.open(promo.externalUrl, '_blank', 'noopener');
-      return;
-    }
-    await router.push(promo.externalUrl);
+    await openSitePath(router, mobile, promo.externalUrl);
     return;
   }
   if (link === 3 && promo.spuId) {
@@ -172,11 +239,8 @@ export async function openPromotion(
     return;
   }
   if (link === 7 && promo.campaignId) {
-    const deal = deals.find((item) => sameId(item.campaignId, promo.campaignId));
-    if (deal?.spuId) {
-      await router.push({ name: names.product, params: { spuId: String(deal.spuId) } });
-      return;
-    }
+    await router.push({ name: names.campaign, params: { id: String(promo.campaignId) } });
+    return;
   }
   if (link === 2 || link === 1 || link === 0) {
     const page = String(promo.pageCode || '').trim();
@@ -189,7 +253,7 @@ export async function openPromotion(
       return;
     }
     if (page && page !== 'home' && page.startsWith('/')) {
-      await router.push(page);
+      await openSitePath(router, mobile, page);
       return;
     }
     if (link === 2 && page && page !== 'home') {

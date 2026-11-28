@@ -26,6 +26,7 @@ export type PromotionCard = {
   skuId?: number;
   campaignId?: number;
   externalUrl?: string;
+  imageLink?: string;
   popupTrigger?: number;
   popupDelaySeconds?: number;
   popupFrequency?: number;
@@ -88,4 +89,49 @@ export async function fetchWebsitePromotion(device: 'pc' | 'mobile', page: strin
 
 export function trackPromotion(id: number, eventType: 1 | 2) {
   return http.post('/client/promotion/track', { id, eventType }).catch(() => undefined);
+}
+
+export type CampaignServiceCard = {
+  id?: number;
+  nameI18n?: PromotionText;
+  imageUrls?: string[];
+  minNotIncTaxPrice?: number;
+  catalogMinNotIncTaxPrice?: number;
+  packageService?: number;
+};
+
+export type CampaignPackageCard = {
+  id?: number | string;
+  packageName?: string;
+  nameI18n?: PromotionText;
+  imageUrls?: string[];
+  salePrice?: number | string | null;
+  campaignPrice?: number | string | null;
+};
+
+export type CampaignServiceList = {
+  campaignId?: number;
+  name?: string;
+  nameI18n?: PromotionText;
+  subtitleI18n?: PromotionText;
+  badgeI18n?: PromotionText;
+  open?: boolean;
+  services: CampaignServiceCard[];
+  packages: CampaignPackageCard[];
+};
+
+export async function fetchCampaignServices(id: number): Promise<CampaignServiceList> {
+  const payload = await http.post('/client/campaign/services', { id });
+  const root = payload && typeof payload === 'object' ? payload as Record<string, unknown> : {};
+  const data = root.data && typeof root.data === 'object' ? root.data as Record<string, unknown> : root;
+  return {
+    campaignId: Number(data.campaignId || id),
+    name: typeof data.name === 'string' ? data.name : '',
+    nameI18n: data.nameI18n as PromotionText | undefined,
+    subtitleI18n: data.subtitleI18n as PromotionText | undefined,
+    badgeI18n: data.badgeI18n as PromotionText | undefined,
+    open: data.open !== false,
+    services: Array.isArray(data.services) ? data.services as CampaignServiceCard[] : [],
+    packages: Array.isArray(data.packages) ? data.packages as CampaignPackageCard[] : [],
+  };
 }

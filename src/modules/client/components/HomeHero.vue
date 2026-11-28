@@ -2,7 +2,7 @@
   <section
     ref="carousel"
     class="home-hero"
-    :class="{ 'is-image-only': active.imageOnly }"
+    :class="{ 'is-image-only': active.imageOnly, 'home-hero--compact': compact }"
     aria-roledescription="carousel"
     :aria-label="t('client.home.hero.headline')"
     @focusin="handleFocusChange"
@@ -11,7 +11,7 @@
     @pointerup="finishSwipe"
     @pointercancel="cancelSwipe"
   >
-    <div class="home-hero__media">
+    <div class="home-hero__media" @click="openImage">
       <img
         v-for="(banner, index) in banners"
         :key="banner.key"
@@ -27,6 +27,7 @@
         height="1024"
       />
     </div>
+    <button class="home-hero__photo-link" type="button" :aria-label="active.alt || active.title" @click="openImage" />
 
     <div class="home-hero__inner">
       <div v-if="!active.imageOnly" class="home-hero__copy">
@@ -69,9 +70,10 @@ import { useRouter } from 'vue-router'
 import cleaningImage from '@/assets/images/client/home-hero-cleaning.webp'
 import acImage from '@/assets/images/client/home-hero-ac.webp'
 import appImage from '@/assets/images/client/home-hero-app.webp'
-import type { PromotionCard } from '@/modules/client/api/promotion'
+import { trackPromotion, type PromotionCard } from '@/modules/client/api/promotion'
 import {
   openPromotion,
+  openSitePath,
   promotionDevice,
   promotionImage,
   promotionText,
@@ -94,6 +96,7 @@ type Slide = {
   card?: PromotionCard
 }
 
+defineProps<{ compact?: boolean }>()
 const emit = defineEmits<{
   select: [topic: 'cleaning' | 'ac' | 'app']
 }>()
@@ -196,6 +199,21 @@ function choose() {
   if (active.value.topic) emit('select', active.value.topic)
 }
 
+async function openAddress(url: string) {
+  const id = Number(active.value.card?.id || 0)
+  if (id) void trackPromotion(id, 2)
+  await openSitePath(router, promotionDevice() === 'mobile', url)
+}
+
+function openImage() {
+  const imageLink = String(active.value.card?.imageLink || '').trim()
+  if (imageLink) {
+    void openAddress(imageLink)
+    return
+  }
+  choose()
+}
+
 watch(active, (slide) => rememberImpression(slide.card?.id), { immediate: true })
 watch(banners, () => {
   if (activeIndex.value >= banners.value.length) activeIndex.value = 0
@@ -232,6 +250,19 @@ onUnmounted(() => {
   overflow: hidden;
 }
 
+.home-hero__photo-link {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 4.5rem;
+  z-index: 1;
+  width: min(42%, 36rem);
+  border: 0;
+  padding: 0;
+  background: transparent;
+  cursor: pointer;
+}
+
 .home-hero__media::after {
   content: '';
   position: absolute;
@@ -263,6 +294,17 @@ onUnmounted(() => {
   background: linear-gradient(90deg, rgb(9 26 48 / 28%), transparent 42%);
 }
 
+.home-hero.is-image-only {
+  min-height: 0;
+  aspect-ratio: 1920 / 600;
+}
+
+.home-hero.is-image-only .home-hero__image {
+  object-fit: contain;
+  object-position: center;
+  background: #06182f;
+}
+
 .home-hero__image-link {
   position: absolute;
   inset: 0;
@@ -285,6 +327,13 @@ onUnmounted(() => {
   min-height: clamp(27.5rem, 38vw, 32rem);
   margin-inline: auto;
   padding-block: 3rem 5rem;
+  pointer-events: none;
+}
+
+.home-hero__copy,
+.home-hero__controls,
+.home-hero__image-link {
+  pointer-events: auto;
 }
 
 .home-hero__copy {
@@ -435,8 +484,23 @@ onUnmounted(() => {
 @media (max-width: 768px) {
   .home-hero__media {
     position: relative;
+    z-index: 0;
     width: 100%;
     height: clamp(12.5rem, 58vw, 20rem);
+    cursor: pointer;
+  }
+
+  .home-hero.is-image-only {
+    aspect-ratio: 750 / 900;
+  }
+
+  .home-hero.is-image-only .home-hero__media {
+    height: auto;
+    aspect-ratio: 750 / 900;
+  }
+
+  .home-hero__photo-link {
+    display: none;
   }
 
   .home-hero__media::after {
@@ -455,8 +519,8 @@ onUnmounted(() => {
   }
 
   .home-hero__copy h1 {
-    margin-block: 0.625rem 0.625rem;
-    font-size: clamp(1.75rem, 7.7vw, 2rem);
+    margin-block: 0.375rem 0.5rem;
+    font-size: clamp(1.375rem, 5.6vw, 1.75rem);
     line-height: 1.12;
     letter-spacing: -0.027em;
   }
@@ -475,6 +539,12 @@ onUnmounted(() => {
     margin-top: 0.5rem;
     margin-left: -0.625rem;
   }
+}
+
+.home-hero--compact .home-hero__copy h1 {
+  font-size: clamp(1.1875rem, 4.9vw, 1.5rem);
+  line-height: 1.16;
+  overflow-wrap: anywhere;
 }
 
 @media (max-width: 26rem) {

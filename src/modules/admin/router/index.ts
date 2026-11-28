@@ -86,9 +86,19 @@ const routes: RouteRecordRaw[] = [
         component: () => import('@/modules/admin/pages/marketing/banners/index.vue'),
       },
       {
+        path: 'marketing/promotions',
+        name: 'admin-marketing-promotions',
+        component: () => import('@/modules/admin/pages/marketing/promotions/index.vue'),
+      },
+      {
         path: 'account-deletions',
         name: 'admin-account-deletions',
         component: () => import('@/modules/admin/pages/account-deletions/index.vue'),
+      },
+      {
+        path: 'account-deletions/suppliers',
+        name: 'admin-supplier-account-deletions',
+        component: () => import('@/modules/admin/pages/account-deletions/suppliers.vue'),
       },
       {
         path: 'customers',
@@ -398,7 +408,8 @@ router.beforeEach(async (to) => {
     (to.path === '/admin/developer/dev-config'
       || to.path === '/admin/supplier-coverage'
       || to.path === '/admin/comments'
-      || to.path === '/admin/account-deletions'
+      || to.name === 'admin-account-deletions'
+      || to.name === 'admin-supplier-account-deletions'
       || to.path === '/admin/customers')
     && !adminMenuState.superAdmin
   ) {
@@ -408,7 +419,7 @@ router.beforeEach(async (to) => {
   const staffOrdersOnly = isSupplierStaffOrdersOnly();
   const supplierSection = supplierSectionFromPath(to.path);
   if (supplierSection) {
-    const section = staffOrdersOnly ? 'orders' : supplierSection;
+    const section = supplierSection;
     if (canAccessSupplierSection(section, adminMenuState.allowedPaths, staffOrdersOnly)) {
       const destination = supplierResponsivePath(to.path, { mobile: isMobileDevice(), staffOrdersOnly });
       if (destination && destination !== to.path) {

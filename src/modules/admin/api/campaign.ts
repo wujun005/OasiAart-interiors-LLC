@@ -16,6 +16,7 @@ export type CampaignSavePayload = {
   spuIds?: number[];
   skuIds?: number[];
   specValueIds?: number[];
+  packageIds?: number[];
   highlightSkuId?: number;
   campaignPrice?: number;
   discountPercent?: number;

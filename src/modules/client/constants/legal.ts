@@ -16,8 +16,8 @@ type LegalDoc = {
 
 type LegalLocale = 'en' | 'zh';
 
-const privacyRevision = '2026-11-14';
-const deletionRevision = '2026-11-19';
+const privacyRevision = '2026-11-25';
+const deletionRevision = '2026-11-25';
 const privacyContact = {
   label: 'support@hourxportal.com',
   href: 'mailto:support@hourxportal.com',
@@ -219,6 +219,7 @@ export const LEGAL_DOCS: Record<LegalLocale, Record<LegalDocType, LegalDoc>> = {
             'HourX Home usage information, including app activity, device or platform information, app-generated identifiers, and session identifiers. Usage events can include your account identifier, name, and related booking or payment activity.',
             'HourX Supplier business and employee records, including supplier profile and contact details, staff names and phone numbers, optional email addresses and service categories, and order assignments.',
             'HourX Supplier verification and settlement information, including trade licenses, insurance or tax documents, and bank account details such as IBAN. We also receive service records and proof photos you upload.',
+            'HourX Supplier logs sign-in and account activity for security and operation. A separate technical audit records the time, type and result of selected supplier requests, a request reference, response time, and a broad order-pagination category. That audit does not record search terms or request contents.',
           ],
         },
         {
@@ -241,6 +242,7 @@ export const LEGAL_DOCS: Record<LegalLocale, Record<LegalDocType, LegalDoc>> = {
             'Approved suppliers and assigned employees for booking and service delivery, and authorized supplier administrators for managing their organization and staff.',
             'Stripe for payment processing.',
             'Google Maps for address search, map display, and location lookup.',
+            'Alibaba Cloud for infrastructure and storage of supplier verification documents and service proof, and messaging providers for sign-in codes, account messages, and service notifications. These include Alibaba Cloud DirectMail for email and YCloud for WhatsApp.',
             'Meta for advertising measurement on the HourX website. The pixel records page views and booking actions such as viewing a service, adding a booking, starting checkout, completing a purchase, and creating an account. It does not receive your name, email address, or phone number.',
             'Legal authorities when required by UAE law.',
             'HourX technical and platform administration teams, including personnel outside the UAE, for hosting, maintaining, and operating the platform. These teams are subject to confidentiality and data protection obligations.',
@@ -277,6 +279,7 @@ export const LEGAL_DOCS: Record<LegalLocale, Record<LegalDocType, LegalDoc>> = {
           paragraphs: [
             'HourX keeps personal data for as long as needed to provide services, meet legal, tax, or regulatory obligations, and resolve disputes. For customer records, this is typically 2 years after account closure or the last booking. HourX deletes or anonymizes the data when that period ends.',
             'After account deletion, HourX may retain specific records needed for legal, tax, or regulatory obligations or to resolve disputes. HourX deletes or anonymizes those records when they are no longer needed.',
+            'HourX keeps the separate technical audit of supplier requests for up to 90 days. Other operational and business records follow the retention purposes described above and the HourX Supplier deletion information.',
           ],
         },
         {
@@ -289,7 +292,8 @@ export const LEGAL_DOCS: Record<LegalLocale, Record<LegalDocType, LegalDoc>> = {
           ],
           links: [
             privacyContact,
-            { label: 'Request account and data deletion', href: '/data-deletion' },
+            { label: 'Request HourX Home account and data deletion', href: '/data-deletion' },
+            { label: 'Request HourX Supplier account and data deletion', href: '/data-deletion#supplier' },
           ],
         },
         {
@@ -328,9 +332,9 @@ export const LEGAL_DOCS: Record<LegalLocale, Record<LegalDocType, LegalDoc>> = {
         {
           heading: 'HourX Supplier and Other Data Requests',
           paragraphs: [
-            'The self-service form above is for HourX Home consumer accounts only. To request deletion of an HourX Supplier business account or specific personal data, contact HourX support and identify the relevant account. Supplier deletion is not performed by this consumer form.',
+            'The form above is for HourX Home consumer accounts only. Use the dedicated HourX Supplier form to request deletion of your business or staff account. For other data requests, contact HourX support.',
           ],
-          links: [privacyContact],
+          links: [{ label: 'Open the HourX Supplier deletion form', href: '/data-deletion#supplier' }, privacyContact],
         },
       ],
     },
@@ -528,6 +532,7 @@ export const LEGAL_DOCS: Record<LegalLocale, Record<LegalDocType, LegalDoc>> = {
             'HourX Home 的使用信息，包括 App 操作、设备或平台信息、App 生成的标识符和会话标识符。使用事件可能包含账户标识、姓名及相关预订或付款活动。',
             'HourX Supplier 的企业及员工资料，包括供应商档案和联系方式、员工姓名和手机号、选填的电子邮箱及服务类别，以及订单分派记录。',
             'HourX Supplier 的验证及结算资料，包括营业执照、保险或税务文件，以及 IBAN 等银行账户信息。我们也会接收您提交的服务记录和凭证照片。',
+            '为保障安全和运营，HourX Supplier 会记录登录和账户操作。独立的技术审计日志会记录部分供应商请求的时间、类型与结果、请求编号、响应耗时，以及粗略的订单分页类别；该日志不记录搜索词或请求正文。',
           ],
         },
         {
@@ -550,6 +555,7 @@ export const LEGAL_DOCS: Record<LegalLocale, Record<LegalDocType, LegalDoc>> = {
             '经批准的供应商及被分派的员工，用于预订和服务交付。授权的供应商管理员可使用相关信息管理所属组织和员工。',
             'Stripe，用于处理付款。',
             'Google Maps，用于搜索地址、显示地图和查询位置。',
+            '阿里云，用于基础设施、存储供应商验证材料和服务凭证。消息服务商用于发送登录验证码、账户消息和服务通知，包括用于电子邮件的阿里云 DirectMail 及用于 WhatsApp 的 YCloud。',
             'Meta，用于统计 HourX 网站的广告效果。像素会记录页面浏览和预订动作，包括查看服务、加入预订、开始结算、完成支付和注册账户。像素不会收到您的姓名、邮箱或手机号。',
             '阿联酋法律要求时的主管机关。',
             'HourX 的技术、开发及平台管理团队，包括位于阿联酋境外、为维护、托管和运营平台而工作的人员；相关人员均受保密和数据保护义务约束。',
@@ -586,6 +592,7 @@ export const LEGAL_DOCS: Record<LegalLocale, Record<LegalDocType, LegalDoc>> = {
           paragraphs: [
             'HourX 会在提供服务、履行法律、税务或监管义务及解决争议所需的期限内保留个人数据。客户记录通常保留至账户关闭或最后一次预订后 2 年，期满后删除或匿名化。',
             '账户删除后，HourX 可能保留履行法律、税务或监管义务或解决争议所需的特定记录，并在相关用途结束后删除或匿名化这些记录。',
+            'HourX 的独立供应商请求技术审计日志最多保留 90 天。其他运营和业务记录按上述保留目的及 HourX Supplier 注销说明处理。',
           ],
         },
         {
@@ -598,7 +605,8 @@ export const LEGAL_DOCS: Record<LegalLocale, Record<LegalDocType, LegalDoc>> = {
           ],
           links: [
             privacyContact,
-            { label: '申请删除账户及数据', href: '/data-deletion' },
+            { label: '申请删除 HourX Home 账户及数据', href: '/data-deletion' },
+            { label: '申请删除 HourX Supplier 账户及数据', href: '/data-deletion#supplier' },
           ],
         },
         {
@@ -637,9 +645,9 @@ export const LEGAL_DOCS: Record<LegalLocale, Record<LegalDocType, LegalDoc>> = {
         {
           heading: 'HourX Supplier 与其他数据申请',
           paragraphs: [
-            '上方自助表单仅适用于 HourX Home 消费者账户。如需申请删除 HourX Supplier 企业账户或特定个人数据，请联系 HourX 支持团队并说明相关账户。消费者表单不会代为删除供应商账户。',
+            '上方表单仅适用于 HourX Home 消费者账户。如需注销供应商企业账户或员工账户，请使用 HourX Supplier 专用表单；其他数据申请请联系 HourX 支持团队。',
           ],
-          links: [privacyContact],
+          links: [{ label: '打开 HourX Supplier 注销表单', href: '/data-deletion#supplier' }, privacyContact],
         },
       ],
     },

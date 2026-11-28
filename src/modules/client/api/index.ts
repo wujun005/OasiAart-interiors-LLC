@@ -22,6 +22,7 @@ export interface ExclusiveSpuRecord {
   descI18n?: Record<string, string>;
   minPrice?: number | string;
   minNotIncTaxPrice?: number | string | null;
+  catalogMinNotIncTaxPrice?: number | string | null;
   tags?: Array<{ id?: number | string; name?: string; nameI18n?: Record<string, string> }>;
 }
 
@@ -161,6 +162,7 @@ export interface OrderListRecord {
   occupiedTimes?: number | string;
   remainingTimes?: number | string;
   validUntil?: string;
+  canFulfill?: boolean;
   packageItems?: PackageOrderItemRecord[];
   packageSnapshot?: {
     packageId?: number | string;
@@ -1111,6 +1113,21 @@ export async function fulfillPackageOrder(params: PackageFulfillPayload) {
   return getEnvelopeData<string>(await http.post('/client/order/package/fulfill', params));
 }
 
+export async function reschedulePackageFulfillment(params: {
+  fulfillmentNo: string;
+  serviceDate: string;
+  timeRange: number;
+}) {
+  return getEnvelopeData<boolean>(await http.post('/client/order/package/fulfillment/reschedule', params));
+}
+
+export async function cancelPackageFulfillment(params: {
+  fulfillmentNo: string;
+  cancelReason?: string;
+}) {
+  return getEnvelopeData<boolean>(await http.post('/client/order/package/fulfillment/cancel', params));
+}
+
 export function cancelOrder(params: { orderNo: string; cancelReason?: string }) {
   return http.post('/client/order/cancel', params);
 }
@@ -1119,6 +1136,21 @@ export function cancelOrder(params: { orderNo: string; cancelReason?: string }) 
 export async function createOrder(params: any) {
   const payload = await http.post('/client/order/place', params);
   return payload && typeof payload === 'object' && 'data' in payload ? payload.data : null;
+}
+
+export type OrderCouponCheckoutResult = {
+  couponCode?: string
+  discountAmount?: number | string
+  amountWithoutTax?: number | string
+  taxAmount?: number | string
+  amountWithTax?: number | string
+}
+
+export async function applyOrderCoupon(orderId: number, couponCode = '') {
+  return getEnvelopeData<OrderCouponCheckoutResult>(await http.post('/client/order/coupon', {
+    orderId,
+    couponCode,
+  }))
 }
 
 // 套餐直购：只创建订单，支付沿用订单确认页，不经过购物车。

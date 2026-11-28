@@ -55,6 +55,11 @@ const routes: RouteRecordRaw[] = [
     component: () => import('../pages/product-detail.vue'),
   },
   {
+    path: '/campaigns/:id',
+    name: 'h5-campaign-services',
+    component: () => import('@/modules/client/pages/campaign-services.vue'),
+  },
+  {
     path: '/cart',
     name: 'h5-cart',
     component: () => import('../pages/cart.vue'),

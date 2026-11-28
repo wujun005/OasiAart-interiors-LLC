@@ -1,8 +1,8 @@
 <template>
   <div class="h5-profile-security-page">
     <header class="h5-profile-security-topbar">
-      <button class="h5-profile-security-topbar__btn" type="button" @click="router.back()">
-        <van-icon name="arrow-left" />
+      <button class="h5-profile-security-topbar__btn" type="button" :aria-label="t('h5.common.back')" @click="goBack">
+        <van-icon name="arrow-left" aria-hidden="true" />
       </button>
       <h1>{{ t('client.profile.security.title') }}</h1>
       <span class="h5-profile-security-topbar__placeholder"></span>
@@ -85,6 +85,11 @@ const { t } = useI18n({ useScope: 'global' });
 const router = useRouter();
 const route = useRoute();
 const { clearAuth } = useAuth();
+
+const goBack = () => {
+  if (router.options.history.state.back) router.back();
+  else router.push({ name: 'h5-profile' });
+};
 
 const form = reactive({
   currentPassword: '',

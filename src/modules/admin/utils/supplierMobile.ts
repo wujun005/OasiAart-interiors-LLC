@@ -40,12 +40,20 @@ export function supplierMobilePath(pathOrSection: string): string {
   return section ? `${SUPPLIER_MOBILE_BASE}/${section}` : '';
 }
 
+/** 员工可以处理订单，也可以看报价、套餐、区域和资料。团队管理仍只给主账号。 */
+const STAFF_SECTIONS: readonly SupplierMobileSection[] = [
+  'orders', 'pricing', 'package-pricing', 'coverage-availability', 'profile',
+];
+
 export function supplierResponsivePath(
   path: string,
   options: { mobile: boolean; staffOrdersOnly?: boolean },
 ): string {
-  if (!supplierSectionFromPath(path)) return '';
-  if (options.staffOrdersOnly) return supplierMobilePath('orders');
+  const section = supplierSectionFromPath(path);
+  if (!section) return '';
+  if (options.staffOrdersOnly) {
+    return supplierMobilePath(STAFF_SECTIONS.includes(section) ? section : 'orders');
+  }
   return options.mobile ? supplierMobilePath(path) : supplierDesktopPath(path);
 }
 
@@ -57,7 +65,10 @@ export function canAccessSupplierSection(
 ): boolean {
   const granted = allowedPaths.map((path) => path === SUPPLIER_DESKTOP_BASE ? path : supplierDesktopPath(path));
   if (staffOrdersOnly) {
-    return section === 'orders' && (granted.includes(SUPPLIER_DESKTOP_BASE) || granted.includes(supplierDesktopPath('orders')));
+    if (!STAFF_SECTIONS.includes(section)) return false;
+    return granted.includes(SUPPLIER_DESKTOP_BASE)
+      || granted.includes(supplierDesktopPath('orders'))
+      || granted.includes(supplierDesktopPath(section));
   }
   return granted.includes(supplierDesktopPath(section));
 }

@@ -238,7 +238,7 @@ const toggleLocale = () => {
 };
 
 const goBackOrHome = () => {
-  if (window.history.length > 1) {
+  if (router.options.history.state.back) {
     router.back();
     return;
   }

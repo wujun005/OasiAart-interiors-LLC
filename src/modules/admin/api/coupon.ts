@@ -11,7 +11,8 @@ export type CouponSavePayload = {
   couponCode: string;
   allocationType: number;
   customerScope: number;
-  serviceScope: number;
+  allServices: boolean;
+  allPackages: boolean;
   validStart: string;
   validEnd: string;
   status: number;

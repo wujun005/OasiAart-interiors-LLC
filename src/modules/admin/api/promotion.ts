@@ -9,6 +9,8 @@ export type PromotionSavePayload = {
   sortNo?: number;
   validStart?: string;
   validEnd?: string;
+  showOnPc?: boolean;
+  showOnMobile?: boolean;
   eyebrowI18n?: Record<string, string>;
   titleI18n?: Record<string, string>;
   titleLine2I18n?: Record<string, string>;
@@ -20,6 +22,7 @@ export type PromotionSavePayload = {
   mobileImageUrl?: string;
   pcImageUrlZh?: string;
   mobileImageUrlZh?: string;
+  imageLink?: string;
   couponCode?: string;
   pageCode?: string;
   spuId?: number;
@@ -32,6 +35,7 @@ export type PromotionSavePayload = {
   popupFrequency?: number;
   popupAudience?: number;
   popupPages?: number;
+  popupCategoryKey?: string;
 };
 
 export function promotionPage(payload: {

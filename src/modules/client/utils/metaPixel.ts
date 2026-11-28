@@ -66,6 +66,10 @@ const track = (eventName: string, event: PixelContent = {}) => {
 };
 
 export const trackPageView = () => {
+  if (typeof window !== 'undefined' && window.location && (
+    /^\/data-deletion\/?$/i.test(window.location.pathname) ||
+    /^#\/data-deletion\/?(?:[?#]|$)/i.test(window.location.hash)
+  )) return;
   pixel()?.('track', 'PageView');
 };
 

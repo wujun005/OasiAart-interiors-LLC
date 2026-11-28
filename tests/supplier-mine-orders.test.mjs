@@ -9,7 +9,7 @@ const code = ts.transpileModule(readFileSync(new URL('../src/modules/admin/utils
 }).outputText
 const exports = {}
 runInNewContext(code, { exports })
-const { supplierMineCounts, packageVisitProgress, supplierQuoteRates, supplierSkuCode, supplierAttachLines, supplierSkuLines, supplierFulfillRemarks, supplierOrderGroups, supplierLineEarning, supplierAttachEarning, supplierOrderEarning, supplierOrderKind, supplierSpecSummary, materialHourStaffCount, materialHourServiceHours } = exports
+const { supplierMineCounts, supplierScheduleNotices, schedulePinKind, supplierVisitNotice, packageVisitProgress, supplierQuoteRates, supplierSkuCode, supplierAttachLines, supplierSkuLines, supplierFulfillRemarks, supplierOrderGroups, supplierLineEarning, supplierAttachEarning, supplierOrderEarning, supplierOrderKind, supplierSpecSummary, materialHourStaffCount, materialHourServiceHours } = exports
 const plain = (value) => JSON.parse(JSON.stringify(value))
 
 test('supplier mine counts stay with the page and ignore the selected tab total', () => {
@@ -30,6 +30,45 @@ test('supplier mine counts stay with the page and ignore the selected tab total'
     newRequests: 3,
     completed: 1,
   })
+})
+
+test('rescheduled and newly dated package visits stay pinned', () => {
+  assert.equal(schedulePinKind({ rescheduled: true, rescheduleRead: false, supplierStage: 'UPCOMING' }), 'updated')
+  assert.equal(schedulePinKind({
+    packageOrder: true, supplierStage: 'NEW', serviceDate: 'Saturday, 28 Nov 2026',
+  }), 'confirmed')
+  assert.equal(schedulePinKind({
+    packageOrder: true, supplierStage: 'UPCOMING', serviceDate: 'Saturday, 28 Nov 2026',
+  }), '')
+  assert.equal(schedulePinKind({ rescheduled: true, rescheduleRead: false, supplierStage: 'CANCELLED' }), 'cancelled')
+  assert.equal(schedulePinKind({
+    rescheduled: true, rescheduleRead: false, attentionKind: 'cancel', supplierStage: 'UPCOMING',
+  }), 'cancelled')
+  assert.equal(schedulePinKind({
+    rescheduled: true, rescheduleRead: false, orderStatus: 3, supplierStage: 'CANCELLED',
+  }), '')
+  assert.deepEqual(plain(supplierVisitNotice({
+    rescheduled: true, rescheduleRead: false, attentionKind: 'cancel', attentionSeq: 2, supplierStage: 'UPCOMING',
+  })), { kind: 'cancel', seq: 2 })
+  assert.deepEqual(plain(supplierVisitNotice({
+    supplierStage: 'CANCELLED', seqNo: 2, orderStatus: 1,
+  })), { kind: 'cancel', seq: 2 })
+  assert.deepEqual(plain(supplierVisitNotice({
+    rescheduled: true, rescheduleRead: true, attentionKind: 'cancel', attentionSeq: 2, supplierStage: 'UPCOMING',
+  })), { kind: '', seq: null })
+  assert.deepEqual(plain(supplierVisitNotice({
+    rescheduled: true, rescheduleRead: false, supplierStage: 'UPCOMING',
+  })), { kind: 'reschedule', seq: null })
+  assert.deepEqual(plain(supplierVisitNotice({
+    rescheduled: true, rescheduleRead: true, supplierStage: 'UPCOMING',
+  }, true)), { kind: 'reschedule', seq: null })
+  assert.deepEqual(plain(supplierVisitNotice({
+    orderStatus: 3, supplierStage: 'CANCELLED', seqNo: 2,
+  })), { kind: '', seq: null })
+  assert.deepEqual(plain(supplierScheduleNotices({
+    scheduleNotices: [{ orderId: 9, kind: 'updated' }, 'skip'],
+  })), [{ orderId: 9, kind: 'updated' }])
+  assert.deepEqual(plain(supplierScheduleNotices({})), [])
 })
 
 test('package rows show this visit and the sub-service total', () => {

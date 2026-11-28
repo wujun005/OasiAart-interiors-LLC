@@ -27,6 +27,19 @@
         <p class="orders-h5__count">{{ total }}</p>
       </header>
 
+      <section v-if="attentionNotices.length" class="order-attention">
+        <strong>{{ t("admin.orders.table.attentionTitle") }}</strong>
+        <button
+          v-for="item in attentionNotices"
+          :key="`${item.orderId}-${item.kind}`"
+          type="button"
+          @click="openAttention(item)"
+        >
+          <em>{{ attentionNoticeLabel(item) }}</em>
+          <span>{{ item.productName || item.orderNo }}</span>
+        </button>
+      </section>
+
       <p v-if="!tableLoading && !orders.length" class="orders-h5__empty">
         {{ t("admin.orders.empty") }}
       </p>
@@ -89,7 +102,7 @@
                 {{ t("admin.orders.table.urgent") }}
               </span>
               <span v-if="hasUnreadReschedule(row)" class="orders-h5__pill orders-h5__pill--alert">
-                {{ t("admin.orders.table.rescheduledUnread") }}
+                {{ attentionLabel(row) }}
               </span>
               <span
                 v-for="supplier in trackedSuppliers(row)"
@@ -276,6 +289,19 @@
         </div>
       </div>
 
+      <section v-if="attentionNotices.length" class="order-attention">
+        <strong>{{ t("admin.orders.table.attentionTitle") }}</strong>
+        <button
+          v-for="item in attentionNotices"
+          :key="`${item.orderId}-${item.kind}`"
+          type="button"
+          @click="openAttention(item)"
+        >
+          <em>{{ attentionNoticeLabel(item) }}</em>
+          <span>{{ item.productName || item.orderNo }}</span>
+        </button>
+      </section>
+
       <div
         class="order-status-legend"
         role="group"
@@ -333,7 +359,7 @@
                 type="danger"
                 size="small"
               >
-                {{ t("admin.orders.table.rescheduledUnread") }}
+                {{ attentionLabel(row) }}
               </el-tag>
               <span v-if="!row.orderNo">-</span>
             </div>
@@ -2248,6 +2274,8 @@ type OrderRow = {
   community: string
   rescheduled: boolean
   rescheduleRead: boolean
+  attentionKind: string
+  attentionSeq: number | null
   urgent: boolean
   rescheduleChanges: RescheduleChangeItem[]
   supplierId: number | string | null
@@ -2838,6 +2866,31 @@ const cancellationTimeText = (row: OrderRow) =>
 const hasUnreadReschedule = (row: OrderRow) =>
   row.rescheduled && !row.rescheduleRead
 
+const attentionLabel = (row: { attentionKind?: string; attentionSeq?: number | null }) => {
+  const seq = Number(row.attentionSeq)
+  if (row.attentionKind === "cancel") {
+    return Number.isFinite(seq) && seq > 0
+      ? t("admin.orders.table.attentionCancel", { seq })
+      : t("admin.orders.table.attentionCancelPlain")
+  }
+  return t("admin.orders.table.attentionReschedule")
+}
+
+const attentionNoticeLabel = (item: { kind?: string; seqNo?: number | null }) =>
+  attentionLabel({
+    attentionKind: item.kind === "cancel" || item.kind === "cancelled" ? "cancel" : "reschedule",
+    attentionSeq: item.seqNo,
+  })
+
+const attentionNotices = ref<Array<{
+  orderId: number | null
+  orderNo: string
+  productName: string
+  kind: string
+  seqNo: number | null
+  serviceDate: string
+}>>([])
+
 const orderStatusTone = (code: number | null) => {
   if (code === 1) return "action-needed"
   if (code === 2) return "completed"
@@ -2991,6 +3044,20 @@ const downloadOperationLogPdf = async () => {
   }
 }
 
+const openAttention = (item: { orderId: number | null; orderNo?: string }) => {
+  const current = orders.value.find((row) => Number(row.orderId) === Number(item.orderId))
+  if (current) {
+    void openOrderDetail(current)
+    return
+  }
+  void openOrderDetail({
+    orderId: item.orderId,
+    orderNo: String(item.orderNo || ""),
+    rescheduled: true,
+    rescheduleRead: false,
+  } as OrderRow)
+}
+
 const openOrderDetail = async (row: OrderRow) => {
   detailRow.value = row
   detailDrawerVisible.value = true
@@ -3008,6 +3075,9 @@ const openOrderDetail = async (row: OrderRow) => {
       const source = orders.value.find((item) => item.orderId === row.orderId)
       if (source?.rescheduled) source.rescheduleRead = true
       if (normalized.rescheduled) normalized.rescheduleRead = true
+      attentionNotices.value = attentionNotices.value.filter(
+        (item) => Number(item.orderId) !== Number(row.orderId),
+      )
       detailRow.value = normalized
       if (query.rescheduleFilter === "UNPROCESSED" && normalized.rescheduled) {
         orders.value = orders.value.filter(
@@ -4016,6 +4086,9 @@ const parseRefundInfo = (item: any): OrderRefundInfo | null => {
   }
 }
 
+const readAttentionNotices = (page: any) =>
+  Array.isArray(page?.attentionNotices) ? page.attentionNotices : null
+
 const normalizePage = (payload: any) => {
   const root = payload?.data ?? payload ?? {}
   if (Array.isArray(root.list)) {
@@ -4024,6 +4097,7 @@ const normalizePage = (payload: any) => {
       total: Number(root.total ?? root.list.length) || root.list.length,
       pageNum: Number(root.pageNum ?? query.pageNum) || query.pageNum,
       pageSize: Number(root.pageSize ?? query.pageSize) || query.pageSize,
+      attentionNotices: readAttentionNotices(root),
     }
   }
   if (Array.isArray(root.data?.list)) {
@@ -4034,6 +4108,7 @@ const normalizePage = (payload: any) => {
         Number(pageData.total ?? pageData.list.length) || pageData.list.length,
       pageNum: Number(pageData.pageNum ?? query.pageNum) || query.pageNum,
       pageSize: Number(pageData.pageSize ?? query.pageSize) || query.pageSize,
+      attentionNotices: readAttentionNotices(pageData),
     }
   }
   if (Array.isArray(root.data)) {
@@ -4042,6 +4117,7 @@ const normalizePage = (payload: any) => {
       total: Number(root.total ?? root.data.length) || root.data.length,
       pageNum: Number(root.pageNum ?? query.pageNum) || query.pageNum,
       pageSize: Number(root.pageSize ?? query.pageSize) || query.pageSize,
+      attentionNotices: readAttentionNotices(root),
     }
   }
   return {
@@ -4049,6 +4125,7 @@ const normalizePage = (payload: any) => {
     total: 0,
     pageNum: query.pageNum,
     pageSize: query.pageSize,
+    attentionNotices: null,
   }
 }
 
@@ -4520,6 +4597,10 @@ const parseOrderRow = (item: any): OrderRow => {
     rescheduleRead: normalizeBoolean(
       order.rescheduleRead ?? item.rescheduleRead,
     ),
+    attentionKind: String(order.attentionKind ?? item.attentionKind ?? "").trim(),
+    attentionSeq: Number.isFinite(Number(order.attentionSeq ?? item.attentionSeq))
+      ? Number(order.attentionSeq ?? item.attentionSeq)
+      : null,
     urgent: normalizeBoolean(order.urgent ?? item.urgent),
     rescheduleChanges: parseRescheduleChanges(
       order.rescheduleChanges ?? item.rescheduleChanges,
@@ -4848,10 +4929,19 @@ const requestPayload = computed(() => {
 })
 
 const sortOrdersByServiceTime = (rows: OrderRow[]) => {
-  if (!query.serviceTimeSort) return rows
+  const pin = (left: OrderRow, right: OrderRow) => {
+    const leftPin = hasUnreadReschedule(left) ? 0 : 1
+    const rightPin = hasUnreadReschedule(right) ? 0 : 1
+    return leftPin - rightPin
+  }
+  if (!query.serviceTimeSort) {
+    return [...rows].sort(pin)
+  }
 
   const direction = query.serviceTimeSort === "SERVICE_TIME_ASC" ? 1 : -1
   return [...rows].sort((left, right) => {
+    const pinned = pin(left, right)
+    if (pinned) return pinned
     const leftDate = parseServiceDate(left.serviceTime)
     const rightDate = parseServiceDate(right.serviceTime)
     if (!leftDate && !rightDate) return 0
@@ -4869,6 +4959,23 @@ const fetchOrders = async () => {
     orders.value = sortOrdersByServiceTime(
       (parsed.list || []).map(parseOrderRow),
     )
+    attentionNotices.value = Array.isArray(parsed.attentionNotices)
+      ? parsed.attentionNotices.slice(0, 8).map((item: any) => ({
+          orderId: Number.isFinite(Number(item?.orderId)) ? Number(item.orderId) : null,
+          orderNo: String(item?.orderNo || ""),
+          productName: String(item?.productName || ""),
+          kind: String(item?.kind || "reschedule"),
+          seqNo: Number.isFinite(Number(item?.seqNo)) ? Number(item.seqNo) : null,
+          serviceDate: String(item?.serviceDate || ""),
+        }))
+      : orders.value.filter(hasUnreadReschedule).slice(0, 8).map((row) => ({
+          orderId: row.orderId,
+          orderNo: row.orderNo,
+          productName: row.productName,
+          kind: row.attentionKind || "reschedule",
+          seqNo: row.attentionSeq,
+          serviceDate: row.serviceTime,
+        }))
     total.value = parsed.total
     query.pageNum = parsed.pageNum
     query.pageSize = parsed.pageSize
@@ -6162,6 +6269,38 @@ onBeforeUnmount(() => {
 .service-day-label--tomorrow {
   background: #e8f2ff;
   color: #185ca8;
+}
+.order-attention {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  margin: 0 0 12px;
+  padding: 10px 12px;
+  border: 1px solid #f3d7a2;
+  border-radius: 12px;
+  background: #fff8ec;
+}
+.order-attention strong {
+  color: #8a4b00;
+  font-size: 13px;
+}
+.order-attention button {
+  display: inline-flex;
+  gap: 8px;
+  align-items: center;
+  max-width: 100%;
+  padding: 6px 10px;
+  border: 0;
+  border-radius: 999px;
+  background: #fff;
+  color: #3d2a12;
+  cursor: pointer;
+}
+.order-attention em {
+  color: #9a3412;
+  font-style: normal;
+  font-weight: 650;
 }
 .order-status-legend {
   display: flex;

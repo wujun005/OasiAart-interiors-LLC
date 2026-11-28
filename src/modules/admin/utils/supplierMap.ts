@@ -16,6 +16,13 @@ export function googleNavigateUrl(order?: {
   community?: unknown;
 } | null) {
   if (!order) return '';
+  const address = [order.serviceAddress, order.building, order.roomNo, order.community]
+    .map(text)
+    .filter(Boolean)
+    .join(', ');
+  if (address) {
+    return `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(address)}&travelmode=driving`;
+  }
   const latitude = coordinate(order.latitude, 90);
   const longitude = coordinate(order.longitude, 180);
   if (latitude && longitude) {
@@ -30,10 +37,5 @@ export function googleNavigateUrl(order?: {
       // Invalid or unsafe pins fall back to a Google Maps address search.
     }
   }
-  const address = [order.serviceAddress, order.building, order.roomNo, order.community]
-    .map(text)
-    .filter(Boolean)
-    .join(', ');
-  if (!address) return '';
-  return `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(address)}&travelmode=driving`;
+  return '';
 }

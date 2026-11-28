@@ -1,6 +1,8 @@
 const en = {
   common: {
     back: 'Back',
+    homeAction: 'Home',
+    backToHome: 'Back to Home',
     submit: 'Submit',
     login: 'Sign in',
     reserve: 'Book',
@@ -121,9 +123,18 @@ const en = {
   },
   serviceList: {
     bookNow: 'Book Now',
+    searchPrompt: 'Try a service name, such as home cleaning.',
+    searchResultsFor: 'Services matching “{keyword}”',
   },
   productDetail: {
-    bookingOptions: 'Customise Your Service',
+    bookingOptions: 'Booking Options',
+    closeBookingOptions: 'Close booking options',
+    continueBooking: 'Continue to Booking',
+    continueWithOptions: 'Continue',
+    noBookingOptions: 'There are no options to customise for this service.',
+    bookingPriceFailed: 'Unable to calculate the price.',
+    increaseAddOn: 'Add one {name}',
+    decreaseAddOn: 'Remove one {name}',
     reviewCount: '{count} reviews',
     soldCount: '{count}+ sold',
   },

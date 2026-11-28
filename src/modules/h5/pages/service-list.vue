@@ -1,16 +1,9 @@
 <template>
   <div class="h5-service-page">
     <header class="h5-service-topbar">
-      <div class="h5-service-topbar__main">
-        <button
-          class="h5-service-topbar__back"
-          type="button"
-          @click="goBackToHome"
-        >
-          <van-icon name="arrow-left" />
-        </button>
+      <div class="h5-list-topbar">
+        <HomeReturn />
         <h1>{{ pageTitle }}</h1>
-        <span class="h5-service-topbar__spacer" />
       </div>
       <form
         class="h5-service-search"
@@ -19,28 +12,31 @@
         @submit.prevent="submitServiceSearch"
       >
         <input
+          ref="searchInput"
           v-model="serviceSearch"
           type="search"
+          enterkeyhint="search"
+          autocomplete="off"
           :placeholder="t('client.home.sections.searchPlaceholder')"
           :aria-label="t('client.home.sections.searchPlaceholder')"
         />
         <button
           type="submit"
-          :disabled="isServiceLoading"
-          :aria-label="t('client.home.sections.searchPlaceholder')"
+          :disabled="isServiceLoading || !serviceSearch.trim()"
+          :aria-label="t('client.home.sections.searchAction')"
         >
           <span
             v-if="isServiceLoading"
             class="h5-service-search__button-spinner"
             aria-hidden="true"
           />
-          <van-icon v-else name="search" />
+          <van-icon v-else name="search" aria-hidden="true" />
         </button>
       </form>
     </header>
 
-    <main class="h5-service-main">
-      <section class="h5-service-hero">
+    <main class="h5-service-main" :class="{ 'h5-service-main--search': isSearchMode }">
+      <section v-if="!isSearchMode" class="h5-service-hero">
         <span v-if="heroTitle !== pageTitle" class="h5-service-hero__eyebrow">{{ pageTitle }}</span>
         <h2>{{ heroTitle }}</h2>
         <p v-if="heroDesc">{{ heroDesc }}</p>
@@ -53,8 +49,8 @@
       </section>
 
       <section class="h5-service-section">
-        <div class="h5-service-section__title">
-          <h3>{{ serviceSectionTitle }}</h3>
+        <div v-if="!isSearchStart" class="h5-service-section__title">
+          <h2>{{ serviceSectionTitle }}</h2>
         </div>
 
         <div
@@ -91,7 +87,10 @@
               <h4>{{ item.title }}</h4>
               <p v-if="item.description" class="h5-service-card__description">{{ item.description }}</p>
               <div class="h5-service-card__foot">
-                <p class="h5-service-card__price">{{ item.price }}</p>
+                <p class="h5-service-card__price">
+                  <s v-if="item.was">{{ item.was }}</s>
+                  {{ item.price }}
+                </p>
                 <button type="button" @click.stop="goProductDetail(item.spuId)">
                   {{ t("h5.serviceList.bookNow") }}
                 </button>
@@ -99,7 +98,10 @@
             </div>
           </article>
         </div>
-        <p v-else class="h5-service-search__empty">
+        <p v-else-if="isSearchStart" class="h5-service-search__prompt">
+          {{ t("h5.serviceList.searchPrompt") }}
+        </p>
+        <p v-else class="h5-service-search__empty" role="status">
           {{ t("client.home.sections.searchNoResults") }}
         </p>
       </section>
@@ -114,6 +116,7 @@ import { bizTagLabels } from "@/modules/client/utils/biz-tag"
 import { serviceTagLabels, useWebsitePromotion } from "@/modules/client/utils/website-promotion"
 import { useI18n } from "vue-i18n"
 import { useRoute, useRouter, type LocationQueryValue } from "vue-router"
+import HomeReturn from "@/modules/h5/components/HomeReturn.vue"
 import {
   level1Categories,
   onShelfSpus,
@@ -129,6 +132,7 @@ type ServiceCardView = {
   title: string
   description: string
   price: string
+  was: string
   icon: string
   tags: string[]
 }
@@ -163,6 +167,7 @@ const router = useRouter()
 const selectedLevel1 = ref<Level1CategoryRecord | null>(null)
 const onShelfRecords = ref<ExclusiveSpuRecord[]>([])
 const serviceSearch = ref("")
+const searchInput = ref<HTMLInputElement | null>(null)
 const isServiceLoading = ref(false)
 let serviceRequestId = 0
 let categoryRequestId = 0
@@ -247,8 +252,13 @@ const parseLevel1FromQuery = (): Level1CategoryRecord | null => {
 const categoryId = computed(() => getQueryValue(route.query.categoryId))
 const searchKeyword = computed(() => getQueryValue(route.query.keyword))
 const isSearchMode = computed(
-  () => route.name === "h5-service-search" || Boolean(searchKeyword.value),
+  () => Boolean(searchKeyword.value) || (route.name === "h5-service-search" && !categoryId.value),
 )
+const isSearchStart = computed(() => isSearchMode.value && !searchKeyword.value)
+
+watch([searchInput, isSearchStart], ([input, searchStart]) => {
+  if (searchStart) input?.focus({ preventScroll: true })
+}, { flush: "post" })
 
 const defaultHeroTags = computed(() => [
   t("client.serviceList.hero.tagCertified"),
@@ -258,7 +268,7 @@ const defaultHeroTags = computed(() => [
 
 const pageTitle = computed(() => {
   if (isSearchMode.value) {
-    return locale.value === "zh" ? "搜索结果" : "Search Results"
+    return t("client.home.sections.searchPlaceholder")
   }
   const fromQuery = getQueryValue(route.query.name)
   return pickI18nValue(
@@ -270,20 +280,10 @@ const pageTitle = computed(() => {
 const heroTitle = computed(() =>
   pickI18nValue(selectedLevel1.value?.bannerTitleI18n, pageTitle.value),
 )
-const heroDesc = computed(() => {
-  if (isSearchMode.value) {
-    if (!searchKeyword.value) return ""
-    return locale.value === "zh"
-      ? `“${searchKeyword.value}”的相关服务`
-      : `Services matching “${searchKeyword.value}”`
-  }
-  return pickI18nValue(selectedLevel1.value?.bannerDescI18n, "")
-})
+const heroDesc = computed(() => pickI18nValue(selectedLevel1.value?.bannerDescI18n, ""))
 const serviceSectionTitle = computed(() =>
   isSearchMode.value
-    ? locale.value === "zh"
-      ? "搜索结果"
-      : "Search Results"
+    ? t("h5.serviceList.searchResultsFor", { keyword: searchKeyword.value })
     : locale.value === "zh"
       ? "今天想预约什么服务？"
       : "Choose Service Type",
@@ -310,6 +310,13 @@ const formatPrice = (minPrice?: number | string | null) => {
   return t("client.serviceList.card.priceFrom", { price: value.toFixed(2) })
 }
 
+const struckFromPrice = (catalog?: number | string | null, current?: number | string | null) => {
+  const was = Number(catalog)
+  const now = Number(current)
+  if (!Number.isFinite(was) || !Number.isFinite(now) || was <= now + 0.009) return ""
+  return formatPrice(was)
+}
+
 const serviceCards = computed<ServiceCardView[]>(() => {
   const records = onShelfRecords.value || []
   if (!records.length) {
@@ -322,6 +329,7 @@ const serviceCards = computed<ServiceCardView[]>(() => {
       title: pickI18nValue(item.nameI18n, ""),
       description: toPlainText(pickI18nValue(item.descI18n, "")),
       price: formatPrice(item.minNotIncTaxPrice),
+      was: struckFromPrice(item.catalogMinNotIncTaxPrice, item.minNotIncTaxPrice),
       icon: item.imageUrls?.[0] || cardIconSet[index % cardIconSet.length],
       tags: [...new Set([
         ...serviceTagLabels(websitePromotions.value.serviceTags, item.id, categoryId.value, locale.value),
@@ -421,12 +429,11 @@ watch(
 
 const submitServiceSearch = () => {
   const keyword = serviceSearch.value.trim()
-  if (!keyword) return
-  router.push({ name: "h5-service-search", query: { keyword } })
-}
-
-const goBackToHome = () => {
-  router.push({ name: "h5-home" })
+  if (!keyword || isServiceLoading.value) return
+  searchInput.value?.blur()
+  const location = { name: "h5-service-search", query: { keyword } }
+  if (isSearchMode.value) void router.replace(location)
+  else void router.push(location)
 }
 
 const goProductDetail = (spuId: string) => {
@@ -454,37 +461,6 @@ const goProductDetail = (spuId: string) => {
   background: rgba(255, 255, 255, 0.96);
   border-bottom: 1px solid var(--hourx-client-border);
   backdrop-filter: blur(12px);
-}
-
-.h5-service-topbar__main {
-  height: 56px;
-  display: grid;
-  grid-template-columns: 40px 1fr 40px;
-  align-items: center;
-}
-
-.h5-service-topbar__back,
-.h5-service-topbar__spacer {
-  width: 40px;
-  height: 40px;
-}
-
-.h5-service-topbar__back {
-  border: 0;
-  background: transparent;
-  color: #0f172a;
-  display: inline-flex;
-  align-items: center;
-  justify-content: flex-start;
-  font-size: 22px;
-}
-
-.h5-service-topbar h1 {
-  margin: 0;
-  text-align: center;
-  color: var(--hourx-client-text);
-  font-size: var(--hourx-client-size-card);
-  font-weight: 600;
 }
 
 .h5-service-main {
@@ -559,11 +535,15 @@ const goProductDetail = (spuId: string) => {
   margin-top: 30px;
 }
 
+.h5-service-main--search .h5-service-section {
+  margin-top: 0;
+}
+
 .h5-service-section__title {
   margin-bottom: 20px;
 }
 
-.h5-service-section__title h3 {
+.h5-service-section__title h2 {
   margin: 0;
   color: var(--hourx-client-text);
   font-size: var(--hourx-client-size-section);
@@ -571,6 +551,7 @@ const goProductDetail = (spuId: string) => {
   font-family: var(--hourx-client-heading-font);
   line-height: 1.2;
   letter-spacing: -0.02em;
+  overflow-wrap: anywhere;
 }
 
 .h5-service-list {
@@ -581,10 +562,10 @@ const goProductDetail = (spuId: string) => {
 }
 
 .h5-service-search {
-  height: 44px;
-  padding-left: 13px;
-  border: 1px solid #d7e2ee;
-  border-radius: 13px;
+  min-height: 2.75rem;
+  padding-left: 0.8125rem;
+  border: 1px solid var(--hourx-client-border);
+  border-radius: 0.8125rem;
   background: #fff;
   display: flex;
   align-items: center;
@@ -595,8 +576,8 @@ const goProductDetail = (spuId: string) => {
 }
 
 .h5-service-search:focus-within {
-  border-color: #1769c2;
-  box-shadow: 0 0 0 3px rgba(23, 105, 194, 0.1);
+  border-color: var(--hourx-brand);
+  box-shadow: 0 0 0 3px rgb(6 24 47 / 10%);
 }
 
 .h5-service-search input {
@@ -605,9 +586,9 @@ const goProductDetail = (spuId: string) => {
   border: 0;
   outline: 0;
   background: transparent;
-  color: #0f172a;
+  color: var(--hourx-client-text);
   font: inherit;
-  font-size: 13px;
+  font-size: 1rem;
 }
 
 .h5-service-search input::-webkit-search-cancel-button {
@@ -616,13 +597,13 @@ const goProductDetail = (spuId: string) => {
 
 .h5-service-search button {
   align-self: stretch;
-  width: 44px;
-  flex: 0 0 44px;
+  width: 2.75rem;
+  flex: 0 0 2.75rem;
   padding: 0;
   border: 0;
-  border-left: 1px solid #e5edf6;
-  background: #f4f7fa;
-  color: #526176;
+  border-left: 1px solid var(--hourx-client-border);
+  background: var(--hourx-brand);
+  color: #fff;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -630,7 +611,8 @@ const goProductDetail = (spuId: string) => {
 }
 
 .h5-service-search button:disabled {
-  opacity: 0.7;
+  background: var(--hourx-client-canvas);
+  color: var(--hourx-client-muted);
 }
 
 .h5-service-search__button-spinner,
@@ -683,6 +665,13 @@ const goProductDetail = (spuId: string) => {
   color: #64748b;
   font-size: 12px;
   text-align: center;
+}
+
+.h5-service-search__prompt {
+  margin: 0;
+  color: var(--hourx-client-muted);
+  font-size: 0.875rem;
+  line-height: 1.5;
 }
 
 .h5-service-card {
@@ -765,6 +754,14 @@ const goProductDetail = (spuId: string) => {
   font-size: 1.125rem;
   font-weight: 700;
   text-align: start;
+}
+
+.h5-service-card__price s {
+  display: block;
+  color: #8b97a8;
+  font-size: 0.78em;
+  font-weight: 600;
+  text-decoration: line-through;
 }
 
 .h5-service-card button {

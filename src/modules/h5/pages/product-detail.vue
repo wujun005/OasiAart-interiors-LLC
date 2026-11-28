@@ -1,19 +1,22 @@
 <template>
   <div class="h5-detail-page">
     <header class="h5-detail-topbar">
-      <button class="h5-detail-topbar__back" type="button" @click="handleBack">
-        <van-icon name="arrow-left" />
+      <button class="h5-detail-topbar__back" type="button" :aria-label="t('h5.common.back')" @click="handleBack">
+        <van-icon name="arrow-left" aria-hidden="true" />
       </button>
       <p class="h5-detail-topbar__title">{{ t("client.productDetail.pageTitle") }}</p>
-      <button
-        class="h5-detail-topbar__cart"
-        type="button"
-        :aria-label="t('client.header.nav.cart')"
-        @click="router.push({ name: 'h5-cart' })"
-      >
-        <van-icon name="cart-o" />
-        <span v-if="cartCount">{{ cartCount > 99 ? "99+" : cartCount }}</span>
-      </button>
+      <div class="h5-detail-topbar__actions">
+        <HomeReturn />
+        <button
+          class="h5-detail-topbar__cart"
+          type="button"
+          :aria-label="t('client.header.nav.cart')"
+          @click="router.push({ name: 'h5-cart' })"
+        >
+          <van-icon name="cart-o" aria-hidden="true" />
+          <span v-if="cartCount">{{ cartCount > 99 ? "99+" : cartCount }}</span>
+        </button>
+      </div>
     </header>
 
     <main class="h5-detail-main">
@@ -54,7 +57,10 @@
       <section class="h5-detail-card h5-detail-card--summary">
         <div class="h5-detail-card__title-row">
           <h1>{{ displayTitle }}</h1>
-          <strong>{{ formatAed(subtotalPrice) }}</strong>
+          <div class="h5-detail-card__price">
+            <s v-if="showServiceStrike">{{ formatAed(catalogServicePrice || 0) }}</s>
+            <strong>{{ formatAed(selectedServicePrice) }}</strong>
+          </div>
         </div>
         <div v-if="productTags.length" class="biz-tags">
           <span v-for="tag in productTags" :key="tag">{{ tag }}</span>
@@ -82,106 +88,6 @@
             }}</span>
           </template>
         </div>
-        <div class="h5-detail-card__heading">
-          <span />
-          <h3>{{ t("h5.productDetail.bookingOptions") }}</h3>
-        </div>
-
-        <div
-          v-if="bookingSpecGroups.length || bookingAttachGroups.length"
-          class="h5-booking-groups"
-        >
-          <div
-            v-for="group in visibleSpecGroups"
-            :key="group.typeId"
-            class="h5-booking-group"
-          >
-            <p class="h5-booking-group__label">{{ group.label }}</p>
-            <div class="h5-booking-group__options">
-              <button
-                v-for="option in group.options"
-                :key="`${group.typeId}-${option.id}`"
-                class="h5-booking-option"
-                :class="{
-                  'h5-booking-option--active':
-                    selectedSpecValues[group.typeId] === option.id,
-                }"
-                type="button"
-                :aria-pressed="selectedSpecValues[group.typeId] === option.id"
-                @click="selectSpecValue(group.typeId, option.id)"
-              >
-                <span class="h5-booking-option__name">{{ option.label }}</span>
-                <small v-if="option.remark" class="h5-booking-option__remark">
-                  {{ option.remark }}
-                </small>
-              </button>
-            </div>
-          </div>
-
-          <details v-if="bookingAttachGroups.length" class="h5-booking-addons" open>
-            <summary>
-              <span>
-                <strong>{{ attachModuleTitle || t("client.productDetail.booking.addOnsTitle") }}</strong>
-                <small>{{ attachModuleDesc || t("client.productDetail.booking.addOnsHint") }}</small>
-              </span>
-              <van-icon name="arrow-down" />
-            </summary>
-            <div
-              v-for="group in bookingAttachGroups"
-              :key="group.typeId"
-              class="h5-booking-group"
-            >
-              <p class="h5-booking-group__label">{{ group.label }}</p>
-              <div class="h5-attach-list">
-                <div
-                  v-for="option in group.options"
-                  :key="`${group.typeId}-${option.id}`"
-                  class="h5-attach-item"
-                >
-                  <div class="h5-attach-item__meta">
-                    <strong>{{ option.label }}</strong>
-                    <span>
-                      {{
-                        t("client.productDetail.booking.attachUnitPrice", {
-                          price: option.price.toFixed(2),
-                          unit:
-                            option.unit ||
-                            t("client.productDetail.booking.attachUnitFallback"),
-                        })
-                      }}
-                    </span>
-                  </div>
-                  <div class="h5-attach-item__stepper">
-                    <button type="button" @click="decreaseAttachQty(option.id)">
-                      -
-                    </button>
-                    <span>{{ attachQuantities[option.id] || 0 }}</span>
-                    <button type="button" @click="increaseAttachQty(option.id)">
-                      +
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </details>
-          <p v-if="skuAvailabilityReady && !skuOffered" class="h5-detail-card__empty">
-            {{ t("client.productDetail.booking.skuUnavailable") }}
-          </p>
-          <PromoCodeField
-            v-if="skuRequestPayload"
-            v-model="promoCode"
-            class="h5-promo-field"
-            :loading="promoLoading"
-            :error="promoError"
-            :notice="promoNotice"
-            :applied-code="activeCoupon?.couponCode || ''"
-            @apply="applyPromo"
-            @remove="resetPromo"
-          />
-        </div>
-        <p v-else class="h5-detail-card__empty">
-          {{ t("client.productDetail.emptyDesc") }}
-        </p>
       </section>
 
       <DetailContentTabs>
@@ -286,36 +192,166 @@
     </main>
 
     <footer class="h5-detail-bottom">
-      <div class="h5-detail-bottom__summary">
-        <div>
-          <span>{{ t("client.productDetail.booking.total") }}</span>
-          <strong>{{ formatAed(displayTotalPrice) }}</strong>
+      <div class="h5-detail-bottom__bar">
+        <div class="h5-detail-bottom__summary">
+          <div>
+            <span>{{ t("client.productDetail.booking.total") }}</span>
+            <strong>{{ productDetail ? formatAed(totalPrice) : "—" }}</strong>
+          </div>
+        </div>
+        <div class="h5-detail-bottom__actions">
+          <button
+            class="h5-detail-bottom__cart"
+            type="button"
+            aria-haspopup="dialog"
+            :disabled="isLoading || !productDetail"
+            @click="openBookingOptions('cart')"
+          >
+            <van-icon name="cart-o" aria-hidden="true" />
+            <span>{{ t("client.productDetail.booking.addToCart") }}</span>
+          </button>
+          <button
+            class="h5-detail-bottom__submit"
+            type="button"
+            aria-haspopup="dialog"
+            :disabled="isLoading || !productDetail"
+            @click="openBookingOptions('book')"
+          >
+            {{ t("h5.serviceList.bookNow") }}
+          </button>
         </div>
       </div>
-      <div class="h5-detail-bottom__actions">
-        <button
-          class="h5-detail-bottom__cart"
-          type="button"
-          :disabled="skuAvailabilityReady && !skuOffered"
-          @click="handleAddToCart"
+    </footer>
+
+    <BookingOptionsSheet
+      v-model:show="bookingOptionsOpen"
+      :title="t('h5.productDetail.bookingOptions')"
+      :subtitle="displayTitle"
+      :image="productDetail?.imageUrls?.[0]"
+      :busy="optionsSubmitting"
+    >
+      <div
+        v-if="bookingSpecGroups.length || bookingAttachGroups.length"
+        class="h5-booking-groups"
+      >
+        <div
+          v-for="group in visibleSpecGroups"
+          :key="group.typeId"
+          class="h5-booking-group"
         >
-          <van-icon name="cart-o" aria-hidden="true" />
-          <span>{{ t("client.productDetail.booking.addToCart") }}</span>
-        </button>
+          <p class="h5-booking-group__label">{{ group.label }}</p>
+          <div class="h5-booking-group__options" role="group" :aria-label="group.label">
+            <button
+              v-for="option in group.options"
+              :key="`${group.typeId}-${option.id}`"
+              class="h5-booking-option"
+              :class="{
+                'h5-booking-option--active':
+                  selectedSpecValues[group.typeId] === option.id,
+              }"
+              type="button"
+              :aria-pressed="selectedSpecValues[group.typeId] === option.id"
+              @click="selectSpecValue(group.typeId, option.id)"
+            >
+              <span class="h5-booking-option__name">{{ option.label }}</span>
+              <small v-if="option.remark" class="h5-booking-option__remark">
+                {{ option.remark }}
+              </small>
+            </button>
+          </div>
+        </div>
+
+        <details v-if="bookingAttachGroups.length" class="h5-booking-addons" open>
+          <summary>
+            <span>
+              <strong>{{ attachModuleTitle || t("client.productDetail.booking.addOnsTitle") }}</strong>
+              <small>{{ attachModuleDesc || t("client.productDetail.booking.addOnsHint") }}</small>
+            </span>
+            <van-icon name="arrow-down" />
+          </summary>
+          <div
+            v-for="group in bookingAttachGroups"
+            :key="group.typeId"
+            class="h5-booking-group"
+          >
+            <p class="h5-booking-group__label">{{ group.label }}</p>
+            <div class="h5-attach-list">
+              <div
+                v-for="option in group.options"
+                :key="`${group.typeId}-${option.id}`"
+                class="h5-attach-item"
+              >
+                <div class="h5-attach-item__meta">
+                  <strong>{{ option.label }}</strong>
+                  <span>
+                    {{
+                      t("client.productDetail.booking.attachUnitPrice", {
+                        price: option.price.toFixed(2),
+                        unit:
+                          option.unit ||
+                          t("client.productDetail.booking.attachUnitFallback"),
+                      })
+                    }}
+                  </span>
+                </div>
+                <div class="h5-attach-item__stepper">
+                  <button
+                    type="button"
+                    :aria-label="t('h5.productDetail.decreaseAddOn', { name: option.label })"
+                    :disabled="!(attachQuantities[option.id] || 0)"
+                    @click="decreaseAttachQty(option.id)"
+                  >
+                    -
+                  </button>
+                  <span>{{ attachQuantities[option.id] || 0 }}</span>
+                  <button
+                    type="button"
+                    :aria-label="t('h5.productDetail.increaseAddOn', { name: option.label })"
+                    @click="increaseAttachQty(option.id)"
+                  >
+                    +
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </details>
+      </div>
+      <p v-else-if="productDetail && (!skuAvailabilityReady || skuOffered)" class="h5-detail-card__empty">
+        {{ t("h5.productDetail.noBookingOptions") }}
+      </p>
+      <p v-if="skuAvailabilityReady && !skuOffered" class="h5-detail-card__empty" role="status">
+        {{ t("client.productDetail.booking.skuUnavailable") }}
+      </p>
+
+      <template #footer>
+        <div class="h5-booking-quote" aria-live="polite">
+          <div class="h5-booking-quote__price">
+            <span>{{ t("client.productDetail.booking.total") }}</span>
+            <strong>{{ skuPrice && !skuQuoteLoading ? formatAed(totalPrice) : "—" }}</strong>
+          </div>
+          <span v-if="skuQuoteLoading">{{ t("client.home.packages.priceLoading") }}</span>
+          <span v-else-if="skuPrice">
+            {{ t("client.productDetail.booking.vat") }} {{ formatAed(vatPrice) }}
+          </span>
+          <span v-else-if="skuRequestPayload">{{ t("h5.productDetail.bookingPriceFailed") }}</span>
+        </div>
+        <p v-if="bookingOptionsError" class="h5-booking-error" role="alert">{{ bookingOptionsError }}</p>
         <button
-          class="h5-detail-bottom__submit"
+          class="h5-booking-confirm"
           type="button"
-          :disabled="isCreatingOrder || (skuAvailabilityReady && !skuOffered)"
-          @click="goOrderConfirm"
+          :disabled="optionsSubmitting || skuQuoteLoading || !skuRequestPayload"
+          @click="submitBookingOptions"
         >
           {{
-            isCreatingOrder
-              ? t("client.profile.actions.submitting")
-              : t("client.productDetail.booking.bookNowCompact")
+            optionsSubmitting ? t("client.profile.actions.submitting")
+              : !skuPrice && !skuQuoteLoading && skuRequestPayload ? t("client.home.packages.retryPrice")
+              : bookingMode === "cart" ? t("h5.productDetail.continueWithOptions")
+              : t("h5.productDetail.continueBooking")
           }}
         </button>
-      </div>
-    </footer>
+      </template>
+    </BookingOptionsSheet>
   </div>
 </template>
 
@@ -326,8 +362,10 @@ import { attachShownAt } from "@/modules/client/utils/order-addons"
 import { trackViewContent } from "@/modules/client/utils/metaPixel"
 import { useI18n } from "vue-i18n"
 import { useRoute, useRouter } from "vue-router"
-import { showFailToast, type SwipeInstance } from "vant"
+import type { SwipeInstance } from "vant"
 import DetailContentTabs from '@/modules/h5/components/DetailContentTabs.vue'
+import BookingOptionsSheet from '@/modules/h5/components/BookingOptionsSheet.vue'
+import HomeReturn from '@/modules/h5/components/HomeReturn.vue'
 import {
   createOrder,
   getProductDetail,
@@ -346,9 +384,6 @@ import {
 import { formatCreatedAt } from "@/modules/client/utils/order-date-time"
 import { formatContactName } from "@/modules/client/utils/order-localization"
 import { clearStoredAuthState, getStoredAuthSnapshot } from "@/utils/auth-state"
-import PromoCodeField from "@/modules/client/components/PromoCodeField.vue"
-import { usePromoCode } from "@/modules/client/composables/usePromoCode"
-
 type I18nText = Record<string, string>
 type I18nTextArray = Record<string, string[] | string>
 type SpecValueI18nEntry = {
@@ -430,9 +465,13 @@ type ProductSkuPayload = {
 }
 
 type ProductSkuRecord = {
+  valid?: unknown
   skuId?: number | string
+  originalPrice?: number | string
   price?: number | string
+  totalOriginalPrice?: number | string
   totalPrice?: number | string
+  totalOriginalPriceWithTax?: number | string
   totalPriceWithTax?: number | string
   attachTotalPrice?: number | string
   attachTotalPriceWithTax?: number | string
@@ -478,8 +517,14 @@ const router = useRouter()
 const { t, locale } = useI18n({ useScope: "global" })
 
 const isLoading = ref(false)
+let productDetailRequest = 0
 const reviewsExpanded = ref(false)
-const isCreatingOrder = ref(false)
+type BookingMode = "book" | "cart"
+const bookingOptionsOpen = ref(false)
+const bookingMode = ref<BookingMode>("book")
+const optionsSubmitting = ref(false)
+const bookingOptionsError = ref("")
+const skuQuoteLoading = ref(false)
 const productDetail = ref<ProductDetailRecord | null>(null)
 const skuPrice = ref<ProductSkuRecord | null>(null)
 const swipeRef = ref<SwipeInstance>()
@@ -1040,44 +1085,14 @@ const totalPrice = computed(
     subtotalPrice.value,
 )
 
-const {
-  code: promoCode,
-  loading: promoLoading,
-  error: promoError,
-  dropped: promoDropped,
-  active: activeCoupon,
-  apply: submitPromo,
-  reset: resetPromo,
-} = usePromoCode(() => skuRequestSignature.value)
-
-const displayVatPrice = computed(() => activeCoupon.value?.payableTax ?? vatPrice.value)
-const displayTotalPrice = computed(() => activeCoupon.value?.payableWithTax ?? totalPrice.value)
-const promoNotice = computed(() => (
-  promoDropped.value ? t("client.productDetail.booking.promoRemoved") : ""
+const catalogServicePrice = computed(() => resolveOptionalNumber(skuPrice.value?.originalPrice))
+const priceIsLower = (catalog: number | null, current: number | null) => (
+  catalog !== null && current !== null && catalog > current + 0.009
+)
+const showServiceStrike = computed(() => priceIsLower(
+  catalogServicePrice.value,
+  resolveOptionalNumber(skuPrice.value?.price),
 ))
-
-const applyPromo = async () => {
-  const authSnapshot = getStoredAuthSnapshot()
-  if (authSnapshot.isExpired) clearStoredAuthState()
-  if (!authSnapshot.isLoggedIn) {
-    await router.push({ name: "h5-login", query: { redirect: route.fullPath } })
-    return
-  }
-  const payload = skuRequestPayload.value
-  await submitPromo(
-    payload
-      ? {
-          spuId: payload.spuId,
-          specValueIds: payload.specValueIds,
-          attachItems: payload.attachItems,
-        }
-      : null,
-    locale.value,
-    t("client.productDetail.booking.promoEnter"),
-    t("client.productDetail.booking.createOrderInvalid"),
-  )
-}
-
 const normalizeRating = (value: unknown): number => {
   const rating = Number(value)
   if (!Number.isFinite(rating)) return 0
@@ -1155,15 +1170,15 @@ const visibleReviewItems = computed(() =>
 )
 
 const loadProductDetail = async () => {
-  if (!spuId.value) {
-    productDetail.value = null
-    skuPrice.value = null
-    return
-  }
-  isLoading.value = true
+  const id = spuId.value
+  const request = ++productDetailRequest
+  productDetail.value = null
   skuPrice.value = null
+  isLoading.value = Boolean(id)
+  if (!id) return
   try {
-    const payload = await getProductDetail(spuId.value)
+    const payload = await getProductDetail(id)
+    if (request !== productDetailRequest || spuId.value !== id) return
     productDetail.value =
       payload && typeof payload === "object"
         ? (payload as ProductDetailRecord)
@@ -1175,16 +1190,19 @@ const loadProductDetail = async () => {
       })
     }
   } catch (error) {
+    if (request !== productDetailRequest || spuId.value !== id) return
     console.error("load product detail failed:", error)
     productDetail.value = null
   } finally {
-    isLoading.value = false
+    if (request === productDetailRequest) isLoading.value = false
   }
 }
 
 const loadSkuPrice = async (payload: ProductSkuPayload) => {
   const requestId = skuRequestSeq.value + 1
   skuRequestSeq.value = requestId
+  skuQuoteLoading.value = true
+  skuPrice.value = null
   try {
     const result = await getProductSku(payload)
     if (requestId !== skuRequestSeq.value) return
@@ -1194,6 +1212,8 @@ const loadSkuPrice = async (payload: ProductSkuPayload) => {
     if (requestId !== skuRequestSeq.value) return
     console.error("load product sku failed:", error)
     skuPrice.value = null
+  } finally {
+    if (requestId === skuRequestSeq.value) skuQuoteLoading.value = false
   }
 }
 
@@ -1276,6 +1296,8 @@ watch(
   () => {
     const payload = skuRequestPayload.value
     if (!payload) {
+      skuRequestSeq.value += 1
+      skuQuoteLoading.value = false
       skuPrice.value = null
       return
     }
@@ -1370,126 +1392,118 @@ const handleBack = () => {
   router.push({ name: "h5-home" })
 }
 
-const handleAddToCart = async () => {
-  const payload = skuRequestPayload.value
-  if (!payload) {
-    showFailToast(t("client.productDetail.booking.createOrderInvalid"))
-    return
-  }
-  const authSnapshot = getStoredAuthSnapshot()
-  if (authSnapshot.isExpired) clearStoredAuthState()
-  if (!authSnapshot.isLoggedIn) {
-    await router.push({ name: "h5-login", query: { redirect: route.fullPath } })
-    return
-  }
-  await router.push({
-    name: "h5-order-confirm",
-    query: {
-      mode: "cart",
-      cartSkuDetail: JSON.stringify(payload),
-      spuId: spuId.value,
-      skuId: skuPrice.value?.skuId ? String(skuPrice.value.skuId) : "",
-      title: displayTitle.value,
-      titleI18n: JSON.stringify(productDetail.value?.nameI18n || {}),
-      imageUrls: JSON.stringify(
-        productDetail.value?.imageUrls?.slice(0, 1) || [],
-      ),
-      specSummary: selectedSpecSummary.value,
-      selectedSpecValueIds: JSON.stringify(
-        selectedSpecValueIds.value.map((id) => String(id)),
-      ),
-      specValueNameI18n: JSON.stringify(
-        productDetail.value?.specValueNameI18n || {},
-      ),
-      ...attachCheckoutQuery(),
-      subtotal: subtotalPrice.value.toFixed(2),
-      tax: vatPrice.value.toFixed(2),
-      total: totalPrice.value.toFixed(2),
-    },
-  })
+const openBookingOptions = (mode: BookingMode) => {
+  bookingMode.value = mode
+  bookingOptionsError.value = ""
+  bookingOptionsOpen.value = true
 }
 
-const goOrderConfirm = async () => {
-  if (isCreatingOrder.value) return
-  const authSnapshot = getStoredAuthSnapshot()
-  if (authSnapshot.isExpired) {
-    clearStoredAuthState()
-  }
-  if (!authSnapshot.isLoggedIn) {
-    await router.push({
-      name: "h5-login",
-      query: { redirect: route.fullPath },
-    })
-    return
-  }
+watch(
+  [spuId, () => getRouteQueryText("bookingOptions")],
+  ([, mode]) => {
+    if (mode === "book" || mode === "cart") openBookingOptions(mode)
+    else bookingOptionsOpen.value = false
+  },
+  { immediate: true },
+)
+
+async function requestBookingLogin(mode: BookingMode) {
+  const redirect = router.resolve({
+    path: route.path,
+    hash: route.hash,
+    query: {
+      ...route.query,
+      bookingOptions: mode,
+      specSelections: JSON.stringify(
+        Object.entries(selectedSpecValues.value).map(([specTypeId, specValueId]) => ({ specTypeId, specValueId })),
+      ),
+      attachSelections: JSON.stringify(
+        attachItemsForSku.value.filter((item) => item.quantity > 0),
+      ),
+    },
+  }).fullPath
+  await router.push({ name: "h5-login", query: { redirect } })
+}
+
+const bookingDetailsForCheckout = () => ({
+  spuId: spuId.value,
+  skuId: skuPrice.value?.skuId ? String(skuPrice.value.skuId) : "",
+  title: displayTitle.value,
+  titleI18n: JSON.stringify(productDetail.value?.nameI18n || {}),
+  imageUrls: JSON.stringify(productDetail.value?.imageUrls?.slice(0, 1) || []),
+  specSummary: selectedSpecSummary.value,
+  selectedSpecValueIds: JSON.stringify(selectedSpecValueIds.value.map((id) => String(id))),
+  specValueNameI18n: JSON.stringify(productDetail.value?.specValueNameI18n || {}),
+  ...attachCheckoutQuery(),
+  subtotal: subtotalPrice.value.toFixed(2),
+})
+
+const submitBookingOptions = async () => {
+  if (optionsSubmitting.value || skuQuoteLoading.value) return
   const payload = skuRequestPayload.value
-  if (!payload) {
-    showFailToast(t("client.productDetail.booking.createOrderInvalid"))
+  if (!payload) return
+  bookingOptionsError.value = ""
+
+  // A failed quote can be retried from the sheet before starting checkout.
+  if (!skuPrice.value) {
+    await loadSkuPrice(payload)
     return
   }
-  isCreatingOrder.value = true
+
+  const mode = bookingMode.value
+  const detailPath = route.fullPath
+  optionsSubmitting.value = true
   try {
-    const createdOrderId = await createOrder({
-      ...payload,
-      ...(activeCoupon.value ? { couponCode: activeCoupon.value.couponCode } : {}),
-    })
-    const orderIdText = String(createdOrderId ?? "").trim()
-    if (!orderIdText) {
-      showFailToast(t("client.productDetail.booking.createOrderFailed"))
+    const authSnapshot = getStoredAuthSnapshot()
+    if (authSnapshot.isExpired) clearStoredAuthState()
+    if (!authSnapshot.isLoggedIn) {
+      await requestBookingLogin(mode)
       return
     }
-    router.push({
+
+    const detail = bookingDetailsForCheckout()
+    if (mode === "cart") {
+      await router.push({
+        name: "h5-order-confirm",
+        query: {
+          ...detail,
+          mode: "cart",
+          cartSkuDetail: JSON.stringify(payload),
+          tax: vatPrice.value.toFixed(2),
+          total: totalPrice.value.toFixed(2),
+        },
+      })
+      return
+    }
+
+    const tax = vatPrice.value.toFixed(2)
+    const total = totalPrice.value.toFixed(2)
+    const orderId = await createOrder(payload)
+    if (route.fullPath !== detailPath) return
+    const orderIdText = String(orderId ?? "").trim()
+    if (!orderIdText) {
+      bookingOptionsError.value = t("client.productDetail.booking.createOrderFailed")
+      return
+    }
+    await router.push({
       name: "h5-order-confirm",
       query: {
+        ...detail,
         orderId: orderIdText,
-        spuId: spuId.value,
-        skuId: skuPrice.value?.skuId ? String(skuPrice.value.skuId) : "",
-        title: displayTitle.value,
-        titleI18n: JSON.stringify(productDetail.value?.nameI18n || {}),
-        imageUrls: JSON.stringify(
-          productDetail.value?.imageUrls?.slice(0, 1) || [],
-        ),
-        specSummary: bookingSpecGroups.value
-          .map((group) => {
-            const selectedId = selectedSpecValues.value[group.typeId]
-            return (
-              group.options.find((option) => option.id === selectedId)?.label ||
-              ""
-            )
-          })
-          .filter(Boolean)
-          .join(" / "),
-        selectedSpecValueIds: JSON.stringify(
-          selectedSpecValueIds.value.map((id) => String(id)),
-        ),
-        specValueNameI18n: JSON.stringify(
-          productDetail.value?.specValueNameI18n || {},
-        ),
-        ...attachCheckoutQuery(),
-        subtotal: subtotalPrice.value.toFixed(2),
-        tax: displayVatPrice.value.toFixed(2),
-        total: displayTotalPrice.value.toFixed(2),
-        ...(activeCoupon.value
-          ? {
-              couponCode: activeCoupon.value.couponCode,
-              couponDiscount: activeCoupon.value.discountAmount.toFixed(2),
-            }
-          : {}),
+        tax,
+        total,
       },
     })
-  } catch (error: any) {
-    showFailToast(
-      error?.message || t("client.productDetail.booking.createOrderFailed"),
-    )
+  } catch (error: unknown) {
+    if (route.fullPath === detailPath) {
+      bookingOptionsError.value = error instanceof Error && error.message
+        ? error.message
+        : t("client.productDetail.booking.createOrderFailed")
+    }
   } finally {
-    isCreatingOrder.value = false
+    optionsSubmitting.value = false
   }
 }
 </script>
 
 <style scoped lang="scss" src="../styles/product-detail.scss"></style>
-<style scoped>
-.h5-promo-field {
-  margin-top: 14px;
-}
-</style>

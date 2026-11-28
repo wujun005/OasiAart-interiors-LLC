@@ -300,8 +300,11 @@
                 </span>
               </div>
               <div class="booking-card__price">
-                <span>{{ t("client.productDetail.booking.total") }}</span>
-                <strong v-if="!(skuAvailabilityReady && !skuOffered)">{{ formatAed(displayTotalPrice) }}</strong>
+                <span>{{ t("client.productDetail.booking.selectedService") }}</span>
+                <strong v-if="!(skuAvailabilityReady && !skuOffered)">
+                  <s v-if="showServiceStrike">{{ formatAed(catalogServicePrice || 0) }}</s>
+                  {{ formatAed(selectedServicePrice) }}
+                </strong>
                 <strong v-else class="is-unavailable">{{ t("client.productDetail.booking.skuUnavailable") }}</strong>
               </div>
             </div>
@@ -440,7 +443,10 @@
                     {{ t("client.productDetail.booking.selectedService") }}
                     <small v-if="selectedSpecSummary">{{ selectedSpecSummary }}</small>
                   </span>
-                  <strong>{{ formatAed(selectedServicePrice) }}</strong>
+                  <strong>
+                    <s v-if="showServiceStrike">{{ formatAed(catalogServicePrice || 0) }}</s>
+                    {{ formatAed(selectedServicePrice) }}
+                  </strong>
                 </div>
                 <div
                   v-for="line in selectedAttachLines"
@@ -454,29 +460,16 @@
                   <span>{{ t("client.productDetail.booking.attachTotal") }}</span>
                   <strong>{{ formatAed(selectedAttachTotal) }}</strong>
                 </div>
-                <PromoCodeField
-                  v-model="promoCode"
-                  :loading="promoLoading"
-                  :error="promoError"
-                  :notice="promoNotice"
-                  :applied-code="activeCoupon?.couponCode || ''"
-                  @apply="applyPromo"
-                  @remove="resetPromo"
-                />
-                <div v-if="activeCoupon" class="booking-summary__row">
-                  <span>{{ t("client.productDetail.booking.promoDiscount") }}</span>
-                  <strong>-{{ formatAed(activeCoupon.discountAmount) }}</strong>
-                </div>
                 <div
                   v-if="skuPrice"
                   class="booking-summary__row booking-summary__row--tax"
                 >
                   <span>{{ t("client.productDetail.booking.vat") }}</span>
-                  <strong>{{ formatAed(displayVatPrice) }}</strong>
+                  <strong>{{ formatAed(vatPrice) }}</strong>
                 </div>
                 <div class="booking-summary__row booking-summary__row--total">
                   <span>{{ t("client.productDetail.booking.total") }}</span>
-                  <strong>{{ formatAed(displayTotalPrice) }}</strong>
+                  <strong>{{ formatAed(totalPrice) }}</strong>
                 </div>
               </div>
             </div>
@@ -554,9 +547,6 @@ import {
 import { formatCreatedAt } from "@/modules/client/utils/order-date-time"
 import { formatContactName } from "@/modules/client/utils/order-localization"
 import { clearStoredAuthState, getStoredAuthSnapshot } from "@/utils/auth-state"
-import PromoCodeField from "@/modules/client/components/PromoCodeField.vue"
-import { usePromoCode } from "@/modules/client/composables/usePromoCode"
-
 type I18nText = Record<string, string>
 type I18nTextArray = Record<string, string[] | string>
 type SpecValueI18nEntry = {
@@ -1127,44 +1117,14 @@ const totalPrice = computed(() => {
   return subtotalPrice.value
 })
 
-const {
-  code: promoCode,
-  loading: promoLoading,
-  error: promoError,
-  dropped: promoDropped,
-  active: activeCoupon,
-  apply: submitPromo,
-  reset: resetPromo,
-} = usePromoCode(() => skuRequestSignature.value)
-
-const displayVatPrice = computed(() => activeCoupon.value?.payableTax ?? vatPrice.value)
-const displayTotalPrice = computed(() => activeCoupon.value?.payableWithTax ?? totalPrice.value)
-const promoNotice = computed(() => (
-  promoDropped.value ? t('client.productDetail.booking.promoRemoved') : ''
+const catalogServicePrice = computed(() => resolveOptionalNumber(skuPrice.value?.originalPrice))
+const priceIsLower = (catalog: number | null, current: number | null) => (
+  catalog !== null && current !== null && catalog > current + 0.009
+)
+const showServiceStrike = computed(() => priceIsLower(
+  catalogServicePrice.value,
+  resolveOptionalNumber(skuPrice.value?.price),
 ))
-
-const applyPromo = async () => {
-  const authSnapshot = getStoredAuthSnapshot()
-  if (authSnapshot.isExpired) clearStoredAuthState()
-  if (!authSnapshot.isLoggedIn) {
-    await router.push({ name: 'login', query: { redirect: route.fullPath } })
-    return
-  }
-  const payload = skuRequestPayload.value
-  await submitPromo(
-    payload
-      ? {
-          spuId: payload.spuId,
-          specValueIds: payload.specValueIds,
-          attachItems: payload.attachItems,
-        }
-      : null,
-    locale.value,
-    t('client.productDetail.booking.promoEnter'),
-    t('client.productDetail.booking.createOrderInvalid'),
-  )
-}
-
 const serviceContentHtml = computed(() => {
   const detail = productDetail.value
   const richText = pickI18nValue(detail?.serviceContentTextI18n, "")
@@ -1854,10 +1814,7 @@ const goOrderConfirm = async () => {
   }
   isCreatingOrder.value = true
   try {
-    const createdOrderId = await createOrder({
-      ...payload,
-      ...(activeCoupon.value ? { couponCode: activeCoupon.value.couponCode } : {}),
-    })
+    const createdOrderId = await createOrder(payload)
     const orderIdText = String(createdOrderId ?? "").trim()
     if (!orderIdText) {
       ElMessage.error(t("client.productDetail.booking.createOrderFailed"))
@@ -1881,14 +1838,8 @@ const goOrderConfirm = async () => {
         ),
         ...attachCheckoutQuery(),
         subtotal: subtotalPrice.value.toFixed(2),
-        tax: displayVatPrice.value.toFixed(2),
-        total: displayTotalPrice.value.toFixed(2),
-        ...(activeCoupon.value
-          ? {
-              couponCode: activeCoupon.value.couponCode,
-              couponDiscount: activeCoupon.value.discountAmount.toFixed(2),
-            }
-          : {}),
+        tax: vatPrice.value.toFixed(2),
+        total: totalPrice.value.toFixed(2),
       },
     })
   } catch (error: any) {

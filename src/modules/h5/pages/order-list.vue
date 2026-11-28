@@ -184,6 +184,14 @@
               {{ locale === "zh" ? "管理预订" : "Manage Booking" }}
             </button>
             <button
+              v-if="item.canManagePackage"
+              type="button"
+              class="h5-order-card__btn h5-order-card__btn--primary"
+              @click.stop="goDetail(item)"
+            >
+              {{ locale === "zh" ? "管理预订" : "Manage Booking" }}
+            </button>
+            <button
               v-if="item.canReview && !item.reviewed"
               type="button"
               class="h5-order-card__btn h5-order-card__btn--ghost"
@@ -368,10 +376,11 @@
           <h3>{{ locale.startsWith("zh") ? "管理预订" : "Reschedule Booking" }}</h3>
           <button
             type="button"
+            :aria-label="locale.startsWith('zh') ? '关闭' : 'Close'"
             :disabled="isRescheduleSubmitting"
             @click="reschedulePopupVisible = false"
           >
-            <van-icon name="cross" />
+            <van-icon name="cross" aria-hidden="true" />
           </button>
         </div>
         <div class="h5-reschedule-sheet__summary">
@@ -381,59 +390,50 @@
           }}</small>
           <strong>{{ rescheduleForm.currentSchedule }}</strong>
         </div>
-        <label class="h5-reschedule-sheet__field">
-          <span>{{
-            locale.startsWith("zh") ? "新的服务日期" : "New Service Date"
-          }}</span>
-          <div
-            class="h5-reschedule-sheet__date"
-            @click="openRescheduleDatePicker"
-          >
-            <van-icon name="calendar-o" />
-            <input
-              :value="rescheduleForm.serviceTime"
-              type="text"
-              readonly
-              :placeholder="
-                locale.startsWith('zh')
-                  ? '请选择服务日期'
-                  : 'Select service date'
-              "
-            />
-            <van-icon name="arrow" />
-          </div>
-          <small class="h5-reschedule-sheet__date-hint">{{
-            localizedRescheduleDate
-          }}</small>
-        </label>
-        <label class="h5-reschedule-sheet__field">
-          <span>{{
-            locale.startsWith("zh") ? "新的服务时段" : "Available Time Slots"
-          }}</span>
-          <select
-            v-model.number="rescheduleForm.timeRange"
-            @mousedown="handleRescheduleTimeOpen"
-          >
-            <option :value="null" disabled>
-              {{ rescheduleTimePlaceholder }}
-            </option>
-            <option
-              v-for="slot in selectableRescheduleTimeOptions"
-              :key="slot.timeRange"
-              :value="slot.timeRange"
-              :disabled="!slot.available || slot.isCurrent"
+        <div class="h5-reschedule-sheet__fields">
+          <div class="h5-reschedule-sheet__field">
+            <span id="h5-reschedule-date-label">{{
+              locale.startsWith("zh") ? "新的服务日期" : "New Service Date"
+            }}</span>
+            <button
+              type="button"
+              class="h5-reschedule-sheet__date"
+              aria-labelledby="h5-reschedule-date-label h5-reschedule-date-value"
+              :disabled="isRescheduleSubmitting"
+              @click="openRescheduleDatePicker"
             >
-              {{ slot.time
-              }}{{
-                slot.isCurrent
-                  ? locale.startsWith("zh")
-                    ? "（当前时段）"
-                    : " (current slot)"
-                  : ""
-              }}
-            </option>
-          </select>
-        </label>
+              <van-icon name="calendar-o" aria-hidden="true" />
+              <span id="h5-reschedule-date-value">{{ localizedRescheduleDate }}</span>
+              <van-icon name="arrow" aria-hidden="true" />
+            </button>
+          </div>
+          <label class="h5-reschedule-sheet__field">
+            <span>{{
+              locale.startsWith("zh") ? "新的服务时段" : "Available Time Slots"
+            }}</span>
+            <select
+              v-model.number="rescheduleForm.timeRange"
+              :disabled="isRescheduleSubmitting"
+              @mousedown="handleRescheduleTimeOpen"
+            >
+              <option :value="null" disabled>{{ rescheduleTimePlaceholder }}</option>
+              <option
+                v-for="slot in selectableRescheduleTimeOptions"
+                :key="slot.timeRange"
+                :value="slot.timeRange"
+                :disabled="!slot.available || slot.isCurrent"
+              >
+                {{ slot.time }}{{
+                  slot.isCurrent
+                    ? locale.startsWith("zh")
+                      ? "（当前时段）"
+                      : " (current slot)"
+                    : ""
+                }}
+              </option>
+            </select>
+          </label>
+        </div>
         <p>
           {{
             locale.startsWith("zh")
@@ -442,14 +442,6 @@
           }}
         </p>
         <div class="h5-reschedule-sheet__actions">
-          <button
-            class="h5-reschedule-sheet__cancel"
-            type="button"
-            :disabled="isRescheduleSubmitting"
-            @click="cancelFromManage"
-          >
-            {{ locale.startsWith("zh") ? "取消预订" : "Cancel Booking" }}
-          </button>
           <button
             class="h5-review-sheet__submit"
             type="button"
@@ -465,6 +457,14 @@
                   ? "确认改期"
                   : "Request Reschedule"
             }}
+          </button>
+          <button
+            class="h5-reschedule-sheet__cancel"
+            type="button"
+            :disabled="isRescheduleSubmitting"
+            @click="cancelFromManage"
+          >
+            {{ locale.startsWith("zh") ? "取消预订" : "Cancel Booking" }}
           </button>
         </div>
       </div>
@@ -569,6 +569,7 @@ type OrderCardView = {
   canContinue: boolean
   canBookVisit: boolean
   canManage: boolean
+  canManagePackage: boolean
   canAddAddons: boolean
   canReview: boolean
   canRebook: boolean
@@ -1232,6 +1233,7 @@ const orderCards = computed<OrderCardView[]>(() =>
           packageStillValid(item) &&
           packageHasRemainingVisit(item),
         canManage: orderStatus === 1 && !isPackage,
+        canManagePackage: orderStatus === 1 && isPackage,
         canReview: orderStatus === 2 || orderStatus === 3,
         canRebook: !isPackage && [2, 3, 4, 5].includes(orderStatus ?? -1),
         specSelections,
@@ -1772,6 +1774,8 @@ onBeforeUnmount(() => {
 </script>
 
 <style scoped lang="scss">
+@use '../../client/style/booking-schedule' as schedule;
+
 .h5-orders-page {
   min-height: 100vh;
   background: var(--hourx-client-canvas);
@@ -2005,34 +2009,40 @@ onBeforeUnmount(() => {
 
 .h5-order-card__head {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
+  gap: 0.375rem 0.625rem;
 }
 
 .h5-order-card__order-no {
   display: inline-flex;
   align-items: center;
+  min-width: 0;
   gap: 8px;
   color: rgba(15, 23, 42, 0.6);
   font-size: 12px;
   font-weight: 700;
+  overflow-wrap: anywhere;
 }
 
 .h5-order-card__order-no :deep(.van-icon) {
+  flex: none;
   font-size: 16px;
 }
 
 .h5-order-card__badge {
   min-width: 54px;
-  height: 19px;
+  max-width: 100%;
+  min-height: 1.375rem;
   border-radius: 8px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: 0 8px;
+  padding: 0.25rem 0.5rem;
   font-size: 10px;
   font-weight: 700;
+  overflow-wrap: anywhere;
 }
 
 .h5-order-card__badge--all,
@@ -2077,13 +2087,15 @@ onBeforeUnmount(() => {
 
 .h5-order-card__title-row {
   display: flex;
+  flex-wrap: wrap;
   align-items: flex-start;
   justify-content: space-between;
-  gap: 12px;
+  gap: 0.35rem 0.625rem;
 }
 
 .h5-order-card__title-copy {
   min-width: 0;
+  flex: 1 1 8rem;
   display: flex;
   align-items: center;
   flex-wrap: wrap;
@@ -2096,6 +2108,7 @@ onBeforeUnmount(() => {
   font-size: 1.0625rem;
   line-height: 1.3;
   font-weight: 600;
+  overflow-wrap: anywhere;
 }
 
 .h5-order-card__kind-badge {
@@ -2124,11 +2137,12 @@ onBeforeUnmount(() => {
 }
 
 .h5-order-card__title-row strong {
-  white-space: nowrap;
+  max-width: 100%;
   color: var(--hourx-client-text);
   font-size: var(--hourx-client-size-card);
   line-height: 1.3;
   font-weight: 700;
+  overflow-wrap: anywhere;
 }
 
 .h5-order-card__meta {
@@ -2339,6 +2353,29 @@ onBeforeUnmount(() => {
   overflow-y: auto;
   overscroll-behavior: contain;
 }
+.h5-reschedule-sheet {
+  max-width: 32rem;
+  margin-inline: auto;
+  padding: 1rem 1rem calc(1rem + env(safe-area-inset-bottom));
+}
+.h5-reschedule-sheet .h5-review-sheet__header {
+  gap: 0.75rem;
+}
+.h5-reschedule-sheet .h5-review-sheet__header h3 {
+  font-size: clamp(1.25rem, 5vw, 1.625rem);
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+}
+.h5-reschedule-sheet .h5-review-sheet__header button {
+  display: grid;
+  width: 2.75rem;
+  height: 2.75rem;
+  flex: none;
+  place-items: center;
+  padding: 0;
+  border-radius: 50%;
+  background: #f1f5f9;
+}
 .h5-reschedule-sheet__summary {
   margin-top: 16px;
   display: flex;
@@ -2348,6 +2385,7 @@ onBeforeUnmount(() => {
   border: 1px solid #dbe8f5;
   border-radius: 14px;
   background: linear-gradient(135deg, #edf5ff, #f9fbfe);
+  overflow-wrap: anywhere;
 }
 .h5-reschedule-sheet__summary span {
   color: #05152b;
@@ -2363,80 +2401,67 @@ onBeforeUnmount(() => {
   color: #1769c2;
   font-size: 13px;
 }
+.h5-reschedule-sheet__fields {
+  display: grid;
+  gap: 0.75rem;
+  margin-top: 1rem;
+}
 .h5-reschedule-sheet__field {
-  margin-top: 15px;
+  min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 0.375rem;
 }
-.h5-reschedule-sheet__field span {
+.h5-reschedule-sheet__field > span {
   color: #334155;
-  font-size: 12px;
+  font-size: 0.8125rem;
   font-weight: 800;
 }
+.h5-reschedule-sheet__field select,
+.h5-reschedule-sheet__date {
+  @include schedule.control;
+}
 .h5-reschedule-sheet__field select {
-  width: 100%;
-  min-height: 46px;
-  box-sizing: border-box;
-  padding: 0 12px;
-  border: 1px solid #d6e0ea;
-  border-radius: 11px;
-  outline: none;
-  background: #fff;
-  color: #05152b;
-  font: inherit;
+  @include schedule.select-indicator;
 }
 .h5-reschedule-sheet__date {
-  width: 100%;
-  min-height: 46px;
-  box-sizing: border-box;
-  display: flex;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
-  gap: 10px;
-  padding: 0 12px;
-  border: 1px solid #d6e0ea;
-  border-radius: 11px;
-  background: #fff;
-  color: #1769c2;
+  gap: 0.625rem;
+  text-align: start;
 }
-.h5-reschedule-sheet__date input {
-  min-width: 0;
-  flex: 1;
-  border: 0;
-  outline: 0;
-  background: transparent;
-  color: #05152b;
-  font: inherit;
-  pointer-events: none;
+.h5-reschedule-sheet__date :deep(.van-icon) {
+  color: #526176;
 }
-.h5-reschedule-sheet__date-hint {
-  color: #64748b;
-  font-size: 11px;
-  line-height: 1.4;
+.h5-reschedule-sheet__date span {
+  overflow-wrap: anywhere;
 }
 .h5-reschedule-sheet > p {
   margin: 13px 0 0;
   color: #64748b;
-  font-size: 11px;
+  font-size: 0.75rem;
   line-height: 1.55;
 }
 .h5-reschedule-sheet__actions {
-  margin-top: 18px;
+  margin-top: 1rem;
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 10px;
+  gap: 0.25rem;
 }
 .h5-reschedule-sheet__actions .h5-review-sheet__submit {
+  @include schedule.primary-action;
   margin: 0;
+  border-radius: 0.625rem;
 }
 .h5-reschedule-sheet__cancel {
-  min-height: 46px;
-  border: 1px solid #05152b;
-  border-radius: 12px;
-  background: #fff;
-  color: #05152b;
-  font-size: 13px;
-  font-weight: 900;
+  justify-self: center;
+  min-height: 2.75rem;
+  padding: 0.25rem 0.75rem;
+  border: 0;
+  background: transparent;
+  color: #526176;
+  font-size: 0.8125rem;
+  font-weight: 600;
 }
 
 .h5-review-sheet__header {

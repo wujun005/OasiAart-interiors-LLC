@@ -116,12 +116,14 @@
               <el-upload :show-file-list="false" accept="image/jpeg,image/png,image/webp" :http-request="uploadTo('pcImageUrl')">
                 <div class="upload" :style="imageStyle(form.pcImageUrl)">{{ form.pcImageUrl ? '' : copy.upload }}</div>
               </el-upload>
+              <el-button v-if="form.pcImageUrl" class="remove-image" link type="danger" @click="form.pcImageUrl = ''">{{ copy.removeImage }}</el-button>
               <small>1920×600 · JPG/PNG/WebP</small>
             </el-form-item>
             <el-form-item :label="form.cardStyle === 2 ? copy.mobileEn : copy.mobile">
               <el-upload :show-file-list="false" accept="image/jpeg,image/png,image/webp" :http-request="uploadTo('mobileImageUrl')">
                 <div class="upload" :style="imageStyle(form.mobileImageUrl)">{{ form.mobileImageUrl ? '' : copy.upload }}</div>
               </el-upload>
+              <el-button v-if="form.mobileImageUrl" class="remove-image" link type="danger" @click="form.mobileImageUrl = ''">{{ copy.removeImage }}</el-button>
               <small>750×900 · JPG/PNG/WebP</small>
             </el-form-item>
           </template>
@@ -130,11 +132,13 @@
               <el-upload :show-file-list="false" accept="image/jpeg,image/png,image/webp" :http-request="uploadTo('pcImageUrlZh')">
                 <div class="upload" :style="imageStyle(form.pcImageUrlZh)">{{ form.pcImageUrlZh ? '' : copy.upload }}</div>
               </el-upload>
+              <el-button v-if="form.pcImageUrlZh" class="remove-image" link type="danger" @click="form.pcImageUrlZh = ''">{{ copy.removeImage }}</el-button>
             </el-form-item>
             <el-form-item :label="copy.mobileZh">
               <el-upload :show-file-list="false" accept="image/jpeg,image/png,image/webp" :http-request="uploadTo('mobileImageUrlZh')">
                 <div class="upload" :style="imageStyle(form.mobileImageUrlZh)">{{ form.mobileImageUrlZh ? '' : copy.upload }}</div>
               </el-upload>
+              <el-button v-if="form.mobileImageUrlZh" class="remove-image" link type="danger" @click="form.mobileImageUrlZh = ''">{{ copy.removeImage }}</el-button>
             </el-form-item>
             <el-form-item :label="copy.altEn"><el-input v-model="form.altEn" maxlength="256" /></el-form-item>
             <el-form-item :label="copy.altZh"><el-input v-model="form.altZh" maxlength="256" /></el-form-item>
@@ -143,6 +147,7 @@
             <el-upload :show-file-list="false" accept="image/jpeg,image/png,image/webp" :http-request="uploadTo('pcImageUrl')">
               <div class="upload" :style="imageStyle(form.pcImageUrl)">{{ form.pcImageUrl ? '' : copy.upload }}</div>
             </el-upload>
+            <el-button v-if="form.pcImageUrl" class="remove-image" link type="danger" @click="form.pcImageUrl = ''">{{ copy.removeImage }}</el-button>
             <small>800×800</small>
           </el-form-item>
         </div>
@@ -248,7 +253,14 @@
               <el-select v-model="form.popupPages">
                 <el-option :value="1" :label="copy.homeOnly" />
                 <el-option :value="2" :label="copy.allPages" />
+                <el-option :value="3" :label="copy.categoryPage" />
               </el-select>
+            </el-form-item>
+            <el-form-item v-if="form.popupPages === 3" :label="copy.category">
+              <el-select v-model="form.popupCategoryKey" filterable :placeholder="copy.categoryPlaceholder">
+                <el-option v-for="item in popupCategories" :key="item.key" :label="item.label" :value="item.key" />
+              </el-select>
+              <small class="hint">{{ copy.categoryHint }}</small>
             </el-form-item>
           </div>
         </template>
@@ -317,6 +329,7 @@ type Card = {
   popupAudience?: number;
   popupAudienceI18n?: Record<string, string>;
   popupPages?: number;
+  popupCategoryKey?: string;
   popupPagesI18n?: Record<string, string>;
   validStart?: string;
   validEnd?: string;
@@ -343,7 +356,7 @@ const copy = computed(() => (zh.value ? {
   templateHint: '文字在各屏幕上都清晰，也方便改文案。照片左侧留出大约 40% 给文字。',
   imageHint: '适合设计好的宣传图。需要英文图，中文图和手机图可以另外上传，否则手机上文字可能被裁掉。',
   images: '图片', desktop: '电脑端背景', mobile: '手机端背景', desktopEn: '电脑端 · 英文', mobileEn: '手机端 · 英文',
-  desktopZh: '电脑端 · 中文', mobileZh: '手机端 · 中文', popupImage: '弹窗图片', upload: '上传',
+  desktopZh: '电脑端 · 中文', mobileZh: '手机端 · 中文', popupImage: '弹窗图片', upload: '上传', removeImage: '移除',
   altEn: '替代文字（英文）', altZh: '替代文字（中文）',
   textEn: '英文文案', textZh: '中文文案', eyebrow: '分类眉题', eyebrowZh: '眉题',
   button: '按钮', buttonZh: '按钮', headline: '标题第一行', headline2: '标题第二行',
@@ -356,6 +369,8 @@ const copy = computed(() => (zh.value ? {
   delay: '延迟秒数', delayHint: '不填为 3 秒。8 秒对应原型里的 After 8 seconds。',
   frequency: '频率', onceVisitor: '每位访客一次', everyOpen: '每次打开', onceDay: '每天一次',
   everyone: '所有人', guests: '游客和新客', returning: '回头客', pages: '页面', homeOnly: '仅首页', allPages: '全站',
+  categoryPage: '进入某个大类', category: '大类', categoryPlaceholder: '选择一级大类',
+  categoryHint: '顾客从首页点进这个大类时弹出。全站弹窗仍会在这里出现。',
   cancel: '取消', save: '保存', saved: '已保存', failed: '保存失败，请检查填写内容',
   pause: '暂停', resume: '启用', always: '一直展示',
 } : {
@@ -369,7 +384,7 @@ const copy = computed(() => (zh.value ? {
   templateHint: 'Text stays sharp and is easy to translate. Keep the left 40% of the photo calm.',
   imageHint: 'Use a finished promo. English is required; add Chinese and mobile crops so phones do not cut the text.',
   images: 'Images', desktop: 'Desktop background', mobile: 'Mobile background', desktopEn: 'Desktop · English', mobileEn: 'Mobile · English',
-  desktopZh: 'Desktop · 中文', mobileZh: 'Mobile · 中文', popupImage: 'Pop-up image', upload: 'Upload',
+  desktopZh: 'Desktop · 中文', mobileZh: 'Mobile · 中文', popupImage: 'Pop-up image', upload: 'Upload', removeImage: 'Remove',
   altEn: 'Alt text (English)', altZh: 'Alt text (中文)',
   textEn: 'Text (English)', textZh: 'Text (中文)', eyebrow: 'Category label', eyebrowZh: '眉题',
   button: 'CTA button', buttonZh: '按钮', headline: 'Headline line 1', headline2: 'Headline line 2',
@@ -382,6 +397,8 @@ const copy = computed(() => (zh.value ? {
   delay: 'Delay seconds', delayHint: 'Blank means 3 seconds. 8 seconds is the prototype’s After 8 seconds.',
   frequency: 'Frequency', onceVisitor: 'Once per visitor', everyOpen: 'Every visit', onceDay: 'Once per day',
   everyone: 'Everyone', guests: 'Guests & new customers', returning: 'Returning customers', pages: 'Pages', homeOnly: 'Home', allPages: 'All pages',
+  categoryPage: 'When a category opens', category: 'Category', categoryPlaceholder: 'Choose a top-level category',
+  categoryHint: 'Shown when a customer opens this category from the homepage. Site-wide pop-ups still appear here.',
   cancel: 'Cancel', save: 'Save', saved: 'Saved', failed: 'Could not save. Check the form.',
   pause: 'Pause', resume: 'Enable', always: 'Always on',
 }));
@@ -396,6 +413,7 @@ const popups = ref<Card[]>([]);
 const coupons = ref<Coded[]>([]);
 const campaigns = ref<Named[]>([]);
 const categories = ref<Named[]>([]);
+const popupCategories = ref<Array<{ key: string; label: string }>>([]);
 const services = ref<Named[]>([]);
 const serviceLoading = ref(false);
 
@@ -440,6 +458,7 @@ function blank() {
     categoryId: undefined as number | undefined, skuId: undefined as number | undefined,
     campaignId: undefined as number | undefined, externalUrl: '',
     popupTrigger: 1, popupDelaySeconds: 8, popupFrequency: 1, popupAudience: 1, popupPages: 1,
+    popupCategoryKey: '',
   };
 }
 function body<T>(payload: unknown): T {
@@ -499,7 +518,9 @@ function audienceLabel(value?: number) {
   return copy.value.everyone;
 }
 function pagesLabel(value?: number) {
-  return value === 2 ? copy.value.allPages : copy.value.homeOnly;
+  if (value === 2) return copy.value.allPages;
+  if (value === 3) return copy.value.categoryPage;
+  return copy.value.homeOnly;
 }
 function linkSummary(row: Card) {
   if (row.couponCode && row.linkType !== 1) return `${row.couponCode} → ${row.pageCode || row.externalUrl || row.spuId || ''}`;
@@ -556,6 +577,12 @@ async function loadChoices() {
     const id = optionId(item.category?.id ?? item.id);
     if (!id) return [];
     return [{ id, label: text(item.nameI18n || item.category?.nameI18n, item.category?.name || item.name || String(id)) }];
+  });
+  popupCategories.value = listOf(categoryResult).flatMap((item: any) => {
+    const category = item.category || item;
+    const key = String(category.categoryId || category.id || '').trim();
+    if (!key) return [];
+    return [{ key, label: text(item.nameI18n || category.nameI18n, category.name || item.name || key) }];
   });
 }
 async function searchServices(query: string) {
@@ -618,6 +645,7 @@ async function openEdit(id: number) {
     popupFrequency: detail.popupFrequency || 1,
     popupAudience: detail.popupAudience || 1,
     popupPages: detail.popupPages || 1,
+    popupCategoryKey: detail.popupCategoryKey || '',
   });
   drawer.value = true;
   await loadChoices().catch(() => undefined);
@@ -703,10 +731,10 @@ async function save() {
     badgeI18n: i18n(form.badgeEn, form.badgeZh),
     buttonI18n: i18n(form.buttonEn, form.buttonZh),
     altI18n: i18n(form.altEn, form.altZh),
-    pcImageUrl: form.pcImageUrl || undefined,
-    mobileImageUrl: form.mobileImageUrl || undefined,
-    pcImageUrlZh: form.pcImageUrlZh || undefined,
-    mobileImageUrlZh: form.mobileImageUrlZh || undefined,
+    pcImageUrl: form.pcImageUrl || '',
+    mobileImageUrl: form.mobileImageUrl || '',
+    pcImageUrlZh: form.pcImageUrlZh || '',
+    mobileImageUrlZh: form.mobileImageUrlZh || '',
     couponCode: form.couponCode || undefined,
     pageCode: form.linkType === 2 ? form.pageCode || undefined : undefined,
     spuId: form.linkType === 3 ? form.spuId : undefined,
@@ -715,12 +743,17 @@ async function save() {
     campaignId: form.linkType === 7 ? form.campaignId : undefined,
     externalUrl: form.linkType === 6 ? form.externalUrl || undefined : undefined,
   };
+  if (form.slot === 4 && form.popupPages === 3 && !form.popupCategoryKey) {
+    ElMessage.warning(zh.value ? '请选择大类' : 'Select a category');
+    return;
+  }
   if (form.slot === 4) {
     payload.popupTrigger = form.popupTrigger;
     payload.popupDelaySeconds = form.popupTrigger === 2 ? form.popupDelaySeconds : undefined;
     payload.popupFrequency = form.popupFrequency;
     payload.popupAudience = form.popupAudience;
     payload.popupPages = form.popupPages;
+    payload.popupCategoryKey = form.popupPages === 3 ? form.popupCategoryKey : undefined;
   }
   saving.value = true;
   try {
@@ -791,6 +824,7 @@ onMounted(load);
 .grid.three { grid-template-columns: 1fr 1fr 1fr; }
 h3 { margin: 18px 0 8px; font-size: 15px; }
 .hint, .grid small { display: block; margin-top: 4px; color: #6b7a90; }
-.upload { width: 180px; height: 90px; border: 1.5px dashed #e3eaf2; border-radius: 12px; background: #f8fafd center/cover no-repeat; display: grid; place-items: center; color: #6b7a90; }
+.upload { width: 180px; height: 90px; border: 1.5px dashed #e3eaf2; border-radius: 12px; background: #f3f6fa center/contain no-repeat; display: grid; place-items: center; color: #6b7a90; }
+.remove-image { margin-top: 6px; padding: 0; }
 @media (max-width: 1100px) { .slides, .grid, .grid.three { grid-template-columns: 1fr; } }
 </style>

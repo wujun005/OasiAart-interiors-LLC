@@ -25,6 +25,9 @@ const script = compileScript(descriptor, { id: 'package-followup-booking' });
 const code = transpile(script.content);
 const dates = load(read('src/modules/client/utils/order-date-time.ts'));
 const localization = load(read('src/modules/client/utils/order-localization.ts'));
+const addons = load(read('src/modules/client/utils/order-addons.ts'));
+const orderListPage = load(read('src/modules/client/utils/order-list-page.ts'));
+const visitProgress = load(read('src/modules/client/utils/package-visit-progress.ts'));
 const availabilityCode = read('src/modules/client/utils/package-booking-times.ts');
 const futureDate = '2099-01-01';
 const slots = [
@@ -74,12 +77,13 @@ async function harness(t, overrides = {}) {
   const locale = Vue.ref('en');
   const controls = {
     order: overrides.order || packageOrder(),
+    readDetail: overrides.readDetail || (() => controls.order),
     availability: overrides.availability || (async ({ spuId }) =>
       spuId === 8 ? [slots[0], { ...slots[1], available: false }] : slots),
     fulfill: overrides.fulfill || (async () => 'PK-42-SPU7-N2, PK-42-SKU302-N2'),
   };
   const api = {
-    getClientOrderDetail: async (orderNo) => { calls.detail.push(orderNo); return plain(controls.order); },
+    getClientOrderDetail: async (orderNo) => { calls.detail.push(orderNo); return plain(await controls.readDetail(orderNo)); },
     getClientProfile: async () => ({ email: 'customer@example.test' }),
     getAvailableSelectTime: async (params) => { calls.availability.push(plain(params)); return controls.availability(params); },
     getClientAddressList: async () => { calls.savedAddresses += 1; return []; },
@@ -107,14 +111,17 @@ async function harness(t, overrides = {}) {
       if (name === '@/modules/client/api') return api;
       if (name === '@/modules/client/composables/useCart') return { useCart: () => ({ cartCount: Vue.ref(0), refreshCart: async () => {} }) };
       if (name === '@/modules/client/utils/package-booking-times') return availability;
+      if (name === '@/modules/client/utils/package-visit-progress') return visitProgress;
       if (name === '@/modules/client/utils/order-date-time') return dates;
       if (name === '@/modules/client/utils/order-localization') return localization;
+      if (name === '@/modules/client/utils/order-addons') return addons;
+      if (name === '@/modules/client/utils/order-list-page') return orderListPage;
       if (name === '@/modules/client/utils/richText') return { normalizeRichTextHtml: (value) => value || '' };
       if (name.endsWith('.vue') || name.endsWith('.png')) return {};
       throw new Error(`Unexpected component dependency: ${name}`);
     },
   });
-  const app = renderer.createApp({ ...exports.default, render: () => null });
+  const app = renderer.createApp({ ...exports.default, render: () => null }, { mobile: true });
   const instance = app.mount({});
   t.after(() => app.unmount());
   await flush();
@@ -153,6 +160,84 @@ test('SPU quotas with null sku IDs and fixed SKUs both book once; exhausted serv
   await state.submitBookVisit();
   assert.deepEqual(calls.bookings, [{ orderNo: 'PK-42', serviceDate: futureDate, timeRange: 7 }]);
   assert.equal(calls.savedAddresses, 0);
+});
+
+test('H5 advances from Schedule Visit 2 to Visit 3 and hides the action after the last visit', async (t) => {
+  const order = packageOrder();
+  order.packageItems = [order.packageItems[0]];
+  order.fulfillmentList = [
+    { fulfillmentNo: 'PK-42-SPU7-N1', spuId: 7, skuId: 201, seqNo: 1, scheduleStatus: 1, serviceStatus: 2 },
+    { fulfillmentNo: 'PK-42-SPU7-N2', spuId: 7, skuId: 201, seqNo: 2, scheduleStatus: 2, serviceStatus: 0 },
+  ];
+  const { state, calls } = await harness(t, { order, fulfill: async ({ serviceDate }) => {
+    const item = order.packageItems[0];
+    item.remainingTimes -= 1;
+    item.occupiedTimes += 1;
+    order.canFulfill = item.remainingTimes > 0;
+    const seqNo = order.fulfillmentList.length + 1;
+    const fulfillmentNo = 'PK-42-SPU7-N' + seqNo;
+    order.fulfillmentList.push({
+      fulfillmentNo, spuId: 7, skuId: 201, seqNo, scheduleStatus: 1, serviceStatus: 0, serviceDate,
+    });
+    return fulfillmentNo;
+  } });
+  assert.match(descriptor.template.content, /v-for="visit in packageVisitPlan\.rounds"/);
+  assert.match(descriptor.template.content, /v-if="canBookPackageVisit"[\s\S]*?\{\{ scheduleVisitLabel \}\}/);
+  assert.equal(state.scheduleVisitLabel, 'Schedule Visit 2');
+  assert.deepEqual(plain(state.packageVisitStats.map(({ count }) => count)), [1, 0, 2]);
+  assert.equal(state.visitStepLabel(state.packageVisitPlan.rounds[1]), 'To be scheduled');
+
+  await chooseDate(state);
+  state.bookForm.timeRange = 7;
+  await state.submitBookVisit();
+  assert.equal(state.bookVisitVisible, false);
+  assert.equal(state.scheduleVisitLabel, 'Schedule Visit 3');
+  assert.deepEqual(plain(state.packageVisitStats.map(({ count }) => count)), [1, 1, 1]);
+  assert.equal(state.packageFulfillmentViews.find((visit) => visit.fulfillmentNo.endsWith('-N3')).visitLabel, 'Visit 2');
+
+  await chooseDate(state, '2099-01-02');
+  state.bookForm.timeRange = 7;
+  await state.submitBookVisit();
+  assert.equal(state.canBookPackageVisit, false);
+  assert.equal(state.packageVisitPlan.next, null);
+  assert.deepEqual(plain(state.packageVisitStats.map(({ count }) => count)), [1, 2, 0]);
+  assert.equal(state.packageFulfillmentViews.find((visit) => visit.fulfillmentNo.endsWith('-N4')).visitLabel, 'Visit 3');
+  assert.deepEqual(calls.detail, ['PK-42', 'PK-42', 'PK-42']);
+  assert.deepEqual(calls.bookings, [
+    { orderNo: 'PK-42', serviceDate: futureDate, timeRange: 7 },
+    { orderNo: 'PK-42', serviceDate: '2099-01-02', timeRange: 7 },
+  ]);
+});
+
+test('H5 keeps the booked visit closed if detail refresh fails and permits refresh without booking again', async (t) => {
+  const order = packageOrder();
+  let reads = 0;
+  const { state, calls } = await harness(t, {
+    order,
+    readDetail: () => {
+      reads += 1;
+      if (reads === 2) throw new Error('Detail temporarily unavailable');
+      return order;
+    },
+    fulfill: async () => {
+      order.packageItems[0].remainingTimes = 1;
+      order.packageItems[1].remainingTimes = 0;
+      return 'PK-42-SPU7-N2';
+    },
+  });
+  await chooseDate(state);
+  state.bookForm.timeRange = 7;
+  await state.submitBookVisit();
+  assert.equal(state.bookVisitVisible, false);
+  assert.equal(state.packageVisitRefreshNeeded, true);
+  assert.equal(state.canBookPackageVisit, false);
+  await state.openBookVisit();
+  assert.equal(state.bookVisitVisible, false);
+  await state.retryPackageVisitRefresh();
+  assert.equal(state.packageVisitRefreshNeeded, false);
+  assert.equal(state.canBookPackageVisit, true);
+  assert.equal(state.scheduleVisitLabel, 'Schedule Visit 3');
+  assert.equal(calls.bookings.length, 1);
 });
 
 test('availability is deduplicated by SPU even when multiple remaining services share one SPU', async (t) => {

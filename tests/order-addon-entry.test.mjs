@@ -23,8 +23,10 @@ const addons = realModule('order-addons')
 const dates = realModule('order-date-time')
 const localization = realModule('order-localization')
 const listPage = realModule('order-list-page')
+const visitProgress = realModule('package-visit-progress')
 const richText = realModule('richText')
 const messages = load(read('src/modules/client/locales/index.ts'), name => {
+  if (name === './account-deletion') return load(read('src/modules/client/locales/account-deletion.ts'))
   assert.ok(name === './en.json' || name === './zh.json')
   return JSON.parse(read(`src/modules/client/locales/${name.slice(2)}`))
 }).default
@@ -219,6 +221,7 @@ async function detailHarness(t, mobile) {
     if (name === '@/modules/client/composables/useCart') return { useCart: () => ({ cartCount: Vue.ref(0), refreshCart: async () => {} }) }
     if (name === '@/modules/client/utils/order-localization') return localization
     if (name === '@/modules/client/utils/order-list-page') return listPage
+    if (name === '@/modules/client/utils/package-visit-progress') return visitProgress
     if (name === '@/modules/client/utils/richText') return richText
     if (name === '@/modules/client/utils/package-booking-times') return { loadPackageBookingTimes: async () => [] }
     if (name === 'element-plus') return { ElMessage: { error() {}, warning() {}, success() {} } }

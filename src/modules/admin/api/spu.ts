@@ -47,6 +47,21 @@ export function listBySpu(id: any) {
     return http.get(`/api/productSku/listBySpu?productId=${id}`);
 }
 
+// 已上架普通服务，以及每个服务下已上架、有效的 SKU。服务名用 name，SKU 名是规格值。
+export function onShelfOptions() {
+  return http.get('/api/productSpu/onShelfOptions');
+}
+
+// 配置优惠券、活动时按名称搜索服务。packageService：0 普通服务，1 套餐服务。空白关键词没有结果。
+export function fuzzySearchServices(payload: { nameKeyword: string; packageService?: 0 | 1 }) {
+  return http.post('/api/productSpu/fuzzySearch', payload);
+}
+
+// 在已选服务下按规格名称搜索 SKU。返回的 name 是规格值，多个用｜连接。
+export function fuzzySearchSkus(payload: { productId: number; nameKeyword: string }) {
+  return http.post('/api/productSku/fuzzySearch', payload);
+}
+
 const unwrapPage = (res: any) => {
   const data = res && typeof res === 'object' && 'data' in res ? res.data : res;
   if (Array.isArray(data)) return data;

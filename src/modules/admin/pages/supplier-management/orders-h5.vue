@@ -24,6 +24,18 @@
           />
           <button type="submit">{{ t('admin.supplierOrders.search') }}</button>
         </form>
+        <div class="staff-orders__extra">
+          <input
+            v-model.trim="serviceKeyword"
+            type="search"
+            enterkeyhint="search"
+            :aria-label="t('admin.supplierOrders.searchService')"
+            :placeholder="t('admin.supplierOrders.searchService')"
+            @keyup.enter="search"
+          />
+          <input v-model="dateStart" type="date" :max="dateEnd || undefined" :aria-label="t('admin.supplierOrders.dateStart')" @change="search" />
+          <input v-model="dateEnd" type="date" :min="dateStart || undefined" :aria-label="t('admin.supplierOrders.dateEnd')" @change="search" />
+        </div>
         <div class="staff-orders__stages" role="tablist" :aria-label="t('admin.supplierOrders.serviceStatus')">
           <button
             v-for="stage in stages"
@@ -44,6 +56,16 @@
         <span>{{ loading ? t('admin.supplierOrders.loading') : t(total === 1 ? 'admin.supplierOrders.resultsOne' : 'admin.supplierOrders.results', { count: total }) }}</span>
       </div>
       <div id="staff-order-results" role="tabpanel" :aria-labelledby="'staff-stage-' + orderStage" :aria-busy="loading">
+        <section v-if="pinnedScheduleNotices.length" class="staff-pin">
+          <strong>{{ t('admin.supplierOrders.schedulePinTitle') }}</strong>
+          <button v-for="item in pinnedScheduleNotices" :key="`${item.orderId}-${item.fulfillmentId || item.serviceDate}`" type="button" @click="openDetail(item)">
+            <em>{{ pinLabel(item) }}</em>
+            <span>{{ item.orderNo || '—' }}</span>
+            <span v-if="pinVisit(item)">{{ pinVisit(item) }}</span>
+            <b v-if="orderScheduleLead(item)">{{ orderScheduleLead(item) }}</b>
+            <span>{{ [item.serviceDate, item.serviceTime].filter(Boolean).join(' ') }}</span>
+          </button>
+        </section>
         <div v-if="loading" class="staff-orders__cards staff-orders__skeletons" role="status">
           <span class="staff-sr-only">{{ t('admin.supplierOrders.loading') }}</span>
           <article v-for="index in 3" :key="index" class="staff-card staff-skeleton" aria-hidden="true">
@@ -61,11 +83,11 @@
           </span>
           <h2>{{ t(keyword || orderStage !== 'all' ? 'admin.supplierOrders.emptyFiltered' : 'admin.supplierOrders.empty') }}</h2>
           <p>{{ t(keyword || orderStage !== 'all' ? 'admin.supplierOrders.filterHint' : 'admin.supplierOrders.emptyHint') }}</p>
-          <button v-if="keyword || orderStage !== 'all'" class="staff-ghost" type="button" @click="keyword = ''; orderStage = 'all'; search()">{{ t('admin.supplierOrders.resetFilters') }}</button>
+          <button v-if="keyword || serviceKeyword || dateStart || dateEnd || orderStage !== 'all'" class="staff-ghost" type="button" @click="resetFilters">{{ t('admin.supplierOrders.resetFilters') }}</button>
           <button v-else class="staff-ghost" type="button" @click="loadOrders">{{ t('admin.common.refresh') }}</button>
         </div>
         <div v-else class="staff-orders__cards">
-          <article v-for="row in orders" :key="visitKey(row)" class="staff-card" :class="{ 'staff-card--cancelled': cancelled(row) }">
+          <article v-for="row in listedOrders" :key="visitKey(row)" class="staff-card" :class="{ 'staff-card--cancelled': cancelled(row) }">
             <button type="button" class="staff-card__open" @click="openDetail(row)">
               <span class="staff-card__top">
                 <span class="staff-card__no">{{ row.orderNo || '—' }}</span>
@@ -80,7 +102,9 @@
               <span v-for="note in fulfillRemarks(row)" :key="note" class="staff-card__note">{{ t('admin.supplierOrders.fulfillRemarkLine', { remark: note }) }}</span>
               <span class="staff-card__schedule">
                 <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="5" width="16" height="16" rx="3" /><path d="M8 3v4M16 3v4M4 11h16" /></svg>
-                <strong>{{ row.serviceDate || '—' }}</strong>
+                <strong v-if="orderScheduleLead(row)" class="staff-day" :class="`staff-day--${orderDayKind(row)}`">{{ orderScheduleLead(row) }}</strong>
+                <strong v-else>{{ row.serviceDate || '—' }}</strong>
+                <em v-if="orderScheduleLead(row)">{{ row.serviceDate }}</em>
                 <span>{{ startTime(row.serviceTime) || '—' }}</span>
               </span>
               <span class="staff-card__place">
@@ -90,8 +114,8 @@
               <span v-if="cancelled(row)" class="staff-notice staff-notice--cancelled">
                 {{ row.cancelReason ? t('admin.supplierOrders.cancelReason', { reason: row.cancelReason }) : t('admin.supplierOrders.orderCancelled') }}
               </span>
-              <span v-else-if="rescheduleUnread(row)" class="staff-notice">
-                {{ t('admin.supplierOrders.rescheduleNotice') }}
+              <span v-else-if="visitNoticeText(row)" class="staff-notice" :class="{ 'staff-notice--cancelled': supplierVisitNotice(row).kind === 'cancel' }">
+                {{ visitNoticeText(row) }}
               </span>
             </button>
             <div class="staff-card__actions">
@@ -100,6 +124,9 @@
                 <a v-if="navigateUrl(row)" class="staff-nav staff-nav--icon" :href="navigateUrl(row)" target="_blank" rel="noopener noreferrer" :aria-label="t('admin.supplierOrders.navigateGoogle')" :title="t('admin.supplierOrders.navigateGoogle')">
                   <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m21 3-6 18-4-8-8-4 18-6Z" /></svg>
                 </a>
+                <button v-if="canAssign(row)" type="button" class="staff-card__detail" @click="openAssign(row)">
+                  {{ assignedStaffText(row) ? t('admin.supplierOrders.changeStaff') : t('admin.supplierOrders.assignStaff') }}
+                </button>
                 <button type="button" class="staff-card__detail" @click="openDetail(row)">
                   {{ t('admin.supplierOrders.viewDetail') }}
                   <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 5 7 7-7 7" /></svg>
@@ -145,14 +172,16 @@
           </p>
           <p class="staff-detail__no">{{ order?.orderNo || '—' }}</p>
           <p v-if="cancelled(order)" class="staff-notice staff-notice--cancelled">{{ order?.cancelReason ? t('admin.supplierOrders.cancelReason', { reason: order.cancelReason }) : t('admin.supplierOrders.orderCancelled') }}</p>
-          <p v-else-if="order?.rescheduled" class="staff-notice">{{ t('admin.supplierOrders.rescheduleNotice') }}</p>
+          <p v-else-if="visitNoticeText(order, true)" class="staff-notice" :class="{ 'staff-notice--cancelled': supplierVisitNotice(order, true).kind === 'cancel' }">{{ visitNoticeText(order, true) }}</p>
         </section>
 
         <div class="staff-detail__grid">
           <section class="staff-section staff-section--schedule">
             <div class="staff-section__heading"><span class="staff-section__icon" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="16" rx="3" /><path d="M8 3v4M16 3v4M4 11h16" /></svg></span><h2>{{ t('admin.supplierOrders.scheduleBlock') }}</h2></div>
             <div class="staff-appointment">
-              <strong>{{ order?.serviceDate || '—' }}</strong>
+              <strong v-if="orderScheduleLead(order)" class="staff-day" :class="`staff-day--${orderDayKind(order)}`">{{ orderScheduleLead(order) }}</strong>
+              <strong v-else>{{ order?.serviceDate || '—' }}</strong>
+              <em v-if="orderScheduleLead(order)">{{ order?.serviceDate }}</em>
               <span>{{ startTime(order?.serviceTime) || '—' }} <small>{{ t('admin.supplierOrders.timezone') }}</small></span>
             </div>
             <div class="staff-location">
@@ -237,6 +266,7 @@
           <span class="staff-detail__foot-status"><small>{{ t('admin.supplierOrders.serviceStatus') }}</small><strong>{{ statusText(order) }}</strong></span>
           <div class="staff-detail__foot-actions">
             <a v-if="navigateUrl(order)" class="staff-nav" :href="navigateUrl(order)" target="_blank" rel="noopener noreferrer">{{ t('admin.supplierOrders.navigateGoogle') }}</a>
+            <button v-if="canAssign(order)" type="button" class="staff-nav" :disabled="actionBusy" @click="openAssign(order)">{{ assignedStaffText(order) ? t('admin.supplierOrders.changeStaff') : t('admin.supplierOrders.assignStaff') }}</button>
             <button v-if="canAction('btn:/admin/supplier-management/orders:reject') && canAct(order, 0)" type="button" class="staff-danger" :disabled="actionBusy" @click="reject(order)">{{ t('admin.supplierOrders.rejectAction') }}</button>
             <button v-if="canAction('btn:/admin/supplier-management/orders:accept') && canAct(order, 0)" type="button" class="staff-primary" :disabled="actionBusy" @click="accept(order)">{{ t(actionBusy ? 'admin.supplierOrders.actionPending' : 'admin.supplierOrders.acceptAction') }}</button>
             <button v-else-if="canAction('btn:/admin/supplier-management/orders:progress') && canAct(order, 4)" type="button" class="staff-primary" :disabled="actionBusy" @click="depart(order)">{{ t(actionBusy ? 'admin.supplierOrders.actionPending' : 'admin.supplierOrders.departAction') }}</button>
@@ -282,6 +312,32 @@
         <el-button v-if="canAction('btn:/admin/supplier-management/orders:progress')" type="primary" :loading="action.saving" :disabled="action.uploading" @click="submitAction">{{ t('admin.supplierOrders.confirm') }}</el-button>
       </template>
     </el-dialog>
+
+    <el-dialog
+      v-model="assign.open"
+      class="staff-action"
+      :title="t('admin.supplierOrders.assignStaffTitle')"
+      width="min(520px, calc(100vw - 24px))"
+      append-to-body
+    >
+      <p class="staff-action__hint">{{ assign.orderNo }} · {{ t('admin.supplierOrders.assignStaffHint') }}</p>
+      <p v-if="!assign.loading && !assign.options.length">{{ t('admin.supplierOrders.assignStaffEmpty') }}</p>
+      <el-select
+        v-else
+        v-model="assign.staffUserIds"
+        multiple
+        filterable
+        :loading="assign.loading"
+        :placeholder="t('admin.supplierOrders.assignStaffPlaceholder')"
+        style="width: 100%"
+      >
+        <el-option v-for="person in assign.options" :key="person.adminUserId" :label="person.label" :value="person.adminUserId" />
+      </el-select>
+      <template #footer>
+        <el-button :disabled="assign.saving" @click="assign.open = false">{{ t('admin.supplierPricing.cancel') }}</el-button>
+        <el-button type="primary" :loading="assign.saving" :disabled="assign.loading" @click="saveAssign">{{ t('admin.supplierOrders.assignStaff') }}</el-button>
+      </template>
+    </el-dialog>
   </section>
 </template>
 
@@ -290,8 +346,10 @@ import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
+  assignOrderStaff,
   supplierAccept,
   supplierReject,
+  supplierStaffPage,
   supplierArrive,
   supplierAssignedOrderDetail,
   supplierAssignedOrders,
@@ -300,13 +358,17 @@ import {
   uploadFile,
 } from '@/modules/admin/api/supplierWorkbench'
 import { pickI18nText } from '@/modules/admin/utils/i18n'
-import { materialHourServiceHours, materialHourStaffCount, packageVisitProgress, supplierAttachEarning, supplierFulfillRemarks, supplierLineEarning, supplierMineCounts, supplierOrderEarning, supplierOrderGroups, supplierOrderKind, supplierSpecSummary } from '@/modules/admin/utils/supplier-mine'
+import { materialHourServiceHours, materialHourStaffCount, packageVisitProgress, schedulePinKind, supplierAttachEarning, supplierFulfillRemarks, supplierLineEarning, supplierMineCounts, supplierOrderEarning, supplierOrderGroups, supplierOrderKind, supplierScheduleNotices, supplierSpecSummary, supplierVisitNotice } from '@/modules/admin/utils/supplier-mine'
 import { googleNavigateUrl } from '@/modules/admin/utils/supplierMap'
+import { serviceDayRelation } from '@/modules/admin/utils/serviceDay'
 
 type Stage = 'all' | 'newRequests' | 'upcoming' | 'inProgress' | 'completed' | 'cancelled'
 
 const { t, locale } = useI18n({ useScope: 'global' })
 const keyword = ref('')
+const serviceKeyword = ref('')
+const dateStart = ref('')
+const dateEnd = ref('')
 const orderStage = ref<Stage>('all')
 const page = ref(1)
 const pageSize = 10
@@ -325,6 +387,16 @@ let listRequest = 0
 let detailRequest = 0
 let actionSession = 0
 let disposed = false
+const assign = reactive({
+  open: false,
+  saving: false,
+  loading: false,
+  orderId: 0,
+  fulfillmentId: undefined as number | undefined,
+  orderNo: '',
+  staffUserIds: [] as number[],
+  options: [] as Array<{ adminUserId: number; label: string }>,
+})
 const action = reactive({
   open: false,
   mode: 'arrive' as 'arrive' | 'complete',
@@ -468,6 +540,50 @@ const startTime = (value?: string) => {
   return `${hour.padStart(2, '0')}:${minute}`
 }
 const whenText = (row: any) => [row?.serviceDate, startTime(row?.serviceTime)].filter(Boolean).join(', ') || '—'
+const scheduleValue = (row: any) => row?.serviceDate || row?.serviceTime
+const orderDayKind = (row: any) => serviceDayRelation(scheduleValue(row))
+const orderScheduleLead = (row: any) => {
+  const kind = orderDayKind(row)
+  if (kind === 'today') return t('admin.orders.table.today')
+  if (kind === 'tomorrow') return t('admin.orders.table.tomorrow')
+  return ''
+}
+const listedOrders = computed(() => [...orders.value].sort((left, right) => {
+  const leftPin = schedulePinKind(left) ? 0 : 1
+  const rightPin = schedulePinKind(right) ? 0 : 1
+  return leftPin - rightPin
+}))
+const remoteNotices = ref<any[]>([])
+const pinnedScheduleNotices = computed(() => {
+  if (remoteNotices.value.length) return remoteNotices.value
+  const cancelSeq = new Map<string, number>()
+  orders.value.forEach((row) => {
+    const key = String(row.orderId)
+    if (schedulePinKind(row) === 'cancelled' && !cancelSeq.has(key)) cancelSeq.set(key, Number(row.seqNo))
+  })
+  const seen = new Set<string>()
+  return orders.value.filter((row) => {
+    const kind = schedulePinKind(row)
+    if (!kind) return false
+    if (kind === 'confirmed') return true
+    const key = String(row.orderId)
+    if (seen.has(key)) return false
+    seen.add(key)
+    return true
+  }).slice(0, 8).map((row) => {
+    const key = String(row.orderId)
+    return {
+      orderId: row.orderId,
+      fulfillmentId: row.fulfillmentId,
+    orderNo: row.orderNo,
+    serviceDate: row.serviceDate,
+    serviceTime: startTime(row.serviceTime),
+    totalTimes: row.totalTimes,
+    seqNo: row.attentionSeq || cancelSeq.get(key) || row.seqNo,
+      kind: cancelSeq.has(key) ? 'cancelled' : schedulePinKind(row),
+    }
+  })
+})
 const placeText = (row: any) => [row?.serviceAddress, row?.building, row?.roomNo, row?.community]
   .map((part) => String(part || '').trim()).filter(Boolean)
   .filter((part, index, list) => {
@@ -498,10 +614,36 @@ const step = (row: any) => {
 }
 const cancelled = (row: any) => [3, 4, 5].includes(Number(row?.orderStatus))
   || Number(row?.scheduleStatus) === 2 || String(row?.supplierStage || '').toUpperCase() === 'CANCELLED'
+const canAssign = (row: any) => !cancelled(row) && [1, 3, 4].includes(step(row)) && positiveId(row?.orderId) > 0
 const canAct = (row: any, expectedStep?: number) => detailReady.value && row === order.value
   && sameVisit(idsOf(row), detailTarget.value) && !cancelled(row) && Number(row?.orderStatus) === 1
   && (expectedStep === undefined ? [0, 4, 3, 1].includes(step(row)) : step(row) === expectedStep)
-const rescheduleUnread = (row: any) => row?.rescheduled === true && row?.rescheduleRead !== true
+const visitNoticeText = (row: any, includeRead = false) => {
+  const notice = supplierVisitNotice(row, includeRead)
+  if (notice.kind === 'cancel') {
+    return notice.seq
+      ? t('admin.orders.table.attentionCancel', { seq: notice.seq })
+      : t('admin.supplierOrders.schedulePinCancelled')
+  }
+  if (notice.kind === 'reschedule') return t('admin.supplierOrders.rescheduleNotice')
+  return ''
+}
+const pinLabel = (item: any) => {
+  const seq = Number(item?.seqNo)
+  if (item?.kind === 'cancelled') {
+    return Number.isFinite(seq) && seq > 0
+      ? t('admin.orders.table.attentionCancel', { seq })
+      : t('admin.supplierOrders.schedulePinCancelled')
+  }
+  if (item?.kind === 'updated') return t('admin.supplierOrders.schedulePinUpdated')
+  return t('admin.supplierOrders.schedulePinConfirmed')
+}
+const pinVisit = (item: any) => {
+  const seq = Number(item?.seqNo)
+  const total = Number(item?.totalTimes)
+  if (!Number.isFinite(seq) || seq <= 0 || !Number.isFinite(total) || total <= 0) return ''
+  return t('admin.supplierOrders.schedulePinVisit', { seq, total })
+}
 const statusText = (row: any) => {
   if (cancelled(row)) return t('admin.supplierPortal.cancelled')
   const serviceStatus = localized(row?.serviceStatusI18n)
@@ -537,6 +679,9 @@ const loadOrders = async () => {
   try {
     const result = unwrap(await supplierAssignedOrders({
       orderNo: keyword.value || undefined,
+      serviceName: serviceKeyword.value || undefined,
+      serviceTimeStart: dateStart.value || undefined,
+      serviceTimeEnd: dateEnd.value || undefined,
       supplierStage: stageParam(orderStage.value),
       pageNum: page.value,
       pageSize,
@@ -552,9 +697,11 @@ const loadOrders = async () => {
       return
     }
     orders.value = Array.isArray(result?.list) ? result.list : []
+    remoteNotices.value = supplierScheduleNotices(result)
   } catch (error: any) {
     if (disposed || request !== listRequest) return
     orders.value = []
+    remoteNotices.value = []
     total.value = 0
     stageCounts.value = {}
     failed.value = true
@@ -566,6 +713,62 @@ const loadOrders = async () => {
 const search = () => {
   page.value = 1
   loadOrders()
+}
+const resetFilters = () => {
+  keyword.value = ''
+  serviceKeyword.value = ''
+  dateStart.value = ''
+  dateEnd.value = ''
+  orderStage.value = 'all'
+  search()
+}
+const openAssign = async (row: any) => {
+  const ids = idsOf(row)
+  if (!canAssign(row) || !validIds(ids)) return
+  assign.orderId = ids.orderId
+  assign.fulfillmentId = ids.fulfillmentId
+  assign.orderNo = String(row?.orderNo || '')
+  assign.staffUserIds = (Array.isArray(row?.assignedStaff) ? row.assignedStaff : [])
+    .map((item: any) => Number(item?.adminUserId))
+    .filter((id: number) => Number.isFinite(id) && id > 0)
+  assign.open = true
+  assign.loading = true
+  try {
+    const pageResult = unwrap(await supplierStaffPage({ pageNum: 1, pageSize: 500 }))
+    assign.options = (Array.isArray(pageResult?.list) ? pageResult.list : [])
+      .filter((item: any) => item?.suspended !== true && item?.suspended !== 1 && item?.accountStatus !== 'suspended')
+      .map((item: any) => ({
+        adminUserId: Number(item?.adminUserId),
+        label: [item?.name, item?.phone].filter(Boolean).join(' · '),
+      }))
+      .filter((item: { adminUserId: number }) => item.adminUserId > 0)
+  } catch (error: any) {
+    assign.options = []
+    ElMessage.error(error?.message || t('admin.supplierStaff.loadFailed'))
+  } finally {
+    assign.loading = false
+  }
+}
+const saveAssign = async () => {
+  if (!assign.orderId || assign.saving) return
+  assign.saving = true
+  try {
+    unwrap(await assignOrderStaff({
+      orderId: assign.orderId,
+      ...(assign.fulfillmentId ? { fulfillmentId: assign.fulfillmentId } : {}),
+      staffUserIds: assign.staffUserIds,
+    }))
+    ElMessage.success(t('admin.supplierOrders.assignStaffSaved'))
+    assign.open = false
+    await loadOrders()
+    if (detailOpen.value && order.value && Number(order.value.orderId) === assign.orderId) {
+      await retryDetail()
+    }
+  } catch (error: any) {
+    ElMessage.error(error?.message || t('admin.supplierOrders.actionFailed'))
+  } finally {
+    assign.saving = false
+  }
 }
 const changeStage = (stage: Stage) => {
   if (orderStage.value === stage) return
@@ -861,6 +1064,9 @@ onBeforeUnmount(() => {
 .staff-workspace__mark svg { width: 32px; height: 32px; stroke-width: 1.35; }
 .staff-orders__bar { position: sticky; top: 0; z-index: 5; padding: 18px 0 0; background: #f4f6f8f5; backdrop-filter: blur(12px); }
 .staff-orders__search { display: flex; align-items: center; gap: 10px; height: 46px; padding: 4px 5px 4px 14px; border: 1px solid var(--staff-line); border-radius: 12px; background: white; box-shadow: 0 3px 10px #0c203804; }
+.staff-orders__extra { display: grid; gap: 8px; margin-top: 8px; }
+@media (min-width: 720px) { .staff-orders__extra { grid-template-columns: minmax(0, 1.4fr) repeat(2, minmax(0, 1fr)); } }
+.staff-orders__extra input { min-width: 0; height: 40px; padding: 0 10px; border: 1px solid var(--staff-line); border-radius: 10px; background: white; color: inherit; font: inherit; }
 .staff-orders__search svg { width: 17px; height: 17px; color: #8b97a5; }
 .staff-orders__search input { flex: 1; min-width: 0; width: 100%; height: 100%; padding: 0; border: 0; border-radius: 0; outline: none; background: transparent; color: var(--staff-ink); font-size: 13px; }
 .staff-orders__search:focus-within { border-color: var(--staff-gold); box-shadow: 0 0 0 3px #b7905214; }
@@ -893,10 +1099,18 @@ onBeforeUnmount(() => {
 .staff-card__title { display: -webkit-box; margin-bottom: 6px; overflow: hidden; -webkit-line-clamp: 2; -webkit-box-orient: vertical; color: var(--staff-ink); font-size: 16px; line-height: 1.4; font-weight: 720; overflow-wrap: anywhere; }
 .staff-card__spec { display: -webkit-box; min-height: 18px; overflow: hidden; -webkit-line-clamp: 1; -webkit-box-orient: vertical; color: #8a94a2; font-size: 11px; line-height: 1.5; }
 .staff-card__note, .staff-sku-note { color: #243044; font-size: 12px; font-weight: 650; line-height: 1.45; }
-.staff-card__schedule { display: flex; align-items: center; gap: 8px; margin-top: 13px; padding: 9px 11px; border-radius: 8px; background: #f5f7f9; color: #52677b; font-size: 12px; font-variant-numeric: tabular-nums; }
+.staff-card__schedule { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin-top: 13px; padding: 9px 11px; border-radius: 8px; background: #f5f7f9; color: #52677b; font-size: 12px; font-variant-numeric: tabular-nums; }
 .staff-card__schedule svg { width: 15px; height: 15px; color: #8e9cab; }
 .staff-card__schedule strong { color: #334c63; font-weight: 650; }
 .staff-card__schedule > span { margin-left: auto; color: var(--staff-ink); font-weight: 700; }
+.staff-day { display: inline-flex; width: fit-content; padding: 1px 7px; border-radius: 999px; background: #fff0d5; color: #9a5700; font-size: 12px; font-style: normal; font-weight: 800; line-height: 1.3; }
+.staff-day--tomorrow { background: #e8f2ff; color: #185ca8; }
+.staff-card__schedule em { color: #52677b; font-style: normal; }
+.staff-pin { display: grid; gap: 8px; margin-bottom: 12px; padding: 12px; border: 1px solid #f3d7a1; border-radius: 12px; background: #fff8ec; }
+.staff-pin > strong { color: #9a5700; font-size: 14px; }
+.staff-pin button { display: flex; flex-wrap: wrap; gap: 8px; width: 100%; padding: 8px 10px; border: 0; border-radius: 8px; background: #fff; color: #243044; font: inherit; text-align: start; }
+.staff-pin em { padding: 1px 7px; border-radius: 999px; background: #fff0d5; color: #9a5700; font-size: 12px; font-style: normal; font-weight: 800; }
+.staff-pin b { color: #9a5700; }
 .staff-card__place { display: flex; align-items: flex-start; gap: 8px; margin-top: 12px; color: #6a7a8b; font-size: 11px; line-height: 1.55; }
 .staff-card__place svg { width: 15px; height: 15px; margin-top: 1px; color: #8e9cab; }
 .staff-card__place > span { display: -webkit-box; overflow: hidden; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow-wrap: anywhere; }
@@ -955,6 +1169,7 @@ onBeforeUnmount(() => {
 .staff-appointment > strong { color: #223c54; font-size: 22px; font-weight: 700; }
 .staff-appointment > span { color: var(--staff-ink); font-size: 16px; font-weight: 650; }
 .staff-appointment small { margin-left: 6px; color: #97a2ae; font-size: 10px; font-weight: 400; }
+.staff-appointment > .staff-day { justify-self: start; }
 .staff-location { display: flex; align-items: flex-start; gap: 10px; margin-top: 18px; }
 .staff-location > svg { width: 17px; height: 17px; margin-top: 2px; color: #91a0ae; }
 .staff-location > div { min-width: 0; }

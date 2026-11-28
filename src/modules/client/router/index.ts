@@ -36,6 +36,11 @@ const routes: RouteRecordRaw[] = [
     component: () => import('@/modules/client/pages/product-detail.vue'),
   },
   {
+    path: '/campaigns/:id',
+    name: 'campaign-services',
+    component: () => import('@/modules/client/pages/campaign-services.vue'),
+  },
+  {
     path: '/packages',
     name: 'packages',
     component: () => import('@/modules/client/pages/packages.vue'),

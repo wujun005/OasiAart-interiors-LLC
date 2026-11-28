@@ -4,13 +4,13 @@
       <button type="button" :aria-label="t('h5.common.back')" @click="router.back()">
         <van-icon name="arrow-left" />
       </button>
+      <h1>{{ t('client.cart.title') }}</h1>
       <button type="button" :aria-label="t('client.cart.browseServices')" @click="goServices">
         <van-icon name="apps-o" />
       </button>
     </header>
 
-    <main class="h5-cart-main" :class="{ 'h5-cart-main--empty': !items.length }">
-      <h1>{{ t('client.cart.title') }}</h1>
+    <main class="h5-cart-main">
       <section v-if="items.length" class="h5-cart-hero">
         <div>
           <h2>{{ t('client.cart.allItems') }}</h2>
@@ -114,60 +114,62 @@
       </section>
     </main>
 
-    <section v-if="items.length" class="h5-cart-settlement">
-      <button class="h5-cart-settlement__select" type="button" @click="setAllSelected(!allSelected)">
-        <span
-          class="h5-cart-check"
-          :class="{ 'h5-cart-check--active': allSelected, 'h5-cart-check--partial': partiallySelected }"
+    <div class="h5-cart-dock">
+      <section v-if="items.length" class="h5-cart-settlement">
+        <button class="h5-cart-settlement__select" type="button" :aria-pressed="allSelected" @click="setAllSelected(!allSelected)">
+          <span
+            class="h5-cart-check"
+            :class="{ 'h5-cart-check--active': allSelected, 'h5-cart-check--partial': partiallySelected }"
+          >
+            <van-icon :name="allSelected ? 'success' : (partiallySelected ? 'minus' : '')" aria-hidden="true" />
+          </span>
+          <small>{{ t('client.cart.selectAll') }}</small>
+        </button>
+        <div class="h5-cart-settlement__price">
+          <small>{{ t('client.cart.selectedCount', { count: selectedCount }) }}</small>
+          <dl>
+            <div>
+              <dt>{{ t('client.cart.subtotal') }}</dt>
+              <dd>{{ formatAed(subtotal) }}</dd>
+            </div>
+            <div>
+              <dt>{{ t('client.cart.vat') }}</dt>
+              <dd>{{ formatAed(tax) }}</dd>
+            </div>
+            <div class="is-total">
+              <dt>{{ t('client.cart.estimatedTotal') }}</dt>
+              <dd>{{ formatAed(total) }}</dd>
+            </div>
+          </dl>
+        </div>
+        <button
+          class="h5-cart-settlement__checkout"
+          type="button"
+          :disabled="!selectedLineCount"
+          @click="openCheckout"
         >
-          <van-icon :name="allSelected ? 'success' : (partiallySelected ? 'minus' : '')" />
-        </span>
-        <small>{{ t('client.cart.selectAll') }}</small>
-      </button>
-      <div class="h5-cart-settlement__price">
-        <small>{{ t('client.cart.selectedCount', { count: selectedCount }) }}</small>
-        <dl>
-          <div>
-            <dt>{{ t('client.cart.subtotal') }}</dt>
-            <dd>{{ formatAed(subtotal) }}</dd>
-          </div>
-          <div>
-            <dt>{{ t('client.cart.vat') }}</dt>
-            <dd>{{ formatAed(tax) }}</dd>
-          </div>
-          <div class="is-total">
-            <dt>{{ t('client.cart.estimatedTotal') }}</dt>
-            <dd>{{ formatAed(total) }}</dd>
-          </div>
-        </dl>
-      </div>
-      <button
-        class="h5-cart-settlement__checkout"
-        type="button"
-        :disabled="!selectedLineCount"
-        @click="openCheckout"
-      >
-        {{ t('client.cart.checkout') }}
-      </button>
-    </section>
+          {{ t('client.cart.checkout') }}
+        </button>
+      </section>
 
-    <nav class="h5-cart-tabbar">
-      <button type="button" @click="router.push({ name: 'h5-home' })">
-        <van-icon name="home-o" />
-        <span>{{ t('client.header.nav.home') }}</span>
-      </button>
-      <button class="h5-cart-tabbar__active" type="button">
-        <span class="h5-cart-tabbar__icon">
-          <van-icon name="cart-o" />
-          <b v-if="cartCount">{{ cartCount > 99 ? '99+' : cartCount }}</b>
-        </span>
-        <span>{{ t('client.header.nav.cart') }}</span>
-      </button>
-      <button type="button" @click="router.push({ name: 'h5-profile' })">
-        <van-icon name="contact-o" />
-        <span>{{ t('client.header.profile') }}</span>
-      </button>
-    </nav>
+      <nav class="h5-cart-tabbar">
+        <button type="button" @click="router.push({ name: 'h5-home' })">
+          <van-icon name="home-o" />
+          <span>{{ t('client.header.nav.home') }}</span>
+        </button>
+        <button class="h5-cart-tabbar__active" type="button">
+          <span class="h5-cart-tabbar__icon">
+            <van-icon name="cart-o" />
+            <b v-if="cartCount">{{ cartCount > 99 ? '99+' : cartCount }}</b>
+          </span>
+          <span>{{ t('client.header.nav.cart') }}</span>
+        </button>
+        <button type="button" @click="router.push({ name: 'h5-profile' })">
+          <van-icon name="contact-o" />
+          <span>{{ t('client.header.profile') }}</span>
+        </button>
+      </nav>
+    </div>
 
     <van-popup v-model:show="checkoutVisible" position="bottom" round class="h5-cart-checkout">
       <div class="h5-cart-checkout__handle" />
@@ -176,7 +178,7 @@
           <span class="hourx-wordmark">HOURX HOME</span>
           <h2>{{ t('client.cart.checkoutDialog.title') }}</h2>
         </div>
-        <button type="button" @click="checkoutVisible = false"><van-icon name="cross" /></button>
+        <button type="button" :aria-label="t('client.cart.checkoutDialog.cancel')" @click="checkoutVisible = false"><van-icon name="cross" aria-hidden="true" /></button>
       </header>
       <div class="h5-cart-checkout__items">
         <div v-for="item in checkoutItems" :key="item.id">
@@ -185,27 +187,23 @@
           <strong>{{ formatAed(item.unitPrice) }}</strong>
         </div>
       </div>
-      <div class="h5-cart-checkout__promo">
-        <PromoCodeField
-          v-if="checkoutItems.length === 1"
-          v-model="promoCode"
-          :loading="promoLoading"
-          :error="promoError"
-          :notice="promoNotice"
-          :applied-code="activeCoupon?.couponCode || ''"
-          @apply="applyPromo"
-          @remove="resetPromo"
-        />
-        <p v-else-if="checkoutItems.length > 1">{{ t('client.productDetail.booking.promoSingleOnly') }}</p>
-      </div>
       <dl>
         <div>
           <dt>{{ t('client.cart.subtotal') }}</dt><dd>{{ formatAed(checkoutSubtotal) }}</dd>
         </div>
-        <div v-if="activeCoupon">
-          <dt>{{ t('client.productDetail.booking.promoDiscount') }}</dt>
-          <dd>-{{ formatAed(activeCoupon.discountAmount) }}</dd>
-        </div>
+        <CheckoutPromoRow
+          v-if="checkoutItems.length === 1"
+          v-model="promoCode"
+          class="pay-promo"
+          :loading="promoLoading"
+          :error="promoError"
+          :notice="promoNotice"
+          :applied-code="activeCoupon?.couponCode || ''"
+          :discount="activeCoupon?.discountAmount || 0"
+          @apply="applyPromo"
+          @remove="resetPromo"
+        />
+        <p v-else-if="checkoutItems.length > 1" class="h5-cart-checkout__promo-note">{{ t('client.productDetail.booking.promoSingleOnly') }}</p>
         <div>
           <dt>{{ t('client.cart.vat') }}</dt><dd>{{ formatAed(payableTax) }}</dd>
         </div>
@@ -250,7 +248,7 @@ import { showConfirmDialog, showFailToast, showSuccessToast } from 'vant';
 import fallbackImage from '@/assets/images/client/kv.png';
 import { useCart, type CartItem, type CartLocalizedText } from '@/modules/client/composables/useCart';
 import { checkoutCart } from '@/modules/client/api';
-import PromoCodeField from '@/modules/client/components/PromoCodeField.vue';
+import CheckoutPromoRow from '@/modules/client/components/CheckoutPromoRow.vue';
 import { usePromoCode } from '@/modules/client/composables/usePromoCode';
 import { cartItemCouponBody } from '@/modules/client/utils/promo-code';
 import { trackInitiateCheckout } from '@/modules/client/utils/metaPixel';
@@ -525,6 +523,9 @@ onMounted(async () => {
 <style scoped lang="scss">
 .h5-cart-page {
   min-height: 100vh;
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
   color: var(--hourx-client-text);
   background: var(--hourx-client-canvas);
 }
@@ -533,19 +534,29 @@ onMounted(async () => {
   position: sticky;
   top: 0;
   z-index: 20;
-  height: 58px;
-  padding: 0 14px;
-  display: flex;
-  justify-content: space-between;
+  min-height: 58px;
+  flex-shrink: 0;
+  padding: 0.375rem 0.875rem;
+  display: grid;
+  grid-template-columns: 2.75rem minmax(0, 1fr) 2.75rem;
+  gap: 0.5rem;
   align-items: center;
   background: rgba(255, 255, 255, 0.94);
   border-bottom: 1px solid rgba(226, 232, 240, 0.9);
   backdrop-filter: blur(14px);
 }
 
+.h5-cart-topbar h1 {
+  margin: 0;
+  overflow-wrap: anywhere;
+  text-align: center;
+  color: var(--hourx-client-text);
+  font: 700 var(--hourx-client-size-card)/1.25 var(--hourx-client-heading-font);
+}
+
 .h5-cart-topbar button {
-  width: 38px;
-  height: 38px;
+  width: 2.75rem;
+  height: 2.75rem;
   padding: 0;
   border: 0;
   border-radius: 12px;
@@ -557,18 +568,7 @@ onMounted(async () => {
 .h5-cart-main {
   width: min(430px, 100%);
   margin: 0 auto;
-  padding: 16px 14px calc(154px + env(safe-area-inset-bottom));
-}
-
-.h5-cart-main h1 {
-  margin: 0 0 20px;
-  color: var(--hourx-client-text);
-  font: 700 var(--hourx-client-size-page)/1.2 var(--hourx-client-heading-font);
-  letter-spacing: -0.02em;
-}
-
-.h5-cart-main--empty {
-  padding-bottom: calc(88px + env(safe-area-inset-bottom));
+  padding: 16px 14px 24px;
 }
 
 .h5-cart-hero {
@@ -677,7 +677,7 @@ onMounted(async () => {
   background: #fff;
   box-shadow: 0 8px 25px rgba(36, 52, 73, 0.07);
   display: grid;
-  grid-template-columns: 94px minmax(0, 1fr);
+  grid-template-columns: clamp(3.75rem, 19vw, 5.875rem) minmax(0, 1fr);
   gap: 13px;
   cursor: pointer;
   transition: border-color 180ms ease, box-shadow 180ms ease;
@@ -701,8 +701,10 @@ onMounted(async () => {
 }
 
 .h5-cart-item__image {
-  width: 94px;
-  height: 104px;
+  width: 100%;
+  aspect-ratio: 9 / 10;
+  height: auto;
+  align-self: start;
   padding: 0;
   border: 0;
   border-radius: 14px;
@@ -761,6 +763,7 @@ onMounted(async () => {
   font-weight: 900;
   line-height: 1.35;
   text-align: left;
+  overflow-wrap: anywhere;
 }
 
 .h5-cart-item__spec {
@@ -807,12 +810,17 @@ onMounted(async () => {
 .h5-cart-item__footer {
   margin-top: 10px;
   display: flex;
-  align-items: flex-end;
+  flex-wrap: wrap;
+  align-items: baseline;
   justify-content: space-between;
   gap: 6px;
 }
 
-.h5-cart-item__footer strong { color: var(--hourx-client-text); font-size: 15px; }
+.h5-cart-item__footer strong {
+  color: var(--hourx-client-text);
+  font-size: 15px;
+  overflow-wrap: anywhere;
+}
 .h5-cart-item__footer button {
   padding: 0;
   border: 0;
@@ -884,79 +892,84 @@ onMounted(async () => {
 }
 .h5-cart-empty .h5-cart-empty__restore { margin-top: 9px; background: transparent; color: var(--hourx-client-text); }
 
+.h5-cart-dock {
+  position: sticky;
+  bottom: 0;
+  z-index: 30;
+  width: min(430px, 100%);
+  margin: auto auto 0;
+}
+
 .h5-cart-settlement {
-  position: fixed;
-  z-index: 28;
-  left: 50%;
-  bottom: calc(58px + env(safe-area-inset-bottom));
-  width: min(430px, 100vw);
-  min-height: 74px;
-  padding: 10px 12px;
-  transform: translateX(-50%);
+  padding: 0.625rem 0.75rem;
   background: rgba(255, 255, 255, 0.97);
   border-top: 1px solid #e5ebf2;
   box-shadow: 0 -10px 28px rgba(5, 21, 43, 0.1);
   backdrop-filter: blur(14px);
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 10px;
+  gap: 0.5rem;
 }
 
 .h5-cart-settlement__select {
-  width: 36px;
+  flex: 0 0 2.75rem;
+  min-height: 2.75rem;
   padding: 0;
   border: 0;
   background: transparent;
   display: flex;
   flex-direction: column;
   align-items: center;
+  justify-content: center;
   gap: 3px;
 }
 
-.h5-cart-settlement__select small { color: #77859a; font-size: 9px; }
+.h5-cart-settlement__select small {
+  color: var(--hourx-client-muted);
+  font-size: 0.6875rem;
+  line-height: 1.2;
+}
 
 .h5-cart-settlement__price {
   min-width: 0;
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
+  flex: 1 1 8.5rem;
 }
 
-.h5-cart-settlement__price small,
-.h5-cart-settlement__price span { color: #8a97aa; font-size: 9px; }
+.h5-cart-settlement__price small { color: var(--hourx-client-muted); font-size: 0.6875rem; }
 .h5-cart-settlement__price dl {
-  min-width: 142px;
   margin: 2px 0 0;
 }
 .h5-cart-settlement__price dl > div {
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, max-content);
   align-items: baseline;
-  justify-content: space-between;
-  gap: 8px;
-  color: #7b889a;
-  font-size: 9px;
+  gap: 0.25rem;
+  color: var(--hourx-client-muted);
+  font-size: 0.6875rem;
   line-height: 1.35;
 }
 .h5-cart-settlement__price dt,
-.h5-cart-settlement__price dd { margin: 0; }
-.h5-cart-settlement__price dd { color: #435168; font-weight: 700; }
+.h5-cart-settlement__price dd { margin: 0; overflow-wrap: anywhere; }
+.h5-cart-settlement__price dd { color: #435168; font-weight: 700; text-align: end; }
 .h5-cart-settlement__price .is-total {
   margin-top: 1px;
   color: var(--hourx-client-text);
-  font-size: 11px;
+  font-size: 0.6875rem;
   font-weight: 800;
 }
-.h5-cart-settlement__price .is-total dd { color: var(--hourx-client-text); font-size: 14px; }
+.h5-cart-settlement__price .is-total dd { color: var(--hourx-client-text); font-size: 0.875rem; }
 
 .h5-cart-settlement__checkout {
-  min-width: 94px;
-  height: 48px;
+  min-width: 5rem;
+  min-height: 3rem;
+  margin-inline-start: auto;
+  padding: 0.375rem 0.5rem;
   border: 0;
   border-radius: 14px;
   background: linear-gradient(135deg, #153b65, #05152b);
   color: #fff;
-  font-size: 14px;
+  font-size: 0.875rem;
   font-weight: 900;
   box-shadow: 0 10px 20px rgba(5, 21, 43, 0.2);
 }
@@ -964,14 +977,8 @@ onMounted(async () => {
 .h5-cart-settlement__checkout:disabled { opacity: 0.42; box-shadow: none; }
 
 .h5-cart-tabbar {
-  position: fixed;
-  z-index: 30;
-  left: 50%;
-  bottom: 0;
-  width: min(430px, 100vw);
-  min-height: calc(58px + env(safe-area-inset-bottom));
+  min-height: calc(3.625rem + env(safe-area-inset-bottom));
   padding: 0 8px env(safe-area-inset-bottom);
-  transform: translateX(-50%);
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   background: #fff;
@@ -1011,16 +1018,18 @@ onMounted(async () => {
 
 .h5-cart-checkout {
   max-height: 82vh;
+  max-height: 82dvh;
   padding: 10px 18px calc(22px + env(safe-area-inset-bottom));
   overflow-y: auto;
   color: var(--hourx-client-text);
 }
 
 .h5-cart-checkout__handle { width: 42px; height: 4px; margin: 0 auto 16px; border-radius: 9px; background: #d8e0e9; }
-.h5-cart-checkout header { display: flex; align-items: flex-start; justify-content: space-between; }
+.h5-cart-checkout header { display: flex; align-items: flex-start; justify-content: space-between; gap: 0.5rem; }
+.h5-cart-checkout header div { min-width: 0; overflow-wrap: anywhere; }
 .h5-cart-checkout header span { color: var(--hourx-client-text); font-size: 9px; font-weight: 900; letter-spacing: 0.16em; }
 .h5-cart-checkout h2 { margin: 4px 0 0; font-size: 22px; }
-.h5-cart-checkout header button { width: 34px; height: 34px; border: 0; border-radius: 11px; background: #f2f5f8; color: #64748b; }
+.h5-cart-checkout header button { width: 2.75rem; height: 2.75rem; flex: none; border: 0; border-radius: 11px; background: #f2f5f8; color: #64748b; }
 .h5-cart-checkout > p { margin: 12px 0 16px; color: #7d899a; font-size: 12px; line-height: 1.55; }
 .h5-cart-checkout__items { display: grid; gap: 8px; }
 .h5-cart-checkout__items > div {
@@ -1034,12 +1043,12 @@ onMounted(async () => {
   gap: 9px;
 }
 .h5-cart-checkout__items img { width: 42px; height: 42px; border-radius: 10px; object-fit: cover; }
-.h5-cart-checkout__items span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; font-weight: 700; }
+.h5-cart-checkout__items span { min-width: 0; overflow-wrap: anywhere; font-size: 12px; font-weight: 700; }
 .h5-cart-checkout__items strong { font-size: 11px; }
-.h5-cart-checkout__promo { margin-top: 14px; }
-.h5-cart-checkout__promo > p { margin: 0; color: #7d899a; font-size: 12px; line-height: 1.45; }
+.h5-cart-checkout__promo-note { margin: 8px 0; color: #7d899a; font-size: 12px; line-height: 1.45; }
 .h5-cart-checkout dl { margin: 18px 0; padding-top: 12px; border-top: 1px solid #e9eef3; }
-.h5-cart-checkout dl div { display: flex; justify-content: space-between; margin: 8px 0; color: #728095; font-size: 12px; }
+.h5-cart-checkout dl > div { display: flex; justify-content: space-between; margin: 8px 0; color: #728095; font-size: 12px; }
+.h5-cart-checkout dl > .pay-promo { display: block; margin: 8px 0; color: #728095; font-size: 13px; font-weight: 600; }
 .h5-cart-checkout dd { margin: 0; color: var(--hourx-client-text); font-weight: 800; }
 .h5-cart-checkout .h5-cart-checkout__total { padding-top: 10px; border-top: 1px dashed #dce3eb; color: var(--hourx-client-text); font-size: 15px; font-weight: 900; }
 .h5-cart-checkout__confirm {

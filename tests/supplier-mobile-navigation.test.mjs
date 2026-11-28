@@ -44,9 +44,15 @@ test('mobile navigation respects exact page grants and staff-only restrictions',
   assert.equal(canAccessSupplierSection('pricing', grants), false);
   assert.equal(canAccessSupplierSection('overview', ['/admin']), false);
   assert.equal(canAccessSupplierSection('orders', [SUPPLIER_DESKTOP_BASE], true), true);
-  assert.equal(canAccessSupplierSection('profile', grants, true), false);
+  assert.equal(canAccessSupplierSection('profile', grants, true), true);
+  assert.equal(canAccessSupplierSection('pricing', [SUPPLIER_DESKTOP_BASE], true), true);
+  assert.equal(canAccessSupplierSection('package-pricing', [SUPPLIER_DESKTOP_BASE], true), true);
+  assert.equal(canAccessSupplierSection('coverage-availability', [SUPPLIER_DESKTOP_BASE], true), true);
+  assert.equal(canAccessSupplierSection('staff', [SUPPLIER_DESKTOP_BASE], true), false);
   assert.equal(canAccessSupplierSection('orders', [], true), false);
   assert.equal(supplierResponsivePath(supplierDesktopPath('staff'), { mobile: false, staffOrdersOnly: true }), supplierMobilePath('orders'));
+  assert.equal(supplierResponsivePath(supplierDesktopPath('profile'), { mobile: false, staffOrdersOnly: true }), supplierMobilePath('profile'));
+  assert.equal(supplierResponsivePath(supplierDesktopPath('pricing'), { mobile: false, staffOrdersOnly: true }), supplierMobilePath('pricing'));
 });
 
 function routerHarness({ mobileDevice = true, staffOnly = false, grants = SUPPLIER_MOBILE_SECTIONS.map(supplierDesktopPath), loggedIn = true, preview = false } = {}) {
@@ -59,7 +65,7 @@ function routerHarness({ mobileDevice = true, staffOnly = false, grants = SUPPLI
     exports,
     console,
     require(name) {
-      if (name === 'vue-router') return { createWebHistory: () => ({}), createRouter: (config) => { routeConfig = config; return { beforeEach: (fn) => { guard = fn; } }; } };
+      if (name === 'vue-router') return { createWebHistory: () => ({}), createRouter: (config) => { routeConfig = config; return { beforeEach: (fn) => { guard = fn; }, afterEach() {}, onError() {} }; } };
       if (name === '@/modules/admin/utils/menuPermission') return {
         ADMIN_NO_ACCESS_PATH: '/admin/no-access', adminMenuState: { allowedPaths: grants },
         getFirstAllowedAdminPath: () => grants[0] || '/admin/no-access',
@@ -90,7 +96,9 @@ test('the actual router returns owners to desktop and keeps staff in their mobil
   const owner = routerHarness({ mobileDevice: false });
   assert.deepEqual(plain(await owner.guard(location(supplierMobilePath('pricing'), { service: '8' }, '#review'))), { path: supplierDesktopPath('pricing'), query: { service: '8' }, hash: '#review', replace: true });
   const staff = routerHarness({ mobileDevice: false, staffOnly: true, grants: [SUPPLIER_DESKTOP_BASE, supplierDesktopPath('orders')] });
-  assert.deepEqual(plain(await staff.guard(location(supplierMobilePath('profile')))), { path: supplierMobilePath('orders'), query: {}, hash: '', replace: true });
+  assert.equal(await staff.guard(location(supplierMobilePath('profile'))), true);
+  assert.deepEqual(plain(await staff.guard(location(supplierDesktopPath('pricing')))), { path: supplierMobilePath('pricing'), query: {}, hash: '', replace: true });
+  assert.deepEqual(plain(await staff.guard(location(supplierMobilePath('staff')))), { path: supplierMobilePath('orders'), replace: true });
   assert.equal(await staff.guard(location(supplierMobilePath('orders'))), true);
 });
 
@@ -176,7 +184,7 @@ test('case-insensitive matcher aliases cannot bypass supplier login or staff-onl
     assert.deepEqual(plain(await anonymous.guard(target)), { path: '/admin/login', query: { redirect: target.fullPath } });
     const staff = routerHarness({ staffOnly: true, grants: [SUPPLIER_DESKTOP_BASE, supplierDesktopPath('orders')] });
     assert.deepEqual(plain(await staff.guard(location(path))), {
-      path: supplierMobilePath('orders'), query: {}, hash: '', replace: true,
+      path: supplierMobilePath('profile'), query: {}, hash: '', replace: true,
     });
   }
   const restricted = routerHarness({ grants: [supplierDesktopPath('orders')] });

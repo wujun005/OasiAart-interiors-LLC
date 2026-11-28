@@ -41,6 +41,7 @@ export function usePromoCode(signature: () => string) {
     emptyText: string,
     invalidText: string,
   ) => {
+    if (loading.value) return null
     const couponCode = code.value.trim()
     error.value = ''
     dropped.value = false
@@ -54,9 +55,14 @@ export function usePromoCode(signature: () => string) {
       error.value = invalidText
       return null
     }
+    const requestedSignature = signature()
     loading.value = true
     try {
       const result = await quoteCoupon({ ...body, couponCode }, locale)
+      if (requestedSignature !== signature()) {
+        dropped.value = true
+        return null
+      }
       if (!result.quote) {
         quote.value = null
         signed.value = ''
@@ -64,10 +70,11 @@ export function usePromoCode(signature: () => string) {
         return null
       }
       quote.value = result.quote
-      signed.value = signature()
+      signed.value = requestedSignature
       code.value = result.quote.couponCode
       return result.quote
     } catch (caught) {
+      if (requestedSignature !== signature()) return null
       quote.value = null
       signed.value = ''
       const message = caught && typeof caught === 'object' && 'message' in caught

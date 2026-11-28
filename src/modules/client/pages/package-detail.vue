@@ -10,19 +10,11 @@
       :price-loading="priceLoading"
       :price-error="priceError"
       :selection-locked="selectionLocked"
+      :resume-options="h5BookingResume"
       :selected-image-index="selectedImageIndex"
       :cart-count="cartCount"
-      :promo-code="promoCode"
-      :promo-loading="promoLoading"
-      :promo-error="promoError"
-      :promo-notice="promoNotice"
-      :promo-applied-code="activeCoupon?.couponCode || ''"
-      :promo-discount="activeCoupon ? activeCoupon.discountAmount : null"
       :summary-vat="summaryVat"
       :summary-total="summaryTotal"
-      @update:promo-code="promoCode = $event"
-      @apply-promo="applyPromo"
-      @remove-promo="resetPromo"
       @back="goBack"
       @cart="router.push({ name: routeNames.cart })"
       @image-change="selectedImageIndex = $event"
@@ -295,19 +287,6 @@
                 </span>
                 <strong>{{ formatAed(view.saleAmount) }}</strong>
               </div>
-              <PromoCodeField
-                v-model="promoCode"
-                :loading="promoLoading"
-                :error="promoError"
-                :notice="promoNotice"
-                :applied-code="activeCoupon?.couponCode || ''"
-                @apply="applyPromo"
-                @remove="resetPromo"
-              />
-              <div v-if="activeCoupon" class="booking-summary__row">
-                <span>{{ t('client.productDetail.booking.promoDiscount') }}</span>
-                <strong>-{{ formatAed(activeCoupon.discountAmount) }}</strong>
-              </div>
               <div class="booking-summary__row booking-summary__row--tax">
                 <span>{{ t('client.productDetail.booking.vat') }}</span>
                 <strong>{{ formatAed(summaryVat) }}</strong>
@@ -366,11 +345,9 @@ import { ElMessage } from 'element-plus'
 import 'element-plus/es/components/message/style/css'
 import { createPackageOrder, getProductDetail, packageDetail, packagePrice, type PackageCatalogCard, type PackagePricePayload, type PackageSkuSelection, type PackageSpecLine } from '@/modules/client/api'
 import { useCart } from '@/modules/client/composables/useCart'
-import PackageDetailMobile from '@/modules/h5/components/PackageDetailMobile.vue'
+import PackageDetailMobile, { type PackageBookingMode } from '@/modules/h5/components/PackageDetailMobile.vue'
 import PackageSharedSpecs from '@/modules/client/components/PackageSharedSpecs.vue'
 import { getStoredAuthSnapshot, clearStoredAuthState } from '@/utils/auth-state'
-import PromoCodeField from '@/modules/client/components/PromoCodeField.vue'
-import { usePromoCode } from '@/modules/client/composables/usePromoCode'
 import { trackAddToCart, trackViewContent } from '@/modules/client/utils/metaPixel'
 
 const props = withDefaults(defineProps<{
@@ -440,6 +417,11 @@ const routeNames = computed(() => props.platform === 'h5'
       cart: 'cart',
       orderConfirm: 'order-confirm',
     })
+const h5BookingResume = computed<PackageBookingMode | undefined>(() => {
+  if (props.platform !== 'h5') return undefined
+  const mode = route.query.bookingOptions
+  return mode === 'cart' || mode === 'checkout' ? mode : undefined
+})
 
 const preferredLangs = () =>
   locale.value === 'zh' ? ['zh-CN', 'zh', 'en', 'en-US'] : ['en', 'en-US', 'zh-CN', 'zh']
@@ -497,15 +479,6 @@ const pricePayload = computed<PackagePricePayload | null>(() => {
   return { packageId, selections }
 })
 const priceSignature = computed(() => pricePayload.value ? JSON.stringify(pricePayload.value) : '')
-const {
-  code: promoCode,
-  loading: promoLoading,
-  error: promoError,
-  dropped: promoDropped,
-  active: activeCoupon,
-  apply: submitPromo,
-  reset: resetPromo,
-} = usePromoCode(() => priceSignature.value)
 const priceReady = computed(() => Boolean(priceQuote.value && !priceLoading.value && quotedSignature.value === priceSignature.value))
 
 const loadPrice = async () => {
@@ -678,11 +651,8 @@ const view = computed(() => {
   }
 })
 
-const summaryVat = computed(() => activeCoupon.value?.payableTax ?? view.value?.vat ?? null)
-const summaryTotal = computed(() => activeCoupon.value?.payableWithTax ?? view.value?.total ?? null)
-const promoNotice = computed(() => (
-  promoDropped.value ? t('client.productDetail.booking.promoRemoved') : ''
-))
+const summaryVat = computed(() => view.value?.vat ?? null)
+const summaryTotal = computed(() => view.value?.total ?? null)
 
 const galleryImages = computed(() => view.value?.images || [])
 const heroImage = computed(() => galleryImages.value[selectedImageIndex.value] || '')
@@ -742,11 +712,24 @@ const goBack = () => {
   else void router.push({ name: props.platform === 'h5' ? 'h5-packages' : 'packages' })
 }
 
-const ensureLogin = async () => {
+const ensureLogin = async (mode: PackageBookingMode) => {
   const authSnapshot = getStoredAuthSnapshot()
   if (authSnapshot.isExpired) clearStoredAuthState()
   if (authSnapshot.isLoggedIn) return true
-  await router.push({ name: routeNames.value.login, query: { redirect: route.fullPath } })
+  let redirect = route.fullPath
+  if (props.platform === 'h5') {
+    redirect = router.resolve({
+      path: route.path,
+      hash: route.hash,
+      query: {
+        ...route.query,
+        bookingOptions: mode,
+        bookingSkuIds: JSON.stringify(selectedSkuIds.value),
+        bookingSeparateSpecs: separateSpecs.value ? '1' : undefined,
+      },
+    }).fullPath
+  }
+  await router.push({ name: routeNames.value.login, query: { redirect } })
   return false
 }
 
@@ -803,18 +786,6 @@ const selectSpec = (itemId: string, typeKey: string, valueKey: string) => {
 
 const packageSelections = (): PackageSkuSelection[] => (pricePayload.value?.selections || []).map((selection) => ({ ...selection }))
 
-const applyPromo = async () => {
-  if (!ensureSkuSelections() || !ensurePriceReady()) return
-  if (!(await ensureLogin())) return
-  const packageId = String(route.params.id || '').trim()
-  await submitPromo(
-    packageId ? { packageId, selections: packageSelections() } : null,
-    locale.value,
-    t('client.productDetail.booking.promoEnter'),
-    t('client.home.packages.chooseSkuRequired'),
-  )
-}
-
 const ensureSkuSelections = () => {
   if (pricePayload.value) return true
   ElMessage.warning(t('client.home.packages.chooseSkuRequired'))
@@ -834,7 +805,7 @@ const addToCart = async () => {
   if (!ensurePriceReady()) return
   const signature = priceSignature.value
   const selections = packageSelections()
-  if (!(await ensureLogin())) return
+  if (!(await ensureLogin('cart'))) return
   if (busy.value || !priceReady.value || signature !== priceSignature.value || !view.value || String(route.params.id || '').trim() !== packageId) return
   adding.value = true
   try {
@@ -862,7 +833,7 @@ const openCheckout = async () => {
   if (!ensurePriceReady()) return
   const signature = priceSignature.value
   const selections = packageSelections()
-  if (!(await ensureLogin())) return
+  if (!(await ensureLogin('checkout'))) return
   if (busy.value || !priceReady.value || signature !== priceSignature.value || !view.value || String(route.params.id || '').trim() !== packageId) return
   const selectedPackage = view.value
   const titleI18n = Object.fromEntries(
@@ -871,7 +842,7 @@ const openCheckout = async () => {
   )
   buying.value = true
   try {
-    const createdOrderId = await createPackageOrder(packageId, selections, activeCoupon.value?.couponCode)
+    const createdOrderId = await createPackageOrder(packageId, selections)
     if (!/^[1-9]\d*$/.test(String(createdOrderId ?? ''))) {
       throw new Error(t('client.productDetail.booking.createOrderFailed'))
     }
@@ -889,12 +860,6 @@ const openCheckout = async () => {
         subtotal: String(selectedPackage.saleAmount),
         tax: String(summaryVat.value),
         total: String(summaryTotal.value),
-        ...(activeCoupon.value
-          ? {
-              couponCode: activeCoupon.value.couponCode,
-              couponDiscount: String(activeCoupon.value.discountAmount),
-            }
-          : {}),
       },
     })
   } catch (error: any) {
@@ -905,19 +870,29 @@ const openCheckout = async () => {
 }
 
 watch(detail, (card) => {
-  separateSpecs.value = false
+  separateSpecs.value = Boolean(h5BookingResume.value && route.query.bookingSeparateSpecs === '1')
+  const raw = h5BookingResume.value ? route.query.bookingSkuIds : undefined
+  let restored: Record<string, unknown> = {}
+  if (typeof raw === 'string') {
+    try {
+      const parsed = JSON.parse(raw)
+      if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) restored = parsed
+    } catch {
+      // Ignore malformed drafts in an externally supplied URL.
+    }
+  }
   const next: Record<string, string> = {}
   ;(card?.items || []).forEach((item, index) => {
     const id = itemKey(item, index)
     const options = offeredSkuOptions(item.skuOptions)
     if (!options.length) return
-    const current = selectedSkuIds.value[id]
+    const current = positiveId(restored[id]) ? String(restored[id]) : selectedSkuIds.value[id]
     const match = options.find((option) => String(option.skuId) === current)
     const selected = match || options[0]
     if (selected) next[id] = String(selected.skuId)
   })
   const items = specItemsFor(card)
-  selectedSkuIds.value = resolveSharedSpecs(items, findSharedSpecs(items), next, {}, false) || next
+  selectedSkuIds.value = separateSpecs.value ? next : resolveSharedSpecs(items, findSharedSpecs(items), next, {}, false) || next
 }, { flush: 'sync' })
 
 watch(priceSignature, () => { void loadPrice() }, { flush: 'sync' })

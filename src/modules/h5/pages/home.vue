@@ -7,6 +7,13 @@
           <!-- <span>HourX</span> -->
         </a>
         <div class="h5-topbar__actions">
+          <RouterLink
+            class="h5-topbar__search"
+            :to="{ name: 'h5-service-search' }"
+            :aria-label="t('client.home.sections.searchPlaceholder')"
+          >
+            <van-icon name="search" aria-hidden="true" />
+          </RouterLink>
           <button
             class="h5-pill h5-pill--ghost"
             type="button"
@@ -98,31 +105,10 @@
     ></div>
 
     <main class="h5-home-main">
-      <HomeHero @select="selectHomeBanner" />
+      <HomeHero compact @select="selectHomeBanner" />
       <WebsitePromotions />
 
       <section id="services" class="h5-section">
-        <form
-          class="h5-home-search"
-          role="search"
-          @submit.prevent="submitHomeSearch"
-        >
-          <van-icon name="search" aria-hidden="true" />
-          <input
-            v-model="homeSearch"
-            type="search"
-            enterkeyhint="search"
-            autocomplete="off"
-            :placeholder="t('client.home.sections.searchPlaceholder')"
-            :aria-label="t('client.home.sections.searchPlaceholder')"
-          />
-          <button
-            type="submit"
-            :aria-label="t('client.home.sections.searchPlaceholder')"
-          >
-            <van-icon name="arrow" />
-          </button>
-        </form>
         <header class="h5-home-intro">
           <p class="h5-home-intro__eyebrow">
             {{ t("client.home.sections.servicesTitle") }}
@@ -140,15 +126,15 @@
             type="button"
             @click="openServiceList(item)"
           >
-            <span class="h5-service-tile__icon">
-              <img :src="item.icon" :alt="item.title" />
-            </span>
-            <span class="h5-service-tile__copy">
-              <span v-if="tilePromo(item.categoryId)" class="h5-service-tile__promo">{{ tilePromo(item.categoryId) }}</span>
+            <span v-if="tilePromo(item.categoryId)" class="h5-service-tile__promo">{{ tilePromo(item.categoryId) }}</span>
+            <span class="h5-service-tile__head">
+              <span class="h5-service-tile__icon">
+                <img :src="item.icon" :alt="item.title" />
+              </span>
               <span class="h5-service-tile__label">{{ item.title }}</span>
-              <span v-if="item.description" class="h5-service-tile__description">{{ item.description }}</span>
-              <span class="h5-service-tile__link">{{ t("client.home.serviceTile.action") }} →</span>
             </span>
+            <span class="h5-service-tile__description">{{ item.description }}</span>
+            <span class="h5-service-tile__link">{{ t("client.home.serviceTile.action") }} →</span>
           </button>
         </div>
         <button
@@ -514,7 +500,6 @@ const { cartCount } = useCart()
 const { isLoggedIn, clearAuth, checkLoginStatus } = useAuth()
 const serviceMenuRecords = ref<Level1CategoryRecord[]>([])
 const accountMenuOpen = ref(false)
-const homeSearch = ref("")
 const year = new Date().getFullYear()
 
 const getPreferredLangs = () =>
@@ -688,12 +673,6 @@ const handleHeaderLogout = async () => {
   await router.replace({ name: "h5-home" })
 }
 
-const submitHomeSearch = () => {
-  const keyword = homeSearch.value.trim()
-  if (!keyword) return
-  router.push({ name: "h5-service-search", query: { keyword } })
-}
-
 const openServiceList = (item: ServiceTile) => {
   if (item.placeholder) {
     return
@@ -817,6 +796,29 @@ onMounted(() => {
   gap: 8px;
 }
 
+.h5-topbar__search {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 2.75rem;
+  height: 2.75rem;
+  border: 1px solid var(--hourx-client-border);
+  border-radius: 50%;
+  background: #fff;
+  color: var(--hourx-brand);
+  font-size: 1.25rem;
+  text-decoration: none;
+}
+
+.h5-topbar__search:active {
+  background: var(--hourx-brand-soft);
+}
+
+.h5-topbar__search:focus-visible {
+  outline: 2px solid var(--hourx-brand);
+  outline-offset: 2px;
+}
+
 .h5-pill {
   height: 32px;
   border-radius: 999px;
@@ -935,67 +937,7 @@ onMounted(() => {
 }
 
 .h5-section {
-  padding: 56px 16px 0;
-}
-
-.h5-home-search {
-  display: flex;
-  align-items: center;
-  height: 48px;
-  margin: 0 0 22px;
-  padding-left: 14px;
-  overflow: hidden;
-  border: 1px solid #d7e2ee;
-  border-radius: 14px;
-  background: #fff;
-  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.05);
-}
-
-.h5-home-search :deep(.van-icon) {
-  flex: 0 0 auto;
-  color: #7b8ba0;
-  font-size: 18px;
-}
-
-.h5-home-search input {
-  min-width: 0;
-  flex: 1;
-  height: 100%;
-  margin-left: 8px;
-  border: 0;
-  outline: 0;
-  background: transparent;
-  color: #0f172a;
-  font: inherit;
-  font-size: 14px;
-}
-
-.h5-home-search input::-webkit-search-cancel-button {
-  display: none;
-}
-
-.h5-home-search button {
-  align-self: stretch;
-  width: 48px;
-  flex: 0 0 48px;
-  padding: 0;
-  border: 0;
-  border-left: 1px solid #e5edf6;
-  background: #f4f7fa;
-  color: var(--hourx-brand);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.h5-home-search button :deep(.van-icon) {
-  color: var(--hourx-brand);
-  font-size: 16px;
-}
-
-.h5-home-search:focus-within {
-  border-color: #1769c2;
-  box-shadow: 0 0 0 3px rgba(23, 105, 194, 0.1);
+  padding: 32px 16px 0;
 }
 
 .h5-home-intro {
@@ -1077,28 +1019,33 @@ onMounted(() => {
 .h5-service-grid {
   margin-top: 24px;
   display: grid;
-  grid-template-columns: 1fr;
-  gap: 16px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  align-items: stretch;
 }
 
 .h5-service-tile {
+  position: relative;
+  box-sizing: border-box;
+  width: 100%;
+  height: 168px;
   min-width: 0;
-  min-height: 144px;
-  border: 1px solid #dce7f3;
+  min-height: 168px;
+  max-height: 168px;
+  border: 1px solid var(--hourx-client-border);
   border-radius: 14px;
   background: #fff;
-  padding: 20px;
-  display: grid;
-  align-items: start;
-  justify-content: center;
-  gap: 16px;
+  padding: 14px 12px 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 8px;
+  overflow: hidden;
+  text-align: start;
   transition:
     transform 0.18s ease,
     border-color 0.18s ease,
     box-shadow 0.18s ease;
-  grid-template-columns: 44px minmax(0, 1fr);
-  border-color: var(--hourx-client-border);
-  text-align: start;
 }
 
 .h5-service-tile:active {
@@ -1107,9 +1054,17 @@ onMounted(() => {
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.92);
 }
 
+.h5-service-tile__head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
 .h5-service-tile__icon {
-  width: 44px;
-  height: 44px;
+  flex: 0 0 36px;
+  width: 36px;
+  height: 36px;
   border: 1px solid rgba(5, 21, 43, 0.12);
   border-radius: 12px;
   background: linear-gradient(
@@ -1126,55 +1081,70 @@ onMounted(() => {
 }
 
 .h5-service-tile__icon img {
-  width: 22px;
-  height: 22px;
+  width: 18px;
+  height: 18px;
   object-fit: contain;
   filter: var(--hourx-brand-filter);
 }
 
 .h5-service-tile__promo {
-  display: inline-flex;
-  width: fit-content;
-  margin-bottom: 4px;
-  padding: 2px 8px;
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  z-index: 1;
+  max-width: 46%;
+  overflow: hidden;
+  padding: 2px 6px;
   border-radius: 999px;
   background: #e8faf7;
   color: #0a7a6a;
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 700;
+  line-height: 1.3;
+  white-space: nowrap;
+  text-overflow: ellipsis;
 }
+
+.h5-service-tile:has(.h5-service-tile__promo) .h5-service-tile__label {
+  padding-right: 8px;
+}
+
 .h5-service-tile__label {
-  max-width: 100%;
-  display: -webkit-box;
+  min-width: 0;
+  flex: 1;
+  display: block;
   overflow: hidden;
   color: var(--hourx-client-text);
-  font-size: var(--hourx-client-size-card);
+  font-size: 15px;
   line-height: 1.3;
-  font-weight: 600;
+  font-weight: 700;
   text-align: start;
-  overflow-wrap: anywhere;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.h5-service-tile__description {
+  display: -webkit-box;
+  min-height: calc(1.45em * 2);
+  max-height: calc(1.45em * 2);
+  overflow: hidden;
+  color: var(--hourx-client-muted);
+  font-size: 12px;
+  line-height: 1.45;
+  text-overflow: ellipsis;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
   line-clamp: 2;
 }
 
-.h5-service-tile__copy {
-  display: grid;
-  gap: 6px;
-}
-
-.h5-service-tile__description {
-  display: -webkit-box;
-  overflow: hidden;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
-  color: var(--hourx-client-muted);
-  font-size: var(--hourx-client-size-body);
-}
-
 .h5-service-tile__link {
+  margin-top: auto;
+  overflow: hidden;
   font-size: var(--hourx-client-size-action);
-  font-weight: 600;
+  font-weight: 700;
+  line-height: 1.2;
+  white-space: nowrap;
+  text-overflow: ellipsis;
 }
 
 .h5-service-toggle {
@@ -1242,19 +1212,22 @@ onMounted(() => {
   }
 
   .h5-service-tile {
-    min-height: 78px;
-    padding: 8px 6px;
+    height: 168px;
+    min-height: 168px;
+    max-height: 168px;
+    padding: 12px 10px 10px;
     gap: 6px;
   }
 
   .h5-service-tile__icon {
+    flex-basis: 32px;
     width: 32px;
     height: 32px;
   }
 
   .h5-service-tile__icon img {
-    width: 20px;
-    height: 20px;
+    width: 16px;
+    height: 16px;
   }
 
 }

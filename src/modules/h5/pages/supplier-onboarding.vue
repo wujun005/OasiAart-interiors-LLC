@@ -1,8 +1,8 @@
 <template>
   <div class="h5-apply">
     <header class="h5-apply__bar">
-      <button type="button" @click="goBack">
-        <van-icon name="arrow-left" />
+      <button type="button" :aria-label="t('h5.common.back')" @click="goBack">
+        <van-icon name="arrow-left" aria-hidden="true" />
       </button>
       <strong>{{ t('h5.supplierOnboarding.kicker') }}</strong>
       <span />
@@ -346,7 +346,7 @@ const loadCategories = async () => {
 onMounted(loadCategories);
 
 const goBack = () => {
-  if (window.history.length > 1) router.back();
+  if (router.options.history.state.back) router.back();
   else router.push({ name: 'h5-home' });
 };
 

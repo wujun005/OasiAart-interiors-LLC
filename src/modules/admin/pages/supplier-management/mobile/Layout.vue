@@ -97,7 +97,7 @@ const availablePages = computed(() => pages.filter((page) => {
   if (individualSupplier.value && page.section === 'staff') return false;
   return isPreview.value || canAccessSupplierSection(page.section, adminMenuState.allowedPaths, isSupplierStaffOrdersOnly());
 }));
-const tabs = computed(() => availablePages.value.filter((page) => page.section !== 'staff' && page.section !== 'package-pricing'));
+const tabs = computed(() => availablePages.value.filter((page) => page.section !== 'staff'));
 const companyName = computed(() => session.details[String(session.me?.supplierId)]?.companyName || getAdminAuthStorageValue('username') || words.value.company);
 const accountInitial = computed(() => String(companyName.value).trim().slice(0, 1).toUpperCase() || 'H');
 const accountOpen = ref(false);

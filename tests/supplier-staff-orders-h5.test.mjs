@@ -54,6 +54,7 @@ const loadModule = (path, context = {}) => {
 }
 const i18n = loadModule("src/modules/admin/utils/i18n.ts")
 const supplierMap = loadModule("src/modules/admin/utils/supplierMap.ts", { URL })
+const serviceDay = loadModule("src/modules/admin/utils/serviceDay.ts")
 const messages = Object.fromEntries(
   ["en", "zh"].map((language) => [
     language,
@@ -196,6 +197,7 @@ async function harness(t, overrides = {}) {
       if (name === "@/modules/admin/api/supplierWorkbench") return api
       if (name === "@/modules/admin/utils/i18n") return i18n
       if (name === "@/modules/admin/utils/supplierMap") return supplierMap
+      if (name === "@/modules/admin/utils/serviceDay") return serviceDay
       if (name === "@/modules/admin/utils/supplier-mine") return mineExports
       throw new Error(`Unexpected dependency: ${name}`)
     },

@@ -19,7 +19,7 @@
           <template v-else>
             <div v-if="moduleTitle || moduleDesc" class="order-addons__module"><h2 v-if="moduleTitle">{{ moduleTitle }}</h2><p v-if="moduleDesc">{{ moduleDesc }}</p></div>
             <div class="order-addons__filters">
-              <nav class="order-addons__categories" :aria-label="t('client.orderAddons.browseItems')"><button type="button" :class="{ 'is-active': !activeGroup }" :aria-pressed="!activeGroup" :disabled="editingLocked" @click="activeGroup = ''">{{ t('client.orderAddons.allItems') }}</button><button v-for="group in groups" :key="group.id" type="button" :class="{ 'is-active': activeGroup === group.id }" :aria-pressed="activeGroup === group.id" :disabled="editingLocked" @click="activeGroup = group.id">{{ group.label }}</button></nav>
+              <nav v-if="groups.length" class="order-addons__categories" :aria-label="t('client.orderAddons.browseItems')"><button v-for="group in groups" :key="group.id" type="button" :class="{ 'is-active': activeGroup === group.id }" :aria-pressed="activeGroup === group.id" :disabled="editingLocked" @click="activeGroup = group.id">{{ group.label }}</button></nav>
               <label class="order-addons__search"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><circle cx="8" cy="8" r="5"/><path d="m12 12 5 5"/></svg><input v-model="search" type="search" :disabled="editingLocked" :aria-label="t('client.orderAddons.searchItems')" :placeholder="t('client.orderAddons.searchItems')" /></label>
             </div>
             <section class="order-addons__catalog" :aria-label="moduleTitle || t('client.orderAddons.browseItems')">
@@ -123,6 +123,9 @@ const serviceTitle = computed(() =>
 const moduleTitle = computed(() => String(order.value?.attachModuleTitle || "").trim())
 const moduleDesc = computed(() => String(order.value?.attachModuleDesc || "").trim())
 const groups = computed(() => addonGroupsFromOptions(attachOptions.value, locale.value))
+watch(groups, (list) => {
+  if (!list.some((group) => group.id === activeGroup.value)) activeGroup.value = list[0]?.id || ""
+})
 const catalogOptions = computed(() => groups.value.flatMap(group => group.options.map(option => ({
   ...option, groupId: group.id, groupLabel: group.label,
 }))))
@@ -213,7 +216,7 @@ const removeLine = (id: string) => {
 const clearFilters = () => {
   if (editingLocked.value) return
   search.value = ""
-  activeGroup.value = ""
+  activeGroup.value = groups.value[0]?.id || ""
 }
 const openReview = () => {
   if (!selectedLines.value.length || editingLocked.value) return

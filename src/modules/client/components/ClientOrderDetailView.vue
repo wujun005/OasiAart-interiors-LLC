@@ -4,10 +4,13 @@
     :class="{ 'client-order-detail--mobile': mobile }"
   >
     <div class="client-order-detail__container">
-      <button class="client-order-detail__back" type="button" @click="goBack">
-        <span aria-hidden="true">←</span>
-        {{ locale.startsWith("zh") ? "返回全部订单" : "Back to My Bookings" }}
-      </button>
+      <nav class="client-order-detail__navigation" :aria-label="locale.startsWith('zh') ? '订单导航' : 'Booking navigation'">
+        <button class="client-order-detail__back" type="button" @click="goBack">
+          <span aria-hidden="true">←</span>
+          {{ locale.startsWith("zh") ? "返回全部订单" : "Back to My Bookings" }}
+        </button>
+        <HomeReturn v-if="mobile" />
+      </nav>
 
       <section v-if="loading" class="client-order-detail__state">
         <span class="client-order-detail__spinner" />
@@ -107,53 +110,59 @@
                 <img :src="orderImage || order.spuImage || fallbackImage" :alt="serviceTitle" />
                 <div>
                   <h2>{{ serviceTitle }}</h2>
-                  <div
-                    v-if="serviceDescriptionHtml"
-                    class="client-order-detail__service-description"
-                    v-html="serviceDescriptionHtml"
-                  />
                   <p v-if="naturalSpecText" class="client-order-detail__service-variant">
                     {{ naturalSpecText }}
                   </p>
-                  <div v-if="purchasedAttaches.length" class="client-order-detail__attaches">
-                    <b>{{ locale.startsWith("zh") ? "附加项" : "Add-ons" }}</b>
-                    <ul>
-                      <li v-for="item in purchasedAttaches" :key="item.id">
-                        <div>
-                          <strong>{{ item.label }}</strong>
-                          <small v-if="item.typeName && item.typeName !== item.label">{{ item.typeName }}</small>
-                          <small v-if="item.source" :class="{ 'is-addon': item.addon }">{{ item.source }}</small>
-                          <em v-if="attachQuantityText(item)">{{ attachQuantityText(item) }}</em>
-                        </div>
-                        <dl>
-                          <div v-if="item.unitPriceWithTax != null">
-                            <dt>{{ locale.startsWith("zh") ? "含税单价" : "Unit price incl. VAT" }}</dt>
-                            <dd>{{ formatAed(item.unitPriceWithTax) }}</dd>
-                          </div>
-                          <div v-else-if="item.unitPriceWithoutTax != null">
-                            <dt>{{ locale.startsWith("zh") ? "不含税单价" : "Unit price excl. VAT" }}</dt>
-                            <dd>{{ formatAed(item.unitPriceWithoutTax) }}</dd>
-                          </div>
-                          <div v-if="item.amountWithoutTax != null">
-                            <dt>{{ locale.startsWith("zh") ? "不含税小计" : "Subtotal excl. VAT" }}</dt>
-                            <dd>{{ formatAed(item.amountWithoutTax) }}</dd>
-                          </div>
-                          <div v-if="item.taxAmount != null">
-                            <dt>{{ locale.startsWith("zh") ? "税额" : "VAT" }}</dt>
-                            <dd>{{ formatAed(item.taxAmount) }}</dd>
-                          </div>
-                          <div v-if="item.amountWithTax != null">
-                            <dt>{{ locale.startsWith("zh") ? "含税金额" : "Total incl. VAT" }}</dt>
-                            <dd>{{ formatAed(item.amountWithTax) }}</dd>
-                          </div>
-                        </dl>
-                      </li>
-                    </ul>
-                  </div>
-                  <p v-for="item in packageItemViews" :key="item.id">
-                    <b>{{ item.name }}</b> {{ item.times }}
+                  <p v-if="singlePackageService" class="client-order-detail__service-variant">
+                    {{ singlePackageService.times }}
                   </p>
                 </div>
+              </div>
+              <div
+                v-if="serviceDescriptionHtml"
+                class="client-order-detail__service-description"
+                v-html="serviceDescriptionHtml"
+              />
+              <ul v-if="packageItemViews.length && !singlePackageService" class="client-order-detail__package-items">
+                <li v-for="item in packageItemViews" :key="item.id">
+                  <strong>{{ item.name }}</strong>
+                  <span>{{ item.times }}</span>
+                </li>
+              </ul>
+              <div v-if="purchasedAttaches.length" class="client-order-detail__attaches">
+                <b>{{ locale.startsWith("zh") ? "附加项" : "Add-ons" }}</b>
+                <ul>
+                  <li v-for="item in purchasedAttaches" :key="item.id">
+                    <div>
+                      <strong>{{ item.label }}</strong>
+                      <small v-if="item.typeName && item.typeName !== item.label">{{ item.typeName }}</small>
+                      <small v-if="item.source" :class="{ 'is-addon': item.addon }">{{ item.source }}</small>
+                      <em v-if="attachQuantityText(item)">{{ attachQuantityText(item) }}</em>
+                    </div>
+                    <dl>
+                      <div v-if="item.unitPriceWithTax != null">
+                        <dt>{{ locale.startsWith("zh") ? "含税单价" : "Unit price incl. VAT" }}</dt>
+                        <dd>{{ formatAed(item.unitPriceWithTax) }}</dd>
+                      </div>
+                      <div v-else-if="item.unitPriceWithoutTax != null">
+                        <dt>{{ locale.startsWith("zh") ? "不含税单价" : "Unit price excl. VAT" }}</dt>
+                        <dd>{{ formatAed(item.unitPriceWithoutTax) }}</dd>
+                      </div>
+                      <div v-if="item.amountWithoutTax != null">
+                        <dt>{{ locale.startsWith("zh") ? "不含税小计" : "Subtotal excl. VAT" }}</dt>
+                        <dd>{{ formatAed(item.amountWithoutTax) }}</dd>
+                      </div>
+                      <div v-if="item.taxAmount != null">
+                        <dt>{{ locale.startsWith("zh") ? "税额" : "VAT" }}</dt>
+                        <dd>{{ formatAed(item.taxAmount) }}</dd>
+                      </div>
+                      <div v-if="item.amountWithTax != null">
+                        <dt>{{ locale.startsWith("zh") ? "含税金额" : "Total incl. VAT" }}</dt>
+                        <dd>{{ formatAed(item.amountWithTax) }}</dd>
+                      </div>
+                    </dl>
+                  </li>
+                </ul>
               </div>
             </section>
 
@@ -161,27 +170,68 @@
               v-if="isPackageOrder"
               class="client-order-detail__panel client-order-detail__fulfillments"
             >
-              <div class="client-order-detail__section-title">
-                <span>{{
-                  locale.startsWith("zh") ? "预约与履约记录" : "Visits & fulfilment"
-                }}</span>
-                <div class="client-order-detail__section-actions">
+              <div class="client-order-detail__section-title client-order-detail__visits-header">
+                <h2>{{ locale.startsWith("zh") ? "套餐预约" : "Package Visits" }}</h2>
+                <p v-if="packageVisitPlan.total" class="client-order-detail__visit-count">
+                  {{ locale.startsWith("zh")
+                    ? `您的套餐包含 ${packageVisitPlan.total} 次上门。`
+                    : `Your package includes ${packageVisitPlan.total} ${packageVisitPlan.total === 1 ? "visit" : "visits"}.` }}
+                </p>
+              </div>
+              <div v-if="packageVisitPlan.total" class="client-order-detail__visit-progress">
+                <dl class="client-order-detail__visit-stats" aria-live="polite">
+                  <div v-for="stat in packageVisitStats" :key="stat.state" :class="`is-${stat.state}`">
+                    <dt>{{ stat.label }}</dt>
+                    <dd>{{ stat.count }}</dd>
+                  </div>
+                </dl>
+                <ol
+                  ref="packageVisitTrack"
+                  class="client-order-detail__visit-track"
+                  :style="{ '--visit-count': packageVisitPlan.total }"
+                  :aria-label="locale.startsWith('zh') ? '套餐预约进度' : 'Package visit progress'"
+                  :tabindex="packageVisitPlan.total > 3 ? 0 : undefined"
+                >
+                  <li
+                    v-for="visit in packageVisitPlan.rounds"
+                    :key="visit.number"
+                    class="client-order-detail__visit-step"
+                    :class="[`is-${visit.state}`, { 'is-next': visit.number === packageVisitPlan.next }]"
+                    :aria-current="visit.number === packageVisitPlan.next ? 'step' : undefined"
+                  >
+                    <span class="client-order-detail__visit-step-marker" aria-hidden="true">
+                      {{ visit.state === "completed" ? "✓" : visit.number }}
+                    </span>
+                    <strong>{{ packageVisitLabel(visit.number) }}</strong>
+                    <small>{{ visitStepLabel(visit) }}</small>
+                  </li>
+                </ol>
+              </div>
+              <div class="client-order-detail__visit-actions">
+                <button
+                  v-if="canBookPackageVisit"
+                  type="button"
+                  class="client-order-detail__book-visit"
+                  :disabled="bookVisitSubmitting"
+                  @click="openBookVisit"
+                >
+                  {{ scheduleVisitLabel }}
+                </button>
+                <template v-else-if="packageVisitRefreshNeeded">
+                  <p role="status" class="client-order-detail__visit-count">
+                    {{ bookVisitSubmitting
+                      ? (locale.startsWith("zh") ? "正在更新预约进度…" : "Updating visit progress…")
+                      : (locale.startsWith("zh") ? "预约已提交，请刷新预约进度。" : "Visit booked. Refresh to see the latest progress.") }}
+                  </p>
                   <button
-                    v-if="canBookPackageVisit"
+                    v-if="!bookVisitSubmitting"
                     type="button"
                     class="client-order-detail__book-visit"
-                    @click="openBookVisit"
+                    @click="retryPackageVisitRefresh"
                   >
-                    {{ locale.startsWith("zh") ? "预约上门" : "Book a visit" }}
+                    {{ locale.startsWith("zh") ? "刷新预约进度" : "Refresh visits" }}
                   </button>
-                  <strong v-if="packageFulfillmentViews.length">
-                    {{
-                      locale.startsWith("zh")
-                        ? `${packageFulfillmentViews.length} 条记录`
-                        : `${packageFulfillmentViews.length} record${packageFulfillmentViews.length === 1 ? "" : "s"}`
-                    }}
-                  </strong>
-                </div>
+                </template>
               </div>
 
               <p
@@ -202,19 +252,21 @@
                   class="client-order-detail__fulfillment-card"
                 >
                   <header>
-                    <div class="client-order-detail__fulfillment-identity">
-                      <span>{{ visit.visitLabel }}</span>
-                      <div>
-                        <h3>{{ visit.serviceName }}</h3>
-                        <small v-if="visit.fulfillmentNo">{{ visit.fulfillmentNo }}</small>
-                      </div>
+                    <div class="client-order-detail__fulfillment-badges">
+                      <span v-if="visit.statusTone !== 'cancelled'" class="client-order-detail__visit-number">
+                        {{ visit.visitLabel }}
+                      </span>
+                      <span
+                        class="client-order-detail__fulfillment-status"
+                        :class="`is-${visit.statusTone}`"
+                      >
+                        {{ visit.statusText }}
+                      </span>
                     </div>
-                    <span
-                      class="client-order-detail__fulfillment-status"
-                      :class="`is-${visit.statusTone}`"
-                    >
-                      {{ visit.statusText }}
-                    </span>
+                    <div class="client-order-detail__fulfillment-identity">
+                      <h3>{{ visit.serviceName }}</h3>
+                      <small v-if="visit.fulfillmentNo">{{ visit.fulfillmentNo }}</small>
+                    </div>
                   </header>
 
                   <div class="client-order-detail__fulfillment-facts">
@@ -267,6 +319,19 @@
                     <b>{{ locale.startsWith("zh") ? "取消信息" : "Cancellation" }}</b>
                     {{ visit.cancelDetail }}
                   </p>
+                  <div v-if="visit.canChange" class="client-order-detail__visit-actions">
+                    <button type="button" @click="openVisitReschedule(visit)">
+                      {{ locale.startsWith("zh") ? "改期" : "Reschedule" }}
+                    </button>
+                    <button
+                      type="button"
+                      class="is-danger"
+                      :disabled="visitCancelling === visit.fulfillmentNo"
+                      @click="cancelVisit(visit)"
+                    >
+                      {{ locale.startsWith("zh") ? "取消这次上门" : "Cancel this visit" }}
+                    </button>
+                  </div>
                 </article>
               </div>
             </section>
@@ -371,10 +436,10 @@
                     </thead>
                     <tbody>
                       <tr v-for="line in couponPriceLines" :key="line.key">
-                        <td>{{ line.name }}</td>
-                        <td>{{ formatAed(line.original) }}</td>
-                        <td>{{ formatAed(line.discounted) }}</td>
-                        <td>− {{ formatAed(line.discount) }}</td>
+                        <td :data-label="locale.startsWith('zh') ? '项目' : 'Item'">{{ line.name }}</td>
+                        <td :data-label="locale.startsWith('zh') ? '原价' : 'Original'">{{ formatAed(line.original) }}</td>
+                        <td :data-label="locale.startsWith('zh') ? '折后价' : 'Discounted'">{{ formatAed(line.discounted) }}</td>
+                        <td :data-label="locale.startsWith('zh') ? '优惠' : 'Saved'">− {{ formatAed(line.discount) }}</td>
                       </tr>
                     </tbody>
                   </table>
@@ -390,6 +455,10 @@
                 <div v-if="couponDiscount > 0" class="is-discount">
                   <dt>{{ couponLabel }}</dt>
                   <dd>− {{ formatAed(couponDiscount) }}</dd>
+                </div>
+                <div v-for="line in addonChargeLines" :key="line.key">
+                  <dt>{{ line.label }}</dt>
+                  <dd>{{ line.amountText }}</dd>
                 </div>
                 <div>
                   <dt>{{ locale.startsWith("zh") ? "小计" : "Subtotal" }}</dt>
@@ -596,7 +665,15 @@
           locale.startsWith("zh") ? "管理预订" : "MANAGE BOOKING"
         }}</span>
         <h2>
-          {{ locale.startsWith("zh") ? "调整服务时间" : "Reschedule Booking" }}
+          {{
+            rescheduleForm.visitLabel
+              ? locale.startsWith("zh")
+                ? `调整${rescheduleForm.visitLabel}`
+                : `Reschedule ${rescheduleForm.visitLabel}`
+              : locale.startsWith("zh")
+                ? "调整服务时间"
+                : "Reschedule Booking"
+          }}
         </h2>
 
         <div class="client-order-detail__reschedule-summary">
@@ -604,7 +681,7 @@
           <small>{{
             locale.startsWith("zh") ? "当前安排" : "Current Appointment"
           }}</small>
-          <strong>{{ formattedServiceSchedule }}</strong>
+          <strong>{{ rescheduleForm.summaryText || formattedServiceSchedule }}</strong>
         </div>
 
         <div class="client-order-detail__reschedule-grid">
@@ -612,7 +689,15 @@
             <span>{{
               locale.startsWith("zh") ? "新的服务日期" : "New Service Date"
             }}</span>
-            <el-config-provider :locale="rescheduleDatePickerLocale">
+            <input
+              v-if="mobile"
+              v-model="rescheduleForm.serviceTime"
+              class="client-order-detail__native-date"
+              type="date"
+              :min="minRescheduleDate"
+              @change="handleRescheduleDateChange"
+            />
+            <el-config-provider v-else :locale="rescheduleDatePickerLocale">
               <el-date-picker
                 v-model="rescheduleForm.serviceTime"
                 class="client-order-detail__reschedule-date"
@@ -630,9 +715,6 @@
                 @change="handleRescheduleDateChange"
               />
             </el-config-provider>
-            <small class="client-order-detail__reschedule-date-hint">{{
-              localizedRescheduleDate
-            }}</small>
           </label>
           <label>
             <span>{{
@@ -667,19 +749,10 @@
 
         <div class="client-order-detail__reschedule-actions">
           <button
-            class="client-order-detail__reschedule-cancel"
-            type="button"
-            :disabled="isRescheduleSubmitting"
-            @click="cancelFromManage"
-          >
-            {{ locale.startsWith("zh") ? "取消预订" : "Cancel Booking" }}
-          </button>
-          <button
             class="client-order-detail__review-submit"
             type="button"
             :disabled="
-              isRescheduleSubmitting ||
-              isRescheduleTimeLoading
+              isRescheduleSubmitting || isRescheduleTimeLoading
             "
             @click="submitReschedule"
           >
@@ -692,6 +765,14 @@
                   ? "确认改期"
                   : "Request Reschedule"
             }}
+          </button>
+          <button
+            class="client-order-detail__reschedule-cancel"
+            type="button"
+            :disabled="isRescheduleSubmitting"
+            @click="cancelFromManage"
+          >
+            {{ locale.startsWith("zh") ? "取消预订" : "Cancel Booking" }}
           </button>
         </div>
       </section>
@@ -741,7 +822,7 @@
         class="client-order-detail__review-dialog client-order-detail__reschedule-dialog client-order-detail__book-dialog"
         role="dialog"
         aria-modal="true"
-        :aria-label="locale.startsWith('zh') ? '预约上门' : 'Book a visit'"
+        :aria-label="scheduleVisitLabel"
       >
         <button
           class="client-order-detail__review-close"
@@ -755,7 +836,7 @@
         <span class="client-order-detail__review-kicker">{{
           locale.startsWith("zh") ? "套餐履约" : "PACKAGE VISIT"
         }}</span>
-        <h2>{{ locale.startsWith("zh") ? "再约一次上门" : "Book another visit" }}</h2>
+        <h2>{{ scheduleVisitLabel }}</h2>
         <p>
           {{
             locale.startsWith("zh")
@@ -781,7 +862,15 @@
         <div class="client-order-detail__reschedule-grid">
           <label>
             <span>{{ locale.startsWith("zh") ? "上门日期" : "Visit date" }}</span>
-            <el-config-provider :locale="rescheduleDatePickerLocale">
+            <input
+              v-if="mobile"
+              v-model="bookForm.serviceDate"
+              class="client-order-detail__native-date"
+              type="date"
+              :min="minRescheduleDate"
+              :disabled="bookVisitSubmitting"
+            />
+            <el-config-provider v-else :locale="rescheduleDatePickerLocale">
               <el-date-picker
                 v-model="bookForm.serviceDate"
                 class="client-order-detail__reschedule-date"
@@ -879,14 +968,6 @@
 
         <div class="client-order-detail__reschedule-actions">
           <button
-            class="client-order-detail__reschedule-cancel"
-            type="button"
-            :disabled="bookVisitSubmitting"
-            @click="closeBookVisit"
-          >
-            {{ locale.startsWith("zh") ? "取消" : "Cancel" }}
-          </button>
-          <button
             class="client-order-detail__review-submit"
             type="button"
             :disabled="bookVisitSubmitting || bookTimeLoading || !bookTimeReady"
@@ -901,6 +982,14 @@
                   ? "确认预约"
                   : "Confirm visit"
             }}
+          </button>
+          <button
+            class="client-order-detail__reschedule-cancel"
+            type="button"
+            :disabled="bookVisitSubmitting"
+            @click="closeBookVisit"
+          >
+            {{ locale.startsWith("zh") ? "取消" : "Cancel" }}
           </button>
         </div>
       </section>
@@ -924,7 +1013,7 @@
         type="button"
         @click="router.push({ name: mobile ? 'h5-cart' : 'cart' })"
       >
-        {{ locale.startsWith("zh") ? "管理预订" : "Manage Booking" }}
+        {{ locale.startsWith("zh") ? "查看购物车" : "View Cart" }}
       </button>
     </aside>
   </main>
@@ -941,8 +1030,10 @@ import fallbackImage from "@/assets/images/client/kv.png"
 import CancellationPolicyGate from "@/modules/client/components/CancellationPolicyGate.vue"
 import CancellationModalContent from "@/modules/client/components/CancellationModalContent.vue"
 import AddExtraServiceButton from "@/modules/client/components/AddExtraServiceButton.vue"
+import HomeReturn from "@/modules/h5/components/HomeReturn.vue"
 import {
   cancelOrder,
+  cancelPackageFulfillment,
   checkOrderRefund,
   fulfillPackageOrder,
   getAvailableSelectTime,
@@ -955,6 +1046,7 @@ import {
   getRefundReasons,
   requestOrderRefund,
   rescheduleOrder,
+  reschedulePackageFulfillment,
   review,
   type ClientAddressRecord,
   type OrderListRecord,
@@ -964,6 +1056,7 @@ import {
 import { useCart } from "@/modules/client/composables/useCart"
 import { normalizeRichTextHtml } from "@/modules/client/utils/richText"
 import { loadPackageBookingTimes } from "@/modules/client/utils/package-booking-times"
+import { buildPackageVisitProgress } from "@/modules/client/utils/package-visit-progress"
 import { canAddPaidOrderAddons } from "@/modules/client/utils/order-addons"
 import {
   formatCreatedAt,
@@ -1019,11 +1112,16 @@ const isRescheduleTimeLoading = ref(false)
 const lastLoadedRescheduleKey = ref("")
 const rescheduleAvailableTimeRecords = ref<any[]>([])
 const rescheduleForm = reactive({
+  fulfillmentNo: "",
+  spuId: "",
+  visitLabel: "",
+  summaryText: "",
   currentServiceDate: "",
   currentTimeText: "",
   serviceTime: "",
   timeRange: null as number | null,
 })
+const visitCancelling = ref("")
 const normalizeTimeSlot = (value: string) =>
   String(value || "").replace(/\s/g, "").replace(/[–—]/g, "-")
 
@@ -1149,12 +1247,20 @@ const packageItemViews = computed(() =>
     }),
   })),
 )
+const singlePackageService = computed(() => {
+  const items = packageItemViews.value
+  return items.length === 1 && items[0].name === serviceTitle.value ? items[0] : null
+})
 const packageFulfillmentViews = computed(() =>
   (Array.isArray(order.value?.fulfillmentList)
     ? order.value.fulfillmentList
     : []
   ).map((item, index) => {
     const sequence = Math.max(1, Number(item.seqNo) || index + 1)
+    const scheduleSource = `${item.serviceDateTime || ""} ${item.serviceTimeDisplay || ""}`
+    const serviceDate = String(item.serviceDate || "").trim().slice(0, 10)
+      || (/\d{4}-\d{2}-\d{2}/.exec(scheduleSource)?.[0] || "")
+    const timeMatch = /(\d{1,2}:\d{2})\s*[-–]\s*(\d{1,2}:\d{2})/.exec(scheduleSource)
     const scheduleStatus = Number(item.scheduleStatus)
     const serviceStatus = Number(item.serviceStatus)
     const scheduleStatusText = i18nText(item.scheduleStatusI18n)
@@ -1215,12 +1321,19 @@ const packageFulfillmentViews = computed(() =>
           .join(" · ")
       : ""
 
+    const fulfillmentNo = String(item.fulfillmentNo || "").trim()
+    const visitNumber = packageVisitPlan.value.numberByFulfillment.get(index)
     return {
       id: String(item.fulfillmentNo || `${item.skuId || "visit"}-${sequence}-${index}`),
-      fulfillmentNo: String(item.fulfillmentNo || "").trim(),
-      visitLabel: locale.value.startsWith("zh")
-        ? `第 ${sequence} 次`
-        : `Visit ${sequence}`,
+      fulfillmentNo,
+      sequence,
+      spuId: String(item.spuId || "").trim(),
+      serviceDate,
+      currentTimeText: timeMatch ? `${timeMatch[1]}-${timeMatch[2]}` : "",
+      canChange: Boolean(fulfillmentNo) && scheduled && !completed && rawStatus.value === 1,
+      visitLabel: visitNumber != null
+        ? packageVisitLabel(visitNumber)
+        : locale.value.startsWith("zh") ? "套餐上门" : "Package visit",
       serviceName: i18nText(
         item.spuNameI18n,
         locale.value.startsWith("zh") ? "套餐服务" : "Package service",
@@ -1272,7 +1385,7 @@ const packageVisitRemaining = (item: NonNullable<OrderListRecord["packageItems"]
 const packageExpired = computed(() => {
   const raw = String(order.value?.validUntil || "").trim()
   if (!raw) return false
-  const end = new Date(`${raw.slice(0, 10)}T23:59:59`)
+  const end = new Date(`${raw.slice(0, 10)}T23:59:59.999+04:00`)
   return !Number.isNaN(end.getTime()) && end.getTime() < Date.now()
 })
 const packageBookableServices = computed(() =>
@@ -1312,13 +1425,54 @@ const packageBookableServices = computed(() =>
     })
     .filter((item) => item.remaining > 0),
 )
-const canBookPackageVisit = computed(
+const packageCanSchedule = computed(
   () =>
     isPackageOrder.value &&
     rawStatus.value === 1 &&
+    order.value?.canFulfill !== false &&
     !packageExpired.value &&
     packageBookableServices.value.length > 0,
 )
+const packageVisitPlan = computed(() => buildPackageVisitProgress(
+  order.value?.packageItems ?? [],
+  order.value?.fulfillmentList ?? [],
+  packageCanSchedule.value,
+))
+const canBookPackageVisit = computed(
+  () => packageCanSchedule.value && !packageVisitRefreshNeeded.value,
+)
+const packageVisitLabel = (number: number) =>
+  locale.value.startsWith("zh") ? `第 ${number} 次` : `Visit ${number}`
+const scheduleVisitLabel = computed(() => {
+  const next = packageVisitPlan.value.next
+  const zh = locale.value.startsWith("zh")
+  if (next === null) return zh ? "预约上门" : "Schedule a visit"
+  return zh ? `预约第 ${next} 次` : `Schedule Visit ${next}`
+})
+const packageVisitStats = computed(() => {
+  const zh = locale.value.startsWith("zh")
+  const { completed, scheduled, available } = packageVisitPlan.value
+  return [
+    { state: "completed", label: zh ? "已完成" : "Completed", count: completed },
+    { state: "scheduled", label: zh ? "已预约" : "Scheduled", count: scheduled },
+    { state: "available", label: zh ? "可预约" : "Available", count: available },
+  ]
+})
+const visitStepLabel = (visit: ReturnType<typeof buildPackageVisitProgress>["rounds"][number]) => {
+  const zh = locale.value.startsWith("zh")
+  switch (visit.state) {
+    case "completed": return zh ? "已完成" : "Completed"
+    case "scheduled": return zh ? "已预约" : "Scheduled"
+    case "partial": return zh ? "部分已预约" : "Partly scheduled"
+    case "pending": return zh ? "待确认" : "Pending"
+    case "unavailable": return zh ? "不可预约" : "Unavailable"
+    case "available":
+      return visit.number === packageVisitPlan.value.next
+        ? zh ? "待预约" : "To be scheduled"
+        : zh ? "可预约" : "Available"
+  }
+}
+const packageVisitTrack = ref<HTMLOListElement | null>(null)
 const packageVisitLabels = {
   total: "client.orderList.visitTotal",
   completed: "client.orderList.visitCompleted",
@@ -1386,6 +1540,27 @@ const naturalSpecText = computed(() =>
 )
 const purchasedAttaches = computed(() =>
   readPurchasedAttachLines(order.value?.attachSelections, locale.value),
+)
+const addonChargeLines = computed(() =>
+  (order.value?.attachSelections || []).flatMap((item, index) => {
+    const addon = item.source === "ADDON" || item.addedAfterPay === true
+    if (!addon) return []
+    const withTax = Number(item.amountWithTax)
+    const withoutTax = Number(item.amountWithoutTax)
+    const amount = Number.isFinite(withTax) ? withTax : withoutTax
+    if (!Number.isFinite(amount)) return []
+    const name = i18nText(
+      item.attachValueNameI18n,
+      item.attachValueName || (locale.value.startsWith("zh") ? "附加服务" : "Extra service"),
+    )
+    const quantity = Number(item.quantity)
+    const titled = Number.isFinite(quantity) && quantity > 1 ? `${name} × ${quantity}` : name
+    return [{
+      key: `${item.addonPaymentId || item.attachValueId || "addon"}-${index}`,
+      label: locale.value.startsWith("zh") ? `加购 ${titled}` : `Extra ${titled}`,
+      amountText: formatAed(amount),
+    }]
+  }),
 )
 const attachQuantityText = (item: { quantity: number; unit: string }) => {
   if (item.quantity > 0 && item.unit) return `× ${item.quantity} ${item.unit}`
@@ -1639,17 +1814,7 @@ const addonAction = () =>
 const actions = computed(() => {
   if (rawStatus.value === 0) return []
   if (rawStatus.value === 1) {
-    if (isPackageOrder.value) {
-      return canBookPackageVisit.value
-        ? [
-            {
-              key: "book-visit",
-              label: locale.value.startsWith("zh") ? "预约上门" : "Book a visit",
-              tone: "primary",
-            },
-          ]
-        : []
-    }
+    if (isPackageOrder.value) return []
     return [
       ...addonAction(),
       {
@@ -1882,22 +2047,6 @@ const isRescheduleDateDisabled = (date: Date) => {
   const d = String(date.getDate()).padStart(2, "0")
   return `${y}-${m}-${d}` < minRescheduleDate.value
 }
-const localizedRescheduleDate = computed(() => {
-  const matched = /^(\d{4})-(\d{2})-(\d{2})$/.exec(rescheduleForm.serviceTime)
-  if (!matched)
-    return locale.value.startsWith("zh")
-      ? "请选择新的服务日期"
-      : "Choose a new service date"
-  const [, year, month, day] = matched
-  if (locale.value.startsWith("zh"))
-    return `${year}年${Number(month)}月${Number(day)}日`
-  return new Intl.DateTimeFormat("en-AE", {
-    year: "numeric",
-    month: "long",
-    day: "numeric",
-    timeZone: "UTC",
-  }).format(new Date(Date.UTC(Number(year), Number(month) - 1, Number(day))))
-})
 const selectableRescheduleTimeOptions = computed(() =>
   (rescheduleAvailableTimeRecords.value as AvailableTimeRecord[])
     .map((item) => {
@@ -1936,7 +2085,7 @@ const rescheduleTimePlaceholder = computed(() => {
 })
 const fetchRescheduleAvailableTimes = async () => {
   const serviceTime = rescheduleForm.serviceTime.trim()
-  const spuId = String(order.value?.spuId || "").trim()
+  const spuId = String(rescheduleForm.spuId || order.value?.spuId || "").trim()
   if (!serviceTime || !spuId) return
   const cacheKey = `${spuId}:${serviceTime}`
   if (
@@ -1981,6 +2130,10 @@ const openReschedule = () => {
   const rawSchedule = String(order.value?.serviceDateTime || "").trim()
   const dateMatch = /\d{4}-\d{2}-\d{2}/.exec(rawSchedule)
   const timeMatch = /(\d{2}:\d{2})\s*[-–]\s*(\d{2}:\d{2})/.exec(rawSchedule)
+  rescheduleForm.fulfillmentNo = ""
+  rescheduleForm.spuId = String(order.value?.spuId || "")
+  rescheduleForm.visitLabel = ""
+  rescheduleForm.summaryText = ""
   rescheduleForm.currentServiceDate = dateMatch?.[0] || ""
   rescheduleForm.currentTimeText = timeMatch
     ? `${timeMatch[1]}-${timeMatch[2]}`
@@ -1991,6 +2144,55 @@ const openReschedule = () => {
   lastLoadedRescheduleKey.value = ""
   rescheduleDialogVisible.value = true
   void fetchRescheduleAvailableTimes()
+}
+const openVisitReschedule = (visit: {
+  fulfillmentNo: string
+  spuId: string
+  visitLabel: string
+  scheduleText: string
+  serviceDate: string
+  currentTimeText: string
+}) => {
+  rescheduleForm.fulfillmentNo = visit.fulfillmentNo
+  rescheduleForm.spuId = visit.spuId
+  rescheduleForm.visitLabel = visit.visitLabel
+  rescheduleForm.summaryText = visit.scheduleText
+  rescheduleForm.currentServiceDate = visit.serviceDate
+  rescheduleForm.currentTimeText = visit.currentTimeText
+  rescheduleForm.serviceTime = visit.serviceDate
+  rescheduleForm.timeRange = null
+  rescheduleAvailableTimeRecords.value = []
+  lastLoadedRescheduleKey.value = ""
+  rescheduleDialogVisible.value = true
+  void fetchRescheduleAvailableTimes()
+}
+const cancelVisit = async (visit: { fulfillmentNo: string; visitLabel: string }) => {
+  if (!visit.fulfillmentNo || visitCancelling.value) return
+  const confirmed = window.confirm(
+    locale.value.startsWith("zh")
+      ? `取消${visit.visitLabel}？只取消这一次，次数会退回。`
+      : `Cancel ${visit.visitLabel}? Only this visit is cancelled, and its booking is released.`,
+  )
+  if (!confirmed) return
+  visitCancelling.value = visit.fulfillmentNo
+  try {
+    await cancelPackageFulfillment({
+      fulfillmentNo: visit.fulfillmentNo,
+      cancelReason: locale.value.startsWith("zh") ? "客户取消这次上门" : "Customer cancelled this visit",
+    })
+    ElMessage.success(
+      locale.value.startsWith("zh") ? "这次上门已取消" : "This visit has been cancelled",
+    )
+    const orderNo = String(route.params.orderNo || "").trim()
+    order.value = await loadOrderRecord(orderNo)
+  } catch (error: any) {
+    ElMessage.error(
+      error?.message ||
+        (locale.value.startsWith("zh") ? "取消失败，请稍后重试" : "Unable to cancel this visit."),
+    )
+  } finally {
+    visitCancelling.value = ""
+  }
 }
 const closeReschedule = () => {
   if (!isRescheduleSubmitting.value) rescheduleDialogVisible.value = false
@@ -2054,11 +2256,19 @@ const submitReschedule = async () => {
   }
   isRescheduleSubmitting.value = true
   try {
-    await rescheduleOrder({
-      orderNo: order.value?.orderNo || "",
-      serviceTime: rescheduleForm.serviceTime,
-      timeRange: rescheduleForm.timeRange,
-    })
+    if (rescheduleForm.fulfillmentNo) {
+      await reschedulePackageFulfillment({
+        fulfillmentNo: rescheduleForm.fulfillmentNo,
+        serviceDate: rescheduleForm.serviceTime,
+        timeRange: rescheduleForm.timeRange,
+      })
+    } else {
+      await rescheduleOrder({
+        orderNo: order.value?.orderNo || "",
+        serviceTime: rescheduleForm.serviceTime,
+        timeRange: rescheduleForm.timeRange,
+      })
+    }
     rescheduleDialogVisible.value = false
     ElMessage.success(
       locale.value.startsWith("zh")
@@ -2203,6 +2413,7 @@ const submitCancellation = async () => {
 
 const bookVisitVisible = ref(false)
 const bookVisitSubmitting = ref(false)
+const packageVisitRefreshNeeded = ref(false)
 const bookTimeLoading = ref(false)
 const bookTimeError = ref("")
 const bookTimeOptions = ref<
@@ -2313,6 +2524,7 @@ watch(bookTimeContextKey, (key) => {
 }, { flush: "sync" })
 watch(() => route.params.orderNo, () => {
   bookVisitVisible.value = false
+  packageVisitRefreshNeeded.value = false
   clearBookAvailableTimes()
   clearBookContact()
 }, { flush: "sync" })
@@ -2361,6 +2573,28 @@ const closeBookVisit = () => {
   if (!bookVisitSubmitting.value) {
     bookVisitVisible.value = false
     clearBookAvailableTimes()
+  }
+}
+const refreshPackageVisits = async (orderNo: string) => {
+  try {
+    const detail = await getClientOrderDetail(orderNo)
+    if (String(route.params.orderNo || "").trim() !== orderNo) return
+    if (detail && String(detail.orderNo || "").trim() === orderNo && Array.isArray(detail.fulfillmentList)) {
+      order.value = detail
+      packageVisitRefreshNeeded.value = false
+    }
+  } catch (error) {
+    console.warn("refresh booked package visits failed:", error)
+  }
+}
+const retryPackageVisitRefresh = async () => {
+  const orderNo = String(route.params.orderNo || "").trim()
+  if (!orderNo || bookVisitSubmitting.value || !packageVisitRefreshNeeded.value) return
+  bookVisitSubmitting.value = true
+  try {
+    await refreshPackageVisits(orderNo)
+  } finally {
+    bookVisitSubmitting.value = false
   }
 }
 const submitBookVisit = async () => {
@@ -2432,8 +2666,9 @@ const submitBookVisit = async () => {
         ? `已预约上门${fulfillmentNo ? `：${fulfillmentNo}` : ""}`
         : `Visit booked${fulfillmentNo ? `: ${fulfillmentNo}` : ""}`,
     )
+    packageVisitRefreshNeeded.value = true
     bookVisitVisible.value = false
-    await reloadCurrentOrder()
+    await refreshPackageVisits(orderNo)
   } catch (error: any) {
     ElMessage.error(
       error?.message ||
@@ -2482,10 +2717,18 @@ const runAction = (action: string) => {
     openReschedule()
     return
   }
-  if (action === "book-visit") {
-    openBookVisit()
-  }
 }
+
+watch([packageVisitTrack, () => packageVisitPlan.value.next], ([track]) => {
+  const step = track?.querySelector<HTMLElement>('[aria-current="step"]')
+  if (!track || !step) return
+  const left = step.offsetLeft
+  const right = left + step.offsetWidth
+  if (left < track.scrollLeft) track.scrollLeft = left
+  if (right > track.scrollLeft + track.clientWidth) {
+    track.scrollLeft = right - track.clientWidth
+  }
+}, { flush: "post" })
 
 onMounted(async () => {
   try {
@@ -2539,6 +2782,8 @@ onMounted(async () => {
 </script>
 
 <style scoped lang="scss">
+@use '../style/booking-schedule' as schedule;
+
 .client-order-detail {
   min-height: 100vh;
   padding: 48px 24px 110px;
@@ -2549,7 +2794,16 @@ onMounted(async () => {
   width: min(1152px, 100%);
   margin: 0 auto;
 }
+.client-order-detail__navigation {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 12px;
+}
 .client-order-detail__back {
+  min-width: 0;
+  min-height: 44px;
   padding: 0;
   border: 0;
   background: transparent;
@@ -2561,6 +2815,10 @@ onMounted(async () => {
 .client-order-detail__back span {
   margin-right: 8px;
   font-size: 20px;
+}
+.client-order-detail__back:focus-visible {
+  outline: 2px solid var(--hourx-client-text);
+  outline-offset: 3px;
 }
 .client-order-detail__hero {
   margin-top: 20px;
@@ -2600,6 +2858,8 @@ onMounted(async () => {
   display: grid;
   justify-items: end;
   gap: 14px;
+  min-width: 0;
+  max-width: 100%;
 }
 .client-order-detail__status {
   padding: 9px 14px;
@@ -2794,6 +3054,7 @@ onMounted(async () => {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 8px;
   padding-bottom: 14px;
   border-bottom: 1px solid #edf1f5;
   color: var(--hourx-client-text);
@@ -2803,19 +3064,146 @@ onMounted(async () => {
 .client-order-detail__section-title strong {
   color: #1769c2;
 }
-.client-order-detail__section-actions {
-  display: flex;
-  align-items: center;
-  gap: 10px;
+.client-order-detail__section-title.client-order-detail__visits-header {
+  display: block;
+  padding-bottom: 0;
+  border-bottom: 0;
+}
+.client-order-detail__visits-header h2 {
+  margin: 0 0 5px;
+  font: 700 var(--hourx-client-size-card)/1.3 var(--hourx-client-heading-font);
+}
+.client-order-detail__visit-count {
+  margin: 0;
+  color: var(--hourx-client-muted);
+  font-size: 0.875rem;
+  font-weight: 500;
+  line-height: 1.45;
+}
+.client-order-detail__visit-progress {
+  display: grid;
+  gap: 18px;
+  margin-top: 16px;
+}
+.client-order-detail__visit-stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin: 0;
+}
+.client-order-detail__visit-stats > div {
+  min-width: 0;
+  padding: 9px 10px;
+  border-radius: 10px;
+  background: #f8f3e9;
+  color: #7a5e2c;
+}
+.client-order-detail__visit-stats > .is-completed {
+  background: #eaf5ef;
+  color: #177151;
+}
+.client-order-detail__visit-stats > .is-scheduled {
+  background: #eef4fb;
+  color: #245c86;
+}
+.client-order-detail__visit-stats dt {
+  font-size: 0.75rem;
+  font-weight: 700;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+.client-order-detail__visit-stats dd {
+  margin: 3px 0 0;
+  color: var(--hourx-client-text);
+  font-size: 1.25rem;
+  font-weight: 800;
+  line-height: 1.2;
+}
+.client-order-detail__visit-track {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(var(--visit-count), minmax(4.625rem, 1fr));
+  align-items: start;
+  margin: 0;
+  padding: 1px 0 6px;
+  overflow-x: auto;
+  list-style: none;
+}
+.client-order-detail__visit-step {
+  position: relative;
+  display: grid;
+  justify-items: center;
+  gap: 3px;
+  min-width: 0;
+  padding: 0 3px;
+  text-align: center;
+}
+.client-order-detail__visit-step:not(:last-child)::before {
+  position: absolute;
+  top: calc(1rem - 1px);
+  left: 50%;
+  width: 100%;
+  height: 2px;
+  background: #dce2e8;
+  content: "";
+}
+.client-order-detail__visit-step.is-completed:not(:last-child)::before {
+  background: #18815d;
+}
+.client-order-detail__visit-step-marker {
+  z-index: 1;
+  display: grid;
+  place-items: center;
+  min-width: 2rem;
+  height: 2rem;
+  margin-bottom: 3px;
+  padding: 0 4px;
+  border: 1px solid #c7d0da;
+  border-radius: 999px;
+  background: #fff;
+  color: var(--hourx-client-muted);
+  font-size: 0.75rem;
+  font-weight: 800;
+}
+.client-order-detail__visit-step.is-completed .client-order-detail__visit-step-marker {
+  border-color: #18815d;
+  background: #18815d;
+  color: #fff;
+}
+.client-order-detail__visit-step.is-scheduled .client-order-detail__visit-step-marker {
+  border-color: #80a8cc;
+  background: #eef4fb;
+  color: #245c86;
+}
+.client-order-detail__visit-step.is-next .client-order-detail__visit-step-marker {
+  border: 2px solid var(--hourx-client-text);
+  color: var(--hourx-client-text);
+}
+.client-order-detail__visit-step strong {
+  color: var(--hourx-client-text);
+  font-size: 0.8125rem;
+}
+.client-order-detail__visit-step small {
+  color: var(--hourx-client-muted);
+  font-size: 0.75rem;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+.client-order-detail__visit-actions {
+  display: grid;
+  gap: 8px;
+}
+.client-order-detail__visit-actions:not(:empty) {
+  margin-top: 12px;
 }
 .client-order-detail__book-visit {
-  height: 32px;
-  padding: 0 12px;
+  @include schedule.primary-action;
+  width: 100%;
   border: 0;
-  border-radius: 999px;
-  background: #1769c2;
+  border-radius: 0.625rem;
+  background: var(--hourx-client-text);
   color: #fff;
-  font-size: 13px;
+  font-size: 0.875rem;
   font-weight: 700;
   cursor: pointer;
 }
@@ -2831,8 +3219,7 @@ onMounted(async () => {
   list-style: none;
 }
 .client-order-detail__book-dialog {
-  max-height: calc(100dvh - 36px);
-  overflow-y: auto;
+  max-width: 520px;
 }
 .client-order-detail__book-services li {
   padding: 12px;
@@ -2894,24 +3281,17 @@ onMounted(async () => {
 }
 .client-order-detail__book-field select,
 .client-order-detail__book-field input,
-.client-order-detail__reschedule-grid input {
-  width: 100%;
-  min-height: 40px;
-  box-sizing: border-box;
-  padding: 0 10px;
-  border: 1px solid #d6e0ea;
-  border-radius: 10px;
-  outline: none;
-  background: #fff;
-  color: #05152b;
-  font: inherit;
-  font-size: 13px;
+.client-order-detail__reschedule-grid input,
+.client-order-detail__reschedule-grid select {
+  @include schedule.control;
 }
-.client-order-detail__book-field select:focus,
-.client-order-detail__book-field input:focus,
-.client-order-detail__reschedule-grid input:focus {
-  border-color: #1769c2;
-  box-shadow: 0 0 0 3px rgba(23, 105, 194, 0.1);
+.client-order-detail__book-field select,
+.client-order-detail__reschedule-grid select {
+  @include schedule.select-indicator;
+}
+.client-order-detail__native-date::-webkit-date-and-time-value {
+  text-align: start;
+  min-height: 1.25em;
 }
 .client-order-detail__book-lock {
   margin: 0 0 14px;
@@ -2953,32 +3333,32 @@ onMounted(async () => {
   background: linear-gradient(145deg, #ffffff, #fbfcfe);
 }
 .client-order-detail__fulfillment-card > header {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 12px;
+  display: grid;
+  gap: 9px;
 }
-.client-order-detail__fulfillment-identity {
+.client-order-detail__fulfillment-badges {
   min-width: 0;
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 10px;
+  justify-content: space-between;
+  gap: 6px;
 }
-.client-order-detail__fulfillment-identity > span {
+.client-order-detail__visit-number {
   min-width: 48px;
-  height: 28px;
-  padding: 0 8px;
+  min-height: 24px;
+  padding: 4px 9px;
   border-radius: 999px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   background: #fbf1df;
   color: #9a6510;
-  font-size: 10px;
-  font-weight: 900;
-  white-space: nowrap;
+  font-size: 0.6875rem;
+  font-weight: 800;
+  line-height: 1.35;
 }
-.client-order-detail__fulfillment-identity div {
+.client-order-detail__fulfillment-identity {
   min-width: 0;
 }
 .client-order-detail__fulfillment-identity h3 {
@@ -2986,25 +3366,28 @@ onMounted(async () => {
   color: #17263b;
   font-size: 14px;
   line-height: 1.35;
+  overflow-wrap: anywhere;
 }
 .client-order-detail__fulfillment-identity small {
   display: block;
   margin-top: 3px;
-  color: #9aa6b5;
-  font-size: 10px;
+  color: var(--hourx-client-muted);
+  font-size: 0.6875rem;
   overflow-wrap: anywhere;
 }
 .client-order-detail__fulfillment-status {
-  min-height: 23px;
-  padding: 3px 9px;
+  min-height: 24px;
+  max-width: 100%;
+  padding: 4px 9px;
   border-radius: 999px;
   display: inline-flex;
   align-items: center;
   background: #eaf3fd;
   color: #1769c2;
-  font-size: 10px;
-  font-weight: 900;
-  white-space: nowrap;
+  font-size: 0.6875rem;
+  font-weight: 800;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
 }
 .client-order-detail__fulfillment-status.is-progress {
   background: #fff4d6;
@@ -3052,8 +3435,8 @@ onMounted(async () => {
   gap: 2px;
 }
 .client-order-detail__fulfillment-facts small {
-  color: #94a3b8;
-  font-size: 10px;
+  color: var(--hourx-client-muted);
+  font-size: 0.6875rem;
   font-weight: 700;
 }
 .client-order-detail__fulfillment-facts strong {
@@ -3070,6 +3453,7 @@ onMounted(async () => {
   color: #64748b;
   font-size: 11px;
   line-height: 1.45;
+  overflow-wrap: anywhere;
 }
 .client-order-detail__fulfillment-note b {
   margin-right: 6px;
@@ -3079,20 +3463,53 @@ onMounted(async () => {
   background: #f5f6f8;
   color: #6b7280;
 }
-.client-order-detail__service-main {
-  padding-top: 18px;
+.client-order-detail__visit-actions {
   display: flex;
-  gap: 18px;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+.client-order-detail__visit-actions button {
+  min-width: 0;
+  min-height: 44px;
+  padding: 6px 14px;
+  border: 1px solid #d5dee8;
+  border-radius: 11px;
+  background: #fff;
+  color: #1e293b;
+  font-weight: 800;
+  cursor: pointer;
+  overflow-wrap: anywhere;
+}
+.client-order-detail__visit-actions button.is-danger {
+  border-color: #fecaca;
+  color: #b91c1c;
+}
+.client-order-detail__visit-actions button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+.client-order-detail__service-main {
+  padding-top: 16px;
+  display: flex;
+  align-items: center;
+  gap: 13px;
+}
+.client-order-detail__service-main > div {
+  min-width: 0;
 }
 .client-order-detail__service-main img {
   width: 110px;
   height: 88px;
   border-radius: 14px;
   object-fit: cover;
+  flex: none;
 }
 .client-order-detail__service-main h2 {
-  margin: 2px 0 10px;
+  margin: 0;
   font-size: 20px;
+  line-height: 1.3;
+  overflow-wrap: anywhere;
 }
 .client-order-detail__service-main p {
   margin: 5px 0;
@@ -3101,10 +3518,16 @@ onMounted(async () => {
   line-height: 1.55;
 }
 .client-order-detail__service-description {
-  margin: 5px 0;
+  margin: 12px 0 0;
+  max-width: 72ch;
   color: #64748b;
   font-size: 13px;
-  line-height: 1.55;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+.client-order-detail__service-description :deep(img) {
+  max-width: 100%;
+  height: auto;
 }
 .client-order-detail__service-description :deep(p) {
   margin: 0 0 6px;
@@ -3116,12 +3539,27 @@ onMounted(async () => {
   color: #1769c2;
   font-weight: 800;
 }
-.client-order-detail__service-main b {
-  margin-right: 8px;
-  color: #334155;
+.client-order-detail__package-items {
+  display: grid;
+  gap: 8px;
+  margin: 12px 0 0;
+  padding: 0;
+  list-style: none;
+  font-size: 13px;
+}
+.client-order-detail__package-items li {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 4px 12px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: var(--hourx-client-canvas);
+  color: #475569;
+  overflow-wrap: anywhere;
 }
 .client-order-detail__attaches {
-  margin-top: 8px;
+  margin-top: 12px;
 }
 .client-order-detail__attaches b {
   display: block;
@@ -3207,6 +3645,7 @@ onMounted(async () => {
   color: #1769c2;
 }
 .client-order-detail__facts dd {
+  min-width: 0;
   margin: 0;
   display: flex;
   flex-direction: column;
@@ -3230,6 +3669,9 @@ onMounted(async () => {
   gap: 14px;
   border-bottom: 1px solid #f0f3f6;
 }
+.client-order-detail__info-list dt {
+  overflow-wrap: anywhere;
+}
 .client-order-detail__info-list dd {
   margin: 0;
   color: var(--hourx-client-text);
@@ -3249,20 +3691,44 @@ onMounted(async () => {
   grid-column: 1 / -1;
   padding-bottom: 4px;
 }
-.client-order-detail__price-lines table {
+.client-order-detail__price-lines table,
+.client-order-detail__price-lines tbody,
+.client-order-detail__price-lines tr,
+.client-order-detail__price-lines td {
+  display: block;
   width: 100%;
+}
+.client-order-detail__price-lines thead {
+  display: none;
+}
+.client-order-detail__price-lines table {
   border-collapse: collapse;
   font-size: 13px;
 }
-.client-order-detail__price-lines th,
-.client-order-detail__price-lines td {
+.client-order-detail__price-lines tr {
   padding: 8px 0;
   border-bottom: 1px solid #e7edf3;
+}
+.client-order-detail__price-lines td {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 2px 0;
+  border: 0;
   text-align: right;
 }
-.client-order-detail__price-lines th:first-child,
-.client-order-detail__price-lines td:first-child {
+.client-order-detail__price-lines td::before {
+  content: attr(data-label);
+  color: #6b7a90;
+  font-weight: 600;
   text-align: left;
+}
+.client-order-detail__price-lines td:first-child {
+  font-weight: 700;
+  text-align: left;
+}
+.client-order-detail__price-lines td:first-child::before {
+  content: none;
 }
 .client-order-detail__price-lines th {
   color: #6b7a90;
@@ -3358,12 +3824,14 @@ onMounted(async () => {
   background: #edf5ff;
 }
 .client-order-detail__cart-bar div {
+  min-width: 0;
   display: flex;
   flex-direction: column;
   gap: 2px;
 }
 .client-order-detail__cart-bar strong {
   font-size: 13px;
+  overflow-wrap: anywhere;
 }
 .client-order-detail__cart-bar small {
   color: #7b8797;
@@ -3412,7 +3880,7 @@ onMounted(async () => {
   position: fixed;
   inset: 0;
   z-index: 1000;
-  padding: 18px;
+  padding: max(1rem, env(safe-area-inset-top)) 1rem max(1rem, env(safe-area-inset-bottom));
   display: grid;
   place-items: center;
   background: rgba(5, 21, 43, 0.62);
@@ -3421,6 +3889,10 @@ onMounted(async () => {
 .client-order-detail__review-dialog {
   position: relative;
   width: min(460px, 100%);
+  max-height: 100%;
+  box-sizing: border-box;
+  overflow-y: auto;
+  overscroll-behavior: contain;
   padding: 30px;
   border-radius: 22px;
   background: #fff;
@@ -3429,15 +3901,16 @@ onMounted(async () => {
 }
 .client-order-detail__review-close {
   position: absolute;
-  top: 13px;
-  right: 15px;
-  width: 34px;
-  height: 34px;
+  inset: 10px 12px auto auto;
+  width: 44px;
+  height: 44px;
+  padding: 0;
   border: 0;
   border-radius: 50%;
   background: #f1f5f9;
   color: #475569;
   font-size: 24px;
+  line-height: 1;
   cursor: pointer;
 }
 .client-order-detail__review-kicker {
@@ -3673,7 +4146,7 @@ onMounted(async () => {
 }
 @media (max-width: 720px) {
   .client-order-detail {
-    padding: 14px 14px 108px;
+    padding: 14px 14px max(24px, env(safe-area-inset-bottom));
   }
   .client-order-detail__hero {
     margin-top: 10px;
@@ -3747,7 +4220,7 @@ onMounted(async () => {
     padding: 0 10px;
   }
   .client-order-detail__review-dialog {
-    padding: 28px 20px 22px;
+    padding: 22px 16px 18px;
   }
   .client-order-detail__cancel-reasons {
     grid-template-columns: 1fr;
@@ -3757,41 +4230,42 @@ onMounted(async () => {
     grid-template-columns: 1fr 1fr;
   }
   .client-order-detail__cart-bar {
-    bottom: 10px;
+    position: static;
+    width: min(720px, 100%);
+    transform: none;
+    margin: 16px auto 0;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    gap: 8px;
+    box-sizing: border-box;
+    border: 1px solid var(--hourx-client-border);
+    box-shadow: none;
   }
   .client-order-detail__cart-bar small {
     display: none;
   }
   .client-order-detail__cart-bar button {
-    min-height: 40px;
-    padding: 0 12px;
+    min-height: 44px;
+    padding: 4px 10px;
     font-size: 11px;
-  }
-  .client-order-detail__reschedule-dialog {
-    padding: 28px 20px 22px;
-  }
-  .client-order-detail__reschedule-grid {
-    grid-template-columns: 1fr;
-    gap: 12px;
-  }
-  .client-order-detail__reschedule-actions {
-    flex-direction: column-reverse;
-    align-items: stretch;
-    gap: 8px;
-  }
-  .client-order-detail__reschedule-actions .client-order-detail__review-submit {
-    width: 100%;
-  }
-  .client-order-detail__reschedule-cancel {
-    text-align: center;
-    padding: 8px 0;
   }
 }
 
 /* Reschedule dialog styles */
 .client-order-detail__reschedule-dialog {
-  max-width: 520px;
+  width: min(520px, 100%);
+  max-height: calc(100dvh - 2rem - env(safe-area-inset-top) - env(safe-area-inset-bottom));
   text-align: left;
+}
+.client-order-detail__reschedule-dialog > .client-order-detail__review-kicker,
+.client-order-detail__reschedule-dialog > h2 {
+  display: block;
+  padding-inline-end: 46px;
+  overflow-wrap: anywhere;
+}
+.client-order-detail__reschedule-dialog > h2 {
+  margin: 8px 0 16px;
+  font-size: clamp(1.25rem, 5vw, 1.625rem);
+  line-height: 1.2;
 }
 .client-order-detail__reschedule-summary {
   display: flex;
@@ -3802,6 +4276,7 @@ onMounted(async () => {
   border-radius: 14px;
   background: linear-gradient(135deg, #edf5ff 0%, #f9fbfe 100%);
   margin-bottom: 16px;
+  overflow-wrap: anywhere;
 }
 .client-order-detail__reschedule-summary span {
   color: #05152b;
@@ -3819,43 +4294,30 @@ onMounted(async () => {
 .client-order-detail__reschedule-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 14px;
+  align-items: end;
+  gap: 12px;
   margin-bottom: 14px;
+
+  @media (max-width: 36rem) {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 .client-order-detail__reschedule-grid label {
   display: flex;
   flex-direction: column;
   gap: 6px;
   min-width: 0;
-  overflow: visible;
 }
 .client-order-detail__reschedule-grid span {
   color: #334155;
-  font-size: 12px;
+  font-size: 0.8125rem;
   font-weight: 750;
-}
-.client-order-detail__reschedule-grid select {
-  width: 100%;
-  min-height: 40px;
-  box-sizing: border-box;
-  padding: 0 10px;
-  border: 1px solid #d6e0ea;
-  border-radius: 10px;
-  outline: none;
-  background: #fff;
-  color: #05152b;
-  font: inherit;
-  font-size: 13px;
-}
-.client-order-detail__reschedule-grid select:focus {
-  border-color: #1769c2;
-  box-shadow: 0 0 0 3px rgba(23, 105, 194, 0.1);
 }
 .client-order-detail__reschedule-date {
   width: 100% !important;
 }
 .client-order-detail__reschedule-date :deep(.el-input__wrapper) {
-  min-height: 40px;
+  min-height: 3rem;
   box-sizing: border-box;
   border-radius: 10px;
   box-shadow: 0 0 0 1px #d6e0ea inset;
@@ -3865,41 +4327,35 @@ onMounted(async () => {
     0 0 0 1px #1769c2 inset,
     0 0 0 3px rgba(23, 105, 194, 0.1);
 }
-.client-order-detail__reschedule-date-hint {
-  color: #64748b;
-  font-size: 11px;
-  line-height: 1.4;
-  margin-top: 2px;
-  position: relative;
-  z-index: 1;
-}
 .client-order-detail__reschedule-note {
   margin: 0 0 16px;
   color: #64748b;
-  font-size: 11px;
+  font-size: 0.75rem;
   line-height: 1.5;
 }
 .client-order-detail__reschedule-actions {
-  display: flex;
-  justify-content: flex-end;
-  align-items: center;
-  gap: 10px;
+  display: grid;
+  gap: 4px;
+  margin-top: 16px;
+}
+.client-order-detail__reschedule-actions .client-order-detail__review-submit {
+  @include schedule.primary-action;
+  margin-top: 0;
 }
 .client-order-detail__reschedule-cancel {
-  background: none;
-  border: none;
-  color: rgba(15, 23, 42, 0.38);
-  font-size: 12px;
-  font-weight: 500;
+  justify-self: center;
+  min-height: 44px;
+  padding: 4px 12px;
+  border: 0;
+  background: transparent;
+  color: #526176;
+  font-size: 0.8125rem;
+  font-weight: 600;
   cursor: pointer;
-  padding: 0;
-  text-decoration: underline;
   text-underline-offset: 3px;
-  flex-shrink: 0;
-  white-space: nowrap;
 }
 .client-order-detail__reschedule-cancel:hover {
-  color: rgba(15, 23, 42, 0.55);
+  text-decoration: underline;
 }
 .client-order-detail__reschedule-cancel:disabled {
   cursor: not-allowed;

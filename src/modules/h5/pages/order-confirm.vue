@@ -1,11 +1,16 @@
 <template>
   <div class="h5-order-page">
     <header class="h5-order-topbar">
-      <button class="h5-order-topbar__back" type="button" @click="goBack">
-        <van-icon name="arrow-left" />
+      <button
+        class="h5-order-topbar__back"
+        type="button"
+        :aria-label="t('h5.common.back')"
+        @click="goBack"
+      >
+        <van-icon name="arrow-left" aria-hidden="true" />
       </button>
       <h1>{{ t("client.orderConfirm.pageTitle") }}</h1>
-      <span class="h5-order-topbar__spacer" />
+      <HomeReturn />
     </header>
 
     <main
@@ -200,12 +205,25 @@
             <em>{{ formatAed(summaryServiceAmount) }}</em>
           </div>
         </div>
+        <CheckoutPromoRow
+          v-if="canEditPromo"
+          v-model="promoCode"
+          class="h5-order-summary__promo"
+          ticket
+          :loading="promoLoading"
+          :error="promoError"
+          :applied-code="voucherCode"
+          :discount="voucherDiscount"
+          @update:model-value="promoCode = $event; promoError = ''"
+          @apply="applyCheckoutPromo"
+          @remove="removeCheckoutPromo"
+        />
         <div class="h5-order-summary__prices">
           <div>
             <span>{{ t("client.orderConfirm.summary.subtotal") }}</span>
             <span>{{ formatAed(subtotal) }}</span>
           </div>
-          <div v-if="voucherDiscount > 0" class="h5-order-summary__voucher">
+          <div v-if="!canEditPromo && voucherDiscount > 0" class="h5-order-summary__voucher">
             <span>{{ voucherLabel }}</span>
             <span>-{{ formatAed(voucherDiscount) }}</span>
           </div>
@@ -320,6 +338,7 @@
             <div class="h5-order-input">
               <van-icon name="clock-o" />
               <select
+                class="h5-order-input__slot"
                 v-model="form.timeRange"
                 @mousedown="handleServiceTimeOpen"
               >
@@ -377,7 +396,7 @@
       <button
         class="h5-order-footer__submit"
         type="button"
-        :disabled="isSubmitting"
+        :disabled="isSubmitting || promoLoading"
         @click="handleConfirm"
       >
         <span>{{
@@ -717,8 +736,12 @@ import {
   type LatestAddressRecord,
   getAvailableSelectTime,
   createPay,
+  applyOrderCoupon,
   type CartSkuDetail,
+  type OrderCouponCheckoutResult,
 } from "@/modules/client/api"
+import CheckoutPromoRow from "@/modules/client/components/CheckoutPromoRow.vue"
+import HomeReturn from "@/modules/h5/components/HomeReturn.vue"
 import { useCart } from "@/modules/client/composables/useCart"
 import { setClientLocale } from "@/modules/client/locales"
 import AgreementDialog from "@/modules/client/components/agreement-dialog.vue"
@@ -872,6 +895,9 @@ onScopeDispose(() => { availableTimesRequestSeq += 1 })
 const agreedPolicy = ref(false)
 const policyPopupVisible = ref(false)
 const isSubmitting = ref(false)
+const promoCode = ref("")
+const promoLoading = ref(false)
+const promoError = ref("")
 const isLocating = ref(false)
 const locationLookupUsed = ref(false)
 const addressList = ref<ClientAddressRecord[]>([])
@@ -1585,15 +1611,15 @@ const serviceTimePlaceholder = computed(() => {
       : "Included services are unavailable")
   }
   if (!normalizeText(form.serviceDate)) {
-    return locale.value === "zh" ? "请先选择日期" : "Please select a date first"
+    return locale.value === "zh" ? "请先选择日期" : "Set date first"
   }
   if (isTimeOptionsLoading.value) {
-    return locale.value === "zh" ? "时间加载中..." : "Loading times..."
+    return locale.value === "zh" ? "时间加载中..." : "Loading times…"
   }
   if (!selectableTimeOptions.value.length) {
-    return locale.value === "zh" ? "暂无可选时间" : "No available times"
+    return locale.value === "zh" ? "暂无可选时间" : "No times available"
   }
-  return locale.value === "zh" ? "请选择时间" : "Please select time"
+  return locale.value === "zh" ? "请选择时间" : "Select time"
 })
 
 const clearAvailableTimes = (clearPendingRange = true) => {
@@ -1825,6 +1851,7 @@ const editingCartItemId = computed(() => getQueryText("cartItemId"))
 const isCartMode = computed(() =>
   ["cart", "cart-edit"].includes(getQueryText("mode")),
 )
+const canEditPromo = computed(() => !isCartMode.value && orderId.value !== null)
 const cartSkuDetail = computed(() =>
   parseQueryJson<CartSkuDetail | null>("cartSkuDetail", null),
 )
@@ -2603,7 +2630,75 @@ const submitBooking = async () => {
   }
 }
 
+const moneyText = (value: unknown) => {
+  const numeric = Number(value)
+  return Number.isFinite(numeric) ? numeric.toFixed(2) : "0.00"
+}
+
+const syncPromoTotals = async (result: OrderCouponCheckoutResult | null) => {
+  if (!result) {
+    throw new Error(t("client.productDetail.booking.createOrderFailed"))
+  }
+  const nextQuery: Record<string, string> = {}
+  Object.entries(route.query).forEach(([key, value]) => {
+    if (key === "couponCode" || key === "couponDiscount") return
+    const text = Array.isArray(value) ? value[0] : value
+    if (typeof text === "string") nextQuery[key] = text
+  })
+  nextQuery.subtotal = moneyText(result.amountWithoutTax)
+  nextQuery.tax = moneyText(result.taxAmount)
+  nextQuery.total = moneyText(result.amountWithTax)
+  const code = String(result.couponCode || "").trim()
+  const discount = Number(result.discountAmount || 0)
+  if (code && discount > 0) {
+    nextQuery.couponCode = code
+    nextQuery.couponDiscount = moneyText(discount)
+  }
+  promoCode.value = ""
+  await router.replace({ query: nextQuery })
+}
+
+const applyCheckoutPromo = async () => {
+  if (promoLoading.value || orderId.value === null) return
+  const code = promoCode.value.trim()
+  if (!code) {
+    promoError.value = t("client.orderConfirm.summary.promoPlaceholder")
+    return
+  }
+  promoLoading.value = true
+  promoError.value = ""
+  try {
+    await syncPromoTotals(await applyOrderCoupon(orderId.value, code))
+  } catch (error: unknown) {
+    promoError.value = promoFailure(error)
+  } finally {
+    promoLoading.value = false
+  }
+}
+
+const removeCheckoutPromo = async () => {
+  if (promoLoading.value || orderId.value === null) return
+  promoLoading.value = true
+  promoError.value = ""
+  try {
+    await syncPromoTotals(await applyOrderCoupon(orderId.value, ""))
+  } catch (error: unknown) {
+    promoError.value = promoFailure(error)
+  } finally {
+    promoLoading.value = false
+  }
+}
+
+const promoFailure = (error: unknown) => {
+  const message = error instanceof Error ? error.message.trim() : ""
+  if (!message || /request failed|network error|timeout/i.test(message)) {
+    return t("client.orderConfirm.summary.promoUnavailable")
+  }
+  return message
+}
+
 const handleConfirm = () => {
+  if (promoLoading.value) return
   const validationMessage = getValidationMessage()
   if (validationMessage) {
     showFailToast(validationMessage)
@@ -2661,8 +2756,10 @@ onMounted(async () => {
 <style scoped lang="scss">
 .h5-order-page {
   min-height: 100vh;
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
   background: #f3f5f7;
-  padding-bottom: calc(118px + env(safe-area-inset-bottom));
   color: #172033;
 }
 
@@ -2670,43 +2767,47 @@ onMounted(async () => {
   position: sticky;
   top: 0;
   z-index: 20;
-  height: 52px;
-  padding: 0 12px;
+  min-height: 3.25rem;
+  padding: 0.25rem 0.75rem;
   display: grid;
-  grid-template-columns: 40px 1fr 40px;
+  grid-template-columns: 2.75rem minmax(0, 1fr) auto;
+  column-gap: 0.375rem;
   align-items: center;
   background: rgba(243, 245, 247, 0.92);
   backdrop-filter: blur(16px);
 }
 
-.h5-order-topbar__back,
-.h5-order-topbar__spacer {
-  width: 44px;
-  height: 44px;
-}
-
 .h5-order-topbar__back {
+  width: 2.75rem;
+  height: 2.75rem;
   border: 0;
   background: transparent;
   color: #172033;
   display: inline-flex;
   align-items: center;
-  justify-content: flex-start;
+  justify-content: center;
   font-size: 22px;
+}
+
+.h5-order-topbar__back:focus-visible {
+  outline: 2px solid #2e6195;
+  outline-offset: 2px;
 }
 
 .h5-order-topbar h1 {
   margin: 0;
   text-align: center;
   color: #172033;
-  font-size: 17px;
+  font-size: clamp(1rem, 4.25vw, 1.0625rem);
   font-weight: 800;
+  line-height: 1.2;
   letter-spacing: -0.02em;
+  overflow-wrap: anywhere;
 }
 
 .h5-order-main {
   width: 100%;
-  max-width: 560px;
+  max-width: 35rem;
   margin: 0 auto;
   padding: 4px 12px 18px;
   box-sizing: border-box;
@@ -3018,6 +3119,10 @@ onMounted(async () => {
   font-weight: 500;
 }
 
+.h5-order-summary__promo {
+  margin-top: 12px;
+}
+
 .h5-order-summary__voucher span:last-child { color: #0f7a4a; }
 .h5-order-summary__prices > .h5-order-summary__total {
   margin-top: 2px;
@@ -3044,7 +3149,7 @@ onMounted(async () => {
 }
 
 .h5-order-grid--two {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 10.5rem), 1fr));
 }
 
 .h5-order-stack {
@@ -3057,6 +3162,7 @@ onMounted(async () => {
   display: flex;
   flex-direction: column;
   gap: 6px;
+  min-width: 0;
 }
 
 .h5-order-field__label {
@@ -3628,14 +3734,14 @@ onMounted(async () => {
 }
 
 .h5-order-input {
-  min-height: 48px;
+  min-height: 3rem;
   border: 1px solid transparent;
   border-radius: 12px;
   background: #f5f7f9;
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 0 13px;
+  gap: 0.5rem;
+  padding: 0 0.625rem;
   transition:
     border-color 0.18s ease,
     background-color 0.18s ease,
@@ -3667,9 +3773,19 @@ onMounted(async () => {
   font-weight: 500;
 }
 
+.h5-order-input input[readonly],
+.h5-order-input__slot {
+  min-height: 2.75rem;
+  font-size: 0.875rem;
+}
+
 .h5-order-input input::placeholder,
 .h5-order-input textarea::placeholder {
   color: #90a1b9;
+}
+
+.h5-order-input__slot {
+  text-overflow: ellipsis;
 }
 
 .h5-order-input--textarea {
@@ -3695,14 +3811,11 @@ onMounted(async () => {
 }
 
 .h5-order-footer {
-  position: fixed;
-  left: 50%;
-  right: auto;
+  position: sticky;
   bottom: 0;
   z-index: 24;
-  width: min(100%, 560px);
-  transform: translateX(-50%);
-  box-sizing: border-box;
+  width: min(100%, 35rem);
+  margin: auto auto 0;
   background: rgba(255, 255, 255, 0.97);
   border: 1px solid rgba(224, 229, 236, 0.8);
   border-bottom: 0;
@@ -3711,7 +3824,7 @@ onMounted(async () => {
   backdrop-filter: blur(18px);
   padding: 10px 12px calc(9px + env(safe-area-inset-bottom));
   display: grid;
-  grid-template-columns: minmax(92px, 0.75fr) minmax(205px, 1.6fr);
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.7fr);
   gap: 4px 12px;
   align-items: center;
 }
@@ -3730,6 +3843,7 @@ onMounted(async () => {
   font-size: 20px;
   line-height: 1;
   font-weight: 900;
+  overflow-wrap: anywhere;
 }
 
 .h5-order-footer__summary small {
@@ -3741,7 +3855,7 @@ onMounted(async () => {
 
 .h5-order-footer__submit {
   width: 100%;
-  height: 48px;
+  min-height: 48px;
   border: 0;
   border-radius: 999px;
   background: linear-gradient(135deg, #0b2343 0%, var(--hourx-brand) 100%);
@@ -3750,14 +3864,15 @@ onMounted(async () => {
   align-items: center;
   justify-content: center;
   gap: 7px;
-  padding: 0 14px;
+  padding: 5px 14px;
   font-size: 13px;
   font-weight: 800;
-  white-space: nowrap;
+  line-height: 1.2;
   box-shadow: 0 7px 16px rgba(5, 21, 43, 0.18);
 }
 
 .h5-order-footer__submit :deep(.van-icon) {
+  flex: none;
   font-size: 14px;
 }
 
@@ -4124,16 +4239,11 @@ onMounted(async () => {
 }
 
 @media (max-width: 360px) {
-  .h5-order-grid--two {
-    grid-template-columns: 1fr;
-  }
-
   .h5-add-address-field__phone {
     grid-template-columns: 1fr;
   }
 
   .h5-order-footer {
-    grid-template-columns: minmax(76px, 0.65fr) minmax(184px, 1.55fr);
     gap: 4px 8px;
   }
 
@@ -4142,7 +4252,7 @@ onMounted(async () => {
   }
 
   .h5-order-footer__submit {
-    padding: 0 10px;
+    padding-inline: 10px;
     font-size: 11.5px;
   }
 }

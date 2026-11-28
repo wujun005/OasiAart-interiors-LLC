@@ -83,7 +83,10 @@
               </div>
               <p v-if="item.description" class="service-card__description">{{ item.description }}</p>
               <div class="service-card__foot">
-                <p class="service-card__price">{{ item.price }}</p>
+                <p class="service-card__price">
+                  <s v-if="item.was">{{ item.was }}</s>
+                  {{ item.price }}
+                </p>
                 <button type="button" @click.stop="goProductDetail(item.spuId)">
                   {{ t("client.serviceList.card.bookNow") }}
                 </button>
@@ -120,6 +123,7 @@ type ServiceCardView = {
   title: string
   description: string
   price: string
+  was: string
   icon: string
   tags: string[]
 }
@@ -298,6 +302,13 @@ const formatPrice = (minPrice?: number | string | null) => {
   return t("client.serviceList.card.priceFrom", { price: value.toFixed(2) })
 }
 
+const struckFromPrice = (catalog?: number | string | null, current?: number | string | null) => {
+  const was = Number(catalog)
+  const now = Number(current)
+  if (!Number.isFinite(was) || !Number.isFinite(now) || was <= now + 0.009) return ""
+  return formatPrice(was)
+}
+
 const serviceCards = computed<ServiceCardView[]>(() => {
   const records = onShelfRecords.value || []
   if (!records.length) {
@@ -311,6 +322,7 @@ const serviceCards = computed<ServiceCardView[]>(() => {
         title: pickI18nValue(item.nameI18n, ""),
         description: toPlainText(pickI18nValue(item.descI18n, "")),
         price: formatPrice(item.minNotIncTaxPrice),
+        was: struckFromPrice(item.catalogMinNotIncTaxPrice, item.minNotIncTaxPrice),
         icon: item.imageUrls?.[0] || cardIconSet[index % cardIconSet.length],
         tags: [...new Set([
           ...serviceTagLabels(websitePromotions.value.serviceTags, item.id, categoryId.value, locale.value),
@@ -735,6 +747,14 @@ const goProductDetail = (spuId: string) => {
   font-size: 1.125rem;
   line-height: 1.2;
   font-weight: 700;
+}
+
+.service-card__price s {
+  display: block;
+  color: #8b97a8;
+  font-size: 0.78em;
+  font-weight: 600;
+  text-decoration: line-through;
 }
 
 .service-card__body button {

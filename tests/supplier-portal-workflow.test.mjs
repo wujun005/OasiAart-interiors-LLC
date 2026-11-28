@@ -224,7 +224,9 @@ async function harness(t, section = 'pricing', mobile = false) {
       if (name === '@/modules/admin/utils/supplierPortal') return portal
       if (name === '@/modules/admin/utils/i18n') return i18n
       if (name === '@/modules/admin/utils/supplierShelfNotice') return { supplierShelfNoticeUnread: { value: false } }
+      if (name === '@/modules/admin/utils/documentPreview') return { openPdfInNewPage: () => {} }
       if (name === '@/modules/admin/utils/supplierMap') return loadModule('src/modules/admin/utils/supplierMap.ts')
+      if (name === '@/modules/admin/utils/serviceDay') return loadModule('src/modules/admin/utils/serviceDay.ts')
       if (name === '@/modules/admin/utils/supplier-mine') return loadModule('src/modules/admin/utils/supplier-mine.ts')
       if (name === '@/modules/admin/utils/menuPermission') return { isSupplierStaffOrdersOnly: () => false, hasAdminMenuAccess: () => true }
       if (name === '@/modules/admin/utils/supplierReviewState') return loadModule('src/modules/admin/utils/supplierReviewState.ts')

@@ -158,30 +158,26 @@
           <strong>{{ formatAed(item.unitPrice) }}</strong>
         </div>
       </div>
-      <div class="checkout-promo">
-        <PromoCodeField
+      <dl class="checkout-dialog__total">
+        <div>
+          <dt>{{ t('client.cart.subtotal') }}</dt>
+          <dd>{{ formatAed(checkoutSubtotal) }}</dd>
+        </div>
+        <CheckoutPromoRow
           v-if="checkoutItems.length === 1"
           v-model="promoCode"
+          class="pay-promo"
           :loading="promoLoading"
           :error="promoError"
           :notice="promoNotice"
           :applied-code="activeCoupon?.couponCode || ''"
+          :discount="activeCoupon?.discountAmount || 0"
           @apply="applyPromo"
           @remove="resetPromo"
         />
         <p v-else-if="checkoutItems.length > 1" class="checkout-promo-note">
           {{ t('client.productDetail.booking.promoSingleOnly') }}
         </p>
-      </div>
-      <dl class="checkout-dialog__total">
-        <div>
-          <dt>{{ t('client.cart.subtotal') }}</dt>
-          <dd>{{ formatAed(checkoutSubtotal) }}</dd>
-        </div>
-        <div v-if="activeCoupon">
-          <dt>{{ t('client.productDetail.booking.promoDiscount') }}</dt>
-          <dd>-{{ formatAed(activeCoupon.discountAmount) }}</dd>
-        </div>
         <div>
           <dt>{{ t('client.cart.vat') }}</dt>
           <dd>{{ formatAed(payableTax) }}</dd>
@@ -235,7 +231,7 @@ import { ArrowRight, ShoppingCart } from '@element-plus/icons-vue';
 import fallbackImage from '@/assets/images/client/kv.png';
 import { useCart, type CartItem, type CartLocalizedText } from '@/modules/client/composables/useCart';
 import { checkoutCart } from '@/modules/client/api';
-import PromoCodeField from '@/modules/client/components/PromoCodeField.vue';
+import CheckoutPromoRow from '@/modules/client/components/CheckoutPromoRow.vue';
 import { usePromoCode } from '@/modules/client/composables/usePromoCode';
 import { cartItemCouponBody } from '@/modules/client/utils/promo-code';
 import { trackInitiateCheckout } from '@/modules/client/utils/metaPixel';
@@ -1021,6 +1017,13 @@ onMounted(async () => {
   gap: 18px;
   color: #48576c;
   font-size: 13px;
+}
+
+.checkout-dialog__total > .pay-promo {
+  display: block;
+  color: #48576c;
+  font-size: 14px;
+  font-weight: 600;
 }
 
 .checkout-dialog__total {
